@@ -32,6 +32,17 @@
  */
 
 /*
+ * @test id=stress-reflective-code
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -XX:+IgnoreUnrecognizedVMOptions -XX:+StressReflectiveCode
+ *                               compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
  * @test id=no-monomorphic
  * @summary Stress test the VM internal metadata for arrays.
  * @library /test/lib /
@@ -104,6 +115,7 @@ package compiler.valhalla.inlinetypes;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
+import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
 
 public class TestArrayMetadata {
@@ -210,6 +222,18 @@ public class TestArrayMetadata {
 
     public static boolean testIsInstance5(Object arg) {
         return getArrayClass5().isInstance(arg);
+    }
+
+    static value class MyIntegerValue {
+        int x = 42;
+    }
+
+    public static Class getArrayClass6() {
+        return MyIntegerValue[].class;
+    }
+
+    public static boolean testIsInstance6(Object arg) {
+        return getArrayClass6().isInstance(arg);
     }
 
     public static Object[] testCopyOf1(Object[] array, Class<? extends Object[]> clazz) {
@@ -418,8 +442,17 @@ public class TestArrayMetadata {
             Asserts.assertEQ(testGetSuperclass2(), Object.class);
             Asserts.assertEQ(testGetSuperclass3(), Object.class);
 
+            MyIntegerValue[] nullFreeArray6 = (MyIntegerValue[])ValueClass.newNullRestrictedNonAtomicArray(MyIntegerValue.class, 3, new MyIntegerValue());
+            MyIntegerValue[] nullFreeAtomicArray6 = (MyIntegerValue[])ValueClass.newNullRestrictedAtomicArray(MyIntegerValue.class, 3, new MyIntegerValue());
+            MyIntegerValue[] nullableArray6 = new MyIntegerValue[3];
+            MyIntegerValue[] nullableAtomicArray6 = (MyIntegerValue[])ValueClass.newNullableAtomicArray(MyIntegerValue.class, 3);
+
             Asserts.assertTrue(testIsInstance1(new Object[0]));
             Asserts.assertTrue(testIsInstance1(new TestArrayMetadata[0]));
+            Asserts.assertTrue(testIsInstance1(nullFreeArray6));
+            Asserts.assertTrue(testIsInstance1(nullFreeAtomicArray6));
+            Asserts.assertTrue(testIsInstance1(nullableArray6));
+            Asserts.assertTrue(testIsInstance1(nullableAtomicArray6));
             Asserts.assertFalse(testIsInstance1(42));
             Asserts.assertTrue(testIsInstance1(array1));
             Asserts.assertTrue(testIsInstance1(array3));
@@ -438,6 +471,10 @@ public class TestArrayMetadata {
 
             Asserts.assertTrue(testIsInstance3(new Object[0]));
             Asserts.assertTrue(testIsInstance3(new TestArrayMetadata[0]));
+            Asserts.assertTrue(testIsInstance3(nullFreeArray6));
+            Asserts.assertTrue(testIsInstance3(nullFreeAtomicArray6));
+            Asserts.assertTrue(testIsInstance3(nullableArray6));
+            Asserts.assertTrue(testIsInstance3(nullableAtomicArray6));
             Asserts.assertFalse(testIsInstance3(42));
             Asserts.assertTrue(testIsInstance3(array1));
             Asserts.assertTrue(testIsInstance3(array3));
@@ -447,6 +484,10 @@ public class TestArrayMetadata {
 
             Asserts.assertTrue(testIsInstance4(new Object[0]));
             Asserts.assertTrue(testIsInstance4(new TestArrayMetadata[0]));
+            Asserts.assertTrue(testIsInstance4(nullFreeArray6));
+            Asserts.assertTrue(testIsInstance4(nullFreeAtomicArray6));
+            Asserts.assertTrue(testIsInstance4(nullableArray6));
+            Asserts.assertTrue(testIsInstance4(nullableAtomicArray6));
             Asserts.assertTrue(testIsInstance4(42));
             Asserts.assertTrue(testIsInstance4(array1));
             Asserts.assertTrue(testIsInstance4(array3));
@@ -458,6 +499,13 @@ public class TestArrayMetadata {
             Asserts.assertTrue(testIsInstance5(new TestArrayMetadata[0][0]));
             Asserts.assertTrue(testIsInstance5(array2));
             Asserts.assertFalse(testIsInstance5(42));
+
+            Asserts.assertFalse(testIsInstance6(new Object[0]));
+            Asserts.assertFalse(testIsInstance6(42));
+            Asserts.assertTrue(testIsInstance6(nullFreeArray6));
+            Asserts.assertTrue(testIsInstance6(nullFreeAtomicArray6));
+            Asserts.assertTrue(testIsInstance6(nullableArray6));
+            Asserts.assertTrue(testIsInstance6(nullableAtomicArray6));
 
             test5(new Object[1], new TestArrayMetadata());
             test5((new Object[1][1])[0], (new TestArrayMetadata[1])[0]);

@@ -181,10 +181,6 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     }
     // Mark the call node as virtual, sort of:
     call->set_optimized_virtual(true);
-    if (method()->is_method_handle_intrinsic() ||
-        method()->is_compiled_lambda_form()) {
-      call->set_method_handle_invoke(true);
-    }
   }
   kit.set_arguments_for_java_call(call, is_late_inline());
   if (kit.stopped()) {
@@ -497,6 +493,10 @@ class LateInlineVirtualCallGenerator : public VirtualCallGenerator {
 
   // Convert the CallDynamicJava into an inline
   virtual void do_late_inline();
+
+  virtual ciMethod* callee_method() {
+    return _callee;
+  }
 
   virtual void set_callee_method(ciMethod* m) {
     assert(_callee == nullptr || _callee == m, "repeated inline attempt with different callee");

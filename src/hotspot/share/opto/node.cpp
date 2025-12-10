@@ -550,6 +550,14 @@ Node *Node::clone() const {
       to[i] = from[i]->clone();
     }
   }
+  if (this->is_MachProj()) {
+    // MachProjNodes contain register masks that may contain pointers to
+    // externally allocated memory. Make sure to use a proper constructor
+    // instead of just shallowly copying.
+    MachProjNode* mach = n->as_MachProj();
+    MachProjNode* mthis = this->as_MachProj();
+    new (&mach->_rout) RegMask(mthis->_rout);
+  }
   if (n->is_Call()) {
     // CallGenerator is linked to the original node.
     CallGenerator* cg = n->as_Call()->generator();
@@ -566,6 +574,9 @@ Node *Node::clone() const {
   }
   if (n->is_InlineType()) {
     C->add_inline_type(n);
+  }
+  if (n->is_LoadFlat() || n->is_StoreFlat()) {
+    C->add_flat_access(n);
   }
   Compile::current()->record_modified_node(n);
   return n;                     // Return the clone
@@ -2601,7 +2612,7 @@ void Node::dump(const char* suffix, bool mark, outputStream* st, DumpConfig* dc)
     t->dump_on(st);
   } else if (t == Type::MEMORY) {
     st->print("  Memory:");
-    MemNode::dump_adr_type(this, adr_type(), st);
+    MemNode::dump_adr_type(adr_type(), st);
   } else if (Verbose || WizardMode) {
     st->print("  Type:");
     if (t) {
@@ -2799,12 +2810,12 @@ uint Node::match_edge(uint idx) const {
 // Register classes are defined for specific machines
 const RegMask &Node::out_RegMask() const {
   ShouldNotCallThis();
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 const RegMask &Node::in_RegMask(uint) const {
   ShouldNotCallThis();
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 void Node_Array::grow(uint i) {
@@ -2888,6 +2899,20 @@ Node* Node::find_similar(int opc) {
   return nullptr;
 }
 
+Node* Node::unique_multiple_edges_out_or_null() const {
+  Node* use = nullptr;
+  for (DUIterator_Fast kmax, k = fast_outs(kmax); k < kmax; k++) {
+    Node* u = fast_out(k);
+    if (use == nullptr) {
+      use = u; // first use
+    } else if (u != use) {
+      return nullptr; // not unique
+    } else {
+      // secondary use
+    }
+  }
+  return use;
+}
 
 //--------------------------unique_ctrl_out_or_null-------------------------
 // Return the unique control out if only one. Null if none or more than one.

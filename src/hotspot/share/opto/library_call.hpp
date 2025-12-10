@@ -197,7 +197,8 @@ class LibraryCallKit : public GraphKit {
                                          region, null_path,
                                          offset);
   }
-  Node* load_default_array_klass(Node* klass_node);
+  Node* load_default_refined_array_klass(Node* klass_node, bool type_array_guard = true);
+  Node* load_non_refined_array_klass(Node* klass_node);
 
   Node* generate_klass_flags_guard(Node* kls, int modifier_mask, int modifier_bits, RegionNode* region,
                                    ByteSize offset, const Type* type, BasicType bt);
@@ -285,6 +286,8 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
   bool inline_newArray(bool null_free, bool atomic);
+  typedef enum { IsFlat, IsNullRestricted, IsAtomic } ArrayPropertiesCheck;
+  bool inline_getArrayProperties(ArrayPropertiesCheck check);
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
@@ -346,6 +349,9 @@ class LibraryCallKit : public GraphKit {
   typedef enum { LS_get_add, LS_get_set, LS_cmp_swap, LS_cmp_swap_weak, LS_cmp_exchange } LoadStoreKind;
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
   bool inline_unsafe_fence(vmIntrinsics::ID id);
+  bool inline_arrayInstanceBaseOffset();
+  bool inline_arrayInstanceIndexScale();
+  bool inline_arrayLayout();
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
   bool inline_fp_range_check(vmIntrinsics::ID id);

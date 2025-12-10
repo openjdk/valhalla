@@ -23,7 +23,7 @@
 
 /*
  * @test id=serialgc
- * @bug 8321734 8348961
+ * @bug 8321734 8348961 8332406
  * @requires vm.gc.Serial
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
@@ -37,7 +37,7 @@
 
 /*
  * @test
- * @bug 8321734 8348961
+ * @bug 8321734 8348961 8332406
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
  *          super class being flat in array while the sub klass could be flat in array.
@@ -290,4 +290,28 @@ public class TestFlatInArraysFolding {
     }
 
     static value class V {}
+
+    static final Object OBJ = new Object();
+
+    @Test
+    static Object testEqualMeet1(boolean b, Object[] array, int i) {
+        return b ? array[i] : OBJ;
+    }
+
+    @Run(test = "testEqualMeet1")
+    public void testEqualMeet1_verifier() {
+        testEqualMeet1(true, new Object[1], 0);
+        testEqualMeet1(false, new Object[1], 0);
+    }
+
+    @Test
+    static Object testEqualMeet2(boolean b, Object[] array, int i) {
+        return b ? OBJ : array[i];
+    }
+
+    @Run(test = "testEqualMeet2")
+    public void testEqualMeet2_verifier() {
+        testEqualMeet2(true, new Object[1], 0);
+        testEqualMeet2(false, new Object[1], 0);
+    }
 }

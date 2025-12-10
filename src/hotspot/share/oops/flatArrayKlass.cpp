@@ -57,7 +57,7 @@
 FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
                 ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
-  assert(lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
+  assert(LayoutKindHelper::is_flat(lk), "Must be a flat layout");
 
   set_element_klass(InlineKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
@@ -96,7 +96,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
@@ -151,7 +151,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
-  bool null_free = lk != LayoutKind::NULLABLE_ATOMIC_FLAT;
+  bool null_free = !LayoutKindHelper::is_nullable_flat(lk);
   int lh = Klass::array_layout_helper(_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
@@ -286,7 +286,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         flatArrayHandle hd(THREAD, da);
         flatArrayHandle hs(THREAD, sa);
         // source and destination layouts mismatch, simpler solution is to copy through an intermediate buffer (heap instance)
-        bool need_null_check = fsk->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT && fdk->layout_kind() != LayoutKind::NULLABLE_ATOMIC_FLAT;
+        bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
         oop buffer = vk->allocate_instance(CHECK);
         address dst = (address) hd->value_at_addr(dst_pos, fdk->layout_helper());
         address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());

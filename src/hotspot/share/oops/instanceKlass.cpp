@@ -168,7 +168,7 @@ static inline bool is_class_loader(const Symbol* class_name,
     return true;
   }
 
-  if (vmClasses::ClassLoader_klass_loaded()) {
+  if (vmClasses::ClassLoader_klass_is_loaded()) {
     const Klass* const super_klass = parser.super_klass();
     if (super_klass != nullptr) {
       if (super_klass->is_subtype_of(vmClasses::ClassLoader_klass())) {
@@ -485,11 +485,6 @@ const char* InstanceKlass::nest_host_error() {
   }
 }
 
-void* InstanceKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size,
-                                  bool use_class_space, TRAPS) throw() {
-  return Metaspace::allocate(loader_data, word_size, ClassType, use_class_space, THREAD);
-}
-
 InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
   const int size = InstanceKlass::size(parser.vtable_size(),
                                        parser.itable_size(),
@@ -503,30 +498,29 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   assert(loader_data != nullptr, "invariant");
 
   InstanceKlass* ik;
-  const bool use_class_space = UseClassMetaspaceForAllClasses || parser.klass_needs_narrow_id();
 
   // Allocation
   if (parser.is_instance_ref_klass()) {
     // java.lang.ref.Reference
-    ik = new (loader_data, size, use_class_space, THREAD) InstanceRefKlass(parser);
+    ik = new (loader_data, size, THREAD) InstanceRefKlass(parser);
   } else if (class_name == vmSymbols::java_lang_Class()) {
     // mirror - java.lang.Class
-    ik = new (loader_data, size, use_class_space, THREAD) InstanceMirrorKlass(parser);
+    ik = new (loader_data, size, THREAD) InstanceMirrorKlass(parser);
   } else if (is_stack_chunk_class(class_name, loader_data)) {
     // stack chunk
-    ik = new (loader_data, size, use_class_space, THREAD) InstanceStackChunkKlass(parser);
+    ik = new (loader_data, size, THREAD) InstanceStackChunkKlass(parser);
   } else if (is_class_loader(class_name, parser)) {
     // class loader - java.lang.ClassLoader
-    ik = new (loader_data, size, use_class_space, THREAD) InstanceClassLoaderKlass(parser);
+    ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
   } else if (parser.is_inline_type()) {
     // inline type
-    ik = new (loader_data, size, use_class_space, THREAD) InlineKlass(parser);
+    ik = new (loader_data, size, THREAD) InlineKlass(parser);
   } else {
     // normal
-    ik = new (loader_data, size, use_class_space, THREAD) InstanceKlass(parser);
+    ik = new (loader_data, size, THREAD) InstanceKlass(parser);
   }
 
-  if (ik != nullptr && UseCompressedClassPointers && use_class_space) {
+  if (ik != nullptr && UseCompressedClassPointers) {
     assert(CompressedKlassPointers::is_encodable(ik),
            "Klass " PTR_FORMAT "needs a narrow Klass ID, but is not encodable", p2i(ik));
   }
@@ -609,6 +603,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _nest_host_index(0),
   _init_state(allocated),
   _reference_type(reference_type),
+  _acmp_maps_offset(0),
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
@@ -885,10 +880,11 @@ oop InstanceKlass::init_lock() const {
   return lock;
 }
 
-// Set the initialization lock to null so the object can be GC'ed.  Any racing
+// Set the initialization lock to null so the object can be GC'ed. Any racing
 // threads to get this lock will see a null lock and will not lock.
 // That's okay because they all check for initialized state after getting
-// the lock and return.
+// the lock and return. For preempted vthreads we keep the oop protected
+// in the ObjectMonitor (see ObjectMonitor::set_object_strong()).
 void InstanceKlass::fence_and_clear_init_lock() {
   // make sure previous stores are all done, notably the init_state.
   OrderAccess::storestore();
@@ -896,6 +892,31 @@ void InstanceKlass::fence_and_clear_init_lock() {
   assert(!is_not_initialized(), "class must be initialized now");
 }
 
+class PreemptableInitCall {
+  JavaThread* _thread;
+  bool _previous;
+  DEBUG_ONLY(InstanceKlass* _previous_klass;)
+ public:
+  PreemptableInitCall(JavaThread* thread, InstanceKlass* ik) : _thread(thread) {
+    _previous = thread->at_preemptable_init();
+    _thread->set_at_preemptable_init(true);
+    DEBUG_ONLY(_previous_klass = _thread->preempt_init_klass();)
+    DEBUG_ONLY(_thread->set_preempt_init_klass(ik));
+  }
+  ~PreemptableInitCall() {
+    _thread->set_at_preemptable_init(_previous);
+    DEBUG_ONLY(_thread->set_preempt_init_klass(_previous_klass));
+  }
+};
+
+void InstanceKlass::initialize_preemptable(TRAPS) {
+  if (this->should_be_initialized()) {
+    PreemptableInitCall pic(THREAD, this);
+    initialize_impl(THREAD);
+  } else {
+    assert(is_initialized(), "sanity check");
+  }
+}
 
 // See "The Virtual Machine Specification" section 2.16.5 for a detailed explanation of the class initialization
 // process. The step comments refers to the procedure described in that section.
@@ -1010,12 +1031,12 @@ static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, 
         if (!klass->is_inline_klass()) {
           // Non value class are allowed by the current spec, but it could be an indication
           // of an issue so let's log a warning
-          log_warning(class, preload)("Preloading of class %s during linking of class %s "
+          log_info(class, preload)("Preloading of class %s during linking of class %s "
                                       "(cause: LoadableDescriptors attribute) but loaded class is not a value class",
                                       class_name->as_C_string(), ik->name()->as_C_string());
         }
       } else {
-        log_warning(class, preload)("Preloading of class %s during linking of class %s "
+        log_info(class, preload)("Preloading of class %s during linking of class %s "
                                     "(cause: LoadableDescriptors attribute) failed",
                                     class_name->as_C_string(), ik->name()->as_C_string());
       }
@@ -1118,7 +1139,12 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   {
     HandleMark hm(THREAD);
     Handle h_init_lock(THREAD, init_lock());
-    ObjectLocker ol(h_init_lock, jt);
+    ObjectLocker ol(h_init_lock, CHECK_PREEMPTABLE_false);
+    // Don't allow preemption if we link/initialize classes below,
+    // since that would release this monitor while we are in the
+    // middle of linking this class.
+    NoPreemptMark npm(THREAD);
+
     // rewritten will have been set if loader constraint error found
     // on an earlier link attempt
     // don't verify or rewrite if already rewritten
@@ -1312,6 +1338,17 @@ void InstanceKlass::clean_initialization_error_table() {
   }
 }
 
+class ThreadWaitingForClassInit : public StackObj {
+  JavaThread* _thread;
+ public:
+  ThreadWaitingForClassInit(JavaThread* thread, InstanceKlass* ik) : _thread(thread) {
+    _thread->set_class_to_be_initialized(ik);
+  }
+  ~ThreadWaitingForClassInit() {
+    _thread->set_class_to_be_initialized(nullptr);
+  }
+};
+
 void InstanceKlass::initialize_impl(TRAPS) {
   HandleMark hm(THREAD);
 
@@ -1331,7 +1368,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Step 1
   {
     Handle h_init_lock(THREAD, init_lock());
-    ObjectLocker ol(h_init_lock, jt);
+    ObjectLocker ol(h_init_lock, CHECK_PREEMPTABLE);
 
     // Step 2
     // If we were to use wait() instead of waitInterruptibly() then
@@ -1344,9 +1381,8 @@ void InstanceKlass::initialize_impl(TRAPS) {
                                jt->name(), external_name(), init_thread_name());
       }
       wait = true;
-      jt->set_class_to_be_initialized(this);
-      ol.wait_uninterruptibly(jt);
-      jt->set_class_to_be_initialized(nullptr);
+      ThreadWaitingForClassInit twcl(THREAD, this);
+      ol.wait_uninterruptibly(CHECK_PREEMPTABLE);
     }
 
     // Step 3
@@ -1403,6 +1439,10 @@ void InstanceKlass::initialize_impl(TRAPS) {
       }
     }
   }
+
+  // Block preemption once we are the initializer thread. Unmounting now
+  // would complicate the reentrant case (identity is platform thread).
+  NoPreemptMark npm(THREAD);
 
   // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {

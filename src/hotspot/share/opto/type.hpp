@@ -29,8 +29,6 @@
 #include "opto/adlcVMDeps.hpp"
 #include "opto/compile.hpp"
 #include "opto/rangeinference.hpp"
-#include "runtime/handles.hpp"
-#include "runtime/sharedRuntime.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -1395,6 +1393,7 @@ protected:
   bool          _is_ptr_to_narrowoop;
   bool          _is_ptr_to_narrowklass;
   bool          _is_ptr_to_boxed_value;
+  bool          _is_ptr_to_strict_final_field;
 
   // If not InstanceTop or InstanceBot, indicates that this is
   // a particular instance of this type which is distinct.
@@ -1476,6 +1475,7 @@ public:
   bool is_ptr_to_narrowoop_nv() const { return _is_ptr_to_narrowoop; }
   bool is_ptr_to_narrowklass_nv() const { return _is_ptr_to_narrowklass; }
   bool is_ptr_to_boxed_value()   const { return _is_ptr_to_boxed_value; }
+  bool is_ptr_to_strict_final_field() const { return _is_ptr_to_strict_final_field; }
   bool is_known_instance()       const { return _instance_id > 0; }
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
@@ -2060,11 +2060,11 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   const bool _flat;
   const bool _null_free;
   const bool _atomic;
-  const bool _vm_type;
+  const bool _refined_type;
 
   static const TypeInterfaces* _array_interfaces;
-  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free, bool atomic, bool vm_type)
-    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free), _atomic(atomic), _vm_type(vm_type) {
+  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free, bool atomic, bool refined_type)
+    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free), _atomic(atomic), _refined_type(refined_type) {
     assert(klass == nullptr || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
   }
 
@@ -2103,7 +2103,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool vm_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type = false);
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -2111,11 +2111,11 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool vm_type = false);
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool vm_type = false);
-  static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling, bool vm_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type = false);
+  static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling, bool refined_type = false);
 
-  const TypeAryKlassPtr* get_vm_type(bool vm_type = true) const;
+  const TypeAryKlassPtr* cast_to_refined_array_klass_ptr(bool refined = true) const;
 
   const Type *elem() const { return _elem; }
 
@@ -2144,7 +2144,7 @@ public:
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }
   bool is_atomic()        const { return _atomic; }
-  bool is_vm_type()       const { return _vm_type; }
+  bool is_refined_type()  const { return _refined_type; }
   virtual bool can_be_inline_array() const;
 
 #ifndef PRODUCT

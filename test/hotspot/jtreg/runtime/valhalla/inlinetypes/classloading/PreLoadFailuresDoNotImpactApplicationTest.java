@@ -30,8 +30,10 @@
    @compile OuterValue.java
    @compile InnerValue.java
  * @enablePreview
- * @run junit PreLoadFailuresDoNotImpactApplicationTest
+ * @run junit runtime.valhalla.inlinetypes.classloading.PreLoadFailuresDoNotImpactApplicationTest
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;

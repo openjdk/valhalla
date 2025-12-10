@@ -34,7 +34,7 @@
 
 class ClassLoaderDataGraph : public AllStatic {
   friend class ClassLoaderData;
-  friend class ClassLoaderDataGraphKlassIteratorAtomic;
+  friend class ClassLoaderDataGraphIteratorAtomic;
   friend class VMStructs;
  private:
   class ClassLoaderDataGraphIterator;
@@ -57,7 +57,7 @@ class ClassLoaderDataGraph : public AllStatic {
   static ClassLoaderData* add_to_graph(Handle class_loader, bool has_class_mirror_holder);
 
  public:
-  static ClassLoaderData* find_or_create(Handle class_loader);
+  static ClassLoaderData* find_or_create(Handle class_loader, bool& created);
   static ClassLoaderData* add(Handle class_loader, bool has_class_mirror_holder);
   static void clean_module_and_package_info();
   static void purge(bool at_safepoint);
@@ -140,14 +140,14 @@ public:
   }
 };
 
-// An iterator that distributes Klasses to parallel worker threads.
-class ClassLoaderDataGraphKlassIteratorAtomic : public StackObj {
- Klass* volatile _next_klass;
- public:
-  ClassLoaderDataGraphKlassIteratorAtomic();
-  Klass* next_klass();
- private:
-  static Klass* next_klass_in_cldg(Klass* klass);
+// An iterator that distributes Klasses to parallel worker threads based on CLDs.
+class ClassLoaderDataGraphIteratorAtomic : public StackObj {
+  ClassLoaderData* volatile _cld;
+
+public:
+  ClassLoaderDataGraphIteratorAtomic();
+
+  ClassLoaderData* next();
 };
 
 #endif // SHARE_CLASSFILE_CLASSLOADERDATAGRAPH_HPP

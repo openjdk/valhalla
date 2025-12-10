@@ -32,6 +32,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/typeArrayOop.hpp"
 #include "utilities/accessFlags.hpp"
+#include "utilities/pair.hpp"
 
 class Annotations;
 template <typename T>
@@ -71,6 +72,8 @@ class OopMapBlocksBuilder : public ResourceObj {
 class FieldLayoutInfo : public ResourceObj {
  public:
   OopMapBlocksBuilder* oop_map_blocks;
+  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<int>* _oop_acmp_map;
   int _instance_size;
   int _nonstatic_field_size;
   int _static_field_size;
@@ -83,11 +86,20 @@ class FieldLayoutInfo : public ResourceObj {
   int _nullable_layout_size_in_bytes;
   int _null_marker_offset;
   int _null_reset_value_offset;
+  int _acmp_maps_offset;
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _has_inline_fields;
   bool _is_empty_inline_klass;
+  FieldLayoutInfo() : oop_map_blocks(nullptr), _nonoop_acmp_map(nullptr), _oop_acmp_map(nullptr),
+                      _instance_size(-1), _nonstatic_field_size(-1), _static_field_size(-1),
+                      _payload_alignment(-1), _payload_offset(-1), _payload_size_in_bytes(-1),
+                      _non_atomic_size_in_bytes(-1), _non_atomic_alignment(-1),
+                      _atomic_layout_size_in_bytes(-1), _nullable_layout_size_in_bytes(-1),
+                      _null_marker_offset(-1), _null_reset_value_offset(-1), _acmp_maps_offset(-1),
+                      _has_nonstatic_fields(false), _is_naturally_atomic(false), _must_be_atomic(false),
+                      _has_inline_fields(false), _is_empty_inline_klass(false) { }
 };
 
 // Parser for for .class files
@@ -561,10 +573,6 @@ class ClassFileParser {
 
   u2 java_fields_count() const { return _java_fields_count; }
   bool is_abstract() const { return _access_flags.is_abstract(); }
-
-  // Returns true if the Klass to be generated will need to be addressable
-  // with a narrow Klass ID.
-  bool klass_needs_narrow_id() const;
 
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }

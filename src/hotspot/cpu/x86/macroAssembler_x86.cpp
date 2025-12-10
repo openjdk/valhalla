@@ -2549,14 +2549,6 @@ void MacroAssembler::pop_cont_fastpath() {
   bind(L_done);
 }
 
-void MacroAssembler::inc_held_monitor_count() {
-  incrementq(Address(r15_thread, JavaThread::held_monitor_count_offset()));
-}
-
-void MacroAssembler::dec_held_monitor_count() {
-  decrementq(Address(r15_thread, JavaThread::held_monitor_count_offset()));
-}
-
 #ifdef ASSERT
 void MacroAssembler::stop_if_in_cont(Register cont, const char* name) {
   Label no_cont;
@@ -3015,7 +3007,8 @@ void MacroAssembler::vbroadcastss(XMMRegister dst, AddressLiteral src, int vecto
 // vblendvps(XMMRegister dst, XMMRegister nds, XMMRegister src, XMMRegister mask, int vector_len, bool compute_mask = true, XMMRegister scratch = xnoreg)
 void MacroAssembler::vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister mask, int vector_len, bool compute_mask, XMMRegister scratch) {
   // WARN: Allow dst == (src1|src2), mask == scratch
-  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1;
+  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1 &&
+                         !(VM_Version::is_intel_darkmont() && (dst == src1)); // partially fixed on Darkmont
   bool scratch_available = scratch != xnoreg && scratch != src1 && scratch != src2 && scratch != dst;
   bool dst_available = dst != mask && (dst != src1 || dst != src2);
   if (blend_emulation && scratch_available && dst_available) {
@@ -3039,7 +3032,8 @@ void MacroAssembler::vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister sr
 // vblendvpd(XMMRegister dst, XMMRegister nds, XMMRegister src, XMMRegister mask, int vector_len, bool compute_mask = true, XMMRegister scratch = xnoreg)
 void MacroAssembler::vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister mask, int vector_len, bool compute_mask, XMMRegister scratch) {
   // WARN: Allow dst == (src1|src2), mask == scratch
-  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1;
+  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1 &&
+                         !(VM_Version::is_intel_darkmont() && (dst == src1)); // partially fixed on Darkmont
   bool scratch_available = scratch != xnoreg && scratch != src1 && scratch != src2 && scratch != dst && (!compute_mask || scratch != mask);
   bool dst_available = dst != mask && (dst != src1 || dst != src2);
   if (blend_emulation && scratch_available && dst_available) {
@@ -6581,7 +6575,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
     orl(value, rtmp);
   }
 
-  cmpptr(count, 2<<shift); // Short arrays (< 8 bytes) fill by element
+  cmpptr(count, 8 << shift); // Short arrays (< 32 bytes) fill by element
   jcc(Assembler::below, L_fill_4_bytes); // use unsigned cmp
   if (!UseUnalignedLoadStores && !aligned && (t == T_BYTE || t == T_SHORT)) {
     Label L_skip_align2;
@@ -6644,13 +6638,36 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
           BIND(L_check_fill_64_bytes_avx2);
         }
         // Fill 64-byte chunks
-        Label L_fill_64_bytes_loop;
         vpbroadcastd(xtmp, xtmp, Assembler::AVX_256bit);
 
         subptr(count, 16 << shift);
         jcc(Assembler::less, L_check_fill_32_bytes);
-        align(16);
 
+        // align data for 64-byte chunks
+        Label L_fill_64_bytes_loop, L_align_64_bytes_loop;
+        if (EnableX86ECoreOpts) {
+            // align 'big' arrays to cache lines to minimize split_stores
+            cmpptr(count, 96 << shift);
+            jcc(Assembler::below, L_fill_64_bytes_loop);
+
+            // Find the bytes needed for alignment
+            movptr(rtmp, to);
+            andptr(rtmp, 0x1c);
+            jcc(Assembler::zero, L_fill_64_bytes_loop);
+            negptr(rtmp);           // number of bytes to fill 32-rtmp. it filled by 2 mov by 32
+            addptr(rtmp, 32);
+            shrptr(rtmp, 2 - shift);// get number of elements from bytes
+            subptr(count, rtmp);    // adjust count by number of elements
+
+            align(16);
+            BIND(L_align_64_bytes_loop);
+            movdl(Address(to, 0), xtmp);
+            addptr(to, 4);
+            subptr(rtmp, 1 << shift);
+            jcc(Assembler::greater, L_align_64_bytes_loop);
+        }
+
+        align(16);
         BIND(L_fill_64_bytes_loop);
         vmovdqu(Address(to, 0), xtmp);
         vmovdqu(Address(to, 32), xtmp);
@@ -6658,6 +6675,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
         subptr(count, 16 << shift);
         jcc(Assembler::greaterEqual, L_fill_64_bytes_loop);
 
+        align(16);
         BIND(L_check_fill_32_bytes);
         addptr(count, 8 << shift);
         jccb(Assembler::less, L_check_fill_8_bytes);
@@ -6702,6 +6720,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
       //
       // length is too short, just fill qwords
       //
+      align(16);
       BIND(L_fill_8_bytes_loop);
       movq(Address(to, 0), xtmp);
       addptr(to, 8);
@@ -6710,14 +6729,22 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
       jcc(Assembler::greaterEqual, L_fill_8_bytes_loop);
     }
   }
-  // fill trailing 4 bytes
-  BIND(L_fill_4_bytes);
-  testl(count, 1<<shift);
+
+  Label L_fill_4_bytes_loop;
+  testl(count, 1 << shift);
   jccb(Assembler::zero, L_fill_2_bytes);
+
+  align(16);
+  BIND(L_fill_4_bytes_loop);
   movl(Address(to, 0), value);
+  addptr(to, 4);
+
+  BIND(L_fill_4_bytes);
+  subptr(count, 1 << shift);
+  jccb(Assembler::greaterEqual, L_fill_4_bytes_loop);
+
   if (t == T_BYTE || t == T_SHORT) {
     Label L_fill_byte;
-    addptr(to, 4);
     BIND(L_fill_2_bytes);
     // fill trailing 2 bytes
     testl(count, 1<<(shift-1));
@@ -10411,10 +10438,9 @@ void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Registe
   movptr(tmp, reg_rax);
   andptr(tmp, ~(int32_t)markWord::unlocked_value);
   orptr(reg_rax, markWord::unlocked_value);
-  if (EnableValhalla) {
-    // Mask inline_type bit such that we go to the slow path if object is an inline type
-    andptr(reg_rax, ~((int) markWord::inline_type_bit_in_place));
-  }
+  // Mask inline_type bit such that we go to the slow path if object is an inline type
+  andptr(reg_rax, ~((int) markWord::inline_type_bit_in_place));
+
   lock(); cmpxchgptr(tmp, Address(obj, oopDesc::mark_offset_in_bytes()));
   jcc(Assembler::notEqual, slow);
 

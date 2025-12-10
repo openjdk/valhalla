@@ -547,6 +547,9 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
                         RegisterMap::WalkContinuation::skip);
   // Now get the deoptee with a valid map
   frame deoptee = stub_frame.sender(&map);
+  if (exec_mode == Unpack_deopt) {
+    assert(deoptee.is_deoptimized_frame(), "frame is not marked for deoptimization");
+  }
   // Set the deoptee nmethod
   assert(current->deopt_compiled_method() == nullptr, "Pending deopt!");
   nmethod* nm = deoptee.cb()->as_nmethod_or_null();
@@ -637,12 +640,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   // Verify we have the right vframeArray
   assert(cb->frame_size() >= 0, "Unexpected frame size");
   intptr_t* unpack_sp = stub_frame.sp() + cb->frame_size();
-
-  // If the deopt call site is a MethodHandle invoke call site we have
-  // to adjust the unpack_sp.
-  nmethod* deoptee_nm = deoptee.cb()->as_nmethod_or_null();
-  if (deoptee_nm != nullptr && deoptee_nm->is_method_handle_return(deoptee.pc()))
-    unpack_sp = deoptee.unextended_sp();
+  assert(unpack_sp == deoptee.unextended_sp(), "must be");
 
 #ifdef ASSERT
   assert(cb->is_deoptimization_stub() ||
@@ -1461,6 +1459,9 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
 
     case T_INT: case T_FLOAT: { // 4 bytes.
       assert(value->type() == T_INT, "Agreement.");
+#if INCLUDE_JVMCI
+      // big_value allows encoding double/long value as e.g. [int = 0, long], and storing
+      // the value in two array elements.
       bool big_value = false;
       if (i + 1 < sv->field_size() && type == T_INT) {
         if (sv->field_at(i)->is_location()) {
@@ -1488,6 +1489,9 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
       } else {
         obj->int_at_put(index, value->get_jint());
       }
+#else // not INCLUDE_JVMCI
+      obj->int_at_put(index, value->get_jint());
+#endif // INCLUDE_JVMCI
       break;
     }
 
@@ -1746,12 +1750,21 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->maybe_flat_in_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->payload_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - vk->payload_offset();
   // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
-    ScopeValue* val = sv->field_at(i);
+    ObjectValue* val = sv->field_at(i)->as_ObjectValue();
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val, 0, (oop)obj, is_jvmci, offset, CHECK);
+    if (!obj->is_null_free_array()) {
+      jboolean null_marker_value;
+      if (val->has_properties()) {
+        null_marker_value = StackValue::create_stack_value(fr, reg_map, val->properties())->get_jint() & 1;
+      } else {
+        null_marker_value = 1;
+      }
+      obj->bool_field_put(offset + vk->null_marker_offset(), null_marker_value);
+    }
   }
 }
 
@@ -1825,7 +1838,7 @@ bool Deoptimization::relock_objects(JavaThread* thread, GrowableArray<MonitorInf
 #ifdef ASSERT
               else {
                 assert(!UseObjectMonitorTable, "must be");
-                mon_info->lock()->set_bad_metadata_deopt();
+                mon_info->lock()->set_bad_monitor_deopt();
               }
 #endif
               JvmtiDeferredUpdates::inc_relock_count_after_wait(deoptee_thread);
@@ -1978,10 +1991,11 @@ void Deoptimization::deoptimize(JavaThread* thread, frame fr, DeoptReason reason
   deoptimize_single_frame(thread, fr, reason);
 }
 
-#if INCLUDE_JVMCI
-address Deoptimization::deoptimize_for_missing_exception_handler(nmethod* nm) {
+address Deoptimization::deoptimize_for_missing_exception_handler(nmethod* nm, bool make_not_entrant) {
   // there is no exception handler for this pc => deoptimize
-  nm->make_not_entrant(nmethod::InvalidationReason::MISSING_EXCEPTION_HANDLER);
+  if (make_not_entrant) {
+    nm->make_not_entrant(nmethod::InvalidationReason::MISSING_EXCEPTION_HANDLER);
+  }
 
   // Use Deoptimization::deoptimize for all of its side-effects:
   // gathering traps statistics, logging...
@@ -1995,6 +2009,15 @@ address Deoptimization::deoptimize_for_missing_exception_handler(nmethod* nm) {
   frame runtime_frame = thread->last_frame();
   frame caller_frame = runtime_frame.sender(&reg_map);
   assert(caller_frame.cb()->as_nmethod_or_null() == nm, "expect top frame compiled method");
+
+  Deoptimization::deoptimize(thread, caller_frame, Deoptimization::Reason_not_compiled_exception_handler);
+
+  if (!nm->is_compiled_by_jvmci()) {
+    return SharedRuntime::deopt_blob()->unpack_with_exception_in_tls();
+  }
+
+#if INCLUDE_JVMCI
+  // JVMCI support
   vframe* vf = vframe::new_vframe(&caller_frame, &reg_map, thread);
   compiledVFrame* cvf = compiledVFrame::cast(vf);
   ScopeDesc* imm_scope = cvf->scope();
@@ -2010,16 +2033,15 @@ address Deoptimization::deoptimize_for_missing_exception_handler(nmethod* nm) {
     }
   }
 
-  Deoptimization::deoptimize(thread, caller_frame, Deoptimization::Reason_not_compiled_exception_handler);
 
   MethodData* trap_mdo = get_method_data(thread, methodHandle(thread, nm->method()), true);
   if (trap_mdo != nullptr) {
     trap_mdo->inc_trap_count(Deoptimization::Reason_not_compiled_exception_handler);
   }
+#endif
 
   return SharedRuntime::deopt_blob()->unpack_with_exception_in_tls();
 }
-#endif
 
 void Deoptimization::deoptimize_frame_internal(JavaThread* thread, intptr_t* id, DeoptReason reason) {
   assert(thread == Thread::current() ||
@@ -2922,10 +2944,10 @@ const char* Deoptimization::_trap_reason_name[] = {
   "unstable_if",
   "unstable_fused_if",
   "receiver_constraint",
+  "not_compiled_exception_handler",
   "short_running_loop" JVMCI_ONLY("_or_aliasing"),
 #if INCLUDE_JVMCI
   "transfer_to_interpreter",
-  "not_compiled_exception_handler",
   "unresolved",
   "jsr_mismatch",
 #endif

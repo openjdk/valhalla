@@ -433,20 +433,7 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   if (!UseArrayFlattening || !vk->is_layout_supported(lk)) {
     THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "Layout not supported");
   }
-  ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
-  switch(lk) {
-    case LayoutKind::ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-    break;
-    case LayoutKind::NON_ATOMIC_FLAT:
-      props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
-    break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-    props = ArrayKlass::ArrayProperties::NON_ATOMIC;
-    break;
-    default:
-      ShouldNotReachHere();
-  }
+  ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
   oop array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 } UNSAFE_END
@@ -903,7 +890,7 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
   }
 }
 
-UNSAFE_ENTRY(jint, Unsafe_ArrayBaseOffset1(JNIEnv *env, jobject unsafe, jarray array)) {
+UNSAFE_ENTRY(jint, Unsafe_ArrayInstanceBaseOffset0(JNIEnv *env, jobject unsafe, jarray array)) {
   assert(array != nullptr, "array must not be null");
   oop ar = JNIHandles::resolve_non_null(array);
   assert(ar->is_array(), "Must be an array");
@@ -947,7 +934,7 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale0(JNIEnv *env, jobject unsafe, jclass c
   return field_offset_from_byte_offset(scale) - field_offset_from_byte_offset(0);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale1(JNIEnv *env, jobject unsafe, jarray array)) {
+UNSAFE_ENTRY(jint, Unsafe_ArrayInstanceIndexScale0(JNIEnv *env, jobject unsafe, jarray array)) {
   assert(array != nullptr, "array must not be null");
   oop ar = JNIHandles::resolve_non_null(array);
   assert(ar->is_array(), "Must be an array");
@@ -961,6 +948,19 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale1(JNIEnv *env, jobject unsafe, jarray a
     ShouldNotReachHere();
   }
 } UNSAFE_END
+
+UNSAFE_ENTRY(jarray, Unsafe_GetFieldMap0(JNIEnv* env, jobject unsafe, jclass clazz)) {
+  oop mirror = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(mirror);
+
+  if (!k->is_inline_klass()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not a concrete value class");
+  }
+  InlineKlass* vk = InlineKlass::cast(k);
+  oop map = mirror->obj_field(vk->acmp_maps_offset());
+  return (jarray) JNIHandles::make_local(THREAD, map);
+} UNSAFE_END
+
 
 UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
@@ -1236,9 +1236,10 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "staticFieldBase0",   CC "(" FLD ")" OBJ,        FN_PTR(Unsafe_StaticFieldBase0)},
     {CC "ensureClassInitialized0", CC "(" CLS ")V",      FN_PTR(Unsafe_EnsureClassInitialized0)},
     {CC "arrayBaseOffset0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayBaseOffset0)},
-    {CC "arrayBaseOffset1",   CC "(" OBJ_ARR ")I",       FN_PTR(Unsafe_ArrayBaseOffset1)},
+    {CC "arrayInstanceBaseOffset0",   CC "(" OBJ_ARR ")I", FN_PTR(Unsafe_ArrayInstanceBaseOffset0)},
     {CC "arrayIndexScale0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayIndexScale0)},
-    {CC "arrayIndexScale1",   CC "(" OBJ_ARR ")I",       FN_PTR(Unsafe_ArrayIndexScale1)},
+    {CC "arrayInstanceIndexScale0",   CC "(" OBJ_ARR ")I", FN_PTR(Unsafe_ArrayInstanceIndexScale0)},
+    {CC "getFieldMap0",       CC "(Ljava/lang/Class;)[I", FN_PTR(Unsafe_GetFieldMap0)},
     {CC "getObjectSize0",     CC "(Ljava/lang/Object;)J", FN_PTR(Unsafe_GetObjectSize0)},
 
     {CC "defineClass0",       CC "(" DC_Args ")" CLS,    FN_PTR(Unsafe_DefineClass0)},

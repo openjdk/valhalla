@@ -44,10 +44,6 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
-void* ArrayKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
-  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, true, THREAD);
-}
-
 ArrayKlass::ArrayKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
@@ -220,6 +216,24 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 
 oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
+}
+
+ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
+  ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+  switch(lk) {
+    case LayoutKind::ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+      break;
+    case LayoutKind::NON_ATOMIC_FLAT:
+      props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::DEFAULT;
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+  return props;
 }
 
 // JVMTI support

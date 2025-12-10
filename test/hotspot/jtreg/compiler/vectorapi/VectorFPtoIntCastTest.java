@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
 
 /**
 * @test
-* @bug 8287835
-* @summary Test float/double to integral cast
+* @bug 8287835 8364305
+* @summary Test vector float/double to integral cast
 * @modules jdk.incubator.vector
 * @requires vm.compiler2.enabled
 * @library /test/lib /
@@ -88,7 +88,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_F2I, IRNode.VECTOR_SIZE_16, "> 0"},
-        applyIfCPUFeature = {"avx512f", "true"})
+        applyIfCPUFeatureOr = {"avx512f", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_F2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512f", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_F2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void float2int() {
         var cvec = (IntVector)fvec512.convertShape(VectorOperators.F2I, ispec512, 0);
         cvec.intoArray(int_arr, 0);
@@ -97,7 +101,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkf2int(int len) {
         for (int i = 0; i < len; i++) {
-            int expected = (int)float_arr[i];
+            int expected = (int) float_arr[i];
             if (int_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: int_arr[" + i + "] = " + int_arr[i] + " != " + expected);
             }
@@ -106,7 +110,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_F2L, IRNode.VECTOR_SIZE_8, "> 0"},
-        applyIfCPUFeature = {"avx512dq", "true"})
+        applyIfCPUFeatureOr = {"avx512dq", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_F2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512dq", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_F2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void float2long() {
         var cvec = (LongVector)fvec512.convertShape(VectorOperators.F2L, lspec512, 0);
         cvec.intoArray(long_arr, 0);
@@ -115,7 +123,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkf2long(int len) {
         for (int i = 0; i < len; i++) {
-            long expected = (long)float_arr[i];
+            long expected = (long) float_arr[i];
             if (long_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: long_arr[" + i + "] = " + long_arr[i] + " != " + expected);
             }
@@ -124,7 +132,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_F2S, IRNode.VECTOR_SIZE_16, "> 0"},
-        applyIfCPUFeature = {"avx512f", "true"})
+        applyIfCPUFeatureOr = {"avx512f", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_F2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512f", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_F2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void float2short() {
         var cvec = (ShortVector)fvec512.convertShape(VectorOperators.F2S, sspec256, 0);
         cvec.intoArray(short_arr, 0);
@@ -133,7 +145,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkf2short(int len) {
         for (int i = 0; i < len; i++) {
-            short expected = (short)float_arr[i];
+            short expected = (short) float_arr[i];
             if (short_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: short_arr[" + i + "] = " + short_arr[i] + " != " + expected);
             }
@@ -142,7 +154,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_F2B, IRNode.VECTOR_SIZE_16, "> 0"},
-        applyIfCPUFeature = {"avx512f", "true"})
+        applyIfCPUFeatureOr = {"avx512f", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_F2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512f", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_F2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void float2byte() {
         var cvec = (ByteVector)fvec512.convertShape(VectorOperators.F2B, bspec128, 0);
         cvec.intoArray(byte_arr, 0);
@@ -151,7 +167,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkf2byte(int len) {
         for (int i = 0; i < len; i++) {
-            byte expected = (byte)float_arr[i];
+            byte expected = (byte) float_arr[i];
             if (byte_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: byte_arr[" + i + "] = " + byte_arr[i] + " != " + expected);
             }
@@ -160,7 +176,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_D2I, IRNode.VECTOR_SIZE_8, "> 0"},
-        applyIfCPUFeature = {"avx512f", "true"})
+        applyIfCPUFeatureOr = {"avx512f", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_D2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512f", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_D2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void double2int() {
         var cvec = (IntVector)dvec512.convertShape(VectorOperators.D2I, ispec256, 0);
         cvec.intoArray(int_arr, 0);
@@ -169,7 +189,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkd2int(int len) {
         for (int i = 0; i < len; i++) {
-            int expected = (int)double_arr[i];
+            int expected = (int) double_arr[i];
             if (int_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: int_arr[" + i + "] = " + int_arr[i] + " != " + expected);
             }
@@ -178,7 +198,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_D2L, IRNode.VECTOR_SIZE_8, "> 0"},
-        applyIfCPUFeature = {"avx512dq", "true"})
+        applyIfCPUFeatureOr = {"avx512dq", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_D2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512dq", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_D2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void double2long() {
         var cvec = (LongVector)dvec512.convertShape(VectorOperators.D2L, lspec512, 0);
         cvec.intoArray(long_arr, 0);
@@ -187,7 +211,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkd2long(int len) {
         for (int i = 0; i < len; i++) {
-            long expected = (long)double_arr[i];
+            long expected = (long) double_arr[i];
             if (long_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: long_arr[" + i + "] = " + long_arr[i] + " != " + expected);
             }
@@ -196,7 +220,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_D2S, IRNode.VECTOR_SIZE_8, "> 0"},
-        applyIfCPUFeature = {"avx512f", "true"})
+        applyIfCPUFeatureOr = {"avx512f", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_D2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512f", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_D2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void double2short() {
         var cvec = (ShortVector)dvec512.convertShape(VectorOperators.D2S, sspec128, 0);
         cvec.intoArray(short_arr, 0);
@@ -205,7 +233,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkd2short(int len) {
         for (int i = 0; i < len; i++) {
-            short expected = (short)double_arr[i];
+            short expected = (short) double_arr[i];
             if (short_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: short_arr[" + i + "] = " + short_arr[i] + " != " + expected);
             }
@@ -214,7 +242,11 @@ public class VectorFPtoIntCastTest {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_D2B, IRNode.VECTOR_SIZE_8, "> 0"},
-        applyIfCPUFeature = {"avx512f", "true"})
+        applyIfCPUFeatureOr = {"avx512f", "true", "avx10_2", "true"})
+    @IR(counts = {IRNode.X86_VCAST_D2X, "> 0"},
+        applyIfCPUFeatureAnd = {"avx512f", "true", "avx10_2", "false"})
+    @IR(counts = {IRNode.X86_VCAST_D2X_AVX10, "> 0"},
+        applyIfCPUFeature = {"avx10_2", "true"})
     public void double2byte() {
         var cvec = (ByteVector)dvec512.convertShape(VectorOperators.D2B, bspec64, 0);
         cvec.intoArray(byte_arr, 0);
@@ -223,7 +255,7 @@ public class VectorFPtoIntCastTest {
 
     public void checkd2byte(int len) {
         for (int i = 0; i < len; i++) {
-            byte expected = (byte)double_arr[i];
+            byte expected = (byte) double_arr[i];
             if (byte_arr[i] != expected) {
                 throw new RuntimeException("Invalid result: byte_arr[" + i + "] = " + byte_arr[i] + " != " + expected);
             }

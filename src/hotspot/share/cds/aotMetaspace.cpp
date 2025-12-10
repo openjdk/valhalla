@@ -77,6 +77,7 @@
 #include "memory/universe.hpp"
 #include "nmt/memTracker.hpp"
 #include "oops/compressedKlass.hpp"
+#include "oops/constantPool.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
@@ -84,6 +85,7 @@
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "oops/trainingData.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
@@ -126,7 +128,7 @@ bool AOTMetaspace::_use_optimized_module_handling = true;
 // These regions are aligned with AOTMetaspace::core_region_alignment().
 //
 // These 2 regions are populated in the following steps:
-// [0] All classes are loaded in AOTMetaspace::loadable_descriptors(). All metadata are
+// [0] All classes are loaded in AOTMetaspace::load_classes(). All metadata are
 //     temporarily allocated outside of the shared regions.
 // [1] We enter a safepoint and allocate a buffer for the rw/ro regions.
 // [2] C++ vtables are copied into the rw region.
@@ -521,21 +523,102 @@ void AOTMetaspace::serialize(SerializeClosure* soc) {
   soc->do_tag(666);
 }
 
-static void rewrite_nofast_bytecode(const methodHandle& method) {
+// In AOTCache workflow, when dumping preimage, the constant pool entries are stored in unresolved state.
+// So the fast version of getfield/putfield needs to be converted to nofast version.
+// When dumping the final image in the assembly phase, these nofast versions are converted back to fast versions
+// if the constant pool entry refered by these bytecodes is stored in resolved state.
+// Same principle applies to static and dynamic archives. If the constant pool entry is in resolved state, then
+// the fast version of the bytecodes can be preserved, else use the nofast version.
+//
+// The fast versions of aload_0 (i.e. _fast_Xaccess_0) merges the bytecode pair (aload_0, fast_Xgetfield).
+// If the fast version of aload_0 is preserved in AOTCache, then the JVMTI notifications for field access and
+// breakpoint events will be skipped for the second bytecode (fast_Xgetfield) in the pair.
+// Same holds for fast versions of iload_0. So for these bytecodes, nofast version is used.
+static void rewrite_bytecodes(const methodHandle& method) {
+  ConstantPool* cp = method->constants();
   BytecodeStream bcs(method);
+  Bytecodes::Code new_code;
+
+  LogStreamHandle(Trace, aot, resolve) lsh;
+  if (lsh.is_enabled()) {
+    lsh.print("Rewriting bytecodes for ");
+    method()->print_external_name(&lsh);
+    lsh.print("\n");
+  }
+
   while (!bcs.is_last_bytecode()) {
     Bytecodes::Code opcode = bcs.next();
-    switch (opcode) {
-    case Bytecodes::_getfield:      *bcs.bcp() = Bytecodes::_nofast_getfield;      break;
-    case Bytecodes::_putfield:      *bcs.bcp() = Bytecodes::_nofast_putfield;      break;
-    case Bytecodes::_aload_0:       *bcs.bcp() = Bytecodes::_nofast_aload_0;       break;
-    case Bytecodes::_iload: {
-      if (!bcs.is_wide()) {
-        *bcs.bcp() = Bytecodes::_nofast_iload;
+    // Use current opcode as the default value of new_code
+    new_code = opcode;
+    switch(opcode) {
+    case Bytecodes::_getfield: {
+      uint rfe_index = bcs.get_index_u2();
+      bool is_resolved = cp->is_resolved(rfe_index, opcode);
+      if (is_resolved) {
+        assert(!CDSConfig::is_dumping_preimage_static_archive(), "preimage should not have resolved field references");
+        ResolvedFieldEntry* rfe = cp->resolved_field_entry_at(bcs.get_index_u2());
+        switch(rfe->tos_state()) {
+        case btos:
+          // fallthrough
+        case ztos: new_code = Bytecodes::_fast_bgetfield; break;
+        case atos: new_code = Bytecodes::_fast_agetfield; break;
+        case itos: new_code = Bytecodes::_fast_igetfield; break;
+        case ctos: new_code = Bytecodes::_fast_cgetfield; break;
+        case stos: new_code = Bytecodes::_fast_sgetfield; break;
+        case ltos: new_code = Bytecodes::_fast_lgetfield; break;
+        case ftos: new_code = Bytecodes::_fast_fgetfield; break;
+        case dtos: new_code = Bytecodes::_fast_dgetfield; break;
+        default:
+          ShouldNotReachHere();
+          break;
+        }
+      } else {
+        new_code = Bytecodes::_nofast_getfield;
       }
       break;
     }
-    default: break;
+    case Bytecodes::_putfield: {
+      uint rfe_index = bcs.get_index_u2();
+      bool is_resolved = cp->is_resolved(rfe_index, opcode);
+      if (is_resolved) {
+        assert(!CDSConfig::is_dumping_preimage_static_archive(), "preimage should not have resolved field references");
+        ResolvedFieldEntry* rfe = cp->resolved_field_entry_at(bcs.get_index_u2());
+        switch(rfe->tos_state()) {
+        case btos: new_code = Bytecodes::_fast_bputfield; break;
+        case ztos: new_code = Bytecodes::_fast_zputfield; break;
+        case atos: new_code = Bytecodes::_fast_aputfield; break;
+        case itos: new_code = Bytecodes::_fast_iputfield; break;
+        case ctos: new_code = Bytecodes::_fast_cputfield; break;
+        case stos: new_code = Bytecodes::_fast_sputfield; break;
+        case ltos: new_code = Bytecodes::_fast_lputfield; break;
+        case ftos: new_code = Bytecodes::_fast_fputfield; break;
+        case dtos: new_code = Bytecodes::_fast_dputfield; break;
+        default:
+          ShouldNotReachHere();
+          break;
+        }
+      } else {
+        new_code = Bytecodes::_nofast_putfield;
+      }
+      break;
+    }
+    case Bytecodes::_aload_0:
+      // Revert _fast_Xaccess_0 or _aload_0 to _nofast_aload_0
+      new_code = Bytecodes::_nofast_aload_0;
+      break;
+    case Bytecodes::_iload:
+      if (!bcs.is_wide()) {
+        new_code = Bytecodes::_nofast_iload;
+      }
+      break;
+    default:
+      break;
+    }
+    if (opcode != new_code) {
+      *bcs.bcp() = new_code;
+      if (lsh.is_enabled()) {
+        lsh.print_cr("%d:%s -> %s", bcs.bci(), Bytecodes::name(opcode), Bytecodes::name(new_code));
+      }
     }
   }
 }
@@ -543,11 +626,11 @@ static void rewrite_nofast_bytecode(const methodHandle& method) {
 // [1] Rewrite all bytecodes as needed, so that the ConstMethod* will not be modified
 //     at run time by RewriteBytecodes/RewriteFrequentPairs
 // [2] Assign a fingerprint, so one doesn't need to be assigned at run-time.
-void AOTMetaspace::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread* thread, InstanceKlass* ik) {
+void AOTMetaspace::rewrite_bytecodes_and_calculate_fingerprints(Thread* thread, InstanceKlass* ik) {
   for (int i = 0; i < ik->methods()->length(); i++) {
     methodHandle m(thread, ik->methods()->at(i));
     if (ik->can_be_verified_at_dumptime() && ik->is_linked()) {
-      rewrite_nofast_bytecode(m);
+      rewrite_bytecodes(m);
     }
     Fingerprinter fp(m);
     // The side effect of this call sets method's fingerprint field.
@@ -722,6 +805,7 @@ void VM_PopulateDumpSharedSpace::doit() {
   _map_info->set_cloned_vtables(CppVtables::vtables_serialized_base());
   _map_info->header()->set_class_location_config(cl_config);
 
+  HeapShared::delete_tables_with_raw_oops();
   CDSConfig::set_is_at_aot_safepoint(false);
 }
 
@@ -805,6 +889,23 @@ void AOTMetaspace::link_shared_classes(TRAPS) {
   AOTClassLinker::initialize();
   AOTClassInitializer::init_test_class(CHECK);
 
+  if (CDSConfig::is_dumping_final_static_archive()) {
+    // - Load and link all classes used in the training run.
+    // - Initialize @AOTSafeClassInitializer classes that were
+    //   initialized in the training run.
+    // - Perform per-class optimization such as AOT-resolution of
+    //   constant pool entries that were resolved during the training run.
+    FinalImageRecipes::apply_recipes(CHECK);
+
+    // Because the AOT assembly phase does not run the same exact code as in the
+    // training run (e.g., we use different lambda form invoker classes;
+    // generated lambda form classes are not recorded in FinalImageRecipes),
+    // the recipes do not cover all classes that have been loaded so far. As
+    // a result, we might have some unlinked classes at this point. Since we
+    // require cached classes to be linked, all such classes will be linked
+    // by the following step.
+  }
+
   link_all_loaded_classes(THREAD);
 
   // Eargerly resolve all string constants in constant pools
@@ -818,18 +919,12 @@ void AOTMetaspace::link_shared_classes(TRAPS) {
       AOTConstantPoolResolver::preresolve_string_cp_entries(ik, CHECK);
     }
   }
-
-  if (CDSConfig::is_dumping_final_static_archive()) {
-    FinalImageRecipes::apply_recipes(CHECK);
-  }
 }
 
-// Preload classes from a list, populate the shared spaces and dump to a
-// file.
-void AOTMetaspace::preload_and_dump(TRAPS) {
+void AOTMetaspace::dump_static_archive(TRAPS) {
   CDSConfig::DumperThreadMark dumper_thread_mark(THREAD);
   ResourceMark rm(THREAD);
- HandleMark hm(THREAD);
+  HandleMark hm(THREAD);
 
  if (CDSConfig::is_dumping_final_static_archive() && AOTPrintTrainingInfo) {
    tty->print_cr("==================== archived_training_data ** before dumping ====================");
@@ -837,7 +932,7 @@ void AOTMetaspace::preload_and_dump(TRAPS) {
  }
 
   StaticArchiveBuilder builder;
-  preload_and_dump_impl(builder, THREAD);
+  dump_static_archive_impl(builder, THREAD);
   if (HAS_PENDING_EXCEPTION) {
     if (PENDING_EXCEPTION->is_a(vmClasses::OutOfMemoryError_klass())) {
       aot_log_error(aot)("Out of memory. Please run with a larger Java heap, current MaxHeapSize = "
@@ -903,7 +998,7 @@ void AOTMetaspace::get_default_classlist(char* default_classlist, const size_t b
                Arguments::get_java_home(), filesep, filesep);
 }
 
-void AOTMetaspace::loadable_descriptors(TRAPS) {
+void AOTMetaspace::load_classes(TRAPS) {
   char default_classlist[JVM_MAXPATHLEN];
   const char* classlist_path;
 
@@ -930,8 +1025,8 @@ void AOTMetaspace::loadable_descriptors(TRAPS) {
     }
   }
 
-  // Some classes are used at CDS runtime but are not loaded, and therefore archived, at
-  // dumptime. We can perform dummmy calls to these classes at dumptime to ensure they
+  // Some classes are used at CDS runtime but are not yet loaded at this point.
+  // We can perform dummmy calls to these classes at dumptime to ensure they
   // are archived.
   exercise_runtime_cds_code(CHECK);
 
@@ -947,10 +1042,10 @@ void AOTMetaspace::exercise_runtime_cds_code(TRAPS) {
   CDSProtectionDomain::to_file_URL("dummy.jar", Handle(), CHECK);
 }
 
-void AOTMetaspace::preload_and_dump_impl(StaticArchiveBuilder& builder, TRAPS) {
+void AOTMetaspace::dump_static_archive_impl(StaticArchiveBuilder& builder, TRAPS) {
   if (CDSConfig::is_dumping_classic_static_archive()) {
     // We are running with -Xshare:dump
-    loadable_descriptors(CHECK);
+    load_classes(CHECK);
 
     if (SharedArchiveConfigFile) {
       log_info(aot)("Reading extra data from %s ...", SharedArchiveConfigFile);
@@ -1078,11 +1173,6 @@ bool AOTMetaspace::write_static_archive(ArchiveBuilder* builder, FileMapInfo* ma
     return false;
   }
   builder->write_archive(map_info, heap_info);
-
-  if (AllowArchivingWithJavaAgent) {
-    aot_log_warning(aot)("This %s was created with AllowArchivingWithJavaAgent. It should be used "
-            "for testing purposes only and should not be used in a production environment", CDSConfig::type_of_archive_being_loaded());
-  }
   return true;
 }
 

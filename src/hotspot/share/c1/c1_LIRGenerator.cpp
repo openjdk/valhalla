@@ -641,7 +641,7 @@ void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, L
   // setup registers
   LIR_Opr hdr = lock;
   lock = new_hdr;
-  CodeStub* slow_path = new MonitorExitStub(lock, true, monitor_no);
+  CodeStub* slow_path = new MonitorExitStub(lock, monitor_no);
   __ load_stack_address_monitor(monitor_no, lock);
   __ unlock_object(hdr, object, lock, scratch, slow_path);
 }
@@ -771,6 +771,11 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     if (expected_type == nullptr) expected_type = src_declared_type;
     if (expected_type == nullptr) expected_type = dst_declared_type;
 
+    if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass());
+    }
+
     src_objarray = (src_exact_type && src_exact_type->is_obj_array_klass()) || (src_declared_type && src_declared_type->is_obj_array_klass());
     dst_objarray = (dst_exact_type && dst_exact_type->is_obj_array_klass()) || (dst_declared_type && dst_declared_type->is_obj_array_klass());
   }
@@ -896,12 +901,6 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     }
   }
   *flagsp = flags;
-
-  // TODO 8366668
-  if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
-    expected_type = ciArrayKlass::make(expected_type->as_array_klass()->element_klass(), false, true, true);
-  }
-
   *expected_typep = (ciArrayKlass*)expected_type;
 }
 
@@ -1741,7 +1740,7 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
   return elm_op;
 }
 
-void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
+void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset) {
   assert(field != nullptr, "Need a subelement type specified");
 
   // Find the starting address of the source (inside the array)
@@ -1753,12 +1752,12 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
 
   DecoratorSet decorators = IN_HEAP;
   access_load_at(decorators, subelt_type,
-                     elm_item, LIR_OprFact::intConst(sub_offset), result,
+                     elm_item, LIR_OprFact::longConst(sub_offset), result,
                      nullptr, nullptr);
 }
 
 void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
-                                          ciField* field, int sub_offset) {
+                                          ciField* field, size_t sub_offset) {
   assert(sub_offset == 0 || field != nullptr, "Sanity check");
 
   // Find the starting address of the source (inside the array)
@@ -1774,7 +1773,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "flat fields must have been expanded");
     int obj_offset = inner_field->offset_in_bytes();
-    int elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
+    size_t elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
 
     // Types which are smaller than int are still passed in an int register.
@@ -1797,7 +1796,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     DecoratorSet decorators = IN_HEAP;
     if (is_load) {
       access_load_at(decorators, field_type,
-                     elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                     elm_item, LIR_OprFact::longConst(elm_offset), temp,
                      nullptr, nullptr);
       access_store_at(decorators, field_type,
                       obj_item, LIR_OprFact::intConst(obj_offset), temp,
@@ -1807,7 +1806,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
                      obj_item, LIR_OprFact::intConst(obj_offset), temp,
                      nullptr, nullptr);
       access_store_at(decorators, field_type,
-                      elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                      elm_item, LIR_OprFact::longConst(elm_offset), temp,
                       nullptr, nullptr);
     }
   }
@@ -1901,6 +1900,11 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     }
   }
 
+  if (GenerateArrayStoreCheck && needs_store_check) {
+    CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
+    array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
+  }
+
   if (x->should_profile()) {
     if (is_loaded_flat_array) {
       // No need to profile a store to a flat array of known type. This can happen if
@@ -1916,14 +1920,9 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       profile_array_type(x, md, store_data);
       assert(store_data->is_ArrayStoreData(), "incorrect profiling entry");
       if (x->array()->maybe_null_free_array()) {
-        profile_null_free_array(array, md, store_data);
+        profile_null_free_array(array, md, data);
       }
     }
-  }
-
-  if (GenerateArrayStoreCheck && needs_store_check) {
-    CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
-    array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
   if (is_loaded_flat_array) {
@@ -2281,7 +2280,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   ciMethodData* md = nullptr;
-  ciArrayLoadData* load_data = nullptr;
+  ciProfileData* data = nullptr;
   if (x->should_profile()) {
     if (x->array()->is_loaded_flat_array()) {
       // No need to profile a load from a flat array of known type. This can happen if
@@ -2291,14 +2290,14 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       int bci = x->profiled_bci();
       md = x->profiled_method()->method_data();
       assert(md != nullptr, "Sanity");
-      ciProfileData* data = md->bci_to_data(bci);
+      data = md->bci_to_data(bci);
       assert(data != nullptr && data->is_ArrayLoadData(), "incorrect profiling entry");
-      load_data = (ciArrayLoadData*)data;
+      ciArrayLoadData* load_data = (ciArrayLoadData*)data;
       profile_array_type(x, md, load_data);
     }
   }
 
-  Value element;
+  Value element = nullptr;
   if (x->vt() != nullptr) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
@@ -2317,7 +2316,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     LoadFlattenedArrayStub* slow_path = nullptr;
 
     if (x->should_profile() && x->array()->maybe_null_free_array()) {
-      profile_null_free_array(array, md, load_data);
+      profile_null_free_array(array, md, data);
     }
 
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flat_array()) {
@@ -2343,7 +2342,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   if (x->should_profile()) {
-    profile_element_type(element, md, load_data);
+    profile_element_type(element, md, (ciArrayLoadData*)data);
   }
 }
 
@@ -2819,16 +2818,6 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     assert(type == nullptr || type->is_klass(), "type should be class");
     exact_klass = (type != nullptr && type->is_loaded()) ? (ciKlass*)type : nullptr;
 
-    // TODO 8366668
-    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
-      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
-        // Could be flat, null free etc.
-        exact_klass = nullptr;
-      } else {
-        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
-      }
-    }
-
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
@@ -2866,20 +2855,21 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
         exact_klass = exact_signature_k;
       }
     }
-
-    // TODO 8366668
-    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
-      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
-        // Could be flat, null free etc.
-        exact_klass = nullptr;
-      } else {
-        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
-      }
-    }
-
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
+  if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+    if (exact_klass->can_be_inline_array_klass()) {
+      // Inline type arrays can have additional properties, we need to load the klass
+      // TODO 8350865 Can we do better here and track the properties?
+      exact_klass = nullptr;
+      do_update = true;
+    } else {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
+      do_update = ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
+    }
+  }
   if (!do_null && !do_update) {
     return result;
   }
@@ -2940,22 +2930,24 @@ void LIRGenerator::profile_flags(ciMethodData* md, ciProfileData* data, int flag
   LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(data, DataLayout::flags_offset()), T_BYTE);
   LIR_Opr flags = new_register(T_INT);
   __ move(addr, flags);
+  LIR_Opr update;
   if (condition != lir_cond_always) {
-    LIR_Opr update = new_register(T_INT);
+    update = new_register(T_INT);
     __ cmove(condition, LIR_OprFact::intConst(0), LIR_OprFact::intConst(flag), update, T_INT);
   } else {
-    __ logical_or(flags, LIR_OprFact::intConst(flag), flags);
+    update = LIR_OprFact::intConst(flag);
   }
+  __ logical_or(flags, update, flags);
   __ store(flags, addr);
 }
 
-template <class ArrayData> void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ArrayData* load_store) {
+void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciProfileData* data) {
   assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
   __ check_null_free_array(array.result(), tmp);
 
-  profile_flags(md, load_store, ArrayStoreData::null_free_array_byte_constant(), lir_cond_equal);
+  profile_flags(md, data, ArrayStoreData::null_free_array_byte_constant(), lir_cond_equal);
 }
 
 template <class ArrayData> void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ArrayData*& load_store) {
@@ -3185,19 +3177,7 @@ void LIRGenerator::do_Invoke(Invoke* x) {
   // emit invoke code
   assert(receiver->is_illegal() || receiver->is_equal(LIR_Assembler::receiverOpr()), "must match");
 
-  // JSR 292
-  // Preserve the SP over MethodHandle call sites, if needed.
   ciMethod* target = x->target();
-  bool is_method_handle_invoke = (// %%% FIXME: Are both of these relevant?
-                                  target->is_method_handle_intrinsic() ||
-                                  target->is_compiled_lambda_form());
-  if (is_method_handle_invoke) {
-    info->set_is_method_handle_invoke(true);
-    if(FrameMap::method_handle_invoke_SP_save_opr() != LIR_OprFact::illegalOpr) {
-        __ move(FrameMap::stack_pointer(), FrameMap::method_handle_invoke_SP_save_opr());
-    }
-  }
-
   switch (x->code()) {
     case Bytecodes::_invokestatic:
       __ call_static(target, result_register,
@@ -3228,13 +3208,6 @@ void LIRGenerator::do_Invoke(Invoke* x) {
     default:
       fatal("unexpected bytecode: %s", Bytecodes::name(x->code()));
       break;
-  }
-
-  // JSR 292
-  // Restore the SP after MethodHandle call sites, if needed.
-  if (is_method_handle_invoke
-      && FrameMap::method_handle_invoke_SP_save_opr() != LIR_OprFact::illegalOpr) {
-    __ move(FrameMap::method_handle_invoke_SP_save_opr(), FrameMap::stack_pointer());
   }
 
   if (result_register->is_valid()) {

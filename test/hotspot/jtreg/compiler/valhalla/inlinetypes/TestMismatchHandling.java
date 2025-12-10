@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,34 +33,34 @@
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
- *                   -XX:CompileCommand=compileonly,TestMismatchHandling::test*
- *                   TestMismatchHandling
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMismatchHandling::test*
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,*::method
- *                   TestMismatchHandling
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
- *                   TestMismatchHandling
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:-InlineTypePassFieldsAsArgs
- *                   TestMismatchHandling
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
  *                   -XX:-InlineTypeReturnedAsFields
- *                   TestMismatchHandling
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeNMethodBarriersALot
- *                   TestMismatchHandling
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   TestMismatchHandling
+ *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  */
 
 // ##################################### WARNING ######################################
@@ -74,8 +74,8 @@
   ASMTOOLS=/oracle/valhalla/open/test/lib
 
   # With preload attribute
-  javac --enable-preview --source 22 TestMismatchHandlingGenerator.java
-  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1.class MyValue2.class MyValue3.class MyValue4.class MyValue5.class MyValue6.class MyValue7.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class P.class Q.class R.class S.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
+  javac --enable-preview --source 26 TestMismatchHandlingGenerator.java
+  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1Mismatch.class MyValue2Mismatch.class MyValue3Mismatch.class MyValue4Mismatch.class MyValue5Mismatch.class MyValue6Mismatch.class MyValue7Mismatch.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class P.class Q.class R.class S.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
 
   # Without preload attribute
   sed -i 's/value class MyValue/class MyValue/g' TestMismatchHandlingGenerator.java
@@ -84,6 +84,8 @@
 
   sed -i 's/class MyValue/value class MyValue/g' TestMismatchHandlingGenerator.java
 */
+
+package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;

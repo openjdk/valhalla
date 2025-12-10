@@ -488,6 +488,8 @@ class Arguments : AllStatic {
   // Set up the underlying pieces of the boot class path
   static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
   static int finalize_patch_module();
+  static bool disable_preview_patching();
+
   static void set_boot_class_path(const char *value, bool has_jimage) {
     // During start up, set by os::set_boot_path()
     assert(get_boot_class_path() == nullptr, "Boot class path previously set");

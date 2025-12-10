@@ -168,7 +168,6 @@ class CollectedHeap : public CHeapObj<mtGC> {
 
 protected:
   static inline void zap_filler_array_with(HeapWord* start, size_t words, juint value);
-  DEBUG_ONLY(static void fill_args_check(HeapWord* start, size_t words);)
   DEBUG_ONLY(static void zap_filler_array(HeapWord* start, size_t words, bool zap = true);)
 
   // Fill with a single array; caller must ensure filler_array_min_size() <=
@@ -246,6 +245,13 @@ protected:
   // This is the correct place to place such initialization methods.
   virtual void post_initialize();
 
+  bool is_shutting_down() const;
+
+  // If the VM is shutting down, we may have skipped VM_CollectForAllocation.
+  // In this case, stall the allocation request briefly in the hope that
+  // the VM shutdown completes before the allocation request returns.
+  void stall_for_vm_shutdown();
+
   void before_exit();
 
   // Stop and resume concurrent GC threads interfering with safepoint operations
@@ -304,9 +310,6 @@ protected:
   static void fill_with_objects(HeapWord* start, size_t words, bool zap = true);
 
   static void fill_with_object(HeapWord* start, size_t words, bool zap = true);
-  static void fill_with_object(MemRegion region, bool zap = true) {
-    fill_with_object(region.start(), region.word_size(), zap);
-  }
   static void fill_with_object(HeapWord* start, HeapWord* end, bool zap = true) {
     fill_with_object(start, pointer_delta(end, start), zap);
   }
@@ -339,17 +342,17 @@ protected:
   virtual void ensure_parsability(bool retire_tlabs);
 
   // The amount of space available for thread-local allocation buffers.
-  virtual size_t tlab_capacity(Thread *thr) const = 0;
+  virtual size_t tlab_capacity() const = 0;
 
-  // The amount of used space for thread-local allocation buffers for the given thread.
-  virtual size_t tlab_used(Thread *thr) const = 0;
+  // The amount of space used for thread-local allocation buffers.
+  virtual size_t tlab_used() const = 0;
 
   virtual size_t max_tlab_size() const;
 
   // An estimate of the maximum allocation that could be performed
   // for thread-local allocation buffers without triggering any
   // collection or expansion activity.
-  virtual size_t unsafe_max_tlab_alloc(Thread *thr) const = 0;
+  virtual size_t unsafe_max_tlab_alloc() const = 0;
 
   // Perform a collection of the heap; intended for use in implementing
   // "System.gc".  This probably implies as full a collection as the

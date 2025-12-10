@@ -137,6 +137,7 @@ class MoveNode;
 class MulNode;
 class MultiNode;
 class MultiBranchNode;
+class NarrowMemProjNode;
 class NegNode;
 class NegVNode;
 class NeverBranchNode;
@@ -187,6 +188,8 @@ class TypeNode;
 class UnlockNode;
 class InlineTypeNode;
 class VectorBoxNode;
+class LoadFlatNode;
+class StoreFlatNode;
 class VectorNode;
 class LoadVectorNode;
 class LoadVectorMaskedNode;
@@ -427,6 +430,13 @@ public:
   Node* raw_out(uint i) const { assert(i < _outcnt,"oob"); return _out[i]; }
   // Return the unique out edge.
   Node* unique_out() const { assert(_outcnt==1,"not unique"); return _out[0]; }
+
+  // In some cases, a node n is only used by a single use, but the use may use
+  // n once or multiple times:
+  //   use = ConvF2I(this)
+  //   use = AddI(this, this)
+  Node* unique_multiple_edges_out_or_null() const;
+
   // Delete out edge at position 'i' by moving last out edge to position 'i'
   void  raw_del_out(uint i) {
     assert(i < _outcnt,"oob");
@@ -686,6 +696,8 @@ public:
             DEFINE_CLASS_ID(Lock,             AbstractLock, 0)
             DEFINE_CLASS_ID(Unlock,           AbstractLock, 1)
           DEFINE_CLASS_ID(ArrayCopy,        Call, 4)
+        DEFINE_CLASS_ID(LoadFlat,  SafePoint, 1)
+        DEFINE_CLASS_ID(StoreFlat, SafePoint, 2)
       DEFINE_CLASS_ID(MultiBranch, Multi, 1)
         DEFINE_CLASS_ID(PCTable,     MultiBranch, 0)
           DEFINE_CLASS_ID(Catch,       PCTable, 0)
@@ -774,6 +786,7 @@ public:
         DEFINE_CLASS_ID(IfFalse,   IfProj, 1)
       DEFINE_CLASS_ID(Parm,      Proj, 4)
       DEFINE_CLASS_ID(MachProj,  Proj, 5)
+      DEFINE_CLASS_ID(NarrowMemProj, Proj, 6)
 
     DEFINE_CLASS_ID(Mem, Node, 4)
       DEFINE_CLASS_ID(Load, Mem, 0)
@@ -997,6 +1010,7 @@ public:
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
   DEFINE_CLASS_QUERY(MulVL)
+  DEFINE_CLASS_QUERY(NarrowMemProj)
   DEFINE_CLASS_QUERY(Neg)
   DEFINE_CLASS_QUERY(NegV)
   DEFINE_CLASS_QUERY(NeverBranch)
@@ -1027,6 +1041,8 @@ public:
   DEFINE_CLASS_QUERY(Type)
   DEFINE_CLASS_QUERY(InlineType)
   DEFINE_CLASS_QUERY(VectorBox)
+  DEFINE_CLASS_QUERY(LoadFlat)
+  DEFINE_CLASS_QUERY(StoreFlat)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(VectorMaskCmp)
   DEFINE_CLASS_QUERY(VectorUnbox)
@@ -2103,6 +2119,7 @@ Op_IL(Sub)
 Op_IL(Mul)
 Op_IL(URShift)
 Op_IL(LShift)
+Op_IL(RShift)
 Op_IL(Xor)
 Op_IL(Cmp)
 Op_IL(Div)

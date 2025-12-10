@@ -30,9 +30,6 @@
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/stackValue.hpp"
-#if INCLUDE_ZGC
-#include "gc/z/zBarrier.inline.hpp"
-#endif
 #if INCLUDE_SHENANDOAHGC
 #include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #endif
@@ -142,7 +139,7 @@ StackValue* StackValue::create_stack_value_from_narrowOop_location(stackChunkOop
 
 
 template StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* reg_map, ScopeValue* sv);
-template StackValue* StackValue::create_stack_value(const frame* fr, const SmallRegisterMap* reg_map, ScopeValue* sv);
+template StackValue* StackValue::create_stack_value(const frame* fr, const SmallRegisterMapNoArgs* reg_map, ScopeValue* sv);
 
 template<typename RegisterMapT>
 StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* reg_map, ScopeValue* sv) {
@@ -267,7 +264,7 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* 
 }
 
 template address StackValue::stack_value_address(const frame* fr, const RegisterMap* reg_map, ScopeValue* sv);
-template address StackValue::stack_value_address(const frame* fr, const SmallRegisterMap* reg_map, ScopeValue* sv);
+template address StackValue::stack_value_address(const frame* fr, const SmallRegisterMapNoArgs* reg_map, ScopeValue* sv);
 
 template<typename RegisterMapT>
 address StackValue::stack_value_address(const frame* fr, const RegisterMapT* reg_map, ScopeValue* sv) {

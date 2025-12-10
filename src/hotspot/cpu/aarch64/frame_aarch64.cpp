@@ -231,8 +231,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
 
     nmethod* nm = sender_blob->as_nmethod_or_null();
     if (nm != nullptr) {
-      if (nm->is_deopt_mh_entry(sender_pc) || nm->is_deopt_entry(sender_pc) ||
-          nm->method()->is_method_handle_intrinsic()) {
+      if (nm->is_deopt_entry(sender_pc) || nm->method()->is_method_handle_intrinsic()) {
         return false;
       }
     }
@@ -456,48 +455,6 @@ JavaThread** frame::saved_thread_address(const frame& f) {
   assert(get_register_address_in_stub(f, SharedRuntime::thread_register()) == (address)thread_addr, "wrong thread address");
   return thread_addr;
 }
-
-//------------------------------------------------------------------------------
-// frame::verify_deopt_original_pc
-//
-// Verifies the calculated original PC of a deoptimization PC for the
-// given unextended SP.
-#ifdef ASSERT
-void frame::verify_deopt_original_pc(nmethod* nm, intptr_t* unextended_sp) {
-  frame fr;
-
-  // This is ugly but it's better than to change {get,set}_original_pc
-  // to take an SP value as argument.  And it's only a debugging
-  // method anyway.
-  fr._unextended_sp = unextended_sp;
-
-  address original_pc = nm->get_original_pc(&fr);
-  assert(nm->insts_contains_inclusive(original_pc),
-         "original PC must be in the main code section of the compiled method (or must be immediately following it)");
-}
-#endif
-
-//------------------------------------------------------------------------------
-// frame::adjust_unextended_sp
-#ifdef ASSERT
-void frame::adjust_unextended_sp() {
-  // On aarch64, sites calling method handle intrinsics and lambda forms are treated
-  // as any other call site. Therefore, no special action is needed when we are
-  // returning to any of these call sites.
-
-  if (_cb != nullptr) {
-    nmethod* sender_nm = _cb->as_nmethod_or_null();
-    if (sender_nm != nullptr) {
-      // If the sender PC is a deoptimization point, get the original PC.
-      if (sender_nm->is_deopt_entry(_pc) ||
-          sender_nm->is_deopt_mh_entry(_pc)) {
-        verify_deopt_original_pc(sender_nm, _unextended_sp);
-      }
-    }
-  }
-}
-#endif
-
 
 //------------------------------------------------------------------------------
 // frame::sender_for_interpreter_frame
@@ -842,6 +799,35 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
     sender_sp = unextended_sp() + real_frame_size;
   }
   return sender_sp;
+}
+
+// See comment in MacroAssembler::remove_frame
+frame::CompiledFramePointers frame::compiled_frame_details() const {
+  // we cannot rely upon the last fp having been saved to the thread
+  // in C2 code but it will have been pushed onto the stack. so we
+  // have to find it relative to the unextended sp
+
+  assert(_cb->frame_size() > 0, "must have non-zero frame size");
+
+  // if need stack repair: the bottom of the fake frame, under LR #2
+  // else the bottom of the frame
+  intptr_t* l_sender_sp = (!PreserveFramePointer || _sp_is_trusted)
+      ? unextended_sp() + _cb->frame_size()
+      : sender_sp();
+
+  assert(!_sp_is_trusted || l_sender_sp == real_fp(), "");
+
+  // the actual bottom of the frame. This actually changes something if the frame needs stack repair
+  l_sender_sp = repair_sender_sp(l_sender_sp, (intptr_t**)(l_sender_sp - frame::sender_sp_offset));
+
+  // From the sender's sp, we can locate the real saved lr (x30) and rfp (x29): they are
+  // immediately above, no matter if the stack was extended or not
+  CompiledFramePointers cfp;
+  cfp.sender_sp = l_sender_sp;
+  cfp.saved_fp_addr = (intptr_t**)(l_sender_sp - frame::sender_sp_offset);
+  cfp.sender_pc_addr = (address*)(l_sender_sp - frame::return_addr_offset);
+
+  return cfp;
 }
 
 intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {

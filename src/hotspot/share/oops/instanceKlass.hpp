@@ -205,8 +205,6 @@ class InstanceKlass: public Klass {
  protected:
   InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, markWord prototype = markWord::prototype(), ReferenceType reference_type = REF_NONE);
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool use_class_space, TRAPS) throw();
-
  public:
   InstanceKlass();
 
@@ -297,6 +295,9 @@ class InstanceKlass: public Klass {
   volatile ClassState _init_state;          // state of class
 
   u1              _reference_type;                // reference type
+  int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
+                                            // unfortunately, abstract values need one too so it cannot be stored in
+                                            // the InlineKlassFixedBlock that only exist for InlineKlass.
 
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
@@ -651,6 +652,7 @@ public:
   void initialize_with_aot_initialized_mirror(TRAPS);
   void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
   void initialize(TRAPS);
+  void initialize_preemptable(TRAPS);
   void link_class(TRAPS);
   bool link_class_or_fail(TRAPS); // returns false on failure
   void rewrite_class(TRAPS);
@@ -660,6 +662,12 @@ public:
 
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
+
+  int acmp_maps_offset() const {
+    assert(_acmp_maps_offset != 0, "Not initialized");
+    return _acmp_maps_offset;
+  }
+  void set_acmp_maps_offset(int offset) { _acmp_maps_offset = offset; }
 
   // this class cp index
   u2 this_class_index() const             { return _this_class_index; }

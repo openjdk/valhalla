@@ -960,10 +960,11 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             const VMRegPair* regs_cc,
                                             const GrowableArray<SigEntry>* sig_cc_ro,
                                             const VMRegPair* regs_cc_ro,
-                                            AdapterHandlerEntry* handler,
+                                            address entry_address[AdapterBlob::ENTRY_COUNT],
                                             AdapterBlob*& new_adapter,
                                             bool allocate_code_blob) {
-  address i2c_entry = __ pc();
+
+  entry_address[AdapterBlob::I2C] = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   // -------------------------------------------------------------------------
@@ -975,8 +976,8 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
   // On exit from the interpreter, the interpreter will restore our SP (lest the
   // compiled code, which relies solely on SP and not FP, get sick).
 
-  address c2i_unverified_entry        = __ pc();
-  address c2i_unverified_inline_entry = __ pc();
+  entry_address[AdapterBlob::C2I_Unverified] = __ pc();
+  entry_address[AdapterBlob::C2I_Unverified_Inline] = __ pc();
   Label skip_fixup;
 
   gen_inline_cache_check(masm, skip_fixup);
@@ -986,30 +987,30 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
-  address c2i_no_clinit_check_entry = nullptr;
-  address c2i_inline_ro_entry = __ pc();
+  entry_address[AdapterBlob::C2I_No_Clinit_Check] = nullptr;
+  entry_address[AdapterBlob::C2I_Inline_RO] = __ pc();
   if (regs_cc != regs_cc_ro) {
     // No class init barrier needed because method is guaranteed to be non-static
-    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, c2i_no_clinit_check_entry,
-                    skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
+    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, entry_address[AdapterBlob::C2I_No_Clinit_Check],
+                    skip_fixup, entry_address[AdapterBlob::I2C], oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
     skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
-  address c2i_entry        = __ pc();
-  address c2i_inline_entry = __ pc();
-  gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
-                  skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ true);
+  entry_address[AdapterBlob::C2I]        = __ pc();
+  entry_address[AdapterBlob::C2I_Inline] = __ pc();
+  gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, entry_address[AdapterBlob::C2I_No_Clinit_Check],
+                  skip_fixup, entry_address[AdapterBlob::I2C], oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ true);
 
   // Non-scalarized c2i adapter
   if (regs != regs_cc) {
-    c2i_unverified_inline_entry = __ pc();
+    entry_address[AdapterBlob::C2I_Unverified_Inline] = __ pc();
     Label inline_entry_skip_fixup;
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
-    c2i_inline_entry = __ pc();
-    gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
-                    inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
+    entry_address[AdapterBlob::C2I_Inline] = __ pc();
+    gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, entry_address[AdapterBlob::C2I_No_Clinit_Check],
+                    inline_entry_skip_fixup, entry_address[AdapterBlob::I2C], oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
 
   // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
@@ -1018,18 +1019,9 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
     bool caller_must_gc_arguments = (regs != regs_cc);
     int entry_offset[AdapterHandlerEntry::ENTRIES_COUNT];
     assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
-    entry_offset[0] = 0; // i2c_entry offset
-    entry_offset[1] = c2i_entry - i2c_entry;
-    entry_offset[2] = c2i_inline_entry - i2c_entry;
-    entry_offset[3] = c2i_inline_ro_entry - i2c_entry;
-    entry_offset[4] = c2i_unverified_entry - i2c_entry;
-    entry_offset[5] = c2i_unverified_inline_entry - i2c_entry;
-    entry_offset[6] = c2i_no_clinit_check_entry - i2c_entry;
+    AdapterHandlerLibrary::address_to_offset(entry_address, entry_offset);
     new_adapter = AdapterBlob::create(masm->code(), entry_offset, frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
   }
-
-  handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry,
-                            c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 static int c_calling_convention_priv(const BasicType *sig_bt,
@@ -1271,11 +1263,8 @@ static void fill_continuation_entry(MacroAssembler* masm) {
 
   __ ldr(rscratch1, Address(rthread, JavaThread::cont_fastpath_offset()));
   __ str(rscratch1, Address(sp, ContinuationEntry::parent_cont_fastpath_offset()));
-  __ ldr(rscratch1, Address(rthread, JavaThread::held_monitor_count_offset()));
-  __ str(rscratch1, Address(sp, ContinuationEntry::parent_held_monitor_count_offset()));
 
   __ str(zr, Address(rthread, JavaThread::cont_fastpath_offset()));
-  __ str(zr, Address(rthread, JavaThread::held_monitor_count_offset()));
 }
 
 // on entry, sp points to the ContinuationEntry
@@ -1291,50 +1280,6 @@ static void continuation_enter_cleanup(MacroAssembler* masm) {
 #endif
   __ ldr(rscratch1, Address(sp, ContinuationEntry::parent_cont_fastpath_offset()));
   __ str(rscratch1, Address(rthread, JavaThread::cont_fastpath_offset()));
-
-  if (CheckJNICalls) {
-    // Check if this is a virtual thread continuation
-    Label L_skip_vthread_code;
-    __ ldrw(rscratch1, Address(sp, ContinuationEntry::flags_offset()));
-    __ cbzw(rscratch1, L_skip_vthread_code);
-
-    // If the held monitor count is > 0 and this vthread is terminating then
-    // it failed to release a JNI monitor. So we issue the same log message
-    // that JavaThread::exit does.
-    __ ldr(rscratch1, Address(rthread, JavaThread::jni_monitor_count_offset()));
-    __ cbz(rscratch1, L_skip_vthread_code);
-
-    // Save return value potentially containing the exception oop in callee-saved R19.
-    __ mov(r19, r0);
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::log_jni_monitor_still_held));
-    // Restore potential return value.
-    __ mov(r0, r19);
-
-    // For vthreads we have to explicitly zero the JNI monitor count of the carrier
-    // on termination. The held count is implicitly zeroed below when we restore from
-    // the parent held count (which has to be zero).
-    __ str(zr, Address(rthread, JavaThread::jni_monitor_count_offset()));
-
-    __ bind(L_skip_vthread_code);
-  }
-#ifdef ASSERT
-  else {
-    // Check if this is a virtual thread continuation
-    Label L_skip_vthread_code;
-    __ ldrw(rscratch1, Address(sp, ContinuationEntry::flags_offset()));
-    __ cbzw(rscratch1, L_skip_vthread_code);
-
-    // See comment just above. If not checking JNI calls the JNI count is only
-    // needed for assertion checking.
-    __ str(zr, Address(rthread, JavaThread::jni_monitor_count_offset()));
-
-    __ bind(L_skip_vthread_code);
-  }
-#endif
-
-  __ ldr(rscratch1, Address(sp, ContinuationEntry::parent_held_monitor_count_offset()));
-  __ str(rscratch1, Address(rthread, JavaThread::held_monitor_count_offset()));
-
   __ ldr(rscratch2, Address(sp, ContinuationEntry::parent_offset()));
   __ str(rscratch2, Address(rthread, JavaThread::cont_entry_offset()));
   __ add(rfp, sp, (int)ContinuationEntry::size());
@@ -2047,9 +1992,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   Label lock_done;
 
   if (method->is_synchronized()) {
-    Label count;
-    const int mark_word_offset = BasicLock::displaced_header_offset_in_bytes();
-
     // Get the handle (the 2nd argument)
     __ mov(oop_handle_reg, c_rarg1);
 

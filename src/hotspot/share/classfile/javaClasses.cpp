@@ -871,6 +871,7 @@ int java_lang_Class::_classRedefinedCount_offset;
 int java_lang_Class::_reflectionData_offset;
 int java_lang_Class::_modifiers_offset;
 int java_lang_Class::_is_primitive_offset;
+int java_lang_Class::_is_identity_offset;
 int java_lang_Class::_raw_access_flags_offset;
 
 bool java_lang_Class::_offsets_computed = false;
@@ -1017,11 +1018,24 @@ void java_lang_Class::initialize_mirror_fields(InstanceKlass* ik,
 
 // Set the java.lang.Module module field in the java_lang_Class mirror
 void java_lang_Class::set_mirror_module_field(JavaThread* current, Klass* k, Handle mirror, Handle module) {
+  if (CDSConfig::is_using_aot_linked_classes()) {
+    oop archived_module = java_lang_Class::module(mirror());
+    if (archived_module != nullptr) {
+      precond(module() == nullptr || module() == archived_module);
+      precond(AOTMetaspace::in_aot_cache_static_region((void*)k));
+      return;
+    }
+  }
+
   if (module.is_null()) {
     // During startup, the module may be null only if java.base has not been defined yet.
     // Put the class on the fixup_module_list to patch later when the java.lang.Module
     // for java.base is known. But note that since we captured the null module another
     // thread may have completed that initialization.
+
+    // With AOT-linked classes, java.base should have been defined before the
+    // VM loads any classes.
+    precond(!CDSConfig::is_using_aot_linked_classes());
 
     bool javabase_was_defined = false;
     {
@@ -1056,13 +1070,19 @@ void java_lang_Class::set_mirror_module_field(JavaThread* current, Klass* k, Han
 
 // Statically allocate fixup lists because they always get created.
 void java_lang_Class::allocate_fixup_lists() {
-  GrowableArray<Klass*>* mirror_list =
-    new (mtClass) GrowableArray<Klass*>(40, mtClass);
-  set_fixup_mirror_list(mirror_list);
+  if (!CDSConfig::is_using_aot_linked_classes()) {
+    // fixup_mirror_list() is not used when we have preloaded classes. See
+    // Universe::fixup_mirrors().
+    GrowableArray<Klass*>* mirror_list =
+      new (mtClass) GrowableArray<Klass*>(40, mtClass);
+    set_fixup_mirror_list(mirror_list);
 
-  GrowableArray<Klass*>* module_list =
-    new (mtModule) GrowableArray<Klass*>(500, mtModule);
-  set_fixup_module_field_list(module_list);
+    // With AOT-linked classes, java.base module is defined before any class
+    // is loaded, so there's no need for fixup_module_field_list().
+    GrowableArray<Klass*>* module_list =
+      new (mtModule) GrowableArray<Klass*>(500, mtModule);
+    set_fixup_module_field_list(module_list);
+  }
 }
 
 void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protection_domain, Handle classData,
@@ -1081,6 +1101,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
   // The Java code for array classes gets the access flags from the element type.
   assert(!k->is_array_klass() || k->access_flags().as_unsigned_short() == 0, "access flags are not set for arrays");
   set_raw_access_flags(mirror(), k->access_flags().as_unsigned_short());
+  set_is_identity(mirror(), k->is_array_klass() || k->is_identity_class());
 
   InstanceMirrorKlass* mk = InstanceMirrorKlass::cast(mirror->klass());
   assert(oop_size(mirror()) == mk->instance_size(k), "should have been set");
@@ -1144,7 +1165,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
   assert(k->java_mirror() == nullptr, "should only assign mirror once");
   // Class_klass has to be loaded because it is used to allocate
   // the mirror.
-  if (vmClasses::Class_klass_loaded()) {
+  if (vmClasses::Class_klass_is_loaded()) {
 
     if (k->is_refined_objArray_klass()) {
       Klass* super_klass = k->super();
@@ -1181,6 +1202,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       create_scratch_mirror(k, CHECK);
     }
   } else {
+    assert(!CDSConfig::is_using_aot_linked_classes(), "should not come here");
     assert(fixup_mirror_list() != nullptr, "fixup_mirror_list not initialized");
     fixup_mirror_list()->push(k);
   }
@@ -1226,7 +1248,7 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
                                               Handle protection_domain, TRAPS) {
   // Postpone restoring archived mirror until java.lang.Class is loaded. Please
   // see more details in vmClasses::resolve_all().
-  if (!vmClasses::Class_klass_loaded()) {
+  if (!vmClasses::Class_klass_is_loaded() && !CDSConfig::is_using_aot_linked_classes()) {
     assert(fixup_mirror_list() != nullptr, "fixup_mirror_list not initialized");
     fixup_mirror_list()->push(k);
     return true;
@@ -1394,6 +1416,10 @@ void java_lang_Class::set_is_primitive(oop java_class) {
   java_class->bool_field_put(_is_primitive_offset, true);
 }
 
+void java_lang_Class::set_is_identity(oop java_class, bool value) {
+  assert(_is_identity_offset != 0, "must be set");
+  java_class->bool_field_put(_is_identity_offset, value);
+}
 
 oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
   // Mirrors for basic types have a null klass field, which makes them special.
@@ -1556,7 +1582,8 @@ oop java_lang_Class::primitive_mirror(BasicType t) {
   macro(_modifiers_offset,           k, vmSymbols::modifiers_name(), char_signature,    false); \
   macro(_raw_access_flags_offset,    k, "classFileAccessFlags",      char_signature,    false); \
   macro(_protection_domain_offset,   k, "protectionDomain",    java_security_ProtectionDomain_signature,  false); \
-  macro(_is_primitive_offset,        k, "primitive",           bool_signature,         false);
+  macro(_is_primitive_offset,        k, "primitive",           bool_signature,         false); \
+  macro(_is_identity_offset,         k, "identity",            bool_signature,         false);
 
 void java_lang_Class::compute_offsets() {
   if (_offsets_computed) {
@@ -2125,6 +2152,7 @@ int java_lang_VirtualThread::_state_offset;
 int java_lang_VirtualThread::_next_offset;
 int java_lang_VirtualThread::_onWaitingList_offset;
 int java_lang_VirtualThread::_notified_offset;
+int java_lang_VirtualThread::_interruptible_wait_offset;
 int java_lang_VirtualThread::_timeout_offset;
 int java_lang_VirtualThread::_objectWaiter_offset;
 
@@ -2136,6 +2164,7 @@ int java_lang_VirtualThread::_objectWaiter_offset;
   macro(_next_offset,                      k, "next",               vthread_signature,           false); \
   macro(_onWaitingList_offset,             k, "onWaitingList",      bool_signature,              false); \
   macro(_notified_offset,                  k, "notified",           bool_signature,              false); \
+  macro(_interruptible_wait_offset,        k, "interruptibleWait",  bool_signature,              false); \
   macro(_timeout_offset,                   k, "timeout",            long_signature,              false);
 
 
@@ -2203,6 +2232,10 @@ bool java_lang_VirtualThread::set_onWaitingList(oop vthread, OopHandle& list_hea
 
 void java_lang_VirtualThread::set_notified(oop vthread, jboolean value) {
   vthread->bool_field_put_volatile(_notified_offset, value);
+}
+
+void java_lang_VirtualThread::set_interruptible_wait(oop vthread, jboolean value) {
+  vthread->bool_field_put_volatile(_interruptible_wait_offset, value);
 }
 
 jlong java_lang_VirtualThread::timeout(oop vthread) {

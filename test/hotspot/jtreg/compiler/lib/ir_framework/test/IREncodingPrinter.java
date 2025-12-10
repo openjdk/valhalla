@@ -106,6 +106,8 @@ public class IREncodingPrinter {
         "avx512_fp16",
         "avx512_vnni",
         "avx512_vbmi",
+        "avx512_vbmi2",
+        "avx10_2",
         "bmi2",
         // AArch64
         "sha3",
@@ -472,6 +474,9 @@ public class IREncodingPrinter {
         actualFlagValue = WHITE_BOX.getStringVMFlag(flag);
         if (actualFlagValue != null) {
             return value.equals(actualFlagValue);
+        }
+        if (flag.equals("enable-valhalla")) {
+            return checkBooleanFlag(flag, value, Integer.class.isValue());
         }
 
         // This could be improved if the Whitebox offers a "isVMFlag" function. For now, just check if we can actually set

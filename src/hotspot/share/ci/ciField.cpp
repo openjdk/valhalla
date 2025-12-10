@@ -515,7 +515,7 @@ bool ciField::will_link(ciMethod* accessing_method,
                      _name->get_symbol(), _signature->get_symbol(),
                      methodHandle(THREAD, accessing_method->get_Method()));
   fieldDescriptor result;
-  LinkResolver::resolve_field(result, link_info, bc, false, CHECK_AND_CLEAR_(false));
+  LinkResolver::resolve_field(result, link_info, bc, ClassInitMode::dont_init, CHECK_AND_CLEAR_(false));
 
   // Strict statics may require tracking if their class is not fully initialized.
   // For now we can bail out of the compiler and let the interpreter handle it.

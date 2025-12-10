@@ -43,8 +43,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -XX:-UseBimorphicInlining -Xbatch
- *                               -XX:CompileCommand=compileonly,TestC2CCalls*::test*
- *                               -XX:CompileCommand=dontinline,TestC2CCalls*::test*
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
  *                               compiler.valhalla.inlinetypes.TestC2CCalls
  */
 
@@ -58,8 +58,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
- *                               -XX:CompileCommand=compileonly,TestC2CCalls*::test*
- *                               -XX:CompileCommand=dontinline,TestC2CCalls*::test*
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
  *                               compiler.valhalla.inlinetypes.TestC2CCalls
  */
 
@@ -73,8 +73,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                              -XX:-UseBimorphicInlining -Xbatch
- *                              -XX:CompileCommand=compileonly,TestC2CCalls::test*
- *                              -XX:CompileCommand=dontinline,TestC2CCalls*::test*
+ *                              -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
+ *                              -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
  *                              compiler.valhalla.inlinetypes.TestC2CCalls
  */
 
@@ -88,8 +88,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
- *                               -XX:CompileCommand=compileonly,TestC2CCalls::test*
- *                               -XX:CompileCommand=dontinline,TestC2CCalls*::test*
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
  *                               compiler.valhalla.inlinetypes.TestC2CCalls
  */
 
@@ -532,7 +532,7 @@ public class TestC2CCalls {
             Collections.addAll(methods, MyValue3.class.getDeclaredMethods());
             Collections.addAll(methods, MyValue4.class.getDeclaredMethods());
             Collections.addAll(methods, MyObject.class.getDeclaredMethods());
-            Collections.addAll(methods, TestC2CCalls.class.getDeclaredMethods());
+            Collections.addAll(methods, compiler.valhalla.inlinetypes.TestC2CCalls.class.getDeclaredMethods());
             System.out.println("Excluding methods from C2 compilation:");
             for (Method m : methods) {
                 if (Utils.getRandomInstance().nextBoolean()) {
@@ -582,7 +582,7 @@ public class TestC2CCalls {
             Asserts.assertEQ(obj.test10(val4, rI, rI, rI, rI, rI, rI).getValue(), (int)(obj.x + 4*val4.x1 + 6*rI));
         }
 
-        // Polute call profile
+        // Pollute call profile
         for (int i = 0; i < 100; ++i) {
             Asserts.assertEQ(test15(val1, other, rI), val1.x + 2*other.x + rI);
             Asserts.assertEQ(test16(obj, other, rI), obj.x + 2*other.x + rI);

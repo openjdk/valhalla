@@ -117,6 +117,7 @@ static LatestMethodCache _throw_no_such_method_error_cache; // Unsafe.throwNoSuc
 static LatestMethodCache _do_stack_walk_cache;              // AbstractStackWalker.doStackWalk()
 static LatestMethodCache _is_substitutable_cache;           // ValueObjectMethods.isSubstitutable()
 static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethods.valueObjectHashCode()
+static LatestMethodCache _is_substitutable_alt_cache;       // ValueObjectMethods.isSubstitutableAlt()
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
@@ -186,6 +187,7 @@ int             Universe::_base_vtable_size = 0;
 bool            Universe::_bootstrapping = false;
 bool            Universe::_module_initialized = false;
 bool            Universe::_fully_initialized = false;
+volatile bool   Universe::_is_shutting_down = false;
 
 OopStorage*     Universe::_vm_weak = nullptr;
 OopStorage*     Universe::_vm_global = nullptr;
@@ -240,6 +242,7 @@ static BuiltinException _internal_error;
 static BuiltinException _array_index_out_of_bounds_exception;
 static BuiltinException _array_store_exception;
 static BuiltinException _class_cast_exception;
+static BuiltinException _preempted_exception;
 
 objArrayOop Universe::the_empty_class_array ()  {
   return (objArrayOop)_the_empty_class_array.resolve();
@@ -260,6 +263,7 @@ oop Universe::internal_error_instance()           { return _internal_error.insta
 oop Universe::array_index_out_of_bounds_exception_instance() { return _array_index_out_of_bounds_exception.instance(); }
 oop Universe::array_store_exception_instance()    { return _array_store_exception.instance(); }
 oop Universe::class_cast_exception_instance()     { return _class_cast_exception.instance(); }
+oop Universe::preempted_exception_instance()      { return _preempted_exception.instance(); }
 
 oop Universe::the_null_sentinel()                 { return _the_null_sentinel.resolve(); }
 
@@ -319,6 +323,7 @@ void Universe::archive_exception_instances() {
   _array_index_out_of_bounds_exception.store_in_cds();
   _array_store_exception.store_in_cds();
   _class_cast_exception.store_in_cds();
+  _preempted_exception.store_in_cds();
 }
 
 void Universe::load_archived_object_instances() {
@@ -338,6 +343,7 @@ void Universe::load_archived_object_instances() {
     _array_index_out_of_bounds_exception.load_from_cds();
     _array_store_exception.load_from_cds();
     _class_cast_exception.load_from_cds();
+    _preempted_exception.load_from_cds();
   }
 }
 #endif
@@ -357,6 +363,7 @@ void Universe::serialize(SerializeClosure* f) {
   _array_index_out_of_bounds_exception.serialize(f);
   _array_store_exception.serialize(f);
   _class_cast_exception.serialize(f);
+  _preempted_exception.serialize(f);
 #endif
 
   f->do_ptr(&_fillerArrayKlass);
@@ -507,7 +514,7 @@ void Universe::genesis(TRAPS) {
   // Since some of the old system object arrays have been converted to
   // ordinary object arrays, _objectArrayKlass will be loaded when
   // SystemDictionary::initialize(CHECK); is run. See the extra check
-  // for Object_klass_loaded in objArrayKlassKlass::allocate_objArray_klass_impl.
+  // for Object_klass_is_loaded in ObjArrayKlass::allocate_objArray_klass.
   {
     ArrayKlass* oak = vmClasses::Object_klass()->array_klass(CHECK);
     oak->append_to_sibling_list();
@@ -584,11 +591,16 @@ void Universe::initialize_basic_type_mirrors(TRAPS) {
 }
 
 void Universe::fixup_mirrors(TRAPS) {
+  if (CDSConfig::is_using_aot_linked_classes()) {
+    // All mirrors of preloaded classes are already restored. No need to fix up.
+    return;
+  }
+
   // Bootstrap problem: all classes gets a mirror (java.lang.Class instance) assigned eagerly,
   // but we cannot do that for classes created before java.lang.Class is loaded. Here we simply
   // walk over permanent objects created so far (mostly classes) and fixup their mirrors. Note
   // that the number of objects allocated at this point is very small.
-  assert(vmClasses::Class_klass_loaded(), "java.lang.Class should be loaded");
+  assert(vmClasses::Class_klass_is_loaded(), "java.lang.Class should be loaded");
   HandleMark hm(THREAD);
 
   if (!CDSConfig::is_using_archive()) {
@@ -952,7 +964,7 @@ void Universe::initialize_tlab() {
   }
 }
 
-ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
+ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment, size_t desired_page_size) {
 
   assert(alignment <= Arguments::conservative_max_heap_alignment(),
          "actual alignment %zu must be within maximum heap alignment %zu",
@@ -963,15 +975,21 @@ ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
   assert(!UseCompressedOops || (total_reserved <= (OopEncodingHeapMax - os::vm_page_size())),
       "heap size is too big for compressed oops");
 
-  size_t page_size = os::vm_page_size();
-  if (UseLargePages && is_aligned(alignment, os::large_page_size())) {
-    page_size = os::large_page_size();
+  size_t page_size;
+  if (desired_page_size == 0) {
+    if (UseLargePages) {
+      page_size = os::large_page_size();
+    } else {
+      page_size = os::vm_page_size();
+    }
   } else {
     // Parallel is the only collector that might opt out of using large pages
     // for the heap.
-    assert(!UseLargePages || UseParallelGC , "Wrong alignment to use large pages");
+    assert(UseParallelGC , "only Parallel");
+    // Use caller provided value.
+    page_size = desired_page_size;
   }
-
+  assert(is_aligned(heap_size, page_size), "inv");
   // Now create the space.
   ReservedHeapSpace rhs = HeapReserver::reserve(total_reserved, alignment, page_size, AllocateHeapAt);
 
@@ -1060,6 +1078,7 @@ Method* Universe::throw_no_such_method_error()    { return _throw_no_such_method
 Method* Universe::do_stack_walk_method()          { return _do_stack_walk_cache.get_method(); }
 Method* Universe::is_substitutable_method()       { return _is_substitutable_cache.get_method(); }
 Method* Universe::value_object_hash_code_method() { return _value_object_hash_code_cache.get_method(); }
+Method* Universe::is_substitutableAlt_method()    { return _is_substitutable_alt_cache.get_method(); }
 
 void Universe::initialize_known_methods(JavaThread* current) {
   // Set up static method for registering finalizers
@@ -1100,6 +1119,10 @@ void Universe::initialize_known_methods(JavaThread* current) {
                           vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::valueObjectHashCode_name()->as_C_string(),
                           vmSymbols::object_int_signature(), true);
+  _is_substitutable_alt_cache.init(current,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::isSubstitutableAlt_name()->as_C_string(),
+                          vmSymbols::object_object_boolean_signature(), true);
 }
 
 void universe2_init() {
@@ -1143,6 +1166,7 @@ bool universe_post_init() {
   _array_index_out_of_bounds_exception.init_if_empty(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), CHECK_false);
   _array_store_exception.init_if_empty(vmSymbols::java_lang_ArrayStoreException(), CHECK_false);
   _class_cast_exception.init_if_empty(vmSymbols::java_lang_ClassCastException(), CHECK_false);
+  _preempted_exception.init_if_empty(vmSymbols::jdk_internal_vm_PreemptedException(), CHECK_false);
 
   // Virtual Machine Error for when we get into a situation we can't resolve
   Klass* k = vmClasses::InternalError_klass();
@@ -1360,7 +1384,14 @@ static void log_cpu_time() {
 }
 
 void Universe::before_exit() {
-  log_cpu_time();
+  {
+    // Acquire the Heap_lock to synchronize with VM_Heap_Sync_Operations,
+    // which may depend on the value of _is_shutting_down flag.
+    MutexLocker hl(Heap_lock);
+    log_cpu_time();
+    AtomicAccess::release_store(&_is_shutting_down, true);
+  }
+
   heap()->before_exit();
 
   // Print GC/heap related information.

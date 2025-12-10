@@ -997,6 +997,7 @@ void ciSpeculativeTrapData::print_data_on(outputStream* st, const char* extra) c
 
 void ciArrayStoreData::print_data_on(outputStream* st, const char* extra) const {
   print_shared(st, "ciArrayStoreData", extra);
+  st->cr();
   tab(st, true);
   st->print("array");
   array()->print_data_on(st);
@@ -1007,6 +1008,7 @@ void ciArrayStoreData::print_data_on(outputStream* st, const char* extra) const 
 
 void ciArrayLoadData::print_data_on(outputStream* st, const char* extra) const {
   print_shared(st, "ciArrayLoadData", extra);
+  st->cr();
   tab(st, true);
   st->print("array");
   array()->print_data_on(st);
