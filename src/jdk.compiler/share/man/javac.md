@@ -614,7 +614,7 @@ file system locations may be directories, JAR files or JMOD files.
         allowed in early construction due to a `this` dependency.
 
     -   `lossy-conversions`: Warns about possible lossy conversions
-        in compound assignment.
+        in compound assignment and bit shift operations.
 
     -   `missing-explicit-ctor`: Warns about missing explicit constructors in
          public and protected classes in exported packages.
