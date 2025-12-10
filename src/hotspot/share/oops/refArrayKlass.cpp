@@ -38,6 +38,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/markWord.hpp"
+#include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.inline.hpp"
 #include "oops/refArrayOop.inline.hpp"
@@ -150,6 +151,33 @@ objArrayOop RefArrayKlass::allocate_instance(int length, ArrayProperties props, 
   return array;
 }
 
+static void throw_array_null_pointer_store_exception(arrayOop src, arrayOop dst, TRAPS) {
+  ResourceMark rm(THREAD);
+  Klass* bound = ObjArrayKlass::cast(dst->klass())->element_klass();
+  stringStream ss;
+  ss.print("arraycopy: can not copy null values into %s[]",
+           bound->external_name());
+  THROW_MSG(vmSymbols::java_lang_NullPointerException(), ss.as_string());
+}
+
+static void throw_array_store_exception(arrayOop src, arrayOop dst, TRAPS) {
+  ResourceMark rm(THREAD);
+  Klass* bound = ObjArrayKlass::cast(dst->klass())->element_klass();
+  Klass* stype = ObjArrayKlass::cast(src->klass())->element_klass();
+  stringStream ss;
+  if (!bound->is_subtype_of(stype)) {
+    ss.print("arraycopy: type mismatch: can not copy %s[] into %s[]",
+             stype->external_name(), bound->external_name());
+  } else {
+    // oop_arraycopy should return the index in the source array that
+    // contains the problematic oop.
+    ss.print("arraycopy: element type mismatch: can not cast one of the elements"
+             " of %s[] to the type of the destination array, %s",
+             stype->external_name(), bound->external_name());
+  }
+  THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+}
+
 
 // Either oop or narrowOop depending on UseCompressedOops.
 void RefArrayKlass::do_copy(arrayOop s, size_t src_offset, arrayOop d,
@@ -159,29 +187,48 @@ void RefArrayKlass::do_copy(arrayOop s, size_t src_offset, arrayOop d,
     assert(length > 0, "sanity check");
     ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
   } else {
-    // We have to make sure all elements conform to the destination array
-    Klass *bound = RefArrayKlass::cast(d->klass())->element_klass();
-    Klass *stype = RefArrayKlass::cast(s->klass())->element_klass();
     // Perform null check if dst is null-free but src has no such guarantee
     bool null_check = ((!s->klass()->is_null_free_array_klass()) &&
                        d->klass()->is_null_free_array_klass());
-    if (stype == bound || stype->is_subtype_of(bound)) {
-      if (null_check) {
-        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_NOTNULL>::oop_arraycopy(
-            s, src_offset, d, dst_offset, length);
+    // We have to make sure all elements conform to the destination array
+    Klass *bound = RefArrayKlass::cast(d->klass())->element_klass();
+    Klass *stype = RefArrayKlass::cast(s->klass())->element_klass();
+    bool type_check = stype != bound && !stype->is_subtype_of(bound);
+
+    auto arraycopy = [&] {
+      if (type_check) {
+        if (null_check) {
+          return ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST | ARRAYCOPY_NOTNULL>::
+              oop_arraycopy(s, src_offset, d, dst_offset, length);
+        } else {
+          return ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::
+              oop_arraycopy(s, src_offset, d, dst_offset, length);
+        }
       } else {
-        ArrayAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(s, src_offset, d,
-                                                       dst_offset, length);
+        if (null_check) {
+          return ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_NOTNULL>::
+              oop_arraycopy(s, src_offset, d, dst_offset, length);
+        } else {
+          return ArrayAccess<ARRAYCOPY_DISJOINT>::
+              oop_arraycopy(s, src_offset, d, dst_offset, length);
+        }
       }
-    } else {
-      if (null_check) {
-        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST |
-                    ARRAYCOPY_NOTNULL>::oop_arraycopy(s, src_offset, d,
-                                                      dst_offset, length);
-      } else {
-        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::oop_arraycopy(
-            s, src_offset, d, dst_offset, length);
-      }
+    };
+
+    OopCopyResult result = arraycopy();
+
+    switch (result) {
+    case OopCopyResult::ok:
+      // Done
+      break;
+    case OopCopyResult::failed_check_class_cast:
+      throw_array_store_exception(s, d, JavaThread::current());
+      break;
+    case OopCopyResult::failed_check_null:
+      throw_array_null_pointer_store_exception(s, d, JavaThread::current());
+      break;
+    default:
+      ShouldNotReachHere();
     }
   }
 }
