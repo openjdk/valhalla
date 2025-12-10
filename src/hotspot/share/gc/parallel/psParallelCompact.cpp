@@ -1474,8 +1474,23 @@ void PSParallelCompact::forward_to_new_addr() {
         }
         assert(mark_bitmap()->is_marked(cur_addr), "inv");
         oop obj = cast_to_oop(cur_addr);
+
         if (new_addr != cur_addr) {
-          cm->preserved_marks()->push_if_necessary(obj, obj->mark());
+          const bool full_header_in_current_region = cur_addr + oopDesc::header_size() <= end;
+
+          if (EnableValhalla && !full_header_in_current_region) {
+            // When using Valhalla, it might be necessary to preserve the Valhalla-
+            // specific bits in the markWord. If the entire object header is
+            // copied, the correct markWord (with the appropriate Valhalla bits)
+            // can be retrieved from the Klass. However, if the full header is
+            // not copied, we cannot access the Klass to obtain this information.
+            // In such cases, we always preserve the markWord to ensure that all
+            // relevant bits, including Valhalla-specific ones, are retained.
+            cm->preserved_marks()->push_always(obj, obj->mark());
+          } else {
+            cm->preserved_marks()->push_if_necessary(obj, obj->mark());
+          }
+
           FullGCForwarding::forward_to(obj, cast_to_oop(new_addr));
         }
         size_t obj_size = obj->size();
@@ -2371,7 +2386,17 @@ void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
     assert(FullGCForwarding::is_forwarded(cast_to_oop(source())), "inv");
     assert(FullGCForwarding::forwardee(cast_to_oop(source())) == cast_to_oop(destination()), "inv");
     Copy::aligned_conjoint_words(source(), copy_destination(), words);
-    cast_to_oop(copy_destination())->reinit_mark();
+
+    const bool full_header_in_current_region = words >= (size_t)oopDesc::header_size();
+    oop copy_dest_oop = cast_to_oop(copy_destination());
+
+    if (UseCompactObjectHeaders || (EnableValhalla && full_header_in_current_region)) {
+      // It is only safe to read the klass iff we have copied the entire
+      // object header.
+      copy_dest_oop->set_mark(copy_dest_oop->klass()->prototype_header());
+    } else {
+      copy_dest_oop->set_mark(markWord::prototype());
+    }
   }
 
   update_state(words);
