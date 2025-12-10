@@ -492,7 +492,7 @@ void AOTMapLogger::log_as_hex(address base, address top, address requested_base,
 }
 
 #if INCLUDE_CDS_JAVA_HEAP
-// FakeOop (and subclasses FakeMirror, FakeString, FakeObjArray, FakeTypeArray) are used to traverse
+// FakeOop (and subclasses FakeMirror, FakeString, FakeRefArray, FakeFlatArray, FakeTypeArray) are used to traverse
 // and print the (image of) heap objects stored in the AOT cache. These objects are different than regular oops:
 // - They do not reside inside the range of the heap.
 // - For +UseCompressedOops: pointers may use a different narrowOop encoding: see FakeOop::read_oop_at(narrowOop*)
@@ -530,7 +530,8 @@ public:
   FakeOop(OopDataIterator* iter, OopData data) : _iter(iter), _data(data) {}
 
   FakeMirror as_mirror();
-  FakeObjArray as_obj_array();
+  FakeRefArray as_ref_array();
+  FakeFlatArray as_flat_array();
   FakeString as_string();
   FakeTypeArray as_type_array();
 
@@ -618,25 +619,42 @@ public:
   }
 }; // AOTMapLogger::FakeMirror
 
-class AOTMapLogger::FakeObjArray : public AOTMapLogger::FakeOop {
-  objArrayOop raw_objArrayOop() {
-    return (objArrayOop)raw_oop();
+class AOTMapLogger::FakeRefArray : public AOTMapLogger::FakeOop {
+  refArrayOop raw_refArrayOop() {
+    return (refArrayOop)raw_oop();
   }
 
 public:
-  FakeObjArray(OopDataIterator* iter, OopData data) : FakeOop(iter, data) {}
+  FakeRefArray(OopDataIterator* iter, OopData data) : FakeOop(iter, data) {}
 
   int length() {
-    return raw_objArrayOop()->length();
+    return raw_refArrayOop()->length();
   }
   FakeOop obj_at(int i) {
     if (UseCompressedOops) {
-      return read_oop_at(raw_objArrayOop()->obj_at_addr<narrowOop>(i));
+      return read_oop_at(raw_refArrayOop()->obj_at_addr<narrowOop>(i));
     } else {
-      return read_oop_at(raw_objArrayOop()->obj_at_addr<oop>(i));
+      return read_oop_at(raw_refArrayOop()->obj_at_addr<oop>(i));
     }
   }
-}; // AOTMapLogger::FakeObjArray
+}; // AOTMapLogger::FakeRefArray
+
+class AOTMapLogger::FakeFlatArray : public AOTMapLogger::FakeOop {
+  flatArrayOop raw_flatArrayOop() {
+    return (flatArrayOop)raw_oop();
+  }
+
+public:
+  FakeFlatArray(OopDataIterator* iter, OopData data) : FakeOop(iter, data) {}
+
+  int length() {
+    return raw_flatArrayOop()->length();
+  }
+  void print_elements_on(outputStream* st) {
+    FlatArrayKlass::cast(real_klass())->oop_print_elements_on(raw_flatArrayOop(), st);
+  }
+
+}; // AOTMapLogger::FakeRefArray
 
 class AOTMapLogger::FakeString : public AOTMapLogger::FakeOop {
 public:
@@ -676,9 +694,14 @@ AOTMapLogger::FakeMirror AOTMapLogger::FakeOop::as_mirror() {
   return FakeMirror(_iter, _data);
 }
 
-AOTMapLogger::FakeObjArray AOTMapLogger::FakeOop::as_obj_array() {
-  precond(real_klass()->is_objArray_klass());
-  return FakeObjArray(_iter, _data);
+AOTMapLogger::FakeRefArray AOTMapLogger::FakeOop::as_ref_array() {
+  precond(real_klass()->is_refArray_klass());
+  return FakeRefArray(_iter, _data);
+}
+
+AOTMapLogger::FakeFlatArray AOTMapLogger::FakeOop::as_flat_array() {
+  precond(real_klass()->is_flatArray_klass());
+  return FakeFlatArray(_iter, _data);
 }
 
 AOTMapLogger::FakeTypeArray AOTMapLogger::FakeOop::as_type_array() {
@@ -923,8 +946,10 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
 
   if (real_klass->is_typeArray_klass()) {
     fake_oop.as_type_array().print_elements_on(st);
-  } else if (real_klass->is_objArray_klass()) {
-    FakeObjArray fake_obj_array = fake_oop.as_obj_array();
+  } else if (real_klass->is_flatArray_klass()) {
+    fake_oop.as_flat_array().print_elements_on(st);
+  } else if (real_klass->is_refArray_klass()) {
+    FakeRefArray fake_obj_array = fake_oop.as_ref_array();
     bool is_logging_root_segment = fake_oop.is_root_segment();
 
     for (int i = 0; i < fake_obj_array.length(); i++) {
