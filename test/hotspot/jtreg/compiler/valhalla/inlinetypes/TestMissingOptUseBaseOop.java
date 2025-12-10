@@ -25,6 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 /*
  * @test
+ * @bug 8367623
  * @summary When an InlineType has a larval oop and its <init> method is
  *          not inlined, it prevents the Allocate node of the larval oop
  *          to be eliminated. This ends up causing the report of a missed
