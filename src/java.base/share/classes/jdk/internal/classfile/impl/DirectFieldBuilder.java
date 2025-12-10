@@ -51,7 +51,7 @@ public final class DirectFieldBuilder
         setOriginal(original);
         this.name = requireNonNull(name);
         this.desc = requireNonNull(type);
-        this.flags = flags;
+        this.flags = Util.checkFlags(flags);
     }
 
     @Override
@@ -71,7 +71,7 @@ public final class DirectFieldBuilder
 
     @Override
     public FieldBuilder withFlags(int flags) {
-        setFlags(flags);
+        setFlags(Util.checkFlags(flags));
         return this;
     }
 

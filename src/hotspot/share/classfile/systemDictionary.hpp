@@ -68,7 +68,6 @@ class BootstrapInfo;
 class ClassFileStream;
 class ClassLoadInfo;
 class Dictionary;
-class AllFieldStream;
 class PackageEntry;
 class GCTimer;
 class EventClassLoad;
@@ -79,6 +78,7 @@ template <class E> class GrowableArray;
 class SystemDictionary : AllStatic {
   friend class AOTLinkedClassBulkLoader;
   friend class BootstrapInfo;
+  friend class LambdaProxyClassDictionary;
   friend class vmClasses;
 
  public:
@@ -112,8 +112,7 @@ class SystemDictionary : AllStatic {
   // Resolve a superclass or superinterface. Called from ClassFileParser,
   // parse_interfaces, resolve_instance_class_or_null, load_shared_class
   // "class_name" is the class whose super class or interface is being resolved.
-  static InstanceKlass* resolve_with_circularity_detection_or_fail(Symbol* class_name,
-                                              Symbol* super_name,
+  static InstanceKlass* resolve_super_or_fail(Symbol* class_name, Symbol* super_name,
                                               Handle class_loader,
                                               bool is_superclass, TRAPS) {
     return resolve_with_circularity_detection(class_name, super_name, class_loader, is_superclass, THREAD);
@@ -286,7 +285,7 @@ public:
   static const char* find_nest_host_error(const constantPoolHandle& pool, int which);
 
   static void add_to_initiating_loader(JavaThread* current, InstanceKlass* k,
-                                       ClassLoaderData* loader_data) NOT_CDS_RETURN;
+                                       ClassLoaderData* loader_data);
 
   static OopHandle  _java_system_loader;
   static OopHandle  _java_platform_loader;
@@ -328,26 +327,25 @@ private:
   static void restore_archived_method_handle_intrinsics_impl(TRAPS) NOT_CDS_RETURN;
 
 protected:
-  // Used by SystemDictionaryShared
+  // Used by AOTLinkedClassBulkLoader, LambdaProxyClassDictionary, and SystemDictionaryShared
 
   static bool add_loader_constraint(Symbol* name, Klass* klass_being_linked,  Handle loader1,
                                     Handle loader2);
   static void post_class_load_event(EventClassLoad* event, const InstanceKlass* k, const ClassLoaderData* init_cld);
-  static InstanceKlass* load_shared_lambda_proxy_class(InstanceKlass* ik,
-                                                       Handle class_loader,
-                                                       Handle protection_domain,
-                                                       PackageEntry* pkg_entry,
-                                                       TRAPS);
+  static bool preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS);
+  static void try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS);
   static InstanceKlass* load_shared_class(InstanceKlass* ik,
                                           Handle class_loader,
                                           Handle protection_domain,
                                           const ClassFileStream *cfs,
                                           PackageEntry* pkg_entry,
                                           TRAPS);
+  static void preload_class(Handle class_loader, InstanceKlass* ik, TRAPS);
   static Handle get_loader_lock_or_null(Handle class_loader);
   static InstanceKlass* find_or_define_instance_class(Symbol* class_name,
                                                       Handle class_loader,
                                                       InstanceKlass* k, TRAPS);
+
 public:
   static bool is_system_class_loader(oop class_loader);
   static bool is_platform_class_loader(oop class_loader);

@@ -43,7 +43,6 @@ import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.comp.AttrContext;
@@ -1353,7 +1352,7 @@ public class Types {
          * Type-equality relation - type variables are considered
          * equals if they share the same object identity.
          */
-        TypeRelation isSameTypeVisitor = new TypeRelation() {
+        abstract class TypeEqualityVisitor extends TypeRelation {
 
             public Boolean visitType(Type t, Type s) {
                 if (t.equalsIgnoreMetadata(s))
@@ -1392,9 +1391,11 @@ public class Types {
                 } else {
                     WildcardType t2 = (WildcardType)s;
                     return (t.kind == t2.kind || (t.isExtendsBound() && s.isExtendsBound())) &&
-                            isSameType(t.type, t2.type);
+                            sameTypeComparator(t.type, t2.type);
                 }
             }
+
+            abstract boolean sameTypeComparator(Type t, Type s);
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
@@ -1426,8 +1427,10 @@ public class Types {
                 }
                 return t.tsym == s.tsym
                     && visit(t.getEnclosingType(), s.getEnclosingType())
-                    && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
+                    && sameTypeArguments(t.getTypeArguments(), s.getTypeArguments());
             }
+
+            abstract boolean sameTypeArguments(List<Type> ts, List<Type> ss);
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
@@ -1483,6 +1486,16 @@ public class Types {
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
+            }
+        }
+
+        TypeEqualityVisitor isSameTypeVisitor = new TypeEqualityVisitor() {
+            boolean sameTypeComparator(Type t, Type s) {
+                return isSameType(t, s);
+            }
+
+            boolean sameTypeArguments(List<Type> ts, List<Type> ss) {
+                return containsTypeEquivalent(ts, ss);
             }
         };
 
@@ -2249,60 +2262,64 @@ public class Types {
         };
 
     /**
-     * Return the base type of t or any of its outer types that starts
-     * with the given symbol.  If none exists, return null.
+     *  This method returns the first type in a sequence (starting at `t`) that is
+     *  a subclass of `sym`. The next type in the sequence is obtained by calling
+     *  `getEnclosingType()` on the previous type in the sequence. Note, this is
+     *  typically used to compute the implicit qualifier in a method/field access
+     *  expression. Example:
      *
-     * @param t a type
-     * @param sym a symbol
+     *  static class Sup<F> { public F f; }
+     *   class Outer {
+     *    static class Sub extends Sup<String> {
+     *        class I {
+     *          void test() {
+     *              String f2 = f; // Sup<String>::f
+     *          }
+     *        }
+     *    }
+     *  }
+     *
+     *  @param t a type
+     *  @param sym a symbol
      */
     public Type asOuterSuper(Type t, Symbol sym) {
-        switch (t.getTag()) {
-        case CLASS:
-            do {
-                Type s = asSuper(t, sym);
-                if (s != null) return s;
-                t = t.getEnclosingType();
-            } while (t.hasTag(CLASS));
-            return null;
-        case ARRAY:
-            return isSubtype(t, sym.type) ? sym.type : null;
-        case TYPEVAR:
-            return asSuper(t, sym);
-        case ERROR:
-            return t;
-        default:
-            return null;
+        Type t1 = t;
+        while (!t1.hasTag(NONE)) {
+            Type s = asSuper(t1, sym);
+            if (s != null) return s;
+            t1 = t1.getEnclosingType();
         }
+        return null;
     }
 
     /**
-     * Return the base type of t or any of its enclosing types that
-     * starts with the given symbol.  If none exists, return null.
+     * This method returns the first type in a sequence (starting at `t`) that is
+     * a subclass of `sym`. The next type in the sequence is obtained by obtaining
+     * innermost lexically enclosing class type of the previous type in the sequence.
+     * Note, this is typically used to compute the implicit qualifier in
+     * a type expression. Example:
+     *
+     * class A<T> { class B { } }
+     *
+     * class C extends A<String> {
+     *   static class D {
+     *      B b; // A<String>.B
+     *   }
+     * }
      *
      * @param t a type
      * @param sym a symbol
      */
     public Type asEnclosingSuper(Type t, Symbol sym) {
-        switch (t.getTag()) {
-        case CLASS:
-            do {
-                Type s = asSuper(t, sym);
-                if (s != null) return s;
-                Type outer = t.getEnclosingType();
-                t = (outer.hasTag(CLASS)) ? outer :
-                    (t.tsym.owner.enclClass() != null) ? t.tsym.owner.enclClass().type :
-                    Type.noType;
-            } while (t.hasTag(CLASS));
-            return null;
-        case ARRAY:
-            return isSubtype(t, sym.type) ? sym.type : null;
-        case TYPEVAR:
-            return asSuper(t, sym);
-        case ERROR:
-            return t;
-        default:
-            return null;
+        Type t1 = t;
+        while (!t1.hasTag(NONE)) {
+            Type s = asSuper(t1, sym);
+            if (s != null) return s;
+            t1 = (t1.tsym.owner.enclClass() != null)
+                    ? t1.tsym.owner.enclClass().type
+                    : noType;
         }
+        return null;
     }
     // </editor-fold>
 
@@ -3873,7 +3890,7 @@ public class Types {
     // where
         class TypePair {
             final Type t1;
-            final Type t2;;
+            final Type t2;
 
             TypePair(Type t1, Type t2) {
                 this.t1 = t1;
@@ -3886,10 +3903,28 @@ public class Types {
             @Override
             public boolean equals(Object obj) {
                 return (obj instanceof TypePair typePair)
-                        && isSameType(t1, typePair.t1)
-                        && isSameType(t2, typePair.t2);
+                        && exactTypeVisitor.visit(t1, typePair.t1)
+                        && exactTypeVisitor.visit(t2, typePair.t2);
             }
         }
+
+        TypeEqualityVisitor exactTypeVisitor = new TypeEqualityVisitor() {
+            @Override
+            boolean sameTypeArguments(List<Type> ts, List<Type> ss) {
+                while (ts.nonEmpty() && ss.nonEmpty()
+                        && sameTypeComparator(ts.head, ss.head)) {
+                    ts = ts.tail;
+                    ss = ss.tail;
+                }
+                return ts.isEmpty() && ss.isEmpty();
+            }
+
+            @Override
+            boolean sameTypeComparator(Type t, Type s) {
+                return exactTypeVisitor.visit(t, s);
+            }
+        };
+
         Set<TypePair> mergeCache = new HashSet<>();
         private Type merge(Type c1, Type c2) {
             ClassType class1 = (ClassType) c1;
@@ -4101,19 +4136,20 @@ public class Types {
             return lub(classes);
         }
     }
-    // where
-        List<Type> erasedSupertypes(Type t) {
-            ListBuffer<Type> buf = new ListBuffer<>();
-            for (Type sup : closure(t)) {
-                if (sup.hasTag(TYPEVAR)) {
-                    buf.append(sup);
-                } else {
-                    buf.append(erasure(sup));
-                }
-            }
-            return buf.toList();
-        }
 
+    public List<Type> erasedSupertypes(Type t) {
+        ListBuffer<Type> buf = new ListBuffer<>();
+        for (Type sup : closure(t)) {
+            if (sup.hasTag(TYPEVAR)) {
+                buf.append(sup);
+            } else {
+                buf.append(erasure(sup));
+            }
+        }
+        return buf.toList();
+    }
+
+    // where
         private Type arraySuperType;
         private Type arraySuperType() {
             // initialized lazily to avoid problems during compiler startup
@@ -4527,7 +4563,7 @@ public class Types {
             to = from;
             from = target;
         }
-        List<Type> commonSupers = superClosure(to, erasure(from));
+        List<Type> commonSupers = supertypeClosure(to, erasure(from));
         boolean giveWarning = commonSupers.isEmpty();
         // The arguments to the supers could be unified here to
         // get a more accurate analysis
@@ -4585,13 +4621,13 @@ public class Types {
         return false;
     }
 
-    private List<Type> superClosure(Type t, Type s) {
+    private List<Type> supertypeClosure(Type t, Type s) {
         List<Type> cl = List.nil();
         for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
             if (isSubtype(s, erasure(l.head))) {
                 cl = insert(cl, l.head);
             } else {
-                cl = union(cl, superClosure(l.head, s));
+                cl = union(cl, supertypeClosure(l.head, s));
             }
         }
         return cl;
@@ -5108,16 +5144,12 @@ public class Types {
      *  @param targetType       Target type
      */
     public boolean isUnconditionallyExactPrimitives(Type selectorType, Type targetType) {
-        if (isSameType(selectorType, targetType)) {
-            return true;
-        }
-
-        return (selectorType.isPrimitive() && targetType.isPrimitive()) &&
-                ((selectorType.hasTag(BYTE) && !targetType.hasTag(CHAR)) ||
-                 (selectorType.hasTag(SHORT) && (selectorType.getTag().isStrictSubRangeOf(targetType.getTag()))) ||
-                 (selectorType.hasTag(CHAR)  && (selectorType.getTag().isStrictSubRangeOf(targetType.getTag())))  ||
-                 (selectorType.hasTag(INT)   && (targetType.hasTag(DOUBLE) || targetType.hasTag(LONG))) ||
-                 (selectorType.hasTag(FLOAT) && (selectorType.getTag().isStrictSubRangeOf(targetType.getTag()))));
+        return isSameType(selectorType, targetType) ||
+                (selectorType.isPrimitive() && targetType.isPrimitive()) &&
+                ((selectorType.getTag().isStrictSubRangeOf(targetType.getTag())) &&
+                        !((selectorType.hasTag(BYTE) && targetType.hasTag(CHAR)) ||
+                          (selectorType.hasTag(INT)  && targetType.hasTag(FLOAT)) ||
+                          (selectorType.hasTag(LONG) && (targetType.hasTag(DOUBLE) || targetType.hasTag(FLOAT)))));
     }
     // </editor-fold>
 

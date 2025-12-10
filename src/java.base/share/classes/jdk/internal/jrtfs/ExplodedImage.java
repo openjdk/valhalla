@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,23 +24,27 @@
  */
 package jdk.internal.jrtfs;
 
+import jdk.internal.jimage.ImageReader.Node;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystem;
 import java.nio.file.FileSystemException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import jdk.internal.jimage.ImageReader.Node;
+import static java.util.stream.Collectors.toList;
 
 /**
  * A jrt file system built on $JAVA_HOME/modules directory ('exploded modules
@@ -56,16 +60,19 @@ class ExplodedImage extends SystemImage {
 
     private static final String MODULES = "/modules/";
     private static final String PACKAGES = "/packages/";
-    private static final int PACKAGES_LEN = PACKAGES.length();
+    private static final Path META_INF_DIR = Paths.get("META-INF");
+    private static final Path PREVIEW_DIR = META_INF_DIR.resolve("preview");
 
-    private final FileSystem defaultFS;
+    private final Path modulesDir;
+    private final boolean isPreviewMode;
     private final String separator;
-    private final Map<String, PathNode> nodes = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, PathNode> nodes = new HashMap<>();
     private final BasicFileAttributes modulesDirAttrs;
 
-    ExplodedImage(Path modulesDir) throws IOException {
-        defaultFS = FileSystems.getDefault();
-        String str = defaultFS.getSeparator();
+    ExplodedImage(Path modulesDir, boolean isPreviewMode) throws IOException {
+        this.modulesDir = modulesDir;
+        this.isPreviewMode = isPreviewMode;
+        String str = modulesDir.getFileSystem().getSeparator();
         separator = str.equals("/") ? null : str;
         modulesDirAttrs = Files.readAttributes(modulesDir, BasicFileAttributes.class);
         initNodes();
@@ -73,31 +80,47 @@ class ExplodedImage extends SystemImage {
 
     // A Node that is backed by actual default file system Path
     private final class PathNode extends Node {
-
-        // Path in underlying default file system
-        private Path path;
+        // Path in underlying default file system relative to modulesDir.
+        // In preview mode this need not correspond to the node's name.
+        private Path relPath;
         private PathNode link;
-        private List<Node> children;
+        private List<String> childNames;
 
-        PathNode(String name, Path path, BasicFileAttributes attrs) {  // path
+        /**
+         * Creates a file based node with the given file attributes.
+         *
+         * <p>If the underlying path is a directory, then it is created in an
+         * "incomplete" state, and its child names will be determined lazily.
+         */
+        private PathNode(String name, Path path, BasicFileAttributes attrs) {  // path
             super(name, attrs);
-            this.path = path;
+            this.relPath = modulesDir.relativize(path);
+            if (relPath.isAbsolute() || relPath.getNameCount() == 0) {
+                throw new IllegalArgumentException("Invalid node path (must be relative): " + path);
+            }
         }
 
-        PathNode(String name, Node link) {              // link
+        /** Creates a symbolic link node to the specified target. */
+        private PathNode(String name, Node link) {              // link
             super(name, link.getFileAttributes());
             this.link = (PathNode)link;
         }
 
-        PathNode(String name, List<Node> children) {    // dir
+        /** Creates a completed directory node based a list of child nodes. */
+        private PathNode(String name, List<PathNode> children) {    // dir
             super(name, modulesDirAttrs);
-            this.children = children;
+            this.childNames = children.stream().map(Node::getName).collect(toList());
+        }
+
+        @Override
+        public boolean isResource() {
+            return link == null && !getFileAttributes().isDirectory();
         }
 
         @Override
         public boolean isDirectory() {
-            return children != null ||
-                   (link == null && getFileAttributes().isDirectory());
+            return childNames != null ||
+                    (link == null && getFileAttributes().isDirectory());
         }
 
         @Override
@@ -112,39 +135,60 @@ class ExplodedImage extends SystemImage {
             return recursive && link.isLink() ? link.resolveLink(true) : link;
         }
 
-        byte[] getContent() throws IOException {
+        private byte[] getContent() throws IOException {
             if (!getFileAttributes().isRegularFile())
                 throw new FileSystemException(getName() + " is not file");
-            return Files.readAllBytes(path);
+            return Files.readAllBytes(modulesDir.resolve(relPath));
         }
 
         @Override
-        public List<Node> getChildren() {
+        public Stream<String> getChildNames() {
             if (!isDirectory())
-                throw new IllegalArgumentException("not a directory: " + getNameString());
-            if (children == null) {
-                List<Node> list = new ArrayList<>();
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
-                    for (Path p : stream) {
-                        p = explodedModulesDir.relativize(p);
-                        String pName = MODULES + nativeSlashToFrontSlash(p.toString());
-                        Node node = findNode(pName);
-                        if (node != null) {  // findNode may choose to hide certain files!
-                            list.add(node);
-                        }
-                    }
-                } catch (IOException x) {
-                    return null;
-                }
-                children = list;
+                throw new IllegalStateException("not a directory: " + getName());
+            List<String> names = childNames;
+            if (names == null) {
+                names = completeDirectory();
             }
-            return children;
+            return names.stream();
+        }
+
+        private synchronized List<String> completeDirectory() {
+            if (childNames != null) {
+                return childNames;
+            }
+            // Process preview nodes first, so if nodes are created they take
+            // precedence in the cache.
+            Set<String> childNameSet = new HashSet<>();
+            if (isPreviewMode && relPath.getNameCount() > 1 && !relPath.getName(1).equals(META_INF_DIR)) {
+                Path absPreviewDir = modulesDir
+                        .resolve(relPath.getName(0))
+                        .resolve(PREVIEW_DIR)
+                        .resolve(relPath.subpath(1, relPath.getNameCount()));
+                if (Files.exists(absPreviewDir)) {
+                    collectChildNodeNames(absPreviewDir, childNameSet);
+                }
+            }
+            collectChildNodeNames(modulesDir.resolve(relPath), childNameSet);
+            return childNames = childNameSet.stream().sorted().collect(toList());
+        }
+
+        private void collectChildNodeNames(Path absPath, Set<String> childNameSet) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(absPath)) {
+                for (Path p : stream) {
+                    PathNode node = (PathNode) findNode(getName() + "/" + p.getFileName().toString());
+                    if (node != null) {  // findNode may choose to hide certain files!
+                        childNameSet.add(node.getName());
+                    }
+                }
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
         }
 
         @Override
         public long size() {
             try {
-                return isDirectory() ? 0 : Files.size(path);
+                return isDirectory() ? 0 : Files.size(modulesDir.resolve(relPath));
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
@@ -152,7 +196,7 @@ class ExplodedImage extends SystemImage {
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         nodes.clear();
     }
 
@@ -161,82 +205,111 @@ class ExplodedImage extends SystemImage {
         return ((PathNode)node).getContent();
     }
 
-    // find Node for the given Path
     @Override
-    public synchronized Node findNode(String str) {
-        Node node = findModulesNode(str);
+    public synchronized Node findNode(String name) {
+        PathNode node = nodes.get(name);
         if (node != null) {
             return node;
         }
-        // lazily created for paths like /packages/<package>/<module>/xyz
-        // For example /packages/java.lang/java.base/java/lang/
-        if (str.startsWith(PACKAGES)) {
-            // pkgEndIdx marks end of <package> part
-            int pkgEndIdx = str.indexOf('/', PACKAGES_LEN);
-            if (pkgEndIdx != -1) {
-                // modEndIdx marks end of <module> part
-                int modEndIdx = str.indexOf('/', pkgEndIdx + 1);
-                if (modEndIdx != -1) {
-                    // make sure we have such module link!
-                    // ie., /packages/<package>/<module> is valid
-                    Node linkNode = nodes.get(str.substring(0, modEndIdx));
-                    if (linkNode == null || !linkNode.isLink()) {
-                        return null;
-                    }
-                    // map to "/modules/zyz" path and return that node
-                    // For example, "/modules/java.base/java/lang" for
-                    // "/packages/java.lang/java.base/java/lang".
-                    String mod = MODULES + str.substring(pkgEndIdx + 1);
-                    return findModulesNode(mod);
-                }
-            }
+        // If null, this was not the name of "/modules/..." node, and since all
+        // "/packages/..." nodes were created and cached in advance, the name
+        // cannot reference a valid node.
+        Path path = underlyingModulesPath(name);
+        if (path == null) {
+            return null;
         }
-        return null;
+        // This can still return null for hidden files.
+        return createModulesNode(name, path);
     }
 
-    // find a Node for a path that starts like "/modules/..."
-    Node findModulesNode(String str) {
-        PathNode node = nodes.get(str);
-        if (node != null) {
+    /**
+     * Returns the expected file path for name in the "/modules/..." namespace,
+     * or {@code null} if the name is not in the "/modules/..." namespace or the
+     * path does not reference a file.
+     */
+    private Path underlyingModulesPath(String name) {
+        if (!isNonEmptyModulesName(name)) {
+            return null;
+        }
+        String relName = name.substring(MODULES.length());
+        Path relPath = Paths.get(frontSlashToNativeSlash(relName));
+        // The first path segment must exist due to check above.
+        Path modDir = relPath.getName(0);
+        Path previewDir = modDir.resolve(PREVIEW_DIR);
+        if (relPath.startsWith(previewDir)) {
+            return null;
+        }
+        Path path = modulesDir.resolve(relPath);
+        // Non-preview directories take precedence.
+        if (Files.isDirectory(path)) {
+            return path;
+        }
+        // Otherwise prefer preview resources over non-preview ones.
+        if (isPreviewMode
+                && relPath.getNameCount() > 1
+                && !modDir.equals(META_INF_DIR)) {
+            Path previewPath = modulesDir
+                    .resolve(previewDir)
+                    .resolve(relPath.subpath(1, relPath.getNameCount()));
+            if (Files.exists(previewPath)) {
+                return previewPath;
+            }
+        }
+        return Files.exists(path) ? path : null;
+    }
+
+    /**
+     * Lazily creates and caches a {@code Node} for the given "/modules/..." name
+     * and corresponding path to a file or directory.
+     *
+     * @param name a resource or directory node name, of the form "/modules/...".
+     * @param path the path of a file for a resource or directory.
+     * @return the newly created and cached node, or {@code null} if the given
+     *     path references a file which must be hidden in the node hierarchy.
+     */
+    private PathNode createModulesNode(String name, Path path) {
+        assert !nodes.containsKey(name) : "Node must not already exist: " + name;
+        assert isNonEmptyModulesName(name) : "Invalid modules name: " + name;
+
+        try {
+            // We only know if we're creating a resource of directory when we
+            // look up file attributes, and we only do that once. Thus, we can
+            // only reject "marker files" here, rather than by inspecting the
+            // given name string, since it doesn't apply to directories.
+            BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+            if (attrs.isRegularFile()) {
+                Path f = path.getFileName();
+                if (f.toString().startsWith("_the.")) {
+                    return null;
+                }
+            } else if (!attrs.isDirectory()) {
+                return null;
+            }
+            PathNode node = new PathNode(name, path, attrs);
+            nodes.put(name, node);
             return node;
+        } catch (IOException x) {
+            // Since the path references a file errors should not be ignored.
+            throw new UncheckedIOException(x);
         }
-        // lazily created "/modules/xyz/abc/" Node
-        // This is mapped to default file system path "<JDK_MODULES_DIR>/xyz/abc"
-        Path p = underlyingPath(str);
-        if (p != null) {
-            try {
-                BasicFileAttributes attrs = Files.readAttributes(p, BasicFileAttributes.class);
-                if (attrs.isRegularFile()) {
-                    Path f = p.getFileName();
-                    if (f.toString().startsWith("_the."))
-                        return null;
-                }
-                node = new PathNode(str, p, attrs);
-                nodes.put(str, node);
-                return node;
-            } catch (IOException x) {
-                // does not exists or unable to determine
-            }
-        }
-        return null;
     }
 
-    Path underlyingPath(String str) {
-        if (str.startsWith(MODULES)) {
-            str = frontSlashToNativeSlash(str.substring("/modules".length()));
-            return defaultFS.getPath(explodedModulesDir.toString(), str);
-        }
-        return null;
+    private static final Pattern NON_EMPTY_MODULES_NAME =
+            Pattern.compile("/modules(/[^/]+)+");
+
+    private static boolean isNonEmptyModulesName(String name) {
+        // Don't just check the prefix, there must be something after it too
+        // (otherwise you end up with an empty string after trimming).
+        // Also make sure we can't be tricked by "/modules//absolute/path" or
+        // "/modules/../../escaped/path"
+        return NON_EMPTY_MODULES_NAME.matcher(name).matches()
+                && !name.contains("/../")
+                && !name.contains("/./");
     }
 
     // convert "/" to platform path separator
     private String frontSlashToNativeSlash(String str) {
         return separator == null ? str : str.replace("/", separator);
-    }
-
-    // convert platform path separator to "/"
-    private String nativeSlashToFrontSlash(String str) {
-        return separator == null ? str : str.replace(separator, "/");
     }
 
     // convert "/"s to "."s
@@ -249,43 +322,26 @@ class ExplodedImage extends SystemImage {
         // same package prefix may exist in multiple modules. This Map
         // is filled by walking "jdk modules" directory recursively!
         Map<String, List<String>> packageToModules = new HashMap<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(explodedModulesDir)) {
-            for (Path module : stream) {
-                if (Files.isDirectory(module)) {
-                    String moduleName = module.getFileName().toString();
-                    // make sure "/modules/<moduleName>" is created
-                    findModulesNode(MODULES + moduleName);
-                    try (Stream<Path> contentsStream = Files.walk(module)) {
-                        contentsStream.filter(Files::isDirectory).forEach((p) -> {
-                            p = module.relativize(p);
-                            String pkgName = slashesToDots(p.toString());
-                            // skip META-INF and empty strings
-                            if (!pkgName.isEmpty() && !pkgName.startsWith("META-INF")) {
-                                List<String> moduleNames = packageToModules.get(pkgName);
-                                if (moduleNames == null) {
-                                    moduleNames = new ArrayList<>();
-                                    packageToModules.put(pkgName, moduleNames);
-                                }
-                                moduleNames.add(moduleName);
-                            }
-                        });
-                    }
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(modulesDir)) {
+            for (Path moduleDir : stream) {
+                if (Files.isDirectory(moduleDir)) {
+                    processModuleDirectory(moduleDir, packageToModules);
                 }
             }
         }
         // create "/modules" directory
         // "nodes" map contains only /modules/<foo> nodes only so far and so add all as children of /modules
-        PathNode modulesDir = new PathNode("/modules", new ArrayList<>(nodes.values()));
-        nodes.put(modulesDir.getName(), modulesDir);
+        PathNode modulesRootNode = new PathNode("/modules", new ArrayList<>(nodes.values()));
+        nodes.put(modulesRootNode.getName(), modulesRootNode);
 
         // create children under "/packages"
-        List<Node> packagesChildren = new ArrayList<>(packageToModules.size());
+        List<PathNode> packagesChildren = new ArrayList<>(packageToModules.size());
         for (Map.Entry<String, List<String>> entry : packageToModules.entrySet()) {
             String pkgName = entry.getKey();
             List<String> moduleNameList = entry.getValue();
-            List<Node> moduleLinkNodes = new ArrayList<>(moduleNameList.size());
+            List<PathNode> moduleLinkNodes = new ArrayList<>(moduleNameList.size());
             for (String moduleName : moduleNameList) {
-                Node moduleNode = findModulesNode(MODULES + moduleName);
+                Node moduleNode = Objects.requireNonNull(nodes.get(MODULES + moduleName));
                 PathNode linkNode = new PathNode(PACKAGES + pkgName + "/" + moduleName, moduleNode);
                 nodes.put(linkNode.getName(), linkNode);
                 moduleLinkNodes.add(linkNode);
@@ -295,14 +351,44 @@ class ExplodedImage extends SystemImage {
             packagesChildren.add(pkgDir);
         }
         // "/packages" dir
-        PathNode packagesDir = new PathNode("/packages", packagesChildren);
-        nodes.put(packagesDir.getName(), packagesDir);
+        PathNode packagesRootNode = new PathNode("/packages", packagesChildren);
+        nodes.put(packagesRootNode.getName(), packagesRootNode);
 
         // finally "/" dir!
-        List<Node> rootChildren = new ArrayList<>();
-        rootChildren.add(packagesDir);
-        rootChildren.add(modulesDir);
+        List<PathNode> rootChildren = new ArrayList<>();
+        rootChildren.add(packagesRootNode);
+        rootChildren.add(modulesRootNode);
         PathNode root = new PathNode("/", rootChildren);
         nodes.put(root.getName(), root);
+    }
+
+    private void processModuleDirectory(Path moduleDir, Map<String, List<String>> packageToModules)
+            throws IOException {
+        String moduleName = moduleDir.getFileName().toString();
+        // Make sure "/modules/<moduleName>" is created
+        Objects.requireNonNull(createModulesNode(MODULES + moduleName, moduleDir));
+        // Skip the first path (it's always the given root directory).
+        try (Stream<Path> contentsStream = Files.walk(moduleDir).skip(1)) {
+            contentsStream
+                    // Non-empty relative directory paths inside each module.
+                    .filter(Files::isDirectory)
+                    .map(moduleDir::relativize)
+                    // Map paths inside preview directory to non-preview versions.
+                    .filter(p -> isPreviewMode || !p.startsWith(PREVIEW_DIR))
+                    .map(p -> isPreviewSubpath(p) ? PREVIEW_DIR.relativize(p) : p)
+                    // Ignore special META-INF directory (including preview directory itself).
+                    .filter(p -> !p.startsWith(META_INF_DIR))
+                    // Extract unique package names.
+                    .map(p -> slashesToDots(p.toString()))
+                    .distinct()
+                    .forEach(pkgName ->
+                            packageToModules
+                                    .computeIfAbsent(pkgName, k -> new ArrayList<>())
+                                    .add(moduleName));
+        }
+    }
+
+    private static boolean isPreviewSubpath(Path p) {
+        return p.startsWith(PREVIEW_DIR) && p.getNameCount() > PREVIEW_DIR.getNameCount();
     }
 }

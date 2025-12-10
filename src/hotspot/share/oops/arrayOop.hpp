@@ -136,6 +136,7 @@ private:
   // 32 bit platforms when we convert it to a byte size.
   static int32_t max_array_length(BasicType type) {
     assert(type < T_CONFLICT, "wrong type");
+    assert(type != T_FLAT_ELEMENT, "wrong type");
     assert(type2aelembytes(type) != 0, "wrong type");
 
     int hdr_size_in_bytes = base_offset_in_bytes(type);

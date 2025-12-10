@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,12 @@
  * @summary Test that speculative types are properly handled by scalarization.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:CompileCommand=dontinline,TestWithSpeculativeTypes::*
+ * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestWithSpeculativeTypes::*
  *                   -XX:TypeProfileLevel=222 -XX:-TieredCompilation -Xbatch
- *                   TestWithSpeculativeTypes
+ *                   compiler.valhalla.inlinetypes.TestWithSpeculativeTypes
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 

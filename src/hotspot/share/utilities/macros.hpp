@@ -377,13 +377,10 @@
 #define DEBUG_ONLY(code) code
 #define NOT_DEBUG(code)
 #define NOT_DEBUG_RETURN  /*next token must be ;*/
-// Historical.
-#define debug_only(code) code
 #else // ASSERT
 #define DEBUG_ONLY(code)
 #define NOT_DEBUG(code) code
 #define NOT_DEBUG_RETURN {}
-#define debug_only(code)
 #endif // ASSERT
 
 #ifdef  _LP64
@@ -455,7 +452,7 @@
 #define NOT_ZERO_RETURN
 #endif
 
-#if defined(IA32) || defined(AMD64)
+#if defined(AMD64)
 #define X86
 #define X86_ONLY(code) code
 #define NOT_X86(code)
@@ -463,14 +460,6 @@
 #undef X86
 #define X86_ONLY(code)
 #define NOT_X86(code) code
-#endif
-
-#ifdef IA32
-#define IA32_ONLY(code) code
-#define NOT_IA32(code)
-#else
-#define IA32_ONLY(code)
-#define NOT_IA32(code) code
 #endif
 
 #ifdef AMD64

@@ -7,9 +7,9 @@
  */
 import java.util.function.Function;
 abstract value class AR<V> implements java.io.Serializable {
+    int b = 5;
     public AR(V initialValue) {
     }
-
     public AR() {
     }
 }
@@ -178,4 +178,8 @@ value class ValueClassSuperInitFails extends AR <Object> implements Iterable<Obj
     public ValueClassSuperInitFails(long[][] z) {
         super(new Inner1());            // this should FAIL
     }
+
+    // these two should FAIL
+    int a = b;
+    int aa = super.b;
 }

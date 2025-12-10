@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,21 +34,21 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-value class MyValue {
+value class MyValueOptKlassCmp {
     public int x;
 
-    public MyValue(int x) {
+    public MyValueOptKlassCmp(int x) {
         this.x = x;
     }
 }
 
 public class TestOptimizeKlassCmp {
 
-    public static boolean test1(MyValue v1, MyValue v2) {
+    public static boolean test1(MyValueOptKlassCmp v1, MyValueOptKlassCmp v2) {
         return v1.equals(v2);
     }
 
-    public static boolean test2(MyValue v1, MyValue v2) {
+    public static boolean test2(MyValueOptKlassCmp v1, MyValueOptKlassCmp v2) {
         return v1.getClass().equals(v2.getClass());
     }
 
@@ -57,8 +57,8 @@ public class TestOptimizeKlassCmp {
     }
 
     public static void main(String[] args) {
-        MyValue v1 = new MyValue(0);
-        MyValue v2 = new MyValue(1);
+        MyValueOptKlassCmp v1 = new MyValueOptKlassCmp(0);
+        MyValueOptKlassCmp v2 = new MyValueOptKlassCmp(1);
         for (int i = 0; i < 10_000; ++i) {
             Asserts.assertFalse(test1(v1, v2));
             Asserts.assertTrue(test1(v1, v1));

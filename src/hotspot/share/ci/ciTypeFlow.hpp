@@ -253,7 +253,7 @@ public:
       set_type_at_tos(type);
     }
     void      pop() {
-      debug_only(set_type_at_tos(bottom_type()));
+      DEBUG_ONLY(set_type_at_tos(bottom_type()));
       _stack_size--;
     }
     ciType*   pop_value() {
@@ -853,6 +853,7 @@ public:
                                       return _block_map[rpo]; }
   int inc_next_pre_order()          { return _next_pre_order++; }
 
+  ciType* mark_as_early_larval(ciType* type);
   ciType* mark_as_null_free(ciType* type);
 
 private:

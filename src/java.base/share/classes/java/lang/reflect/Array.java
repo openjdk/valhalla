@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,18 +140,8 @@ class Array {
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      */
-    public static Object get(Object array, int index)
-        throws IllegalArgumentException, ArrayIndexOutOfBoundsException {
-        Class<?> componentType = array.getClass().getComponentType();
-        if (componentType != null && !componentType.isPrimitive()) {
-            Object[] objArray = (Object[]) array.getClass().cast(array);
-            return objArray[index];
-        } else {
-            return getReferenceOrPrimitive(array, index);
-        }
-    }
-
-    private static native Object getReferenceOrPrimitive(Object array, int index);
+    public static native Object get(Object array, int index)
+        throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
      * Returns the value of the indexed component in the specified
@@ -322,18 +312,8 @@ class Array {
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      */
-    public static void set(Object array, int index, Object value)
-        throws IllegalArgumentException, ArrayIndexOutOfBoundsException {
-        Class<?> componentType = array.getClass().getComponentType();
-        if (componentType != null && !componentType.isPrimitive()) {
-            Object[] objArray = (Object[]) array.getClass().cast(array);
-            objArray[index] = componentType.cast(value);
-        } else {
-            setReferenceOrPrimitive(array, index, value);
-        }
-    }
-
-    private static native void setReferenceOrPrimitive(Object array, int index, Object value);
+    public static native void set(Object array, int index, Object value)
+        throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
 
     /**
      * Sets the value of the indexed component of the specified array

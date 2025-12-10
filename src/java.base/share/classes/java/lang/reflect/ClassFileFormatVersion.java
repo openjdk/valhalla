@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import java.lang.classfile.ClassFile;
+
 /**
  * Class file format versions of the Java virtual machine.
  *
@@ -371,10 +373,27 @@ public enum ClassFileFormatVersion {
      * <cite>The Java Virtual Machine Specification, Java SE 25 Edition</cite></a>
      */
     RELEASE_25(69),
-    ; // Reduce code churn when appending new constants
+
+    /**
+     * The version introduced by the Java Platform, Standard Edition
+     * 26.
+     *
+     * @since 26
+     *
+     * @see <a
+     * href="https://docs.oracle.com/javase/specs/jvms/se26/html/index.html">
+     * <cite>The Java Virtual Machine Specification, Java SE 26 Edition</cite></a>
+     */
+    RELEASE_26(70),
+
+    // Reduce code churn when appending new constants
 
     // Note to maintainers: when adding constants for newer releases,
     // the implementation of latest() must be updated too.
+
+    /// The preview features of Valhalla.
+    /// @since 26
+    CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
 
     private final int major;
 
@@ -386,7 +405,7 @@ public enum ClassFileFormatVersion {
      * {@return the latest class file format version}
      */
     public static ClassFileFormatVersion latest() {
-        return RELEASE_25;
+        return RELEASE_26;
     }
 
     /**

@@ -25,7 +25,6 @@
  * @test
  * @bug 8304487
  * @summary Compiler Implementation for Primitive types in patterns, instanceof, and switch (Preview)
- * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api

@@ -29,7 +29,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main/othervm NullMarkersTest 0
+ * @run main NullMarkersTest 0
  */
 
 /*
@@ -40,7 +40,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main/othervm NullMarkersTest 1
+ * @run main NullMarkersTest 1
  */
 
 /*
@@ -51,7 +51,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main/othervm NullMarkersTest 2
+ * @run main NullMarkersTest 2
  */
 
 /*
@@ -62,7 +62,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main/othervm NullMarkersTest 3
+ * @run main NullMarkersTest 3
  */
 
 import java.util.ArrayList;

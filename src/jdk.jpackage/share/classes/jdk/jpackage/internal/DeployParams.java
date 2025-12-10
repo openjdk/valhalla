@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
+import jdk.jpackage.internal.model.PackagerException;
 
 /**
  * DeployParams
@@ -277,30 +278,6 @@ public class DeployParams {
                     throw new PackagerException(
                             "ERR_MissingJLinkOptMacAppStore",
                             "--strip-native-commands");
-                }
-            }
-
-            // Validate runtime if mac-app-store is set. Predefined runtime
-            // should not contain "bin" folder.
-            runtime = (String)bundlerArguments.get(
-                    Arguments.CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId());
-            if (runtime != null) {
-                // Should exist from check above if not null
-                Path topImage = Path.of(runtime);
-
-                // On Mac topImage can be runtime root or runtime home.
-                Path runtimeHome = topImage.resolve("Contents/Home");
-                if (Files.isDirectory(runtimeHome)) {
-                    // topImage references runtime root, adjust it to pick data
-                    // from runtime home
-                    topImage = runtimeHome;
-                }
-
-                Path runtimeBin = topImage.resolve("bin");
-                if (Files.isDirectory(runtimeBin)) {
-                    throw new PackagerException(
-                            "ERR_MacAppStoreRuntimeBinExists",
-                            topImage.toAbsolutePath().toString());
                 }
             }
         }

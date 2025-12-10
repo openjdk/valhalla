@@ -31,6 +31,7 @@ import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.ConstantPool;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.PoolEntry;
+import java.lang.runtime.ExactConversionsSupport;
 import java.util.Arrays;
 import java.util.HashSet;
 
@@ -38,8 +39,7 @@ import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.ForceInline;
 
-import static java.lang.classfile.ClassFile.ACC_STATIC;
-import static java.lang.classfile.ClassFile.ACC_STRICT;
+import static java.lang.classfile.ClassFile.*;
 import static java.lang.classfile.constantpool.PoolEntry.TAG_UTF8;
 import static jdk.internal.util.ModifiedUtf.putChar;
 import static jdk.internal.util.ModifiedUtf.utfLen;
@@ -53,6 +53,7 @@ public final class BufWriterImpl implements BufWriter {
     private WritableField.UnsetField[] strictInstanceFields; // do not modify array contents
     private ClassModel lastStrictCheckClass; // buf writer has short life, so do not need weak here
     private boolean lastStrictCheckResult;
+    private boolean labelsMatch;
     private final ClassEntry thisClass;
     private final int majorVersion;
     byte[] elems;
@@ -92,7 +93,7 @@ public final class BufWriterImpl implements BufWriter {
         // UTF8 Entry can be used as equality objects
         var checks = new HashSet<>(Arrays.asList(getStrictInstanceFields()));
         for (var f : cm.fields()) {
-            if ((f.flags().flagsMask() & (ACC_STATIC | ACC_STRICT)) == ACC_STRICT) {
+            if ((f.flags().flagsMask() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) {
                 if (!checks.remove(new WritableField.UnsetField(f.fieldName(), f.fieldType()))) {
                     return false; // Field mismatch!
                 }
@@ -110,8 +111,9 @@ public final class BufWriterImpl implements BufWriter {
         return labelContext;
     }
 
-    public void setLabelContext(LabelContext labelContext) {
+    public void setLabelContext(LabelContext labelContext, boolean labelsMatch) {
         this.labelContext = labelContext;
+        this.labelsMatch = labelsMatch;
     }
 
     public WritableField.UnsetField[] getStrictInstanceFields() {
@@ -121,6 +123,13 @@ public final class BufWriterImpl implements BufWriter {
 
     public void setStrictInstanceFields(WritableField.UnsetField[] strictInstanceFields) {
         this.strictInstanceFields = strictInstanceFields;
+    }
+
+
+    public boolean labelsMatch(LabelContext lc) {
+        return labelsMatch
+                && labelContext instanceof DirectCodeBuilder dcb
+                && dcb.original == lc;
     }
 
     @Override
@@ -310,10 +319,11 @@ public final class BufWriterImpl implements BufWriter {
     void writeUtfEntry(String str) {
         int strlen = str.length();
         int countNonZeroAscii = JLA.countNonZeroAscii(str);
-        int utflen = utfLen(str, countNonZeroAscii);
-        if (utflen > 65535) {
-            throw new IllegalArgumentException("string too long");
+        long utflenLong = utfLen(str, countNonZeroAscii);
+        if (!ExactConversionsSupport.isLongToCharExact(utflenLong)) {
+            throw new IllegalArgumentException("utf8 length out of range of u2: " + utflenLong);
         }
+        int utflen = (int)utflenLong;
         reserveSpace(utflen + 3);
 
         int offset = this.offset;
@@ -434,6 +444,7 @@ public final class BufWriterImpl implements BufWriter {
         writeU2(cpIndex(entry));
     }
 
+    // Null checks entry
     public void writeIndex(int bytecode, PoolEntry entry) {
         writeU1U2(bytecode, cpIndex(entry));
     }

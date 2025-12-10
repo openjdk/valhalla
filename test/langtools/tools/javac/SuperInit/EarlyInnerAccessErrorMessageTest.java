@@ -3,7 +3,8 @@
  * @bug 8334488
  * @summary Verify the error message generated for early access from inner class
  * @compile/fail/ref=EarlyInnerAccessErrorMessageTest.out -XDrawDiagnostics EarlyInnerAccessErrorMessageTest.java
- * @enablePreview
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester EarlyInnerAccessErrorMessageTest EarlyInnerAccessErrorMessageTestWarnings.out
  */
 public class EarlyInnerAccessErrorMessageTest {
     int x;

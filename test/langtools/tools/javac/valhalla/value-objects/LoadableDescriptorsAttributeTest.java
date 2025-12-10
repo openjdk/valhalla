@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,16 @@
  * @test
  * @bug 8280164 8334313
  * @summary Check emission of LoadableDescriptors attribute
- * @modules jdk.jdeps/com.sun.tools.classfile
  * @enablePreview
  * @run main LoadableDescriptorsAttributeTest
  */
 
-import com.sun.tools.classfile.*;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Utf8_info;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.constantpool.Utf8Entry;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class LoadableDescriptorsAttributeTest {
 
@@ -73,38 +76,30 @@ public class LoadableDescriptorsAttributeTest {
     // So we expect ONLY V2, V3, V7 to be in LoadableDescriptors list
 
     public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(LoadableDescriptorsAttributeTest.class.getResourceAsStream("LoadableDescriptorsAttributeTest$X.class"));
-
-        if (cls == null) {
-            throw new AssertionError("Could not locate the class files");
+        ClassModel cls;
+        try (var in = LoadableDescriptorsAttributeTest.class.getResourceAsStream("LoadableDescriptorsAttributeTest$X.class")) {
+            cls = ClassFile.of().parse(in.readAllBytes());
         }
 
         /* Check emission of LoadableDescriptors attribute */
-        LoadableDescriptors_attribute descriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
-        if (descriptors == null) {
-            throw new AssertionError("Missing LoadableDescriptors attribute!");
-        }
-        if (descriptors.number_of_descriptors != 3) {
-            throw new AssertionError("Incorrect number of loadable descriptors, found: " + descriptors.number_of_descriptors);
+        var descriptors = cls.findAttribute(Attributes.loadableDescriptors()).orElseThrow();
+        if (descriptors.loadableDescriptors().size() != 3) {
+            throw new AssertionError("Expected 3 loadable descriptors, found: " + descriptors.loadableDescriptors());
         }
 
-        int mask = 7;
-        for (int i = 0; i < descriptors.number_of_descriptors; i++) {
-            CONSTANT_Utf8_info clsInfo = cls.constant_pool.getUTF8Info(
-                                  descriptors.descriptors[i]);
-            switch (clsInfo.value) {
-                case "LLoadableDescriptorsAttributeTest$V2;":
-                    mask &= ~1; break;
-                case "LLoadableDescriptorsAttributeTest$V3;":
-                    mask &= ~2; break;
-                case "LLoadableDescriptorsAttributeTest$V7;" :
-                    mask &= ~4; break;
-                default:
-                    throw new AssertionError("Unexpected LoadableDescriptors entry!");
-            }
-        }
-        if (mask != 0) {
-          throw new AssertionError("Some LoadableDescriptors entries are missing!");
+        Set<String> expected = Set.of(
+                "LLoadableDescriptorsAttributeTest$V2;",
+                "LLoadableDescriptorsAttributeTest$V3;",
+                "LLoadableDescriptorsAttributeTest$V7;"
+        );
+
+        Set<String> found = descriptors.loadableDescriptors()
+                .stream()
+                .map(Utf8Entry::stringValue)
+                .collect(Collectors.toSet());
+
+        if (!expected.equals(found)) {
+            throw new AssertionError("LoadableDescriptors mismatch, found: " + found);
         }
     }
 }

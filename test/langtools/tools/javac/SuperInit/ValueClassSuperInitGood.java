@@ -26,8 +26,10 @@
  * @bug 8324873
  * @summary Test valid placements of super()/this() in constructors
  * @enablePreview
- * @ignore fails at execution time because of Optional
  */
+
+import java.util.ArrayList;
+import java.util.List;
 
 public value class ValueClassSuperInitGood {
 
@@ -78,10 +80,10 @@ public value class ValueClassSuperInitGood {
         Test3() {
             new Object().hashCode();
             new Object().hashCode();
-            super();
             this.x = new Object().hashCode();
             this.y = new Object().hashCode() % 17;
             this.z = this.x + this.y;
+            super();
         }
     }
 
@@ -101,9 +103,9 @@ public value class ValueClassSuperInitGood {
     // Initialization blocks
     value class Test6 {
         final long startTime;
-        final int x;
+        List<String> l = new ArrayList<>();
         {
-            this.x = 12;
+            l.add("");
         }
         Test6() {
             long now = System.nanoTime();
@@ -116,8 +118,8 @@ public value class ValueClassSuperInitGood {
                     break;
                 }
             }
-            super();
             this.startTime = now;
+            super();
         }
     }
 
@@ -231,26 +233,6 @@ public value class ValueClassSuperInitGood {
                     }
                 }
             });
-        }
-    }
-
-    // Initializer in initializer block
-    public static value class Test14 {
-        final int x;                // initialized in constructor
-        final int y;                // initialized in initialization block
-        final int z = 13;           // initialized with intializer value
-        public Test14() {
-            this(0);
-        }
-        public Test14(boolean z) {
-            this.x = z ? 1 : 0;
-        }
-        public Test14(int x) {
-            super();
-            this.x = x;
-        }
-        {
-            this.y = -1;
         }
     }
 
@@ -382,32 +364,6 @@ public value class ValueClassSuperInitGood {
         }
     }
 
-    // Exceptions thrown by initializer block
-    public static value class Test18 extends AR<Object> {
-
-        {
-            if ((this.get().hashCode() % 3) == 0)
-                throw new MyException();
-        }
-
-        public Test18(Object obj) throws MyException {
-            super(obj);
-        }
-
-        public Test18(boolean fail) throws MyException {
-            Object obj;
-            for (obj = new Object(); true; obj = new Object()) {
-                if (((obj.hashCode() % 3) == 0) != fail)
-                    continue;
-                break;
-            }
-            this(obj);
-        }
-
-        public static class MyException extends Exception {
-        }
-    }
-
     // super()/this() within outer try block but inside inner class
     public static value class Test19 {
         public Test19(int x) {
@@ -424,29 +380,16 @@ public value class ValueClassSuperInitGood {
         }
     }
 
-    // local class declared before super(), but not used until after super()
     public static value class Test20 {
-        public Test20() {
-            class Foo {
-                Foo() {
-                    Test20.this.hashCode();
-                }
+        private final int[] data1 = new int[10];
+        private final int[] data2 = new int[10];
+        private final int[] data3 = new int[10];
+        Test20() {
+            for (int i = 0; i < data1.length; i++) {
+                data1[i] = i; // OK we are assigning to an array component
+                this.data2[i] = i; // OK we are assigning to an array component
+                Test20.this.data3[i] = i; // OK we are assigning to an array component
             }
-            super();
-            new Foo();
-        }
-    }
-
-    // local class inside super() parameter list
-    public static value class Test21 extends AR<Object> {
-        private int x = 1;
-        public Test21() {
-            super(switch ("foo".hashCode()) {
-                default -> {
-                    class Nested {{ System.out.println(x); }}       // class is NOT instantiated - OK
-                    yield "bar";
-                }
-            });
         }
     }
 
@@ -466,10 +409,6 @@ public value class ValueClassSuperInitGood {
         new Test11(9);
         new Test12();
         new Test13();
-        Test14 t14 = new Test14();
-        assert t14.x == 0 && t14.y == -1 && t14.z == 13;
-        t14 = new Test14(7);
-        assert t14.x == 7 && t14.y == -1 && t14.z == 13;
         new Test15c(new Test15("foo"){}, "bar");
         new Test16().run();
         new Test17.StringHolder("foo");
@@ -479,19 +418,7 @@ public value class ValueClassSuperInitGood {
         } catch (NullPointerException e) {
             // expected
         }
-        try {
-            new Test18(true);
-            assert false : "expected exception";
-        } catch (Test18.MyException e) {
-            // expected
-        }
-        try {
-            new Test18(false);
-        } catch (Test18.MyException e) {
-            assert false : "unexpected exception: " + e;
-        }
         new Test19(123);
         new Test20();
-        new Test21();
     }
 }

@@ -37,6 +37,9 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
     // The target will check for preemption once it returns to the interpreter
     // or the native wrapper code and will manually jump to the preempt stub.
     JavaThread *thread = JavaThread::current();
+    DEBUG_ONLY(Method* m = f.is_interpreted_frame() ? f.interpreter_frame_method() : f.cb()->as_nmethod()->method();)
+    assert(m->is_object_wait0() || thread->interp_at_preemptable_vmcall_cnt() > 0,
+           "preemptable VM call not using call_VM_preemptable");
     thread->set_preempt_alternate_return(StubRoutines::cont_preempt_stub());
   }
 }
@@ -110,7 +113,7 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return (address)f.own_abi()->lr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool callee_augmented) {
   f.own_abi()->lr = (uint64_t)pc;
 }
 

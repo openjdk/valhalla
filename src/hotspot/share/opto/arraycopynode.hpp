@@ -123,7 +123,7 @@ private:
             Node* base_src, Node* base_dest, Node* adr_src, Node* adr_dest,
             BasicType copy_type, const Type* value_type);
 
-  static bool may_modify_helper(const TypeOopPtr* t_oop, Node* n, PhaseValues* phase, CallNode*& call);
+  static bool may_modify_helper(const TypeOopPtr* t_oop, Node* n, PhaseValues* phase, ArrayCopyNode*& ac);
 public:
   static Node* load(BarrierSetC2* bs, PhaseGVN *phase, Node*& ctl, MergeMemNode* mem, Node* addr, const TypePtr* adr_type, const Type *type, BasicType bt);
 private:

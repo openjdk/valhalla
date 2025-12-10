@@ -25,7 +25,6 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -48,12 +47,12 @@ import jdk.internal.vm.annotation.Strict;
  * @run main/othervm compiler.valhalla.inlinetypes.TestNestmateAccess
  */
 
-interface MyInterface {
+interface MyInterfaceNestmateAccess {
     int hash();
 }
 
 @LooselyConsistentValue
-value class MyValue implements MyInterface {
+value class MyValueNestmateAccess implements MyInterfaceNestmateAccess {
     int x = 42;
     int y = 43;
 
@@ -62,19 +61,19 @@ value class MyValue implements MyInterface {
 }
 
 // Test load from flattened field in nestmate when nest-host is not loaded.
-class Test1 {
+class Test1NestmateAccess {
     @Strict
     @NullRestricted
-    private MyValue vt;
+    private MyValueNestmateAccess vt;
 
-    public Test1(final MyValue vt) {
+    public Test1NestmateAccess(final MyValueNestmateAccess vt) {
         this.vt = vt;
     }
 
-    public MyInterface test() {
-        return new MyInterface() {
+    public MyInterfaceNestmateAccess test() {
+        return new MyInterfaceNestmateAccess() {
             // The vt field load does not link.
-            private int x = (Test1.this).vt.hash();
+            private int x = (Test1NestmateAccess.this).vt.hash();
 
             @Override
             public int hash() { return x; }
@@ -82,22 +81,22 @@ class Test1 {
     }
 }
 
-// Same as Test1 but outer class is a value class
+// Same as Test1NestmateAccess but outer class is a value class
 @LooselyConsistentValue
-value class Test2 {
+value class Test2NestmateAccess {
     @Strict
     @NullRestricted
-    private MyValue vt;
+    private MyValueNestmateAccess vt;
 
-    public Test2(final MyValue vt) {
+    public Test2NestmateAccess(final MyValueNestmateAccess vt) {
         this.vt = vt;
     }
 
-    public MyInterface test() {
-        return new MyInterface() {
-            // Delayed flattened load of Test2.this.
+    public MyInterfaceNestmateAccess test() {
+        return new MyInterfaceNestmateAccess() {
+            // Delayed flattened load of Test2NestmateAccess.this.
             // The vt field load does not link.
-            private int x = (Test2.this).vt.hash();
+            private int x = (Test2NestmateAccess.this).vt.hash();
 
             @Override
             public int hash() { return x; }
@@ -106,13 +105,13 @@ value class Test2 {
 }
 
 // Test store to flattened field in nestmate when nest-host is not loaded.
-class Test3 {
-    private MyValue vt;
+class Test3NestmateAccess {
+    private MyValueNestmateAccess vt;
 
-    public MyInterface test(MyValue init) {
-        return new MyInterface() {
+    public MyInterfaceNestmateAccess test(MyValueNestmateAccess init) {
+        return new MyInterfaceNestmateAccess() {
             // Store to the vt field does not link.
-            private MyValue tmp = (vt = init);
+            private MyValueNestmateAccess tmp = (vt = init);
 
             @Override
             public int hash() { return tmp.hash() + vt.hash(); }
@@ -120,18 +119,18 @@ class Test3 {
     }
 }
 
-// Same as Test1 but with static field
-class Test4 {
-    private static MyValue vt = null;
+// Same as Test1NestmateAccess but with static field
+class Test4NestmateAccess {
+    private static MyValueNestmateAccess vt = null;
 
-    public Test4(final MyValue vt) {
+    public Test4NestmateAccess(final MyValueNestmateAccess vt) {
         this.vt = vt;
     }
 
-    public MyInterface test() {
-        return new MyInterface() {
+    public MyInterfaceNestmateAccess test() {
+        return new MyInterfaceNestmateAccess() {
             // The vt field load does not link.
-            private int x = (Test4.this).vt.hash();
+            private int x = (Test4NestmateAccess.this).vt.hash();
 
             @Override
             public int hash() { return x; }
@@ -139,20 +138,20 @@ class Test4 {
     }
 }
 
-// Same as Test2 but with static field
+// Same as Test2NestmateAccess but with static field
 @LooselyConsistentValue
-value class Test5 {
-    private static MyValue vt;
+value class Test5NestmateAccess {
+    private static MyValueNestmateAccess vt;
 
-    public Test5(final MyValue vt) {
+    public Test5NestmateAccess(final MyValueNestmateAccess vt) {
         this.vt = vt;
     }
 
-    public MyInterface test() {
-        return new MyInterface() {
-            // Delayed flattened load of Test5.this.
+    public MyInterfaceNestmateAccess test() {
+        return new MyInterfaceNestmateAccess() {
+            // Delayed flattened load of Test5NestmateAccess.this.
             // The vt field load does not link.
-            private int x = (Test5.this).vt.hash();
+            private int x = (Test5NestmateAccess.this).vt.hash();
 
             @Override
             public int hash() { return x; }
@@ -160,14 +159,14 @@ value class Test5 {
     }
 }
 
-// Same as Test3 but with static field
-class Test6 {
-    private static MyValue vt;
+// Same as Test3NestmateAccess but with static field
+class Test6NestmateAccess {
+    private static MyValueNestmateAccess vt;
 
-    public MyInterface test(MyValue init) {
-        return new MyInterface() {
+    public MyInterfaceNestmateAccess test(MyValueNestmateAccess init) {
+        return new MyInterfaceNestmateAccess() {
             // Store to the vt field does not link.
-            private MyValue tmp = (vt = init);
+            private MyValueNestmateAccess tmp = (vt = init);
 
             @Override
             public int hash() { return tmp.hash() + vt.hash(); }
@@ -175,15 +174,15 @@ class Test6 {
     }
 }
 
-// Same as Test6 but outer class is a value class
+// Same as Test6NestmateAccess but outer class is a value class
 @LooselyConsistentValue
-value class Test7 {
-    private static MyValue vt;
+value class Test7NestmateAccess {
+    private static MyValueNestmateAccess vt;
 
-    public MyInterface test(MyValue init) {
-        return new MyInterface() {
+    public MyInterfaceNestmateAccess test(MyValueNestmateAccess init) {
+        return new MyInterfaceNestmateAccess() {
             // Store to the vt field does not link.
-            private MyValue tmp = (vt = init);
+            private MyValueNestmateAccess tmp = (vt = init);
 
             @Override
             public int hash() { return tmp.hash() + vt.hash(); }
@@ -194,32 +193,32 @@ value class Test7 {
 public class TestNestmateAccess {
 
     public static void main(String[] args) {
-        Test1 t1 = new Test1(new MyValue());
+        Test1NestmateAccess t1 = new Test1NestmateAccess(new MyValueNestmateAccess());
         int res = t1.test().hash();
         Asserts.assertEQ(res, 85);
 
-        Test2 t2 = new Test2(new MyValue());
+        Test2NestmateAccess t2 = new Test2NestmateAccess(new MyValueNestmateAccess());
         res = t2.test().hash();
         Asserts.assertEQ(res, 85);
 
-        Test3 t3 = new Test3();
-        res = t3.test(new MyValue()).hash();
+        Test3NestmateAccess t3 = new Test3NestmateAccess();
+        res = t3.test(new MyValueNestmateAccess()).hash();
         Asserts.assertEQ(res, 170);
 
-        Test4 t4 = new Test4(new MyValue());
+        Test4NestmateAccess t4 = new Test4NestmateAccess(new MyValueNestmateAccess());
         res = t4.test().hash();
         Asserts.assertEQ(res, 85);
 
-        Test5 t5 = new Test5(new MyValue());
+        Test5NestmateAccess t5 = new Test5NestmateAccess(new MyValueNestmateAccess());
         res = t5.test().hash();
         Asserts.assertEQ(res, 85);
 
-        Test6 t6 = new Test6();
-        res = t6.test(new MyValue()).hash();
+        Test6NestmateAccess t6 = new Test6NestmateAccess();
+        res = t6.test(new MyValueNestmateAccess()).hash();
         Asserts.assertEQ(res, 170);
 
-        Test7 t7 = new Test7();
-        res = t7.test(new MyValue()).hash();
+        Test7NestmateAccess t7 = new Test7NestmateAccess();
+        res = t7.test(new MyValueNestmateAccess()).hash();
         Asserts.assertEQ(res, 170);
     }
 }

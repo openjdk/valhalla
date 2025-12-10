@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,7 @@
  * questions.
  */
 
+package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.test.lib.Asserts;
@@ -33,7 +34,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile TestJNIIsSameObject.java
- * @run main/othervm/native TestJNIIsSameObject
+ * @run main/othervm/native runtime.valhalla.inlinetypes.TestJNIIsSameObject
  */
 
 public class TestJNIIsSameObject {

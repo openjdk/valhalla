@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -38,6 +38,53 @@
 
 // Inline functions for AArch64 frames:
 
+#if INCLUDE_JFR
+
+// Static helper routines
+
+inline address frame::interpreter_bcp(const intptr_t* fp) {
+  assert(fp != nullptr, "invariant");
+  return reinterpret_cast<address>(fp[frame::interpreter_frame_bcp_offset]);
+}
+
+inline address frame::interpreter_return_address(const intptr_t* fp) {
+  assert(fp != nullptr, "invariant");
+  return reinterpret_cast<address>(fp[frame::return_addr_offset]);
+}
+
+inline intptr_t* frame::interpreter_sender_sp(const intptr_t* fp) {
+  assert(fp != nullptr, "invariant");
+  return reinterpret_cast<intptr_t*>(fp[frame::interpreter_frame_sender_sp_offset]);
+}
+
+inline bool frame::is_interpreter_frame_setup_at(const intptr_t* fp, const void* sp) {
+  assert(fp != nullptr, "invariant");
+  assert(sp != nullptr, "invariant");
+  return sp <= fp + frame::interpreter_frame_initial_sp_offset;
+}
+
+inline intptr_t* frame::sender_sp(intptr_t* fp) {
+  assert(fp != nullptr, "invariant");
+  return fp + frame::sender_sp_offset;
+}
+
+inline intptr_t* frame::link(const intptr_t* fp) {
+  assert(fp != nullptr, "invariant");
+  return reinterpret_cast<intptr_t*>(fp[frame::link_offset]);
+}
+
+inline address frame::return_address(const intptr_t* sp) {
+  assert(sp != nullptr, "invariant");
+  return reinterpret_cast<address>(sp[-1]);
+}
+
+inline intptr_t* frame::fp(const intptr_t* sp) {
+  assert(sp != nullptr, "invariant");
+  return reinterpret_cast<intptr_t*>(sp[-2]);
+}
+
+#endif // INCLUDE_JFR
+
 // Constructors:
 
 inline frame::frame() {
@@ -72,8 +119,6 @@ inline void frame::init(intptr_t* sp, intptr_t* fp, address pc) {
 }
 
 inline void frame::setup(address pc) {
-  adjust_unextended_sp();
-
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
     _pc = original_pc;
@@ -179,7 +224,6 @@ inline frame::frame(intptr_t* sp, intptr_t* fp) {
   // assert(_pc != nullptr, "no pc?");
 
   _cb = CodeCache::find_blob(_pc);
-  adjust_unextended_sp();
 
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
@@ -400,38 +444,12 @@ inline frame frame::sender_raw(RegisterMap* map) const {
 }
 
 inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
-  // we cannot rely upon the last fp having been saved to the thread
-  // in C2 code but it will have been pushed onto the stack. so we
-  // have to find it relative to the unextended sp
-
-  assert(_cb->frame_size() > 0, "must have non-zero frame size");
-  intptr_t* l_sender_sp = (!PreserveFramePointer || _sp_is_trusted) ? unextended_sp() + _cb->frame_size()
-                                                                    : sender_sp();
-#ifdef ASSERT
-   address sender_pc_copy = pauth_strip_verifiable((address) *(l_sender_sp-1));
-#endif
-
-  assert(!_sp_is_trusted || l_sender_sp == real_fp(), "");
-
-  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
-
-  // Repair the sender sp if the frame has been extended
-  l_sender_sp = repair_sender_sp(l_sender_sp, saved_fp_addr);
+  CompiledFramePointers cfp = compiled_frame_details();
 
   // The return_address is always the word on the stack.
   // For ROP protection, C1/C2 will have signed the sender_pc,
   // but there is no requirement to authenticate it here.
-  address sender_pc = pauth_strip_verifiable((address) *(l_sender_sp - 1));
-
-#ifdef ASSERT
-  if (sender_pc != sender_pc_copy) {
-    // When extending the stack in the callee method entry to make room for unpacking of value
-    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
-    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
-    nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
-  }
-#endif
+  address sender_pc = pauth_strip_verifiable(*cfp.sender_pc_addr);
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -442,6 +460,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     nmethod* nm = _cb->as_nmethod_or_null();
     if (nm != nullptr && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
         pc() < nm->verified_inline_entry_point()) {
+      // TODO 8284443 Can't we do that by not passing 'dont_gc_arguments' in case 'StubId::c1_buffer_inline_args_id' in 'Runtime1::generate_code_for'?
       // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
       // before doing any argument shuffling, so we need to scan the oops
       // as the caller passes them.
@@ -463,19 +482,19 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // Since the prolog does the save and restore of FP there is no oopmap
     // for it so we must fill in its location as if there was an oopmap entry
     // since if our caller was compiled code there could be live jvm state in it.
-    update_map_with_saved_link(map, saved_fp_addr);
+    update_map_with_saved_link(map, cfp.saved_fp_addr);
   }
 
   if (Continuation::is_return_barrier_entry(sender_pc)) {
     if (map->walk_cont()) { // about to walk into an h-stack
       return Continuation::top_frame(*this, map);
     } else {
-      return Continuation::continuation_bottom_sender(map->thread(), *this, l_sender_sp);
+      return Continuation::continuation_bottom_sender(map->thread(), *this, cfp.sender_sp);
     }
   }
 
-  intptr_t* unextended_sp = l_sender_sp;
-  return frame(l_sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
+  intptr_t* unextended_sp = cfp.sender_sp;
+  return frame(cfp.sender_sp, unextended_sp, *cfp.saved_fp_addr, sender_pc);
 }
 
 template <typename RegisterMapT>

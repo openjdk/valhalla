@@ -89,6 +89,7 @@ class CallGenerator : public ArenaObj {
 
   virtual CallGenerator* inline_cg()    const                             { ShouldNotReachHere(); return nullptr;  }
 
+  virtual ciMethod* callee_method() { ShouldNotReachHere(); }
   virtual void set_callee_method(ciMethod* callee) { ShouldNotReachHere(); }
 
   // Note:  It is possible for a CG to be both inline and virtual.

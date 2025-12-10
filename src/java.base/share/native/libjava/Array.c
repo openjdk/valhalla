@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,8 +46,8 @@ Java_java_lang_reflect_Array_getLength(JNIEnv *env, jclass ignore, jobject arr)
  *
  */
 JNIEXPORT jobject JNICALL
-Java_java_lang_reflect_Array_getReferenceOrPrimitive(JNIEnv *env, jclass ignore, jobject arr,
-                                                     jint index)
+Java_java_lang_reflect_Array_get(JNIEnv *env, jclass ignore, jobject arr,
+                                 jint index)
 {
     return JVM_GetArrayElement(env, arr, index);
 }
@@ -112,8 +112,8 @@ Java_java_lang_reflect_Array_getDouble(JNIEnv *env, jclass ignore, jobject arr,
  *
  */
 JNIEXPORT void JNICALL
-Java_java_lang_reflect_Array_setReferenceOrPrimitive(JNIEnv *env, jclass ignore, jobject arr,
-                                                     jint index, jobject val)
+Java_java_lang_reflect_Array_set(JNIEnv *env, jclass ignore, jobject arr,
+                                 jint index, jobject val)
 {
     JVM_SetArrayElement(env, arr, index, val);
 }
