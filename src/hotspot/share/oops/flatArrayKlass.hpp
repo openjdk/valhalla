@@ -52,8 +52,8 @@ class FlatArrayKlass : public ObjArrayKlass {
 
   FlatArrayKlass() {} // used by CppVtableCloner<T>::initialize()
 
-  InlineKlass* element_klass() const { return InlineKlass::cast(_element_klass); }
-  void set_element_klass(Klass* k) { assert(k->is_inline_klass(), "Must be"); _element_klass = k; }
+  InlineKlass* element_klass() const override { return InlineKlass::cast(_element_klass); }
+  void set_element_klass(Klass* k) override { assert(k->is_inline_klass(), "Must be"); _element_klass = k; }
 
   LayoutKind layout_kind() const  { return _layout_kind; }
   void set_layout_kind(LayoutKind lk) { _layout_kind = lk; }
@@ -68,48 +68,48 @@ class FlatArrayKlass : public ObjArrayKlass {
   // klass allocation
   static FlatArrayKlass* allocate_klass(Klass* element_klass, ArrayProperties props, LayoutKind lk, TRAPS);
 
-  void initialize(TRAPS);
+  void initialize(TRAPS) override;
 
-  ModuleEntry* module() const;
-  PackageEntry* package() const;
+  ModuleEntry* module() const override;
+  PackageEntry* package() const override;
 
-  bool can_be_primary_super_slow() const;
+  bool can_be_primary_super_slow() const override;
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<InstanceKlass*>* transitive_interfaces);
+                                                  Array<InstanceKlass*>* transitive_interfaces) override;
 
   int element_byte_size() const { return 1 << layout_helper_log2_element_size(_layout_helper); }
 
-  bool is_flatArray_klass_slow() const { return true; }
+  DEBUG_ONLY(bool is_flatArray_klass_slow() const override { return true; })
 
   bool contains_oops() {
     return element_klass()->contains_oops();
   }
 
-  oop protection_domain() const;
+  oop protection_domain() const override;
 
-  virtual void metaspace_pointers_do(MetaspaceClosure* iter);
+  void metaspace_pointers_do(MetaspaceClosure* iter) override;
 
   static jint array_layout_helper(InlineKlass* vklass, LayoutKind lk); // layout helper for values
 
   // sizing
   static int header_size()  { return sizeof(FlatArrayKlass)/HeapWordSize; }
-  int size() const          { return ArrayKlass::static_size(header_size()); }
+  int size() const override { return ArrayKlass::static_size(header_size()); }
 
   jint max_elements() const;
 
-  size_t oop_size(oop obj) const;
+  size_t oop_size(oop obj) const override;
 
   // Oop Allocation
  private:
-  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS) override;
  public:
-  oop multi_allocate(int rank, jint* sizes, TRAPS);
+  oop multi_allocate(int rank, jint* sizes, TRAPS) override;
 
   // Naming
-  const char* internal_name() const { return external_name(); }
+  const char* internal_name() const override { return external_name(); }
 
   // Copying
-  void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
+  void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) override;
 
   // GC specific object visitors
   template <typename T, typename OopClosureType>
@@ -135,20 +135,20 @@ private:
   inline void oop_oop_iterate_elements_specialized_bounded(flatArrayOop a, OopClosureType* closure, void* low, void* high);
 
  public:
-  u2 compute_modifier_flags() const;
+  u2 compute_modifier_flags() const override;
 
   // Printing
-  void print_on(outputStream* st) const;
-  void print_value_on(outputStream* st) const;
+  void print_on(outputStream* st) const override;
+  void print_value_on(outputStream* st) const override;
 
-  void oop_print_value_on(oop obj, outputStream* st);
+  void oop_print_value_on(oop obj, outputStream* st) override;
 #ifndef PRODUCT
-  void oop_print_on(oop obj, outputStream* st);
+  void oop_print_on(oop obj, outputStream* st) override;
 #endif
 
   // Verification
-  void verify_on(outputStream* st);
-  void oop_verify_on(oop obj, outputStream* st);
+  void verify_on(outputStream* st) override;
+  void oop_verify_on(oop obj, outputStream* st) override;
 };
 
 #endif
