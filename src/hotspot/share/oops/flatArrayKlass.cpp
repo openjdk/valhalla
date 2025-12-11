@@ -36,6 +36,7 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
@@ -51,14 +52,12 @@
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
-#include "oops/flatArrayKlass.hpp"
-
 // Allocation...
 
 FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
                 ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
-  assert(lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
+  assert(LayoutKindHelper::is_flat(lk), "Must be a flat layout");
 
   set_element_klass(InlineKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
@@ -97,7 +96,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
@@ -152,7 +151,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
-  bool null_free = lk != LayoutKind::NULLABLE_ATOMIC_FLAT;
+  bool null_free = !LayoutKindHelper::is_nullable_flat(lk);
   int lh = Klass::array_layout_helper(_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
@@ -169,9 +168,13 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
 }
 
 size_t FlatArrayKlass::oop_size(oop obj) const {
-  assert(obj->klass()->is_flatArray_klass(),"must be an flat array");
+  // In this assert, we cannot safely access the Klass* with compact headers,
+  // because size_given_klass() calls oop_size() on objects that might be
+  // concurrently forwarded, which would overwrite the Klass*.
+  // Also, why we need to pass this layout_helper() to flatArrayOop::object_size.
+  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be an flat array");
   flatArrayOop array = flatArrayOop(obj);
-  return array->object_size();
+  return array->object_size(layout_helper());
 }
 
 // For now return the maximum number of array elements that will not exceed:
@@ -283,7 +286,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         flatArrayHandle hd(THREAD, da);
         flatArrayHandle hs(THREAD, sa);
         // source and destination layouts mismatch, simpler solution is to copy through an intermediate buffer (heap instance)
-        bool need_null_check = fsk->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT && fdk->layout_kind() != LayoutKind::NULLABLE_ATOMIC_FLAT;
+        bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
         oop buffer = vk->allocate_instance(CHECK);
         address dst = (address) hd->value_at_addr(dst_pos, fdk->layout_helper());
         address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());

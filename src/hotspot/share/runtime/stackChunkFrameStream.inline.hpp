@@ -31,10 +31,10 @@
 #include "compiler/oopMap.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
+#include "oops/instanceStackChunkKlass.inline.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.hpp"
 #include "oops/stackChunkOop.inline.hpp"
-#include "oops/instanceStackChunkKlass.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/devirtualizer.inline.hpp"
@@ -55,14 +55,16 @@ StackChunkFrameStream<frame_kind>::StackChunkFrameStream(stackChunkOop chunk) DE
   _end = chunk->bottom_address();
   _sp = chunk->start_address() + chunk->sp();
   assert(_sp <= chunk->end_address() + frame::metadata_words, "");
+  _callee_augmented = false;
 
   get_cb();
 
   if (frame_kind == ChunkFrames::Mixed) {
     _unextended_sp = (!is_done() && is_interpreted()) ? unextended_sp_for_interpreter_frame() : _sp;
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
+  } else {
+    _unextended_sp = _sp;
   }
-  DEBUG_ONLY(else _unextended_sp = nullptr;)
 
   if (is_stub()) {
     get_oopmap(pc(), 0);
@@ -86,10 +88,12 @@ StackChunkFrameStream<frame_kind>::StackChunkFrameStream(stackChunkOop chunk, co
   if (frame_kind == ChunkFrames::Mixed) {
     _unextended_sp = f.unextended_sp();
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
+  } else {
+    _unextended_sp = _sp;
   }
-  DEBUG_ONLY(else _unextended_sp = nullptr;)
   assert(_sp >= chunk->start_address(), "");
   assert(_sp <= chunk->end_address() + frame::metadata_words, "");
+  _callee_augmented = false;
 
   if (f.cb() != nullptr) {
     _oopmap = nullptr;
@@ -195,9 +199,10 @@ inline int StackChunkFrameStream<frame_kind>::stack_argsize() const {
 }
 
 template <ChunkFrames frame_kind>
-inline int StackChunkFrameStream<frame_kind>::num_oops() const {
+template <typename RegisterMapT>
+inline int StackChunkFrameStream<frame_kind>::num_oops(RegisterMapT* map) const {
   if (is_interpreted()) {
-    return interpreter_frame_num_oops();
+    return interpreter_frame_num_oops(map);
   } else if (is_compiled()) {
     return oopmap()->num_oops();
   } else {
@@ -216,6 +221,7 @@ template <typename RegisterMapT>
 inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop) {
   update_reg_map(map);
   bool is_runtime_stub = is_stub();
+  _callee_augmented = false;
   if (frame_kind == ChunkFrames::Mixed) {
     if (is_interpreted()) {
       next_for_interpreter_frame();
@@ -224,11 +230,24 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
       if (_sp >= _end - frame::metadata_words) {
         _sp = _end;
       }
-      _unextended_sp = is_interpreted() ? unextended_sp_for_interpreter_frame() : _sp;
+      if (is_interpreted()) {
+        _unextended_sp = unextended_sp_for_interpreter_frame();
+      } else if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
+        _unextended_sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
+        _callee_augmented = _unextended_sp != _sp;
+      } else {
+        _unextended_sp = _sp;
+      }
     }
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
   } else {
-    _sp += cb()->frame_size();
+    _sp = _unextended_sp + cb()->frame_size();
+    if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
+      _unextended_sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
+      _callee_augmented = _unextended_sp != _sp;
+    } else {
+      _unextended_sp = _sp;
+    }
   }
   assert(!is_interpreted() || _unextended_sp == unextended_sp_for_interpreter_frame(), "");
 
@@ -365,7 +384,7 @@ template <class OopClosureType, class RegisterMapT>
 inline void StackChunkFrameStream<frame_kind>::iterate_oops(OopClosureType* closure, const RegisterMapT* map) const {
   if (is_interpreted()) {
     frame f = to_frame();
-    f.oops_interpreted_do(closure, nullptr, true);
+    f.oops_interpreted_do(closure, map, true);
   } else {
     DEBUG_ONLY(int oops = 0;)
     for (OopMapStream oms(oopmap()); !oms.is_done(); oms.next()) {

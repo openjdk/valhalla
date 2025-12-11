@@ -26,6 +26,7 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.value.DeserializeConstructor;
@@ -77,10 +78,6 @@ import static java.lang.String.UTF16;
  * Delight</cite>, (Addison Wesley, 2002) and <cite>Hacker's
  * Delight, Second Edition</cite>, (Pearson Education, 2013).
  *
- * @author  Lee Boynton
- * @author  Arthur van Hoff
- * @author  Josh Bloch
- * @author  Joseph D. Darcy
  * @since 1.0
  */
 @jdk.internal.MigratedValueClass
@@ -377,15 +374,9 @@ public final class Integer extends Number
         // assert shift > 0 && shift <=5 : "Illegal shift value";
         int mag = Integer.SIZE - Integer.numberOfLeadingZeros(val);
         int chars = Math.max(((mag + (shift - 1)) / shift), 1);
-        if (COMPACT_STRINGS) {
-            byte[] buf = new byte[chars];
-            formatUnsignedInt(val, shift, buf, chars);
-            return new String(buf, LATIN1);
-        } else {
-            byte[] buf = new byte[chars * 2];
-            formatUnsignedIntUTF16(val, shift, buf, chars);
-            return new String(buf, UTF16);
-        }
+        byte[] buf = new byte[chars];
+        formatUnsignedInt(val, shift, buf, chars);
+        return String.newStringWithLatin1Bytes(buf);
     }
 
     /**
@@ -409,26 +400,6 @@ public final class Integer extends Number
     }
 
     /**
-     * Format an {@code int} (treated as unsigned) into a byte buffer (UTF16 version). If
-     * {@code len} exceeds the formatted ASCII representation of {@code val},
-     * {@code buf} will be padded with leading zeroes.
-     *
-     * @param val the unsigned int to format
-     * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
-     * @param buf the byte buffer to write to
-     * @param len the number of characters to write
-     */
-    private static void formatUnsignedIntUTF16(int val, int shift, byte[] buf, int len) {
-        int charPos = len;
-        int radix = 1 << shift;
-        int mask = radix - 1;
-        do {
-            StringUTF16.putChar(buf, --charPos, Integer.digits[val & mask]);
-            val >>>= shift;
-        } while (charPos > 0);
-    }
-
-    /**
      * Returns a {@code String} object representing the
      * specified integer. The argument is converted to signed decimal
      * representation and returned as a string, exactly as if the
@@ -441,15 +412,9 @@ public final class Integer extends Number
     @IntrinsicCandidate
     public static String toString(int i) {
         int size = DecimalDigits.stringSize(i);
-        if (COMPACT_STRINGS) {
-            byte[] buf = new byte[size];
-            DecimalDigits.uncheckedGetCharsLatin1(i, size, buf);
-            return new String(buf, LATIN1);
-        } else {
-            byte[] buf = new byte[size * 2];
-            DecimalDigits.uncheckedGetCharsUTF16(i, size, buf);
-            return new String(buf, UTF16);
-        }
+        byte[] buf = new byte[size];
+        DecimalDigits.uncheckedGetCharsLatin1(i, size, buf);
+        return String.newStringWithLatin1Bytes(buf);
     }
 
     /**
@@ -996,14 +961,26 @@ public final class Integer extends Number
 
     /**
      * Returns an {@code Integer} instance representing the specified
-     * {@code int} value.  If a new {@code Integer} instance is not
-     * required, this method should generally be used in preference to
-     * the constructor {@link #Integer(int)}, as this method is likely
-     * to yield significantly better space and time performance by
-     * caching frequently requested values.
-     *
-     * This method will always cache values in the range -128 to 127,
-     * inclusive, and may cache other values outside of this range.
+     * {@code int} value.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Integer} is an identity class.
+     *              If a new {@code Integer} instance is not
+     *              required, this method should generally be used in preference to
+     *              the constructor {@link #Integer(int)}, as this method is likely
+     *              to yield significantly better space and time performance by
+     *              caching frequently requested values.
+     *              This method will always cache values in the range -128 to 127,
+     *              inclusive, and may cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Integer} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  i an {@code int} value.
      * @return an {@code Integer} instance representing {@code i}.
@@ -1012,8 +989,10 @@ public final class Integer extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (i >= IntegerCache.low && i <= IntegerCache.high)
-            return IntegerCache.cache[i + (-IntegerCache.low)];
+        if (!PreviewFeatures.isEnabled()) {
+            if (i >= IntegerCache.low && i <= IntegerCache.high)
+                return IntegerCache.cache[i + (-IntegerCache.low)];
+        }
         return new Integer(i);
     }
 

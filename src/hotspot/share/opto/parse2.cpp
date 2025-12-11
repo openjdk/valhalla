@@ -1471,11 +1471,11 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 
 Node* Parse::floating_point_mod(Node* a, Node* b, BasicType type) {
   assert(type == BasicType::T_FLOAT || type == BasicType::T_DOUBLE, "only float and double are floating points");
-  CallNode* mod = type == BasicType::T_DOUBLE ? static_cast<CallNode*>(new ModDNode(C, a, b)) : new ModFNode(C, a, b);
+  CallLeafPureNode* mod = type == BasicType::T_DOUBLE ? static_cast<CallLeafPureNode*>(new ModDNode(C, a, b)) : new ModFNode(C, a, b);
 
-  Node* prev_mem = set_predefined_input_for_runtime_call(mod);
-  mod = _gvn.transform(mod)->as_Call();
-  set_predefined_output_for_runtime_call(mod, prev_mem, TypeRawPtr::BOTTOM);
+  set_predefined_input_for_runtime_call(mod);
+  mod = _gvn.transform(mod)->as_CallLeafPure();
+  set_predefined_output_for_runtime_call(mod);
   Node* result = _gvn.transform(new ProjNode(mod, TypeFunc::Parms + 0));
   record_for_igvn(mod);
   return result;
@@ -1819,7 +1819,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken, Node** stress_count_mem) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1850,6 +1850,9 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
   bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
   if (do_stress_trap) {
     increment_trap_stress_counter(counter, incr_store);
+    if (stress_count_mem != nullptr) {
+      *stress_count_mem = incr_store;
+    }
   }
 
   // Sanity check the probability value
@@ -2299,7 +2302,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_all_memory(mem);
 
   kill_dead_locals();
-  ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
+  ciSymbol* subst_method_name = UseAltSubstitutabilityMethod ? ciSymbols::isSubstitutableAlt_name() : ciSymbols::isSubstitutable_name();
+  ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(subst_method_name, ciSymbols::object_object_boolean_signature());
   CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
@@ -2313,21 +2317,25 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // This is the last check, do_if can emit traps now.
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
+  Node* stress_count_mem = nullptr;
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap);
+    do_if(btest, subst_cmp, can_trap, false, nullptr, &stress_count_mem);
     if (!stopped()) {
       ctl = control();
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap, false, &ctl);
+    do_if(btest, subst_cmp, can_trap, false, &ctl, &stress_count_mem);
     if (!stopped()) {
       eq_region->init_req(2, control());
       eq_io_phi->init_req(2, i_o());
       eq_mem_phi->init_req(2, reset_memory());
     }
+  }
+  if (stress_count_mem != nullptr) {
+    set_memory(stress_count_mem, stress_count_mem->adr_type());
   }
   ne_region->init_req(5, ctl);
   ne_io_phi->init_req(5, i_o());
@@ -3574,11 +3582,13 @@ void Parse::do_one_bytecode() {
   if (C->should_print_igv(perBytecode)) {
     IdealGraphPrinter* printer = C->igv_printer();
     char buffer[256];
-    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s, map: %d", bci(), Bytecodes::name(bc()), map() == nullptr ? -1 : map()->_idx);
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
+    printer->set_parse(this);
     printer->print_graph(buffer);
     printer->set_traverse_outs(old);
+    printer->set_parse(nullptr);
   }
 #endif
 }

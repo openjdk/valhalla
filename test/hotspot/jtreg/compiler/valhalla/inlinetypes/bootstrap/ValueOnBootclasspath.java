@@ -21,6 +21,8 @@
  * questions.
  */
 
+package compiler.valhalla.inlinetypes.bootstrap;
+
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 class MyClass {

@@ -101,37 +101,12 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::make
 //
 // Make an array klass of the specified element type.
-ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free, bool atomic, bool vm_type) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free, bool atomic, bool refined_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
+  } else {
+    return ciObjArrayKlass::make(element_type->as_klass(), refined_type, null_free, atomic);
   }
-
-  ciKlass* klass = element_type->as_klass();
-  assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
-         klass->is_java_lang_Object(), "only value classes are null free");
-  if (klass->is_loaded() && klass->is_inlinetype() && vm_type) {
-    GUARDED_VM_ENTRY(
-      EXCEPTION_CONTEXT;
-      InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
-      if (null_free) {
-        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
-      }
-      if (!atomic) {
-        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
-      }
-      ArrayKlass* ak = vk->array_klass(THREAD);
-      ak = ObjArrayKlass::cast(ak)->klass_with_properties(props, THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-        CLEAR_PENDING_EXCEPTION;
-      } else if (ak->is_flatArray_klass()) {
-        return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
-      } else if (ak->is_refArray_klass()) {
-        return CURRENT_THREAD_ENV->get_obj_array_klass(ak);
-      }
-    )
-  }
-  return ciObjArrayKlass::make(klass, vm_type);
 }
 
 int ciArrayKlass::array_header_in_bytes() {
@@ -154,4 +129,8 @@ bool ciArrayKlass::is_elem_atomic() {
   GUARDED_VM_ENTRY(return elem != nullptr && elem->is_inlinetype() &&
                           (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
                           (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
+}
+
+ArrayKlass::ArrayProperties ciArrayKlass::properties() const {
+  GUARDED_VM_ENTRY(return ArrayKlass::cast(get_Klass())->properties();)
 }

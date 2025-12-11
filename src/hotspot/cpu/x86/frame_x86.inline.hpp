@@ -114,8 +114,6 @@ inline void frame::init(intptr_t* sp, intptr_t* fp, address pc) {
 }
 
 inline void frame::setup(address pc) {
-  adjust_unextended_sp();
-
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
     _pc = original_pc;
@@ -212,7 +210,6 @@ inline frame::frame(intptr_t* sp, intptr_t* fp) {
   // assert(_pc != nullptr, "no pc?");
 
   _cb = CodeCache::find_blob(_pc);
-  adjust_unextended_sp();
 
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
@@ -456,7 +453,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // type args, we keep a copy of the sender pc at the expected location in the callee frame.
     // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
     nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
+    assert(sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
   }
 #endif
 
@@ -469,7 +466,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     nmethod* nm = _cb->as_nmethod_or_null();
     if (nm != nullptr && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
         pc() < nm->verified_inline_entry_point()) {
-      // TODO 8284443 Can't we do that by not passing 'dont_gc_arguments' in case 'C1StubId::buffer_inline_args_id' in 'Runtime1::generate_code_for'?
+      // TODO 8284443 Can't we do that by not passing 'dont_gc_arguments' in case 'StubId::c1_buffer_inline_args_id' in 'Runtime1::generate_code_for'?
       // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
       // before doing any argument shuffling, so we need to scan the oops
       // as the caller passes them.
@@ -477,8 +474,8 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 #ifdef ASSERT
       NativeCall* call = nativeCall_before(pc());
       address dest = call->destination();
-      assert(dest == Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id) ||
-             dest == Runtime1::entry_for(C1StubId::buffer_inline_args_id), "unexpected safepoint in entry point");
+      assert(dest == Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id) ||
+             dest == Runtime1::entry_for(StubId::c1_buffer_inline_args_id), "unexpected safepoint in entry point");
 #endif
     }
 #endif
@@ -525,7 +522,6 @@ void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) 
   // we don't have to always save EBP/RBP on entry and exit to c2 compiled
   // code, on entry will be enough.
   map->set_location(rbp->as_VMReg(), (address) link_addr);
-#ifdef AMD64
   // this is weird "H" ought to be at a higher address however the
   // oopMaps seems to have the "H" regs at the same address and the
   // vanilla register.
@@ -533,6 +529,5 @@ void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) 
   if (true) {
     map->set_location(rbp->as_VMReg()->next(), (address) link_addr);
   }
-#endif // AMD64
 }
 #endif // CPU_X86_FRAME_X86_INLINE_HPP

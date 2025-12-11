@@ -90,7 +90,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 #endif
 
     if (is_get) {
-      (void) pop();  // pop receiver before getting
       do_get_xxx(obj, field);
     } else {
       do_put_xxx(obj, field, is_field);
@@ -124,17 +123,22 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     // final or stable field
     Node* con = make_constant_from_field(field, obj);
     if (con != nullptr) {
+      if (!field->is_static()) {
+        pop();
+      }
       push_node(field->layout_type(), con);
       return;
     }
   }
 
   if (obj->is_InlineType()) {
+    assert(!field->is_static(), "must not be a static field");
     InlineTypeNode* vt = obj->as_InlineType();
     Node* value = vt->field_value_by_offset(field->offset_in_bytes(), false);
     if (value->is_InlineType()) {
       value = value->as_InlineType()->adjust_scalarization_depth(this);
     }
+    pop();
     push_node(field->layout_type(), value);
     return;
   }
@@ -194,10 +198,14 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 
   // Adjust Java stack
-  if (type2size[bt] == 1)
+  if (!field->is_static()) {
+    pop();
+  }
+  if (type2size[bt] == 1) {
     push(ld);
-  else
+  } else {
     push_pair(ld);
+  }
 
   if (must_assert_null) {
     // Do not take a trap here.  It's possible that the program
@@ -361,10 +369,8 @@ void Parse::do_newarray() {
 
   kill_dead_locals();
 
-  const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-  if (array_klass_type->exact_klass()->is_obj_array_klass()) {
-    array_klass_type = array_klass_type->isa_aryklassptr()->get_vm_type();
-  }
+  const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces);
+  array_klass_type = array_klass_type->cast_to_refined_array_klass_ptr();
   Node* count_val = pop();
   Node* obj = new_array(makecon(array_klass_type), count_val, 1);
   push(obj);
@@ -386,11 +392,9 @@ void Parse::do_newarray(BasicType elem_type) {
 Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, int ndimensions, int nargs) {
   Node* length = lengths[0];
   assert(length != nullptr, "");
-  const TypeKlassPtr* array_klass_ptr = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-  if (array_klass_ptr->exact_klass()->is_obj_array_klass()) {
-    array_klass_ptr = array_klass_ptr->isa_aryklassptr()->get_vm_type();
-  }
-  Node* array = new_array(makecon(array_klass_ptr), length, nargs);
+  const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces);
+  array_klass_type = array_klass_type->cast_to_refined_array_klass_ptr();
+  Node* array = new_array(makecon(array_klass_type), length, nargs);
   if (ndimensions > 1) {
     jint length_con = find_int_con(length, -1);
     guarantee(length_con >= 0, "non-constant multianewarray");

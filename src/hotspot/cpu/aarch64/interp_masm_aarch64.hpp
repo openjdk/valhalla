@@ -45,6 +45,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   virtual void call_VM_base(Register oop_result,
                             Register java_thread,
                             Register last_java_sp,
+                            Label*   return_pc,
                             address  entry_point,
                             int number_of_arguments,
                             bool check_exceptions);
@@ -58,11 +59,24 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   void load_earlyret_value(TosState state);
 
+  // Use for vthread preemption
   void call_VM_preemptable(Register oop_result,
                            address entry_point,
-                           Register arg_1);
+                           Register arg_1,
+                           bool check_exceptions = true);
+  void call_VM_preemptable(Register oop_result,
+                           address entry_point,
+                           Register arg_1,
+                           Register arg_2,
+                           bool check_exceptions = true);
   void restore_after_resume(bool is_native);
+ private:
+  void call_VM_preemptable_helper(Register oop_result,
+                                  address entry_point,
+                                  int number_of_arguments,
+                                  bool check_exceptions);
 
+ public:
   void jump_to_entry(address entry);
 
   virtual void check_and_handle_popframe(Register java_thread);
@@ -156,7 +170,11 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //   - assumes holder_klass and valueKlass field klass have both been resolved
   void read_flat_field(Register entry,
                        Register field_index, Register field_offset,
-                       Register temp, Register obj = r0);
+                       Register temp, Register obj);
+
+  void write_flat_field(Register entry, Register field_offset,
+                        Register tmp1, Register tmp2,
+                        Register obj);
 
   // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:
@@ -298,7 +316,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // narrow int return value
   void narrow(Register result);
 
-  void profile_taken_branch(Register mdp, Register bumped_count);
+  void profile_taken_branch(Register mdp);
   void profile_not_taken_branch(Register mdp, bool acmp = false);
   void profile_call(Register mdp);
   void profile_final_call(Register mdp);
@@ -345,6 +363,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void load_resolved_indy_entry(Register cache, Register index);
   void load_field_entry(Register cache, Register index, int bcp_offset = 1);
   void load_method_entry(Register cache, Register index, int bcp_offset = 1);
+
+  void verify_field_offset(Register reg) NOT_DEBUG_RETURN;
 };
 
 #endif // CPU_AARCH64_INTERP_MASM_AARCH64_HPP

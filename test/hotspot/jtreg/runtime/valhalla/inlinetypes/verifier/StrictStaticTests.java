@@ -22,16 +22,26 @@
  */
 
 /*
- * @test
+ * @test id=default
  * @bug 8349945
  * @summary test tracking of strict static fields
  * @enablePreview
- * @run main/othervm StrictStaticTests
- *
+ * @run main StrictStaticTests
+ */
+
+/*
  * @test id=C1only
+ * @bug 8349945
+ * @summary test tracking of strict static fields
+ * @enablePreview
  * @run main/othervm -XX:TieredStopAtLevel=2 -Xcomp -Xbatch StrictStaticTests
- *
+ */
+
+/*
  * @test id=C2only
+ * @bug 8349945
+ * @summary test tracking of strict static fields
+ * @enablePreview
  * @run main/othervm -XX:-TieredCompilation -Xcomp -Xbatch StrictStaticTests
  */
 
@@ -148,6 +158,7 @@ public class StrictStaticTests {
             System.out.println(vererrs);
             var cm = ClassFile.of().parse(classBytes);
             System.out.println(cm.toDebugString());
+            throw new AssertionError();
         }
         ++COUNT;
         try {

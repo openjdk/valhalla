@@ -48,7 +48,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.RuntimeType;
 import java.lang.reflect.Type;
@@ -84,15 +83,17 @@ import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
+import jdk.internal.util.ModifiedUtf;
+import jdk.internal.vm.annotation.AOTRuntimeSetup;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
+import sun.invoke.util.BytecodeDescriptor;
 import sun.invoke.util.Wrapper;
 import sun.reflect.generics.factory.CoreReflectionFactory;
 import sun.reflect.generics.factory.GenericsFactory;
 import sun.reflect.generics.repository.ClassRepository;
-import sun.reflect.generics.repository.MethodRepository;
-import sun.reflect.generics.repository.ConstructorRepository;
 import sun.reflect.generics.scope.ClassScope;
 import sun.reflect.annotation.*;
 
@@ -216,6 +217,7 @@ import sun.reflect.annotation.*;
  * @see     java.lang.ClassLoader#defineClass(byte[], int, int)
  * @since   1.0
  */
+@AOTSafeClassInitializer
 public final class Class<T> implements java.io.Serializable,
                               GenericDeclaration,
                               Type,
@@ -232,7 +234,9 @@ public final class Class<T> implements java.io.Serializable,
         runtimeSetup();
     }
 
-    // Called from JVM when loading an AOT cache
+    /// No significant static final fields; [#resetArchivedStates()] handles
+    /// prevents storing [#reflectionFactory] into AOT image.
+    @AOTRuntimeSetup
     private static void runtimeSetup() {
         registerNatives();
     }
@@ -242,7 +246,7 @@ public final class Class<T> implements java.io.Serializable,
      * This constructor is not used and prevents the default constructor being
      * generated.
      */
-    private Class(ClassLoader loader, Class<?> arrayComponentType, char mods, ProtectionDomain pd, boolean isPrim) {
+    private Class(ClassLoader loader, Class<?> arrayComponentType, char mods, ProtectionDomain pd, boolean isPrim, boolean isIdentity, char flags) {
         // Initialize final field for classLoader.  The initialization value of non-null
         // prevents future JIT optimizations from assuming this final field is null.
         // The following assignments are done directly by the VM without calling this constructor.
@@ -251,6 +255,8 @@ public final class Class<T> implements java.io.Serializable,
         modifiers = mods;
         protectionDomain = pd;
         primitive = isPrim;
+        identity = isIdentity;
+        classFileAccessFlags = flags;
     }
 
     /**
@@ -475,9 +481,10 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitiveAdapter
     private static Class<?> forName(String className, Class<?> caller)
             throws ClassNotFoundException {
+        validateClassNameLength(className);
         ClassLoader loader = (caller == null) ? ClassLoader.getSystemClassLoader()
                                               : ClassLoader.getClassLoader(caller);
-        return forName0(className, true, loader, caller);
+        return forName0(className, true, loader);
     }
 
     /**
@@ -557,13 +564,13 @@ public final class Class<T> implements java.io.Serializable,
     public static Class<?> forName(String name, boolean initialize, ClassLoader loader)
         throws ClassNotFoundException
     {
-        return forName0(name, initialize, loader, null);
+        validateClassNameLength(name);
+        return forName0(name, initialize, loader);
     }
 
     /** Called after security check for system loader access checks have been made. */
     private static native Class<?> forName0(String name, boolean initialize,
-                                            ClassLoader loader,
-                                            Class<?> caller)
+                                            ClassLoader loader)
         throws ClassNotFoundException;
 
 
@@ -606,6 +613,9 @@ public final class Class<T> implements java.io.Serializable,
     public static Class<?> forName(Module module, String name) {
         Objects.requireNonNull(module);
         Objects.requireNonNull(name);
+        if (!ModifiedUtf.isValidLengthInConstantPool(name)) {
+            return null;
+        }
 
         ClassLoader cl = module.getClassLoader();
         if (cl != null) {
@@ -635,13 +645,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isIdentity() {
-        if (isPrimitive()) {
-            return false;
-        } else if (PreviewFeatures.isEnabled()) {
-           return isArray() || Modifier.isIdentity(modifiers);
-        } else {
-            return !isInterface();
-        }
+        return identity;
     }
 
     /**
@@ -1087,7 +1091,9 @@ public final class Class<T> implements java.io.Serializable,
     private transient Object classData; // Set by VM
     private transient Object[] signers; // Read by VM, mutable
     private final transient char modifiers;  // Set by the VM
-    private final transient boolean primitive;  // Set by the VM if the Class is a primitive type.
+    private final transient char classFileAccessFlags;  // Set by the VM
+    private final transient boolean primitive;  // Set by the VM if the Class is a primitive type
+    private final transient boolean identity;   // Set by the VM if the Class is an identity class
 
     // package-private
     Object getClassData() {
@@ -1461,13 +1467,13 @@ public final class Class<T> implements java.io.Serializable,
         // Location.CLASS allows SUPER and AccessFlag.MODULE which
         // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
         // and STATIC, which are not allowed on Location.CLASS.
-        // Use getClassAccessFlagsRaw to expose SUPER status.
+        // Use getClassFileAccessFlags to expose SUPER status.
         // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
         var location = (isMemberClass() || isLocalClass() ||
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
-        int accessFlags = location == AccessFlag.Location.CLASS ? getClassAccessFlagsRaw() : getModifiers();
+        int accessFlags = location == AccessFlag.Location.CLASS ? getClassFileAccessFlags() : getModifiers();
         var reflectionFactory = getReflectionFactory();
         var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
         if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
@@ -1527,17 +1533,10 @@ public final class Class<T> implements java.io.Serializable,
             if (!enclosingInfo.isMethod())
                 return null;
 
-            MethodRepository typeInfo = MethodRepository.make(enclosingInfo.getDescriptor(),
-                                                              getFactory());
-            Class<?>   returnType       = toClass(typeInfo.getReturnType());
-            Type []    parameterTypes   = typeInfo.getParameterTypes();
-            Class<?>[] parameterClasses = new Class<?>[parameterTypes.length];
-
-            // Convert Types to Classes; returned types *should*
-            // be class objects since the methodDescriptor's used
-            // don't have generics information
-            for(int i = 0; i < parameterClasses.length; i++)
-                parameterClasses[i] = toClass(parameterTypes[i]);
+            // Descriptor already validated by VM
+            List<Class<?>> types = BytecodeDescriptor.parseMethod(enclosingInfo.getDescriptor(), getClassLoader());
+            Class<?>   returnType       = types.removeLast();
+            Class<?>[] parameterClasses = types.toArray(EMPTY_CLASS_ARRAY);
 
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
             Method[] candidates = enclosingCandidate.privateGetDeclaredMethods(false);
@@ -1656,17 +1655,10 @@ public final class Class<T> implements java.io.Serializable,
             if (!enclosingInfo.isConstructor())
                 return null;
 
-            ConstructorRepository typeInfo = ConstructorRepository.make(enclosingInfo.getDescriptor(),
-                                                                        getFactory());
-            Type []    parameterTypes   = typeInfo.getParameterTypes();
-            Class<?>[] parameterClasses = new Class<?>[parameterTypes.length];
-
-            // Convert Types to Classes; returned types *should*
-            // be class objects since the methodDescriptor's used
-            // don't have generics information
-            for (int i = 0; i < parameterClasses.length; i++)
-                parameterClasses[i] = toClass(parameterTypes[i]);
-
+            // Descriptor already validated by VM
+            List<Class<?>> types = BytecodeDescriptor.parseMethod(enclosingInfo.getDescriptor(), getClassLoader());
+            types.removeLast();
+            Class<?>[] parameterClasses = types.toArray(EMPTY_CLASS_ARRAY);
 
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
             Constructor<?>[] candidates = enclosingCandidate
@@ -1972,7 +1964,7 @@ public final class Class<T> implements java.io.Serializable,
             }
             currentClass = currentClass.getSuperclass();
         }
-        return list.toArray(new Class<?>[0]);
+        return list.toArray(EMPTY_CLASS_ARRAY);
     }
 
 
@@ -4237,17 +4229,26 @@ public final class Class<T> implements java.io.Serializable,
 
     private native int getClassFileVersion0();
 
-    /*
-     * Return the access flags as they were in the class's bytecode, including
-     * the original setting of ACC_SUPER.
-     *
-     * If the class is an array type then the access flags of the element type is
-     * returned.  If the class is a primitive then ACC_ABSTRACT | ACC_FINAL | ACC_PUBLIC.
-     */
-    private int getClassAccessFlagsRaw() {
-        Class<?> c = isArray() ? elementType() : this;
-        return c.getClassAccessFlagsRaw0();
-    }
+     /**
+      * Return the access flags as they were in the class's bytecode, including
+      * the original setting of ACC_SUPER.
+      *
+      * If this {@code Class} object represents a primitive type or
+      * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and
+      * {@code FINAL}.
+      * If this {@code Class} object represents an array type, return 0.
+      */
+     int getClassFileAccessFlags() {
+         return classFileAccessFlags;
+     }
 
-    private native int getClassAccessFlagsRaw0();
+    // Validates the length of the class name and throws an exception if it exceeds the maximum allowed length.
+    private static void validateClassNameLength(String name) throws ClassNotFoundException {
+        if (!ModifiedUtf.isValidLengthInConstantPool(name)) {
+            throw new ClassNotFoundException(
+                    "Class name length exceeds limit of "
+                    + ModifiedUtf.CONSTANT_POOL_UTF8_MAX_BYTES
+                    + ": " + name.substring(0,256) + "...");
+        }
+    }
 }

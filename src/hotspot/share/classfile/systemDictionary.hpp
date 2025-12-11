@@ -68,7 +68,6 @@ class BootstrapInfo;
 class ClassFileStream;
 class ClassLoadInfo;
 class Dictionary;
-class AllFieldStream;
 class PackageEntry;
 class GCTimer;
 class EventClassLoad;
@@ -113,8 +112,7 @@ class SystemDictionary : AllStatic {
   // Resolve a superclass or superinterface. Called from ClassFileParser,
   // parse_interfaces, resolve_instance_class_or_null, load_shared_class
   // "class_name" is the class whose super class or interface is being resolved.
-  static InstanceKlass* resolve_with_circularity_detection_or_fail(Symbol* class_name,
-                                              Symbol* super_name,
+  static InstanceKlass* resolve_super_or_fail(Symbol* class_name, Symbol* super_name,
                                               Handle class_loader,
                                               bool is_superclass, TRAPS) {
     return resolve_with_circularity_detection(class_name, super_name, class_loader, is_superclass, THREAD);
@@ -329,7 +327,7 @@ private:
   static void restore_archived_method_handle_intrinsics_impl(TRAPS) NOT_CDS_RETURN;
 
 protected:
-  // Used by SystemDictionaryShared and LambdaProxyClassDictionary
+  // Used by AOTLinkedClassBulkLoader, LambdaProxyClassDictionary, and SystemDictionaryShared
 
   static bool add_loader_constraint(Symbol* name, Klass* klass_being_linked,  Handle loader1,
                                     Handle loader2);
@@ -342,6 +340,7 @@ protected:
                                           const ClassFileStream *cfs,
                                           PackageEntry* pkg_entry,
                                           TRAPS);
+  static void preload_class(Handle class_loader, InstanceKlass* ik, TRAPS);
   static Handle get_loader_lock_or_null(Handle class_loader);
   static InstanceKlass* find_or_define_instance_class(Symbol* class_name,
                                                       Handle class_loader,

@@ -30,7 +30,6 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.inline.hpp"
-#include "classfile/classLoaderExt.hpp"
 #include "classfile/classLoadInfo.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.inline.hpp"
@@ -56,22 +55,20 @@
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/oop.hpp"
-#include "oops/oopHandle.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -117,10 +114,10 @@ class InvokeMethodKey : public StackObj {
 
 };
 
-using InvokeMethodIntrinsicTable = ResourceHashtable<InvokeMethodKey, Method*, 139, AnyObj::C_HEAP, mtClass,
+using InvokeMethodIntrinsicTable = HashTable<InvokeMethodKey, Method*, 139, AnyObj::C_HEAP, mtClass,
                   InvokeMethodKey::compute_hash, InvokeMethodKey::key_comparison>;
 static InvokeMethodIntrinsicTable* _invoke_method_intrinsic_table;
-using InvokeMethodTypeTable = ResourceHashtable<SymbolHandle, OopHandle, 139, AnyObj::C_HEAP, mtClass, SymbolHandle::compute_hash>;
+using InvokeMethodTypeTable = HashTable<SymbolHandle, OopHandle, 139, AnyObj::C_HEAP, mtClass, SymbolHandle::compute_hash>;
 static InvokeMethodTypeTable* _invoke_method_type_table;
 
 OopHandle   SystemDictionary::_java_system_loader;
@@ -214,8 +211,9 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
     if (class_loader() == nullptr) {
       return ClassLoaderData::the_null_class_loader_data();
     } else {
-      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
-      if (EnableValhalla) {
+      bool created = false;
+      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader, created);
+      if (created && Arguments::enable_preview()) {
         add_migrated_value_classes(cld);
       }
       return cld;
@@ -224,14 +222,19 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
 }
 
 void SystemDictionary::set_system_loader(ClassLoaderData *cld) {
-  assert(_java_system_loader.is_empty(), "already set!");
-  _java_system_loader = cld->class_loader_handle();
-
+  if (_java_system_loader.is_empty()) {
+    _java_system_loader = cld->class_loader_handle();
+  } else {
+    assert(_java_system_loader.resolve() == cld->class_loader(), "sanity");
+  }
 }
 
 void SystemDictionary::set_platform_loader(ClassLoaderData *cld) {
-  assert(_java_platform_loader.is_empty(), "already set!");
-  _java_platform_loader = cld->class_loader_handle();
+  if (_java_platform_loader.is_empty()) {
+    _java_platform_loader = cld->class_loader_handle();
+  } else {
+    assert(_java_platform_loader.resolve() == cld->class_loader(), "sanity");
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -374,7 +377,7 @@ Klass* SystemDictionary::resolve_or_null(Symbol* class_name, Handle class_loader
     assert(class_name != nullptr && !Signature::is_array(class_name), "must be");
     if (Signature::has_envelope(class_name)) {
       ResourceMark rm(THREAD);
-      // Ignore wrapping L and ; (and Q and ; for value types).
+      // Ignore wrapping L and ;.
       TempNewSymbol name = SymbolTable::new_symbol(class_name->as_C_string() + 1,
                                                    class_name->utf8_length() - 2);
       return resolve_instance_class_or_null(name, class_loader, THREAD);
@@ -422,7 +425,8 @@ static inline void log_circularity_error(Symbol* name, PlaceholderEntry* probe) 
 }
 
 // Must be called for any superclass or superinterface resolution
-// during class definition to allow class circularity checking
+// during class definition, or may be called for inline field layout processing
+// to detect class circularity errors.
 // superinterface callers:
 //    parse_interfaces - from defineClass
 // superclass callers:
@@ -435,10 +439,12 @@ static inline void log_circularity_error(Symbol* name, PlaceholderEntry* probe) 
 //      If another thread is trying to resolve the class, it must do
 //      superclass checks on its own thread to catch class circularity and
 //      to avoid deadlock.
+// inline field layout callers:
+//    The field's class must be loaded to determine layout.
 //
 // resolve_with_circularity_detection adds a DETECT_CIRCULARITY placeholder to the placeholder table before calling
 // resolve_instance_class_or_null. ClassCircularityError is detected when a DETECT_CIRCULARITY or LOAD_INSTANCE
-// placeholder for the same thread, class, classloader is found.
+// placeholder for the same thread, class, and classloader is found.
 // This can be seen with logging option: -Xlog:class+load+placeholders=debug.
 //
 InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* class_name,
@@ -459,7 +465,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
       // (a) RedefineClasses -- the class is already loaded
       // (b) Rarely, the class might have been loaded by a parallel thread
       // We can do a quick check against the already assigned superclass's name and loader.
-      InstanceKlass* superk = klassk->java_super();
+      InstanceKlass* superk = klassk->super();
       if (superk != nullptr &&
           superk->name() == next_name &&
           superk->class_loader() == class_loader()) {
@@ -473,7 +479,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
 
-    // Must check ClassCircularity before resolving next_name (superclass or interface).
+    // Must check ClassCircularity before resolving next_name (superclass, interface, field types or speculatively preloaded argument types).
     PlaceholderEntry* probe = PlaceholderTable::get_entry(class_name, loader_data);
     if (probe != nullptr && probe->check_seen_thread(THREAD, PlaceholderTable::DETECT_CIRCULARITY)) {
         log_circularity_error(class_name, probe);
@@ -497,7 +503,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
       THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), class_name->as_C_string());
   }
 
-  // Resolve the superclass or superinterface, check results on return
+  // Resolve the superclass, superinterface, field type or speculatively preloaded argument types and check results on return.
   InstanceKlass* superk =
     SystemDictionary::resolve_instance_class_or_null(next_name,
                                                      class_loader,
@@ -1041,7 +1047,7 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
 
 bool SystemDictionary::check_shared_class_super_type(InstanceKlass* klass, InstanceKlass* super_type,
                                                      Handle class_loader, bool is_superclass, TRAPS) {
-  assert(super_type->is_shared(), "must be");
+  assert(super_type->in_aot_cache(), "must be");
 
   // Quick check if the super type has been already loaded.
   // + Don't do it for unregistered classes -- they can be unloaded so
@@ -1076,7 +1082,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   // load <ik> from the shared archive.
 
   if (ik->super() != nullptr) {
-    bool check_super = check_shared_class_super_type(ik, InstanceKlass::cast(ik->super()),
+    bool check_super = check_shared_class_super_type(ik, ik->super(),
                                                      class_loader, true,
                                                      CHECK_false);
     if (!check_super) {
@@ -1101,13 +1107,13 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
 // Some pre-loading does not fail fatally
 bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
-  log_info(class, preload)("Preloading class %s during loading of shared class %s. "
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
                            "Cause: a null-free non-static field is declared with this type",
                            name->as_C_string(), ik->name()->as_C_string());
-  InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
+  InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                class_loader, false, CHECK_false);
   if (HAS_PENDING_EXCEPTION) {
-    log_warning(class, preload)("Preloading of class %s during loading of class %s "
+    log_info(class, preload)("Preloading of class %s during loading of class %s "
                                 "(cause: null-free non-static field) failed: %s",
                                 name->as_C_string(), ik->name()->as_C_string(),
                                 PENDING_EXCEPTION->klass()->name()->as_C_string());
@@ -1117,7 +1123,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
   InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
   if (real_k != k) {
     // oops, the app has substituted a different version of k! Does not fail fatally
-    log_warning(class, preload)("Preloading of class %s during loading of shared class %s "
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                 "(cause: null-free non-static field) failed : "
                                 "app substituted a different version of %s",
                                 name->as_C_string(), ik->name()->as_C_string(),
@@ -1139,10 +1145,10 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
 void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
-    log_info(class, preload)("Preloading class %s during loading of shared class %s. "
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
                              "Cause: field type in LoadableDescriptors attribute",
                              name->as_C_string(), ik->name()->as_C_string());
-    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
+    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                  class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
@@ -1151,7 +1157,7 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
     if (real_k != k) {
       // oops, the app has substituted a different version of k!
-      log_warning(class, preload)("Preloading of class %s during loading of shared class %s "
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                   "(cause: field type in LoadableDescriptors attribute) failed : "
                                   "app substituted a different version of %s",
                                   name->as_C_string(), ik->name()->as_C_string(),
@@ -1173,9 +1179,9 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
                                                    PackageEntry* pkg_entry,
                                                    TRAPS) {
   assert(ik != nullptr, "sanity");
-  assert(ik->is_shared(), "sanity");
+  assert(ik->in_aot_cache(), "sanity");
   assert(!ik->is_unshareable_info_restored(), "shared class can be restored only once");
-  assert(Atomic::add(&ik->_shared_class_load_count, 1) == 1, "shared class loaded more than once");
+  assert(AtomicAccess::add(&ik->_shared_class_load_count, 1) == 1, "shared class loaded more than once");
   Symbol* class_name = ik->name();
 
   if (!is_shared_class_visible(class_name, ik, pkg_entry, class_loader)) {
@@ -1265,6 +1271,58 @@ void SystemDictionary::load_shared_class_misc(InstanceKlass* ik, ClassLoaderData
   if (CDSConfig::is_dumping_final_static_archive()) {
     SystemDictionaryShared::init_dumptime_info_from_preimage(ik);
   }
+}
+
+// This is much more lightweight than SystemDictionary::resolve_or_null
+// - There's only a single Java thread at this point. No need for placeholder.
+// - All supertypes of ik have been loaded
+// - There's no circularity (checked in AOT assembly phase)
+// - There's no need to call java.lang.ClassLoader::load_class() because the boot/platform/app
+//   loaders are well-behaved
+void SystemDictionary::preload_class(Handle class_loader, InstanceKlass* ik, TRAPS) {
+  precond(Universe::is_bootstrapping());
+  precond(java_platform_loader() != nullptr && java_system_loader() != nullptr);
+  precond(class_loader() == nullptr || class_loader() == java_platform_loader() ||class_loader() == java_system_loader());
+  precond(CDSConfig::is_using_aot_linked_classes());
+  precond(AOTMetaspace::in_aot_cache_static_region((void*)ik));
+  precond(!ik->is_loaded());
+
+#ifdef ASSERT
+  // preload_class() must be called in the correct order -- all super types must have
+  // already been loaded.
+  if (ik->java_super() != nullptr) {
+    assert(ik->java_super()->is_loaded(), "must be");
+  }
+
+  Array<InstanceKlass*>* interfaces = ik->local_interfaces();
+  int num_interfaces = interfaces->length();
+  for (int index = 0; index < num_interfaces; index++) {
+    assert(interfaces->at(index)->is_loaded(), "must be");
+  }
+#endif
+
+  ClassLoaderData* loader_data = ClassLoaderData::class_loader_data(class_loader());
+  oop java_mirror = ik->archived_java_mirror();
+  precond(java_mirror != nullptr);
+  assert(java_lang_Class::module(java_mirror) != nullptr, "must have been archived");
+
+  Handle pd(THREAD, java_lang_Class::protection_domain(java_mirror));
+  PackageEntry* pkg_entry = ik->package();
+  assert(pkg_entry != nullptr || ClassLoader::package_from_class_name(ik->name()) == nullptr,
+         "non-empty packages must have been archived");
+
+  // TODO: the following assert requires JDK-8365580
+  // assert(is_shared_class_visible(ik->name(), ik, pkg_entry, class_loader), "must be");
+
+  ik->restore_unshareable_info(loader_data, pd, pkg_entry, CHECK);
+  load_shared_class_misc(ik, loader_data);
+  ik->add_to_hierarchy(THREAD);
+
+  if (!ik->is_hidden()) {
+    update_dictionary(THREAD, ik, loader_data);
+  }
+
+  assert(ik->is_loaded(), "Must be in at least loaded state");
 }
 
 #endif // INCLUDE_CDS
@@ -1395,10 +1453,10 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
     assert(result.get_type() == T_OBJECT, "just checking");
     oop obj = result.get_oop();
 
-    // Primitive classes return null since forName() can not be
+    // Primitive classes return null since forName() cannot be
     // used to obtain any of the Class objects representing primitives or void
     if ((obj != nullptr) && !(java_lang_Class::is_primitive(obj))) {
-      InstanceKlass* k = InstanceKlass::cast(java_lang_Class::as_Klass(obj));
+      InstanceKlass* k = java_lang_Class::as_InstanceKlass(obj);
       // For user defined Java class loaders, check that the name returned is
       // the same as that requested.  This check is done for the bootstrap
       // loader when parsing the class file.
@@ -1863,7 +1921,7 @@ bool SystemDictionary::add_loader_constraint(Symbol* class_name,
                                                    klass2, loader_data2);
 #if INCLUDE_CDS
     if (CDSConfig::is_dumping_archive() && klass_being_linked != nullptr &&
-        !klass_being_linked->is_shared()) {
+        !klass_being_linked->in_aot_cache()) {
          SystemDictionaryShared::record_linking_constraint(constraint_name,
                                      InstanceKlass::cast(klass_being_linked),
                                      class_loader1, class_loader2);
@@ -2119,7 +2177,7 @@ void SystemDictionary::restore_archived_method_handle_intrinsics() {
 }
 
 void SystemDictionary::restore_archived_method_handle_intrinsics_impl(TRAPS) {
-  Array<Method*>* list = MetaspaceShared::archived_method_handle_intrinsics();
+  Array<Method*>* list = AOTMetaspace::archived_method_handle_intrinsics();
   for (int i = 0; i < list->length(); i++) {
     methodHandle m(THREAD, list->at(i));
     Method::restore_archived_method_handle_intrinsic(m, CHECK);

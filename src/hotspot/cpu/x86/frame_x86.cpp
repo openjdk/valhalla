@@ -222,8 +222,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
 
     nmethod* nm = sender_blob->as_nmethod_or_null();
     if (nm != nullptr) {
-        if (nm->is_deopt_mh_entry(sender_pc) || nm->is_deopt_entry(sender_pc) ||
-            nm->method()->is_method_handle_intrinsic()) {
+        if (nm->is_deopt_entry(sender_pc) || nm->method()->is_method_handle_intrinsic()) {
             return false;
         }
     }
@@ -433,8 +432,8 @@ JavaThread** frame::saved_thread_address(const frame& f) {
 
   JavaThread** thread_addr;
 #ifdef COMPILER1
-  if (cb == Runtime1::blob_for(C1StubId::monitorenter_id) ||
-      cb == Runtime1::blob_for(C1StubId::monitorenter_nofpu_id)) {
+  if (cb == Runtime1::blob_for(StubId::c1_monitorenter_id) ||
+      cb == Runtime1::blob_for(StubId::c1_monitorenter_nofpu_id)) {
     thread_addr = (JavaThread**)(f.sp() + Runtime1::runtime_blob_current_thread_offset(f));
   } else
 #endif
@@ -445,47 +444,6 @@ JavaThread** frame::saved_thread_address(const frame& f) {
   assert(get_register_address_in_stub(f, SharedRuntime::thread_register()) == (address)thread_addr, "wrong thread address");
   return thread_addr;
 }
-
-//------------------------------------------------------------------------------
-// frame::verify_deopt_original_pc
-//
-// Verifies the calculated original PC of a deoptimization PC for the
-// given unextended SP.
-#ifdef ASSERT
-void frame::verify_deopt_original_pc(nmethod* nm, intptr_t* unextended_sp) {
-  frame fr;
-
-  // This is ugly but it's better than to change {get,set}_original_pc
-  // to take an SP value as argument.  And it's only a debugging
-  // method anyway.
-  fr._unextended_sp = unextended_sp;
-
-  address original_pc = nm->get_original_pc(&fr);
-  assert(nm->insts_contains_inclusive(original_pc),
-         "original PC must be in the main code section of the compiled method (or must be immediately following it) original_pc: " INTPTR_FORMAT " unextended_sp: " INTPTR_FORMAT " name: %s", p2i(original_pc), p2i(unextended_sp), nm->name());
-}
-#endif
-
-//------------------------------------------------------------------------------
-// frame::adjust_unextended_sp
-#ifdef ASSERT
-void frame::adjust_unextended_sp() {
-  // On x86, sites calling method handle intrinsics and lambda forms are treated
-  // as any other call site. Therefore, no special action is needed when we are
-  // returning to any of these call sites.
-
-  if (_cb != nullptr) {
-    nmethod* sender_nm = _cb->as_nmethod_or_null();
-    if (sender_nm != nullptr) {
-      // If the sender PC is a deoptimization point, get the original PC.
-      if (sender_nm->is_deopt_entry(_pc) ||
-          sender_nm->is_deopt_mh_entry(_pc)) {
-        verify_deopt_original_pc(sender_nm, _unextended_sp);
-      }
-    }
-  }
-}
-#endif
 
 //------------------------------------------------------------------------------
 // frame::sender_for_interpreter_frame
@@ -581,14 +539,9 @@ BasicType frame::interpreter_frame_result(oop* oop_result, jvalue* value_result)
     // then ST0 is saved before EAX/EDX. See the note in generate_native_result
     tos_addr = (intptr_t*)sp();
     if (type == T_FLOAT || type == T_DOUBLE) {
-    // QQQ seems like this code is equivalent on the two platforms
-#ifdef AMD64
       // This is times two because we do a push(ltos) after pushing XMM0
       // and that takes two interpreter stack slots.
       tos_addr += 2 * Interpreter::stackElementWords;
-#else
-      tos_addr += 2;
-#endif // AMD64
     }
   } else {
     tos_addr = (intptr_t*)interpreter_frame_tos_address();
@@ -614,19 +567,7 @@ BasicType frame::interpreter_frame_result(oop* oop_result, jvalue* value_result)
     case T_SHORT   : value_result->s = *(jshort*)tos_addr; break;
     case T_INT     : value_result->i = *(jint*)tos_addr; break;
     case T_LONG    : value_result->j = *(jlong*)tos_addr; break;
-    case T_FLOAT   : {
-#ifdef AMD64
-        value_result->f = *(jfloat*)tos_addr;
-#else
-      if (method->is_native()) {
-        jdouble d = *(jdouble*)tos_addr;  // Result was in ST0 so need to convert to jfloat
-        value_result->f = (jfloat)d;
-      } else {
-        value_result->f = *(jfloat*)tos_addr;
-      }
-#endif // AMD64
-      break;
-    }
+    case T_FLOAT   : value_result->f = *(jfloat*)tos_addr; break;
     case T_DOUBLE  : value_result->d = *(jdouble*)tos_addr; break;
     case T_VOID    : /* Nothing to do */ break;
     default        : ShouldNotReachHere();
@@ -656,7 +597,6 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     DESCRIBE_FP_OFFSET(interpreter_frame_locals);
     DESCRIBE_FP_OFFSET(interpreter_frame_bcp);
     DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
-#ifdef AMD64
   } else if (is_entry_frame()) {
     // This could be more descriptive if we use the enum in
     // stubGenerator to map to real names but it's most important to
@@ -664,7 +604,6 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     for (int i = 0; i < entry_frame_after_call_words; i++) {
       values.describe(frame_no, fp() - i, err_msg("call_stub word fp - %d", i));
     }
-#endif // AMD64
   }
 
   if (is_java_frame() || Continuation::is_continuation_enterSpecial(*this)) {
@@ -676,6 +615,9 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     } else {
       ret_pc_loc = real_fp() - return_addr_offset;
       fp_loc = real_fp() - sender_sp_offset;
+      if (cb()->is_nmethod() && cb()->as_nmethod_or_null()->needs_stack_repair()) {
+        values.describe(frame_no, fp_loc - 1, err_msg("fsize for #%d", frame_no), 1);
+      }
     }
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
@@ -712,6 +654,28 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
     sender_sp = unextended_sp() + real_frame_size;
   }
   return sender_sp;
+}
+
+intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
+  assert(nm != nullptr && nm->needs_stack_repair(), "");
+  // The stack increment resides just below the saved rbp on the stack
+  // and does not account for the return address.
+  intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
+  int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
+  assert(real_frame_size >= nm->frame_size() && real_frame_size <= 1000000, "invalid frame size");
+  return sp + real_frame_size;
+}
+
+bool frame::was_augmented_on_entry(int& real_size) const {
+  assert(is_compiled_frame(), "");
+  if (_cb->as_nmethod_or_null()->needs_stack_repair()) {
+    intptr_t* real_frame_size_addr = unextended_sp() + _cb->frame_size() - sender_sp_offset - 1;
+    log_trace(continuations)("real_frame_size is addr is " INTPTR_FORMAT, p2i(real_frame_size_addr));
+    real_size = ((*real_frame_size_addr) + wordSize) / wordSize;
+    return real_size != _cb->frame_size();
+  }
+  real_size = _cb->frame_size();
+  return false;
 }
 
 void JavaFrameAnchor::make_walkable() {

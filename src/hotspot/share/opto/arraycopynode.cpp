@@ -220,6 +220,15 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     }
   }
 
+  const TypeInstPtr* dest_type = phase->type(base_dest)->is_instptr();
+  if (dest_type->instance_klass() != ik) {
+    // At parse time, the exact type of the object to clone was not known. That inexact type was captured by the CheckCastPP
+    // of the newly allocated cloned object (in dest). The exact type is now known (in src), but the type for the cloned object
+    // (dest) was not updated. When copying the fields below, Store nodes may write to offsets for fields that don't exist in
+    // the inexact class. The stores would then be assigned an incorrect slice.
+    return NodeSentinel;
+  }
+
   assert(ik->nof_nonstatic_fields() <= ArrayCopyLoadStoreMaxElem, "too many fields");
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -310,9 +319,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
     if (ary_dest->is_flat()) {
+      assert(ary_src->is_flat(), "src and dest must be flat");
       shift = ary_src->flat_log_elem_size();
+      src_elem = T_FLAT_ELEMENT;
+      dest_elem = T_FLAT_ELEMENT;
     }
-    uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
+
+    const uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
 
     src_offset = Compile::conv_I2X_index(phase, src_offset, ary_src->size());
     if (src_offset->is_top()) {
@@ -822,13 +835,20 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseValues
   BasicType ary_elem = ary_t->isa_aryptr()->elem()->array_element_basic_type();
   if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
-  uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
-  uint elemsize = ary_t->is_flat() ? ary_t->flat_elem_size() : type2aelembytes(ary_elem);
+  uint header;
+  uint elem_size;
+  if (ary_t->is_flat()) {
+    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+    elem_size = ary_t->flat_elem_size();
+  } else {
+    header = arrayOopDesc::base_offset_in_bytes(ary_elem);
+    elem_size = type2aelembytes(ary_elem);
+  }
 
-  jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elemsize + header;
-  jlong dest_pos_plus_len_hi = (((jlong)dest_pos_t->_hi) + len_t->_hi) * elemsize + header;
-  jlong dest_pos_lo = ((jlong)dest_pos_t->_lo) * elemsize + header;
-  jlong dest_pos_hi = ((jlong)dest_pos_t->_hi) * elemsize + header;
+  jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elem_size + header;
+  jlong dest_pos_plus_len_hi = (((jlong)dest_pos_t->_hi) + len_t->_hi) * elem_size + header;
+  jlong dest_pos_lo = ((jlong)dest_pos_t->_lo) * elem_size + header;
+  jlong dest_pos_hi = ((jlong)dest_pos_t->_hi) * elem_size + header;
 
   if (must_modify) {
     if (offset_lo >= dest_pos_hi && offset_hi < dest_pos_plus_len_lo) {

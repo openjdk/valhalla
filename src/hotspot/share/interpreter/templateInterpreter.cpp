@@ -22,9 +22,9 @@
  *
  */
 
+#include "interpreter/interp_masm.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
-#include "interpreter/interp_masm.hpp"
 #include "interpreter/templateInterpreter.hpp"
 #include "interpreter/templateInterpreterGenerator.hpp"
 #include "interpreter/templateTable.hpp"
@@ -209,7 +209,6 @@ address    TemplateInterpreter::_throw_ArrayStoreException_entry            = nu
 address    TemplateInterpreter::_throw_ArithmeticException_entry            = nullptr;
 address    TemplateInterpreter::_throw_ClassCastException_entry             = nullptr;
 address    TemplateInterpreter::_throw_NullPointerException_entry           = nullptr;
-address    TemplateInterpreter::_throw_NPE_UninitializedField_entry         = nullptr;
 address    TemplateInterpreter::_throw_StackOverflowError_entry             = nullptr;
 address    TemplateInterpreter::_throw_exception_entry                      = nullptr;
 address    TemplateInterpreter::_cont_resume_interpreter_adapter            = nullptr;

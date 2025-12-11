@@ -24,9 +24,10 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 
+#include "oops/inlineKlass.hpp"
+
 #include "memory/iterator.hpp"
 #include "oops/flatArrayKlass.hpp"
-#include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/devirtualizer.inline.hpp"

@@ -22,12 +22,15 @@
  *
  */
 
+#ifndef SHARE_OPTO_LIBRARY_CALL_HPP
+#define SHARE_OPTO_LIBRARY_CALL_HPP
+
 #include "ci/ciMethod.hpp"
 #include "classfile/javaClasses.hpp"
 #include "opto/callGenerator.hpp"
-#include "opto/graphKit.hpp"
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
+#include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/intrinsicnode.hpp"
 #include "opto/movenode.hpp"
@@ -135,6 +138,29 @@ class LibraryCallKit : public GraphKit {
 
   virtual int reexecute_sp() { return _reexecute_sp; }
 
+  /* When an intrinsic makes changes before bailing out, it's necessary to restore the graph
+   * as it was. See JDK-8359344 for what can happen wrong. It's also not always possible to
+   * bailout before making changes because the bailing out decision might depend on new nodes
+   * (their types, for instance).
+   *
+   * So, if an intrinsic might cause this situation, one must start by saving the state in a
+   * SavedState by constructing it, and the state will be restored on destruction. If the
+   * intrinsic is not bailing out, one need to call discard to prevent restoring the old state.
+   */
+  class SavedState {
+    LibraryCallKit* _kit;
+    uint _sp;
+    JVMState* _jvms;
+    SafePointNode* _map;
+    Unique_Node_List _ctrl_succ;
+    bool _discarded;
+
+  public:
+    SavedState(LibraryCallKit*);
+    ~SavedState();
+    void discard();
+  };
+
   // Helper functions to inline natives
   Node* generate_guard(Node* test, RegionNode* region, float true_prob);
   Node* generate_slow_guard(Node* test, RegionNode* region);
@@ -146,7 +172,8 @@ class LibraryCallKit : public GraphKit {
                              Node* array_length,
                              RegionNode* region);
   void  generate_string_range_check(Node* array, Node* offset,
-                                    Node* length, bool char_count);
+                                    Node* length, bool char_count,
+                                    bool halt_on_oob = false);
   Node* current_thread_helper(Node* &tls_output, ByteSize handle_offset,
                               bool is_immutable);
   Node* generate_current_thread(Node* &tls_output);
@@ -168,7 +195,8 @@ class LibraryCallKit : public GraphKit {
                                          region, null_path,
                                          offset);
   }
-  Node* load_default_array_klass(Node* klass_node);
+  Node* load_default_refined_array_klass(Node* klass_node, bool type_array_guard = true);
+  Node* load_non_refined_array_klass(Node* klass_node);
 
   Node* generate_klass_flags_guard(Node* kls, int modifier_mask, int modifier_bits, RegionNode* region,
                                    ByteSize offset, const Type* type, BasicType bt);
@@ -256,6 +284,8 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
   bool inline_newArray(bool null_free, bool atomic);
+  typedef enum { IsFlat, IsNullRestricted, IsAtomic } ArrayPropertiesCheck;
+  bool inline_getArrayProperties(ArrayPropertiesCheck check);
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
@@ -317,6 +347,9 @@ class LibraryCallKit : public GraphKit {
   typedef enum { LS_get_add, LS_get_set, LS_cmp_swap, LS_cmp_swap_weak, LS_cmp_exchange } LoadStoreKind;
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
   bool inline_unsafe_fence(vmIntrinsics::ID id);
+  bool inline_arrayInstanceBaseOffset();
+  bool inline_arrayInstanceIndexScale();
+  bool inline_arrayLayout();
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
   bool inline_fp_range_check(vmIntrinsics::ID id);
@@ -327,7 +360,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_bitshuffle_methods(vmIntrinsics::ID id);
   bool inline_compare_unsigned(vmIntrinsics::ID id);
   bool inline_divmod_methods(vmIntrinsics::ID id);
-  bool inline_reference_get();
+  bool inline_reference_get0();
   bool inline_reference_refersTo0(bool is_phantom);
   bool inline_reference_clear0(bool is_phantom);
   bool inline_Class_cast();
@@ -443,3 +476,4 @@ class LibraryCallKit : public GraphKit {
   bool inline_blackhole();
 };
 
+#endif // SHARE_OPTO_LIBRARY_CALL_HPP

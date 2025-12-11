@@ -149,7 +149,6 @@ define CreateCDSArchive
   $1_$2_$3_DUMP_EXTRA_ARG := $$($1_$2_COOPS_OPTION) $$($1_$2_COH_OPTION) $(if $(findstring _valhalla, $3), --enable-preview,)
   $1_$2_$3_DUMP_TYPE      := $(if $(findstring _nocoops, $2),-NOCOOPS,)$(if $(findstring _coh, $2),-COH,)$(if $(findstring _valhalla, $3), -VALHALLA,)
 
-  # Only G1 supports dumping the shared heap, so explicitly use G1 if the JVM supports it.
   $1_$2_$3_CDS_DUMP_FLAGS := $(CDS_DUMP_FLAGS) $(if $(filter g1gc, $(JVM_FEATURES_$1)), -XX:+UseG1GC)
 
   ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -273,6 +272,7 @@ endif
 # Since debug symbols are not included in the jmod files, they need to be copied
 # in manually after generating the images.
 
+# These variables are read by SetupCopyDebuginfo
 ALL_JDK_MODULES := $(JDK_MODULES)
 ALL_JRE_MODULES := $(sort $(JRE_MODULES), $(foreach m, $(JRE_MODULES), \
     $(call FindTransitiveDepsForModule, $m)))

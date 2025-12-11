@@ -66,6 +66,7 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/NativeCallTest.java 8
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleDebugInfoTest.java 8331704 linux-riscv64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleCodeInstallationTest.java 8331704 linux-riscv64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInfoTest.java 8331704 linux-riscv64
+compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/CodeInvalidationReasonTest.java 8360168 linux-riscv64
 
 compiler/floatingpoint/TestSubnormalFloat.java 8317810 generic-i586
 compiler/floatingpoint/TestSubnormalDouble.java 8317810 generic-i586
@@ -74,27 +75,44 @@ compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 
 compiler/interpreter/Test6833129.java 8335266 generic-i586
 
-compiler/ciReplay/TestInliningProtectionDomain.java 8349191 generic-all
-compiler/ciReplay/TestIncrementalInlining.java 8349191 generic-all
-
 compiler/c2/TestVerifyConstraintCasts.java 8355574 generic-all
 
-compiler/startup/StartupOutput.java 8358129 windows-all
+compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessProviderTest.java 8350208 generic-all
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
 
+serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150 generic-all
+
 # Valhalla
-compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
-compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
-compiler/types/correctness/OffTest.java 8365895 windows-x64
+compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
+compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
+compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
+compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
+compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
+compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
+compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
+compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
 #############################################################################
 
 # :hotspot_gc
 
 gc/epsilon/TestMemoryMXBeans.java 8206434 generic-all
-gc/g1/humongousObjects/objectGraphTest/TestObjectGraphAfterGC.java 8156755 generic-all
 gc/g1/logging/TestG1LoggingFailure.java 8169634 generic-all
 gc/g1/humongousObjects/TestHeapCounters.java 8178918 generic-all
 gc/TestAllocHumongousFragment.java#adaptive 8298781 generic-all
@@ -103,12 +121,16 @@ gc/TestAllocHumongousFragment.java#g1 8298781 generic-all
 gc/TestAllocHumongousFragment.java#static 8298781 generic-all
 gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
 gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
+gc/shenandoah/TestRetainObjects.java#no-tlab 8361099 generic-all
+gc/shenandoah/TestSieveObjects.java#no-tlab 8361099 generic-all
+gc/shenandoah/TestSieveObjects.java#no-tlab-genshen 8361099 generic-all
 
 #############################################################################
 
 # :hotspot_runtime
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
+runtime/cds/DeterministicDump.java 8363986 macosx-x64,macosx-aarch64
 runtime/jni/terminatedThread/TestTerminatedThread.java 8317789 aix-ppc64
 runtime/Monitor/SyncOnValueBasedClassTest.java 8340995 linux-s390x
 runtime/os/TestTracePageSizes.java#no-options 8267460 linux-aarch64
@@ -130,111 +152,28 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 
 
 # Valhalla
-runtime/AccModule/ConstModule.java 8294051 generic-all
-runtime/valhalla/inlinetypes/CircularityTest.java 8349037 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
 
 runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774           generic-all
 runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
 
-# Valhalla + COH
-compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
-compiler/c2/irTests/TestVectorConditionalMove.java                              8348568 generic-all
-compiler/c2/irTests/TestVectorizationMismatchedAccess.java                      8348568 generic-all
-compiler/c2/irTests/TestVectorizationNotRun.java                                8348568 generic-all
-compiler/c2/TestCastX2NotProcessedIGVN.java                                     8348568 generic-all
-compiler/loopopts/superword/TestAlignVector.java                                8348568 generic-all
-compiler/loopopts/superword/TestAlignVector.java#NoAlignVector-COH              8348568 generic-all
-compiler/loopopts/superword/TestAlignVector.java#VerifyAlignVector-COH          8348568 generic-all
-compiler/loopopts/superword/TestIndependentPacksWithCyclicDependency.java       8348568 generic-all
-compiler/loopopts/superword/TestMulAddS2I.java                                  8348568 generic-all
-compiler/loopopts/superword/TestScheduleReordersScalarMemops.java               8348568 generic-all
-compiler/loopopts/superword/TestSplitPacks.java                                 8348568 generic-all
-compiler/loopopts/superword/TestUnorderedReductionPartialVectorization.java     8348568 generic-all
-compiler/vectorization/TestFloatConversionsVector.java                          8348568 generic-all
-compiler/vectorization/runner/ArrayTypeConvertTest.java                         8348568 generic-all
-compiler/vectorization/runner/LoopCombinedOpTest.java                           8348568 generic-all
-compiler/vectorization/runner/VectorizationTestRunner.java                      8348568 generic-all
-runtime/FieldLayout/TestOopMapSizeMinimal.java#no_coops_ccptr_coh               8348568 generic-all
-
-gc/stress/gcbasher/TestGCBasherWithParallel.java                                8348568 generic-all
-
-gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh                     8348568 generic-all
-gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh-large-class-space   8348568 generic-all
-gtest/MetaspaceGtests.java#UseCompactObjectHeaders                              8348568 generic-all
-
-runtime/CompressedOops/CompressedClassPointersEncodingScheme.java               8348568 generic-all
-runtime/FieldLayout/BaseOffsets.java#no-coops-with-coh                          8348568 generic-all
-runtime/FieldLayout/BaseOffsets.java#with-coop--with-coh                        8348568 generic-all
-runtime/cds/TestDefaultArchiveLoading.java#coops_coh                            8348568 generic-all
-runtime/cds/TestDefaultArchiveLoading.java#nocoops_coh                          8348568 generic-all
-runtime/cds/appcds/TestZGCWithCDS.java                                          8348568 generic-all
-
 # Valhalla + AOT
-runtime/cds/appcds/aotCache/AOTCacheSupportForCustomLoaders.java                8366701 generic-all
-runtime/cds/appcds/aotCache/AOTLoggingTag.java                                  8366701 generic-all
-runtime/cds/appcds/aotCache/ClassPathLogging.java                               8366701 generic-all
-runtime/cds/appcds/aotCache/ExcludedClasses.java                                8366701 generic-all
-runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8366701 generic-all
-runtime/cds/appcds/aotCache/JavaAgent.java                                      8366701 generic-all
-runtime/cds/appcds/aotCache/ManagementAgent.java                                8366701 generic-all
-runtime/cds/appcds/aotCache/PackageInfoClass.java                               8366701 generic-all
-runtime/cds/appcds/aotCache/SpecialCacheNames.java                              8366701 generic-all
-runtime/cds/appcds/aotCache/VerifierFailOver.java                               8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AOTCacheWithZGC.java                         8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AOTLoaderConstraintsTest.java                8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AddExports.java                              8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AddOpens.java                                8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AddReads.java                                8366701 generic-all
-runtime/cds/appcds/aotClassLinking/BulkLoaderTest.java#aot                      8366701 generic-all
-runtime/cds/appcds/aotClassLinking/FakeCodeLocation.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/GeneratedInternedString.java                 8366701 generic-all
-runtime/cds/appcds/aotClassLinking/MethodHandleTest.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/NonFinalStaticWithInitVal.java               8366701 generic-all
-runtime/cds/appcds/aotClassLinking/StringConcatStress.java#aot                  8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TestSetupAOTTest.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TrainingRun.java                             8366701 generic-all
-runtime/cds/appcds/aotClassLinking/WeakReferenceTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8366701 generic-all
-runtime/cds/appcds/aotFlags/AOTFlags.java                                       8366701 generic-all
-runtime/cds/appcds/aotFlags/FileNameSubstitution.java                           8366701 generic-all
-runtime/cds/appcds/aotFlags/JDK_AOT_VM_OPTIONS.java                             8366701 generic-all
-runtime/cds/appcds/aotProfile/AOTProfileFlags.java                              8366701 generic-all
-runtime/cds/appcds/applications/JavacBench.java#aot                             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesAsCollectorTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesCastFailureTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesInvokersTest.java#aot             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesPermuteArgumentsTest.java#aot     8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesSpreadArgumentsTest.java#aot      8366701 generic-all
-runtime/cds/appcds/aotClassLinking/StringConcatStress.java#aot                  8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TestSetupAOTTest.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TrainingRun.java                             8366701 generic-all
-runtime/cds/appcds/aotClassLinking/WeakReferenceTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8366701 generic-all
-runtime/cds/appcds/aotFlags/AOTFlags.java                                       8366701 generic-all
-runtime/cds/appcds/aotFlags/FileNameSubstitution.java                           8366701 generic-all
-runtime/cds/appcds/aotFlags/JDK_AOT_VM_OPTIONS.java                             8366701 generic-all
-runtime/cds/appcds/aotProfile/AOTProfileFlags.java                              8366701 generic-all
-runtime/cds/appcds/applications/JavacBench.java#aot                             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesAsCollectorTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesCastFailureTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesInvokersTest.java#aot             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesPermuteArgumentsTest.java#aot     8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesSpreadArgumentsTest.java#aot      8366701 generic-all
-
+runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8369043 generic-aarch64
+runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8369043 generic-aarch64
+runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
+runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
+runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
+runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java             8372265 generic-all
+runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java                  8372265 generic-all
 #############################################################################
 
 # :hotspot_serviceability
 
-serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 macosx-x64,macosx-aarch64
+# 8239062 and 8270326 only affects macosx-x64,macosx-aarch64
+serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 generic-all
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 
-serviceability/jvmti/ModuleAwareAgents/ThreadStart/MAAThreadStart.java 8225354 windows-all
 serviceability/jvmti/vthread/GetThreadStateMountedTest/GetThreadStateMountedTest.java 8318090,8318729 generic-all
 serviceability/jvmti/vthread/GetSetLocalTest/GetSetLocalTest.java 8286836 generic-all
 serviceability/jvmti/vthread/CarrierThreadEventNotification/CarrierThreadEventNotification.java 8333681 generic-all
@@ -248,11 +187,13 @@ serviceability/sa/ClhsdbPstack.java#core          8318754 macosx-aarch64
 serviceability/sa/TestJmapCore.java               8318754 macosx-aarch64
 serviceability/sa/TestJmapCoreMetaspace.java      8318754 macosx-aarch64
 
+serviceability/sa/ClhsdbThreadContext.java        8356704 windows-x64
+serviceability/sa/TestJhsdbJstackMixedWithXComp.java 8371194 linux-x64
+
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java 8315980 linux-all,windows-x64
 
-# Valhalla TODO:
-serviceability/jvmti/valhalla/HeapDump/HeapDump.java 8317416 generic-all
 
+# Valhalla TODO:
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
@@ -290,19 +231,23 @@ serviceability/sa/sadebugd/DebugdConnectTest.java 8365722 generic-all
 serviceability/sa/ClhsdbJhisto.java 8365722 generic-all
 serviceability/sa/ClhsdbJstack.java#id1 8365722 generic-all
 serviceability/sa/ClhsdbJstackWithConcurrentLock.java 8365722 generic-all
+serviceability/sa/TestJhsdbJstackWithVirtualThread.java 8365722 generic-all
 serviceability/sa/ClhsdbJstackXcompStress.java 8365722 generic-all
 serviceability/sa/ClhsdbPstack.java#process 8365722 generic-all
 serviceability/sa/ClhsdbPstack.java#core 8365722 generic-all
 serviceability/sa/ClhsdbScanOops.java#id0 8365722 generic-all
 serviceability/sa/ClhsdbScanOops.java#id1 8365722 generic-all
+serviceability/sa/ClhsdbScanOops.java#serial 8365722 generic-all
+serviceability/sa/ClhsdbScanOops.java#parallel 8365722 generic-all
 serviceability/sa/DeadlockDetectionTest.java 8365722 generic-all
 serviceability/sa/ClhsdbJstack.java#id0 8365722 generic-all
 serviceability/sa/TestInstanceKlassSize.java 8365722 generic-all
 serviceability/sa/TestSysProps.java 8365722 generic-all
 serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
 resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
-serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
+resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8190936 generic-all
+vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 
 #############################################################################
 
@@ -325,7 +270,6 @@ vmTestbase/metaspace/gc/firstGC_50m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_99m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_default/TestDescription.java 8208250 generic-all
 
-vmTestbase/nsk/jvmti/AttachOnDemand/attach045/TestDescription.java 8358094 generic-all
 vmTestbase/nsk/jvmti/scenarios/capability/CM03/cm03t001/TestDescription.java 8073470 linux-all
 vmTestbase/nsk/jvmti/InterruptThread/intrpthrd003/TestDescription.java 8288911 macosx-all
 

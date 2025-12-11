@@ -33,9 +33,9 @@
 #include "compiler/compilationMemoryStatistic.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compiler_globals.hpp"
 #include "compiler/compilerDefinitions.hpp"
 #include "compiler/compilerOracle.hpp"
-#include "compiler/compiler_globals.hpp"
 #include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -89,8 +89,8 @@
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
-#include "utilities/resourceHash.hpp"
 
 // -------------------- Compile::mach_constant_base_node -----------------------
 // Constant table base node singleton.
@@ -410,6 +410,9 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
+  if (dead->is_LoadFlat() || dead->is_StoreFlat()) {
+    remove_flat_access(dead);
+  }
   if (dead->for_merge_stores_igvn()) {
     remove_from_merge_stores_igvn(dead);
   }
@@ -469,6 +472,7 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
   remove_useless_nodes(_expensive_nodes,    useful); // remove useless expensive nodes
   remove_useless_nodes(_for_post_loop_igvn, useful); // remove useless node recorded for post loop opts IGVN pass
   remove_useless_nodes(_inline_type_nodes,  useful); // remove useless inline type nodes
+  remove_useless_nodes(_flat_access_nodes, useful);  // remove useless flat access nodes
 #ifdef ASSERT
   if (_modified_nodes != nullptr) {
     _modified_nodes->remove_useless_nodes(useful.member_set());
@@ -650,7 +654,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _ilt(nullptr),
       _stub_function(nullptr),
       _stub_name(nullptr),
-      _stub_id(-1),
+      _stub_id(StubId::NO_STUBID),
       _stub_entry_point(nullptr),
       _max_node_limit(MaxNodeLimit),
       _post_loop_opts_phase(false),
@@ -665,7 +669,6 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _igv_idx(0),
       _trace_opto_output(directive->TraceOptoOutputOption),
 #endif
-      _has_method_handle_invokes(false),
       _clinit_barrier_on_entry(false),
       _stress_seed(0),
       _comp_arena(mtCompiler, Arena::Tag::tag_comp),
@@ -681,6 +684,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _expensive_nodes(comp_arena(), 8, 0, nullptr),
       _for_post_loop_igvn(comp_arena(), 8, 0, nullptr),
       _inline_type_nodes (comp_arena(), 8, 0, nullptr),
+      _flat_access_nodes(comp_arena(), 8, 0, nullptr),
       _for_merge_stores_igvn(comp_arena(), 8, 0, nullptr),
       _unstable_if_traps(comp_arena(), 8, 0, nullptr),
       _coarsened_locks(comp_arena(), 8, 0, nullptr),
@@ -709,7 +713,9 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _inline_printer(this),
       _java_calls(0),
       _inner_loops(0),
+      _FIRST_STACK_mask(comp_arena()),
       _interpreter_frame_size(0),
+      _regmask_arena(mtCompiler, Arena::Tag::tag_regmask),
       _output(nullptr)
 #ifndef PRODUCT
       ,
@@ -752,8 +758,9 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   }
 
   if (StressLCM || StressGCM || StressIGVN || StressCCP ||
-      StressIncrementalInlining || StressMacroExpansion || StressUnstableIfTraps || StressBailout ||
-      StressLoopPeeling) {
+      StressIncrementalInlining || StressMacroExpansion ||
+      StressMacroElimination || StressUnstableIfTraps ||
+      StressBailout || StressLoopPeeling) {
     initialize_stress_seed(directive);
   }
 
@@ -797,19 +804,9 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       StartNode* s = new StartNode(root(), tf()->domain_cc());
       initial_gvn()->set_type_bottom(s);
       verify_start(s);
-      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get) {
-        // With java.lang.ref.reference.get() we must go through the
-        // intrinsic - even when get() is the root
-        // method of the compile - so that, if necessary, the value in
-        // the referent field of the reference object gets recorded by
-        // the pre-barrier code.
-        cg = find_intrinsic(method(), false);
-      }
-      if (cg == nullptr) {
-        float past_uses = method()->interpreter_invocation_count();
-        float expected_uses = past_uses;
-        cg = CallGenerator::for_inline(method(), expected_uses);
-      }
+      float past_uses = method()->interpreter_invocation_count();
+      float expected_uses = past_uses;
+      cg = CallGenerator::for_inline(method(), expected_uses);
     }
     if (failing())  return;
     if (cg == nullptr) {
@@ -931,7 +928,7 @@ Compile::Compile(ciEnv* ci_env,
                  TypeFunc_generator generator,
                  address stub_function,
                  const char* stub_name,
-                 int stub_id,
+                 StubId stub_id,
                  int is_fancy_jump,
                  bool pass_tls,
                  bool return_pc,
@@ -957,7 +954,6 @@ Compile::Compile(ciEnv* ci_env,
       _igv_idx(0),
       _trace_opto_output(directive->TraceOptoOutputOption),
 #endif
-      _has_method_handle_invokes(false),
       _clinit_barrier_on_entry(false),
       _stress_seed(0),
       _comp_arena(mtCompiler, Arena::Tag::tag_comp),
@@ -988,7 +984,9 @@ Compile::Compile(ciEnv* ci_env,
       _inline_printer(this),
       _java_calls(0),
       _inner_loops(0),
+      _FIRST_STACK_mask(comp_arena()),
       _interpreter_frame_size(0),
+      _regmask_arena(mtCompiler, Arena::Tag::tag_regmask),
       _output(nullptr),
 #ifndef PRODUCT
       _in_dump_cnt(0),
@@ -998,7 +996,8 @@ Compile::Compile(ciEnv* ci_env,
 
   // try to reuse an existing stub
   {
-    CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::C2Blob, _stub_id, stub_name);
+    BlobId blob_id = StubInfo::blob(_stub_id);
+    CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::C2Blob, blob_id);
     if (blob != nullptr) {
       RuntimeStub* rs = blob->as_runtime_stub();
       _stub_entry_point = rs->entry_point();
@@ -1491,6 +1490,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
   const TypeInstPtr *to = tj->isa_instptr();
   if (to && to != TypeOopPtr::BOTTOM) {
     ciInstanceKlass* ik = to->instance_klass();
+    tj = to = to->cast_to_maybe_flat_in_array(); // flatten to maybe flat in array
     if( ptr == TypePtr::Constant ) {
       if (ik != ciEnv::current()->Class_klass() ||
           offset < ik->layout_helper_size_in_bytes()) {
@@ -1544,10 +1544,12 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // but if not exact, it may include extra interfaces: build new type from the holder class to make sure only
       // its interfaces are included.
       if (xk && ik->equals(canonical_holder)) {
-        assert(tj == TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id), "exact type should be canonical type");
+        assert(tj == TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id,
+                                       TypePtr::MaybeFlat), "exact type should be canonical type");
       } else {
         assert(xk || !is_known_inst, "Known instance should be exact type");
-        tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id);
+        tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id,
+                                    TypePtr::MaybeFlat);
       }
     }
   }
@@ -1562,15 +1564,16 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     if ( offset == Type::OffsetBot || (offset >= 0 && (size_t)offset < sizeof(Klass)) ) {
       tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull,
                                        env()->Object_klass(),
-                                       Type::Offset(offset));
+                                       Type::Offset(offset),
+                                       TypePtr::MaybeFlat);
     }
 
     if (tk->isa_aryklassptr() && tk->is_aryklassptr()->elem()->isa_klassptr()) {
       ciKlass* k = ciObjArrayKlass::make(env()->Object_klass());
       if (!k || !k->is_loaded()) {                  // Only fails for some -Xcomp runs
-        tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull, env()->Object_klass(), Type::Offset(offset));
+        tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull, env()->Object_klass(), Type::Offset(offset), TypePtr::MaybeFlat);
       } else {
-        tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_flat(), tk->is_null_free(), tk->is_atomic(), tk->is_aryklassptr()->is_vm_type());
+        tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_flat(), tk->is_null_free(), tk->is_atomic(), tk->is_aryklassptr()->is_refined_type());
       }
     }
     // Check for precise loads from the primary supertype array and force them
@@ -2101,6 +2104,34 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   igvn.optimize();
 }
 
+void Compile::add_flat_access(Node* n) {
+  assert(n != nullptr && (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat), "unexpected node %s", n == nullptr ? "nullptr" : n->Name());
+  assert(!_flat_access_nodes.contains(n), "duplicate insertion");
+  _flat_access_nodes.push(n);
+}
+
+void Compile::remove_flat_access(Node* n) {
+  assert(n != nullptr && (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat), "unexpected node %s", n == nullptr ? "nullptr" : n->Name());
+  _flat_access_nodes.remove_if_existing(n);
+}
+
+void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
+  assert(igvn._worklist.size() == 0, "should be empty");
+  igvn.set_delay_transform(true);
+  for (int i = _flat_access_nodes.length() - 1; i >= 0; i--) {
+    Node* n = _flat_access_nodes.at(i);
+    assert(n != nullptr, "unexpected nullptr");
+    if (n->is_LoadFlat()) {
+      n->as_LoadFlat()->expand_atomic(igvn);
+    } else {
+      n->as_StoreFlat()->expand_atomic(igvn);
+    }
+  }
+  _flat_access_nodes.clear_and_deallocate();
+  igvn.set_delay_transform(false);
+  igvn.optimize();
+}
+
 void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
   if (!_has_flat_accesses) {
     return;
@@ -2578,6 +2609,12 @@ bool Compile::inline_incrementally_one() {
     bool is_scheduled_for_igvn_before = C->igvn_worklist()->member(cg->call_node());
     bool does_dispatch = cg->is_virtual_late_inline() || cg->is_mh_late_inline();
     if (inlining_incrementally() || does_dispatch) { // a call can be either inlined or strength-reduced to a direct call
+      if (should_stress_inlining()) {
+        // randomly add repeated inline attempt if stress-inlining
+        cg->call_node()->set_generator(cg);
+        C->igvn_worklist()->push(cg->call_node());
+        continue;
+      }
       cg->do_late_inline();
       assert(_late_inlines.at(i) == cg, "no insertions before current position allowed");
       if (failing()) {
@@ -2625,7 +2662,7 @@ void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   }
   {
     TracePhase tp(_t_incrInline_igvn);
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -2790,8 +2827,7 @@ void Compile::Optimize() {
 
  {
   // Iterative Global Value Numbering, including ideal transforms
-  // Initialize IterGVN with types and values from parse-time GVN
-  PhaseIterGVN igvn(initial_gvn());
+  PhaseIterGVN igvn;
 #ifdef ASSERT
   _modified_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
 #endif
@@ -2860,7 +2896,7 @@ void Compile::Optimize() {
       ResourceMark rm;
       PhaseRenumberLive prl(initial_gvn(), *igvn_worklist());
     }
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -2934,6 +2970,8 @@ void Compile::Optimize() {
         if (failing()) {
           return;
         }
+        print_method(PHASE_AFTER_MACRO_ELIMINATION, 2);
+
         igvn.set_delay_transform(false);
         print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
@@ -2947,6 +2985,11 @@ void Compile::Optimize() {
       // Try again if candidates exist and made progress
       // by removing some allocations and/or locks.
     } while (progress);
+  }
+
+  process_flat_accesses(igvn);
+  if (failing()) {
+    return;
   }
 
   // Loop transforms on the ideal graph.  Range Check Elimination,
@@ -3043,6 +3086,18 @@ void Compile::Optimize() {
     }
 
     print_method(PHASE_BEFORE_MACRO_EXPANSION, 3);
+    // Do not allow new macro nodes once we start to eliminate and expand
+    C->reset_allow_macro_nodes();
+    // Last attempt to eliminate macro nodes before expand
+    mex.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+    mex.eliminate_opaque_looplimit_macro_nodes();
+    if (failing()) {
+      return;
+    }
+    print_method(PHASE_AFTER_MACRO_ELIMINATION, 2);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;
@@ -3291,7 +3346,7 @@ uint Compile::eval_macro_logic_op(uint func, uint in1 , uint in2, uint in3) {
   return res;
 }
 
-static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
+static uint eval_operand(Node* n, HashTable<Node*,uint>& eval_map) {
   assert(n != nullptr, "");
   assert(eval_map.contains(n), "absent");
   return *(eval_map.get(n));
@@ -3299,7 +3354,7 @@ static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
 
 static void eval_operands(Node* n,
                           uint& func1, uint& func2, uint& func3,
-                          ResourceHashtable<Node*,uint>& eval_map) {
+                          HashTable<Node*,uint>& eval_map) {
   assert(is_vector_bitwise_op(n), "");
 
   if (is_vector_unary_bitwise_op(n)) {
@@ -3323,7 +3378,7 @@ uint Compile::compute_truth_table(Unique_Node_List& partition, Unique_Node_List&
   assert(inputs.size() <= 3, "sanity");
   ResourceMark rm;
   uint res = 0;
-  ResourceHashtable<Node*,uint> eval_map;
+  HashTable<Node*,uint> eval_map;
 
   // Populate precomputed functions for inputs.
   // Each input corresponds to one column of 3 input truth-table.
@@ -3807,6 +3862,25 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_Opaque1:              // Remove Opaque Nodes before matching
     n->subsume_by(n->in(1), this);
     break;
+  case Op_CallLeafPure: {
+    // If the pure call is not supported, then lower to a CallLeaf.
+    if (!Matcher::match_rule_supported(Op_CallLeafPure)) {
+      CallNode* call = n->as_Call();
+      CallNode* new_call = new CallLeafNode(call->tf(), call->entry_point(),
+                                            call->_name, TypeRawPtr::BOTTOM);
+      new_call->init_req(TypeFunc::Control, call->in(TypeFunc::Control));
+      new_call->init_req(TypeFunc::I_O, C->top());
+      new_call->init_req(TypeFunc::Memory, C->top());
+      new_call->init_req(TypeFunc::ReturnAdr, C->top());
+      new_call->init_req(TypeFunc::FramePtr, C->top());
+      for (unsigned int i = TypeFunc::Parms; i < call->tf()->domain_sig()->cnt(); i++) {
+        new_call->init_req(i, call->in(i));
+      }
+      n->subsume_by(new_call, this);
+    }
+    frc.inc_call_count();
+    break;
+  }
   case Op_CallStaticJava:
   case Op_CallJava:
   case Op_CallDynamicJava:
@@ -4106,7 +4180,10 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
         } else if (t->isa_oopptr()) {
           new_in2 = ConNode::make(t->make_narrowoop());
         } else if (t->isa_klassptr()) {
-          new_in2 = ConNode::make(t->make_narrowklass());
+          ciKlass* klass = t->is_klassptr()->exact_klass();
+          if (klass->is_in_encoding_range()) {
+            new_in2 = ConNode::make(t->make_narrowklass());
+          }
         }
       }
       if (new_in2 != nullptr) {
@@ -4143,7 +4220,13 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       } else if (t->isa_oopptr()) {
         n->subsume_by(ConNode::make(t->make_narrowoop()), this);
       } else if (t->isa_klassptr()) {
-        n->subsume_by(ConNode::make(t->make_narrowklass()), this);
+        ciKlass* klass = t->is_klassptr()->exact_klass();
+        if (klass->is_in_encoding_range()) {
+          n->subsume_by(ConNode::make(t->make_narrowklass()), this);
+        } else {
+          assert(false, "unencodable klass in ConP -> EncodeP");
+          C->record_failure("unencodable klass in ConP -> EncodeP");
+        }
       }
     }
     if (in1->outcnt() == 0) {
@@ -5044,7 +5127,9 @@ Node* Compile::conv_I2X_index(PhaseGVN* phase, Node* idx, const TypeInt* sizetyp
   // number.  (The prior range check has ensured this.)
   // This assertion is used by ConvI2LNode::Ideal.
   int index_max = max_jint - 1;  // array size is max_jint, index is one less
-  if (sizetype != nullptr) index_max = sizetype->_hi - 1;
+  if (sizetype != nullptr && sizetype->_hi > 0) {
+    index_max = sizetype->_hi - 1;
+  }
   const TypeInt* iidxtype = TypeInt::make(0, index_max, Type::WidenMax);
   idx = constrained_convI2L(phase, idx, iidxtype, ctrl);
 #endif
@@ -5072,7 +5157,7 @@ void Compile::dump_print_inlining() {
 
 void Compile::log_late_inline(CallGenerator* cg) {
   if (log() != nullptr) {
-    log()->head("late_inline method='%d'  inline_id='" JLONG_FORMAT "'", log()->identify(cg->method()),
+    log()->head("late_inline method='%d' inline_id='" JLONG_FORMAT "'", log()->identify(cg->method()),
                 cg->unique_id());
     JVMState* p = cg->call_node()->jvms();
     while (p != nullptr) {
@@ -5882,3 +5967,158 @@ Node* Compile::narrow_value(BasicType bt, Node* value, const Type* type, PhaseGV
 void Compile::record_method_not_compilable_oom() {
   record_method_not_compilable(CompilationMemoryStatistic::failure_reason_memlimit());
 }
+
+#ifndef PRODUCT
+// Collects all the control inputs from nodes on the worklist and from their data dependencies
+static void find_candidate_control_inputs(Unique_Node_List& worklist, Unique_Node_List& candidates) {
+  // Follow non-control edges until we reach CFG nodes
+  for (uint i = 0; i < worklist.size(); i++) {
+    const Node* n = worklist.at(i);
+    for (uint j = 0; j < n->req(); j++) {
+      Node* in = n->in(j);
+      if (in == nullptr || in->is_Root()) {
+        continue;
+      }
+      if (in->is_CFG()) {
+        if (in->is_Call()) {
+          // The return value of a call is only available if the call did not result in an exception
+          Node* control_proj_use = in->as_Call()->proj_out(TypeFunc::Control)->unique_out();
+          if (control_proj_use->is_Catch()) {
+            Node* fall_through = control_proj_use->as_Catch()->proj_out(CatchProjNode::fall_through_index);
+            candidates.push(fall_through);
+            continue;
+          }
+        }
+
+        if (in->is_Multi()) {
+          // We got here by following data inputs so we should only have one control use
+          // (no IfNode, etc)
+          assert(!n->is_MultiBranch(), "unexpected node type: %s", n->Name());
+          candidates.push(in->as_Multi()->proj_out(TypeFunc::Control));
+        } else {
+          candidates.push(in);
+        }
+      } else {
+        worklist.push(in);
+      }
+    }
+  }
+}
+
+// Returns the candidate node that is a descendant to all the other candidates
+static Node* pick_control(Unique_Node_List& candidates) {
+  Unique_Node_List worklist;
+  worklist.copy(candidates);
+
+  // Traverse backwards through the CFG
+  for (uint i = 0; i < worklist.size(); i++) {
+    const Node* n = worklist.at(i);
+    if (n->is_Root()) {
+      continue;
+    }
+    for (uint j = 0; j < n->req(); j++) {
+      // Skip backedge of loops to avoid cycles
+      if (n->is_Loop() && j == LoopNode::LoopBackControl) {
+        continue;
+      }
+
+      Node* pred = n->in(j);
+      if (pred != nullptr && pred != n && pred->is_CFG()) {
+        worklist.push(pred);
+        // if pred is an ancestor of n, then pred is an ancestor to at least one candidate
+        candidates.remove(pred);
+      }
+    }
+  }
+
+  assert(candidates.size() == 1, "unexpected control flow");
+  return candidates.at(0);
+}
+
+// Initialize a parameter input for a debug print call, using a placeholder for jlong and jdouble
+static void debug_print_init_parm(Node* call, Node* parm, Node* half, int* pos) {
+  call->init_req((*pos)++, parm);
+  const BasicType bt = parm->bottom_type()->basic_type();
+  if (bt == T_LONG || bt == T_DOUBLE) {
+    call->init_req((*pos)++, half);
+  }
+}
+
+Node* Compile::make_debug_print_call(const char* str, address call_addr, PhaseGVN* gvn,
+                              Node* parm0, Node* parm1,
+                              Node* parm2, Node* parm3,
+                              Node* parm4, Node* parm5,
+                              Node* parm6) const {
+  Node* str_node = gvn->transform(new ConPNode(TypeRawPtr::make(((address) str))));
+  const TypeFunc* type = OptoRuntime::debug_print_Type(parm0, parm1, parm2, parm3, parm4, parm5, parm6);
+  Node* call = new CallLeafNode(type, call_addr, "debug_print", TypeRawPtr::BOTTOM);
+
+  // find the most suitable control input
+  Unique_Node_List worklist, candidates;
+  if (parm0 != nullptr) { worklist.push(parm0);
+  if (parm1 != nullptr) { worklist.push(parm1);
+  if (parm2 != nullptr) { worklist.push(parm2);
+  if (parm3 != nullptr) { worklist.push(parm3);
+  if (parm4 != nullptr) { worklist.push(parm4);
+  if (parm5 != nullptr) { worklist.push(parm5);
+  if (parm6 != nullptr) { worklist.push(parm6);
+  /* close each nested if ===> */  } } } } } } }
+  find_candidate_control_inputs(worklist, candidates);
+  Node* control = nullptr;
+  if (candidates.size() == 0) {
+    control = C->start()->proj_out(TypeFunc::Control);
+  } else {
+    control = pick_control(candidates);
+  }
+
+  // find all the previous users of the control we picked
+  GrowableArray<Node*> users_of_control;
+  for (DUIterator_Fast kmax, i = control->fast_outs(kmax); i < kmax; i++) {
+    Node* use = control->fast_out(i);
+    if (use->is_CFG() && use != control) {
+      users_of_control.push(use);
+    }
+  }
+
+  // we do not actually care about IO and memory as it uses neither
+  call->init_req(TypeFunc::Control,   control);
+  call->init_req(TypeFunc::I_O,       top());
+  call->init_req(TypeFunc::Memory,    top());
+  call->init_req(TypeFunc::FramePtr,  C->start()->proj_out(TypeFunc::FramePtr));
+  call->init_req(TypeFunc::ReturnAdr, top());
+
+  int pos = TypeFunc::Parms;
+  call->init_req(pos++, str_node);
+  if (parm0 != nullptr) { debug_print_init_parm(call, parm0, top(), &pos);
+  if (parm1 != nullptr) { debug_print_init_parm(call, parm1, top(), &pos);
+  if (parm2 != nullptr) { debug_print_init_parm(call, parm2, top(), &pos);
+  if (parm3 != nullptr) { debug_print_init_parm(call, parm3, top(), &pos);
+  if (parm4 != nullptr) { debug_print_init_parm(call, parm4, top(), &pos);
+  if (parm5 != nullptr) { debug_print_init_parm(call, parm5, top(), &pos);
+  if (parm6 != nullptr) { debug_print_init_parm(call, parm6, top(), &pos);
+  /* close each nested if ===> */  } } } } } } }
+  assert(call->in(call->req()-1) != nullptr, "must initialize all parms");
+
+  call = gvn->transform(call);
+  Node* call_control_proj = gvn->transform(new ProjNode(call, TypeFunc::Control));
+
+  // rewire previous users to have the new call as control instead
+  PhaseIterGVN* igvn = gvn->is_IterGVN();
+  for (int i = 0; i < users_of_control.length(); i++) {
+    Node* use = users_of_control.at(i);
+    for (uint j = 0; j < use->req(); j++) {
+      if (use->in(j) == control) {
+        if (igvn != nullptr) {
+          igvn->replace_input_of(use, j, call_control_proj);
+        } else {
+          gvn->hash_delete(use);
+          use->set_req(j, call_control_proj);
+          gvn->hash_insert(use);
+        }
+      }
+    }
+  }
+
+  return call;
+}
+#endif // !PRODUCT

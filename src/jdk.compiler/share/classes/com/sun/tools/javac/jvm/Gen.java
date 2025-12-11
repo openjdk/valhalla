@@ -79,6 +79,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
+    private final LocalProxyVarsGen localProxyVarsGen;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -113,6 +114,7 @@ public class Gen extends JCTree.Visitor {
         target = Target.instance(context);
         types = Types.instance(context);
         concat = StringConcat.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         methodType = new MethodType(null, null, null, syms.methodClass);
         accessDollar = "access" + target.syntheticNameChar();
@@ -136,7 +138,6 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
-        generateEarlyLarvalFrame = options.isSet("generateEarlyLarvalFrame");
         Preview preview = Preview.instance(context);
         Source source = Source.instance(context);
         allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
@@ -150,7 +151,6 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
-    private boolean generateEarlyLarvalFrame;
     private final boolean allowValueClasses;
 
     /** Code buffer, set by genMethod.
@@ -523,7 +523,7 @@ public class Gen extends JCTree.Visitor {
             c.members().enter(clinit);
             List<JCStatement> clinitStats = clinitCode.toList();
             JCBlock block = make.at(clinitStats.head.pos()).Block(0, clinitStats);
-            block.endpos = TreeInfo.endPos(clinitStats.last());
+            block.bracePos = TreeInfo.endPos(clinitStats.last());
             methodDefs.append(make.MethodDef(clinit, block));
 
             if (!clinitTAs.isEmpty())
@@ -571,22 +571,37 @@ public class Gen extends JCTree.Visitor {
      *  @param initTAs  Type annotations from the initializer expression.
      */
     void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initCodeNonNullableFields, List<JCStatement> initBlocks, List<TypeCompound> initTAs) {
+        Set<Symbol> fieldsWithInits;
+        List<JCStatement> inits;
+        if ((fieldsWithInits = localProxyVarsGen.initializersAlreadyInConst.get(md)) != null) {
+            ListBuffer<JCStatement> newInitCode = new ListBuffer<>();
+            for (JCStatement init : initCode) {
+                Symbol sym = ((JCIdent)((JCAssign)((JCExpressionStatement)init).expr).lhs).sym;
+                if (!fieldsWithInits.contains(sym)) {
+                    newInitCode.add(init);
+                }
+            }
+            inits = newInitCode.toList();
+            localProxyVarsGen.initializersAlreadyInConst.remove(md);
+        } else {
+            inits = initCode;
+        }
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
             if (allowValueClasses & (md.sym.owner.isValueClass() || md.sym.owner.hasStrict() || ((md.sym.owner.flags_field & RECORD) != 0))) {
-                rewriteInitializersIfNeeded(md, initCode);
-                md.body.stats = initCode.appendList(md.body.stats);
+                rewriteInitializersIfNeeded(md, inits);
+                md.body.stats = inits.appendList(md.body.stats);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));
             } else if (!initCodeNonNullableFields.isEmpty()) {
                 rewriteInitializersIfNeeded(md, initCodeNonNullableFields);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCodeNonNullableFields.append(supercall).appendList(initCode)));
             } else {
-                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, inits.prepend(supercall)));
             }
 
-            if (md.body.endpos == Position.NOPOS)
-                md.body.endpos = TreeInfo.endPos(md.body.stats.last());
+            if (md.body.bracePos == Position.NOPOS)
+                md.body.bracePos = TreeInfo.endPos(md.body.stats.last());
 
             md.sym.appendUniqueTypeAttributes(initTAs);
         }
@@ -822,6 +837,11 @@ public class Gen extends JCTree.Visitor {
             }
             CondItem result = genCond(tree.expr, markBranches);
             code.endScopes(limit);
+            //make sure variables defined in the let expression are not included
+            //in the defined variables for jumps that go outside of this let
+            //expression:
+            undefineVariablesInChain(result.falseJumps, limit);
+            undefineVariablesInChain(result.trueJumps, limit);
             return result;
         } else {
             CondItem result = genExpr(_tree, syms.booleanType).mkCond();
@@ -829,6 +849,13 @@ public class Gen extends JCTree.Visitor {
             return result;
         }
     }
+        //where:
+        private void undefineVariablesInChain(Chain toClear, int limit) {
+            while (toClear != null) {
+                toClear.state.defined.excludeFrom(limit);
+                toClear = toClear.next;
+            }
+        }
 
     public Code getCode() {
         return code;
@@ -1093,7 +1120,7 @@ public class Gen extends JCTree.Visitor {
                                         syms,
                                         types,
                                         poolWriter,
-                                        generateEarlyLarvalFrame);
+                                        allowValueClasses);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
@@ -1197,7 +1224,7 @@ public class Gen extends JCTree.Visitor {
         genStats(tree.stats, localEnv);
         // End the scope of all block-local variables in variable info.
         if (!env.tree.hasTag(METHODDEF)) {
-            code.statBegin(tree.endpos);
+            code.statBegin(tree.bracePos);
             code.endScopes(limit);
             code.pendingStatPos = Position.NOPOS;
         }

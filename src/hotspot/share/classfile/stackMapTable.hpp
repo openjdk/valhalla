@@ -67,7 +67,7 @@ class StackMapTable : public StackObj {
 
   // Check jump instructions. Make sure there are no uninitialized
   // instances on backward branch.
-  void check_jump_target(StackMapFrame* frame, int32_t target, TRAPS) const;
+  void check_jump_target(StackMapFrame* frame, int bci, int offset, TRAPS) const;
 
   // The following methods are only used inside this class.
 
@@ -106,6 +106,7 @@ class StackMapStream : StackObj {
 };
 
 class StackMapReader : StackObj {
+  friend class VM_RedefineClasses;
  private:
   // information about the class and method
   constantPoolHandle  _cp;
@@ -151,10 +152,20 @@ class StackMapReader : StackObj {
   }
 
   enum {
+    SAME_FRAME_START = 0,
+    SAME_FRAME_END = 63,
+    SAME_LOCALS_1_STACK_ITEM_FRAME_START = 64,
+    SAME_LOCALS_1_STACK_ITEM_FRAME_END = 127,
+    RESERVED_START = 128,
+    RESERVED_END = 245,
     EARLY_LARVAL = 246,
     SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
-    SAME_EXTENDED = 251,
-    FULL = 255
+    CHOP_FRAME_START = 248,
+    CHOP_FRAME_END = 250,
+    SAME_FRAME_EXTENDED = 251,
+    APPEND_FRAME_START = 252,
+    APPEND_FRAME_END = 254,
+    FULL_FRAME = 255
   };
 
  public:

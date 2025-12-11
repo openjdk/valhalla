@@ -31,8 +31,8 @@
 #include "gc/shared/gcLocker.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
-#include "memory/metaspaceClosure.hpp"
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspaceClosure.hpp"
 #include "oops/access.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -41,8 +41,8 @@
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/method.hpp"
-#include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -226,7 +226,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   }
 }
 
-oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk, TRAPS) {
+oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS) {
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
@@ -298,6 +298,20 @@ bool InlineKlass::maybe_flat_in_array() {
   return true;
 }
 
+bool InlineKlass::is_always_flat_in_array() {
+  if (!UseArrayFlattening) {
+    return false;
+  }
+  // Too many embedded oops
+  if ((FlatArrayElementMaxOops >= 0) && (nonstatic_oop_count() > FlatArrayElementMaxOops)) {
+    return false;
+  }
+
+  // An instance is always flat in an array if we have all layouts. Note that this could change in the future when the
+  // flattening policies are updated or if new APIs are added that allow the creation of reference arrays directly.
+  return has_nullable_atomic_layout() && has_atomic_layout() && has_non_atomic_layout();
+}
+
 // Inline type arguments are not passed by reference, instead each
 // field of the inline type is passed as an argument. This helper
 // function collects the flat field (recursively)
@@ -341,12 +355,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt,  fs.name(), offset);
       count += type2size[bt];
-    }
-    if (field_holder != this) {
-      // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
-      // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
-      SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-      SigEntry::add_entry(sig, T_VOID, name(), offset);
     }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
@@ -403,6 +411,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
         }
 
         BufferedInlineTypeBlob* buffered_blob = SharedRuntime::generate_buffered_inline_type_adapter(this);
+        if (buffered_blob == nullptr) {
+          THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
+        }
         *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
         *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
         *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();
@@ -596,7 +607,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
 // Check if we return an inline type in scalarized form, i.e. check if either
 // - The return value is a tagged InlineKlass pointer, or
 // - The return value is an inline type oop that is also returned in scalarized form
-InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* return_oop) {
+InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* return_oop, Method* method) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
@@ -618,13 +629,14 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   }
   // Return value is not tagged, must be a valid oop
   oop o = cast_to_oop(ptr);
-  assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
-  if (return_oop != nullptr && o != nullptr) {
+  assert(oopDesc::is_oop_or_null(o), "Bad oop return: " PTR_FORMAT, ptr);
+  if (return_oop != nullptr && o != nullptr && o->is_inline_type()) {
     // Check if inline type is also returned in scalarized form
-    assert(o->is_inline_type(), "Invalid return value");
-    InlineKlass* vk = InlineKlass::cast(o->klass());
-    if (vk->can_be_returned_as_fields()) {
-      return vk;
+    InlineKlass* vk_val = InlineKlass::cast(o->klass());
+    InlineKlass* vk_sig = method->returns_inline_type();
+    if (vk_val->can_be_returned_as_fields() && vk_sig != nullptr) {
+      assert(vk_val == vk_sig, "Unexpected return value");
+      return vk_val;
     }
   }
   return nullptr;

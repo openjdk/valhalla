@@ -54,6 +54,7 @@ class CallDynamicJavaNode;
 class CallJavaNode;
 class CallLeafNode;
 class CallLeafNoFPNode;
+class CallLeafPureNode;
 class CallNode;
 class CallRuntimeNode;
 class CallStaticJavaNode;
@@ -136,6 +137,7 @@ class MoveNode;
 class MulNode;
 class MultiNode;
 class MultiBranchNode;
+class NarrowMemProjNode;
 class NegNode;
 class NegVNode;
 class NeverBranchNode;
@@ -185,6 +187,8 @@ class Type;
 class TypeNode;
 class UnlockNode;
 class InlineTypeNode;
+class LoadFlatNode;
+class StoreFlatNode;
 class VectorNode;
 class LoadVectorNode;
 class LoadVectorMaskedNode;
@@ -225,7 +229,7 @@ typedef Node** DUIterator_Fast;
 typedef Node** DUIterator_Last;
 #endif
 
-typedef ResizeableResourceHashtable<Node*, Node*, AnyObj::RESOURCE_AREA, mtCompiler> OrigToNewHashtable;
+typedef ResizeableHashTable<Node*, Node*, AnyObj::RESOURCE_AREA, mtCompiler> OrigToNewHashtable;
 
 // Node Sentinel
 #define NodeSentinel (Node*)-1
@@ -425,6 +429,13 @@ public:
   Node* raw_out(uint i) const { assert(i < _outcnt,"oob"); return _out[i]; }
   // Return the unique out edge.
   Node* unique_out() const { assert(_outcnt==1,"not unique"); return _out[0]; }
+
+  // In some cases, a node n is only used by a single use, but the use may use
+  // n once or multiple times:
+  //   use = ConvF2I(this)
+  //   use = AddI(this, this)
+  Node* unique_multiple_edges_out_or_null() const;
+
   // Delete out edge at position 'i' by moving last out edge to position 'i'
   void  raw_del_out(uint i) {
     assert(i < _outcnt,"oob");
@@ -677,12 +688,15 @@ public:
           DEFINE_CLASS_ID(CallRuntime,      Call, 1)
             DEFINE_CLASS_ID(CallLeaf,         CallRuntime, 0)
               DEFINE_CLASS_ID(CallLeafNoFP,     CallLeaf, 0)
+              DEFINE_CLASS_ID(CallLeafPure,     CallLeaf, 1)
           DEFINE_CLASS_ID(Allocate,         Call, 2)
             DEFINE_CLASS_ID(AllocateArray,    Allocate, 0)
           DEFINE_CLASS_ID(AbstractLock,     Call, 3)
             DEFINE_CLASS_ID(Lock,             AbstractLock, 0)
             DEFINE_CLASS_ID(Unlock,           AbstractLock, 1)
           DEFINE_CLASS_ID(ArrayCopy,        Call, 4)
+        DEFINE_CLASS_ID(LoadFlat,  SafePoint, 1)
+        DEFINE_CLASS_ID(StoreFlat, SafePoint, 2)
       DEFINE_CLASS_ID(MultiBranch, Multi, 1)
         DEFINE_CLASS_ID(PCTable,     MultiBranch, 0)
           DEFINE_CLASS_ID(Catch,       PCTable, 0)
@@ -770,6 +784,7 @@ public:
         DEFINE_CLASS_ID(IfFalse,   IfProj, 1)
       DEFINE_CLASS_ID(Parm,      Proj, 4)
       DEFINE_CLASS_ID(MachProj,  Proj, 5)
+      DEFINE_CLASS_ID(NarrowMemProj, Proj, 6)
 
     DEFINE_CLASS_ID(Mem, Node, 4)
       DEFINE_CLASS_ID(Load, Mem, 0)
@@ -917,6 +932,7 @@ public:
   DEFINE_CLASS_QUERY(CallJava)
   DEFINE_CLASS_QUERY(CallLeaf)
   DEFINE_CLASS_QUERY(CallLeafNoFP)
+  DEFINE_CLASS_QUERY(CallLeafPure)
   DEFINE_CLASS_QUERY(CallRuntime)
   DEFINE_CLASS_QUERY(CallStaticJava)
   DEFINE_CLASS_QUERY(Catch)
@@ -992,6 +1008,7 @@ public:
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
   DEFINE_CLASS_QUERY(MulVL)
+  DEFINE_CLASS_QUERY(NarrowMemProj)
   DEFINE_CLASS_QUERY(Neg)
   DEFINE_CLASS_QUERY(NegV)
   DEFINE_CLASS_QUERY(NeverBranch)
@@ -1021,6 +1038,8 @@ public:
   DEFINE_CLASS_QUERY(SubTypeCheck)
   DEFINE_CLASS_QUERY(Type)
   DEFINE_CLASS_QUERY(InlineType)
+  DEFINE_CLASS_QUERY(LoadFlat)
+  DEFINE_CLASS_QUERY(StoreFlat)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(VectorMaskCmp)
   DEFINE_CLASS_QUERY(VectorUnbox)
@@ -1302,8 +1321,6 @@ public:
   bool is_memory_phi() const { return is_Phi() && bottom_type() == Type::MEMORY; }
 
   bool is_div_or_mod(BasicType bt) const;
-
-  bool is_pure_function() const;
 
   bool is_data_proj_of_pure_function(const Node* maybe_pure_function) const;
 
@@ -1647,6 +1664,7 @@ protected:
 
   // Grow array to required capacity
   void maybe_grow(uint i) {
+    _nesting.check(_a); // Check if a potential reallocation in the arena is safe
     if (i >= _max) {
       grow(i);
     }
@@ -1898,7 +1916,15 @@ protected:
   INode *_inodes;    // Array storage for the stack
   Arena *_a;         // Arena to allocate in
   ReallocMark _nesting; // Safety checks for arena reallocation
+
+  void maybe_grow() {
+    _nesting.check(_a); // Check if a potential reallocation in the arena is safe
+    if (_inode_top >= _inode_max) {
+      grow();
+    }
+  }
   void grow();
+
 public:
   Node_Stack(int size) {
     size_t max = (size > OptoNodeListSize) ? size : OptoNodeListSize;
@@ -1921,7 +1947,7 @@ public:
   }
   void push(Node *n, uint i) {
     ++_inode_top;
-    grow();
+    maybe_grow();
     INode *top = _inode_top; // optimization
     top->node = n;
     top->indx = i;
@@ -2090,6 +2116,7 @@ Op_IL(Sub)
 Op_IL(Mul)
 Op_IL(URShift)
 Op_IL(LShift)
+Op_IL(RShift)
 Op_IL(Xor)
 Op_IL(Cmp)
 Op_IL(Div)
