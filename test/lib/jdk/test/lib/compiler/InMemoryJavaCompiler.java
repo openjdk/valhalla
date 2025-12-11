@@ -258,6 +258,22 @@ public class InMemoryJavaCompiler {
                 opts.add(opt);
             }
         }
+
+        // Add in preview mode if -Dtest.java.opts
+        String testOpts = System.getProperty("test.java.opts", "");
+        if (testOpts.contains("--enable-preview")) {
+            opts.add("--enable-preview");
+            opts.add("-source");
+            opts.add("26");
+        } else {
+            String preview = System.getProperty("test.enable.preview", "");
+            if (preview.equals("true")) {
+                opts.add("--enable-preview");
+                opts.add("-source");
+                opts.add("26");
+            }
+       }
+
         try (FileManagerWrapper fileManager = new FileManagerWrapper(file, moduleOverride)) {
             CompilationTask task = getCompiler().getTask(null, fileManager, null, opts, null, Arrays.asList(file));
             if (!task.call()) {

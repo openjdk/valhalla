@@ -44,6 +44,7 @@ class refArrayOopDesc : public arrayOopDesc {
   friend class Continuation;
   template <typename T>
   friend class RawOopWriter;
+  friend class AOTMapLogger;
 
   template <class T> T* obj_at_addr(int index) const;
 
