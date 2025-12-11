@@ -947,6 +947,8 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
   if (real_klass->is_typeArray_klass()) {
     fake_oop.as_type_array().print_elements_on(st);
   } else if (real_klass->is_flatArray_klass()) {
+    // Archiving FlatArrayOop with embedded oops is not supported.
+    // TODO: add restriction.
     fake_oop.as_flat_array().print_elements_on(st);
   } else if (real_klass->is_refArray_klass()) {
     FakeRefArray fake_obj_array = fake_oop.as_ref_array();
