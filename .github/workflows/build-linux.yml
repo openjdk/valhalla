@@ -131,6 +131,7 @@ jobs:
           --with-gtest=${{ steps.gtest.outputs.path }}
           --with-zlib=system
           --with-jmod-compress=zip-1
+          --disable-jvm-feature-shenandoahgc
           ${{ inputs.extra-conf-options }} ${{ inputs.configure-arguments }} || (
           echo "Dumping config.log:" &&
           cat config.log &&
