@@ -2125,8 +2125,8 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
       const Type* base_type = igvn.type(loadn->base());
       const TypeOopPtr* oopptr = base_type->isa_oopptr();
       ciObject* oop = oopptr->const_oop();
-      ciInstance* holder = oop->is_instance() ? oop->as_instance() : nullptr;
-      ciArray* array = oop->is_array() ? oop->as_array() : nullptr;
+      ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
+      ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
       int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
 #ifndef PRODUCT
       if (UseNewCode) {
