@@ -138,7 +138,7 @@ public final class MethodTagTest {
             asm.emitEpilogue();
 
             HotSpotCompiledCode code = asm.finish(resolvedMethod);
-            InstalledCode installed = codeCache.addCode(resolvedMethod, code, null, null);
+            InstalledCode installed = codeCache.addCode(resolvedMethod, code, null, null, true);
 
             String str = ((HotSpotCodeCacheProvider) codeCache).disassemble(installed);
             Asserts.assertTrue(str.contains("# {method}"), "\"# {method}\" tag not found");

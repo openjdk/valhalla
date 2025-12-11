@@ -53,12 +53,11 @@ import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
 import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
-import static compiler.lib.ir_framework.IRNode.LOAD_OF_CLASS;
+import static compiler.lib.ir_framework.IRNode.LOAD_P;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.MEMBAR;
 import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
-import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
@@ -71,7 +70,85 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 6
  */
 
 @ForceCompileClassInitializer
@@ -89,7 +166,7 @@ public class TestLWorld {
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -1661,7 +1738,7 @@ public class TestLWorld {
         }
     }
 
-    // Pass arguments via fields to avoid exzessive spilling leading to compilation bailouts
+    // Pass arguments via fields to avoid excessive spilling leading to compilation bailouts
     @Strict
     @NullRestricted
     static Test51Value test51_arg1 = new Test51Value();
@@ -1997,7 +2074,7 @@ public class TestLWorld {
         Asserts.assertEQ(array[0], obj);
     }
 
-    // Test convertion between an inline type and java.lang.Object without an allocation
+    // Test conversion between an inline type and java.lang.Object without an allocation
     @ForceInline
     public Object test69_sum(Object a, Object b) {
         int sum = ((MyValue1)a).x + ((MyValue1)b).x;
@@ -2117,7 +2194,7 @@ public class TestLWorld {
         Asserts.assertEquals(result, 0);
     }
 
-    // Tests for loading/storing unkown values
+    // Tests for loading/storing unknown values
     @Test
     public Object test73(Object[] va) {
         return va[0];
@@ -2230,7 +2307,7 @@ public class TestLWorld {
         }
     }
 
-    // Test flattened field with non-flattenend (but flattenable) inline type field
+    // Test flattened field with non-flattened (but flattenable) inline type field
     @LooselyConsistentValue
     static value class Small {
         int i;
@@ -2318,7 +2395,7 @@ public class TestLWorld {
         Asserts.assertEQ(result, 10*rI);
     }
 
-    // Test check for null free array when storing to inline tpye array
+    // Test check for null free array when storing to inline type array
     @Test
     public void test82(Object[] dst, Object v) {
         dst[0] = v;
@@ -2403,7 +2480,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
         counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2424,7 +2501,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
         counts = {COUNTED_LOOP, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -3539,7 +3616,7 @@ public class TestLWorld {
     // Test re-allocation of empty inline type array during deoptimization
     @Test
     public void test119(boolean deopt, Method m) {
-        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
+        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty, null };
         EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 1, emptyC);
         array2[0] = emptyC;
         MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedNonAtomicArray(MixedContainer.class, 1, mixedContainer);
@@ -3548,8 +3625,8 @@ public class TestLWorld {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO 8366668 Re-enable
-        // Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[1], null);
         Asserts.assertEquals(array2[0], emptyC);
         Asserts.assertEquals(array3[0], mixedContainer);
     }
@@ -4681,4 +4758,99 @@ public class TestLWorld {
         Asserts.assertEQ(subValueClassWithInt, testFlatArrayInexactAbstractValueClassLoad(true));
         Asserts.assertEQ(subValueClassWithDouble, testFlatArrayInexactAbstractValueClassLoad(false));
     }
+
+    // Check that comparisons between Java mirrors are optimized to comparisons of the klass
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test168(Object o) {
+        return o.getClass() == NonValueClass.class;
+    }
+
+    @Run(test = "test168")
+    public void test168_verifier() {
+        Asserts.assertTrue(test168(new NonValueClass(rI)));
+        Asserts.assertFalse(test168(new NonValueClass[0]));
+        Asserts.assertFalse(test168(42));
+        Asserts.assertFalse(test168(new int[0]));
+    }
+
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test169(Object o) {
+        return o.getClass() == NonValueClass[].class;
+    }
+
+    @Run(test = "test169")
+    public void test169_verifier() {
+        Asserts.assertFalse(test169(new NonValueClass(rI)));
+        Asserts.assertTrue(test169(new NonValueClass[0]));
+        Asserts.assertFalse(test169(42));
+        Asserts.assertFalse(test169(new int[0]));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 2"}) // Can't be optimized because o could be an array
+    public boolean test170(Object o) {
+        return o.getClass() == MyValue1[].class;
+    }
+
+    @Run(test = "test170")
+    public void test170_verifier() {
+        Asserts.assertFalse(test170(new NonValueClass(rI)));
+        Asserts.assertTrue(test170(new MyValue1[0]));
+        Asserts.assertTrue(test170(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT)));
+        Asserts.assertTrue(test170(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT)));
+        Asserts.assertTrue(test170(ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test170(42));
+        Asserts.assertFalse(test170(new int[0]));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 4"}) // Can't be optimized because o1 and o2 could be arrays
+    public boolean test171(Object o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test171")
+    public void test171_verifier() {
+        Asserts.assertTrue(test171(new NonValueClass(rI), new NonValueClass(rI)));
+        Asserts.assertTrue(test171(new NonValueClass[0], new NonValueClass[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test171(42, new int[0]));
+        Asserts.assertFalse(test171(new NonValueClass(rI), 42));
+    }
+
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test172(NonValueClass o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test172")
+    public void test172_verifier() {
+        Asserts.assertTrue(test172(new NonValueClass(rI), new NonValueClass(rI)));
+        Asserts.assertFalse(test172(new NonValueClass(rI), new NonValueClass[0]));
+        Asserts.assertFalse(test172(new NonValueClass(rI), new MyValue1[0]));
+        Asserts.assertFalse(test172(new NonValueClass(rI), 42));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 4"}) // Can't be optimized because o1 and o2 could be arrays
+    public boolean test173(Cloneable o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test173")
+    public void test173_verifier() {
+        Asserts.assertTrue(test173(new NonValueClass[0], new NonValueClass[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test173(new boolean[0], new int[0]));
+    }
 }
+

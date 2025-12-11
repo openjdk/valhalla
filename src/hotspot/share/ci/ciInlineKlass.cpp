@@ -32,9 +32,14 @@ int ciInlineKlass::payload_offset() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->payload_offset();)
 }
 
-// Are arrays containing this inline type flat arrays?
+// Could any array containing an instance of this value class ever be flat?
 bool ciInlineKlass::maybe_flat_in_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->maybe_flat_in_array();)
+}
+
+// Are arrays containing an instance of this value class always flat?
+bool ciInlineKlass::is_always_flat_in_array() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->is_always_flat_in_array();)
 }
 
 // Can this inline type be passed as multiple values?
@@ -113,7 +118,7 @@ BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
   assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
   int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
-  BasicType bt;
+  BasicType bt = T_ILLEGAL;
   if (size == sizeof(jlong)) {
     bt = T_LONG;
   } else if (size == sizeof(jint)) {

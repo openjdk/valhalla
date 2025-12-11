@@ -30,9 +30,9 @@
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening::test
  *                   -XX:-TieredCompilation -Xcomp
- *                   -XX:-UseArrayFlattening -XX:+UseFieldFlattening
+ *                   -XX:-UseArrayFlattening -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
- * @run main/othervm -XX:+UseFieldFlattening
+ * @run main/othervm -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
  */
 

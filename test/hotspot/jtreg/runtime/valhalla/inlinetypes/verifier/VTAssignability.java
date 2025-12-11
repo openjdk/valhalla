@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  * @summary Test basic verifier assignability of inline types.
  * @enablePreview
  * @compile VTAssignability.java
- * @run main/othervm -Xverify:remote VTAssignability
+ * @run main/othervm -Xverify:remote runtime.valhalla.inlinetypes.verifier.VTAssignability
  */
+
+package runtime.valhalla.inlinetypes.verifier;
 
 // Test that an inline type is assignable to itself, to java.lang.Object,
 // to an abstract super type and to an interface,

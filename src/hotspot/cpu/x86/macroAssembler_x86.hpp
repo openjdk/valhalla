@@ -234,8 +234,6 @@ class MacroAssembler: public Assembler {
   void align(uint modulus, uint target);
 
   void post_call_nop();
-  // A 5 byte nop that is safe for patching (see patch_verified_entry)
-  void fat_nop();
 
   // Stack frame creation/removal
   void enter();
@@ -512,9 +510,6 @@ class MacroAssembler: public Assembler {
 
   void push_cont_fastpath();
   void pop_cont_fastpath();
-
-  void inc_held_monitor_count();
-  void dec_held_monitor_count();
 
   DEBUG_ONLY(void stop_if_in_cont(Register cont_reg, const char* name);)
 
@@ -1044,6 +1039,9 @@ public:
   void pop_f(XMMRegister r);
   void push_d(XMMRegister r);
   void pop_d(XMMRegister r);
+
+  void push_ppx(Register src);
+  void pop_ppx(Register dst);
 
   void andpd(XMMRegister dst, XMMRegister    src) { Assembler::andpd(dst, src); }
   void andpd(XMMRegister dst, Address        src) { Assembler::andpd(dst, src); }
@@ -2125,8 +2123,8 @@ public:
 
   void check_stack_alignment(Register sp, const char* msg, unsigned bias = 0, Register tmp = noreg);
 
-  void lightweight_lock(Register basic_lock, Register obj, Register reg_rax, Register tmp, Label& slow);
-  void lightweight_unlock(Register obj, Register reg_rax, Register tmp, Label& slow);
+  void fast_lock(Register basic_lock, Register obj, Register reg_rax, Register tmp, Label& slow);
+  void fast_unlock(Register obj, Register reg_rax, Register tmp, Label& slow);
 
   void save_legacy_gprs();
   void restore_legacy_gprs();

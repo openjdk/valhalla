@@ -68,6 +68,7 @@ public class BulkOps {
     final IntBuffer buffer = IntBuffer.allocate(ELEM_SIZE);
 
     final int[] ints = new int[ELEM_SIZE];
+    @SuppressWarnings("initialization")
     final MemorySegment bytesSegment = MemorySegment.ofArray(ints);
     final long UNSAFE_INT_OFFSET = unsafe.arrayBaseOffset(int[].class);
 

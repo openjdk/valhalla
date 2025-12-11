@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_OOPS_ARRAYKLASS_HPP
 
 #include "oops/klass.hpp"
+#include "oops/layoutKind.hpp"
 
 class fieldDescriptor;
 class klassVtable;
@@ -38,7 +39,7 @@ class ArrayKlass: public Klass {
 
  public:
   enum ArrayProperties : uint32_t {
-    DEFAULT         = 0,
+    DEFAULT         = 0,          // NULLABLE and ATOMIC
     NULL_RESTRICTED = 1 << 0,
     NON_ATOMIC      = 1 << 1,
     // FINAL           = 1 << 2,
@@ -49,6 +50,8 @@ class ArrayKlass: public Klass {
 
   static bool is_null_restricted(ArrayProperties props) { return (props & NULL_RESTRICTED) != 0; }
   static bool is_non_atomic(ArrayProperties props) { return (props & NON_ATOMIC) != 0; }
+
+  static ArrayProperties array_properties_from_layout(LayoutKind lk);
 
  private:
   // If you add a new field that points to any metaspace object, you
@@ -67,8 +70,6 @@ class ArrayKlass: public Klass {
 
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
-
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
 
@@ -111,7 +112,6 @@ class ArrayKlass: public Klass {
   // Sizes points to the first dimension of the array, subsequent dimensions
   // are always in higher memory.  The callers of these set that up.
   virtual oop multi_allocate(int rank, jint* sizes, TRAPS);
-  objArrayOop allocate_arrayArray(int n, int length, TRAPS);
 
   // find field according to JVM spec 5.4.3.2, returns the klass in which the field is defined
   Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;

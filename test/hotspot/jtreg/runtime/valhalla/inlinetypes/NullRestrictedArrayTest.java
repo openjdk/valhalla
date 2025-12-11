@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,7 +21,7 @@
  * questions.
  */
 
-
+package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
@@ -34,13 +34,13 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @test
  * @summary Test of VM.newNullRestrictedArray API
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm -XX:+UseArrayFlattening NullRestrictedArrayTest
+ * @run main/othervm -XX:+UseArrayFlattening runtime.valhalla.inlinetypes.NullRestrictedArrayTest
  */
-
 
 public class NullRestrictedArrayTest {
 

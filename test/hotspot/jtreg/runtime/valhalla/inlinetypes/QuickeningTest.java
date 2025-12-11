@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile QuickeningTest.java
- * @run main/othervm runtime.valhalla.inlinetypes.QuickeningTest
+ * @run main runtime.valhalla.inlinetypes.QuickeningTest
  */
 
 public class QuickeningTest {

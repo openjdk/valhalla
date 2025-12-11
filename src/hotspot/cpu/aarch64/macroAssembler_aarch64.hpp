@@ -86,6 +86,7 @@ class MacroAssembler: public Assembler {
     Register oop_result,               // where an oop-result ends up if any; use noreg otherwise
     Register java_thread,              // the thread if computed before     ; use noreg otherwise
     Register last_java_sp,             // to set up last_Java_frame in stubs; use noreg otherwise
+    Label*   return_pc,                // to set up last_Java_frame; use nullptr otherwise
     address  entry_point,              // the entry point
     int      number_of_arguments,      // the number of arguments (w/o thread) to pop after the call
     bool     check_exceptions          // whether to check for pending exceptions after return
@@ -125,7 +126,7 @@ class MacroAssembler: public Assembler {
  virtual void check_and_handle_popframe(Register java_thread);
  virtual void check_and_handle_earlyret(Register java_thread);
 
-  void safepoint_poll(Label& slow_path, bool at_return, bool acquire, bool in_nmethod, Register tmp = rscratch1);
+  void safepoint_poll(Label& slow_path, bool at_return, bool in_nmethod, Register tmp = rscratch1);
   void rt_call(address dest, Register tmp = rscratch1);
 
   // Load Effective Address
@@ -134,16 +135,21 @@ class MacroAssembler: public Assembler {
     a.lea(this, r);
   }
 
+  // Whether materializing the given address for a LDR/STR requires an
+  // additional lea instruction.
+  static bool legitimize_address_requires_lea(const Address &a, int size) {
+    return a.getMode() == Address::base_plus_offset &&
+           !Address::offset_ok_for_immed(a.offset(), exact_log2(size));
+  }
+
   /* Sometimes we get misaligned loads and stores, usually from Unsafe
      accesses, and these can exceed the offset range. */
   Address legitimize_address(const Address &a, int size, Register scratch) {
-    if (a.getMode() == Address::base_plus_offset) {
-      if (! Address::offset_ok_for_immed(a.offset(), exact_log2(size))) {
-        block_comment("legitimize_address {");
-        lea(scratch, a);
-        block_comment("} legitimize_address");
-        return Address(scratch);
-      }
+    if (legitimize_address_requires_lea(a, size)) {
+      block_comment("legitimize_address {");
+      lea(scratch, a);
+      block_comment("} legitimize_address");
+      return Address(scratch);
     }
     return a;
   }
@@ -183,7 +189,8 @@ class MacroAssembler: public Assembler {
   void strw(Register Rx, const Address &adr);
 
   // Frame creation and destruction shared between JITs.
-  void build_frame(int framesize);
+  DEBUG_ONLY(void build_frame(int framesize);)
+  void build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_spills));
   void remove_frame(int framesize);
 
   virtual void _call_Unimplemented(address call_site) {
@@ -698,16 +705,8 @@ public:
   void test_flat_array_layout(Register lh, Label& is_flat_array);
   void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
 
-  static address target_addr_for_insn(address insn_addr, unsigned insn);
-  static address target_addr_for_insn_or_null(address insn_addr, unsigned insn);
-  static address target_addr_for_insn(address insn_addr) {
-    unsigned insn = *(unsigned*)insn_addr;
-    return target_addr_for_insn(insn_addr, insn);
-  }
-  static address target_addr_for_insn_or_null(address insn_addr) {
-    unsigned insn = *(unsigned*)insn_addr;
-    return target_addr_for_insn_or_null(insn_addr, insn);
-  }
+  static address target_addr_for_insn(address insn_addr);
+  static address target_addr_for_insn_or_null(address insn_addr);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
@@ -1018,9 +1017,6 @@ public:
   void push_cont_fastpath(Register java_thread = rthread);
   void pop_cont_fastpath(Register java_thread = rthread);
 
-  void inc_held_monitor_count(Register tmp);
-  void dec_held_monitor_count(Register tmp);
-
   // Round up to a power of two
   void round_to(Register reg, int modulus);
 
@@ -1258,16 +1254,6 @@ public:
   void cmpptr(Register src1, Address src2);
 
   void cmpoop(Register obj1, Register obj2);
-
-  // Various forms of CAS
-
-  void cmpxchg_obj_header(Register oldv, Register newv, Register obj, Register tmp,
-                          Label &succeed, Label *fail);
-  void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
-                  Label &succeed, Label *fail);
-
-  void cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
-                  Label &succeed, Label *fail);
 
   void atomic_add(Register prev, RegisterOrConstant incr, Register addr);
   void atomic_addw(Register prev, RegisterOrConstant incr, Register addr);
@@ -1692,7 +1678,7 @@ public:
                     FloatRegister p, FloatRegister z, FloatRegister t1);
   void ghash_reduce_wide(int index, FloatRegister result, FloatRegister lo, FloatRegister hi,
                     FloatRegister p, FloatRegister z, FloatRegister t1);
-  void ghash_processBlocks_wide(address p, Register state, Register subkeyH,
+  void ghash_processBlocks_wide(Label& p, Register state, Register subkeyH,
                                 Register data, Register blocks, int unrolls);
 
 
@@ -1810,8 +1796,8 @@ public:
   // Code for java.lang.Thread::onSpinWait() intrinsic.
   void spin_wait();
 
-  void lightweight_lock(Register basic_lock, Register obj, Register t1, Register t2, Register t3, Label& slow);
-  void lightweight_unlock(Register obj, Register t1, Register t2, Register t3, Label& slow);
+  void fast_lock(Register basic_lock, Register obj, Register t1, Register t2, Register t3, Label& slow);
+  void fast_unlock(Register obj, Register t1, Register t2, Register t3, Label& slow);
 
 private:
   // Check the current thread doesn't need a cross modify fence.

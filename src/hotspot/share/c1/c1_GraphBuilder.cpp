@@ -2110,7 +2110,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 }
 
 Dependencies* GraphBuilder::dependency_recorder() const {
-  assert(DeoptC1, "need debug information");
   return compilation()->dependency_recorder();
 }
 
@@ -2256,7 +2255,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   ciMethod* cha_monomorphic_target = nullptr;
   ciMethod* exact_target = nullptr;
   Value better_receiver = nullptr;
-  if (UseCHA && DeoptC1 && target->is_loaded() &&
+  if (UseCHA && target->is_loaded() &&
       !(// %%% FIXME: Are both of these relevant?
         target->is_method_handle_intrinsic() ||
         target->is_compiled_lambda_form()) &&
@@ -2506,7 +2505,7 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
     if (ik->is_final()) {
       return true;
     } else {
-      if (DeoptC1 && UseCHA && !(ik->has_subklass() || ik->is_interface())) {
+      if (UseCHA && !(ik->has_subklass() || ik->is_interface())) {
         // test class is leaf class
         dependency_recorder()->assert_leaf_type(ik);
         return true;
@@ -3575,6 +3574,7 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   case vmIntrinsics::_dsin          : // fall through
   case vmIntrinsics::_dcos          : // fall through
   case vmIntrinsics::_dtan          : // fall through
+  case vmIntrinsics::_dsinh         : // fall through
   case vmIntrinsics::_dtanh         : // fall through
   case vmIntrinsics::_dcbrt         : // fall through
   case vmIntrinsics::_dlog          : // fall through
@@ -3619,7 +3619,7 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
       break;
     }
 
-  case vmIntrinsics::_Reference_get:
+  case vmIntrinsics::_Reference_get0:
     {
       {
         // With java.lang.ref.reference.get() we must go through the
@@ -4298,6 +4298,34 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
   // (see use of pop_scope() below)
   caller_state->truncate_stack(args_base);
   assert(callee_state->stack_size() == 0, "callee stack must be empty");
+
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    Value receiver = state()->local_at(0);
+    ciType* klass = receiver->exact_type();
+    if (klass == nullptr) {
+      // No exact type, check if the declared type has no implementors and add a dependency
+      klass = receiver->declared_type();
+      klass = compilation()->cha_exact_type(klass);
+    }
+    if (klass != nullptr && klass->is_instance_klass()) {
+      // Exact receiver type, check if there is a strict field
+      ciInstanceKlass* holder = klass->as_instance_klass();
+      for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+        ciField* field = holder->nonstatic_field_at(i);
+        if (field->is_strict()) {
+          // Found a strict field, a membar is needed
+          append(new MemBar(lir_membar_storestore));
+          break;
+        }
+      }
+    } else if (klass == nullptr) {
+      // We can't statically determine the type of the receiver and therefore need
+      // to put a membar here because it could have a strict field.
+      append(new MemBar(lir_membar_storestore));
+    }
+  }
 
   Value lock = nullptr;
   BlockBegin* sync_handler = nullptr;

@@ -25,13 +25,12 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
 /*
- * @test
+ * @test id=default
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
@@ -40,42 +39,160 @@ import jdk.test.whitebox.WhiteBox;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- *
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- *
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-MonomorphicArrayCheck -XX:-UseArrayLoadStoreProfile
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=no-flattening
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=nAVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=AVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=AVF-nAVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=NVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=NVF-nAVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=NVF-AVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=all-flattening
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-di
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-restrict-profiling
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-MonomorphicArrayCheck -XX:-UseArrayLoadStoreProfile
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
  */
 
 public class TestArrayNullMarkers {
@@ -436,7 +553,9 @@ public class TestArrayNullMarkers {
             Asserts.assertEQ(nullFreeArray[0], valNullFree);
             Asserts.assertEQ(nullFreeArray[1], new OneByte((byte)42));
         }
+    }
 
+    public static void testScalarReplacement2(OneByte valNullFree, OneByte val, boolean trap) {
         OneByte[] nullFreeAtomicArray = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 2, OneByte.DEFAULT);
         nullFreeAtomicArray[0] = valNullFree;
         nullFreeAtomicArray[1] = new OneByte((byte)42);
@@ -444,7 +563,9 @@ public class TestArrayNullMarkers {
             Asserts.assertEQ(nullFreeAtomicArray[0], valNullFree);
             Asserts.assertEQ(nullFreeAtomicArray[1], new OneByte((byte)42));
         }
+    }
 
+    public static void testScalarReplacement3(OneByte valNullFree, OneByte val, boolean trap) {
         OneByte[] nullableAtomicArray = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 4);
         nullableAtomicArray[0] = valNullFree;
         nullableAtomicArray[1] = val;
@@ -456,7 +577,9 @@ public class TestArrayNullMarkers {
             Asserts.assertEQ(nullableAtomicArray[2], new OneByte((byte)42));
             Asserts.assertEQ(nullableAtomicArray[3], null);
         }
+    }
 
+    public static void testScalarReplacement4(OneByte valNullFree, OneByte val, boolean trap) {
         OneByte[] nullableArray = new OneByte[4];
         nullableArray[0] = valNullFree;
         nullableArray[1] = val;
@@ -470,20 +593,23 @@ public class TestArrayNullMarkers {
         }
     }
 
-    // Test support for scalar replaced arrays
-    public static void testScalarReplacement2(TwoBytes val, boolean trap) {
+    public static void testScalarReplacement5(TwoBytes val, boolean trap) {
         ValueHolder1[] nullFreeArray = (ValueHolder1[])ValueClass.newNullRestrictedNonAtomicArray(ValueHolder1.class, 1, ValueHolder1.DEFAULT);
         nullFreeArray[0] = new ValueHolder1(val);
         if (trap) {
             Asserts.assertEQ(nullFreeArray[0].val, val);
         }
+    }
 
+    public static void testScalarReplacement6(TwoBytes val, boolean trap) {
         ValueHolder1[] nullFreeAtomicArray = (ValueHolder1[])ValueClass.newNullRestrictedAtomicArray(ValueHolder1.class, 1, ValueHolder1.DEFAULT);
         nullFreeAtomicArray[0] = new ValueHolder1(val);
         if (trap) {
             Asserts.assertEQ(nullFreeAtomicArray[0].val, val);
         }
+    }
 
+    public static void testScalarReplacement7(TwoBytes val, boolean trap) {
         ValueHolder1[] nullableAtomicArray = (ValueHolder1[])ValueClass.newNullableAtomicArray(ValueHolder1.class, 2);
         nullableAtomicArray[0] = new ValueHolder1(val);
         nullableAtomicArray[1] = ValueHolder1.DEFAULT;
@@ -491,7 +617,9 @@ public class TestArrayNullMarkers {
             Asserts.assertEQ(nullableAtomicArray[0].val, val);
             Asserts.assertEQ(nullableAtomicArray[1].val, null);
         }
+    }
 
+    public static void testScalarReplacement8(TwoBytes val, boolean trap) {
         ValueHolder1[] nullableArray = new ValueHolder1[2];
         nullableArray[0] = new ValueHolder1(val);
         nullableArray[1] = ValueHolder1.DEFAULT;
@@ -1124,7 +1252,13 @@ public class TestArrayNullMarkers {
 
             // Test scalar replacement of array allocations
             testScalarReplacement1(val0, null, false);
-            testScalarReplacement2(val1, false);
+            testScalarReplacement2(val0, null, false);
+            testScalarReplacement3(val0, null, false);
+            testScalarReplacement4(val0, null, false);
+            testScalarReplacement5(val1, false);
+            testScalarReplacement6(val1, false);
+            testScalarReplacement7(val1, false);
+            testScalarReplacement8(val1, false);
 
             // Test access to constant arrays
             testConstantArrays(i);
@@ -1276,7 +1410,13 @@ public class TestArrayNullMarkers {
         }
 
         testScalarReplacement1(CANARY0, null, true);
-        testScalarReplacement2(CANARY1, true);
+        testScalarReplacement2(CANARY0, null, true);
+        testScalarReplacement3(CANARY0, null, true);
+        testScalarReplacement4(CANARY0, null, true);
+        testScalarReplacement5(CANARY1, true);
+        testScalarReplacement6(CANARY1, true);
+        testScalarReplacement7(CANARY1, true);
+        testScalarReplacement8(CANARY1, true);
     }
 }
 

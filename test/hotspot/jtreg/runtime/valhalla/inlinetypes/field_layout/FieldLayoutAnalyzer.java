@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+package runtime.valhalla.inlinetypes.field_layout;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -407,8 +409,11 @@ public class FieldLayoutAnalyzer {
   }
 
   ClassLayout getClassLayoutFromName(String name) {
+    System.out.println("We have the layouts");
     for(ClassLayout layout : layouts) {
+      System.out.println("- " + layout.name);
       String sub = layout.name.substring(0, layout.name.indexOf('@'));
+      System.out.println("-----> " + sub);
       if (name.equals(sub)) return layout;
     }
     return null;

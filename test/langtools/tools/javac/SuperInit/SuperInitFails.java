@@ -2,8 +2,10 @@
  * @test /nodynamiccopyright/
  * @bug 8194743
  * @summary Permit additional statements before this/super in constructors
- * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
  * @enablePreview
+ * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester SuperInitFails SuperInitFailsWarnings.out
  */
 import java.util.concurrent.atomic.AtomicReference;
 public class SuperInitFails extends AtomicReference<Object> implements Iterable<Object> {
@@ -192,9 +194,9 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
     SuperInitFails(short[][] ignore) {
         int i = new SuperInitFails(){
             void foo() {
-                System.err.println(xx);  // this should fail
+                System.err.println(xx);  // this one is OK, reading field `xx` in the anonymous class
             }
-        }.xx;  // this one is OK though
+        }.xx;  // this one is OK too, field of a fully constructed class
         super(null);
     }
 
@@ -241,6 +243,46 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
                 }
             }
             super();
+        }
+    }
+
+    static class Inner7 {
+        private int x;
+
+        public Inner7(byte y) {
+            x = y;
+            this((int)y);
+        }
+        public Inner7(int x) {
+            this.x = x;
+            super();
+        }
+    }
+
+    static class Inner8 {
+        final int x;
+
+        Inner8() {
+            this(x = 3); // error
+        }
+        Inner8(int i) {
+            x = 4;
+        }
+    }
+
+    static class Inner9 {
+        interface Parent {
+            boolean check = true;
+        }
+
+        class Medium implements Parent {}
+
+        class Inner9Test extends Medium {
+            Inner9Test() {
+                boolean check1 = Inner9Test.super.check;
+                boolean check2 = super.check;
+                super();
+            }
         }
     }
 }

@@ -25,14 +25,13 @@
 #ifndef SHARE_OOPS_MARKWORD_HPP
 #define SHARE_OOPS_MARKWORD_HPP
 
+#include "cppstdlib/type_traits.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
-#include "layoutKind.hpp"
 #include "oops/compressedKlass.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/vmEnums.hpp"
-
-#include <type_traits>
 
 // The markWord describes the header of an object.
 //
@@ -44,11 +43,11 @@
 //
 //  64 bits:
 //  --------
-//  unused:22 hash:31 -->| unused_gap:4  age:4  self-fwd:1  lock:2 (normal object)
+//  unused:22 hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  64 bits (with compact headers):
 //  -------------------------------
-//  klass:22  hash:31 -->| unused_gap:4  age:4  self-fwd:1  lock:2 (normal object)
+//  klass:22  hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  - hash contains the identity hash value: largest value is
 //    31 bits, see os::random().  Also, 64-bit vm's require
@@ -72,76 +71,23 @@
 //    used when inflating an existing stack-lock into an ObjectMonitor.
 //    See below for is_being_inflated() and INFLATING().
 //
+//  VALHALLA EXTENSIONS:
 //
+//  N.B.: 32 bit mode is not supported, this section assumes 64 bit systems.
 //
-//  Valhalla
-//
-//  <CMH: merge this doc into the text above>
-//
-//  Project Valhalla has mark word encoding requirements for the following oops:
-//
+//  Project Valhalla uses markWord bits to denote the following oops (listed least to most significant):
 //  * inline types: have alternative bytecode behavior, e.g. can not be locked
-//    - "larval state": mutable state, but only during object init, observable
+//  * flat arrays: load/decode of klass layout helper is expensive for aaload
+//  * "null free" arrays: load/decode of klass layout helper again for aaload
+//  * inline type: "larval state": mutable state, but only during object init, observable
 //      by only by a single thread (generally do not mutate markWord)
 //
-//  * flat arrays: load/decode of klass layout helper is expensive for aaload
-//
-//  * "null free" arrays: load/decode of klass layout helper again for aaload
-//
-//  EnableValhalla
-//
-//  Formerly known as "biased lock bit", "unused_gap" is free to use: using this
-//  bit to indicate inline type, combined with "unlocked" lock bits, means we
-//  will not interfere with lock encodings (displaced, inflating, and monitor),
-//  since inline types can't be locked.
-//
-//  Further state encoding
-//
-//  32 bit plaforms currently have no further room for encoding. No room for
-//  "denormalized layout helper bits", these fast mark word tests can only be made on
-//  64 bit platforms. 32-bit platforms need to load the klass->_layout_helper. This
-//  said, the larval state bit is still required for operation, stealing from the hash
-//  code is simplest mechanism.
-//
-//  Valhalla specific encodings
-//
-//  Revised Bit-format of an object header (most significant first, big endian layout below):
-//
-//  32 bits:
-//  --------
-//  hash:24 ------------>| larval:1 age:4 inline_type:1 lock:2
-//
-//  64 bits:
-//  --------
-//  unused:1 | <-- hash:31 -->| unused:22 larval:1 age:4 flat_array:1 null_free_array:1 inline_type:1 lock:2
-//  klass:22  hash:31 -->| larval:1 age:4 flat_array:1 null_free_array:1 inline_type:1 self-fwd:1 lock:2 (normal object)
-//
-//  The "fast" static type bits (flat_array, null_free_array, and inline_type)
-//  are placed lowest next to lock bits to more easily decode forwarding pointers.
-//  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
-//  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
-//  to return a non-nullptr for this case, but not confuse the static type bits for
-//  a pointer.
+//  Inline types cannot be locked, monitored or inflating.
 //
 //  Note the position of 'self-fwd' is not by accident. When forwarding an
 //  object to a new heap position, HeapWord alignment guarantees the lower
 //  bits, including 'self-fwd' are 0. "is_self_forwarded()" will be correctly
 //  set to false. Otherwise encode_pointer_as_mark() may have 'self-fwd' set.
-//
-//
-//  Static types bits are recorded in the "klass->prototype_header()", displaced
-//  mark should simply use the prototype header as "slow path", rather chasing
-//  monitor or stack lock races.
-//
-//  Lock patterns (note inline types can't be locked/monitor/inflating)...
-//
-//  [ptr            | 000]  locked             ptr points to real header on stack
-//  [header         | ?01]  unlocked           regular object header
-//  [ptr            | 010]  monitor            inflated lock (header is wapped out)
-//  [ptr            | ?11]  marked             used to mark an object
-//  [0 ............ | 000]  inflating          inflation in progress
-//
-//
 
 class BasicLock;
 class ObjectMonitor;
@@ -183,44 +129,43 @@ class markWord {
   // Constants, in least significant bit order
   static const int lock_bits                      = 2;
   static const int self_fwd_bits                  = 1;
+  // instance state
+  static const int age_bits                       = 4;
   // EnableValhalla: static prototype header bits (fast path instead of klass layout_helper)
   static const int inline_type_bits               = 1;
   static const int null_free_array_bits           = LP64_ONLY(1) NOT_LP64(0);
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
-  // instance state
-  static const int age_bits                       = 4;
   static const int larval_bits                    = 1;
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - larval_bits - flat_array_bits - null_free_array_bits - self_fwd_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
 
   static const int lock_shift                     = 0;
-  static const int self_fwd_shift                 = lock_bits ;
-  static const int inline_type_shift              = self_fwd_shift + self_fwd_bits;
+  static const int self_fwd_shift                 = lock_shift + lock_bits;
+  static const int age_shift                      = self_fwd_shift + self_fwd_bits;
+  static const int inline_type_shift              = age_shift + age_bits;
   static const int null_free_array_shift          = inline_type_shift + inline_type_bits;
   static const int flat_array_shift               = null_free_array_shift + null_free_array_bits;
-  static const int age_shift                      = flat_array_shift + flat_array_bits;
-  static const int larval_shift                   = age_shift + age_bits;
+  static const int larval_shift                   = flat_array_shift + flat_array_bits;
   static const int hash_shift                     = larval_shift + larval_bits;
 
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
   static const uintptr_t self_fwd_mask            = right_n_bits(self_fwd_bits);
   static const uintptr_t self_fwd_mask_in_place   = self_fwd_mask << self_fwd_shift;
-  static const uintptr_t inline_type_bit_in_place = 1 << inline_type_shift;
-  static const uintptr_t inline_type_mask         = inline_type_bit_in_place + lock_mask;
-  static const uintptr_t inline_type_mask_in_place = inline_type_mask << lock_shift;
+  static const uintptr_t inline_type_bit_in_place = right_n_bits(inline_type_bits) << inline_type_shift;
+  static const uintptr_t inline_type_mask_in_place = inline_type_bit_in_place + lock_mask;
   static const uintptr_t null_free_array_mask     = right_n_bits(null_free_array_bits);
   static const uintptr_t null_free_array_mask_in_place = (null_free_array_mask << null_free_array_shift) | lock_mask_in_place;
-  static const uintptr_t null_free_array_bit_in_place  = (1 << null_free_array_shift);
+  static const uintptr_t null_free_array_bit_in_place  = (right_n_bits(null_free_array_bits) << null_free_array_shift);
   static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
   static const uintptr_t flat_array_mask_in_place = (flat_array_mask << flat_array_shift) | null_free_array_mask_in_place | lock_mask_in_place;
-  static const uintptr_t flat_array_bit_in_place  = (1 << flat_array_shift);
+  static const uintptr_t flat_array_bit_in_place  = right_n_bits(flat_array_bits) << flat_array_shift;
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
   static const uintptr_t age_mask_in_place        = age_mask << age_shift;
 
   static const uintptr_t larval_mask              = right_n_bits(larval_bits);
   static const uintptr_t larval_mask_in_place     = (larval_mask << larval_shift) | inline_type_mask_in_place;
-  static const uintptr_t larval_bit_in_place      = (1 << larval_shift);
+  static const uintptr_t larval_bit_in_place      = right_n_bits(larval_bits) << larval_shift;
 
   static const uintptr_t hash_mask                = right_n_bits(hash_bits);
   static const uintptr_t hash_mask_in_place       = hash_mask << hash_shift;
@@ -248,11 +193,6 @@ class markWord {
   static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
   static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
   static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
-
-  // Has static klass prototype, used for decode/encode pointer
-  static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + null_free_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
-  static const uintptr_t static_prototype_mask_in_place = static_prototype_mask << lock_bits;
-  static const uintptr_t static_prototype_value_max = (1 << age_shift) - 1;
 
   static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
 
@@ -306,7 +246,8 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
+    return (!is_unlocked() || !has_no_hash() ||
+      (EnableValhalla && (is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array())));
   }
 
   // WARNING: The following routines are used EXCLUSIVELY by
@@ -315,17 +256,8 @@ class markWord {
   markWord set_unlocked() const {
     return markWord(value() | unlocked_value);
   }
-  bool has_locker() const {
-    assert(LockingMode == LM_LEGACY, "should only be called with legacy stack locking");
-    return (value() & lock_mask_in_place) == locked_value;
-  }
-  BasicLock* locker() const {
-    assert(has_locker(), "check");
-    return (BasicLock*) value();
-  }
 
   bool is_fast_locked() const {
-    assert(LockingMode == LM_LIGHTWEIGHT, "should only be called with new lightweight locking");
     return (value() & lock_mask_in_place) == locked_value;
   }
   markWord set_fast_locked() const {
@@ -338,17 +270,13 @@ class markWord {
   }
   ObjectMonitor* monitor() const {
     assert(has_monitor(), "check");
-    assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use markWord for monitors");
+    assert(!UseObjectMonitorTable, "Locking with OM table does not use markWord for monitors");
     // Use xor instead of &~ to provide one extra tag-bit check.
     return (ObjectMonitor*) (value() ^ monitor_value);
   }
   bool has_displaced_mark_helper() const {
     intptr_t lockbits = value() & lock_mask_in_place;
-    if (LockingMode == LM_LIGHTWEIGHT) {
-      return !UseObjectMonitorTable && lockbits == monitor_value;
-    }
-    // monitor (0b10) | stack-locked (0b00)?
-    return (lockbits & unlocked_value) == 0;
+    return !UseObjectMonitorTable && lockbits == monitor_value;
   }
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
@@ -368,7 +296,7 @@ class markWord {
     return from_pointer(lock);
   }
   static markWord encode(ObjectMonitor* monitor) {
-    assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use markWord for monitors");
+    assert(!UseObjectMonitorTable, "Locking with OM table does not use markWord for monitors");
     uintptr_t tmp = (uintptr_t) monitor;
     return markWord(tmp | monitor_value);
   }
@@ -411,26 +339,23 @@ class markWord {
     return (mask_bits(value(), larval_mask_in_place) == larval_pattern);
   }
 
-#ifdef _LP64 // 64 bit encodings only
   bool is_flat_array() const {
+#ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
            || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
-  }
-
-  bool is_null_free_array() const {
-    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
-  }
 #else
-  bool is_flat_array() const {
-    fatal("Should not ask this for mark word, ask oopDesc");
     return false;
+#endif
   }
 
   bool is_null_free_array() const {
-    fatal("Should not ask this for mark word, ask oopDesc");
+#ifdef _LP64 // 64 bit encodings only
+    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
+#else
     return false;
-  }
 #endif
+  }
+
   inline Klass* klass() const;
   inline Klass* klass_or_null() const;
   inline Klass* klass_without_asserts() const;
@@ -460,24 +385,19 @@ class markWord {
   // Prepare address of oop for placement into mark
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
 
-  // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() const {
-    return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
-      (void*) (clear_lock_bits().value());
+    return (void*) (clear_lock_bits().value());
   }
 
   inline bool is_self_forwarded() const {
-    NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
     return mask_bits(value(), self_fwd_mask_in_place) != 0;
   }
 
   inline markWord set_self_forwarded() const {
-    NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
     return markWord(value() | self_fwd_mask_in_place);
   }
 
   inline markWord unset_self_forwarded() const {
-    NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
     return markWord(value() & ~self_fwd_mask_in_place);
   }
 

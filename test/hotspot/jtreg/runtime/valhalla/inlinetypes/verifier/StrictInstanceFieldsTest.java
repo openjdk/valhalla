@@ -24,6 +24,7 @@
 /*
  * @test
  * @enablePreview
+ * @modules java.base/jdk.internal.vm.annotation
  * @compile BadChild.jasm
  *          BadChild1.jasm
  *          ControlFlowChildBad.jasm
@@ -32,7 +33,7 @@
  *          EndsInEarlyLarval.jcod
  *          StrictFieldsNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
- * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED -XDgenerateEarlyLarvalFrame -XDnoLocalProxyVars StrictInstanceFieldsTest.java
+ * @compile -XDnoLocalProxyVars StrictInstanceFieldsTest.java
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
 

@@ -25,14 +25,14 @@
 #include "ci/ciFlatArrayKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/tlab_globals.hpp"
-#include "opto/arraycopynode.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "opto/arraycopynode.hpp"
+#include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
-#include "opto/vectornode.hpp"
 #include "opto/graphKit.hpp"
 #include "opto/macro.hpp"
 #include "opto/runtime.hpp"
-#include "opto/castnode.hpp"
+#include "opto/vectornode.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/align.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -58,6 +58,11 @@ void PhaseMacroExpand::insert_mem_bar(Node** ctrl, Node** mem, int opcode, int a
 
 Node* PhaseMacroExpand::array_element_address(Node* ary, Node* idx, BasicType elembt) {
   uint shift  = exact_log2(type2aelembytes(elembt));
+  const TypeAryPtr* array_type = _igvn.type(ary)->isa_aryptr();
+  if (array_type != nullptr && array_type->is_aryptr()->is_flat()) {
+    // Use T_FLAT_ELEMENT to get proper alignment with COH when fetching the array element address.
+    elembt = T_FLAT_ELEMENT;
+  }
   uint header = arrayOopDesc::base_offset_in_bytes(elembt);
   Node* base =  basic_plus_adr(ary, header);
 #ifdef _LP64
@@ -1573,26 +1578,12 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
-    // TODO 8350865 Fix below logic. Also handle atomicity.
+    // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
-    if (!(top_src->is_flat() && top_dest->is_flat())) {
+    if (!(top_src->is_flat() && top_dest->is_flat() && top_src->is_null_free() == top_dest->is_null_free())) {
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
-    }
-
-    // Handle inline type arrays
-    if (!top_src->is_flat()) {
-      if (UseArrayFlattening && !top_src->is_not_flat()) {
-        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
-      }
-      if (EnableValhalla) {
-        // No validation. The subtype check emitted at macro expansion time will not go to the slow
-        // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
-        generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
-      }
-    } else {
-      assert(top_dest->is_flat(), "dest array must be flat");
+      generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
     }
   }
 
@@ -1600,7 +1591,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
 
-  if (top_src->is_flat() && top_dest->is_flat()) {
+  if (top_src->is_flat() && top_dest->is_flat() &&
+      top_src->is_null_free() == top_dest->is_null_free()) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();

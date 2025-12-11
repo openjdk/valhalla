@@ -280,6 +280,8 @@ public class RecursiveValueClass {
     public void largeGraph() {
         N node = build();
         long start = System.nanoTime();
+        // With the alternate isSubstitutable() method, type recursion is handled differently
+        // and the line below won't throw a SOE
         assertThrows(StackOverflowError.class, () -> { boolean v = node.l == node.r; });
         assertThrows(StackOverflowError.class, () -> { int hc = node.hashCode(); });
         System.out.format("testing large graph: %d ms%n", (System.nanoTime() - start) / 1000);

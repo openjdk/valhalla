@@ -269,14 +269,14 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_CompareAndSwap(Intrinsic* x, ValueType* type);
   void do_PreconditionsCheckIndex(Intrinsic* x, BasicType type);
   void do_FPIntrinsics(Intrinsic* x);
-  void do_Reference_get(Intrinsic* x);
+  void do_Reference_get0(Intrinsic* x);
   void do_update_CRC32(Intrinsic* x);
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
 
-  void access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, int offset = 0);
-  void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
+  void access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, size_t offset = 0);
+  void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
   bool needs_flat_array_store_check(StoreIndexed* x);
   void check_flat_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
@@ -493,7 +493,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void profile_parameters(Base* x);
   void profile_parameters_at_call(ProfileCall* x);
   void profile_flags(ciMethodData* md, ciProfileData* load_store, int flag, LIR_Condition condition = lir_cond_always);
-  template <class ArrayData> void profile_null_free_array(LIRItem array, ciMethodData* md, ArrayData* load_store);
+  void profile_null_free_array(LIRItem array, ciMethodData* md, ciProfileData* load_store);
   template <class ArrayData> void profile_array_type(AccessIndexed* x, ciMethodData*& md, ArrayData*& load_store);
   void profile_element_type(Value element, ciMethodData* md, ciArrayLoadData* load_store);
   bool profile_inline_klass(ciMethodData* md, ciProfileData* data, Value value, int flag);

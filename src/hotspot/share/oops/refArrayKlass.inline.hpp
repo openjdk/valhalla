@@ -31,8 +31,8 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/klass.hpp"
-#include "oops/refArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayOop.inline.hpp"
 #include "utilities/devirtualizer.inline.hpp"
 #include "utilities/macros.hpp"
 
