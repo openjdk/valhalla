@@ -625,12 +625,6 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
   }
 }
 
-void check_is_inline_type(Klass* k, TRAPS) {
-  if (!k->is_inline_klass()) {
-    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
-  }
-}
-
 Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_index,
                                    TRAPS) {
   JavaThread* javaThread = THREAD;
@@ -668,7 +662,6 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
   HandleMark hm(THREAD);
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
-  bool inline_type_signature = false;
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
 
   Klass* k;
@@ -677,9 +670,6 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
     JvmtiHideSingleStepping jhss(javaThread);
     k = SystemDictionary::resolve_or_fail(name, loader, true, THREAD);
   } //  JvmtiHideSingleStepping jhss(javaThread);
-  if (inline_type_signature) {
-    name->decrement_refcount();
-  }
 
   if (!HAS_PENDING_EXCEPTION) {
     // preserve the resolved klass from unloading
@@ -688,21 +678,13 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
     verify_constant_pool_resolve(this_cp, k, THREAD);
   }
 
-  if (!HAS_PENDING_EXCEPTION && inline_type_signature) {
-    check_is_inline_type(k, THREAD);
+#ifdef DEBUG
+  if (!HAS_PENDING_EXCEPTION && k->is_objArray_klass()) {
+    Klass* bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
+    assert(bottom_klass != nullptr, "Should be set");
+    assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
   }
-
-  if (!HAS_PENDING_EXCEPTION) {
-    Klass* bottom_klass = nullptr;
-    if (k->is_objArray_klass()) {
-      bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
-      assert(bottom_klass != nullptr, "Should be set");
-      assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
-    } else if (k->is_flatArray_klass()) {
-      bottom_klass = FlatArrayKlass::cast(k)->element_klass();
-      assert(bottom_klass != nullptr, "Should be set");
-    }
-  }
+#endif
 
   // Failed to resolve class. We must record the errors so that subsequent attempts
   // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
