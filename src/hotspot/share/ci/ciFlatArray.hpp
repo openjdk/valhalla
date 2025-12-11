@@ -38,7 +38,7 @@ class ciFlatArray : public ciArray {
 protected:
   ciFlatArray(flatArrayHandle h_o) : ciArray(h_o) {}
 
-  const char* type_string() { return "ciFlatArray"; }
+  const char* type_string() override { return "ciFlatArray"; }
 
 public:
   bool is_flat_array() const override { return true; }

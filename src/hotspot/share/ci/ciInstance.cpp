@@ -24,9 +24,8 @@
 
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
-
-#include "ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciUtilities.inline.hpp"

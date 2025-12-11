@@ -24,6 +24,7 @@
 
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "ci/ciFlatArray.hpp"
 #include "ci/ciReplay.hpp"
 #include "classfile/javaClasses.hpp"
 #include "code/aotCodeCache.hpp"
@@ -54,8 +55,6 @@
 #include "opto/cfgnode.hpp"
 #include "opto/chaitin.hpp"
 #include "opto/compile.hpp"
-
-#include "ci/ciFlatArray.hpp"
 #include "opto/connode.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/divnode.hpp"
@@ -2129,6 +2128,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
       ciInstance* holder = oop->is_instance() ? oop->as_instance() : nullptr;
       ciArray* array = oop->is_array() ? oop->as_array() : nullptr;
       int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
+#ifndef PRODUCT
       if (UseNewCode) {
         tty->print_cr("\n\n<><><><><><><><><><><><><><><><><><><><>");
         tty->print("- base_type : (%p) ", base_type); if (base_type != nullptr) base_type->dump(); tty->print_cr(""); tty->flush();
@@ -2138,6 +2138,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
         tty->print("- array     : (%p) ", array); if (array != nullptr) array->print(); tty->print_cr(""); tty->flush();
         tty->print("- off       : %d", off); tty->print_cr(""); tty->flush();
       }
+#endif
 
       bool non_atomic_is_fine = false;
       if (holder != nullptr) {
@@ -2149,10 +2150,12 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
         ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
         ciConstant cst = holder->field_value(nm_field);
         if (UseNewCode) {
+#ifndef PRODUCT
           tty->print("- klass     : (%p) ", klass); if (klass != nullptr) klass->print(); tty->print_cr(""); tty->flush();
           tty->print("- field     : (%p) ", field); if (field != nullptr) field->print(); tty->print_cr(""); tty->flush();
           tty->print("- nm_field  : (%p) ", nm_field); if (nm_field != nullptr) nm_field->print(); tty->print_cr(""); tty->flush();
           tty->print("- cst       : "); cst.print(); tty->print_cr(""); tty->flush();
+#endif
         }
         non_atomic_is_fine = FoldStableValues && field->is_stable() && cst.is_valid() && cst.as_boolean();
       }
@@ -2164,10 +2167,12 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
         // ciType* elt_type = array->element_type();
         // array->get_arrayOop();
         if (UseNewCode) {
+#ifndef PRODUCT
           tty->print("- aryptr    : (%p) ", aryptr); if (aryptr != nullptr) aryptr->dump(); tty->print_cr(""); tty->flush();
        // tty->print("- klass     : (%p) ", klass); if (klass != nullptr) klass->print(); tty->print_cr(""); tty->flush();
           tty->print("- elt       : "); elt.print(); tty->print_cr(""); tty->flush();
        // tty->print("- elt_type  : "); elt_type->print(); tty->print_cr(""); tty->flush();
+#endif
         }
         non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && !elt.is_null_or_zero();
       }

@@ -23,10 +23,10 @@
  */
 
 #include "ci/ciArray.hpp"
+#include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciFlatArray.hpp"
 #include "ci/ciInlineKlass.hpp"
-#include "ci/ciConstant.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/oop.inline.hpp"
 
