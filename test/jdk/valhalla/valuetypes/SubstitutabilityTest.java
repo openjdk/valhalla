@@ -34,7 +34,6 @@
 import java.lang.reflect.Method;
 import java.util.stream.Stream;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
@@ -232,19 +231,38 @@ public class SubstitutabilityTest {
         }
     }
 
+    static value class OuterValue {
+        NestedValue nested;
+
+        static final NestedValue[] EDGE_CASES = {
+                null, new NestedValue(0), new NestedValue(1), new NestedValue(2),
+                new NestedValue(3), new NestedValue(0)
+        };
+
+        public OuterValue(int index) {
+            nested = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "Outer(" + nested + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
+    }
+
     public static boolean testNestedValue(NestedValue v1, NestedValue v2) {
         return v1 == v2;
     }
 
     @Test
     void testNestedValue() {
-        // NestedValue
-        for (int i = 0; i < NestedValue.EDGE_CASES.length; ++i) {
-            for (int j = 0; j < NestedValue.EDGE_CASES.length; ++j) {
-                NestedValue val1 = new NestedValue(i);
-                NestedValue val2 = new NestedValue(j);
-                boolean res = testNestedValue(val1, val2);
-                assertEquals(NestedValue.cmp(i, j), res, () -> val1 + " == " + val2);
+        for (int i = 0; i < OuterValue.EDGE_CASES.length; ++i) {
+            for (int j = 0; j < OuterValue.EDGE_CASES.length; ++j) {
+                OuterValue val1 = new OuterValue(i);
+                OuterValue val2 = new OuterValue(j);
+                assertEquals(NestedValue.cmp(i, j), val1 == val2, () -> val1 + " == " + val2);
             }
         }
     }
