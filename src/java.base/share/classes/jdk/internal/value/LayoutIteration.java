@@ -100,7 +100,7 @@ public final class LayoutIteration {
                 sink.accept(memberOffset, type);
             } else {
                 if (U.hasNullMarker(f)) {
-                    sink.accept(U.nullMarkerOffset(f), byte.class);
+                    sink.accept(U.nullMarkerOffset(f) + memberOffsetDelta, byte.class);
                 }
                 iterateFields(memberOffset, type, sink);
             }

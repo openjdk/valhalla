@@ -83,6 +83,7 @@ class LayoutIterationTest {
                 int.class, t.one.a,
                 short.class, t.one.b,
                 One.class, t.anotherOne,
+                byte.class, (byte) 1, // null marker
                 long.class, t.l
         ), values);
     }
