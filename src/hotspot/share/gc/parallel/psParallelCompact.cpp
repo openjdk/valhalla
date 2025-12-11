@@ -1449,6 +1449,19 @@ static void split_regions_for_worker(size_t start, size_t end,
                 + (worker_id < remainder ? 1 : 0);
 }
 
+static bool safe_to_read_header(size_t words) {
+  assert(words > 0, "precondition");
+
+  // If using Compact Object Headers, the full header is inside the markWord,
+  // so will always be safe to read
+  if (UseCompactObjectHeaders) {
+    return true;
+  }
+
+  // Otherwise, it is only safe to read the full header if we've copied all of it
+  return words >= (size_t)oopDesc::header_size();
+}
+
 void PSParallelCompact::forward_to_new_addr() {
   GCTraceTime(Info, gc, phases) tm("Forward", &_gc_timer);
   uint nworkers = ParallelScavengeHeap::heap()->workers().active_workers();
@@ -1476,17 +1489,18 @@ void PSParallelCompact::forward_to_new_addr() {
         oop obj = cast_to_oop(cur_addr);
 
         if (new_addr != cur_addr) {
-          const bool full_header_in_current_region = cur_addr + oopDesc::header_size() <= end;
+          size_t remaining_words = pointer_delta(end, cur_addr);
 
-          if (EnableValhalla && !full_header_in_current_region) {
+          if (EnableValhalla && !safe_to_read_header(remaining_words)) {
             // When using Valhalla, it might be necessary to preserve the Valhalla-
             // specific bits in the markWord. If the entire object header is
             // copied, the correct markWord (with the appropriate Valhalla bits)
-            // can be retrieved from the Klass. However, if the full header is
-            // not copied, we cannot access the Klass to obtain this information.
+            // can be safely read from the Klass. However, if the full header is
+            // not copied, we cannot safely read the Klass to obtain this information.
             // In such cases, we always preserve the markWord to ensure that all
             // relevant bits, including Valhalla-specific ones, are retained.
             cm->preserved_marks()->push_always(obj, obj->mark());
+            log_info(gc)("Preserving markWord for %p", cur_addr);
           } else {
             cm->preserved_marks()->push_if_necessary(obj, obj->mark());
           }
@@ -2132,6 +2146,19 @@ HeapWord* PSParallelCompact::partial_obj_end(HeapWord* region_start_addr) {
   return region_start_addr + accumulated_size;
 }
 
+static markWord safe_mark_prototype(HeapWord* addr, size_t words) {
+  // If the original markWord contains bits that cannot be reconstructed because
+  // the header cannot be safely read, a placeholder is used. In this case,
+  // the correct markWord is preserved before compaction and restored after
+  // compaction completes.
+
+  if (UseCompactObjectHeaders || (EnableValhalla && safe_to_read_header(words))) {
+    return cast_to_oop(addr)->klass()->prototype_header();
+  } else {
+    return markWord::prototype();
+  }
+}
+
 // Use region_idx as the destination region, and evacuate all live objs on its
 // source regions to this destination region.
 void PSParallelCompact::fill_region(ParCompactionManager* cm, MoveAndUpdateClosure& closure, size_t region_idx)
@@ -2247,7 +2274,12 @@ void PSParallelCompact::fill_region(ParCompactionManager* cm, MoveAndUpdateClosu
         // This obj doesn't extend into next region; size() is safe to use.
         obj_size = cast_to_oop(cur_addr)->size();
       }
-      closure.do_addr(cur_addr, obj_size);
+
+      size_t remaining_words = pointer_delta(end_addr, cur_addr);
+      markWord mark = safe_mark_prototype(cur_addr, remaining_words);
+
+      closure.do_addr(cur_addr, obj_size, mark);
+
       cur_addr += obj_size;
     } while (cur_addr < end_addr && !closure.is_full());
 
@@ -2367,7 +2399,7 @@ void MoveAndUpdateClosure::complete_region(HeapWord* dest_addr, PSParallelCompac
   region_ptr->set_completed();
 }
 
-void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
+void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words, markWord mark) {
   assert(destination() != nullptr, "sanity");
   _source = addr;
 
@@ -2386,17 +2418,7 @@ void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
     assert(FullGCForwarding::is_forwarded(cast_to_oop(source())), "inv");
     assert(FullGCForwarding::forwardee(cast_to_oop(source())) == cast_to_oop(destination()), "inv");
     Copy::aligned_conjoint_words(source(), copy_destination(), words);
-
-    const bool full_header_in_current_region = words >= (size_t)oopDesc::header_size();
-    oop copy_dest_oop = cast_to_oop(copy_destination());
-
-    if (UseCompactObjectHeaders || (EnableValhalla && full_header_in_current_region)) {
-      // It is only safe to read the klass iff we have copied the entire
-      // object header.
-      copy_dest_oop->set_mark(copy_dest_oop->klass()->prototype_header());
-    } else {
-      copy_dest_oop->set_mark(markWord::prototype());
-    }
+    cast_to_oop(copy_destination())->set_mark(mark);
   }
 
   update_state(words);
