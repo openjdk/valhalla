@@ -78,6 +78,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamField;
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.chrono.Chronology;
 import java.time.chrono.IsoChronology;
@@ -145,6 +147,20 @@ public final class YearMonth
      */
     @java.io.Serial
     private static final long serialVersionUID = 4183400860270640070L;
+
+    /**
+     * For backward compatibility of the serialized {@code YearMonth.class} object,
+     * explicitly declare the types of the serialized fields as defined in Java SE 8.
+     * Instances of {@code YearMonth} are serialized using the dedicated
+     * serialized form by {@code writeReplace}.
+     * @serialField year int The year.
+     * @serialField month int The month-of-year.
+     */
+    @java.io.Serial
+    private static final ObjectStreamField[] serialPersistentFields = {
+            new ObjectStreamField("year", int.class),
+            new ObjectStreamField("month", int.class),
+    };
     /**
      * Parser.
      */
@@ -157,11 +173,11 @@ public final class YearMonth
     /**
      * @serial The year.
      */
-    private final int year;
+    private final transient int year;
     /**
-     * @serial The month-of-year, not null.
+     * @serial The month-of-year..
      */
-    private final int month;
+    private final transient byte month;
 
     //-----------------------------------------------------------------------
     /**
@@ -314,7 +330,7 @@ public final class YearMonth
      */
     private YearMonth(int year, int month) {
         this.year = year;
-        this.month = month;
+        this.month = (byte) month;
     }
 
     /**
