@@ -23,10 +23,19 @@
  */
 
 #include "cds/archiveBuilder.hpp"
+#include "cppstdlib/type_traits.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+static_assert(std::is_trivially_copyable_v<ResolvedFieldEntry>);
+
+// Detect inadvertently introduced trailing padding.
+class ResolvedFieldEntryWithExtra : public ResolvedFieldEntry {
+  u1 _extra_field;
+};
+static_assert(sizeof(ResolvedFieldEntryWithExtra) > sizeof(ResolvedFieldEntry));
 
 void ResolvedFieldEntry::print_on(outputStream* st) const {
   st->print_cr("Field Entry:");
@@ -60,9 +69,7 @@ bool ResolvedFieldEntry::is_valid() const {
 
 #if INCLUDE_CDS
 void ResolvedFieldEntry::remove_unshareable_info() {
-  u2 saved_cpool_index = _cpool_index;
-  memset(this, 0, sizeof(*this));
-  _cpool_index = saved_cpool_index;
+  *this = ResolvedFieldEntry(_cpool_index);
 }
 
 void ResolvedFieldEntry::mark_and_relocate() {

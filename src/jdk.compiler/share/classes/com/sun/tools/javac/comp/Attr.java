@@ -2285,7 +2285,7 @@ public class Attr extends JCTree.Visitor {
                         boolean unconditional =
                                 unguarded &&
                                 !patternType.isErroneous() &&
-                                types.isUnconditionallyExact(seltype, patternType);
+                                types.isUnconditionallyExactTypeBased(seltype, patternType);
                         if (unconditional) {
                             if (hasUnconditionalPattern) {
                                 log.error(pat.pos(), Errors.DuplicateUnconditionalPattern);
@@ -4432,6 +4432,7 @@ public class Attr extends JCTree.Visitor {
                               operator.type.getReturnType(),
                               owntype);
             chk.checkLossOfPrecision(tree.rhs.pos(), operand, owntype);
+            chk.checkOutOfRangeShift(tree.rhs.pos(), operator, operand);
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
     }
@@ -4522,6 +4523,7 @@ public class Attr extends JCTree.Visitor {
             }
 
             chk.checkDivZero(tree.rhs.pos(), operator, right);
+            chk.checkOutOfRangeShift(tree.rhs.pos(), operator, right);
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
     }
