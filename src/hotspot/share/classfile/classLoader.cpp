@@ -1119,12 +1119,12 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
     // appear in the _patch_mod_entries. The runtime shared class visibility
     // check will determine if a shared class is visible based on the runtime
     // environment, including the runtime --patch-module setting.
-    if (!CDSConfig::is_valhalla_preview()) {
+    if (!Arguments::is_valhalla_enabled()) {
       // Dynamic dumping requires UseSharedSpaces to be enabled. Since --patch-module
       // is not supported with UseSharedSpaces, we can never come here during dynamic dumping.
       assert(!CDSConfig::is_dumping_archive(), "CDS doesn't support --patch-module during dumping");
     }
-    if (CDSConfig::is_valhalla_preview() || !CDSConfig::is_dumping_static_archive()) {
+    if (Arguments::is_valhalla_enabled() || !CDSConfig::is_dumping_static_archive()) {
       stream = search_module_entries(THREAD, _patch_mod_entries, pkg_entry, file_name);
       if (stream != nullptr) {
         is_patched = true;

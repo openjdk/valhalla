@@ -147,7 +147,7 @@ const char* CDSConfig::default_archive_path() {
       tmp.print_raw("_coh");
     }
 #endif
-    if (is_valhalla_preview()) {
+    if (Arguments::is_valhalla_enabled()) {
       tmp.print_raw("_valhalla");
     }
     tmp.print_raw(".jsa");
@@ -975,7 +975,7 @@ bool CDSConfig::are_vm_options_incompatible_with_dumping_heap() {
 }
 
 bool CDSConfig::is_dumping_heap() {
-  if (is_valhalla_preview()) {
+  if (Arguments::is_valhalla_enabled()) {
     // Not working yet -- e.g., HeapShared::oop_hash() needs to be implemented for value oops
     return false;
   }

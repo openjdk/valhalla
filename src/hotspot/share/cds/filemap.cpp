@@ -313,7 +313,7 @@ void FileMapHeader::populate(FileMapInfo *info, size_t core_region_alignment,
   _use_optimized_module_handling = CDSConfig::is_using_optimized_module_handling();
   _has_aot_linked_classes = CDSConfig::is_dumping_aot_linked_classes();
   _has_full_module_graph = CDSConfig::is_dumping_full_module_graph();
-  _has_valhalla_patched_classes = CDSConfig::is_valhalla_preview();
+  _has_valhalla_patched_classes = Arguments::is_valhalla_enabled();
 
   // The following fields are for sanity checks for whether this archive
   // will function correctly with this JVM and the bootclasspath it's
@@ -1993,7 +1993,7 @@ bool FileMapHeader::validate() {
 
   if (is_static()) {
     const char* err = nullptr;
-    if (CDSConfig::is_valhalla_preview()) {
+    if (Arguments::is_valhalla_enabled()) {
       if (!_has_valhalla_patched_classes) {
         err = "not created";
       }

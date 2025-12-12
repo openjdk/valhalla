@@ -476,7 +476,8 @@ HeapWord* AOTMappedHeapWriter::init_filler_array_at_buffer_top(int array_length,
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, markWord::prototype().set_narrow_klass(nk));
   } else {
-    assert(!EnableValhalla || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
+    // EnableValhalla legacy
+    assert(!Arguments::enable_preview() || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
     oopDesc::set_mark(mem, markWord::prototype());
     cast_to_oop(mem)->set_narrow_klass(nk);
   }
