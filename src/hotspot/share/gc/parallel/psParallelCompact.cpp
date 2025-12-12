@@ -1450,16 +1450,15 @@ static void split_regions_for_worker(size_t start, size_t end,
 }
 
 static bool safe_to_read_header(size_t words) {
-  assert(words > 0, "precondition");
+  precond(words > 0);
+
+  const bool safe = words >= (size_t)oopDesc::header_size();
 
   // If using Compact Object Headers, the full header is inside the markWord,
   // so will always be safe to read
-  if (UseCompactObjectHeaders) {
-    return true;
-  }
+  assert(!UseCompactObjectHeaders || safe, "Compact Object Headers should always be safe");
 
-  // Otherwise, it is only safe to read the full header if we've copied all of it
-  return words >= (size_t)oopDesc::header_size();
+  return safe;
 }
 
 void PSParallelCompact::forward_to_new_addr() {
