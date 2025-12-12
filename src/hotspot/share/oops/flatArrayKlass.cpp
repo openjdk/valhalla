@@ -381,12 +381,19 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   assert(!is_refArray_klass(), "Unimplemented");
+  ResourceMark rm;
 
   st->print("Flat Type Array: ");
   Klass::print_on(st);
 
   st->print(" - element klass: ");
   element_klass()->print_value_on(st);
+  st->cr();
+
+  st->print(" - layout kind: %s", LayoutKindHelper::layout_kind_as_string(layout_kind()));
+  st->cr();
+
+  st->print(" - array properties: %s", ArrayKlass::array_properties_as_string(properties()));
   st->cr();
 
   int elem_size = element_byte_size();

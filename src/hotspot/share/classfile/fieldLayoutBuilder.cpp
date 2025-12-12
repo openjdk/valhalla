@@ -624,23 +624,6 @@ void FieldLayout::remove_null_marker() {
   ShouldNotReachHere(); // if we reach this point, the null marker was not found!
 }
 
-static const char* layout_kind_to_string(LayoutKind lk) {
-  switch(lk) {
-    case LayoutKind::REFERENCE:
-      return "REFERENCE";
-    case LayoutKind::NON_ATOMIC_FLAT:
-      return "NON_ATOMIC_FLAT";
-    case LayoutKind::ATOMIC_FLAT:
-      return "ATOMIC_FLAT";
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      return "NULLABLE_ATOMIC_FLAT";
-    case LayoutKind::UNKNOWN:
-      return "UNKNOWN";
-    default:
-      ShouldNotReachHere();
-  }
-}
-
 void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields) {
   ResourceMark rm;
   LayoutRawBlock* b = _blocks;
@@ -669,7 +652,8 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                          fi->name(_cp)->as_C_string(),
                          fi->signature(_cp)->as_C_string(),
                          ik->name()->as_C_string(),
-                         ik->class_loader_data(), layout_kind_to_string(b->layout_kind()));
+                         ik->class_loader_data(),
+                         LayoutKindHelper::layout_kind_as_string(b->layout_kind()));
         break;
       }
       case LayoutRawBlock::RESERVED: {
