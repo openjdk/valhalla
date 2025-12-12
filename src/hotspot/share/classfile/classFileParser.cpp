@@ -4588,7 +4588,7 @@ void ClassFileParser::verify_class_version(u2 major, u2 minor, Symbol* class_nam
       return;
     }
 
-    if (!Arguments::is_valhalla_enabled()) {
+    if (!Arguments::enable_preview()) {
       classfile_ucve_error("Preview features are not enabled for %s (class file version %u.%u). Try running with '--enable-preview'",
                            class_name, major, minor, THREAD);
       return;

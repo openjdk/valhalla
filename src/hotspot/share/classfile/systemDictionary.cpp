@@ -213,7 +213,7 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
     } else {
       bool created = false;
       ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader, created);
-      if (created && Arguments::is_valhalla_enabled()) {
+      if (created && Arguments::enable_preview()) {
         add_migrated_value_classes(cld);
       }
       return cld;
