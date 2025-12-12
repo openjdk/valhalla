@@ -1499,7 +1499,6 @@ void PSParallelCompact::forward_to_new_addr() {
             // In such cases, we always preserve the markWord to ensure that all
             // relevant bits, including Valhalla-specific ones, are retained.
             cm->preserved_marks()->push_always(obj, obj->mark());
-            log_info(gc)("Preserving markWord for %p", cur_addr);
           } else {
             cm->preserved_marks()->push_if_necessary(obj, obj->mark());
           }
