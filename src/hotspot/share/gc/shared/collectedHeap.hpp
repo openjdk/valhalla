@@ -292,7 +292,6 @@ protected:
   GCCause::Cause gc_cause() { return _gc_cause; }
 
   oop obj_allocate(Klass* klass, size_t size, TRAPS);
-  oop obj_buffer_allocate(Klass* klass, size_t size, TRAPS); // doesn't clear memory
   virtual oop array_allocate(Klass* klass, size_t size, int length, bool do_zero, TRAPS);
   oop class_allocate(Klass* klass, size_t size, TRAPS);
 

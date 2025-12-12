@@ -395,12 +395,6 @@ oop ObjAllocator::initialize(HeapWord* mem) const {
   return finish(mem);
 }
 
-oop ObjBufferAllocator::initialize(HeapWord* mem) const {
-  mem_clear(mem);
-  return finish(mem);
-}
-
-
 oop ObjArrayAllocator::initialize(HeapWord* mem) const {
   // Set array length before setting the _klass field because a
   // non-null klass field indicates that the object is parsable by

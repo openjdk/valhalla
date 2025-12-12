@@ -100,14 +100,6 @@ instanceOop InlineKlass::allocate_instance(TRAPS) {
   return oop;
 }
 
-instanceOop InlineKlass::allocate_instance_buffer(TRAPS) {
-  int size = size_helper();  // Query before forming handle.
-
-  instanceOop oop = (instanceOop)Universe::heap()->obj_buffer_allocate(this, size, CHECK_NULL);
-  assert(oop->mark().is_inline_type(), "Expected inline type");
-  return oop;
-}
-
 int InlineKlass::nonstatic_oop_count() {
   int oops = 0;
   int map_count = nonstatic_oop_map_count();
@@ -239,7 +231,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
     case LayoutKind::ATOMIC_FLAT:
     case LayoutKind::NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
-      oop res = allocate_instance_buffer(CHECK_NULL);
+      oop res = allocate_instance(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
       if (LayoutKindHelper::is_nullable_flat(lk)) {
         if(is_payload_marked_as_null(payload_addr(res))) {
