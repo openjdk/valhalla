@@ -215,7 +215,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
 
   // TODO 8366717 This came with 8284161: Implementation of Virtual Threads (Preview) later in May 2022
   // Check if it's sufficient
-  //__ push_call_clobbered_registers();
+  __ push_call_clobbered_registers();
   assert_different_registers(rscratch1, pre_val); // push_CPU_state trashes rscratch1
   // __ push_CPU_state(true);
 
@@ -238,6 +238,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry), pre_val, thread);
   }
 
+  __ pop_call_clobbered_registers();
   //__ pop_CPU_state(true);
 
   __ bind(done);
