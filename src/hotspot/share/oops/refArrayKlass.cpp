@@ -185,7 +185,8 @@ void RefArrayKlass::do_copy(arrayOop s, size_t src_offset, arrayOop d,
   if (s == d) {
     // since source and destination are equal we do not need conversion checks.
     assert(length > 0, "sanity check");
-    ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
+    OopCopyResult result = ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
+    assert(result == OopCopyResult::ok, "Should never fail");
   } else {
     // Perform null check if dst is null-free but src has no such guarantee
     bool null_check = ((!s->klass()->is_null_free_array_klass()) &&
