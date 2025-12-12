@@ -264,7 +264,6 @@ module java.base {
         jdk.unsupported;
     exports jdk.internal.util to
         java.desktop,
-        java.net.http,
         java.prefs,
         java.security.jgss,
         java.smartcardio,
