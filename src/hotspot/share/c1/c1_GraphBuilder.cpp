@@ -1362,8 +1362,7 @@ void GraphBuilder::if_node(Value x, If::Condition cond, Value y, ValueStack* sta
   bool is_bb = tsux->bci() < stream()->cur_bci() || fsux->bci() < stream()->cur_bci();
 
   bool subst_check = false;
-  // EnableValhalla legacy
-  if (Arguments::enable_preview() && (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne)) {
+  if (Arguments::is_valhalla_enabled() && (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne)) {
     ValueType* left_vt = x->type();
     ValueType* right_vt = y->type();
     if (left_vt->is_object()) {
@@ -2567,8 +2566,7 @@ void GraphBuilder::monitorenter(Value x, int bci) {
 #endif
   } else {
     // We are compiling a monitorenter bytecode
-    // EnableValhalla legacy
-    if (Arguments::enable_preview()) {
+    if (Arguments::is_valhalla_enabled()) {
       ciType* obj_type = x->declared_type();
       if (obj_type == nullptr || obj_type->as_klass()->can_be_inline_klass()) {
         // If we're (possibly) locking on an inline type, check for markWord::always_locked_pattern
@@ -4303,8 +4301,7 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
 
   // Check if we need a membar at the beginning of the java.lang.Object
   // constructor to satisfy the memory model for strict fields.
-  // EnableValhalla legacy
-  if (Arguments::enable_preview() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     Value receiver = state()->local_at(0);
     ciType* klass = receiver->exact_type();
     if (klass == nullptr) {

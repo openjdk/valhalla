@@ -260,8 +260,7 @@ public:
   }
 
   bool can_be_inline_type() const {
-    // EnableValhalla legacy
-    return Arguments::enable_preview() && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
+    return Arguments::is_valhalla_enabled() && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
   }
 
   Node* try_push_inline_types_down(PhaseGVN* phase, bool can_reshape);

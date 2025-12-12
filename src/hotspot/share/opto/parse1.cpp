@@ -1285,8 +1285,7 @@ void Parse::do_method_entry() {
 
   // Check if we need a membar at the beginning of the java.lang.Object
   // constructor to satisfy the memory model for strict fields.
-  // EnableValhalla legacy
-  if (Arguments::enable_preview() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     Node* receiver_obj = local(0);
     const TypeInstPtr* receiver_type = _gvn.type(receiver_obj)->isa_instptr();
     // If there's no exact type, check if the declared type has no implementors and add a dependency

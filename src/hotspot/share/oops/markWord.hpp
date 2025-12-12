@@ -246,7 +246,6 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    // EnableValhalla legacy
     return (!is_unlocked() || !has_no_hash() || is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array());
   }
 

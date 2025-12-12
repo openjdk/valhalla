@@ -2003,7 +2003,6 @@ bool FileMapHeader::validate() {
       }
     }
     if (err != nullptr) {
-      // EnableValhalla legacy
       log_warning(cds)("This archive was %s with --enable-preview. It is "
                          "incompatible with the current JVM setting", err);
       return false;

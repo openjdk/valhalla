@@ -5727,8 +5727,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
     bind(initialize_header);
     pop(klass);
     Register mark_word = t2;
-    // EnableValhalla legacy
-    if (UseCompactObjectHeaders || Arguments::enable_preview()) {
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       ldr(mark_word, Address(klass, Klass::prototype_header_offset()));
       str(mark_word, Address(new_obj, oopDesc::mark_offset_in_bytes()));
     } else {

@@ -1183,8 +1183,7 @@ void TemplateTable::aastore() {
 
   // Have a null in r0, r3=array, r2=index.  Store null at ary[idx]
   __ bind(is_null);
-  // EnableValhalla legacy
-  if (Arguments::enable_preview()) {
+  if (Arguments::is_valhalla_enabled()) {
     Label is_null_into_value_array_npe, store_null;
 
     if (UseArrayFlattening) {
@@ -2032,8 +2031,7 @@ void TemplateTable::if_acmp(Condition cc) {
   Register is_inline_type_mask = rscratch1;
   __ mov(is_inline_type_mask, markWord::inline_type_pattern);
 
-  // EnableValhalla legacy
-  if (Arguments::enable_preview()) {
+  if (Arguments::is_valhalla_enabled()) {
     __ cmp(r1, r0);
     __ br(Assembler::EQ, (cc == equal) ? taken : not_taken);
 
@@ -2784,8 +2782,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmp(tos_state, (u1)atos);
   __ br(Assembler::NE, notObj);
   // atos
-  // EnableValhalla legacy
-  if (!Arguments::enable_preview()) {
+  if (!Arguments::is_valhalla_enabled()) {
     do_oop_load(_masm, field, r0, IN_HEAP);
     __ push(atos);
     if (rc == may_rewrite) {
@@ -3039,8 +3036,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-    // EnableValhalla legacy
-     if (!Arguments::enable_preview()) {
+     if (!Arguments::is_valhalla_enabled()) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field

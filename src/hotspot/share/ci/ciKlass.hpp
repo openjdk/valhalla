@@ -112,8 +112,7 @@ public:
   }
 
   virtual bool can_be_inline_array_klass() {
-    // EnableValhalla legacy
-    return Arguments::enable_preview() && is_java_lang_Object();
+    return Arguments::is_valhalla_enabled() && is_java_lang_Object();
   }
 
   bool is_in_encoding_range() {

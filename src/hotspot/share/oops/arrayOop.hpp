@@ -56,7 +56,6 @@ private:
 
   // Given a type, return true if elements of that type must be aligned to 64-bit.
   static bool element_type_should_be_aligned(BasicType type) {
-    // EnableValhalla legacy
     if (type == T_FLAT_ELEMENT) {
       return true; //CMH: tighten the alignment when removing T_FLAT_ELEMENT
     }

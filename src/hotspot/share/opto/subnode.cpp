@@ -945,8 +945,7 @@ bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
       in(1)->in(1)->Opcode() == Op_CastP2X &&
       in(1)->in(2)->Opcode() == Op_CastP2X &&
       in(2)->bottom_type()->is_zero_type()) {
-    // EnableValhalla legacy
-    assert(Arguments::enable_preview(), "unexpected double null check");
+    assert(Arguments::is_valhalla_enabled(), "unexpected double null check");
     a = in(1)->in(1)->in(1);
     b = in(1)->in(2)->in(1);
     return true;

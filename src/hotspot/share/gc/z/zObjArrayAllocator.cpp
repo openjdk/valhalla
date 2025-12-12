@@ -67,8 +67,7 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, _klass->prototype_header().set_marked());
   } else {
-    // EnableValhalla legacy
-    if (Arguments::enable_preview()) {
+    if (Arguments::is_valhalla_enabled()) {
       arrayOopDesc::set_mark(mem, _klass->prototype_header().set_marked());
     } else {
       arrayOopDesc::set_mark(mem, markWord::prototype().set_marked());
@@ -162,8 +161,7 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   ZThreadLocalData::clear_invisible_root(_thread);
 
   // Signal to the ZIterator that this is no longer an invisible root
-  // EnableValhalla legacy
-  if (UseCompactObjectHeaders || Arguments::enable_preview()) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     oopDesc::release_set_mark(mem, _klass->prototype_header());
   } else {
     oopDesc::release_set_mark(mem, markWord::prototype());

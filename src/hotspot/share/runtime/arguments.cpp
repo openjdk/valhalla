@@ -2117,7 +2117,7 @@ bool Arguments::disable_preview_patching() {
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
   // If --enable-preview is true, modules may have preview mode resources.
-  bool enable_valhalla_preview = enable_preview(); // EnableValhalla legacy
+  bool enable_valhalla_preview = is_valhalla_enabled();
   // Whether to use module patching, or the new preview mode feature for preview resources.
   bool disable_patching = disable_preview_patching();
 
@@ -4002,8 +4002,7 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  // EnablePreview legacy
-  if (!Arguments::enable_preview() || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
+  if (!Arguments::is_valhalla_enabled() || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
     // Disable calling convention optimizations if inline types are not supported.
     // Also these aren't useful in -Xint. However, don't disable them when dumping or using
     // the CDS archive, as the values must match between dumptime and runtime.

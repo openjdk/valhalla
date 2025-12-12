@@ -760,8 +760,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     return 0;
   }
   oop obj = JNIHandles::resolve_non_null(handle);
-  // EnableValhalla legacy
-  if (Arguments::enable_preview() && obj->klass()->is_inline_klass()) {
+  if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
       JavaValue result(T_INT);
       JavaCallArguments args;
       Handle ho(THREAD, obj);
@@ -3373,12 +3372,11 @@ JVM_END
 
 
 JVM_LEAF(jboolean, JVM_IsPreviewEnabled(void))
-  return Arguments::enable_preview() ? JNI_TRUE : JNI_FALSE;
+  return Arguments::is_valhalla_enabled() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsValhallaEnabled(void))
-  // EnableValhalla legacy
-  return Arguments::enable_preview() ? JNI_TRUE : JNI_FALSE;
+  return Arguments::is_valhalla_enabled() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsContinuationsSupported(void))

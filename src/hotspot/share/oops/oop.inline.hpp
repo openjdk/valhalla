@@ -84,8 +84,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 markWord oopDesc::prototype_mark() const {
-  // EnableValhalla legacy
-  if (UseCompactObjectHeaders || Arguments::enable_preview()) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     return klass()->prototype_header();
   } else {
     return markWord::prototype();
