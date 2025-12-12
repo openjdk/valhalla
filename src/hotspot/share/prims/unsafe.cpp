@@ -517,7 +517,7 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   assert(v->is_inline_type(), "must be an inline type instance");
   Handle vh(THREAD, v);
   InlineKlass* vk = InlineKlass::cast(v->klass());
-  instanceOop new_value = vk->allocate_instance_buffer(CHECK_NULL);
+  instanceOop new_value = vk->allocate_instance(CHECK_NULL);
   vk->copy_payload_to_addr(vk->payload_addr(vh()), vk->payload_addr(new_value), LayoutKind::BUFFERED, false);
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());

@@ -214,10 +214,6 @@ class InlineKlass: public InstanceKlass {
   // allocate_instance() allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
   instanceOop allocate_instance(TRAPS);
-  // allocates a stand alone inline buffer in the Java heap
-  // DOES NOT have memory cleared, user MUST initialize payload before
-  // returning to Java (i.e.: inline_copy)
-  instanceOop allocate_instance_buffer(TRAPS);
 
   address payload_addr(oop o) const;
 
