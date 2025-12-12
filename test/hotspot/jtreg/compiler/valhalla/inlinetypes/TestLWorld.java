@@ -5132,12 +5132,6 @@ public class TestLWorld {
     static Value178[] test178Values;
 
     static {
-        init();
-    }
-
-    // TODO Workaround for a bug during compilation
-    @DontCompile
-    static void init() {
         Value178 defVal = new Value178();
 
         // The 'offset' array is used to modify exactly one of the fields in Value178

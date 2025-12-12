@@ -1994,7 +1994,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               speculative_ptr_kind(tinput) == ProfileNeverNull &&
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
-  assert(!stopped(), "null input should have been caught earlier");
   return cast;
 }
 
@@ -2118,19 +2117,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
-    if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_null_marker())->is_zero_type())) {
-      // Null checking a scalarized but nullable inline type. Check the null marker
-      // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_null_marker(), intcon(0));
-      do_if(btest, cmp);
-      return;
-    } else {
-      PreserveReexecuteState preexecs(this);
-      inc_sp(2);
-      jvms()->set_should_reexecute(true);
-      left = left->as_InlineType()->buffer(this);
-    }
+    PreserveReexecuteState preexecs(this);
+    inc_sp(2);
+    jvms()->set_should_reexecute(true);
+    left = left->as_InlineType()->buffer(this);
   }
   if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
@@ -2246,30 +2236,35 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Pointers are not equal, check if first operand is non-null
   Node* ne_region = new RegionNode(6);
-  Node* null_ctl;
+  Node* null_ctl = nullptr;
+  Node* not_null_left = nullptr;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
   ne_region->init_req(1, null_ctl);
 
-  // First operand is non-null, check if it is an inline type
-  Node* is_value = inline_type_test(not_null_right);
-  IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
-  Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-  ne_region->init_req(2, not_value);
-  set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+  if (!stopped()) {
+    // First operand is non-null, check if it is an inline type
+    Node* is_value = inline_type_test(not_null_right);
+    IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+    Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
+    ne_region->init_req(2, not_value);
+    set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
 
-  // The first operand is an inline type, check if the second operand is non-null
-  Node* not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
-  ne_region->init_req(3, null_ctl);
+    // The first operand is an inline type, check if the second operand is non-null
+    not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
+    ne_region->init_req(3, null_ctl);
 
-  // Check if both operands are of the same class.
-  Node* kls_left = load_object_klass(not_null_left);
-  Node* kls_right = load_object_klass(not_null_right);
-  Node* kls_cmp = CmpP(kls_left, kls_right);
-  Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-  IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-  Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-  set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-  ne_region->init_req(4, kls_ne);
+    if (!stopped()) {
+      // Check if both operands are of the same class.
+      Node* kls_left = load_object_klass(not_null_left);
+      Node* kls_right = load_object_klass(not_null_right);
+      Node* kls_cmp = CmpP(kls_left, kls_right);
+      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+      ne_region->init_req(4, kls_ne);
+    }
+  }
 
   if (stopped()) {
     record_for_igvn(ne_region);
