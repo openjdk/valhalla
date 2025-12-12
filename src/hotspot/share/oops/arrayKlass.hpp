@@ -52,6 +52,7 @@ class ArrayKlass: public Klass {
   static bool is_non_atomic(ArrayProperties props) { return (props & NON_ATOMIC) != 0; }
 
   static ArrayProperties array_properties_from_layout(LayoutKind lk);
+  static const char* array_properties_as_string(ArrayProperties props);
 
  private:
   // If you add a new field that points to any metaspace object, you
