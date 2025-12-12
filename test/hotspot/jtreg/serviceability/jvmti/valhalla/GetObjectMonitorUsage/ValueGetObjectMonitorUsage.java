@@ -27,7 +27,7 @@
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueGetObjectMonitorUsage -XX:+EnableValhalla ValueGetObjectMonitorUsage
+ * @run main/othervm/native -agentlib:ValueGetObjectMonitorUsage ValueGetObjectMonitorUsage
  */
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;

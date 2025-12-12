@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @requires vm.debug
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation java.base/jdk.internal.value
@@ -149,9 +150,9 @@ public class HeapDump {
         try {
             theApp = new HeapDumpTarg();
 
-            LingeredApp.startApp(theApp, "--enable-preview",
-                                 "-XX:+UnlockDiagnosticVMOptions",
-                                 "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
+            // -XX:+PrintInlineLayout is debug-only arg
+            LingeredApp.startApp(theApp, "--enable-preview", "-XX:+UnlockDiagnosticVMOptions",
+                                "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
                                  "--add-modules=java.base",
                                  "--add-exports=java.base/jdk.internal.value=ALL-UNNAMED");
 

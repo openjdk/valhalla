@@ -27,7 +27,7 @@
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueGetSetLocal -XX:+EnableValhalla ValueGetSetLocal
+ * @run main/othervm/native -agentlib:ValueGetSetLocal ValueGetSetLocal
  */
 
 import java.util.Objects;

@@ -82,6 +82,7 @@
 #include "opto/type.hpp"
 #include "opto/vector.hpp"
 #include "opto/vectornode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -5578,7 +5579,7 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
 Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
   const TypeInstPtr* ta = phase->type(a)->isa_instptr();
   const TypeInstPtr* tb = phase->type(b)->isa_instptr();
-  if (!EnableValhalla || ta == nullptr || tb == nullptr ||
+  if (!Arguments::is_valhalla_enabled() || ta == nullptr || tb == nullptr ||
       ta->is_zero_type() || tb->is_zero_type() ||
       !ta->can_be_inline_type() || !tb->can_be_inline_type()) {
     // Use old acmp if one operand is null or not an inline type

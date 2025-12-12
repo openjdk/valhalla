@@ -407,7 +407,7 @@ Symbol* Method::klass_name() const {
 void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(aot)("Iter(Method): %p", this);
 
-  if (!method_holder()->is_rewritten() || CDSConfig::is_valhalla_preview()) {
+  if (!method_holder()->is_rewritten() || Arguments::is_valhalla_enabled()) {
     it->push(&_constMethod, MetaspaceClosure::_writable);
   } else {
     it->push(&_constMethod);

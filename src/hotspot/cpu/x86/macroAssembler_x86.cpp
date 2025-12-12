@@ -46,6 +46,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
@@ -3647,7 +3648,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 
     // initialize object header only.
     bind(initialize_header);
-    if (UseCompactObjectHeaders || EnableValhalla) {
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       pop(klass);
       Register mark_word = t2;
       movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
