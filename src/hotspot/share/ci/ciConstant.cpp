@@ -33,6 +33,7 @@
 
 // ------------------------------------------------------------------
 // ciConstant::is_null_or_zero
+// This assumes `this->is_valid()`, otherwise, `as_object` will assert.
 bool ciConstant::is_null_or_zero() const {
   if (!is_java_primitive(basic_type())) {
     return as_object()->is_null_object();

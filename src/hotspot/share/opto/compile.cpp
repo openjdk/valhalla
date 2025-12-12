@@ -2178,7 +2178,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
        // tty->print("- elt_type  : "); elt_type->print(); tty->print_cr(""); tty->flush();
 #endif
         }
-        non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && !elt.is_null_or_zero();
+        non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
       }
 
       if (UseNewCode) {
