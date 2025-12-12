@@ -341,10 +341,15 @@ public:
   }
 
   template <typename T>
-  static inline OopCopyResult oop_arraycopy_raw(T* src, T* dst, size_t length) {
-    return AccessT::oop_arraycopy(nullptr, 0, src,
-                                  nullptr, 0, dst,
-                                  length);
+  static inline void oop_arraycopy_raw(T* src, T* dst, size_t length) {
+    static_assert((decorators & ARRAYCOPY_CHECKCAST) == 0);
+    static_assert((decorators & ARRAYCOPY_NOTNULL) == 0);
+
+    OopCopyResult result = AccessT::oop_arraycopy(nullptr, 0, src,
+                                                  nullptr, 0, dst,
+                                                  length);
+
+    assert(result == OopCopyResult::ok, "Should never fail");
   }
 
 };
