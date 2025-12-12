@@ -2148,7 +2148,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
         // instead of field->null_marker_offset():
         // int nm_offset = off + vk->null_marker_offset_in_payload();
         ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
-        ciConstant cst = holder->field_value(nm_field);
+        ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
         if (UseNewCode) {
 #ifndef PRODUCT
           tty->print("- klass     : (%p) ", klass); if (klass != nullptr) klass->print(); tty->print_cr(""); tty->flush();
