@@ -1472,6 +1472,23 @@ void PSParallelCompact::forward_to_new_addr() {
       WorkerTask("PSForward task"),
       _num_workers(num_workers) {}
 
+    static bool should_preserve_mark(oop obj, HeapWord* end_addr) {
+      size_t remaining_words = pointer_delta(end_addr, cast_from_oop<HeapWord*>(obj));
+
+      if (EnableValhalla && !safe_to_read_header(remaining_words)) {
+        // When using Valhalla, it might be necessary to preserve the Valhalla-
+        // specific bits in the markWord. If the entire object header is
+        // copied, the correct markWord (with the appropriate Valhalla bits)
+        // can be safely read from the Klass. However, if the full header is
+        // not copied, we cannot safely read the Klass to obtain this information.
+        // In such cases, we always preserve the markWord to ensure that all
+        // relevant bits, including Valhalla-specific ones, are retained.
+        return true;
+      } else {
+        return obj->mark().must_be_preserved();
+      }
+    }
+
     static void forward_objs_in_range(ParCompactionManager* cm,
                                       HeapWord* start,
                                       HeapWord* end,
@@ -1488,19 +1505,8 @@ void PSParallelCompact::forward_to_new_addr() {
         oop obj = cast_to_oop(cur_addr);
 
         if (new_addr != cur_addr) {
-          size_t remaining_words = pointer_delta(end, cur_addr);
-
-          if (EnableValhalla && !safe_to_read_header(remaining_words)) {
-            // When using Valhalla, it might be necessary to preserve the Valhalla-
-            // specific bits in the markWord. If the entire object header is
-            // copied, the correct markWord (with the appropriate Valhalla bits)
-            // can be safely read from the Klass. However, if the full header is
-            // not copied, we cannot safely read the Klass to obtain this information.
-            // In such cases, we always preserve the markWord to ensure that all
-            // relevant bits, including Valhalla-specific ones, are retained.
+          if (should_preserve_mark(obj, end)) {
             cm->preserved_marks()->push_always(obj, obj->mark());
-          } else {
-            cm->preserved_marks()->push_if_necessary(obj, obj->mark());
           }
 
           FullGCForwarding::forward_to(obj, cast_to_oop(new_addr));
