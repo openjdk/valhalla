@@ -765,7 +765,8 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       JavaCallArguments args;
       Handle ho(THREAD, obj);
       args.push_oop(ho);
-      methodHandle method(THREAD, Universe::value_object_hash_code_method());
+      methodHandle method(THREAD, UseAltSubstitutabilityMethod
+              ? Universe::value_object_hash_codeAlt_method() : Universe::value_object_hash_code_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {

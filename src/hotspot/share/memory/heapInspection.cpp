@@ -513,7 +513,6 @@ class HistoClosure : public KlassInfoClosure {
   }
 };
 
-
 class FindClassByNameClosure : public KlassInfoClosure {
  private:
   GrowableArray<Klass*>* _klasses;

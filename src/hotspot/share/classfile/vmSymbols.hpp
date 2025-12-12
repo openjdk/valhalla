@@ -781,6 +781,7 @@ class SerializeClosure;
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
   template(isSubstitutableAlt_name,                         "isSubstitutableAlt")                                 \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
+  template(valueObjectHashCodeAlt_name,                     "valueObjectHashCodeAlt")                             \
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
