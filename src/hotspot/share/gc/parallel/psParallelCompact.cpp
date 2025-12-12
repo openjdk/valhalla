@@ -2144,14 +2144,15 @@ HeapWord* PSParallelCompact::partial_obj_end(HeapWord* region_start_addr) {
   return region_start_addr + accumulated_size;
 }
 
-static markWord safe_mark_word_prototype(HeapWord* addr, size_t words) {
+static markWord safe_mark_word_prototype(HeapWord* cur_addr, HeapWord* end_addr) {
   // If the original markWord contains bits that cannot be reconstructed because
   // the header cannot be safely read, a placeholder is used. In this case,
   // the correct markWord is preserved before compaction and restored after
   // compaction completes.
+  size_t remaining_words = pointer_delta(end_addr, cur_addr);
 
-  if (UseCompactObjectHeaders || (EnableValhalla && safe_to_read_header(words))) {
-    return cast_to_oop(addr)->klass()->prototype_header();
+  if (UseCompactObjectHeaders || (EnableValhalla && safe_to_read_header(remaining_words))) {
+    return cast_to_oop(cur_addr)->klass()->prototype_header();
   } else {
     return markWord::prototype();
   }
@@ -2273,9 +2274,9 @@ void PSParallelCompact::fill_region(ParCompactionManager* cm, MoveAndUpdateClosu
         obj_size = cast_to_oop(cur_addr)->size();
       }
 
-      size_t remaining_words = pointer_delta(end_addr, cur_addr);
-      markWord mark = safe_mark_word_prototype(cur_addr, remaining_words);
+      markWord mark = safe_mark_word_prototype(cur_addr, end_addr);
 
+      // Perform the move and update of the object
       closure.do_addr(cur_addr, obj_size, mark);
 
       cur_addr += obj_size;
