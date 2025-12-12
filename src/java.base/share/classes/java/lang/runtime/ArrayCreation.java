@@ -45,17 +45,17 @@ public class ArrayCreation {
 
     private static final Lookup LOOKUP = lookup();
     private static final MethodType MAKE_LARVAL_TYPE =
-            MethodType.methodType(Object.class, RuntimeType.class, int.class, int.class);
+            MethodType.methodType(Object.class, Class.class, int.class, int.class);
     private static final MethodType MAKE_DEFAULT_TYPE =
-            MethodType.methodType(Object.class, RuntimeType.class, int.class, int.class);
+            MethodType.methodType(Object.class, Class.class, int.class, int.class);
     private static final MethodType MAKE_FILLED_TYPE =
-            MethodType.methodType(Object.class, RuntimeType.class, int.class, int.class, Object.class);
+            MethodType.methodType(Object.class, Class.class, int.class, int.class, Object.class);
     private static final MethodType MAKE_COMPUTED_TYPE =
-            MethodType.methodType(Object.class, RuntimeType.class, int.class, int.class, IntFunction.class);
+            MethodType.methodType(Object.class, Class.class, int.class, int.class, IntFunction.class);
     private static final MethodType MAKE_COPY_TYPE =
-            MethodType.methodType(Object.class, RuntimeType.class, int.class, int.class, Object.class, int.class);
+            MethodType.methodType(Object.class, Class.class, int.class, int.class, Object.class, int.class);
 
-    private static boolean isDefault(RuntimeType<?> componentType, Object value) {
+    private static boolean isDefault(Class<?> componentType, Object value) {
         Class<?> c = componentType.baseClass();
         if (c.isPrimitive()) {
             return Wrapper.forPrimitiveType(c).zero().equals(value);
@@ -66,13 +66,13 @@ public class ArrayCreation {
 
     // makeLarval
 
-    private static Object makeLarval(RuntimeType<?> componentType, int flags, int length) {
+    private static Object makeLarval(Class<?> componentType, int flags, int length) {
         return Array.newInstance(componentType.baseClass(), length);
     }
 
     // makeDefault
 
-    private static Object makeDefault(RuntimeType<?> componentType, int flags, int length) {
+    private static Object makeDefault(Class<?> componentType, int flags, int length) {
         if (!componentType.baseClass().isPrimitive() && !componentType.canCast(null)) {
             throw new AssertionError("unsupported component type: " + componentType);
         }
@@ -81,55 +81,55 @@ public class ArrayCreation {
 
     // makeFilled
 
-    private static Object makeFilled(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled(Class<?> componentType, int flags, int length, Object init) {
         Object[] result = (Object[]) Array.newInstance(componentType.baseClass(), length);
         Arrays.fill(result, init);
         return result;
     }
 
-    private static Object makeFilled_byte(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_byte(Class<?> componentType, int flags, int length, Object init) {
         byte[] result = new byte[length];
         Arrays.fill(result, (byte) init);
         return result;
     }
 
-    private static Object makeFilled_short(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_short(Class<?> componentType, int flags, int length, Object init) {
         short[] result = new short[length];
         Arrays.fill(result, (short) init);
         return result;
     }
 
-    private static Object makeFilled_int(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_int(Class<?> componentType, int flags, int length, Object init) {
         int[] result = new int[length];
         Arrays.fill(result, (int) init);
         return result;
     }
 
-    private static Object makeFilled_long(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_long(Class<?> componentType, int flags, int length, Object init) {
         long[] result = new long[length];
         Arrays.fill(result, (long) init);
         return result;
     }
 
-    private static Object makeFilled_float(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_float(Class<?> componentType, int flags, int length, Object init) {
         float[] result = new float[length];
         Arrays.fill(result, (float) init);
         return result;
     }
 
-    private static Object makeFilled_double(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_double(Class<?> componentType, int flags, int length, Object init) {
         double[] result = new double[length];
         Arrays.fill(result, (double) init);
         return result;
     }
 
-    private static Object makeFilled_boolean(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_boolean(Class<?> componentType, int flags, int length, Object init) {
         boolean[] result = new boolean[length];
         Arrays.fill(result, (boolean) init);
         return result;
     }
 
-    private static Object makeFilled_char(RuntimeType<?> componentType, int flags, int length, Object init) {
+    private static Object makeFilled_char(Class<?> componentType, int flags, int length, Object init) {
         char[] result = new char[length];
         Arrays.fill(result, (char) init);
         return result;
@@ -137,14 +137,14 @@ public class ArrayCreation {
 
     // makeComputed
 
-    private static Object makeComputed(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed(Class<?> componentType, int flags,
                                          int length, IntFunction<?> func) {
         Object[] result = (Object[]) Array.newInstance(componentType.baseClass(), length);
         Arrays.setAll(result, func);
         return result;
     }
 
-    private static Object makeComputed_byte(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_byte(Class<?> componentType, int flags,
                                             int length, IntFunction<?> func) {
         byte[] result = new byte[length];
         for (int i = 0; i < length; i++) {
@@ -153,7 +153,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_short(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_short(Class<?> componentType, int flags,
                                               int length, IntFunction<?> func) {
         short[] result = new short[length];
         for (int i = 0; i < length; i++) {
@@ -162,7 +162,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_int(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_int(Class<?> componentType, int flags,
                                           int length, IntFunction<?> func) {
         int[] result = new int[length];
         for (int i = 0; i < length; i++) {
@@ -171,7 +171,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_long(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_long(Class<?> componentType, int flags,
                                             int length, IntFunction<?> func) {
         long[] result = new long[length];
         for (int i = 0; i < length; i++) {
@@ -180,7 +180,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_float(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_float(Class<?> componentType, int flags,
                                               int length, IntFunction<?> func) {
         float[] result = new float[length];
         for (int i = 0; i < length; i++) {
@@ -189,7 +189,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_double(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_double(Class<?> componentType, int flags,
                                                 int length, IntFunction<?> func) {
         double[] result = new double[length];
         for (int i = 0; i < length; i++) {
@@ -198,7 +198,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_boolean(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_boolean(Class<?> componentType, int flags,
                                                   int length, IntFunction<?> func) {
         boolean[] result = new boolean[length];
         for (int i = 0; i < length; i++) {
@@ -207,7 +207,7 @@ public class ArrayCreation {
         return result;
     }
 
-    private static Object makeComputed_char(RuntimeType<?> componentType, int flags,
+    private static Object makeComputed_char(Class<?> componentType, int flags,
                                             int length, IntFunction<?> func) {
         char[] result = new char[length];
         for (int i = 0; i < length; i++) {
@@ -218,7 +218,7 @@ public class ArrayCreation {
 
     // makeCopy
 
-    private static Object makeCopy(RuntimeType<?> componentType, int flags,
+    private static Object makeCopy(Class<?> componentType, int flags,
                                    int length, Object source, int start) {
         Object result = Array.newInstance(componentType.baseClass(), length);
         System.arraycopy(source, start, result, 0, length);
@@ -247,7 +247,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite constantFilled(Lookup lookup, String methodName,
-                                          MethodType type, RuntimeType<?> componentType,
+                                          MethodType type, Class<?> componentType,
                                           int flags, int length, Object init) throws Throwable {
         flags = flags | Modifier.STRICT;
         MethodHandle factory;
@@ -294,7 +294,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite dynamicFilled(Lookup lookup, String methodName,
-                                         MethodType type, RuntimeType<?> componentType,
+                                         MethodType type, Class<?> componentType,
                                          int flags, int length) throws Throwable {
         flags = flags | Modifier.STRICT;
         String mname = "makeFilled";
@@ -330,7 +330,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite computed(Lookup lookup, String methodName,
-                                    MethodType type, RuntimeType<?> componentType,
+                                    MethodType type, Class<?> componentType,
                                     int flags, int length) throws Throwable {
         flags = flags | Modifier.STRICT;
         String mname = "makeComputed";
@@ -366,7 +366,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite copied(Lookup lookup, String methodName,
-                                  MethodType type, RuntimeType<?> componentType,
+                                  MethodType type, Class<?> componentType,
                                   int flags, int length) throws Throwable {
         flags = flags | Modifier.STRICT;
         MethodHandle factory = LOOKUP.findStatic(ArrayCreation.class, "makeCopy", MAKE_COPY_TYPE);
@@ -401,7 +401,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite offsetCopied(Lookup lookup, String methodName,
-                                        MethodType type, RuntimeType<?> componentType,
+                                        MethodType type, Class<?> componentType,
                                         int flags, int length) throws Throwable {
         flags = flags | Modifier.STRICT;
         MethodHandle factory = LOOKUP.findStatic(ArrayCreation.class, "makeCopy", MAKE_COPY_TYPE);
@@ -432,7 +432,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite constantEnumerated(Lookup lookup, String methodName,
-                                              MethodType type, RuntimeType<?> componentType,
+                                              MethodType type, Class<?> componentType,
                                               int flags, Object... values) throws Throwable {
         flags = flags | Modifier.STRICT;
         MethodHandle factory = LOOKUP.findStatic(ArrayCreation.class, "makeCopy", MAKE_COPY_TYPE);
@@ -467,7 +467,7 @@ public class ArrayCreation {
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static CallSite dynamicEnumerated(Lookup lookup, String methodName,
-                                             MethodType type, RuntimeType<?> componentType,
+                                             MethodType type, Class<?> componentType,
                                              int flags) throws Throwable {
         flags = flags | Modifier.STRICT;
         Class<?> ccls = componentType.baseClass();
