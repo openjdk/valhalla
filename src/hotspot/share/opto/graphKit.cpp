@@ -50,6 +50,7 @@
 #include "opto/runtime.hpp"
 #include "opto/subtypenode.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/bitMap.inline.hpp"

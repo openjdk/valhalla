@@ -49,6 +49,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/icache.hpp"

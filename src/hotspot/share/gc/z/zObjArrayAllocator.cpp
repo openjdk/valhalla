@@ -26,6 +26,7 @@
 #include "gc/z/zThreadLocalData.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "oops/arrayKlass.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"

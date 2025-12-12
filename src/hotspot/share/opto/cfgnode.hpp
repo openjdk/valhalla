@@ -29,6 +29,7 @@
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
 #include "opto/predicates_enums.hpp"
+#include "runtime/arguments.hpp"
 #include "opto/type.hpp"
 
 // Portions of code courtesy of Clifford Click
