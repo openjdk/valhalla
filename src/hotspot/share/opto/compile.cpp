@@ -1415,7 +1415,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     if (ta->elem() == Type::BOTTOM) {
       // Bottom array (meet of int[] and byte[] for example), accesses to it will be done with
       // Unsafe. This should alias with all arrays. For now just leave it as it is (this is
-      // incorrect!).
+      // incorrect, see JDK-8331133).
       tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, normalized_ary, nullptr, false, Type::Offset::bottom);
     } else if (ta->elem()->make_oopptr() != nullptr) {
       // Object arrays, keep field_offset
