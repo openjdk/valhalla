@@ -22,13 +22,10 @@
  *
  */
 
-#include "classfile/vmSymbols.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/barrierSetStackChunk.hpp"
-#include "memory/resourceArea.hpp"
-#include "oops/objArrayKlass.inline.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/javaThread.hpp"
 #include "utilities/debug.hpp"
@@ -52,33 +49,6 @@ void BarrierSet::set_barrier_set(BarrierSet* barrier_set) {
   assert(!JavaThread::current()->on_thread_list(),
          "Main thread already on thread list.");
   _barrier_set->on_thread_create(Thread::current());
-}
-
-void BarrierSet::throw_array_null_pointer_store_exception(arrayOop src, arrayOop dst, TRAPS) {
-  ResourceMark rm(THREAD);
-  Klass* bound = ObjArrayKlass::cast(dst->klass())->element_klass();
-  stringStream ss;
-  ss.print("arraycopy: can not copy null values into %s[]",
-           bound->external_name());
-  THROW_MSG(vmSymbols::java_lang_NullPointerException(), ss.as_string());
-}
-
-void BarrierSet::throw_array_store_exception(arrayOop src, arrayOop dst, TRAPS) {
-  ResourceMark rm(THREAD);
-  Klass* bound = ObjArrayKlass::cast(dst->klass())->element_klass();
-  Klass* stype = ObjArrayKlass::cast(src->klass())->element_klass();
-  stringStream ss;
-  if (!bound->is_subtype_of(stype)) {
-    ss.print("arraycopy: type mismatch: can not copy %s[] into %s[]",
-             stype->external_name(), bound->external_name());
-  } else {
-    // oop_arraycopy should return the index in the source array that
-    // contains the problematic oop.
-    ss.print("arraycopy: element type mismatch: can not cast one of the elements"
-             " of %s[] to the type of the destination array, %s",
-             stype->external_name(), bound->external_name());
-  }
-  THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
 }
 
 static BarrierSetNMethod* select_barrier_set_nmethod(BarrierSetNMethod* barrier_set_nmethod) {

@@ -331,97 +331,94 @@ inline zaddress ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_on
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_one(zpointer* dst, zpointer* src) {
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_one(zpointer* dst, zpointer* src) {
   const zaddress obj = oop_copy_one_barriers(dst, src);
 
   if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && is_null(obj)) {
-    return oop_copy_check_null;
+    return OopCopyResult::failed_check_null;
   }
 
   AtomicAccess::store(dst, ZAddress::store_good(obj));
-  return oop_copy_check_ok;
+
+  return OopCopyResult::ok;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass) {
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass) {
   const zaddress obj = oop_copy_one_barriers(dst, src);
-  const bool null_check = HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value;
 
-  if (null_check && is_null(obj)) {
-    return oop_copy_check_null;
+  if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && is_null(obj)) {
+    return OopCopyResult::failed_check_null;
   }
-  else if (!oopDesc::is_instanceof_or_null(to_oop(obj), dst_klass)) {
+
+  if (!oopDesc::is_instanceof_or_null(to_oop(obj), dst_klass)) {
     // Check cast failed
-    return oop_copy_check_class_cast;
+    return OopCopyResult::failed_check_class_cast;
   }
 
   AtomicAccess::store(dst, ZAddress::store_good(obj));
 
-  return oop_copy_check_ok;
+  return OopCopyResult::ok;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass) {
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass) {
   // Check cast and copy each elements
-  OopCopyCheckStatus check_status = oop_copy_check_ok;
-  for (const zpointer* const end = src + length; (check_status == oop_copy_check_ok) && (src < end); src++, dst++) {
-    check_status = oop_copy_one_check_cast(dst, src, dst_klass);
+  for (const zpointer* const end = src + length; src < end; src++, dst++) {
+    const OopCopyResult result = oop_copy_one_check_cast(dst, src, dst_klass);
+    if (result != OopCopyResult::ok) {
+      return result;
+    }
   }
-  return check_status;
+
+  return OopCopyResult::ok;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap_no_check_cast(zpointer* dst, zpointer* src, size_t length) {
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap_no_check_cast(zpointer* dst, zpointer* src, size_t length) {
   const bool is_disjoint = HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value;
-  OopCopyCheckStatus check_status = oop_copy_check_ok;
+
   if (is_disjoint || src > dst) {
-    for (const zpointer* const end = src + length; (check_status == oop_copy_check_ok) && (src < end); src++, dst++) {
-      check_status = oop_copy_one(dst, src);
+    for (const zpointer* const end = src + length; src < end; src++, dst++) {
+      const OopCopyResult result = oop_copy_one(dst, src);
+      if (result != OopCopyResult::ok) {
+        return result;
+      }
     }
-    return check_status;
+
+    return OopCopyResult::ok;
   }
 
   if (src < dst) {
     const zpointer* const end = src;
     src += length - 1;
     dst += length - 1;
-    for ( ; (check_status == oop_copy_check_ok) && (src >= end); src--, dst--) {
-      check_status = oop_copy_one(dst, src);
+    for ( ; src >= end; src--, dst--) {
+      const OopCopyResult result = oop_copy_one(dst, src);
+      if (result != OopCopyResult::ok) {
+        return result;
+      }
     }
-    return check_status;
+
+    return OopCopyResult::ok;
   }
 
   // src and dst are the same; nothing to do
-  return check_status;
+  return OopCopyResult::ok;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, zpointer* src_raw,
-                                                                                       arrayOop dst_obj, size_t dst_offset_in_bytes, zpointer* dst_raw,
-                                                                                       size_t length) {
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, zpointer* src_raw,
+                                                                                                arrayOop dst_obj, size_t dst_offset_in_bytes, zpointer* dst_raw,
+                                                                                                size_t length) {
   zpointer* const src = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
   zpointer* const dst = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
-  OopCopyCheckStatus check_status;
 
   if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) {
     Klass* const dst_klass = objArrayOop(dst_obj)->element_klass();
-    check_status = oop_arraycopy_in_heap_check_cast(dst, src, length, dst_klass);
+    return oop_arraycopy_in_heap_check_cast(dst, src, length, dst_klass);
   } else {
-    check_status = oop_arraycopy_in_heap_no_check_cast(dst, src, length);
-  }
-
-  switch (check_status) {
-  case oop_copy_check_ok:
-    return;
-  case oop_copy_check_class_cast:
-    throw_array_store_exception(src_obj, dst_obj, JavaThread::current());
-    break;
-  case oop_copy_check_null:
-    throw_array_null_pointer_store_exception(src_obj, dst_obj, JavaThread::current());
-    break;
-  default:
-    ShouldNotReachHere();
-    return;
+    return oop_arraycopy_in_heap_no_check_cast(dst, src, length);
   }
 }
 
