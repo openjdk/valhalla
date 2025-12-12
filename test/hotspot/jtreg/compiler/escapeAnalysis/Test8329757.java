@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ public class Test8329757 {
 
     void q() {
         int e;
-        synchronized (new Object()) {
+        synchronized (new Double(1.1f)) {
         int[] f = new int[a];
         synchronized (Test8329757.class) {
             for (int d = 4; d < 127; d++) {
