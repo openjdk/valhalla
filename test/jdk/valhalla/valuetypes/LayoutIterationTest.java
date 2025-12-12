@@ -66,7 +66,7 @@ class LayoutIterationTest {
     }
 
     @Test
-    void test() {
+    void testExample() {
         Two t = new Two();
         Set<Class<?>> classes = LayoutIteration.computeElementGetters(One.class).stream()
                 .map(mh -> mh.type().returnType()).collect(Collectors.toSet());
@@ -85,5 +85,79 @@ class LayoutIterationTest {
                 One.class, t.anotherOne,
                 long.class, t.l
         ), values);
+    }
+
+    static value class IntValue {
+        int value;
+
+        static final int[] EDGE_CASES = {
+                0, -1, 1,
+                Integer.MIN_VALUE, Integer.MAX_VALUE
+        };
+
+        public IntValue(int index) {
+            value = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "IntValue(" + value +
+                    ", bits=0x" + Integer.toHexString(value) + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
+    }
+
+    static value class NestedValue {
+        SubstitutabilityTest.IntValue value;
+
+        static final SubstitutabilityTest.IntValue[] EDGE_CASES = {
+                null, new SubstitutabilityTest.IntValue(0), new SubstitutabilityTest.IntValue(1), new SubstitutabilityTest.IntValue(2),
+                new SubstitutabilityTest.IntValue(3), new SubstitutabilityTest.IntValue(0)
+        };
+
+        public NestedValue(int index) {
+            value = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "NestedValue(" + value + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
+    }
+
+    @Test
+    void testNested() {
+        NestedValue v = new NestedValue(0);
+        Map<Class<?>, Object> values = LayoutIteration.computeElementGetters(NestedValue.class).stream()
+                .collect(Collectors.toMap(mh -> mh.type().returnType(), mh -> {
+                    try {
+                        return (Object) mh.invoke(v);
+                    } catch (Throwable ex) {
+                        return Assertions.fail(ex);
+                    }
+                }));
+        assertEquals(Map.of(
+                int.class, 0,
+                byte.class, (byte) 0 // null marker
+        ), values);
+
+        NestedValue v1 = new NestedValue(2);
+        Map<Class<?>, Object> values1 = LayoutIteration.computeElementGetters(NestedValue.class).stream()
+                .collect(Collectors.toMap(mh -> mh.type().returnType(), mh -> {
+                    try {
+                        return (Object) mh.invoke(v1);
+                    } catch (Throwable ex) {
+                        return Assertions.fail(ex);
+                    }
+                }));
+        assertEquals(Map.of(
+                int.class, NestedValue.EDGE_CASES[2].value,
+                byte.class, (byte) 1 // null marker
+        ), values1);
     }
 }
