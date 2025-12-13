@@ -1571,9 +1571,10 @@ public class Attr extends JCTree.Visitor {
          * @param sym    The symbol
          */
         private boolean isEarlyReference(Env<AttrContext> env, JCTree tree, Symbol sym) {
-            if ((sym.flags() & STATIC) == 0 &&
-                    (sym.kind == VAR || sym.kind == MTH) &&
-                    sym.isMemberOf(env.enclClass.sym, types)) {
+            if ((sym.kind == VAR || sym.kind == MTH) &&
+                    sym.isMemberOf(env.enclClass.sym, types) &&
+                    ((sym.flags() & STATIC) == 0 ||
+                    (sym.kind == MTH && tree instanceof JCFieldAccess))) {
                 // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
                 if (tree instanceof JCFieldAccess fa) {
                     return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
