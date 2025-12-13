@@ -90,7 +90,10 @@ public enum PreviewMode {
     // Temporary system property to disable preview patching and enable the new preview mode
     // feature for testing/development. Once the preview mode feature is finished, the value
     // will be always 'true' and this code, and all related dead-code can be removed.
-    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = false;
+    // See also:
+    // * src/hotspot/share/runtime/arguments.cpp
+    // * src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java
+    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = true;
     private static final boolean DISABLE_PREVIEW_PATCHING = Boolean.parseBoolean(
             System.getProperty(
                     "DISABLE_PREVIEW_PATCHING",
