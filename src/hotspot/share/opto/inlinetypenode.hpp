@@ -208,7 +208,7 @@ private:
 
   static void collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop);
   InlineTypeNode* collect_projs(GraphKit* kit, ciInlineKlass* vk, int proj_con, bool null_free);
-  void expand_projs_atomic(PhaseIterGVN& gvn, Node* ctrl, Node* payload);
+  void expand_projs_atomic(PhaseIterGVN& gvn, Node* ctrl, Node* payload, bool payload_no_null_marker);
   static Node* get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType payload_bt, Node* payload, const Type* value_type, BasicType value_bt, int offset);
 };
 
