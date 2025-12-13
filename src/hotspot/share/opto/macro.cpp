@@ -544,6 +544,9 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
           if (init_value->is_EncodeP()) {
             init_value = init_value->in(1);
           }
+          if (!init_value->is_InlineType()) {
+            return nullptr;
+          }
           assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
           offset = adr_t->is_aryptr()->field_offset().get() + init_value->bottom_type()->inline_klass()->payload_offset();
           init_value = init_value->as_InlineType()->field_value_by_offset(offset, true);

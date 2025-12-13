@@ -22,6 +22,7 @@
  *
  */
 
+#include "ci/ciObjArrayKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -1192,10 +1193,11 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n, bool& might_
   // return the ConP(Foo.klass)
   ciKlass* mirror_klass = mirror_type->as_klass();
 
-  if (mirror_klass->is_array_klass()) {
+  if (mirror_klass->is_array_klass() && !mirror_klass->is_type_array_klass()) {
     if (!mirror_klass->can_be_inline_array_klass()) {
       // Special case for non-value arrays: They only have one (default) refined class, use it
-      return phase->makecon(TypeAryKlassPtr::make(mirror_klass, Type::trust_interfaces, true));
+      ciArrayKlass* refined_mirror_klass = ciObjArrayKlass::make(mirror_klass->as_array_klass()->element_klass(), true);
+      return phase->makecon(TypeAryKlassPtr::make(refined_mirror_klass, Type::trust_interfaces));
     }
     might_be_an_array |= true;
   }
@@ -1324,8 +1326,7 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   superklass = t2->exact_klass();
   assert(!superklass->is_flat_array_klass(), "Unexpected flat array klass");
   if (superklass->is_obj_array_klass()) {
-    if (!superklass->as_array_klass()->is_elem_null_free() &&
-         superklass->as_array_klass()->element_klass()->is_inlinetype()) {
+    if (superklass->as_array_klass()->element_klass()->is_inlinetype() && !superklass->as_array_klass()->is_refined()) {
       return nullptr;
     } else {
       // Special case for non-value arrays: They only have one (default) refined class, use it

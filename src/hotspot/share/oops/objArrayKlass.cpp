@@ -37,6 +37,7 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/markWord.hpp"
@@ -137,6 +138,7 @@ ArrayKlass(name, kind, props, mk) {
 
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
+    assert(!element_klass->is_refined_objArray_klass(), "no such mechanism yet");
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
   } else {
     assert(!element_klass->is_refArray_klass(), "Sanity");
@@ -180,19 +182,25 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
   }
   assert(element->is_final(), "Flat layouts below require monomorphic elements");
   InlineKlass* vk = InlineKlass::cast(element);
+  if (!vk->maybe_flat_in_array()) {
+    return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
+  }
+
   if (is_null_restricted(properties)) {
     if (is_non_atomic(properties)) {
       // Null-restricted + non-atomic
-      if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
+      if (vk->has_non_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NON_ATOMIC_FLAT);
+      } else if (vk->has_atomic_layout()) {
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::ATOMIC_FLAT);
       } else {
         return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
       }
     } else {
       // Null-restricted + atomic
-      if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
+      if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NON_ATOMIC_FLAT);
-      } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
+      } else if (vk->has_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::ATOMIC_FLAT);
       } else {
         return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
@@ -200,7 +208,7 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
     }
   } else {
     // nullable implies atomic, so the non-atomic property is ignored
-    if (vk->maybe_flat_in_array() && vk->has_nullable_atomic_layout()) {
+    if (vk->has_nullable_atomic_layout()) {
       return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULLABLE_ATOMIC_FLAT);
     } else {
       return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
@@ -209,6 +217,7 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
+  assert(ArrayKlass::is_null_restricted(props) || !ArrayKlass::is_non_atomic(props), "only null-restricted array can be non-atomic");
   ObjArrayKlass* ak = nullptr;
   ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
   switch (ad._kind) {
