@@ -337,7 +337,6 @@ class Compile : public Phase {
   bool                  _major_progress;
   bool                  _inlining_progress;     // progress doing incremental inlining?
   bool                  _inlining_incrementally;// Are we doing incremental inlining (post parse)
-  bool                  _strength_reduction;    // Are we doing strength reduction to direct call
   bool                  _do_cleanup;            // Cleanup is needed before proceeding with incremental inlining
   bool                  _has_loops;             // True if the method _may_ have some loops
   bool                  _has_split_ifs;         // True if the method _may_ have some split-if
@@ -606,8 +605,6 @@ public:
   int               inlining_progress() const   { return _inlining_progress; }
   void          set_inlining_incrementally(bool z) { _inlining_incrementally = z; }
   int               inlining_incrementally() const { return _inlining_incrementally; }
-  void          set_strength_reduction(bool z)  { _strength_reduction = z; }
-  bool              strength_reduction() const  { return _strength_reduction; }
   void          set_do_cleanup(bool z)          { _do_cleanup = z; }
   int               do_cleanup() const          { return _do_cleanup; }
   bool              major_progress() const      { return _major_progress; }
