@@ -83,6 +83,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -1477,7 +1478,7 @@ void PSParallelCompact::forward_to_new_addr() {
     static bool should_preserve_mark(oop obj, HeapWord* end_addr) {
       size_t remaining_words = pointer_delta(end_addr, cast_from_oop<HeapWord*>(obj));
 
-      if (EnableValhalla && !safe_to_read_header(remaining_words)) {
+      if (Arguments::is_valhalla_enabled() && !safe_to_read_header(remaining_words)) {
         // When using Valhalla, it might be necessary to preserve the Valhalla-
         // specific bits in the markWord. If the entire object header is
         // copied, the correct markWord (with the appropriate Valhalla bits)
@@ -2159,7 +2160,7 @@ static markWord safe_mark_word_prototype(HeapWord* cur_addr, HeapWord* end_addr)
   // compaction completes.
   size_t remaining_words = pointer_delta(end_addr, cur_addr);
 
-  if (UseCompactObjectHeaders || (EnableValhalla && safe_to_read_header(remaining_words))) {
+  if (UseCompactObjectHeaders || (Arguments::is_valhalla_enabled() && safe_to_read_header(remaining_words))) {
     return cast_to_oop(cur_addr)->klass()->prototype_header();
   } else {
     return markWord::prototype();
