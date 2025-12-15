@@ -145,6 +145,7 @@ private:
 #ifndef PRODUCT
   void oop_print_on(oop obj, outputStream* st);
 #endif
+  void oop_print_elements_on(flatArrayOop fa, outputStream* st);
 
   // Verification
   void verify_on(outputStream* st);

@@ -210,7 +210,7 @@ address frame::raw_pc() const {
   if (is_deoptimized_frame()) {
     nmethod* nm = cb()->as_nmethod_or_null();
     assert(nm != nullptr, "only nmethod is expected here");
-    return nm->deopt_handler_entry() - pc_return_offset;
+    return nm->deopt_handler_begin() - pc_return_offset;
   } else {
     return (pc() - pc_return_offset);
   }
@@ -359,7 +359,7 @@ void frame::deoptimize(JavaThread* thread) {
 
   // If the call site is a MethodHandle call site use the MH deopt handler.
   nmethod* nm = _cb->as_nmethod();
-  address deopt = nm->deopt_handler_entry();
+  address deopt = nm->deopt_handler_begin();
 
   NativePostCallNop* inst = nativePostCallNop_at(pc());
 
@@ -782,7 +782,7 @@ class InterpreterFrameClosure : public OffsetClosure {
 
  public:
   InterpreterFrameClosure(const frame* fr, int max_locals, int max_stack,
-                          OopClosure* f, BufferedValueClosure* bvt_f) {
+                          OopClosure* f) {
     _fr         = fr;
     _max_locals = max_locals;
     _max_stack  = max_stack;
@@ -972,7 +972,7 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMapT* map, bool que
     }
   }
 
-  InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f, nullptr);
+  InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f);
 
   // process locals & expression stack
   InterpreterOopMap mask;
@@ -981,24 +981,6 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMapT* map, bool que
   } else {
     OopMapCache::compute_one_oop_map(m, bci, &mask);
   }
-  mask.iterate_oop(&blk);
-}
-
-void frame::buffered_values_interpreted_do(BufferedValueClosure* f) {
-  assert(is_interpreted_frame(), "Not an interpreted frame");
-  Thread *thread = Thread::current();
-  methodHandle m (thread, interpreter_frame_method());
-  jint      bci = interpreter_frame_bci();
-
-  assert(m->is_method(), "checking frame value");
-  assert(!m->is_native() && bci >= 0 && bci < m->code_size(),
-         "invalid bci value");
-
-  InterpreterFrameClosure blk(this, m->max_locals(), m->max_stack(), nullptr, f);
-
-  // process locals & expression stack
-  InterpreterOopMap mask;
-  m->mask_for(bci, &mask);
   mask.iterate_oop(&blk);
 }
 

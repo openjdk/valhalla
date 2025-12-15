@@ -341,7 +341,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getLong:                  return inline_unsafe_access(!is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_getFloat:                 return inline_unsafe_access(!is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_getDouble:                return inline_unsafe_access(!is_store, T_DOUBLE,   Relaxed, false);
-  case vmIntrinsics::_getValue:                 return inline_unsafe_access(!is_store, T_OBJECT,   Relaxed, false, true);
 
   case vmIntrinsics::_putReference:             return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_putBoolean:               return inline_unsafe_access( is_store, T_BOOLEAN,  Relaxed, false);
@@ -352,7 +351,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putLong:                  return inline_unsafe_access( is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_putFloat:                 return inline_unsafe_access( is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_putDouble:                return inline_unsafe_access( is_store, T_DOUBLE,   Relaxed, false);
-  case vmIntrinsics::_putValue:                 return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false, true);
 
   case vmIntrinsics::_getReferenceVolatile:     return inline_unsafe_access(!is_store, T_OBJECT,   Volatile, false);
   case vmIntrinsics::_getBooleanVolatile:       return inline_unsafe_access(!is_store, T_BOOLEAN,  Volatile, false);
@@ -2463,7 +2461,7 @@ void LibraryCallKit::SavedState::discard() {
   _discarded = true;
 }
 
-bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, const AccessKind kind, const bool unaligned, const bool is_flat) {
+bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, const AccessKind kind, const bool unaligned) {
   if (callee()->is_static())  return false;  // caller must have the capability!
   DecoratorSet decorators = C2_UNSAFE_ACCESS;
   guarantee(!is_store || kind != Acquire, "Acquire accesses can be produced only for loads");
@@ -2488,13 +2486,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       // Object getReference(Object base, int/long offset), etc.
       BasicType rtype = sig->return_type()->basic_type();
       assert(rtype == type, "getter must return the expected value");
-      assert(sig->count() == 2 || (is_flat && sig->count() == 3), "oop getter has 2 or 3 arguments");
+      assert(sig->count() == 2, "oop getter has 2 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "getter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "getter offset is correct");
     } else {
       // void putReference(Object base, int/long offset, Object x), etc.
       assert(sig->return_type()->basic_type() == T_VOID, "putter must not return a value");
-      assert(sig->count() == 3 || (is_flat && sig->count() == 4), "oop putter has 3 arguments");
+      assert(sig->count() == 3, "oop putter has 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "putter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "putter offset is correct");
       BasicType vtype = sig->type_at(sig->count()-1)->basic_type();
@@ -2521,19 +2519,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
 
-  ciInlineKlass* inline_klass = nullptr;
-  if (is_flat) {
-    const TypeInstPtr* cls = _gvn.type(argument(4))->isa_instptr();
-    if (cls == nullptr || cls->const_oop() == nullptr) {
-      return false;
-    }
-    ciType* mirror_type = cls->const_oop()->as_instance()->java_mirror_type();
-    if (!mirror_type->is_inlinetype()) {
-      return false;
-    }
-    inline_klass = mirror_type->as_inline_klass();
-  }
-
   if (base->is_InlineType()) {
     assert(!is_store, "InlineTypeNodes are non-larval value objects");
     InlineTypeNode* vt = base->as_InlineType();
@@ -2550,7 +2535,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         if (bt == T_ARRAY || bt == T_NARROWOOP) {
           bt = T_OBJECT;
         }
-        if (bt == type && (!field->is_flat() || field->type() == inline_klass)) {
+        if (bt == type && !field->is_flat()) {
           Node* value = vt->field_value_by_offset(off, false);
           if (value->is_InlineType()) {
             value = value->as_InlineType()->adjust_scalarization_depth(this);
@@ -2579,7 +2564,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   assert(!stopped(), "Inlining of unsafe access failed: address construction stopped unexpectedly");
 
   if (_gvn.type(base->uncast())->isa_ptr() == TypePtr::NULL_PTR) {
-    if (type != T_OBJECT && (inline_klass == nullptr || !inline_klass->has_object_fields())) {
+    if (type != T_OBJECT) {
       decorators |= IN_NATIVE; // off-heap primitive access
     } else {
       return false; // off-heap oop accesses are not supported
@@ -2595,7 +2580,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     decorators |= IN_HEAP;
   }
 
-  Node* val = is_store ? argument(4 + (is_flat ? 1 : 0)) : nullptr;
+  Node* val = is_store ? argument(4) : nullptr;
 
   const TypePtr* adr_type = _gvn.type(adr)->isa_ptr();
   if (adr_type == TypePtr::NULL_PTR) {
@@ -2636,7 +2621,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         bt = type2field[field->type()->basic_type()];
       }
     }
-    assert(bt == alias_type->basic_type() || is_flat, "should match");
+    assert(bt == alias_type->basic_type(), "should match");
   } else {
     bt = alias_type->basic_type();
   }
@@ -2661,27 +2646,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     mismatched = true; // conservatively mark all "wide" on-heap accesses as mismatched
   }
 
-  if (is_flat) {
-    if (adr_type->isa_instptr()) {
-      if (field == nullptr || field->type() != inline_klass) {
-        mismatched = true;
-      }
-    } else if (adr_type->isa_aryptr()) {
-      const Type* elem = adr_type->is_aryptr()->elem();
-      if (!adr_type->is_flat() || elem->inline_klass() != inline_klass) {
-        mismatched = true;
-      }
-    } else {
-      mismatched = true;
-    }
-    if (is_store) {
-      const Type* val_t = _gvn.type(val);
-      if (!val_t->is_inlinetypeptr() || val_t->inline_klass() != inline_klass) {
-        return false;
-      }
-    }
-  }
-
   old_state.discard();
   assert(!mismatched || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
@@ -2696,7 +2660,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   decorators |= mo_decorator_for_access_kind(kind);
 
   if (!is_store) {
-    if (type == T_OBJECT && !is_flat) {
+    if (type == T_OBJECT) {
       const TypeOopPtr* tjp = sharpen_unsafe_type(alias_type, adr_type);
       if (tjp != nullptr) {
         value_type = tjp;
@@ -2723,15 +2687,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
 
     if (p == nullptr) { // Could not constant fold the load
-      if (is_flat) {
-        p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, adr_type, false, false, true);
-      } else {
-        p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
-        const TypeOopPtr* ptr = value_type->make_oopptr();
-        if (ptr != nullptr && ptr->is_inlinetypeptr()) {
-          // Load a non-flattened inline type from memory
-          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass());
-        }
+      p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
+      const TypeOopPtr* ptr = value_type->make_oopptr();
+      if (ptr != nullptr && ptr->is_inlinetypeptr()) {
+        // Load a non-flattened inline type from memory
+        p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass());
       }
       // Normalize the value returned by getBoolean in the following cases
       if (type == T_BOOLEAN &&
@@ -2770,11 +2730,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = ConvL2X(val);
       val = gvn().transform(new CastX2PNode(val));
     }
-    if (is_flat) {
-      val->as_InlineType()->store_flat(this, base, adr, false, false, true, decorators);
-    } else {
-      access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
-    }
+    access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
   }
 
   return true;
