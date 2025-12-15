@@ -2262,7 +2262,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
 
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = value_basic_type();
-    if (UseNewCode) {
+    if (UseNewCode2) {
 #ifndef PRODUCT
       tty->print("tinst: ");
       tinst->dump();
@@ -2273,7 +2273,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
 
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
-    if (UseNewCode) {
+    if (UseNewCode2) {
 #ifndef PRODUCT
       tty->print_cr("const_oop: %p", const_oop);
       if (const_oop != nullptr) {
@@ -2286,13 +2286,13 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     }
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
       const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
-      if (UseNewCode) {
+      if (UseNewCode2) {
 #ifndef PRODUCT
         tty->print_cr("con_type: %p", con_type);
 #endif
       }
       if (con_type != nullptr) {
-        if (UseNewCode) {
+        if (UseNewCode2) {
 #ifndef PRODUCT
           tty->print("con_type: ");
           con_type->dump();
