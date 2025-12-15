@@ -38,10 +38,10 @@
 //             before writing a new value. Still for null-restricted fields, if getfield reads a null pointer
 //             from the receiver, it means that the field was not initialized yet, and getfield must substitute
 //             the null reference with the default value of the field's class.
-// NON_ATOMIC_FLAT : this layout is the simplest form of flattening. Any field embedded inside the flat field
+// NULL_FREE_NON_ATOMIC_FLAT : this layout is the simplest form of flattening. Any field embedded inside the flat field
 //             can be accessed independently. The field is null-restricted, meaning putfield must perform a
 //             null-check before performing a field update.
-// ATOMIC_FLAT : this flat layout is designed for atomic updates, with size and alignment that make use of
+// NULL_FREE_ATOMIC_FLAT : this flat layout is designed for atomic updates, with size and alignment that make use of
 //             atomic instructions possible. All accesses, reads and writes, must be performed atomically.
 //             The field is null-restricted, meaning putfield must perform a null-check before performing a
 //             field update.
@@ -74,25 +74,27 @@
 // of the lava.lang.invoke.MemberName class relies on this property.
 
 enum class LayoutKind : uint32_t {
-  REFERENCE            = 0,    // indirection to a heap allocated instance
-  BUFFERED             = 1,    // layout used in heap allocated standalone instances
-  NON_ATOMIC_FLAT      = 2,    // flat, no guarantee of atomic updates, no null marker
-  ATOMIC_FLAT          = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
-  NULLABLE_ATOMIC_FLAT = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
-  UNKNOWN              = 5     // used for uninitialized fields of type LayoutKind
+  REFERENCE                 = 0,    // indirection to a heap allocated instance
+  BUFFERED                  = 1,    // layout used in heap allocated standalone instances
+  NULL_FREE_NON_ATOMIC_FLAT = 2,    // flat, null-free (no null marker), no guarantee of atomic updates
+  NULL_FREE_ATOMIC_FLAT     = 3,    // flat, null-free, size compatible with atomic updates, alignment requirement is equal to the size
+  NULLABLE_ATOMIC_FLAT      = 4,    // flat, include a null marker, plus same size/alignment properties as ATOMIC layout
+  UNKNOWN                   = 5     // used for uninitialized fields of type LayoutKind
 };
 
 class LayoutKindHelper : AllStatic {
  public:
   static bool is_flat(LayoutKind lk) {
-    return lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    return lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT
+                 || lk == LayoutKind::NULL_FREE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
   static bool is_atomic_flat(LayoutKind lk) {
-    return lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    return lk == LayoutKind::NULL_FREE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
   static bool is_nullable_flat(LayoutKind lk) {
     return lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
+  static const char* layout_kind_as_string(LayoutKind lk);
 };
 
 #endif // SHARE_OOPS_LAYOUTKIND_HPP
