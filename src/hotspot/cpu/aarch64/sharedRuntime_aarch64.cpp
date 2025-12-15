@@ -620,17 +620,24 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  // TODO 8366717 Is the comment about r13 correct? Isn't that r19_sender_sp?
   // Name some registers to be used in the following code. We can use
   // anything except r0-r7 which are arguments in the Java calling
-  // convention, rmethod (r12), and r13 which holds the outgoing sender
+  // convention, rmethod (r12), and r19 which holds the outgoing sender
   // SP for the interpreter.
-  // TODO 8366717 We need to make sure that buf_array, buf_oop (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register buf_array = r10;   // Array of buffered inline types
   Register buf_oop = r11;     // Buffered inline type oop
   Register tmp1 = r15;
   Register tmp2 = r16;
   Register tmp3 = r17;
+
+#ifndef ASSERT
+  RegSet clobbered_gp_regs = MacroAssembler::call_clobbered_gp_registers();
+  assert(clobbered_gp_regs.contains(buf_array), "buf_array must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(buf_oop), "buf_oop must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp1), "tmp1 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp2), "tmp2 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp3), "tmp3 must be saved explicitly if it's not a clobber");
+#endif
 
   if (InlineTypePassFieldsAsArgs) {
     // Is there an inline type argument?

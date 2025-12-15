@@ -7164,6 +7164,14 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
   // TODO 8366717 We need to make sure that r14 (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register tmp1 = r10;
   Register tmp2 = r11;
+
+#ifndef ASSERT
+  RegSet clobbered_gp_regs = MacroAssembler::call_clobbered_gp_registers();
+  assert(clobbered_gp_regs.contains(tmp1), "tmp1 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp2), "tmp2 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(r14), "r14 must be saved explicitly if it's not a clobber");
+#endif
+
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
