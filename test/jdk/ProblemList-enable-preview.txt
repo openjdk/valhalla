@@ -37,7 +37,3 @@ java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java         8372745 generic-
 java/util/NavigableMap/LockStep.java                            8372824 generic-all
 java/util/Collections/CheckedSetBash.java                       8372824 generic-all
 jdk/internal/misc/CDS/ArchivedEnumTest.java                     8372743 generic-all
-valhalla/valuetypes/ObjectMethodsViaCondy.java                  8369045 macosx-all
-valhalla/valuetypes/ObjectNewInstance.java                      8369045 macosx-all
-valhalla/valuetypes/ProxyTest.java                              8369045 macosx-all
-valhalla/valuetypes/WeakReferenceTest.java                      8369045 macosx-all

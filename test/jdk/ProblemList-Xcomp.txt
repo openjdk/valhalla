@@ -29,3 +29,7 @@
 
 java/lang/invoke/MethodHandles/CatchExceptionTest.java          8146623 generic-all
 java/lang/reflect/callerCache/ReflectionCallerCacheTest.java    8332028 generic-all
+valhalla/valuetypes/ObjectMethodsViaCondy.java                  8369045 macosx-all
+valhalla/valuetypes/ObjectNewInstance.java                      8369045 macosx-all
+valhalla/valuetypes/ProxyTest.java                              8369045 macosx-all
+valhalla/valuetypes/WeakReferenceTest.java                      8369045 macosx-all
