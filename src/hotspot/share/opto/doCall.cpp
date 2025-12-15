@@ -140,7 +140,6 @@ static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
     case vmIntrinsicID::_putReferenceOpaque:
     case vmIntrinsicID::_putReferenceRelease:
     case vmIntrinsicID::_putReferenceVolatile:
-    case vmIntrinsicID::_putValue:
       return true;
     default:
       return false;
