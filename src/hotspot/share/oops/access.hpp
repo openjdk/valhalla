@@ -332,7 +332,7 @@ public:
                        length);
   }
 
-  [[nodiscard]]
+  [[nodiscard]] // The caller is responsible to thow an exception on failure
   static inline OopCopyResult oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
                                             arrayOop dst_obj, size_t dst_offset_in_bytes,
                                             size_t length) {
