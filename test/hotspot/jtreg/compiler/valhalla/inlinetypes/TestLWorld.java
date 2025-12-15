@@ -5167,7 +5167,7 @@ public class TestLWorld {
             // After warmup, check all combinations
             for (int i = 0; i < test178Values.length; ++i) {
                 Value178 val1 = test178Values[i];
-                Asserts.assertTrue(test178(val1, val1));
+                Asserts.assertTrue(test178(val1, val1), "i = " + i + ": " + val1 + " should be equal to itself");
                 for (int j = 0; j < test178Values.length; ++j) {
                     Value178 val2 = test178Values[j];
                     if (i == j) {
@@ -5198,7 +5198,7 @@ public class TestLWorld {
             // After warmup, check all combinations
             for (int i = 0; i < test178Values.length; ++i) {
                 Value178 val1 = test178Values[i];
-                Asserts.assertTrue(test179(val1, val1));
+                Asserts.assertTrue(test179(val1, val1), "i = " + i + ": " + val1 + " should be equal to itself");
                 for (int j = 0; j < test178Values.length; ++j) {
                     Value178 val2 = test178Values[j];
                     if (i == j) {
