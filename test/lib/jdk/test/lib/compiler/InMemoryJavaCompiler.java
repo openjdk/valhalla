@@ -264,13 +264,15 @@ public class InMemoryJavaCompiler {
         if (testOpts.contains("--enable-preview")) {
             opts.add("--enable-preview");
             opts.add("-source");
-            opts.add("26");
+            opts.add(Integer.toString(Runtime.version().feature()));
+
         } else {
             String preview = System.getProperty("test.enable.preview", "");
             if (preview.equals("true")) {
                 opts.add("--enable-preview");
                 opts.add("-source");
-                opts.add("26");
+                opts.add(Integer.toString(Runtime.version().feature()));
+
             }
         }
 
