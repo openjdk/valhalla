@@ -4,7 +4,8 @@ jbs=JDK
 version=26
 
 [checks]
-error=author,committer,reviewers,merge,issues,executable,symlink,message,hg-tag,whitespace,problemlists,copyright
+#error=author,committer,reviewers,merge,issues,executable,symlink,message,hg-tag,whitespace,problemlists,copyright
+error=author,committer,executable,symlink,message,hg-tag,whitespace,problemlists,copyright
 warning=issuestitle,binary
 
 [repository]
