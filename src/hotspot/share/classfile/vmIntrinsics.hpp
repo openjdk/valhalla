@@ -749,8 +749,6 @@ class methodHandle;
   do_signature(putFloat_signature,        "(Ljava/lang/Object;JF)V")                                                    \
   do_signature(getDouble_signature,       "(Ljava/lang/Object;J)D")                                                     \
   do_signature(putDouble_signature,       "(Ljava/lang/Object;JD)V")                                                    \
-  do_signature(getValue_signature,        "(Ljava/lang/Object;JLjava/lang/Class;)Ljava/lang/Object;")                   \
-  do_signature(putValue_signature,        "(Ljava/lang/Object;JLjava/lang/Class;Ljava/lang/Object;)V")                  \
   do_signature(getFlatValue_signature,    "(Ljava/lang/Object;JILjava/lang/Class;)Ljava/lang/Object;")                  \
   do_signature(putFlatValue_signature,    "(Ljava/lang/Object;JILjava/lang/Class;Ljava/lang/Object;)V")                 \
                                                                                                                         \
@@ -777,7 +775,6 @@ class methodHandle;
   do_intrinsic(_getLong,            jdk_internal_misc_Unsafe,     getLong_name, getLong_signature,               F_RN)  \
   do_intrinsic(_getFloat,           jdk_internal_misc_Unsafe,     getFloat_name, getFloat_signature,             F_RN)  \
   do_intrinsic(_getDouble,          jdk_internal_misc_Unsafe,     getDouble_name, getDouble_signature,           F_RN)  \
-  do_intrinsic(_getValue,           jdk_internal_misc_Unsafe,     getValue_name, getValue_signature,             F_RN)  \
   do_intrinsic(_getFlatValue,       jdk_internal_misc_Unsafe,     getFlatValue_name, getFlatValue_signature,     F_RN)  \
   do_intrinsic(_putReference,       jdk_internal_misc_Unsafe,     putReference_name, putReference_signature,     F_RN)  \
   do_intrinsic(_putBoolean,         jdk_internal_misc_Unsafe,     putBoolean_name, putBoolean_signature,         F_RN)  \
@@ -788,7 +785,6 @@ class methodHandle;
   do_intrinsic(_putLong,            jdk_internal_misc_Unsafe,     putLong_name, putLong_signature,               F_RN)  \
   do_intrinsic(_putFloat,           jdk_internal_misc_Unsafe,     putFloat_name, putFloat_signature,             F_RN)  \
   do_intrinsic(_putDouble,          jdk_internal_misc_Unsafe,     putDouble_name, putDouble_signature,           F_RN)  \
-  do_intrinsic(_putValue,           jdk_internal_misc_Unsafe,     putValue_name, putValue_signature,             F_RN)  \
   do_intrinsic(_putFlatValue,       jdk_internal_misc_Unsafe,     putFlatValue_name, putFlatValue_signature,     F_RN)  \
                                                                                                                         \
   do_intrinsic(_makePrivateBuffer,  jdk_internal_misc_Unsafe,     makePrivateBuffer_name, object_object_signature, F_RN)   \
