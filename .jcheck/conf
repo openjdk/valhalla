@@ -4,7 +4,8 @@ jbs=JDK
 version=26
 
 [checks]
-error=author,committer,reviewers,merge,issues,executable,symlink,message,hg-tag,whitespace,problemlists,copyright
+#error=author,committer,reviewers,merge,issues,executable,symlink,message,hg-tag,whitespace,problemlists,copyright
+error=author,committer,executable,symlink,message,hg-tag,whitespace,problemlists,copyright
 warning=issuestitle,binary
 
 [repository]
@@ -27,7 +28,7 @@ ignore=duke
 role=committer
 
 [checks "issues"]
-pattern=^([124-8][0-9]{6}): \[lworld\] (\S.*)$
+pattern=^([124-8][0-9]{6}): \[lw5\] (\S.*)$
 
 [checks "problemlists"]
 dirs=test/jdk|test/langtools|test/lib-test|test/hotspot/jtreg|test/jaxp
