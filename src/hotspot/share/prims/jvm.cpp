@@ -538,7 +538,7 @@ JVM_END
 JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
   // There are multiple cases where an array can/must support atomic access:
   //   - the array is a reference array
-  //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or ATOMIC_FLAT
+  //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or NULL_FREE_ATOMIC_FLAT
   //   - the array is flat and its component type is naturally atomic
   arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
   if (oop->is_refArray()) return true;

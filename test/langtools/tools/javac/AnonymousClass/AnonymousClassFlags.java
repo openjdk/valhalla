@@ -26,6 +26,10 @@
  * @bug 8161013
  * @summary Verify that anonymous class binaries have the correct flags set
  * @modules java.base/jdk.internal.misc
+ * @comment Ensure that that this test is skipped if the test is run on a preview enabled
+            VM as the compiled test class has not been forced into preview mode.
+            Valhalla affects the outcome.
+ * @requires !java.enablePreview
  * @run main AnonymousClassFlags
  */
 
