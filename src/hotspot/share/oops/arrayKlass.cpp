@@ -236,6 +236,19 @@ ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind 
   return props;
 }
 
+  const char* ArrayKlass::array_properties_as_string(ArrayProperties props) {
+    // Caller must have set a ResourceMark
+    stringStream ss;
+    if (props == DEFAULT) {
+      ss.print("DEFAULT (NULLABLE ATOMIC)");
+    } else {
+      ss.print("%s", ((props & NULL_RESTRICTED) != 0) ? "NULL_RESTRICTED " : "NULLABLE ");
+      ss.print("%s", ((props & NON_ATOMIC) != 0) ? "NON_ATOMIC " : "ATOMIC ");
+    }
+    return ss.as_string();
+  }
+
+
 // JVMTI support
 
 jint ArrayKlass::jvmti_class_status() const {

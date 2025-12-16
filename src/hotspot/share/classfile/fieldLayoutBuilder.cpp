@@ -652,7 +652,8 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                          fi->name(_cp)->as_C_string(),
                          fi->signature(_cp)->as_C_string(),
                          ik->name()->as_C_string(),
-                         ik->class_loader_data(), LayoutKindHelper::layout_kind_as_string(b->layout_kind()));
+                         ik->class_loader_data(),
+                         LayoutKindHelper::layout_kind_as_string(b->layout_kind()));
         break;
       }
       case LayoutRawBlock::RESERVED: {
