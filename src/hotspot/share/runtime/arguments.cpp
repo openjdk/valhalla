@@ -2087,7 +2087,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 // Temporary system property to disable preview patching and enable the new preview mode
 // feature for testing/development. Once the preview mode feature is finished, the value
 // will be always 'true' and this code, and all related dead-code can be removed.
-#define DISABLE_PREVIEW_PATCHING_DEFAULT true
+#define DISABLE_PREVIEW_PATCHING_DEFAULT false
 
 bool Arguments::disable_preview_patching() {
   const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
