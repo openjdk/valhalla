@@ -97,6 +97,7 @@ compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
 compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
 compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
 compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
+compiler/valhalla/inlinetypes/TestTrivialMethods.java 8373692 generic-all
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all

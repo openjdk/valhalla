@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,9 @@
 
 #############################################################################
 #
-# List of quarantined tests for testing in Xcomp mode.
+# List of quarantined tests for testing with --enable-preview
 #
 #############################################################################
 
-java/lang/invoke/MethodHandles/CatchExceptionTest.java          8146623 generic-all
-java/lang/reflect/callerCache/ReflectionCallerCacheTest.java    8332028 generic-all
-valhalla/valuetypes/ObjectMethodsViaCondy.java                  8369045 macosx-all
-valhalla/valuetypes/ObjectNewInstance.java                      8369045 macosx-all
-valhalla/valuetypes/ProxyTest.java                              8369045 macosx-all
-valhalla/valuetypes/WeakReferenceTest.java                      8369045 macosx-all
+# Valhalla
+tools/javap/4870651/T4870651.java 8372740 generic-all
