@@ -246,8 +246,7 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    return (!is_unlocked() || !has_no_hash() ||
-      (EnableValhalla && (is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array())));
+    return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
   }
 
   // WARNING: The following routines are used EXCLUSIVELY by
@@ -270,7 +269,7 @@ class markWord {
   }
   ObjectMonitor* monitor() const {
     assert(has_monitor(), "check");
-    assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use markWord for monitors");
+    assert(!UseObjectMonitorTable, "Locking with OM table does not use markWord for monitors");
     // Use xor instead of &~ to provide one extra tag-bit check.
     return (ObjectMonitor*) (value() ^ monitor_value);
   }
@@ -296,7 +295,7 @@ class markWord {
     return from_pointer(lock);
   }
   static markWord encode(ObjectMonitor* monitor) {
-    assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use markWord for monitors");
+    assert(!UseObjectMonitorTable, "Locking with OM table does not use markWord for monitors");
     uintptr_t tmp = (uintptr_t) monitor;
     return markWord(tmp | monitor_value);
   }

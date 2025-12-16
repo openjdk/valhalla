@@ -131,10 +131,10 @@ public class ImageReaderTest {
             assertNode(reader, "/modules/modbar/com/bar/One.class");
 
             ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
-            assertEquals("Class: com.foo.HasPreviewVersion", loader.loadAndGetToString("modfoo", "com.foo.HasPreviewVersion"));
-            assertEquals("Class: com.foo.NormalFoo", loader.loadAndGetToString("modfoo", "com.foo.NormalFoo"));
-            assertEquals("Class: com.foo.bar.NormalBar", loader.loadAndGetToString("modfoo", "com.foo.bar.NormalBar"));
-            assertEquals("Class: com.bar.One", loader.loadAndGetToString("modbar", "com.bar.One"));
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.HasPreviewVersion");
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.NormalFoo");
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.bar.NormalBar");
+            assertNonPreviewVersion(loader, "modbar", "com.bar.One");
         }
     }
 
@@ -230,9 +230,9 @@ public class ImageReaderTest {
             ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
 
             // No preview classes visible.
-            assertEquals("Class: com.foo.HasPreviewVersion", loader.loadAndGetToString("modfoo", "com.foo.HasPreviewVersion"));
-            assertEquals("Class: com.foo.NormalFoo", loader.loadAndGetToString("modfoo", "com.foo.NormalFoo"));
-            assertEquals("Class: com.foo.bar.NormalBar", loader.loadAndGetToString("modfoo", "com.foo.bar.NormalBar"));
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.HasPreviewVersion");
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.NormalFoo");
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.bar.NormalBar");
 
             // NormalBar exists but IsPreviewOnly doesn't.
             assertResource(reader, "modfoo", "com/foo/bar/NormalBar.class");
@@ -248,10 +248,10 @@ public class ImageReaderTest {
             ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
 
             // Preview version of classes either overwrite existing entries or are added to directories.
-            assertEquals("Preview: com.foo.HasPreviewVersion", loader.loadAndGetToString("modfoo", "com.foo.HasPreviewVersion"));
-            assertEquals("Class: com.foo.NormalFoo", loader.loadAndGetToString("modfoo", "com.foo.NormalFoo"));
-            assertEquals("Class: com.foo.bar.NormalBar", loader.loadAndGetToString("modfoo", "com.foo.bar.NormalBar"));
-            assertEquals("Preview: com.foo.bar.IsPreviewOnly", loader.loadAndGetToString("modfoo", "com.foo.bar.IsPreviewOnly"));
+            assertPreviewVersion(loader, "modfoo", "com.foo.HasPreviewVersion");
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.NormalFoo");
+            assertNonPreviewVersion(loader, "modfoo", "com.foo.bar.NormalBar");
+            assertPreviewVersion(loader, "modfoo", "com.foo.bar.IsPreviewOnly");
 
             // Both NormalBar and IsPreviewOnly exist (direct lookup and as child nodes).
             assertResource(reader, "modfoo", "com/foo/bar/NormalBar.class");
@@ -335,9 +335,9 @@ public class ImageReaderTest {
             assertAbsent(reader, "/modules/modfoo/META-INF/preview/com/foo");
             // HasPreviewVersion.class is a preview class in the test data, and thus appears in
             // two places in the jimage). Ensure the preview version is always hidden.
-            String alphaPath = "com/foo/HasPreviewVersion.class";
-            assertNode(reader, "/modules/modfoo/" + alphaPath);
-            assertAbsent(reader, "/modules/modfoo/META-INF/preview/" + alphaPath);
+            String previewPath = "com/foo/HasPreviewVersion.class";
+            assertNode(reader, "/modules/modfoo/" + previewPath);
+            assertAbsent(reader, "/modules/modfoo/META-INF/preview/" + previewPath);
         }
     }
 
@@ -372,6 +372,14 @@ public class ImageReaderTest {
         String nodeName = "/modules/" + modName + "/" + resPath;
         assertEquals(nodeName, resNode.getName());
         assertSame(resNode, reader.findNode(nodeName));
+    }
+
+    private static void assertNonPreviewVersion(ImageClassLoader loader, String module, String fqn) throws IOException {
+        assertEquals("Class: " + fqn, loader.loadAndGetToString(module, fqn));
+    }
+
+    private static void assertPreviewVersion(ImageClassLoader loader, String module, String fqn) throws IOException {
+        assertEquals("Preview: " + fqn, loader.loadAndGetToString(module, fqn));
     }
 
     private static ImageReader.Node assertLink(ImageReader reader, String name) throws IOException {

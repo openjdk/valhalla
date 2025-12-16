@@ -57,7 +57,7 @@ jobs:
 
   prepare:
     name: 'Prepare the run'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       # List of platforms to exclude by default
       EXCLUDED_PLATFORMS: 'alpine-linux-x64'
@@ -216,20 +216,20 @@ jobs:
       dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
     if: needs.prepare.outputs.linux-x64-variants == 'true'
 
-  build-linux-x64-hs-zero:
-    name: linux-x64-hs-zero
-    needs: prepare
-    uses: ./.github/workflows/build-linux.yml
-    with:
-      platform: linux-x64
-      make-target: 'hotspot'
-      debug-levels: '[ "debug" ]'
-      gcc-major-version: '10'
-      extra-conf-options: '--with-jvm-variants=zero --disable-precompiled-headers'
-      configure-arguments: ${{ github.event.inputs.configure-arguments }}
-      make-arguments: ${{ github.event.inputs.make-arguments }}
-      dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
-    if: needs.prepare.outputs.linux-x64-variants == 'true'
+  # build-linux-x64-hs-zero:
+  #   name: linux-x64-hs-zero
+  #   needs: prepare
+  #   uses: ./.github/workflows/build-linux.yml
+  #   with:
+  #     platform: linux-x64
+  #     make-target: 'hotspot'
+  #     debug-levels: '[ "debug" ]'
+  #     gcc-major-version: '10'
+  #     extra-conf-options: '--with-jvm-variants=zero --disable-precompiled-headers'
+  #     configure-arguments: ${{ github.event.inputs.configure-arguments }}
+  #     make-arguments: ${{ github.event.inputs.make-arguments }}
+  #     dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
+  #   if: needs.prepare.outputs.linux-x64-variants == 'true'
 
   build-linux-x64-hs-minimal:
     name: linux-x64-hs-minimal
@@ -405,7 +405,7 @@ jobs:
     with:
       platform: linux-x64
       bootjdk-platform: linux-x64
-      runs-on: ubuntu-22.04
+      runs-on: ubuntu-24.04
       dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
       debug-suffix: -debug
 
@@ -419,7 +419,7 @@ jobs:
     with:
       platform: linux-x64
       bootjdk-platform: linux-x64
-      runs-on: ubuntu-22.04
+      runs-on: ubuntu-24.04
       dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
       static-suffix: "-static"
 

@@ -28,6 +28,7 @@
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @run junit/othervm SubstitutabilityTest
+ * @run junit/othervm -Xshare:off -XX:+UseAltSubstitutabilityMethod SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
@@ -185,6 +186,66 @@ public class SubstitutabilityTest {
             return (boolean) IS_SUBSTITUTABLE.invoke(null, a, b);
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    static value class IntValue {
+        int value;
+
+        static final int[] EDGE_CASES = {
+                0, -1, 1,
+                Integer.MIN_VALUE, Integer.MAX_VALUE
+        };
+
+        public IntValue(int index) {
+            value = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "IntValue(" + value +
+                    ", bits=0x" + Integer.toHexString(value) + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
+    }
+
+    static value class NestedValue {
+        IntValue value;
+
+        static final IntValue[] EDGE_CASES = {
+                null, new IntValue(0), new IntValue(1), new IntValue(2),
+                new IntValue(3), new IntValue(0)
+        };
+
+        public NestedValue(int index) {
+            value = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "NestedValue(" + value + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
+    }
+
+    public static boolean testNestedValue(NestedValue v1, NestedValue v2) {
+        return v1 == v2;
+    }
+
+    @Test
+    void testNestedValue() {
+        // NestedValue
+        for (int i = 0; i < NestedValue.EDGE_CASES.length; ++i) {
+            for (int j = 0; j < NestedValue.EDGE_CASES.length; ++j) {
+                NestedValue val1 = new NestedValue(i);
+                NestedValue val2 = new NestedValue(j);
+                boolean res = testNestedValue(val1, val2);
+                assertEquals(NestedValue.cmp(i, j), res, () -> val1 + " == " + val2);
+            }
         }
     }
 }

@@ -246,8 +246,7 @@ objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, 
     ak, size, length,
     /* do_zero */ true, CHECK_NULL);
   assert(array->is_refArray() || array->is_flatArray(), "Must be");
-  objArrayHandle array_h(THREAD, array);
-  return array_h();
+  return array;
 }
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {

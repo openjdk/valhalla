@@ -94,19 +94,6 @@ void oopDesc::init_mark() {
   set_mark(prototype_mark());
 }
 
-// This is specifically for Parallel GC. The other collectors need klass()->prototype_header()
-// even without using Compact Object Headers. The issue is that this operation is unsafe
-// using Parallel, as there are multiple concurrent GC workers that could access it.
-// In practice, this has lead to relatively frequent crashes.
-// More work needs to be done in the future to consolidate reinit_mark with init_mark.
-void oopDesc::reinit_mark() {
-  if (UseCompactObjectHeaders) {
-    set_mark(klass()->prototype_header());
-  } else {
-    set_mark(markWord::prototype());
-  }
-}
-
 Klass* oopDesc::klass() const {
   switch (ObjLayout::klass_mode()) {
     case ObjLayout::Compact:

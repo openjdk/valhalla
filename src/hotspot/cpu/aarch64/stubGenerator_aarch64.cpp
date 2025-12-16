@@ -1663,7 +1663,7 @@ class StubGenerator: public StubCodeGenerator {
         verify_oop_array(size, d, count, r16);
     }
 
-    bs->arraycopy_epilogue(_masm, decorators, is_oop, d, count, rscratch1, RegSet());
+    bs->arraycopy_epilogue(_masm, decorators, is_oop, d, count, rscratch1);
 
     __ leave();
     __ mov(r0, zr); // return 0
@@ -1823,7 +1823,7 @@ class StubGenerator: public StubCodeGenerator {
       if (VerifyOops)
         verify_oop_array(size, d, count, r16);
     }
-    bs->arraycopy_epilogue(_masm, decorators, is_oop, d, count, rscratch1, RegSet());
+    bs->arraycopy_epilogue(_masm, decorators, is_oop, d, count, rscratch1);
     __ leave();
     __ mov(r0, zr); // return 0
     __ ret(lr);
@@ -1890,7 +1890,6 @@ class StubGenerator: public StubCodeGenerator {
     const Register ckval       = c_rarg4;   // super_klass
 
     RegSet wb_pre_saved_regs = RegSet::range(c_rarg0, c_rarg4);
-    RegSet wb_post_saved_regs = RegSet::of(count);
 
     // Registers used as temps (r19, r20, r21, r22 are save-on-entry)
     const Register copied_oop  = r22;       // actual oop copied
@@ -2016,7 +2015,7 @@ class StubGenerator: public StubCodeGenerator {
     __ br(Assembler::EQ, L_done_pop);
 
     __ BIND(L_do_card_marks);
-    bs->arraycopy_epilogue(_masm, decorators, is_oop, start_to, count_save, rscratch1, wb_post_saved_regs);
+    bs->arraycopy_epilogue(_masm, decorators, is_oop, start_to, count_save, rscratch1);
 
     __ bind(L_done_pop);
     __ pop(RegSet::of(r19, r20, r21, r22), sp);
@@ -2902,7 +2901,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKe (key) in little endian int array
   //
   address generate_aescrypt_encryptBlock() {
     __ align(CodeEntryAlignment);
@@ -2935,7 +2934,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKd (key) in little endian int array
   //
   address generate_aescrypt_decryptBlock() {
     assert(UseAES, "need AES cryptographic extension support");
@@ -2969,7 +2968,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKe (key) in little endian int array
   //   c_rarg3   - r vector byte array address
   //   c_rarg4   - input length
   //
@@ -3074,7 +3073,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKd (key) in little endian int array
   //   c_rarg3   - r vector byte array address
   //   c_rarg4   - input length
   //
@@ -3201,7 +3200,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKe (key) in little endian int array
   //   c_rarg3   - counter vector byte array address
   //   c_rarg4   - input length
   //   c_rarg5   - saved encryptedCounter start

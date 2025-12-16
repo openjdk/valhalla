@@ -241,7 +241,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
-      if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      if (LayoutKindHelper::is_nullable_flat(lk)) {
         if(is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;
         }
@@ -257,7 +257,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
 void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
-    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (!LayoutKindHelper::is_nullable_flat(lk)) {
       THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
     }
     // Writing null to a nullable flat field/element is usually done by writing
@@ -274,7 +274,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     src_addr = payload_addr(null_reset_value());
   } else {
     src_addr = payload_addr(src);
-    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (LayoutKindHelper::is_nullable_flat(lk)) {
       mark_payload_as_non_null((address)src_addr);
     }
   }
@@ -296,6 +296,20 @@ bool InlineKlass::maybe_flat_in_array() {
     return false;
   }
   return true;
+}
+
+bool InlineKlass::is_always_flat_in_array() {
+  if (!UseArrayFlattening) {
+    return false;
+  }
+  // Too many embedded oops
+  if ((FlatArrayElementMaxOops >= 0) && (nonstatic_oop_count() > FlatArrayElementMaxOops)) {
+    return false;
+  }
+
+  // An instance is always flat in an array if we have all layouts. Note that this could change in the future when the
+  // flattening policies are updated or if new APIs are added that allow the creation of reference arrays directly.
+  return has_nullable_atomic_layout() && has_atomic_layout() && has_non_atomic_layout();
 }
 
 // Inline type arguments are not passed by reference, instead each

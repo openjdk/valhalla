@@ -85,11 +85,12 @@ public @interface PreviewFeature {
         // For example, Class-File API became final in JDK 24. As soon as JDK 23 was dropped as
         // the bootstrap JDK, the CLASSFILE_API enum constant became eligible for removal.
         //---
-        @JEP(number=505, title="Structured Concurrency", status="Fifth Preview")
+        @JEP(number=525, title="Structured Concurrency", status="Sixth Preview")
         STRUCTURED_CONCURRENCY,
-        @JEP(number = 502, title = "Stable Values", status = "Preview")
-        STABLE_VALUES,
-        @JEP(number=470, title="PEM Encodings of Cryptographic Objects", status="Preview")
+        @JEP(number = 526, title = "Lazy Constants", status = "Second Preview")
+        LAZY_CONSTANTS,
+        @JEP(number=524, title="PEM Encodings of Cryptographic Objects",
+            status="Second Preview")
         PEM_API,
         LANGUAGE_MODEL,
         /**
