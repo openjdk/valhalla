@@ -92,7 +92,7 @@ class FlatArrayKlass : public ObjArrayKlass {
   static jint array_layout_helper(InlineKlass* vklass, LayoutKind lk); // layout helper for values
 
   // sizing
-  static int header_size()  { return sizeof(FlatArrayKlass)/HeapWordSize; }
+  static int header_size()  { return sizeof(FlatArrayKlass) / wordSize; }
   int size() const override { return ArrayKlass::static_size(header_size()); }
 
   jint max_elements() const;

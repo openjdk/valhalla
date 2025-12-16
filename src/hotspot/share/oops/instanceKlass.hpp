@@ -1036,7 +1036,7 @@ public:
   }
 
   // Sizing (in words)
-  static int header_size()            { return sizeof(InstanceKlass)/wordSize; }
+  static int header_size() { return sizeof(InstanceKlass) / wordSize; }
 
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
@@ -1046,8 +1046,8 @@ public:
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
-           (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
+           (is_interface ? (int)sizeof(Klass*) / wordSize : 0) +
+           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) / wordSize : 0));
   }
 
   int size() const override           { return size(vtable_length(),
