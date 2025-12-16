@@ -154,7 +154,7 @@ public final class JRTIndex implements Closeable {
                 }
                 // Since claim is only called once per instance (during init)
                 // seeing an index that's already claimed should be impossible.
-                Assert.check(!active.owners.add(owner));
+                Assert.check(active.owners.add(owner));
                 return active;
             }
         }
