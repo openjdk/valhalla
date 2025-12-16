@@ -109,13 +109,12 @@ ciConstant ciArray::element_value(int index) {
 // Current value of an element at the specified offset.
 // Returns T_ILLEGAL if there is no element at the given offset.
 ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
-  // precond(!is_flat());
   BasicType elembt = element_basic_type();
-  intptr_t shift = exact_log2(type2aelembytes(elembt));
+  intptr_t shift  = exact_log2(type2aelembytes(elembt));
   intptr_t header = arrayOopDesc::base_offset_in_bytes(elembt);
   intptr_t index = (element_offset - header) >> shift;
-  intptr_t offset = header + ((intptr_t) index << shift);
-  if (offset != element_offset || index != (jint) index || index < 0 || index >= length()) {
+  intptr_t offset = header + ((intptr_t)index << shift);
+  if (offset != element_offset || index != (jint)index || index < 0 || index >= length()) {
     return ciConstant();
   }
   return element_value((jint) index);

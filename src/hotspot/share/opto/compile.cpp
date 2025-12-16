@@ -2124,7 +2124,6 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
     assert(n != nullptr, "unexpected nullptr");
     if (n->is_LoadFlat()) {
       LoadFlatNode* loadn = n->as_LoadFlat();
-      const ciInlineKlass* vk = loadn->vk();
 
       const Type* base_type = igvn.type(loadn->base());
       const TypeOopPtr* oopptr = base_type->isa_oopptr();
@@ -2132,57 +2131,19 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
       ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
       ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
       int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
-#ifndef PRODUCT
-      if (UseNewCode) {
-        tty->print_cr("\n\n<><><><><><><><><><><><><><><><><><><><>");
-        tty->print("- base_type : (%p) ", base_type); if (base_type != nullptr) base_type->dump(); tty->print_cr(""); tty->flush();
-        tty->print("- oopptr    : (%p) ", oopptr); if (oopptr != nullptr) oopptr->dump(); tty->print_cr(""); tty->flush();
-        tty->print("- oop       : (%p) ", oop); if (oop != nullptr) oop->print(); tty->print_cr(""); tty->flush();
-        tty->print("- holder    : (%p) ", holder); if (holder != nullptr) holder->print(); tty->print_cr(""); tty->flush();
-        tty->print("- array     : (%p) ", array); if (array != nullptr) array->print(); tty->print_cr(""); tty->flush();
-        tty->print("- off       : %d", off); tty->print_cr(""); tty->flush();
-      }
-#endif
 
       bool non_atomic_is_fine = false;
       if (holder != nullptr) {
         ciKlass* klass = holder->klass();
         ciInstanceKlass* iklass = klass->as_instance_klass();
         ciField* field = iklass->get_non_flat_field_by_offset(off);
-        // instead of field->null_marker_offset():
-        // int nm_offset = off + vk->null_marker_offset_in_payload();
         ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
         ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
-        if (UseNewCode) {
-#ifndef PRODUCT
-          tty->print("- klass     : (%p) ", klass); if (klass != nullptr) klass->print(); tty->print_cr(""); tty->flush();
-          tty->print("- field     : (%p) ", field); if (field != nullptr) field->print(); tty->print_cr(""); tty->flush();
-          tty->print("- nm_field  : (%p) ", nm_field); if (nm_field != nullptr) nm_field->print(); tty->print_cr(""); tty->flush();
-          tty->print("- cst       : "); cst.print(); tty->print_cr(""); tty->flush();
-#endif
-        }
         non_atomic_is_fine = FoldStableValues && field->is_stable() && cst.is_valid() && cst.as_boolean();
-      }
-      if (array != nullptr) {
+      } else if (array != nullptr) {
         const TypeAryPtr* aryptr = oopptr->is_aryptr();
-        //ciFlatArrayKlass* klass = array->klass()->as_flat_array_klass();
-        //ciConstant elt = array->element_value_by_offset(off);
         ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
-        // ciType* elt_type = array->element_type();
-        // array->get_arrayOop();
-        if (UseNewCode) {
-#ifndef PRODUCT
-          tty->print("- aryptr    : (%p) ", aryptr); if (aryptr != nullptr) aryptr->dump(); tty->print_cr(""); tty->flush();
-       // tty->print("- klass     : (%p) ", klass); if (klass != nullptr) klass->print(); tty->print_cr(""); tty->flush();
-          tty->print("- elt       : "); elt.print(); tty->print_cr(""); tty->flush();
-       // tty->print("- elt_type  : "); elt_type->print(); tty->print_cr(""); tty->flush();
-#endif
-        }
         non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
-      }
-
-      if (UseNewCode) {
-        tty->print_cr("[][][][][][][][][][][][][][][][][][][][]");
       }
 
       if (non_atomic_is_fine) {

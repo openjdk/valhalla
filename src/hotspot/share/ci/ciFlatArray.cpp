@@ -66,9 +66,6 @@ void ciFlatArray::add_to_constant_null_marker_cache(int off, ciConstant val) {
   _constant_null_markers->append(ConstantValue(off, val));
 }
 
-// ------------------------------------------------------------------
-// ciArray::element_value
-//
 // Current value of an element.
 // Returns T_ILLEGAL if there is no element at the given index.
 ciConstant ciFlatArray::null_marker_of_element_by_index(int index) {
@@ -83,12 +80,11 @@ ciConstant ciFlatArray::null_marker_of_element_by_index(int index) {
 }
 
 ciConstant ciFlatArray::null_marker_of_element_by_offset(intptr_t element_offset) {
-  BasicType elembt = element_basic_type();
   FlatArrayKlass* faklass;
   GUARDED_VM_ENTRY(faklass = FlatArrayKlass::cast(get_arrayOop()->klass());)
   int lh = faklass->layout_helper();
   int shift = Klass::layout_helper_log2_element_size(lh);
-  intptr_t header = arrayOopDesc::base_offset_in_bytes(elembt);
+  intptr_t header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   intptr_t index = (element_offset - header) >> shift;
   intptr_t offset = header + (index << shift);
   if (offset != element_offset || index != (jint) index || index < 0 || index >= length()) {
@@ -98,12 +94,11 @@ ciConstant ciFlatArray::null_marker_of_element_by_offset(intptr_t element_offset
 }
 
 ciConstant ciFlatArray::element_value_by_offset(intptr_t element_offset) {
-  BasicType elembt = element_basic_type();
   FlatArrayKlass* faklass;
   GUARDED_VM_ENTRY(faklass = FlatArrayKlass::cast(get_arrayOop()->klass());)
   int lh = faklass->layout_helper();
   int shift = Klass::layout_helper_log2_element_size(lh);
-  intptr_t header = arrayOopDesc::base_offset_in_bytes(elembt);
+  intptr_t header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   intptr_t index = (element_offset - header) >> shift;
   intptr_t offset = header + (index << shift);
   if (offset != element_offset || index != (jint) index || index < 0 || index >= length()) {
@@ -129,33 +124,10 @@ ciConstant ciFlatArray::field_value_by_offset(intptr_t field_offset) {
     }
   }
 
-  if (UseNewCode) {
-    tty->print_cr("\n\n{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}");
-    tty->print("this: "); this->print(); tty->print_cr(""); tty->flush();
-    tty->print("field_offset: %ld", field_offset); tty->print_cr(""); tty->flush();
-    tty->print("elt_type: "); elt_type->print(); tty->print_cr(""); tty->flush();
-    tty->print("shift: %d", shift); tty->print_cr(""); tty->flush();
-    tty->print("header: %ld", header); tty->print_cr(""); tty->flush();
-    tty->print("index: %ld", index); tty->print_cr(""); tty->flush();
-    tty->print("element_offset: %ld", element_offset); tty->print_cr(""); tty->flush();
-    tty->print("field_offset_in_element: %d", field_offset_in_element); tty->print_cr(""); tty->flush();
-
-    for (int i = 0; i < elt_type->nof_nonstatic_fields(); ++i) {
-      tty->print("field (%d): ", i); elt_type->nonstatic_field_at(i)->print(); tty->print_cr(""); tty->flush();
-    }
-
-    tty->print("field: (%p) ", field); if (field != nullptr) field->print(); tty->print_cr(""); tty->flush();
-  }
-
   if (index != (jint) index || index < 0 || index >= length()) {
     return ciConstant();
   }
   ciConstant elt = field_value((jint) index, field);
-
-  if (UseNewCode) {
-    tty->print("elt: "); elt.print();  tty->print_cr(""); tty->flush();
-    tty->print_cr("[][][][][][][][][][][][][][][][][][][][]");
-  }
 
   return elt;
 }
@@ -164,9 +136,6 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
   BasicType elembt = element_basic_type();
   ciConstant value = check_constant_value_cache(index, elembt);
   if (value.is_valid()) {
-    if (UseNewCode) {
-      tty->print("cached value: "); value.print();  tty->print_cr(""); tty->flush();
-    }
     if (field == nullptr) {
       return value.as_object()->as_instance()->null_marker_value();
     }
@@ -176,9 +145,6 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
     value = element_value_impl(T_OBJECT, get_arrayOop(), index);
   )
 
-  if (UseNewCode) {
-    tty->print("value: "); value.print();  tty->print_cr(""); tty->flush();
-  }
   add_to_constant_value_cache(index, value);
 
   if (field == nullptr) {

@@ -433,16 +433,8 @@ const Type* Type::make_constant_from_field(ciInstance* holder, int off, bool is_
     // Instance field
     field = holder->klass()->as_instance_klass()->get_field_by_offset(off, /*is_static=*/false);
   }
-  if (UseNewCode) {
-    tty->print_cr("field: %p", field);
-  }
   if (field == nullptr) {
     return nullptr; // Wrong offset
-  }
-  if (UseNewCode) {
-    tty->print("field: ");
-    field->print();
-    tty->print_cr("");
   }
   return Type::make_constant_from_field(field, holder, loadbt, is_unsigned_load);
 }
