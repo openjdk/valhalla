@@ -98,7 +98,7 @@ public class ReplaceCriticalClasses {
             // Replace classes that are loaded after JVMTI_PHASE_PRIMORDIAL. It's OK to replace
             // such
             // classes even when CDS is enabled. Nothing bad should happen.
-            "-notshared java/util/Locale",
+            "-notshared java/util/Calendar",
             "-notshared sun/util/locale/BaseLocale",
         };
         return tests;
