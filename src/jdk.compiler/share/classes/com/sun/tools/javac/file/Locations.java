@@ -169,7 +169,7 @@ public class Locations {
         }
         if (list.nonEmpty()) {
             IOException ex = new IOException();
-            for (IOException e : list)
+            for (IOException e: list)
                 ex.addSuppressed(e);
             throw ex;
         }
@@ -218,7 +218,7 @@ public class Locations {
      */
     private Iterable<Path> getPathEntries(String searchPath, Path emptyPathDefault) {
         ListBuffer<Path> entries = new ListBuffer<>();
-        for (String s : searchPath.split(Pattern.quote(File.pathSeparator), -1)) {
+        for (String s: searchPath.split(Pattern.quote(File.pathSeparator), -1)) {
             if (s.isEmpty()) {
                 if (emptyPathDefault != null) {
                     entries.add(emptyPathDefault);
@@ -386,13 +386,13 @@ public class Locations {
 
             if (fsInfo.isFile(file)) {
                 /* File is an ordinary file. */
-                if (!file.getFileName().toString().endsWith(".jmod")
-                        && !file.endsWith("modules")) {
+                if (   !file.getFileName().toString().endsWith(".jmod")
+                    && !file.endsWith("modules")) {
                     if (!isArchive(file)) {
                         /* Not a recognized extension; open it to see if
                          it looks like a valid zip file. */
                         try {
-                            FileSystems.newFileSystem(file, (ClassLoader) null).close();
+                            FileSystems.newFileSystem(file, (ClassLoader)null).close();
                             if (warn) {
                                 log.warning(LintWarnings.UnexpectedArchiveFile(file));
                             }
@@ -406,7 +406,7 @@ public class Locations {
                     } else {
                         if (fsInfo.getJarFSProvider() == null) {
                             log.error(Errors.NoZipfsForArchive(file));
-                            return;
+                            return ;
                         }
                     }
                 }
@@ -490,7 +490,7 @@ public class Locations {
         /**
          * @see JavaFileManager#getLocationForModule(Location, JavaFileObject)
          */
-        Location getLocationForModule(Path file) throws IOException {
+        Location getLocationForModule(Path file) throws IOException  {
             return null;
         }
 
@@ -926,7 +926,7 @@ public class Locations {
                 path.addDirectories(extdirsOpt);
             } else {
                 // Add lib/jfxrt.jar to the search path
-                Path jfxrt = javaHome.resolve("lib/jfxrt.jar");
+               Path jfxrt = javaHome.resolve("lib/jfxrt.jar");
                 if (Files.exists(jfxrt)) {
                     path.addFile(jfxrt, false);
                 }
@@ -934,9 +934,9 @@ public class Locations {
             }
 
             isDefault =
-                    (xbootclasspathPrependOpt == null)
-                            && (bootclasspathOpt == null)
-                            && (xbootclasspathAppendOpt == null);
+                       (xbootclasspathPrependOpt == null)
+                    && (bootclasspathOpt == null)
+                    && (xbootclasspathAppendOpt == null);
 
             return path;
         }
@@ -999,7 +999,7 @@ public class Locations {
         Collection<Path> searchPath;
 
         ModuleLocationHandler(LocationHandler parent, String name, String moduleName,
-                              Collection<Path> searchPath, boolean output) {
+                Collection<Path> searchPath, boolean output) {
             this.parent = parent;
             this.name = name;
             this.moduleName = moduleName;
@@ -1007,26 +1007,22 @@ public class Locations {
             this.output = output;
         }
 
-        @Override
-        @DefinedBy(Api.COMPILER)
+        @Override @DefinedBy(Api.COMPILER)
         public String getName() {
             return name;
         }
 
-        @Override
-        @DefinedBy(Api.COMPILER)
+        @Override @DefinedBy(Api.COMPILER)
         public boolean isOutputLocation() {
             return output;
         }
 
-        @Override
-            // defined by LocationHandler
+        @Override // defined by LocationHandler
         boolean handleOption(Option option, String value) {
             throw new UnsupportedOperationException();
         }
 
-        @Override
-            // defined by LocationHandler
+        @Override // defined by LocationHandler
         Collection<Path> getPaths() {
             return Collections.unmodifiableCollection(searchPath);
         }
@@ -1036,21 +1032,18 @@ public class Locations {
             return true;
         }
 
-        @Override
-            // defined by LocationHandler
+        @Override // defined by LocationHandler
         void setPaths(Iterable<? extends Path> paths) throws IOException {
             // defer to the parent to determine if this is acceptable
             parent.setPathsForModule(moduleName, paths);
         }
 
-        @Override
-            // defined by LocationHandler
+        @Override // defined by LocationHandler
         void setPathsForModule(String moduleName, Iterable<? extends Path> paths) {
             throw new UnsupportedOperationException("not supported for " + name);
         }
 
-        @Override
-            // defined by LocationHandler
+        @Override // defined by LocationHandler
         String inferModuleName() {
             return moduleName;
         }
@@ -1083,7 +1076,7 @@ public class Locations {
         void updatePaths(ModuleLocationHandler h) {
             // use iterator, to be able to remove old entries
             for (Iterator<Map.Entry<Path, ModuleLocationHandler>> iter = pathMap.entrySet().iterator();
-                 iter.hasNext(); ) {
+                    iter.hasNext(); ) {
                 Map.Entry<Path, ModuleLocationHandler> e = iter.next();
                 if (e.getValue() == h) {
                     iter.remove();
@@ -1130,10 +1123,10 @@ public class Locations {
 
         Set<Location> explicitLocations() {
             return Collections.unmodifiableSet(nameMap.entrySet()
-                    .stream()
-                    .filter(e -> e.getValue().explicit)
-                    .map(e -> e.getValue())
-                    .collect(Collectors.toSet()));
+                                                      .stream()
+                                                      .filter(e -> e.getValue().explicit)
+                                                      .map(e -> e.getValue())
+                                                      .collect(Collectors.toSet()));
         }
     }
 
@@ -1183,8 +1176,8 @@ public class Locations {
             Iterable<Set<Location>> searchPathLocations =
                     () -> new ModulePathIterator();
             return () -> Iterators.createCompoundIterator(Arrays.asList(explicitLocationsList,
-                            searchPathLocations),
-                    Iterable::iterator);
+                                                                        searchPathLocations),
+                                                          Iterable::iterator);
         }
 
         @Override
@@ -1198,7 +1191,7 @@ public class Locations {
         @Override
         void setPaths(Iterable<? extends Path> paths) {
             if (paths != null) {
-                for (Path p : paths) {
+                for (Path p: paths) {
                     checkValidModulePathEntry(p);
                 }
             }
@@ -1217,7 +1210,7 @@ public class Locations {
                 l = new ModuleLocationHandler(this, location.getName() + "[" + name + "]",
                         name, checkedPaths, true);
                 moduleTable.add(l);
-            } else {
+           } else {
                 l.searchPath = checkedPaths;
                 moduleTable.updatePaths(l);
             }
@@ -1315,7 +1308,7 @@ public class Locations {
                 Set<Path> paths = new LinkedHashSet<>();
                 Path moduleInfoClass = null;
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
-                    for (Path entry : stream) {
+                    for (Path entry: stream) {
                         if (entry.endsWith("module-info.class")) {
                             moduleInfoClass = entry;
                             break;  // no need to continue scanning
@@ -1352,7 +1345,7 @@ public class Locations {
                 Set<Location> result = new LinkedHashSet<>();
                 int index = 0;
                 for (Path entry : paths) {
-                    Pair<String, Path> module = inferModuleName(entry);
+                    Pair<String,Path> module = inferModuleName(entry);
                     if (module == null) {
                         // diagnostic reported if necessary; skip to next
                         continue;
@@ -1370,7 +1363,7 @@ public class Locations {
             }
 
             private Set<Location> scanFile(Path path) {
-                Pair<String, Path> module = inferModuleName(path);
+                Pair<String,Path> module = inferModuleName(path);
                 if (module == null) {
                     // diagnostic reported if necessary
                     return Collections.emptySet();
@@ -1385,10 +1378,10 @@ public class Locations {
                 return Collections.singleton(l);
             }
 
-            private Pair<String, Path> inferModuleName(Path p) {
+            private Pair<String,Path> inferModuleName(Path p) {
                 if (Files.isDirectory(p)) {
                     if (Files.exists(p.resolve("module-info.class")) ||
-                            Files.exists(p.resolve("module-info.sig"))) {
+                        Files.exists(p.resolve("module-info.sig"))) {
                         String name = p.getFileName().toString();
                         if (SourceVersion.isName(name))
                             return new Pair<>(name, p);
@@ -1439,7 +1432,7 @@ public class Locations {
                     //from ModulePath.deriveModuleDescriptor:
 
                     // drop .jar
-                    String mn = fn.substring(0, fn.length() - 4);
+                    String mn = fn.substring(0, fn.length()-4);
 
                     // find first occurrence of -${NUMBER}. or -${NUMBER}$
                     Matcher matcher = Pattern.compile("-(\\d+(\\.|$))").matcher(mn);
@@ -1450,7 +1443,7 @@ public class Locations {
                     }
 
                     // finally clean up the module name
-                    mn = mn.replaceAll("[^A-Za-z0-9]", ".")  // replace non-alphanumeric
+                    mn =  mn.replaceAll("[^A-Za-z0-9]", ".")  // replace non-alphanumeric
                             .replaceAll("(\\.)(\\1)+", ".")   // collapse repeating dots
                             .replaceAll("^\\.", "")           // drop leading dots
                             .replaceAll("\\.$", "");          // drop trailing dots
@@ -1524,7 +1517,7 @@ public class Locations {
                 String id = name.substring(off, next);
                 if (!SourceVersion.isName(id))
                     return false;
-                off = next + 1;
+                off = next+1;
             }
             String last = name.substring(off);
             return SourceVersion.isName(last);
@@ -1604,7 +1597,7 @@ public class Locations {
          */
         void initFromPattern(String value) {
             Collection<String> segments = new ArrayList<>();
-            for (String s : value.split(File.pathSeparator)) {
+            for (String s: value.split(File.pathSeparator)) {
                 expandBraces(s, segments);
             }
 
@@ -1612,7 +1605,7 @@ public class Locations {
             List<Path> noSuffixPaths = new ArrayList<>();
             boolean anySuffix = false;
             final String MARKER = "*";
-            for (String seg : segments) {
+            for (String seg: segments) {
                 int markStart = seg.indexOf(MARKER);
                 if (markStart == -1) {
                     Path p = getPath(seg);
@@ -1658,8 +1651,8 @@ public class Locations {
             });
         }
         //where:
-        private final Predicate<Path> checkModuleInfo =
-                p -> Files.exists(p.resolve("module-info.java"));
+            private final Predicate<Path> checkModuleInfo =
+                    p -> Files.exists(p.resolve("module-info.java"));
 
 
         private boolean isSeparator(char ch) {
@@ -1670,12 +1663,12 @@ public class Locations {
         void add(Map<String, List<Path>> map, Path prefix, Path suffix) {
             if (!Files.isDirectory(prefix)) {
                 log.warning(Files.exists(prefix) ?
-                        LintWarnings.DirPathElementNotDirectory(prefix) :
-                        LintWarnings.DirPathElementNotFound(prefix));
+                    LintWarnings.DirPathElementNotDirectory(prefix) :
+                    LintWarnings.DirPathElementNotFound(prefix));
                 return;
             }
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(prefix, path -> Files.isDirectory(path))) {
-                for (Path entry : stream) {
+                for (Path entry: stream) {
                     Path path = (suffix == null) ? entry : entry.resolve(suffix);
                     if (Files.isDirectory(path)) {
                         String name = entry.getFileName().toString();
@@ -1797,7 +1790,7 @@ public class Locations {
                         validPaths,
                         true);
                 moduleTable.add(l);
-            } else {
+           } else {
                 l.searchPath = validPaths;
                 moduleTable.updatePaths(l);
             }
@@ -1897,7 +1890,7 @@ public class Locations {
                         checkedPaths,
                         true);
                 moduleTable.add(l);
-            } else {
+           } else {
                 l.searchPath = checkedPaths;
                 moduleTable.updatePaths(l);
             }
@@ -1988,7 +1981,7 @@ public class Locations {
                             URL jfsJar = resolveInJavaHomeLib(systemJavaHome, "jrt-fs.jar").toUri().toURL();
                             ClassLoader currentLoader = Locations.class.getClassLoader();
                             URLClassLoader fsLoader =
-                                    new URLClassLoader(new URL[]{jfsJar}, currentLoader);
+                                    new URLClassLoader(new URL[] {jfsJar}, currentLoader);
 
                             jrtfs = FileSystems.newFileSystem(jrtURI, Collections.emptyMap(), fsLoader);
 
@@ -2076,8 +2069,7 @@ public class Locations {
             throw new UnsupportedOperationException();
         }
 
-        @Override
-            // defined by LocationHandler
+        @Override // defined by LocationHandler
         void setPathsForModule(String moduleName, Iterable<? extends Path> files) throws IOException {
             throw new UnsupportedOperationException(); // not yet
         }
@@ -2111,19 +2103,19 @@ public class Locations {
         handlersForOption = new EnumMap<>(Option.class);
 
         BasicLocationHandler[] handlers = {
-                new BootClassPathLocationHandler(),
-                new ClassPathLocationHandler(),
-                new SimpleLocationHandler(StandardLocation.SOURCE_PATH, Option.SOURCE_PATH),
-                new SimpleLocationHandler(StandardLocation.ANNOTATION_PROCESSOR_PATH, Option.PROCESSOR_PATH),
-                new SimpleLocationHandler(StandardLocation.ANNOTATION_PROCESSOR_MODULE_PATH, Option.PROCESSOR_MODULE_PATH),
-                new OutputLocationHandler(StandardLocation.CLASS_OUTPUT, Option.D),
-                new OutputLocationHandler(StandardLocation.SOURCE_OUTPUT, Option.S),
-                new OutputLocationHandler(StandardLocation.NATIVE_HEADER_OUTPUT, Option.H),
-                new ModuleSourcePathLocationHandler(),
-                new PatchModulesLocationHandler(),
-                new ModulePathLocationHandler(StandardLocation.UPGRADE_MODULE_PATH, Option.UPGRADE_MODULE_PATH),
-                new ModulePathLocationHandler(StandardLocation.MODULE_PATH, Option.MODULE_PATH),
-                new SystemModulesLocationHandler(),
+            new BootClassPathLocationHandler(),
+            new ClassPathLocationHandler(),
+            new SimpleLocationHandler(StandardLocation.SOURCE_PATH, Option.SOURCE_PATH),
+            new SimpleLocationHandler(StandardLocation.ANNOTATION_PROCESSOR_PATH, Option.PROCESSOR_PATH),
+            new SimpleLocationHandler(StandardLocation.ANNOTATION_PROCESSOR_MODULE_PATH, Option.PROCESSOR_MODULE_PATH),
+            new OutputLocationHandler(StandardLocation.CLASS_OUTPUT, Option.D),
+            new OutputLocationHandler(StandardLocation.SOURCE_OUTPUT, Option.S),
+            new OutputLocationHandler(StandardLocation.NATIVE_HEADER_OUTPUT, Option.H),
+            new ModuleSourcePathLocationHandler(),
+            new PatchModulesLocationHandler(),
+            new ModulePathLocationHandler(StandardLocation.UPGRADE_MODULE_PATH, Option.UPGRADE_MODULE_PATH),
+            new ModulePathLocationHandler(StandardLocation.MODULE_PATH, Option.MODULE_PATH),
+            new SystemModulesLocationHandler(),
         };
 
         for (BasicLocationHandler h : handlers) {
@@ -2186,7 +2178,7 @@ public class Locations {
     }
 
     void setLocationForModule(Location location, String moduleName,
-                              Iterable<? extends Path> files) throws IOException {
+            Iterable<? extends Path> files) throws IOException {
         LocationHandler h = getHandler(location);
         if (h == null) {
             if (location.isOutputLocation()) {
