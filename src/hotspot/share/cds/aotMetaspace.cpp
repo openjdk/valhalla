@@ -583,7 +583,7 @@ static void rewrite_bytecodes(const methodHandle& method) {
           // fallthrough
         case ztos: new_code = Bytecodes::_fast_bgetfield; break;
         case atos: {
-          if (rfe->is_flat() || rfe->is_null_free_inline_type()) {
+          if (rfe->is_flat()) {
             new_code = Bytecodes::_fast_vgetfield;
           } else {
             new_code = Bytecodes::_fast_agetfield;
