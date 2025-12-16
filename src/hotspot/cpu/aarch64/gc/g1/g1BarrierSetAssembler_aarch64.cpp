@@ -213,9 +213,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   // conventions for inline types. Save all argument registers before calling
   // into the runtime.
 
-  // TODO 8366717 This came with 8284161: Implementation of Virtual Threads (Preview) later in May 2022
-  // Check if it's sufficient
-  assert_different_registers(rscratch1, pre_val); // push_CPU_state trashes rscratch1
+  assert_different_registers(rscratch1, pre_val); // push_call_clobbered_registers trashes rscratch1
   __ push_call_clobbered_registers();
 
   // Calling the runtime using the regular call_VM_leaf mechanism generates
