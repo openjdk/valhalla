@@ -157,8 +157,6 @@ runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774       
 runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
 
 # Valhalla + AOT
-runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8369043 generic-aarch64
-runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8369043 generic-aarch64
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
