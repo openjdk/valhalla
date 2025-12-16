@@ -93,6 +93,7 @@ class LayoutKindHelper : AllStatic {
   static bool is_nullable_flat(LayoutKind lk) {
     return lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
+  static const char* layout_kind_as_string(LayoutKind lk);
 };
 
 #endif // SHARE_OOPS_LAYOUTKIND_HPP
