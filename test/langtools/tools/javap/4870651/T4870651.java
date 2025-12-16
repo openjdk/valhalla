@@ -22,24 +22,24 @@
  */
 
 /*
- * @test id=nopreview
+ * @test id=zeroClass
  * @bug 4870651 6715757
  * @summary javap should recognize generics, varargs, enum;
  *          javap prints "extends java.lang.Object"
  * @modules jdk.jdeps/com.sun.tools.javap
  * @compile Test.java
- * @run main/othervm -Dpreview=false T4870651
+ * @run main/othervm -DpreviewClass=false T4870651
  * @comment runtime in preview or not should not affect javac/javap behavior
  */
 
 /*
- * @test id=preview
+ * @test id=previewClass
  * @bug 4870651 6715757
  * @summary javap should recognize generics, varargs, enum;
  *          javap prints "extends java.lang.Object"
  * @modules jdk.jdeps/com.sun.tools.javap
  * @compile --enable-preview -source ${jdk.version} -XDforcePreview Test.java
- * @run main/othervm -Dpreview=true T4870651
+ * @run main/othervm -DpreviewClass=true T4870651
  * @comment runtime in preview or not should not affect javac/javap behavior
  */
 
@@ -58,7 +58,7 @@ public class T4870651 {
                "v1(java.lang.String...)");
 
         verify("Test$Enum",
-               Boolean.getBoolean("preview")
+               Boolean.getBoolean("previewClass") // .65535 instead of .0
                        ? "flags: (0x4030) ACC_FINAL, ACC_IDENTITY, ACC_ENUM"
                        : "flags: (0x4030) ACC_FINAL, ACC_SUPER, ACC_ENUM",
                "flags: (0x4019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL, ACC_ENUM");
