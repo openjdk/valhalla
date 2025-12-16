@@ -26,7 +26,6 @@
 #define SHARE_CDS_CDSCONFIG_HPP
 
 #include "memory/allStatic.hpp"
-#include "runtime/arguments.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 

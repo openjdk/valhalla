@@ -6144,7 +6144,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                   _class_name->as_klass_external_name()));
   }
 
-  // Determining is the class allows tearing or not (default is not)
+  // Determining if the class allows tearing or not (default is not)
   if (Arguments::is_valhalla_enabled() && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
