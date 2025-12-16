@@ -2102,7 +2102,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 // See also:
 // * src/java.base/share/classes/jdk/internal/jimage/PreviewMode.java
 // * src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java
-#define DISABLE_PREVIEW_PATCHING_DEFAULT false
+#define DISABLE_PREVIEW_PATCHING_DEFAULT true
 
 bool Arguments::disable_preview_patching() {
   const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
