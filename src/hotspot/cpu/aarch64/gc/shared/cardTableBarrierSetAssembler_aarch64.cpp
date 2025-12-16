@@ -113,19 +113,14 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
   if (needs_post_barrier) {
     // flatten object address if needed
     if (!precise || (dst.index() == noreg && dst.offset() == 0)) {
-#if 0
       if (tmp3 != noreg) {
-        // TODO 8366717 This change is from before the 'tmp3' arg was added to mainline, check if it's still needed. Same on x64. Also, this should be a __ lea
         // Called by MacroAssembler::pack_inline_helper. We cannot corrupt the dst.base() register
         __ mov(tmp3, dst.base());
         store_check(masm, tmp3, dst);
       } else {
-#endif
         // It's OK to corrupt the dst.base() register.
         store_check(masm, dst.base(), dst);
-#if 0
       }
-#endif
     } else {
       __ lea(tmp3, dst);
       store_check(masm, tmp3, dst);
