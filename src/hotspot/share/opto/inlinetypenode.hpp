@@ -141,7 +141,7 @@ public:
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // TODO
-  void acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* other, int base_offset = 0);
+  void acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr);
 
   // Allocates the inline type (if not yet allocated)
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);

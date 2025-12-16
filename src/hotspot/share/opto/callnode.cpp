@@ -1220,10 +1220,14 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
       Node* ctrl = control();
 
-      // Invariant from parse time checks: Both operands are non-null and have the same types
-      other = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, other, vt->bottom_type()));
-
-      vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), other);
+      Node* base = other;
+      Node* ptr = other;
+      if (!base->is_InlineType()) {
+        // Invariant from parse time checks: Both operands are non-null and have the same types
+        base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
+        ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, base, igvn->MakeConX(vt->bottom_type()->inline_klass()->payload_offset())));
+      }
+      vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
 
       // All equal
       region->add_req(ctrl);

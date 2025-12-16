@@ -660,50 +660,57 @@ static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node
   *ctrl = if_f;
 }
 
-void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* other, int base_offset) {
+void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  DecoratorSet decorators = C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD | IN_HEAP | C2_UNKNOWN_CONTROL_LOAD;
+  // TODO double-check
+  // DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
+  DecoratorSet decorators = MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD | IN_HEAP | C2_UNKNOWN_CONTROL_LOAD;
   MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
 
+  ciInlineKlass* vk = inline_klass();
   for (uint i = 0; i < field_count(); i++) {
+    int field_off = field_offset(i) - vk->payload_offset();
     Node* val1 = field_value(i);
     ciType* ft = field_type(i);
     BasicType bt = ft->basic_type();
 
-    Node* val2 = other;
-    if (val2->is_InlineType()) {
-      val2 = val2->as_InlineType()->field_value(i);
+    Node* field_base = base;
+    Node* field_ptr = ptr;
+
+    if (ptr->is_InlineType()) {
+      field_ptr = ptr->as_InlineType()->field_value(i);
+      field_base = nullptr;
     } else if (!field_is_flat(i)) {
-      Node* offset = igvn->MakeConX(base_offset + field_offset(i));
-      Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(val2, val2, offset));
+      assert(base != nullptr, "lost base");
+      Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(field_off)));
+      assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
       const Type* val_type = Type::get_const_type(ft);
 
       C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
-      C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, adr->in(AddPNode::Base), addr);
-      val2 = bs->load_at(access, val_type);
-      *ctrl = access.ctl();
+      C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
+      field_ptr = bs->load_at(access, val_type);
+      field_base = field_ptr;
     }
 
+    // TODO is this correct? Couldn't val1 be an inline type but the field be an Object?
+    // TODO what if val1 is not an inline type but the field type is?
     if (val1->is_InlineType()) {
       RegionNode* doneRegion = new RegionNode(1);
       int foffset = 0;
       if (field_is_flat(i)) {
-        foffset = base_offset + field_offset(i) - ft->as_inline_klass()->payload_offset();
-
         if (!field_is_null_free(i)) {
           Node* nm = nullptr;
-          if (val2->is_InlineType()) {
+          if (field_ptr->is_InlineType()) {
             // TODO shouldn't below access just be folded? Apparently it's not.
-            nm = val2->as_InlineType()->get_null_marker();
+            nm = field_ptr->as_InlineType()->get_null_marker();
           } else {
-            int nm_offset = foffset + ft->as_inline_klass()->payload_offset() + ft->as_inline_klass()->null_marker_offset_in_payload();
-            Node* offset = igvn->MakeConX(nm_offset);
-            Node* adr = igvn->transform(new AddPNode(val2, val2, offset));
+            int nm_offset = field_off + ft->as_inline_klass()->null_marker_offset_in_payload();
+            assert(base != nullptr, "lost base");
+            Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(nm_offset)));
 
             C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
-            C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, adr->in(AddPNode::Base), addr);
+            C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
             nm = bs->load_at(access, TypeInt::BOOL);
-            *ctrl = access.ctl();
           }
 
           // Return false if null markers are not equal
@@ -712,23 +719,47 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
           // TODO skip here
           // Both might be null here, we still compare the fields but they will be zero, right?
         }
+        if (!field_ptr->is_InlineType()) {
+          assert(base != nullptr, "lost base");
+          field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(field_base, field_ptr, igvn->MakeConX(field_off)));
+        }
       } else {
-        // Check if both val1 and val2 are null and if so, skip comparing the fields
-        check_helper(igvn, doneRegion, nullptr, ctrl, T_OBJECT, BoolTest::eq, val1, val2, nullptr);
 
-        // Not both null, if one is null return false
-        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, val1, igvn->zerocon(T_OBJECT), igvn->intcon(0));
-        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, val2, igvn->zerocon(T_OBJECT), igvn->intcon(0));
+        RegionNode* nullRegion = new RegionNode(1);
+
+        check_helper(igvn, nullRegion, nullptr, ctrl, T_INT, BoolTest::ne, val1->as_InlineType()->get_null_marker(), igvn->intcon(0), nullptr);
+
+        // Left is null
+
+        // If other is non-null, return false
+        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, field_ptr, igvn->zerocon(T_OBJECT), igvn->intcon(0));
+
+        // Both null, skip comparing the fields
+        doneRegion->add_req(*ctrl);
+
+        // left is not null
+        *ctrl = igvn->register_new_node_with_optimizer(nullRegion);
+
+        // If other is null, return false
+        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, field_ptr, igvn->zerocon(T_OBJECT), igvn->intcon(0));
+
+        // Both non-null, compare the fields
+
+        if (!field_ptr->is_InlineType()) {
+          assert(base != nullptr, "lost base");
+          field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(field_base, field_ptr, igvn->MakeConX(ft->as_inline_klass()->payload_offset())));
+        }
       }
+
       // Recursively compare all the fields
-      val1->as_InlineType()->acmp(igvn, region, phi, ctrl, mem, val2, foffset);
+      val1->as_InlineType()->acmp(igvn, region, phi, ctrl, mem, field_base, field_ptr);
 
       doneRegion->add_req(*ctrl);
       *ctrl = igvn->register_new_node_with_optimizer(doneRegion);
       continue;
     }
 
-    check_helper(igvn, region, phi, ctrl, bt, BoolTest::ne, val1, val2, igvn->intcon(0));
+    check_helper(igvn, region, phi, ctrl, bt, BoolTest::ne, val1, field_ptr, igvn->intcon(0));
   }
 }
 

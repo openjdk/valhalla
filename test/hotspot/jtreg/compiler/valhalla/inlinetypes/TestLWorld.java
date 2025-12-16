@@ -55,6 +55,7 @@ import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
 import static compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD;
 import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
 import static compiler.lib.ir_framework.IRNode.LOAD;
+import static compiler.lib.ir_framework.IRNode.STORE;
 import static compiler.lib.ir_framework.IRNode.LOAD_P;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.MEMBAR;
@@ -154,7 +155,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @run main compiler.valhalla.inlinetypes.TestLWorld 6
  */
 
-@ForceCompileClassInitializer
+// TODO
+//@ForceCompileClassInitializer
 public class TestLWorld {
 
     public static void main(String[] args) {
@@ -5175,6 +5177,7 @@ public class TestLWorld {
                     } else {
                         // Verify that the modification of one field is detected
                         Asserts.assertFalse(test178(val1, val2), "i = " + i + ": " + val1 + " should not be equal to " + val2);
+                        Asserts.assertFalse(test178(val2, val1), "i = " + i + ": " + val2 + " should not be equal to " + val1);
                     }
                 }
             }
@@ -5206,11 +5209,42 @@ public class TestLWorld {
                     } else {
                         // Verify that the modification of one field is detected
                         Asserts.assertFalse(test179(val1, val2), "i = " + i + ": " + val1 + " should not be equal to " + val2);
+                        Asserts.assertFalse(test179(val2, val1), "i = " + i + ": " + val2 + " should not be equal to " + val1);
                     }
                 }
             }
         }
         Asserts.assertFalse(test179(test178Values[0], 42));
+    }
+
+    static final Value178 op1 = test178Values[Math.abs(rI) % test178Values.length];
+    static final Value178 op2 = op1;
+    static final Value178 op3 = new Value178();
+
+    // Test constant folding
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    public boolean test180() {
+        Object val1 = null;
+        Object val2 = null;
+        Object val3 = null;
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 2; i < limit; i++) {
+            val1 = op1;
+            val2 = op2;
+            val3 = op3;
+        }
+        boolean b1 = (val1 == val2);
+        boolean b2 = (val2 == val1);
+        boolean b3 = (val1 != val3);
+        boolean b4 = (val3 != val1);
+        return b1 && b2 && b3 && b4;
+    }
+
+    @Run(test = "test180")
+    public void test180_verifier() {
+        Asserts.assertTrue(test180());
     }
 }
 
