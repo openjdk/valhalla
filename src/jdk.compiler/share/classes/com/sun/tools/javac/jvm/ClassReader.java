@@ -1559,6 +1559,11 @@ public class ClassReader {
                 sym.flags_field |= VALUE_BASED;
             } else if (!DISABLE_PREVIEW_PATCHING
                     && proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+                // This is a temporary workaround until preview patching is removed and preview
+                // versions of classes are loaded directly from the JRT file system.
+                // Migrated value classes are marked with @jdk.internal.MigratedValueClass (or a
+                // corresponding javac-internal annotation). This code marks such classes as
+                // value-based, even if the original classfile is not the preview classfile.
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= MIGRATED_VALUE_CLASS;
                 if (needsValueFlag(sym, sym.flags_field)) {

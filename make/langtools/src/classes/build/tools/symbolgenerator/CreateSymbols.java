@@ -183,6 +183,16 @@ import static java.lang.classfile.ClassFile.ACC_PUBLIC;
  */
 public class CreateSymbols {
 
+    /**
+     * <p>Support for a "preview version" of classfiles when running with preview
+     * mode. This is modeled as a new version (@) and since preview mode is only
+     * supported for the current version, a single identifier token is sufficient.
+     *
+     * <p>For example, inside ct.sym, 27 will be modeled as 'R', and the preview
+     * for 27 will be '@'. Classfiles unchanged between 27 and 27-preview will
+     * not be duplicated (in the same way classfiles that are common between 26
+     * and 27 are shared).
+     */
     private static final String PREVIEW_VERSION = "@";
 
     //<editor-fold defaultstate="collapsed" desc="ct.sym construction">

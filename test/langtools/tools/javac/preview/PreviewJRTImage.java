@@ -82,7 +82,7 @@ public class PreviewJRTImage {
 
         for (String option : new String[]{"--source", "--release"}) {
             for (Mode mode : new Mode[]{Mode.API, Mode.CMDLINE}) {
-                //without preview:
+                // Without preview:
                 log = new JavacTask(tb, mode)
                         .outdir(classes)
                         .options(option, specificationVersion, "-XDrawDiagnostics")
@@ -100,7 +100,7 @@ public class PreviewJRTImage {
 
                 assertEquals(expected, log);
 
-                //with preview:
+                // With preview:
                 log = new JavacTask(tb, mode)
                         .outdir(classes)
                         .options(option, specificationVersion, "--enable-preview", "-XDrawDiagnostics")

@@ -1968,7 +1968,7 @@ public class Locations {
                     FileSystem jrtfs;
 
                     if (isCurrentPlatform(systemJavaHome)) {
-                        JRTIndex jrtIndex = JRTIndex.getInstance(previewMode);
+                        JRTIndex jrtIndex = JRTIndex.instance(previewMode);
                         addCloseable(jrtIndex);
                         jrtfs = jrtIndex.getFileSystem();
                     } else {
