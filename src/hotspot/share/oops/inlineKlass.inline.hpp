@@ -33,25 +33,6 @@
 #include "utilities/devirtualizer.inline.hpp"
 #include "utilities/macros.hpp"
 
-inline InlineKlassFixedBlock* InlineKlass::inlineklass_static_block() const {
-
-  InstanceKlass* volatile* adr_impl = adr_implementor();
-  if (adr_impl != nullptr) {
-    return (InlineKlassFixedBlock*)(adr_impl + 1);
-  }
-
-  return (InlineKlassFixedBlock*)end_of_nonstatic_oop_maps();
-}
-
-inline address InlineKlass::adr_return_regs() const {
-  InlineKlassFixedBlock* vkst = inlineklass_static_block();
-  return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _return_regs));
-}
-
-inline Array<VMRegPair>* InlineKlass::return_regs() const {
-  return *((Array<VMRegPair>**)adr_return_regs());
-}
-
 inline address InlineKlass::payload_addr(oop o) const {
   return ((address) (void*) o) + payload_offset();
 }
