@@ -73,8 +73,8 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
   assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
   assert(prototype_header().is_flat_array(), "Must be");
   switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(layout_helper_is_null_free(layout_helper()), "Must be");
       assert(prototype_header().is_null_free_array(), "Must be");
     break;
@@ -381,12 +381,19 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   assert(!is_refArray_klass(), "Unimplemented");
+  ResourceMark rm;
 
   st->print("Flat Type Array: ");
   Klass::print_on(st);
 
   st->print(" - element klass: ");
   element_klass()->print_value_on(st);
+  st->cr();
+
+  st->print(" - layout kind: %s", LayoutKindHelper::layout_kind_as_string(layout_kind()));
+  st->cr();
+
+  st->print(" - array properties: %s", ArrayKlass::array_properties_as_string(properties()));
   st->cr();
 
   int elem_size = element_byte_size();

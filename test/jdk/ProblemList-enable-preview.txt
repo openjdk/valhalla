@@ -28,3 +28,13 @@
 #############################################################################
 
 
+java/foreign/TestRestricted.java                                   8372744 generic-all
+java/lang/module/ModuleReader/ModuleReaderTest.java                8372744 generic-all
+java/lang/module/ModuleReader/patched/PatchedModuleReaderTest.java 8372744 generic-all
+java/lang/StackWalker/LocalsAndOperands.java#id0                   8369045 macosx-all
+java/lang/StackWalker/LocalsAndOperands.java#id1                   8369045 macosx-all
+java/lang/StringBuilder/CompactStringBuilder.java                  8369045 macosx-all
+java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java            8372745 generic-all
+java/util/NavigableMap/LockStep.java                               8372824 generic-all
+java/util/Collections/CheckedSetBash.java                          8372824 generic-all
+jdk/internal/misc/CDS/ArchivedEnumTest.java                        8372743 generic-all

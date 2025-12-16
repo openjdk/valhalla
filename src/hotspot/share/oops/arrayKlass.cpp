@@ -221,10 +221,10 @@ oop ArrayKlass::component_mirror() const {
 ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
   ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
   switch(lk) {
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
       break;
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
@@ -235,6 +235,19 @@ ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind 
   }
   return props;
 }
+
+  const char* ArrayKlass::array_properties_as_string(ArrayProperties props) {
+    // Caller must have set a ResourceMark
+    stringStream ss;
+    if (props == DEFAULT) {
+      ss.print("DEFAULT (NULLABLE ATOMIC)");
+    } else {
+      ss.print("%s", ((props & NULL_RESTRICTED) != 0) ? "NULL_RESTRICTED " : "NULLABLE ");
+      ss.print("%s", ((props & NON_ATOMIC) != 0) ? "NON_ATOMIC " : "ATOMIC ");
+    }
+    return ss.as_string();
+  }
+
 
 // JVMTI support
 
