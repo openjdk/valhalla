@@ -138,28 +138,6 @@ class OopMapBlock {
 
 struct JvmtiCachedClassFileData;
 
-class SigEntry;
-
-class InlineKlassFixedBlock {
-  friend class InlineKlass;
-
-  Array<SigEntry>* _extended_sig;
-  Array<VMRegPair>* _return_regs;
-  address _pack_handler;
-  address _pack_handler_jobject;
-  address _unpack_handler;
-  int _null_reset_value_offset;
-  int _payload_offset;           // offset of the begining of the payload in a heap buffered instance
-  int _payload_size_in_bytes;    // size of payload layout
-  int _payload_alignment;        // alignment required for payload
-  int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
-  int _non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
-  int _atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
-  int _nullable_size_in_bytes;   // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
-  int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
-                                 // payload_offset must be subtracted to get the offset from the beginning of the payload
-};
-
 class InlineLayoutInfo : public MetaspaceObj {
   InlineKlass* _klass;
   LayoutKind _kind;
@@ -345,8 +323,8 @@ class InstanceKlass: public Klass {
   Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
 
-  // Located here because sub-klasses can't have their own explicit fields
-  InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
+  // Located here because sub-klasses can't have their own C++ fields
+  address _adr_inline_klass_members;
 
   // embedded Java vtable follows here
   // embedded Java itables follows here
@@ -977,7 +955,7 @@ public:
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
   static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
-  static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
+  static ByteSize adr_inline_klass_members_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inline_klass_members)); }
 
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;
@@ -1040,25 +1018,13 @@ public:
   // Sizing (in words)
   static int header_size() { return sizeof(InstanceKlass) / wordSize; }
 
-  static int size(int vtable_length, int itable_length,
+  static int size(int vtable_length,
+                  int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface,
-                  bool is_inline_type) {
-    return align_metadata_size(header_size() +
-           vtable_length +
-           itable_length +
-           nonstatic_oop_map_size +
-           (is_interface ? (int)sizeof(Klass*) / wordSize : 0) +
-           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) / wordSize : 0));
-  }
+                  bool is_inline_type);
 
-  int size() const override           { return size(vtable_length(),
-                                               itable_length(),
-                                               nonstatic_oop_map_size(),
-                                               is_interface(),
-                                               is_inline_klass());
-  }
-
+  int size() const override;
 
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
