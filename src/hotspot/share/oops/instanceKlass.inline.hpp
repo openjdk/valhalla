@@ -63,6 +63,11 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
   }
 }
 
+inline address InstanceKlass::end_of_instance_klass() const {
+  return (address)end_of_nonstatic_oop_maps() +
+      (is_interface() ? sizeof(InstanceKlass*) : 0);
+}
+
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
   assert(has_inline_type_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
