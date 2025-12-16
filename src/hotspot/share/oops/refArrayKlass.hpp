@@ -53,8 +53,8 @@ class RefArrayKlass : public ObjArrayKlass {
   RefArrayKlass() {}
 
   // Dispatched operation
-  DEBUG_ONLY(bool is_refArray_klass_slow() const { return true; })
-  size_t oop_size(oop obj) const;  // TODO FIXME make it virtual in objArrayKlass
+  DEBUG_ONLY(bool is_refArray_klass_slow() const override { return true; })
+  size_t oop_size(oop obj) const override;  // TODO FIXME make it virtual in objArrayKlass
 
   // Allocation
   static RefArrayKlass* allocate_refArray_klass(ClassLoaderData* loader_data,
@@ -62,13 +62,13 @@ class RefArrayKlass : public ObjArrayKlass {
                                                 ArrayKlass::ArrayProperties props, TRAPS);
 
  private:
-  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS) override;
 
  public:
   // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
-  void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
+  void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) override;
 
-  virtual void metaspace_pointers_do(MetaspaceClosure* iter);
+  void metaspace_pointers_do(MetaspaceClosure* iter) override;
 
  private:
   // Either oop or narrowOop depending on UseCompressedOops.
@@ -90,10 +90,10 @@ class RefArrayKlass : public ObjArrayKlass {
 
   // Sizing
   static int header_size() { return sizeof(RefArrayKlass) / wordSize; }
-  int size() const { return ArrayKlass::static_size(header_size()); }
+  int size() const override { return ArrayKlass::static_size(header_size()); }
 
   // Initialization (virtual from Klass)
-  void initialize(TRAPS);
+  void initialize(TRAPS) override;
 
   // Oop fields (and metadata) iterators
   //
@@ -127,18 +127,18 @@ class RefArrayKlass : public ObjArrayKlass {
 
  public:
   // Printing
-  void print_on(outputStream* st) const;
-  void print_value_on(outputStream* st) const;
+  void print_on(outputStream* st) const override;
+  void print_value_on(outputStream* st) const override;
 
-  void oop_print_value_on(oop obj, outputStream* st);
+  void oop_print_value_on(oop obj, outputStream* st) override;
 #ifndef PRODUCT
-  void oop_print_on(oop obj, outputStream* st);
+  void oop_print_on(oop obj, outputStream* st) override;
 #endif // PRODUCT
 
   // Verification
-  void verify_on(outputStream* st);
+  void verify_on(outputStream* st) override;
 
-  void oop_verify_on(oop obj, outputStream* st);
+  void oop_verify_on(oop obj, outputStream* st) override;
 };
 
 #endif // SHARE_OOPS_REFARRAYKLASS_HPP

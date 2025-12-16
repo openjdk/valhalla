@@ -1557,7 +1557,13 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
-            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+            } else if (!DISABLE_PREVIEW_PATCHING
+                    && proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+                // This is a temporary workaround until preview patching is removed and preview
+                // versions of classes are loaded directly from the JRT file system.
+                // Migrated value classes are marked with @jdk.internal.MigratedValueClass (or a
+                // corresponding javac-internal annotation). This code marks such classes as
+                // value-based, even if the original classfile is not the preview classfile.
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= MIGRATED_VALUE_CLASS;
                 if (needsValueFlag(sym, sym.flags_field)) {
@@ -1583,7 +1589,8 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
-                }  else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
+                }  else if (!DISABLE_PREVIEW_PATCHING
+                        && proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
                     sym.flags_field |= MIGRATED_VALUE_CLASS;
                     if (needsValueFlag(sym, sym.flags_field)) {
                         sym.flags_field |= VALUE_CLASS;
@@ -3595,4 +3602,16 @@ public class ClassReader {
             currentModule.directives = directives.toList();
         }
     }
+
+    // Temporary system property to disable preview patching and enable the new preview mode
+    // feature for testing/development. Once the preview mode feature is finished, the value
+    // will be always 'true' and this code, and all related dead-code can be removed.
+    // See also:
+    // * src/hotspot/share/runtime/arguments.cpp
+    // * src/java.base/share/classes/jdk/internal/jimage/PreviewMode.java
+    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = false;
+    private static final boolean DISABLE_PREVIEW_PATCHING = Boolean.parseBoolean(
+            System.getProperty(
+                    "DISABLE_PREVIEW_PATCHING",
+                    Boolean.toString(DISABLE_PREVIEW_PATCHING_DEFAULT)));
 }
