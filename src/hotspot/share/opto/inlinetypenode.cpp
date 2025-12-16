@@ -976,7 +976,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   //   future, we can move them around more freely such as hoisting out of loops. This is not true
   //   for the old allocation since larval value objects do have unique identities.
   Node* base = is_loaded(phase);
-  if (base != nullptr && !base->is_InlineType() && !phase->type(base)->maybe_null() && AllocateNode::Ideal_allocation(base) == nullptr) {
+  if (base != nullptr && !base->is_InlineType() && !phase->type(base)->maybe_null() && phase->C->allow_macro_nodes() && AllocateNode::Ideal_allocation(base) == nullptr) {
     if (oop != base || phase->type(is_buffered) != TypeInt::ONE) {
       set_oop(*phase, base);
       set_is_buffered(*phase);

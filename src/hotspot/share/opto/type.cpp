@@ -48,7 +48,9 @@
 #include "opto/type.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
 
@@ -3172,11 +3174,14 @@ const char *const TypePtr::ptr_msg[TypePtr::lastPTR] = {
 
 #ifndef PRODUCT
 void TypePtr::dump2( Dict &d, uint depth, outputStream *st ) const {
-  if( _ptr == Null ) st->print("null");
-  else st->print("%s *", ptr_msg[_ptr]);
-  _offset.dump2(st);
+  st->print("ptr:%s", ptr_msg[_ptr]);
+  dump_offset(st);
   dump_inline_depth(st);
   dump_speculative(st);
+}
+
+void TypePtr::dump_offset(outputStream* st) const {
+  _offset.dump2(st);
 }
 
 /**
@@ -3366,11 +3371,12 @@ uint TypeRawPtr::hash(void) const {
 
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
-void TypeRawPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
-  if( _ptr == Constant )
-    st->print(INTPTR_FORMAT, p2i(_bits));
-  else
+void TypeRawPtr::dump2(Dict& d, uint depth, outputStream* st) const {
+  if (_ptr == Constant) {
+    st->print("rawptr:Constant:" INTPTR_FORMAT, p2i(_bits));
+  } else {
     st->print("rawptr:%s", ptr_msg[_ptr]);
+  }
 }
 #endif
 
@@ -4078,18 +4084,28 @@ uint TypeOopPtr::hash(void) const {
 
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
-void TypeOopPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
+void TypeOopPtr::dump2(Dict& d, uint depth, outputStream* st) const {
   st->print("oopptr:%s", ptr_msg[_ptr]);
-  if( _klass_is_exact ) st->print(":exact");
-  if( const_oop() ) st->print(INTPTR_FORMAT, p2i(const_oop()));
-  _offset.dump2(st);
-  if (_instance_id == InstanceTop)
-    st->print(",iid=top");
-  else if (_instance_id != InstanceBot)
-    st->print(",iid=%d",_instance_id);
-
+  if (_klass_is_exact) {
+    st->print(":exact");
+  }
+  if (const_oop() != nullptr) {
+    st->print(":" INTPTR_FORMAT, p2i(const_oop()));
+  }
+  dump_offset(st);
+  dump_instance_id(st);
   dump_inline_depth(st);
   dump_speculative(st);
+}
+
+void TypeOopPtr::dump_instance_id(outputStream* st) const {
+  if (_instance_id == InstanceTop) {
+    st->print(",iid=top");
+  } else if (_instance_id == InstanceBot) {
+    st->print(",iid=bot");
+  } else {
+    st->print(",iid=%d", _instance_id);
+  }
 }
 #endif
 
@@ -4779,51 +4795,35 @@ bool TypeInstPtr::maybe_java_subtype_of_helper(const TypeOopPtr* other, bool thi
 #ifndef PRODUCT
 void TypeInstPtr::dump2(Dict &d, uint depth, outputStream* st) const {
   // Print the name of the klass.
+  st->print("instptr:");
   klass()->print_name_on(st);
   _interfaces->dump(st);
 
-  switch( _ptr ) {
-  case Constant:
-    if (WizardMode || Verbose) {
-      ResourceMark rm;
-      stringStream ss;
+  if (_ptr == Constant && (WizardMode || Verbose)) {
+    ResourceMark rm;
+    stringStream ss;
 
-      st->print(" ");
-      const_oop()->print_oop(&ss);
-      // 'const_oop->print_oop()' may emit newlines('\n') into ss.
-      // suppress newlines from it so -XX:+Verbose -XX:+PrintIdeal dumps one-liner for each node.
-      char* buf = ss.as_string(/* c_heap= */false);
-      StringUtils::replace_no_expand(buf, "\n", "");
-      st->print_raw(buf);
-    }
-  case BotPTR:
-    if (!WizardMode && !Verbose) {
-      if( _klass_is_exact ) st->print(":exact");
-      break;
-    }
-  case TopPTR:
-  case AnyNull:
-  case NotNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if( _klass_is_exact ) st->print(":exact");
-    break;
-  default:
-    break;
+    st->print(" ");
+    const_oop()->print_oop(&ss);
+    // 'const_oop->print_oop()' may emit newlines('\n') into ss.
+    // suppress newlines from it so -XX:+Verbose -XX:+PrintIdeal dumps one-liner for each node.
+    char* buf = ss.as_string(/* c_heap= */false);
+    StringUtils::replace_no_expand(buf, "\n", "");
+    st->print_raw(buf);
   }
 
-  _offset.dump2(st);
+  st->print(":%s", ptr_msg[_ptr]);
+  if (_klass_is_exact) {
+    st->print(":exact");
+  }
 
   st->print(" *");
 
-  dump_flat_in_array(_flat_in_array, st);
-
-  if (_instance_id == InstanceTop)
-    st->print(",iid=top");
-  else if (_instance_id != InstanceBot)
-    st->print(",iid=%d",_instance_id);
-
+  dump_offset(st);
+  dump_instance_id(st);
   dump_inline_depth(st);
   dump_speculative(st);
+  dump_flat_in_array(_flat_in_array, st);
 }
 #endif
 
@@ -5578,26 +5578,17 @@ Type::Offset TypeAryPtr::dual_field_offset() const {
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
 void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
-  _ary->dump2(d,depth,st);
+  st->print("aryptr:");
+  _ary->dump2(d, depth, st);
   _interfaces->dump(st);
 
-  switch( _ptr ) {
-  case Constant:
+  if (_ptr == Constant) {
     const_oop()->print(st);
-    break;
-  case BotPTR:
-    if (!WizardMode && !Verbose) {
-      if( _klass_is_exact ) st->print(":exact");
-      break;
-    }
-  case TopPTR:
-  case AnyNull:
-  case NotNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if( _klass_is_exact ) st->print(":exact");
-    break;
-  default:
-    break;
+  }
+
+  st->print(":%s", ptr_msg[_ptr]);
+  if (_klass_is_exact) {
+    st->print(":exact");
   }
 
   if (is_flat()) {
@@ -5637,12 +5628,8 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
       }
     }
   }
-  st->print(" *");
-  if (_instance_id == InstanceTop)
-    st->print(",iid=top");
-  else if (_instance_id != InstanceBot)
-    st->print(",iid=%d",_instance_id);
 
+  dump_instance_id(st);
   dump_inline_depth(st);
   dump_speculative(st);
 }
@@ -6061,13 +6048,10 @@ const Type *TypeMetadataPtr::xdual() const {
 #ifndef PRODUCT
 void TypeMetadataPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
   st->print("metadataptr:%s", ptr_msg[_ptr]);
-  if( metadata() ) st->print(INTPTR_FORMAT, p2i(metadata()));
-  switch (offset()) {
-  case OffsetTop: st->print("+top"); break;
-  case OffsetBot: st->print("+any"); break;
-  case         0: break;
-  default:        st->print("+%d",offset()); break;
+  if (metadata() != nullptr) {
+    st->print(":" INTPTR_FORMAT, p2i(metadata()));
   }
+  dump_offset(st);
 }
 #endif
 
@@ -6217,39 +6201,6 @@ intptr_t TypeKlassPtr::get_con() const {
 
   return (intptr_t)k->constant_encoding();
 }
-
-//------------------------------dump2------------------------------------------
-// Dump Klass Type
-#ifndef PRODUCT
-void TypeKlassPtr::dump2(Dict & d, uint depth, outputStream *st) const {
-  switch(_ptr) {
-  case Constant:
-    st->print("precise ");
-  case NotNull:
-    {
-      const char *name = klass()->name()->as_utf8();
-      if (name) {
-        st->print("%s: " INTPTR_FORMAT, name, p2i(klass()));
-      } else {
-        ShouldNotReachHere();
-      }
-      _interfaces->dump(st);
-    }
-  case BotPTR:
-    if (!WizardMode && !Verbose && _ptr != Constant) break;
-  case TopPTR:
-  case AnyNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if (_ptr == Constant) st->print(":exact");
-    break;
-  default:
-    break;
-  }
-
-  _offset.dump2(st);
-  st->print(" *");
-}
-#endif
 
 //=============================================================================
 // Convenience common pre-built types.
@@ -6631,6 +6582,17 @@ const TypeKlassPtr* TypeInstKlassPtr::try_improve() const {
 bool TypeInstKlassPtr::can_be_inline_array() const {
   return _klass->equals(ciEnv::current()->Object_klass()) && TypeAryKlassPtr::_array_interfaces->contains(_interfaces);
 }
+
+#ifndef PRODUCT
+void TypeInstKlassPtr::dump2(Dict& d, uint depth, outputStream* st) const {
+  st->print("instklassptr:");
+  klass()->print_name_on(st);
+  _interfaces->dump(st);
+  st->print(":%s", ptr_msg[_ptr]);
+  dump_offset(st);
+  dump_flat_in_array(_flat_in_array, st);
+}
+#endif // PRODUCT
 
 bool TypeAryKlassPtr::can_be_inline_array() const {
   return _elem->isa_instklassptr() && _elem->is_instklassptr()->_klass->can_be_inline_klass();
@@ -7229,34 +7191,11 @@ ciKlass* TypeAryKlassPtr::klass() const {
 //------------------------------dump2------------------------------------------
 // Dump Klass Type
 #ifndef PRODUCT
-void TypeInstKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
-  klass()->print_name_on(st);
+void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
+  st->print("aryklassptr:[");
+  _elem->dump2(d, depth, st);
   _interfaces->dump(st);
   st->print(":%s", ptr_msg[_ptr]);
-  dump_flat_in_array(_flat_in_array, st);
-}
-
-void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
-  switch( _ptr ) {
-  case Constant:
-    st->print("precise ");
-  case NotNull:
-    {
-      st->print("[");
-      _elem->dump2(d, depth, st);
-      _interfaces->dump(st);
-      st->print(": ");
-    }
-  case BotPTR:
-    if( !WizardMode && !Verbose && _ptr != Constant ) break;
-  case TopPTR:
-  case AnyNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if( _ptr == Constant ) st->print(":exact");
-    break;
-  default:
-    break;
-  }
   if (_flat) st->print(":flat");
   if (_null_free) st->print(":null free");
   if (_atomic) st->print(":atomic");
@@ -7265,10 +7204,7 @@ void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
     if (_not_flat) st->print(":not flat");
     if (_not_null_free) st->print(":nullable");
   }
-
-  _offset.dump2(st);
-
-  st->print(" *");
+  dump_offset(st);
 }
 #endif
 
