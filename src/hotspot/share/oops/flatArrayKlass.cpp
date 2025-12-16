@@ -73,8 +73,8 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
   assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
   assert(prototype_header().is_flat_array(), "Must be");
   switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(layout_helper_is_null_free(layout_helper()), "Must be");
       assert(prototype_header().is_null_free_array(), "Must be");
     break;

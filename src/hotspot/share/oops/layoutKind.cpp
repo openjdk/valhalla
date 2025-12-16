@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -29,10 +28,12 @@ const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
   switch(lk) {
     case LayoutKind::REFERENCE:
       return "REFERENCE";
-    case LayoutKind::NON_ATOMIC_FLAT:
-      return "NON_ATOMIC_FLAT";
-    case LayoutKind::ATOMIC_FLAT:
-      return "ATOMIC_FLAT";
+    case LayoutKind::BUFFERED:
+      return "BUFFERED";
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+      return "NULL_FREE_NON_ATOMIC_FLAT";
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+      return "NULL_FREE_ATOMIC_FLAT";
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return "NULLABLE_ATOMIC_FLAT";
     case LayoutKind::UNKNOWN:

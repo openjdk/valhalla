@@ -122,11 +122,11 @@ int InlineKlass::nonstatic_oop_count() {
 
 int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
   switch(kind) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       assert(has_non_atomic_layout(), "Layout not available");
       return non_atomic_size_in_bytes();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(has_atomic_layout(), "Layout not available");
       return atomic_size_in_bytes();
       break;
@@ -144,11 +144,11 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
 
 int InlineKlass::layout_alignment(LayoutKind kind) const {
   switch(kind) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       assert(has_non_atomic_layout(), "Layout not available");
       return non_atomic_alignment();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(has_atomic_layout(), "Layout not available");
       return atomic_size_in_bytes();
       break;
@@ -166,10 +166,10 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
 
 bool InlineKlass::is_layout_supported(LayoutKind lk) {
   switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       return has_non_atomic_layout();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       return has_atomic_layout();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
@@ -211,8 +211,8 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
     }
     break;
     case LayoutKind::BUFFERED:
-    case LayoutKind::ATOMIC_FLAT:
-    case LayoutKind::NON_ATOMIC_FLAT: {
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) return; // nothing to do
       if (dest_is_initialized) {
         HeapAccess<>::value_copy(src, dst, this, lk);
@@ -236,8 +236,8 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
       }
     } // Fallthrough
     case LayoutKind::BUFFERED:
-    case LayoutKind::ATOMIC_FLAT:
-    case LayoutKind::NON_ATOMIC_FLAT: {
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
