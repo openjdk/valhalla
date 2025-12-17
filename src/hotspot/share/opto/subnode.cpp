@@ -38,6 +38,7 @@
 #include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/reverse_bits.hpp"
 
@@ -945,7 +946,7 @@ bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
       in(1)->in(1)->Opcode() == Op_CastP2X &&
       in(1)->in(2)->Opcode() == Op_CastP2X &&
       in(2)->bottom_type()->is_zero_type()) {
-    assert(EnableValhalla, "unexpected double null check");
+    assert(Arguments::is_valhalla_enabled(), "unexpected double null check");
     a = in(1)->in(1)->in(1);
     b = in(1)->in(2)->in(1);
     return true;
@@ -1102,8 +1103,8 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
     }
     if (!unrelated_classes) {
       // Handle inline type arrays
-      if ((r0->flat_in_array() && r1->not_flat_in_array()) ||
-          (r1->flat_in_array() && r0->not_flat_in_array())) {
+      if ((r0->is_flat_in_array() && r1->is_not_flat_in_array()) ||
+          (r1->is_flat_in_array() && r0->is_not_flat_in_array())) {
         // One type is in flat arrays but the other type is not. Must be unrelated.
         unrelated_classes = true;
       } else if ((r0->is_not_flat() && r1->is_flat()) ||

@@ -21,7 +21,7 @@
  * questions.
  */
 
-#include "oops/flatArrayOop.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "unittest.hpp"
 #include "utilities/globalDefinitions.hpp"
 

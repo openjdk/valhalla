@@ -48,7 +48,7 @@
   enum {
     _call_stub_size = 28,
     _exception_handler_size = DEBUG_ONLY(1*K) NOT_DEBUG(175),
-    _deopt_handler_size = 10
+    _deopt_handler_size = 7
   };
 
   void arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check);

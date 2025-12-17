@@ -26,7 +26,6 @@
 #define SHARE_CDS_CDSCONFIG_HPP
 
 #include "memory/allStatic.hpp"
-#include "runtime/arguments.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -206,10 +205,6 @@ public:
   static bool is_using_full_module_graph()                   NOT_CDS_JAVA_HEAP_RETURN_(false);
   static void stop_dumping_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
   static void stop_using_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
-
-  static bool is_valhalla_preview() {
-    return Arguments::enable_preview() && EnableValhalla;
-  }
 
   // --- AOT code
 

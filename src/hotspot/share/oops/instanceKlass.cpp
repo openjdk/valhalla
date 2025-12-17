@@ -1099,7 +1099,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     interk->link_class_impl(CHECK_false);
   }
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     // Aggressively preloading all classes from the LoadableDescriptors attribute
     // so inline classes can be scalarized in the calling conventions computed below
     load_classes_from_loadable_descriptors_attribute(this, THREAD);
@@ -3126,7 +3126,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 }
 
 bool InstanceKlass::can_be_verified_at_dumptime() const {
-  if (AOTMetaspace::in_aot_cache(this)) {
+  if (CDSConfig::is_dumping_dynamic_archive() && AOTMetaspace::in_aot_cache(this)) {
     // This is a class that was dumped into the base archive, so we know
     // it was verified at dump time.
     return true;
