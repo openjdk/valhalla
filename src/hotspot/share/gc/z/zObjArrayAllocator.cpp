@@ -37,25 +37,17 @@ void ZObjArrayAllocator::yield_for_safepoint() const {
   ThreadBlockInVM tbivm(JavaThread::cast(_thread));
 }
 
+static bool is_oop_containing_flat_array(Klass* klass) {
+  return ArrayKlass::cast(klass)->is_flatArray_klass() &&
+         FlatArrayKlass::cast(klass)->contains_oops();
+}
+
 oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   // ZGC specializes the initialization by performing segmented clearing
   // to allow shorter time-to-safepoints.
 
   if (!_do_zero) {
     // No need for ZGC specialization
-    return ObjArrayAllocator::initialize(mem);
-  }
-
-  if (ArrayKlass::cast(_klass)->is_flatArray_klass() &&
-      FlatArrayKlass::cast(_klass)->contains_oops()) {
-    // Flat arrays containing oops are not supported in ZGC without relying on
-    // internal-only features such as loose-consistency and null-restriction.
-    // A value object that contains an oop and a null-marker will always exceed
-    // 64 bits when using ZGC. As a result, such objects will not be flattened
-    // in practice due to the 64-bit atomicity limit.
-    //
-    // We only need to support flat arrays containing oops when/if value objects
-    // can be user-declared as loosely consistent and/or null-restricted.
     return ObjArrayAllocator::initialize(mem);
   }
 
@@ -66,6 +58,18 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
 
   if (_word_size <= segment_max) {
     // Too small to use segmented clearing
+    return ObjArrayAllocator::initialize(mem);
+  }
+
+  if (is_oop_containing_flat_array(_klass)) {
+    // Flat arrays containing oops are not supported in ZGC without relying on
+    // internal-only features such as loose-consistency and null-restriction.
+    // A value object that contains an oop and a null-marker will always exceed
+    // 64 bits when using ZGC. As a result, such objects will not be flattened
+    // in practice due to the 64-bit atomicity limit.
+    //
+    // We only need to support flat arrays containing oops when/if value objects
+    // can be user-declared with loose-consistency and/or null-restriction.
     return ObjArrayAllocator::initialize(mem);
   }
 
