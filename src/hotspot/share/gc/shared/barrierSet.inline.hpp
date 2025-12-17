@@ -36,9 +36,9 @@
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
-inline void BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
-                                                                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
-                                                                                      size_t length) {
+inline OopCopyResult BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                                                                               arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                                                                               size_t length) {
   T* src = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
   T* dst = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
 
@@ -46,7 +46,8 @@ inline void BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in
       (!HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value)) {
     // Covariant, copy without checks
     Raw::oop_arraycopy(nullptr, 0, src, nullptr, 0, dst, length);
-    return;
+
+    return OopCopyResult::ok;
   }
 
   // Copy each element with checking casts
@@ -54,16 +55,16 @@ inline void BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in
   for (const T* const end = src + length; src < end; src++, dst++) {
     const T elem = *src;
     if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && CompressedOops::is_null(elem)) {
-      throw_array_null_pointer_store_exception(src_obj, dst_obj, JavaThread::current());
-      return;
+      return OopCopyResult::failed_check_null;
     }
     if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
-        (!oopDesc::is_instanceof_or_null(CompressedOops::decode(elem), dst_klass))) {
-      throw_array_store_exception(src_obj, dst_obj, JavaThread::current());
-      return;
+        !oopDesc::is_instanceof_or_null(CompressedOops::decode(elem), dst_klass)) {
+      return OopCopyResult::failed_check_class_cast;
     }
     *dst = elem;
   }
+
+  return OopCopyResult::ok;
 }
 
 #endif // SHARE_GC_SHARED_BARRIERSET_INLINE_HPP
