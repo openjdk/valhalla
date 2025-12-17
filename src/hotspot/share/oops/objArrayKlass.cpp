@@ -184,16 +184,16 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
     if (is_non_atomic(properties)) {
       // Null-restricted + non-atomic
       if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
-        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NON_ATOMIC_FLAT);
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
       } else {
         return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
       }
     } else {
       // Null-restricted + atomic
       if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
-        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NON_ATOMIC_FLAT);
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
       } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
-        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::ATOMIC_FLAT);
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_ATOMIC_FLAT);
       } else {
         return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
       }
@@ -246,8 +246,7 @@ objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, 
     ak, size, length,
     /* do_zero */ true, CHECK_NULL);
   assert(array->is_refArray() || array->is_flatArray(), "Must be");
-  objArrayHandle array_h(THREAD, array);
-  return array_h();
+  return array;
 }
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {

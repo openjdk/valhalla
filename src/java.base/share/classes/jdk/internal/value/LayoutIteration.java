@@ -99,6 +99,9 @@ public final class LayoutIteration {
             if (!U.isFlatField(f)) {
                 sink.accept(memberOffset, type);
             } else {
+                if (U.hasNullMarker(f)) {
+                    sink.accept(U.nullMarkerOffset(f) + memberOffsetDelta, byte.class);
+                }
                 iterateFields(memberOffset, type, sink);
             }
         }

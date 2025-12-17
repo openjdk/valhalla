@@ -3870,7 +3870,7 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
   Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
-  Node* cmp = _gvn.transform(new CmpINode(layout_kind, intcon((int)LayoutKind::ATOMIC_FLAT)));
+  Node* cmp = _gvn.transform(new CmpINode(layout_kind, intcon((int)LayoutKind::NULL_FREE_ATOMIC_FLAT)));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
 }
 

@@ -48,6 +48,16 @@ bool fieldDescriptor::is_trusted_final() const {
                         || (ik->is_abstract() && !ik->is_identity_class() && !ik->is_interface()));
 }
 
+bool fieldDescriptor::is_mutable_static_final() const {
+  InstanceKlass* ik = field_holder();
+  // write protected fields (JLS 17.5.4)
+  if (is_final() && is_static() && ik == vmClasses::System_klass() &&
+      (offset() == java_lang_System::in_offset() || offset() == java_lang_System::out_offset() || offset() == java_lang_System::err_offset())) {
+   return true;
+  }
+  return false;
+}
+
 AnnotationArray* fieldDescriptor::annotations() const {
   InstanceKlass* ik = field_holder();
   Array<AnnotationArray*>* md = ik->fields_annotations();

@@ -54,8 +54,6 @@ class OopClosure : public Closure {
  public:
   virtual void do_oop(oop* o) = 0;
   virtual void do_oop(narrowOop* o) = 0;
-  virtual void do_oop_no_buffering(oop* o) { do_oop(o); }
-  virtual void do_oop_no_buffering(narrowOop* o) { do_oop(o); }
 };
 
 class DoNothingClosure : public OopClosure {
@@ -136,11 +134,6 @@ class DerivedOopClosure : public Closure {
  public:
   enum { SkipNull = true };
   virtual void do_derived_oop(derived_base* base, derived_pointer* derived) = 0;
-};
-
-class BufferedValueClosure : public Closure {
-public:
-  virtual void do_buffered_value(oop* p) = 0;
 };
 
 class KlassClosure : public Closure {

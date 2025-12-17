@@ -707,7 +707,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _boxing_late_inlines(comp_arena(), 2, 0, nullptr),
       _vector_reboxing_late_inlines(comp_arena(), 2, 0, nullptr),
       _late_inlines_pos(0),
-      _number_of_mh_late_inlines(0),
+      _has_mh_late_inlines(false),
       _oom(false),
       _replay_inline_data(nullptr),
       _inline_printer(this),
@@ -978,7 +978,7 @@ Compile::Compile(ciEnv* ci_env,
       _igvn_worklist(nullptr),
       _types(nullptr),
       _node_hash(nullptr),
-      _number_of_mh_late_inlines(0),
+      _has_mh_late_inlines(false),
       _oom(false),
       _replay_inline_data(nullptr),
       _inline_printer(this),
@@ -1490,6 +1490,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
   const TypeInstPtr *to = tj->isa_instptr();
   if (to && to != TypeOopPtr::BOTTOM) {
     ciInstanceKlass* ik = to->instance_klass();
+    tj = to = to->cast_to_maybe_flat_in_array(); // flatten to maybe flat in array
     if( ptr == TypePtr::Constant ) {
       if (ik != ciEnv::current()->Class_klass() ||
           offset < ik->layout_helper_size_in_bytes()) {
@@ -1543,10 +1544,12 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // but if not exact, it may include extra interfaces: build new type from the holder class to make sure only
       // its interfaces are included.
       if (xk && ik->equals(canonical_holder)) {
-        assert(tj == TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id), "exact type should be canonical type");
+        assert(tj == TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id,
+                                       TypePtr::MaybeFlat), "exact type should be canonical type");
       } else {
         assert(xk || !is_known_inst, "Known instance should be exact type");
-        tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id);
+        tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, is_known_inst, nullptr, Type::Offset(offset), instance_id,
+                                    TypePtr::MaybeFlat);
       }
     }
   }
@@ -1561,13 +1564,14 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     if ( offset == Type::OffsetBot || (offset >= 0 && (size_t)offset < sizeof(Klass)) ) {
       tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull,
                                        env()->Object_klass(),
-                                       Type::Offset(offset));
+                                       Type::Offset(offset),
+                                       TypePtr::MaybeFlat);
     }
 
     if (tk->isa_aryklassptr() && tk->is_aryklassptr()->elem()->isa_klassptr()) {
       ciKlass* k = ciObjArrayKlass::make(env()->Object_klass());
       if (!k || !k->is_loaded()) {                  // Only fails for some -Xcomp runs
-        tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull, env()->Object_klass(), Type::Offset(offset));
+        tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull, env()->Object_klass(), Type::Offset(offset), TypePtr::MaybeFlat);
       } else {
         tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_flat(), tk->is_null_free(), tk->is_atomic(), tk->is_aryklassptr()->is_refined_type());
       }
@@ -5816,7 +5820,7 @@ void Compile::end_method() {
 
 #ifndef PRODUCT
 bool Compile::should_print_phase(const int level) const {
-  return PrintPhaseLevel > 0 && directive()->PhasePrintLevelOption >= level &&
+  return PrintPhaseLevel >= 0 && directive()->PhasePrintLevelOption >= level &&
          _method != nullptr; // Do not print phases for stubs.
 }
 

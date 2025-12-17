@@ -95,6 +95,8 @@ private:
   bool compute_injected_fields_helper();
   void compute_transitive_interfaces();
 
+  ciField* get_non_static_field_by_offset(int field_offset);
+
 protected:
   ciInstanceKlass(Klass* k);
   ciInstanceKlass(ciSymbol* name, jobject loader, BasicType bt = T_OBJECT); // for unloaded klasses
@@ -229,6 +231,7 @@ public:
     }
     return _declared_nonstatic_fields->length();
   }
+  BasicType get_field_type_by_offset(int field_offset, bool is_static);
 
   int nof_nonstatic_fields() {
     if (_nonstatic_fields == nullptr) {
@@ -284,6 +287,7 @@ public:
 
   ciInstanceKlass* unique_implementor() {
     assert(is_loaded(), "must be loaded");
+    assert(is_interface(), "must be");
     ciInstanceKlass* impl = implementor();
     return (impl != this ? impl : nullptr);
   }

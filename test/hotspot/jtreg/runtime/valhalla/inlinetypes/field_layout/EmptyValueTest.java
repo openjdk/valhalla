@@ -120,7 +120,7 @@ public class EmptyValueTest {
     static public void check_2(FieldLayoutAnalyzer fla) {
         FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("EmptyValueTest$Container2");
         FieldLayoutAnalyzer.FieldBlock f = cl.getFieldFromName("we", false);
-        Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f.layoutKind());
+        Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f.layoutKind());
     }
 
     static ProcessBuilder exec(String... args) throws Exception {

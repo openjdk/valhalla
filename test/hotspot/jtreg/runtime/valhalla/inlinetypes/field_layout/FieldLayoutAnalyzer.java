@@ -80,18 +80,18 @@ public class FieldLayoutAnalyzer {
 
   public static enum LayoutKind {
     NON_FLAT,
-    NON_ATOMIC_FLAT,
-    ATOMIC_FLAT,
+    NULL_FREE_NON_ATOMIC_FLAT,
+    NULL_FREE_ATOMIC_FLAT,
     NULLABLE_ATOMIC_FLAT,
     NULLABLE_NON_ATOMIC_FLAT;
 
     static LayoutKind parseLayoutKind(String s) {
       switch(s) {
-        case ""                : return NON_FLAT;
-        case "NON_ATOMIC_FLAT" : return NON_ATOMIC_FLAT;
-        case "ATOMIC_FLAT"     : return ATOMIC_FLAT;
-        case "NULLABLE_ATOMIC_FLAT"   : return NULLABLE_ATOMIC_FLAT;
-        case "NULLABLE_NON_ATOMIC_FLAT" : return NULLABLE_NON_ATOMIC_FLAT;
+        case ""                          : return NON_FLAT;
+        case "NULL_FREE_NON_ATOMIC_FLAT" : return NULL_FREE_NON_ATOMIC_FLAT;
+        case "NULL_FREE_ATOMIC_FLAT"     : return NULL_FREE_ATOMIC_FLAT;
+        case "NULLABLE_ATOMIC_FLAT"      : return NULLABLE_ATOMIC_FLAT;
+        case "NULLABLE_NON_ATOMIC_FLAT"  : return NULLABLE_NON_ATOMIC_FLAT;
         default:
           throw new RuntimeException("Unknown layout kind: " + s);
       }
@@ -209,10 +209,10 @@ public class FieldLayoutAnalyzer {
       switch(layoutKind) {
         case NON_FLAT:
           throw new RuntimeException("Should not be called on non-flat fields");
-        case NON_ATOMIC_FLAT:
+        case NULL_FREE_NON_ATOMIC_FLAT:
           Asserts.assertTrue(nonAtomicLayoutSize != -1);
           return nonAtomicLayoutSize;
-        case ATOMIC_FLAT:
+        case NULL_FREE_ATOMIC_FLAT:
           Asserts.assertTrue(atomicLayoutSize != -1);
           return atomicLayoutSize;
         case NULLABLE_ATOMIC_FLAT:
@@ -230,10 +230,10 @@ public class FieldLayoutAnalyzer {
       switch(layoutKind) {
         case NON_FLAT:
           throw new RuntimeException("Should not be called on non-flat fields");
-        case NON_ATOMIC_FLAT:
+        case NULL_FREE_NON_ATOMIC_FLAT:
           Asserts.assertTrue(nonAtomicLayoutSize != -1);
           return nonAtomicLayoutAlignment;
-        case ATOMIC_FLAT:
+        case NULL_FREE_ATOMIC_FLAT:
           Asserts.assertTrue(atomicLayoutSize != -1);
           return atomicLayoutAlignment;
         case NULLABLE_ATOMIC_FLAT:
@@ -296,17 +296,17 @@ public class FieldLayoutAnalyzer {
         String[] firstOffsetLine = lo.getCurrentLine().split("\\s+");
         cl.firstFieldOffset = Integer.parseInt(firstOffsetLine[4]);
         lo.moveToNextLine();
-        // Payload layout: x/y
-        Asserts.assertTrue(lo.getCurrentLine().startsWith("Payload layout"));
+        // BUFFERED layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("BUFFERED layout"));
         String[] payloadLayoutLine = lo.getCurrentLine().split("\\s+");
         String[] size_align = payloadLayoutLine[2].split("/");
         cl.payloadSize = Integer.parseInt(size_align[0]);
         cl.payloadAlignment = Integer.parseInt(size_align[1]);
         lo.moveToNextLine();
-        // Non atomic flat layout: x/y
-        Asserts.assertTrue(lo.getCurrentLine().startsWith("Non atomic flat layout"));
+        // NULL_FREE_NON_ATOMIC_FLAT layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("NULL_FREE_NON_ATOMIC_FLAT layout"));
         String[] nonAtomicLayoutLine = lo.getCurrentLine().split("\\s+");
-        size_align = nonAtomicLayoutLine[4].split("/");
+        size_align = nonAtomicLayoutLine[2].split("/");
         if (size_align[0].contentEquals("-")) {
           Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
           cl.nonAtomicLayoutSize = -1;
@@ -316,10 +316,10 @@ public class FieldLayoutAnalyzer {
           cl.nonAtomicLayoutAlignment = Integer.parseInt(size_align[1]);
         }
         lo.moveToNextLine();
-        // Atomic flat layout: x/y
-        Asserts.assertTrue(lo.getCurrentLine().startsWith("Atomic flat layout"));
+        // NULL_FREE_ATOMIC_FLAT layout: x/y
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("NULL_FREE_ATOMIC_FLAT layout"));
         String[] atomicLayoutLine = lo.getCurrentLine().split("\\s+");
-        size_align = atomicLayoutLine[3].split("/");
+        size_align = atomicLayoutLine[2].split("/");
         if (size_align[0].contentEquals("-")) {
           Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
           cl.atomicLayoutSize = -1;
@@ -330,9 +330,9 @@ public class FieldLayoutAnalyzer {
         }
         lo.moveToNextLine();
         // Nullable atomic flat layout: x/y
-        Asserts.assertTrue(lo.getCurrentLine().startsWith("Nullable atomic flat layout"));
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("NULLABLE_ATOMIC_FLAT layout"));
         String[] nullableAtomicLayoutLine = lo.getCurrentLine().split("\\s+");
-        size_align = nullableAtomicLayoutLine[4].split("/");
+        size_align = nullableAtomicLayoutLine[2].split("/");
         if (size_align[0].contentEquals("-")) {
           Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
           cl.nullableAtomicLayoutSize = -1;
@@ -343,9 +343,9 @@ public class FieldLayoutAnalyzer {
         }
         lo.moveToNextLine();
         // Nullable non-atomic flat layout: x/y
-        Asserts.assertTrue(lo.getCurrentLine().startsWith("Nullable non-atomic flat layout"));
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("NULLABLE_NON_ATOMIC_FLAT layout"));
         String[] nullableNonAtomicLayoutLine = lo.getCurrentLine().split("\\s+");
-        size_align = nullableNonAtomicLayoutLine[4].split("/");
+        size_align = nullableNonAtomicLayoutLine[2].split("/");
         if (size_align[0].contentEquals("-")) {
           Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
           cl.nullableNonAtomicLayoutSize = -1;

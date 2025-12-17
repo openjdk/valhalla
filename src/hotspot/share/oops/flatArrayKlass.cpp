@@ -74,8 +74,8 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
   assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
   assert(prototype_header().is_flat_array(), "Must be");
   switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(layout_helper_is_null_free(layout_helper()), "Must be");
       assert(prototype_header().is_null_free_array(), "Must be");
     break;
@@ -384,12 +384,19 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   assert(!is_refArray_klass(), "Unimplemented");
+  ResourceMark rm;
 
   st->print("Flat Type Array: ");
   Klass::print_on(st);
 
   st->print(" - element klass: ");
   element_klass()->print_value_on(st);
+  st->cr();
+
+  st->print(" - layout kind: %s", LayoutKindHelper::layout_kind_as_string(layout_kind()));
+  st->cr();
+
+  st->print(" - array properties: %s", ArrayKlass::array_properties_as_string(properties()));
   st->cr();
 
   int elem_size = element_byte_size();
@@ -406,25 +413,11 @@ void FlatArrayKlass::print_value_on(outputStream* st) const {
   st->print("[]");
 }
 
-
 #ifndef PRODUCT
 void FlatArrayKlass::oop_print_on(oop obj, outputStream* st) {
   ArrayKlass::oop_print_on(obj, st);
   flatArrayOop va = flatArrayOop(obj);
-  InlineKlass* vk = element_klass();
-  int print_len = MIN2(va->length(), MaxElementPrintSize);
-  for(int index = 0; index < print_len; index++) {
-    int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);
-    st->print_cr(" - Index %3d offset %3d: ", index, off);
-    oop obj = cast_to_oop((address)va->value_at_addr(index, layout_helper()) - vk->payload_offset());
-    FieldPrinter print_field(st, obj);
-    vk->do_nonstatic_fields(&print_field);
-    st->cr();
-  }
-  int remaining = va->length() - print_len;
-  if (remaining > 0) {
-    st->print_cr(" - <%d more elements, increase MaxElementPrintSize to print>", remaining);
-  }
+  oop_print_elements_on(va, st);
 }
 #endif //PRODUCT
 
@@ -445,6 +438,23 @@ void FlatArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
       st->print(" " INTPTR_FORMAT, (intptr_t)(void*)flatArrayOop(obj)->value_at_addr(i , lh));
     }
     st->print(" }");
+  }
+}
+
+void FlatArrayKlass::oop_print_elements_on(flatArrayOop fa, outputStream* st) {
+  InlineKlass* vk = element_klass();
+  int print_len = MIN2(fa->length(), MaxElementPrintSize);
+  for(int index = 0; index < print_len; index++) {
+    int off = (address) fa->value_at_addr(index, layout_helper()) - cast_from_oop<address>(fa);
+    st->print_cr(" - Index %3d offset %3d: ", index, off);
+    oop obj = cast_to_oop((address)fa->value_at_addr(index, layout_helper()) - vk->payload_offset());
+    FieldPrinter print_field(st, obj);
+    vk->do_nonstatic_fields(&print_field);
+    st->cr();
+  }
+  int remaining = fa->length() - print_len;
+  if (remaining > 0) {
+    st->print_cr(" - <%d more elements, increase MaxElementPrintSize to print>", remaining);
   }
 }
 

@@ -186,10 +186,10 @@ class InlineKlass: public InstanceKlass {
   int layout_size_in_bytes(LayoutKind kind) const;
 
 #if INCLUDE_CDS
-  virtual void remove_unshareable_info();
-  virtual void remove_java_mirror();
-  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
-  virtual void metaspace_pointers_do(MetaspaceClosure* it);
+  void remove_unshareable_info() override;
+  void remove_java_mirror() override;
+  void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) override;
+  void metaspace_pointers_do(MetaspaceClosure* it) override;
 #endif
 
  private:
@@ -199,7 +199,7 @@ class InlineKlass: public InstanceKlass {
 
  public:
   // Type testing
-  bool is_inline_klass_slow() const        { return true; }
+  bool is_inline_klass_slow() const override { return true; }
 
   // Casting from Klass*
 
@@ -215,7 +215,7 @@ class InlineKlass: public InstanceKlass {
 
   // Use this to return the size of an instance in heap words.
   // Note that this size only applies to heap allocated stand-alone instances.
-  virtual int size_helper() const {
+  int size_helper() const override {
     return layout_helper_to_size_helper(layout_helper());
   }
 
@@ -230,6 +230,7 @@ class InlineKlass: public InstanceKlass {
   address payload_addr(oop o) const;
 
   bool maybe_flat_in_array();
+  bool is_always_flat_in_array();
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
@@ -321,8 +322,8 @@ class InlineKlass: public InstanceKlass {
   static void cleanup(InlineKlass* ik) ;
 
   // Verification
-  void verify_on(outputStream* st);
-  void oop_verify_on(oop obj, outputStream* st);
+  void verify_on(outputStream* st) override;
+  void oop_verify_on(oop obj, outputStream* st) override;
 
 };
 
