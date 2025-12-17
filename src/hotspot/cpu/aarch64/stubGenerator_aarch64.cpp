@@ -404,7 +404,7 @@ class StubGenerator: public StubCodeGenerator {
       __ tbz(r0, 0, is_long);
       // Load pack handler address
       __ andr(rscratch1, r0, -2);
-      __ ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
       __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_jobject_offset()));
       __ blr(rscratch1);
       __ b(exit);
