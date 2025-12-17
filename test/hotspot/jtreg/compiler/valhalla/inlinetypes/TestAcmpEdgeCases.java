@@ -446,8 +446,6 @@ public class TestAcmpEdgeCases {
                 }
             }
 
-            // TODO re-enable once JDK-8372729 is fixed
-            /*
             // NestedValue
             for (int i = 0; i < NestedValue.EDGE_CASES.length; ++i) {
                 for (int j = 0; j < NestedValue.EDGE_CASES.length; ++j) {
@@ -459,7 +457,6 @@ public class TestAcmpEdgeCases {
                     }
                 }
             }
-            */
         }
     }
 }

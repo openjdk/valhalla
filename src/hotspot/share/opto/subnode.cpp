@@ -925,30 +925,21 @@ Node *CmpINode::Ideal( PhaseGVN *phase, bool can_reshape ) {
 
 //------------------------------Ideal------------------------------------------
 Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  // TODO comment, refactor, do we have a test that fails without this??
   if (can_reshape && in(1)->Opcode() == Op_OrL &&
-      in(1)->in(1)->Opcode() == Op_CastP2X &&
       in(2)->bottom_type()->is_zero_type()) {
-    if (in(1)->in(1)->in(1)->is_InlineType()) {
-      InlineTypeNode* vt = in(1)->in(1)->in(1)->as_InlineType();
-      Node* nm = phase->transform(new ConvI2LNode(vt->get_null_marker()));
-      phase->is_IterGVN()->replace_input_of(in(1), 1, nm);
-      return this;
-    } else if (!phase->type(in(1)->in(1)->in(1))->maybe_null()) {
-      phase->is_IterGVN()->replace_input_of(in(1), 1, phase->longcon(1));
-      return this;
-    }
-  }
-  if (can_reshape && in(1)->Opcode() == Op_OrL &&
-      in(1)->in(2)->Opcode() == Op_CastP2X &&
-      in(2)->bottom_type()->is_zero_type()) {
-    if (in(1)->in(2)->in(1)->is_InlineType()) {
-      InlineTypeNode* vt = in(1)->in(2)->in(1)->as_InlineType();
-      Node* nm = phase->transform(new ConvI2LNode(vt->get_null_marker()));
-      phase->is_IterGVN()->replace_input_of(in(1), 2, nm);
-      return this;
-    } else if (!phase->type(in(1)->in(2)->in(1))->maybe_null()) {
-      phase->is_IterGVN()->replace_input_of(in(1), 2, phase->longcon(1));
-      return this;
+    for (int i = 1; i <= 2; ++i) {
+      if (in(1)->in(i)->Opcode() == Op_CastP2X) {
+        if (in(1)->in(i)->in(1)->is_InlineType()) {
+          InlineTypeNode* vt = in(1)->in(i)->in(1)->as_InlineType();
+          Node* nm = phase->transform(new ConvI2LNode(vt->get_null_marker()));
+          phase->is_IterGVN()->replace_input_of(in(1), i, nm);
+          return this;
+        } else if (!phase->type(in(1)->in(i)->in(1))->maybe_null()) {
+          phase->is_IterGVN()->replace_input_of(in(1), i, phase->longcon(1));
+          return this;
+        }
+      }
     }
   }
   const TypeLong *t2 = phase->type(in(2))->isa_long();

@@ -1172,95 +1172,66 @@ bool CallStaticJavaNode::cmp( const Node &n ) const {
 Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (can_reshape && uncommon_trap_request() != 0) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
-    if (remove_unknown_flat_array_load(igvn, in(0), in(TypeFunc::Memory), in(TypeFunc::Parms))) {
-      if (!in(0)->is_Region()) {
+    if (remove_unknown_flat_array_load(igvn, control(), memory(), in(TypeFunc::Parms))) {
+      if (!control()->is_Region()) {
         igvn->replace_input_of(this, 0, phase->C->top());
       }
       return this;
     }
   }
 
-  // TODO Don't just check on the name
-  if (can_reshape && method() != nullptr &&
-      (method()->name() == ciSymbols::isSubstitutableAlt_name() || method()->name() == ciSymbols::isSubstitutable_name()) &&
-      !control()->is_top() && !in(TypeFunc::Parms)->is_top() && !in(TypeFunc::Parms + 1)->is_top() &&
-      (in(TypeFunc::Parms)->is_InlineType() || in(TypeFunc::Parms + 1)->is_InlineType())) {
-    // Downside: We will scalarize and if we have a "free" oop, it might actually be much faster to vectorize the acmp in memory
-    PhaseIterGVN* igvn = phase->is_IterGVN();
+  // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
+  if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
+      (method()->name() == ciSymbols::isSubstitutableAlt_name() || method()->name() == ciSymbols::isSubstitutable_name())) {
+    Node* left = in(TypeFunc::Parms);
+    Node* right = in(TypeFunc::Parms + 1);
+    if (!left->is_top() && !right->is_top() && (left->is_InlineType() || right->is_InlineType())) {
+      if (!left->is_InlineType()) {
+        swap(left, right);
+      }
+      InlineTypeNode* vt = left->as_InlineType();
 
-    InlineTypeNode* vt = in(TypeFunc::Parms)->isa_InlineType();
-    Node* other = in(TypeFunc::Parms + 1);
+      // Check if the field layout can be optimized
+      if (vt->can_optimize_acmp(right)) {
+        PhaseIterGVN* igvn = phase->is_IterGVN();
 
-    bool can_optimize = true;
+        Node* ctrl = control();
+        RegionNode* region = new RegionNode(1);
+        Node* phi = new PhiNode(region, TypeInt::POS);
 
-    if (vt == nullptr) {
-      vt = other->as_InlineType();
-      other = in(TypeFunc::Parms);
-    } else if (other->is_InlineType() && vt->bottom_type() != other->bottom_type()) {
-      // Different types, this is dead code
-      can_optimize = false;
-    }
-
-    for (uint i = 0; i < vt->field_count(); i++) {
-      ciType* ft = vt->field_type(i);
-      if (!ft->is_primitive_type()) {
-        // TODO optimize at least value type fields
-        if (!ft->as_klass()->can_be_inline_klass() || ft->is_inlinetype()) {
-          // all good
-        } else {
-          can_optimize = false;
-          break;
+        Node* base = right;
+        Node* ptr = right;
+        if (!base->is_InlineType()) {
+          // Parse time checks guarantee that both operands are non-null and have the same type
+          base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
+          ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, base, igvn->MakeConX(vt->bottom_type()->inline_klass()->payload_offset())));
         }
+        // Emit IR for field-wise comparison
+        vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
+
+        // Equals
+        region->add_req(ctrl);
+        phi->add_req(igvn->intcon(1));
+
+        ctrl = igvn->register_new_node_with_optimizer(region);
+        Node* res = igvn->register_new_node_with_optimizer(phi);
+
+        // Kill exception projections and return a tuple that will replace the call
+        CallProjections* projs = extract_projections(false /*separate_io_proj*/);
+        if (projs->fallthrough_catchproj != nullptr) {
+          igvn->replace_node(projs->fallthrough_catchproj, ctrl);
+        }
+        if (projs->catchall_memproj != nullptr) {
+          igvn->replace_node(projs->catchall_memproj, igvn->C->top());
+        }
+        if (projs->catchall_ioproj != nullptr) {
+          igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
+        }
+        if (projs->catchall_catchproj != nullptr) {
+          igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
+        }
+        return TupleNode::make(tf()->range_cc(), ctrl, i_o(), memory(), frameptr(), returnadr(), res);
       }
-    }
-
-    if (can_optimize) {
-      RegionNode* region = new RegionNode(1);
-      Node* phi = new PhiNode(region, TypeInt::POS);
-
-      Node* ctrl = control();
-
-      Node* base = other;
-      Node* ptr = other;
-      if (!base->is_InlineType()) {
-        // Invariant from parse time checks: Both operands are non-null and have the same types
-        base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
-        ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, base, igvn->MakeConX(vt->bottom_type()->inline_klass()->payload_offset())));
-      }
-      vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
-
-      // All equal
-      region->add_req(ctrl);
-      phi->add_req(igvn->intcon(1));
-
-      ctrl = igvn->register_new_node_with_optimizer(region);
-      Node* res = igvn->register_new_node_with_optimizer(phi);
-
-      // Kill exception projections
-      CallProjections* projs = extract_projections(false /*separate_io_proj*/);
-      if (projs->fallthrough_catchproj != nullptr) {
-        igvn->replace_node(projs->fallthrough_catchproj, ctrl);
-      }
-      if (projs->catchall_memproj != nullptr) {
-        igvn->replace_node(projs->catchall_memproj, igvn->C->top());
-      }
-      if (projs->catchall_ioproj != nullptr) {
-        igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
-      }
-      if (projs->catchall_catchproj != nullptr) {
-        igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
-      }
-
-      TupleNode* tuple = TupleNode::make(
-          tf()->range_cc(),
-          ctrl,
-          in(TypeFunc::I_O),
-          in(TypeFunc::Memory),
-          in(TypeFunc::FramePtr),
-          in(TypeFunc::ReturnAdr),
-          res);
-
-      return tuple;
     }
   }
 

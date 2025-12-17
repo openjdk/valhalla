@@ -4911,7 +4911,7 @@ public class TestLWorld {
         return o;
     }
 
-    // Verify that acmp is folded if one of the arguments has a known type
+    // Verify that the substitutability runtime call is removed if (at least) one of the arguments has a known type
     @Test
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
@@ -4919,10 +4919,6 @@ public class TestLWorld {
     public boolean test174(AllPrimitives x, AllPrimitives y) {
         return getter(x) == getter(y);
     }
-
-    static boolean cache174 = true;
-    static boolean cache176 = true;
-    static boolean cache177 = true;
 
     @Run(test = "test174")
     public void test174_verifier() {
@@ -4937,14 +4933,7 @@ public class TestLWorld {
         Asserts.assertFalse(test174(null, x));
         Asserts.assertFalse(test174(x, z));
         Asserts.assertFalse(test174(z, x));
-
-        // TODO fix, should be always false but right now that only happens once compiled
-        boolean res = test174(z, new AllPrimitives(rI, 0));
-        if (res) {
-            Asserts.assertTrue(cache174);
-        } else {
-            cache174 = false;
-        }
+        Asserts.assertFalse(test174(z, new AllPrimitives(rI, 0)));
     }
 
     @Test
@@ -4985,13 +4974,7 @@ public class TestLWorld {
         Asserts.assertFalse(test176(x, 42));
         Asserts.assertFalse(test176(x, z));
         Asserts.assertFalse(test176(z, x));
-        // TODO fix, should be always false but right now that only happens once compiled
-        boolean res = test176(z, new AllPrimitives(rI, 0));
-        if (res) {
-            Asserts.assertTrue(cache176);
-        } else {
-            cache176 = false;
-        }
+        Asserts.assertFalse(test176(z, new AllPrimitives(rI, 0)));
     }
 
     // Same as above but type of 'y' is only known after loop opts
@@ -5023,13 +5006,7 @@ public class TestLWorld {
         Asserts.assertFalse(test177(42, x));
         Asserts.assertFalse(test177(x, z));
         Asserts.assertFalse(test177(z, x));
-        // TODO fix, should be always false but right now that only happens once compiled
-        boolean res = test177(z, new AllPrimitives(rI, 0));
-        if (res) {
-            Asserts.assertTrue(cache177);
-        } else {
-            cache177 = false;
-        }
+        Asserts.assertFalse(test177(z, new AllPrimitives(rI, 0)));
     }
 
     @LooselyConsistentValue
@@ -5245,6 +5222,63 @@ public class TestLWorld {
     @Run(test = "test180")
     public void test180_verifier() {
         Asserts.assertTrue(test180());
+    }
+
+    @LooselyConsistentValue
+    static value class Value181 {
+        Object obj;
+
+        public Value181(Object obj) {
+            this.obj = obj;
+        }
+    }
+
+    // Non-optimizable case because the object field would require another substitutability check
+    @Test
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    public boolean test181(Value181 val1, Value181 val2) {
+        return val1 == val2;
+    }
+
+    @Run(test = "test181")
+    public void test181_verifier() {
+        Value181 val1 = new Value181(new Value181(42));
+        Value181 val2 = new Value181(new Value181(42));
+        Value181 val3 = new Value181(new Value181(43));
+        Asserts.assertTrue(test181(val1, val1));
+        Asserts.assertTrue(test181(val1, val2));
+        Asserts.assertFalse(test181(val2, val3));
+    }
+
+    @LooselyConsistentValue
+    static value class Value182 {
+        @Strict
+        @NullRestricted
+        Value181 val; // This will require another substitutability check because it has an Object field
+
+        public Value182(Value181 val) {
+            this.val = val;
+        }
+    }
+
+    // Same as test181 but the Object field "hides" one level deeper
+    @Test
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    public boolean test182(Value182 val1, Value182 val2) {
+        return val1 == val2;
+    }
+
+    @Run(test = "test182")
+    public void test182_verifier() {
+        Value182 val1 = new Value182(new Value181(42));
+        Value182 val2 = new Value182(new Value181(43));
+        Value182 val3 = new Value182(new Value181(new Value181(42)));
+        Value182 val4 = new Value182(new Value181(new Value181(42)));
+        Asserts.assertTrue(test182(val1, val1));
+        Asserts.assertTrue(test182(val2, val2));
+        Asserts.assertFalse(test182(val1, val2));
+        Asserts.assertFalse(test182(val2, val3));
+        Asserts.assertTrue(test182(val3, val4));
     }
 }
 

@@ -634,19 +634,16 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
 static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2, Node* res_val) {
   Node* cmp = nullptr;
   if (is_subword_type(bt)|| bt == T_INT) {
-    cmp = igvn->transform(new CmpINode(val1, val2));
+    cmp = igvn->register_new_node_with_optimizer(new CmpINode(val1, val2));
   } else if (bt == T_FLOAT) {
-    cmp = igvn->transform(new CmpINode(igvn->transform(new MoveF2INode(val1)), igvn->transform(new MoveF2INode(val2))));
+    cmp = igvn->register_new_node_with_optimizer(new CmpINode(igvn->register_new_node_with_optimizer(new MoveF2INode(val1)), igvn->register_new_node_with_optimizer(new MoveF2INode(val2))));
   } else if (bt == T_DOUBLE) {
-    // TODO Use register_new_node_with_optimizer, also in caller
     // TODO performance might be bad for this check https://corparch-core-srv.slack.com/archives/CB32V69C2/p1756296355911759
-    cmp = igvn->transform(new CmpLNode(igvn->transform(new MoveD2LNode(val1)), igvn->transform(new MoveD2LNode(val2))));
+    cmp = igvn->register_new_node_with_optimizer(new CmpLNode(igvn->register_new_node_with_optimizer(new MoveD2LNode(val1)), igvn->register_new_node_with_optimizer(new MoveD2LNode(val2))));
   } else if (bt == T_LONG) {
-    cmp = igvn->transform(new CmpLNode(val1, val2));
+    cmp = igvn->register_new_node_with_optimizer(new CmpLNode(val1, val2));
   } else {
-    // TODO enable
-  // assert(!ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
-    cmp = igvn->transform(new CmpPNode(val1, val2));
+    cmp = igvn->register_new_node_with_optimizer(new CmpPNode(val1, val2));
   }
   Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, test));
   IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(*ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
@@ -658,6 +655,27 @@ static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node
     phi->add_req(res_val);
   }
   *ctrl = if_f;
+}
+
+bool InlineTypeNode::can_optimize_acmp(Node* other) {
+  if (other != nullptr && other->is_InlineType() && bottom_type() != other->bottom_type()) {
+    // Different types, this is dead code
+    return false;
+  }
+
+  // Check if layout can be optimized
+  for (uint i = 0; i < field_count(); i++) {
+    ciType* ft = field_type(i);
+    if (ft->is_inlinetype()) {
+      if (!field_value(i)->as_InlineType()->can_optimize_acmp(nullptr)){
+        return false;
+      }
+    } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
+      // Comparing this field might require (another) substitutability check, bail out
+      return false;
+    }
+  }
+  return true;
 }
 
 void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr) {
@@ -692,7 +710,6 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
       field_base = field_ptr;
     }
 
-    // TODO is this correct? Couldn't val1 be an inline type but the field be an Object?
     // TODO what if val1 is not an inline type but the field type is?
     if (val1->is_InlineType()) {
       RegionNode* doneRegion = new RegionNode(1);
@@ -759,6 +776,7 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
       continue;
     }
 
+    assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
     check_helper(igvn, region, phi, ctrl, bt, BoolTest::ne, val1, field_ptr, igvn->intcon(0));
   }
 }

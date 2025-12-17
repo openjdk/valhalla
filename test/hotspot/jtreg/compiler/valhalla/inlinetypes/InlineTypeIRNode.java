@@ -69,6 +69,7 @@ public class InlineTypeIRNode {
         IRNode.callLeafNoFpOfMethodNodes(JLONG_ARRAYCOPY, InlineTypeRegexes.JLONG_DISJOINT_ARRAYCOPY);
     }
 
+    // TODO replace this
     public static final String SUBSTITUTABILITY_TEST = PREFIX + "SUBSTITUTABILITY_TEST" + POSTFIX;
     static {
         IRNode.staticCallOfMethodNodes(SUBSTITUTABILITY_TEST, InlineTypeRegexes.VALUE_OBJECT_METHODS_IS_SUBSTITUTABLE);
