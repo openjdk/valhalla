@@ -44,6 +44,7 @@
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -1123,7 +1124,7 @@ bool CallJavaNode::validate_symbolic_info() const {
     return true; // call into runtime or uncommon trap
   }
   Bytecodes::Code bc = jvms()->method()->java_code_at_bci(jvms()->bci());
-  if (EnableValhalla && (bc == Bytecodes::_if_acmpeq || bc == Bytecodes::_if_acmpne)) {
+  if (Arguments::is_valhalla_enabled() && (bc == Bytecodes::_if_acmpeq || bc == Bytecodes::_if_acmpne)) {
     return true;
   }
   ciMethod* symbolic_info = jvms()->method()->get_method_at_bci(jvms()->bci());
@@ -1198,7 +1199,6 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
         assert(callee->has_member_arg(), "wrong type of call?");
         if (in(TypeFunc::Parms + callee->arg_size() - 1)->Opcode() == Op_ConP) {
           register_for_late_inline();
-          phase->C->inc_number_of_mh_late_inlines();
         }
       }
     } else {
@@ -1940,11 +1940,11 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = nullptr;
-  if (UseCompactObjectHeaders || EnableValhalla) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     Node* klass_node = in(AllocateNode::KlassNode);
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-    if (EnableValhalla) {
+    if (Arguments::is_valhalla_enabled()) {
       mark_node = phase->transform(mark_node);
       // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
       mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));

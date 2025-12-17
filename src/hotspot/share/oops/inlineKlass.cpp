@@ -53,26 +53,28 @@
 #include "utilities/copy.hpp"
 #include "utilities/stringUtils.hpp"
 
+InlineKlass::InlineKlass() {
+  assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS");
+}
+
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InlineKlass::Kind, markWord::inline_type_prototype()) {
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
-}
 
-InlineKlass::InlineKlass() {
-  assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS");
-}
+  // Set up the offset to the InstanceKlassFixedBlock of this klass
+  _adr_inlineklass_fixed_block = new (calculate_fixed_block_address()) InlineKlassFixedBlock;
 
-void InlineKlass::init_fixed_block() {
-  _adr_inlineklass_fixed_block = inlineklass_static_block();
   // Addresses used for inline type calling convention
-  *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
-  *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
-  *((address*)adr_pack_handler()) = nullptr;
-  *((address*)adr_pack_handler_jobject()) = nullptr;
-  *((address*)adr_unpack_handler()) = nullptr;
+  set_extended_sig(nullptr);
+  set_return_regs(nullptr);
+  set_pack_handler(nullptr);
+  set_pack_handler_jobject(nullptr);
+  set_unpack_handler(nullptr);
+
   assert(pack_handler() == nullptr, "pack handler not null");
+
   set_null_reset_value_offset(0);
   set_payload_offset(-1);
   set_payload_size_in_bytes(-1);
@@ -82,6 +84,11 @@ void InlineKlass::init_fixed_block() {
   set_atomic_size_in_bytes(-1);
   set_nullable_size_in_bytes(-1);
   set_null_marker_offset(-1);
+}
+
+address InlineKlass::calculate_fixed_block_address() const {
+  // The fix block is placed after all other fields inherited from the InstanceKlass
+  return end_of_instance_klass();
 }
 
 void InlineKlass::set_null_reset_value(oop val) {
@@ -100,14 +107,6 @@ instanceOop InlineKlass::allocate_instance(TRAPS) {
   return oop;
 }
 
-instanceOop InlineKlass::allocate_instance_buffer(TRAPS) {
-  int size = size_helper();  // Query before forming handle.
-
-  instanceOop oop = (instanceOop)Universe::heap()->obj_buffer_allocate(this, size, CHECK_NULL);
-  assert(oop->mark().is_inline_type(), "Expected inline type");
-  return oop;
-}
-
 int InlineKlass::nonstatic_oop_count() {
   int oops = 0;
   int map_count = nonstatic_oop_map_count();
@@ -122,11 +121,11 @@ int InlineKlass::nonstatic_oop_count() {
 
 int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
   switch(kind) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       assert(has_non_atomic_layout(), "Layout not available");
       return non_atomic_size_in_bytes();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(has_atomic_layout(), "Layout not available");
       return atomic_size_in_bytes();
       break;
@@ -144,11 +143,11 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
 
 int InlineKlass::layout_alignment(LayoutKind kind) const {
   switch(kind) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       assert(has_non_atomic_layout(), "Layout not available");
       return non_atomic_alignment();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       assert(has_atomic_layout(), "Layout not available");
       return atomic_size_in_bytes();
       break;
@@ -166,10 +165,10 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
 
 bool InlineKlass::is_layout_supported(LayoutKind lk) {
   switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       return has_non_atomic_layout();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       return has_atomic_layout();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
@@ -211,8 +210,8 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
     }
     break;
     case LayoutKind::BUFFERED:
-    case LayoutKind::ATOMIC_FLAT:
-    case LayoutKind::NON_ATOMIC_FLAT: {
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) return; // nothing to do
       if (dest_is_initialized) {
         HeapAccess<>::value_copy(src, dst, this, lk);
@@ -236,10 +235,10 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
       }
     } // Fallthrough
     case LayoutKind::BUFFERED:
-    case LayoutKind::ATOMIC_FLAT:
-    case LayoutKind::NON_ATOMIC_FLAT: {
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
-      oop res = allocate_instance_buffer(CHECK_NULL);
+      oop res = allocate_instance(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
       if (LayoutKindHelper::is_nullable_flat(lk)) {
         if(is_payload_marked_as_null(payload_addr(res))) {
@@ -391,7 +390,7 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
       }
     }
     Array<SigEntry>* extended_sig = MetadataFactory::new_array<SigEntry>(class_loader_data(), sig_vk.length(), CHECK);
-    *((Array<SigEntry>**)adr_extended_sig()) = extended_sig;
+    set_extended_sig(extended_sig);
     for (int i = 0; i < sig_vk.length(); i++) {
       extended_sig->at_put(i, sig_vk.at(i));
     }
@@ -405,7 +404,7 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
 
       if (total > 0) {
         Array<VMRegPair>* return_regs = MetadataFactory::new_array<VMRegPair>(class_loader_data(), nb_fields, CHECK);
-        *((Array<VMRegPair>**)adr_return_regs()) = return_regs;
+        set_return_regs(return_regs);
         for (int i = 0; i < nb_fields; i++) {
           return_regs->at_put(i, regs[i]);
         }
@@ -414,9 +413,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
         if (buffered_blob == nullptr) {
           THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
         }
-        *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
-        *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
-        *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();
+        set_pack_handler(buffered_blob->pack_fields());
+        set_pack_handler_jobject(buffered_blob->pack_fields_jobject());
+        set_unpack_handler(buffered_blob->unpack_fields());
         assert(CodeCache::find_blob(pack_handler()) == buffered_blob, "lost track of blob");
         assert(can_be_returned_as_fields(), "sanity");
       }
@@ -430,12 +429,12 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
 
 void InlineKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (extended_sig() != nullptr) {
-    MetadataFactory::free_array<SigEntry>(loader_data, extended_sig());
-    *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
+    MetadataFactory::free_array<SigEntry>(loader_data, fixed_block()._extended_sig);
+    set_extended_sig(nullptr);
   }
   if (return_regs() != nullptr) {
-    MetadataFactory::free_array<VMRegPair>(loader_data, return_regs());
-    *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
+    MetadataFactory::free_array<VMRegPair>(loader_data, fixed_block()._return_regs);
+    set_return_regs(nullptr);
   }
   cleanup_blobs();
   InstanceKlass::deallocate_contents(loader_data);
@@ -450,9 +449,9 @@ void InlineKlass::cleanup_blobs() {
     CodeBlob* buffered_blob = CodeCache::find_blob(pack_handler());
     assert(buffered_blob->is_buffered_inline_type_blob(), "bad blob type");
     BufferBlob::free((BufferBlob*)buffered_blob);
-    *((address*)adr_pack_handler()) = nullptr;
-    *((address*)adr_pack_handler_jobject()) = nullptr;
-    *((address*)adr_unpack_handler()) = nullptr;
+    set_pack_handler(nullptr);
+    set_pack_handler_jobject(nullptr);
+    set_unpack_handler(nullptr);
   }
 }
 
@@ -652,14 +651,15 @@ void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
   // update it to point to the "buffered" copy of this class.
-  _adr_inlineklass_fixed_block = inlineklass_static_block();
+  _adr_inlineklass_fixed_block = reinterpret_cast<InlineKlassFixedBlock*>(calculate_fixed_block_address());
   ArchivePtrMarker::mark_pointer((address*)&_adr_inlineklass_fixed_block);
 
-  *((Array<SigEntry>**)adr_extended_sig()) = nullptr;
-  *((Array<VMRegPair>**)adr_return_regs()) = nullptr;
-  *((address*)adr_pack_handler()) = nullptr;
-  *((address*)adr_pack_handler_jobject()) = nullptr;
-  *((address*)adr_unpack_handler()) = nullptr;
+  set_extended_sig(nullptr);
+  set_return_regs(nullptr);
+  set_pack_handler(nullptr);
+  set_pack_handler_jobject(nullptr);
+  set_unpack_handler(nullptr);
+
   assert(pack_handler() == nullptr, "pack handler not null");
 }
 

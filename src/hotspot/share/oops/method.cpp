@@ -173,6 +173,9 @@ address Method::get_c2i_inline_entry() {
 }
 
 address Method::get_c2i_unverified_entry() {
+  if (is_abstract()) {
+    return SharedRuntime::get_handle_wrong_method_abstract_stub();
+  }
   assert(adapter() != nullptr, "must have");
   return adapter()->get_c2i_unverified_entry();
 }
@@ -183,6 +186,9 @@ address Method::get_c2i_unverified_inline_entry() {
 }
 
 address Method::get_c2i_no_clinit_check_entry() {
+  if (is_abstract()) {
+    return nullptr;
+  }
   assert(VM_Version::supports_fast_class_init_checks(), "");
   assert(adapter() != nullptr, "must have");
   return adapter()->get_c2i_no_clinit_check_entry();
@@ -407,7 +413,7 @@ Symbol* Method::klass_name() const {
 void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(aot)("Iter(Method): %p", this);
 
-  if (!method_holder()->is_rewritten() || CDSConfig::is_valhalla_preview()) {
+  if (!method_holder()->is_rewritten() || Arguments::is_valhalla_enabled()) {
     it->push(&_constMethod, MetaspaceClosure::_writable);
   } else {
     it->push(&_constMethod);

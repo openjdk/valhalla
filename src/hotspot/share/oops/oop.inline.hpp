@@ -37,6 +37,7 @@
 #include "oops/markWord.inline.hpp"
 #include "oops/objLayout.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/align.hpp"
@@ -83,7 +84,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 markWord oopDesc::prototype_mark() const {
-  if (UseCompactObjectHeaders || EnableValhalla) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     return klass()->prototype_header();
   } else {
     return markWord::prototype();
@@ -92,19 +93,6 @@ markWord oopDesc::prototype_mark() const {
 
 void oopDesc::init_mark() {
   set_mark(prototype_mark());
-}
-
-// This is specifically for Parallel GC. The other collectors need klass()->prototype_header()
-// even without using Compact Object Headers. The issue is that this operation is unsafe
-// using Parallel, as there are multiple concurrent GC workers that could access it.
-// In practice, this has lead to relatively frequent crashes.
-// More work needs to be done in the future to consolidate reinit_mark with init_mark.
-void oopDesc::reinit_mark() {
-  if (UseCompactObjectHeaders) {
-    set_mark(klass()->prototype_header());
-  } else {
-    set_mark(markWord::prototype());
-  }
 }
 
 Klass* oopDesc::klass() const {

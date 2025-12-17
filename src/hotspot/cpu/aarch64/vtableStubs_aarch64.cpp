@@ -63,8 +63,6 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1)
   int       slop_bytes = 0;
   int       slop_delta = 0;
 
-// No variance was detected in vtable stub sizes. Setting index_dependent_slop == 0 will unveil any deviation from this observation.
-  const int index_dependent_slop     = 0;
   ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_inline_offset() :  Method::from_compiled_inline_ro_offset();
 
   ResourceMark    rm;
@@ -135,8 +133,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1)
   __ br(rscratch1);
 
   masm->flush();
-  slop_bytes += index_dependent_slop; // add'l slop for size variance due to large itable offsets
-  bookkeeping(masm, tty, s, npe_addr, ame_addr, true, vtable_index, slop_bytes, index_dependent_slop);
+  bookkeeping(masm, tty, s, npe_addr, ame_addr, true, vtable_index, slop_bytes, 0);
 
   return s;
 }
@@ -158,8 +155,6 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1)
   int       slop_bytes = 0;
   int       slop_delta = 0;
 
-  const int index_dependent_slop = (itable_index == 0) ? 4 :     // code size change with transition from 8-bit to 32-bit constant (@index == 16).
-                                   (itable_index < 16) ? 3 : 0;  // index == 0 generates even shorter code.
   ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_inline_offset() :  Method::from_compiled_inline_ro_offset();
 
   ResourceMark    rm;
@@ -239,8 +234,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1)
   __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
 
   masm->flush();
-  slop_bytes += index_dependent_slop; // add'l slop for size variance due to large itable offsets
-  bookkeeping(masm, tty, s, npe_addr, ame_addr, false, itable_index, slop_bytes, index_dependent_slop);
+  bookkeeping(masm, tty, s, npe_addr, ame_addr, false, itable_index, slop_bytes, 0);
 
   return s;
 }

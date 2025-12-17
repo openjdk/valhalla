@@ -147,7 +147,7 @@ public class TestLayoutFlags {
         FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/TestLayoutFlags$Container0");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
         if (useNullableAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f0.layoutKind());
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f0.layoutKind());
         } else {
             Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
         }
@@ -184,7 +184,7 @@ public class TestLayoutFlags {
         FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/TestLayoutFlags$Container2");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
         if (useNonAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
         } else {
             Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
         }
