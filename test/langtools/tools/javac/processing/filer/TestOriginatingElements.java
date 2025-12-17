@@ -174,7 +174,7 @@ public class TestOriginatingElements extends TestRunner {
             };
             try {
                 String generatedData;
-                try (MemoryFileManager mfm = new MemoryFileManager(sjfm)) {
+                try (MemoryFileManager mfm = new MemoryFileManager(sjfm, /* shouldClose */ false)) {
                     compiler.getTask(null, mfm, null, null, null,
                                      List.of(new ToolBox.JavaSource("package test; public class Generated2 {}")))
                             .call();

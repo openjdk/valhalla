@@ -853,20 +853,14 @@ public class ToolBox {
 
         /**
          * Constructs a memory file manager which stores output files in memory,
-         * and delegates to a default file manager for input files.
-         */
-        public MemoryFileManager() {
-            this(ToolProvider.getSystemJavaCompiler().getStandardFileManager(null, null, null));
-        }
-
-        /**
-         * Constructs a memory file manager which stores output files in memory,
          * and delegates to a specified file manager for input files.
          *
          * @param fileManager the file manager to be used for input files
+         * @param shouldClose whether the delegate file manager should be closed
+         *     when this instance is closed
          */
-        public MemoryFileManager(JavaFileManager fileManager) {
-            super(fileManager);
+        public MemoryFileManager(JavaFileManager fileManager, boolean shouldClose) {
+            super(fileManager, shouldClose);
             files = new HashMap<>();
         }
 
@@ -877,19 +871,6 @@ public class ToolBox {
                                                    FileObject sibling)
         {
             return new MemoryFileObject(location, name, kind);
-        }
-
-        /**
-         * Returns the set of names of files that have been written to a given
-         * location.
-         *
-         * @param location the location
-         * @return the set of file names
-         */
-        public Set<String> getFileNames(Location location) {
-            Map<String, Content> filesForLocation = files.get(location);
-            return (filesForLocation == null)
-                ? Collections.emptySet() : filesForLocation.keySet();
         }
 
         /**
@@ -911,13 +892,8 @@ public class ToolBox {
          *
          * @param location the location
          * @param name     the name of the file
-         * @return the content as a string
+         * @return the content
          */
-        public String getFileString(Location location, String name) {
-            Content content = getFile(location, name);
-            return (content == null) ? null : content.getString();
-        }
-
         private Content getFile(Location location, String name) {
             Map<String, Content> filesForLocation = files.get(location);
             return (filesForLocation == null) ? null : filesForLocation.get(name);
