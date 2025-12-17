@@ -46,13 +46,26 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
     return ObjArrayAllocator::initialize(mem);
   }
 
+  if (ArrayKlass::cast(_klass)->is_flatArray_klass() &&
+      FlatArrayKlass::cast(_klass)->contains_oops()) {
+    // Flat arrays containing oops are not supported in ZGC without relying on
+    // internal-only features such as loose-consistency and null-restriction.
+    // A value object that contains an oop and a null-marker will always exceed
+    // 64 bits when using ZGC. As a result, such objects will not be flattened
+    // in practice due to the 64-bit atomicity limit.
+    //
+    // We only need to support flat arrays containing oops when/if value objects
+    // can be user-declared as loosely consistent and/or null-restricted.
+    return ObjArrayAllocator::initialize(mem);
+  }
+
   // A max segment size of 64K was chosen because microbenchmarking
   // suggested that it offered a good trade-off between allocation
   // time and time-to-safepoint
   const size_t segment_max = ZUtils::bytes_to_words(64 * K);
 
-  if (_word_size <= segment_max || ArrayKlass::cast(_klass)->is_flatArray_klass()) {
-    // To small to use segmented clearing
+  if (_word_size <= segment_max) {
+    // Too small to use segmented clearing
     return ObjArrayAllocator::initialize(mem);
   }
 
