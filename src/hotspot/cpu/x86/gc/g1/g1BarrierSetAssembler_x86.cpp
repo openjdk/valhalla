@@ -30,6 +30,7 @@
 #include "gc/g1/g1HeapRegion.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "interpreter/interp_masm.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
@@ -235,7 +236,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   __ jcc(Assembler::equal, done);
   generate_pre_barrier_slow_path(masm, obj, pre_val, thread, tmp, done);
 
-  if (EnableValhalla && InlineTypePassFieldsAsArgs) {
+  if (Arguments::is_valhalla_enabled() && InlineTypePassFieldsAsArgs) {
     // Barriers might be emitted when converting between (scalarized) calling conventions for inline
     // types. Save all argument registers before calling into the runtime.
     // TODO 8366717: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64 )
@@ -279,7 +280,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry), pre_val, thread);
   }
 
-  if (EnableValhalla && InlineTypePassFieldsAsArgs) {
+  if (Arguments::is_valhalla_enabled() && InlineTypePassFieldsAsArgs) {
     // Restore registers
     __ movdbl(j_farg0, Address(rsp, 0));
     __ movdbl(j_farg1, Address(rsp, 8));

@@ -32,6 +32,8 @@
 #include "oops/method.hpp"
 #include "runtime/registerMap.hpp"
 
+class SigEntry;
+
 // An InlineKlass is a specialized InstanceKlass for concrete value classes
 // (abstract value classes are represented by InstanceKlass)
 
@@ -43,6 +45,54 @@ class InlineKlass: public InstanceKlass {
  public:
   static const KlassKind Kind = InlineKlassKind;
 
+  // The member fields of the InlineKlass.
+  //
+  // All Klass objects have vtables starting at offset `sizeof(InstanceKlass)`.
+  //
+  // This has the effect that sub-klasses of InstanceKlass can't have their own
+  // C++ fields, because those would overlap with the vtables (or some of the
+  // other dynamically-sized sections).
+  //
+  // To work around this we stamp out the block members *after* all
+  // dynamically-sized sections belonging to the InstanceKlass part of the
+  // object.
+  //
+  // InlineKlass object layout:
+  //   +-----------------------+
+  //   | sizeof(InstanceKlass) |
+  //   +-----------------------+ <= InstanceKlass:header_size()
+  //   | vtable                |
+  //   +-----------------------+
+  //   | other sections        |
+  //   +-----------------------+ <= end_of_instance_klass()
+  //   | InlineKlass::Members  |
+  //   +-----------------------+
+  //
+  class Members {
+    friend class InlineKlass;
+
+    // Addresses used for inline type calling convention
+    Array<SigEntry>* _extended_sig;
+    Array<VMRegPair>* _return_regs;
+
+    address _pack_handler;
+    address _pack_handler_jobject;
+    address _unpack_handler;
+
+    int _null_reset_value_offset;
+    int _payload_offset;           // offset of the beginning of the payload in a heap buffered instance
+    int _payload_size_in_bytes;    // size of payload layout
+    int _payload_alignment;        // alignment required for payload
+    int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
+    int _non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
+    int _atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
+    int _nullable_size_in_bytes;   // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+    int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
+                                   // payload_offset must be subtracted to get the offset from the beginning of the payload
+
+    Members();
+  };
+
   InlineKlass();
 
  private:
@@ -50,20 +100,17 @@ class InlineKlass: public InstanceKlass {
   // Constructor
   InlineKlass(const ClassFileParser& parser);
 
-  // After the InstanceKlass part of the InlineKlass comes the
-  // InlineKlassFixedBlock. It can't be instantiated as a field
-  // because InstanceKlass instances have dynamic size.
+  // Calculates where the members are supposed to be placed
+  address calculate_members_address() const;
 
-  address calculate_fixed_block_address() const;
-
-  InlineKlassFixedBlock& fixed_block() {
-    assert(_adr_inlineklass_fixed_block != 0, "Should have been initialized");
-    return *_adr_inlineklass_fixed_block;
+  Members& members() {
+    assert(_adr_inline_klass_members != nullptr, "Should have been initialized");
+    return *reinterpret_cast<Members*>(_adr_inline_klass_members);
   }
 
-  inline const InlineKlassFixedBlock& fixed_block() const {
+  inline const Members& members() const {
     InlineKlass* ik = const_cast<InlineKlass*>(this);
-    return const_cast<const InlineKlassFixedBlock&>(ik->fixed_block());
+    return const_cast<const Members&>(ik->members());
   }
 
  public:
@@ -71,63 +118,63 @@ class InlineKlass: public InstanceKlass {
   bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
   void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
 
-  // InlineKlassFixedBlock access functions
+  // Members access functions
 
-  const Array<SigEntry>* extended_sig() const                 {return fixed_block()._extended_sig; }
-  void set_extended_sig(Array<SigEntry>* extended_sig)        { fixed_block()._extended_sig = extended_sig; }
+  const Array<SigEntry>* extended_sig() const                 {return members()._extended_sig; }
+  void set_extended_sig(Array<SigEntry>* extended_sig)        { members()._extended_sig = extended_sig; }
 
-  const Array<VMRegPair>* return_regs() const                 { return fixed_block()._return_regs; }
-  void set_return_regs(Array<VMRegPair>* return_regs)         { fixed_block()._return_regs = return_regs; }
+  const Array<VMRegPair>* return_regs() const                 { return members()._return_regs; }
+  void set_return_regs(Array<VMRegPair>* return_regs)         { members()._return_regs = return_regs; }
 
   // pack and unpack handlers for inline types return
 
-  address pack_handler() const                                { return fixed_block()._pack_handler; }
-  void set_pack_handler(address pack_handler)                 { fixed_block()._pack_handler = pack_handler; }
+  address pack_handler() const                                { return members()._pack_handler; }
+  void set_pack_handler(address pack_handler)                 { members()._pack_handler = pack_handler; }
 
-  address pack_handler_jobject() const                        { return fixed_block()._pack_handler_jobject; }
-  void set_pack_handler_jobject(address pack_handler_jobject) { fixed_block()._pack_handler_jobject = pack_handler_jobject; }
+  address pack_handler_jobject() const                        { return members()._pack_handler_jobject; }
+  void set_pack_handler_jobject(address pack_handler_jobject) { members()._pack_handler_jobject = pack_handler_jobject; }
 
-  address unpack_handler() const                              { return fixed_block()._unpack_handler; }
-  void set_unpack_handler(address unpack_handler)             { fixed_block()._unpack_handler = unpack_handler; }
+  address unpack_handler() const                              { return members()._unpack_handler; }
+  void set_unpack_handler(address unpack_handler)             { members()._unpack_handler = unpack_handler; }
 
   int null_reset_value_offset() {
-    int offset = fixed_block()._null_reset_value_offset;
+    int offset = members()._null_reset_value_offset;
     assert(offset != 0, "must not be called if not initialized");
     return offset;
   }
-  void set_null_reset_value_offset(int offset)                { fixed_block()._null_reset_value_offset = offset; }
+  void set_null_reset_value_offset(int offset)                { members()._null_reset_value_offset = offset; }
 
   int payload_offset() const {
-    int offset = fixed_block()._payload_offset;
+    int offset = members()._payload_offset;
     assert(offset != 0, "Must be initialized before use");
     return offset;
   }
-  void set_payload_offset(int offset)                         { fixed_block()._payload_offset = offset; }
+  void set_payload_offset(int offset)                         { members()._payload_offset = offset; }
 
-  int payload_size_in_bytes() const                           { return fixed_block()._payload_size_in_bytes; }
-  void set_payload_size_in_bytes(int payload_size)            { fixed_block()._payload_size_in_bytes = payload_size; }
+  int payload_size_in_bytes() const                           { return members()._payload_size_in_bytes; }
+  void set_payload_size_in_bytes(int payload_size)            { members()._payload_size_in_bytes = payload_size; }
 
-  int payload_alignment() const                               { return fixed_block()._payload_alignment; }
-  void set_payload_alignment(int alignment)                   { fixed_block()._payload_alignment = alignment; }
+  int payload_alignment() const                               { return members()._payload_alignment; }
+  void set_payload_alignment(int alignment)                   { members()._payload_alignment = alignment; }
 
-  int non_atomic_size_in_bytes() const                        { return fixed_block()._non_atomic_size_in_bytes; }
-  void set_non_atomic_size_in_bytes(int size)                 { fixed_block()._non_atomic_size_in_bytes = size; }
+  int non_atomic_size_in_bytes() const                        { return members()._non_atomic_size_in_bytes; }
+  void set_non_atomic_size_in_bytes(int size)                 { members()._non_atomic_size_in_bytes = size; }
   bool has_non_atomic_layout() const                          { return non_atomic_size_in_bytes() != -1; }
 
-  int non_atomic_alignment() const                            { return fixed_block()._non_atomic_alignment; }
-  void set_non_atomic_alignment(int alignment)                { fixed_block()._non_atomic_alignment = alignment; }
+  int non_atomic_alignment() const                            { return members()._non_atomic_alignment; }
+  void set_non_atomic_alignment(int alignment)                { members()._non_atomic_alignment = alignment; }
 
-  int atomic_size_in_bytes() const                            { return fixed_block()._atomic_size_in_bytes; }
-  void set_atomic_size_in_bytes(int size)                     { fixed_block()._atomic_size_in_bytes = size; }
+  int atomic_size_in_bytes() const                            { return members()._atomic_size_in_bytes; }
+  void set_atomic_size_in_bytes(int size)                     { members()._atomic_size_in_bytes = size; }
   bool has_atomic_layout() const                              { return atomic_size_in_bytes() != -1; }
 
   // FIXME: These names are not consistent w.r.t the atomic part.
-  int nullable_atomic_size_in_bytes() const                   { return fixed_block()._nullable_size_in_bytes; }
-  void set_nullable_size_in_bytes(int size)                   { fixed_block()._nullable_size_in_bytes = size; }
+  int nullable_atomic_size_in_bytes() const                   { return members()._nullable_size_in_bytes; }
+  void set_nullable_size_in_bytes(int size)                   { members()._nullable_size_in_bytes = size; }
   bool has_nullable_atomic_layout() const                     { return nullable_atomic_size_in_bytes() != -1; }
 
-  int null_marker_offset() const                              { return fixed_block()._null_marker_offset; }
-  void set_null_marker_offset(int offset)                     { fixed_block()._null_marker_offset = offset; }
+  int null_marker_offset() const                              { return members()._null_marker_offset; }
+  void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
   bool is_payload_marked_as_null(address payload) {
@@ -187,10 +234,6 @@ class InlineKlass: public InstanceKlass {
   // allocate_instance() allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
   instanceOop allocate_instance(TRAPS);
-  // allocates a stand alone inline buffer in the Java heap
-  // DOES NOT have memory cleared, user MUST initialize payload before
-  // returning to Java (i.e.: inline_copy)
-  instanceOop allocate_instance_buffer(TRAPS);
 
   address payload_addr(oop o) const;
 
@@ -227,30 +270,34 @@ class InlineKlass: public InstanceKlass {
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
   static InlineKlass* returned_inline_klass(const RegisterMap& reg_map, bool* return_oop = nullptr, Method* method = nullptr);
 
+  static ByteSize adr_members_offset() {
+    return InstanceKlass::adr_inline_klass_members_offset();
+  }
+
   // pack and unpack handlers. Need to be loadable from generated code
   // so at a fixed offset from the base of the klass pointer.
   static ByteSize pack_handler_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _pack_handler);
+    return byte_offset_of(Members, _pack_handler);
   }
 
   static ByteSize pack_handler_jobject_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _pack_handler_jobject);
+    return byte_offset_of(Members, _pack_handler_jobject);
   }
 
   static ByteSize unpack_handler_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _unpack_handler);
+    return byte_offset_of(Members, _unpack_handler);
   }
 
   static ByteSize null_reset_value_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _null_reset_value_offset);
+    return byte_offset_of(Members, _null_reset_value_offset);
   }
 
   static ByteSize payload_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _payload_offset);
+    return byte_offset_of(Members, _payload_offset);
   }
 
   static ByteSize null_marker_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _null_marker_offset);
+    return byte_offset_of(Members, _null_marker_offset);
   }
 
   void set_null_reset_value(oop val);
