@@ -58,7 +58,7 @@ class RecordComponent;
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
 //    [EMBEDDED implementor of the interface] only exist for interface
-//    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
+//    [EMBEDDED InlineKlass::Members] only if is an InlineKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -269,10 +269,10 @@ class InstanceKlass: public Klass {
   // _idnum_allocated_count.
   volatile ClassState _init_state;          // state of class
 
-  u1              _reference_type;                // reference type
+  u1              _reference_type;          // reference type
   int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
-                                            // the InlineKlassFixedBlock that only exist for InlineKlass.
+                                            // the InlineKlass::Members that only exist for InlineKlass.
 
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
