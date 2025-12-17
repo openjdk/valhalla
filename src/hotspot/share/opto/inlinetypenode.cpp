@@ -631,18 +631,30 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
   }
 }
 
-static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2, Node* res_val) {
+// Adds a check between val1 and val2. Jumps to 'region' if check passes and optionally sets the corresponding phi input to false.
+static void acmp_val_guard(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2) {
   Node* cmp = nullptr;
-  if (is_subword_type(bt)|| bt == T_INT) {
+  switch (bt) {
+  case T_FLOAT:
+    val1 = igvn->register_new_node_with_optimizer(new MoveF2INode(val1));
+    val2 = igvn->register_new_node_with_optimizer(new MoveF2INode(val2));
+    // Fall-through to the int case
+  case T_BOOLEAN:
+  case T_CHAR:
+  case T_BYTE:
+  case T_SHORT:
+  case T_INT:
     cmp = igvn->register_new_node_with_optimizer(new CmpINode(val1, val2));
-  } else if (bt == T_FLOAT) {
-    cmp = igvn->register_new_node_with_optimizer(new CmpINode(igvn->register_new_node_with_optimizer(new MoveF2INode(val1)), igvn->register_new_node_with_optimizer(new MoveF2INode(val2))));
-  } else if (bt == T_DOUBLE) {
-    // TODO performance might be bad for this check https://corparch-core-srv.slack.com/archives/CB32V69C2/p1756296355911759
-    cmp = igvn->register_new_node_with_optimizer(new CmpLNode(igvn->register_new_node_with_optimizer(new MoveD2LNode(val1)), igvn->register_new_node_with_optimizer(new MoveD2LNode(val2))));
-  } else if (bt == T_LONG) {
+    break;
+  case T_DOUBLE:
+    val1 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val1));
+    val2 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val2));
+    // Fall-through to the long case
+  case T_LONG:
     cmp = igvn->register_new_node_with_optimizer(new CmpLNode(val1, val2));
-  } else {
+    break;
+  default:
+    assert(is_reference_type(bt), "must be");
     cmp = igvn->register_new_node_with_optimizer(new CmpPNode(val1, val2));
   }
   Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, test));
@@ -652,22 +664,22 @@ static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node
 
   region->add_req(if_t);
   if (phi != nullptr) {
-    phi->add_req(res_val);
+    phi->add_req(igvn->intcon(0));
   }
   *ctrl = if_f;
 }
 
-bool InlineTypeNode::can_optimize_acmp(Node* other) {
+// Check if a substitutability check between 'this' and 'other' can be implemented in IR
+bool InlineTypeNode::can_emit_substitutability_check(Node* other) {
   if (other != nullptr && other->is_InlineType() && bottom_type() != other->bottom_type()) {
-    // Different types, this is dead code
+    // Different types, this is dead code because there's a check above that guarantees this.
     return false;
   }
-
-  // Check if layout can be optimized
   for (uint i = 0; i < field_count(); i++) {
     ciType* ft = field_type(i);
     if (ft->is_inlinetype()) {
-      if (!field_value(i)->as_InlineType()->can_optimize_acmp(nullptr)){
+      // Check recursively
+      if (!field_value(i)->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;
       }
     } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
@@ -678,7 +690,8 @@ bool InlineTypeNode::can_optimize_acmp(Node* other) {
   return true;
 }
 
-void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr) {
+// Emit IR to check substitutability between 'this' and the value object referred to by 'ptr' (might be a buffer address or an InlineTypeNode)
+void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr, bool flat) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   // TODO double-check
   // DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
@@ -687,33 +700,37 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
 
   ciInlineKlass* vk = inline_klass();
   for (uint i = 0; i < field_count(); i++) {
-    int field_off = field_offset(i) - vk->payload_offset();
-    Node* val1 = field_value(i);
+    int field_off = field_offset(i);
+    if (flat) {
+      // Flat access, no header
+      field_off -= vk->payload_offset();
+    }
+    Node* val = field_value(i);
     ciType* ft = field_type(i);
     BasicType bt = ft->basic_type();
 
     Node* field_base = base;
     Node* field_ptr = ptr;
 
+    // Get field value of other operand
     if (ptr->is_InlineType()) {
       field_ptr = ptr->as_InlineType()->field_value(i);
       field_base = nullptr;
-    } else if (!field_is_flat(i)) {
+    } else {
       assert(base != nullptr, "lost base");
-      Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(field_off)));
-      assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
-      const Type* val_type = Type::get_const_type(ft);
-
-      C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
-      C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
-      field_ptr = bs->load_at(access, val_type);
-      field_base = field_ptr;
+      field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(field_off)));
+      if (!field_is_flat(i)) {
+        // Not flat, load the field value and update the base because we are now operating on a different object
+        assert(is_java_primitive(bt) || field_ptr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
+        C2AccessValuePtr addr(field_ptr, field_ptr->bottom_type()->is_ptr());
+        C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
+        field_ptr = bs->load_at(access, Type::get_const_type(ft));
+        field_base = field_ptr;
+      }
     }
 
-    // TODO what if val1 is not an inline type but the field type is?
-    if (val1->is_InlineType()) {
-      RegionNode* doneRegion = new RegionNode(1);
-      int foffset = 0;
+    if (val->is_InlineType()) {
+      RegionNode* done_region = new RegionNode(1);
       if (field_is_flat(i)) {
         if (!field_is_null_free(i)) {
           Node* nm = nullptr;
@@ -731,53 +748,37 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
           }
 
           // Return false if null markers are not equal
-          check_helper(igvn, region, phi, ctrl, T_INT, BoolTest::ne, val1->as_InlineType()->get_null_marker(), nm, igvn->intcon(0));
+          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), nm);
 
-          // TODO skip here
-          // Both might be null here, we still compare the fields but they will be zero, right?
-        }
-        if (!field_ptr->is_InlineType()) {
-          assert(base != nullptr, "lost base");
-          field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(field_base, field_ptr, igvn->MakeConX(field_off)));
+          // Null markers are equal, if both are null we can skip the comparison of fields
+          acmp_val_guard(igvn, done_region, nullptr, ctrl, T_INT, BoolTest::eq, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
         }
       } else {
+        // Check if 'val' is null
+        RegionNode* not_null_region = new RegionNode(1);
+        acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
 
-        RegionNode* nullRegion = new RegionNode(1);
+        // 'val' is null, if other is non-null, return false
+        acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, field_ptr, igvn->zerocon(T_OBJECT));
 
-        check_helper(igvn, nullRegion, nullptr, ctrl, T_INT, BoolTest::ne, val1->as_InlineType()->get_null_marker(), igvn->intcon(0), nullptr);
+        // Both are null, skip comparing the fields
+        done_region->add_req(*ctrl);
 
-        // Left is null
+        // 'val' is not null, if other is null, return false
+        *ctrl = igvn->register_new_node_with_optimizer(not_null_region);
+        acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, field_ptr, igvn->zerocon(T_OBJECT));
 
-        // If other is non-null, return false
-        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, field_ptr, igvn->zerocon(T_OBJECT), igvn->intcon(0));
-
-        // Both null, skip comparing the fields
-        doneRegion->add_req(*ctrl);
-
-        // left is not null
-        *ctrl = igvn->register_new_node_with_optimizer(nullRegion);
-
-        // If other is null, return false
-        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, field_ptr, igvn->zerocon(T_OBJECT), igvn->intcon(0));
-
-        // Both non-null, compare the fields
-
-        if (!field_ptr->is_InlineType()) {
-          assert(base != nullptr, "lost base");
-          field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(field_base, field_ptr, igvn->MakeConX(ft->as_inline_klass()->payload_offset())));
-        }
+        // Both are non-null, compare all the fields recursively
       }
-
       // Recursively compare all the fields
-      val1->as_InlineType()->acmp(igvn, region, phi, ctrl, mem, field_base, field_ptr);
+      val->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, field_base, field_ptr, field_is_flat(i));
 
-      doneRegion->add_req(*ctrl);
-      *ctrl = igvn->register_new_node_with_optimizer(doneRegion);
-      continue;
+      done_region->add_req(*ctrl);
+      *ctrl = igvn->register_new_node_with_optimizer(done_region);
+    } else {
+      assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
+      acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, val, field_ptr);
     }
-
-    assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
-    check_helper(igvn, region, phi, ctrl, bt, BoolTest::ne, val1, field_ptr, igvn->intcon(0));
   }
 }
 

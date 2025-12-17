@@ -140,9 +140,9 @@ public:
   // Make sure that inline type is fully scalarized
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
-  // TODO
-  bool can_optimize_acmp(Node* other);
-  void acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr);
+  // Implementation of the substitutability check for acmp
+  bool can_emit_substitutability_check(Node* other);
+  void check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr, bool flat = false);
 
   // Allocates the inline type (if not yet allocated)
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);

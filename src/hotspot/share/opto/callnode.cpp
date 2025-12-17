@@ -1192,7 +1192,7 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       InlineTypeNode* vt = left->as_InlineType();
 
       // Check if the field layout can be optimized
-      if (vt->can_optimize_acmp(right)) {
+      if (vt->can_emit_substitutability_check(right)) {
         PhaseIterGVN* igvn = phase->is_IterGVN();
 
         Node* ctrl = control();
@@ -1204,10 +1204,10 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
         if (!base->is_InlineType()) {
           // Parse time checks guarantee that both operands are non-null and have the same type
           base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
-          ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, base, igvn->MakeConX(vt->bottom_type()->inline_klass()->payload_offset())));
+          ptr = base;
         }
         // Emit IR for field-wise comparison
-        vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
+        vt->check_substitutability(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
 
         // Equals
         region->add_req(ctrl);

@@ -154,8 +154,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @run main compiler.valhalla.inlinetypes.TestLWorld 6
  */
 
-// TODO
-//@ForceCompileClassInitializer
+// TODO 8373598 Re-enable
+//@ForceCompileClassInitialize
 public class TestLWorld {
 
     public static void main(String[] args) {
