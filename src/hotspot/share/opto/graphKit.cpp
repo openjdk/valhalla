@@ -2223,7 +2223,7 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
     assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()) ||
            ((_gvn.is_IterGVN() && !C->inlining_incrementally()) && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()),
            "unexpected number of results");
-    // If we are doing strength reduction and the return types is not loaded we
+    // If we are doing strength reduction and the return type is not loaded we
     // need to rewire all projections since store_inline_type_fields_to_buf is already present
     if ((_gvn.is_IterGVN() && !C->inlining_incrementally()) && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()) {
       const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
