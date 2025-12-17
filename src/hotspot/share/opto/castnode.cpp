@@ -568,22 +568,6 @@ const Type* CastP2XNode::Value(PhaseGVN* phase) const {
     uintptr_t bits = (uintptr_t) t->is_rawptr()->get_con();
     return TypeX::make(bits);
   }
-
-  if (t->is_zero_type() || !t->maybe_null()) {
-    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-      Node* u = fast_out(i);
-      if (u->Opcode() == Op_OrL) {
-        for (DUIterator_Fast jmax, j = u->fast_outs(jmax); j < jmax; j++) {
-          Node* cmp = u->fast_out(j);
-          if (cmp->Opcode() == Op_CmpL) {
-            // Give CmpL a chance to get optimized
-            phase->record_for_igvn(cmp);
-          }
-        }
-      }
-    }
-  }
-
   return CastP2XNode::bottom_type();
 }
 
