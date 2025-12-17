@@ -631,7 +631,7 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
-        strictType = enterSyntheticAnnotation("jdk.internal.vm.annotation.Strict");
+        strictType = enterClass("jdk.internal.vm.annotation.Strict");
         migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");
