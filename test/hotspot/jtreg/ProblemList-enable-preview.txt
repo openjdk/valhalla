@@ -48,4 +48,3 @@ runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                       
 runtime/cds/appcds/aotCode/AOTCodeFlags.java                                                     8372602 generic-all
 runtime/cds/serviceability/ReplaceCriticalClasses.java                                           8372686 windows-all
 runtime/cds/serviceability/ReplaceCriticalClassesForSubgraphs.java                               8372599 generic-all
-runtime/modules/PatchModule/PatchModuleClassList.java                                            8370904 generic-all
