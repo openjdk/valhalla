@@ -37,6 +37,7 @@
 #include "oops/markWord.inline.hpp"
 #include "oops/objLayout.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/align.hpp"
@@ -83,7 +84,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 markWord oopDesc::prototype_mark() const {
-  if (UseCompactObjectHeaders || EnableValhalla) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     return klass()->prototype_header();
   } else {
     return markWord::prototype();

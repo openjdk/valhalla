@@ -2260,7 +2260,7 @@ void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
     ArchivableStaticFieldInfo* info = &fields[i];
     const char* klass_name = info->klass_name;
 
-    if (CDSConfig::is_valhalla_preview() && strcmp(klass_name, "jdk/internal/module/ArchivedModuleGraph") == 0) {
+    if (Arguments::is_valhalla_enabled() && strcmp(klass_name, "jdk/internal/module/ArchivedModuleGraph") == 0) {
       // FIXME -- ArchivedModuleGraph doesn't work when java.base is patched with valhalla classes.
       i++;
       continue;
