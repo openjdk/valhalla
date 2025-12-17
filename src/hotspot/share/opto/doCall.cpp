@@ -25,6 +25,7 @@
 #include "ci/ciCallSite.hpp"
 #include "ci/ciMethodHandle.hpp"
 #include "ci/ciSymbols.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
@@ -88,6 +89,63 @@ static void trace_type_profile(Compile* C, ciMethod* method, JVMState* jvms,
   }
 }
 
+static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
+  if (callee->is_object_constructor() && arg_idx == 0) {
+    return true;
+  }
+
+  if (arg_idx != 1 || callee->intrinsic_id() == vmIntrinsicID::_none) {
+    return false;
+  }
+
+  switch (callee->intrinsic_id()) {
+    case vmIntrinsicID::_finishPrivateBuffer:
+    case vmIntrinsicID::_putBoolean:
+    case vmIntrinsicID::_putBooleanOpaque:
+    case vmIntrinsicID::_putBooleanRelease:
+    case vmIntrinsicID::_putBooleanVolatile:
+    case vmIntrinsicID::_putByte:
+    case vmIntrinsicID::_putByteOpaque:
+    case vmIntrinsicID::_putByteRelease:
+    case vmIntrinsicID::_putByteVolatile:
+    case vmIntrinsicID::_putChar:
+    case vmIntrinsicID::_putCharOpaque:
+    case vmIntrinsicID::_putCharRelease:
+    case vmIntrinsicID::_putCharUnaligned:
+    case vmIntrinsicID::_putCharVolatile:
+    case vmIntrinsicID::_putShort:
+    case vmIntrinsicID::_putShortOpaque:
+    case vmIntrinsicID::_putShortRelease:
+    case vmIntrinsicID::_putShortUnaligned:
+    case vmIntrinsicID::_putShortVolatile:
+    case vmIntrinsicID::_putInt:
+    case vmIntrinsicID::_putIntOpaque:
+    case vmIntrinsicID::_putIntRelease:
+    case vmIntrinsicID::_putIntUnaligned:
+    case vmIntrinsicID::_putIntVolatile:
+    case vmIntrinsicID::_putLong:
+    case vmIntrinsicID::_putLongOpaque:
+    case vmIntrinsicID::_putLongRelease:
+    case vmIntrinsicID::_putLongUnaligned:
+    case vmIntrinsicID::_putLongVolatile:
+    case vmIntrinsicID::_putFloat:
+    case vmIntrinsicID::_putFloatOpaque:
+    case vmIntrinsicID::_putFloatRelease:
+    case vmIntrinsicID::_putFloatVolatile:
+    case vmIntrinsicID::_putDouble:
+    case vmIntrinsicID::_putDoubleOpaque:
+    case vmIntrinsicID::_putDoubleRelease:
+    case vmIntrinsicID::_putDoubleVolatile:
+    case vmIntrinsicID::_putReference:
+    case vmIntrinsicID::_putReferenceOpaque:
+    case vmIntrinsicID::_putReferenceRelease:
+    case vmIntrinsicID::_putReferenceVolatile:
+      return true;
+    default:
+      return false;
+  }
+}
+
 CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool call_does_dispatch,
                                        JVMState* jvms, bool allow_inline,
                                        float prof_factor, ciKlass* speculative_receiver_type,
@@ -99,10 +157,11 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   Bytecodes::Code bytecode    = caller->java_code_at_bci(bci);
   ciMethod*       orig_callee = caller->get_method_at_bci(bci);
 
-  const bool is_virtual_or_interface = (bytecode == Bytecodes::_invokevirtual) ||
-                                       (bytecode == Bytecodes::_invokeinterface) ||
-                                       (orig_callee->intrinsic_id() == vmIntrinsics::_linkToVirtual) ||
-                                       (orig_callee->intrinsic_id() == vmIntrinsics::_linkToInterface);
+  const bool is_virtual = (bytecode == Bytecodes::_invokevirtual) || (orig_callee->intrinsic_id() == vmIntrinsics::_linkToVirtual);
+  const bool is_interface = (bytecode == Bytecodes::_invokeinterface) || (orig_callee->intrinsic_id() == vmIntrinsics::_linkToInterface);
+  const bool is_virtual_or_interface = is_virtual || is_interface;
+
+  const bool check_access = !orig_callee->is_method_handle_intrinsic(); // method handle intrinsics don't perform access checks
 
   // Dtrace currently doesn't work unless all calls are vanilla
   if (env()->dtrace_method_probes()) {
@@ -255,7 +314,8 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           // this invoke because it may lead to bimorphic inlining which
           // a speculative type should help us avoid.
           receiver_method = callee->resolve_invoke(jvms->method()->holder(),
-                                                   speculative_receiver_type);
+                                                   speculative_receiver_type,
+                                                   check_access);
           if (receiver_method == nullptr) {
             speculative_receiver_type = nullptr;
           } else {
@@ -272,8 +332,9 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
            (morphism == 2 && UseBimorphicInlining))) {
         // receiver_method = profile.method();
         // Profiles do not suggest methods now.  Look it up in the major receiver.
+        assert(check_access, "required");
         receiver_method = callee->resolve_invoke(jvms->method()->holder(),
-                                                      profile.receiver(0));
+                                                 profile.receiver(0));
       }
       if (receiver_method != nullptr) {
         // The single majority receiver sufficiently outweighs the minority.
@@ -284,8 +345,9 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           CallGenerator* next_hit_cg = nullptr;
           ciMethod* next_receiver_method = nullptr;
           if (morphism == 2 && UseBimorphicInlining) {
+            assert(check_access, "required");
             next_receiver_method = callee->resolve_invoke(jvms->method()->holder(),
-                                                               profile.receiver(1));
+                                                          profile.receiver(1));
             if (next_receiver_method != nullptr) {
               next_hit_cg = this->call_generator(next_receiver_method,
                                   vtable_index, !call_does_dispatch, jvms,
@@ -350,16 +412,25 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     // number of implementors for decl_interface is 0 or 1. If
     // it's 0 then no class implements decl_interface and there's
     // no point in inlining.
-    if (call_does_dispatch && bytecode == Bytecodes::_invokeinterface) {
-      ciInstanceKlass* declared_interface =
-          caller->get_declared_method_holder_at_bci(bci)->as_instance_klass();
+    if (call_does_dispatch && is_interface) {
+      ciInstanceKlass* declared_interface = nullptr;
+      if (orig_callee->intrinsic_id() == vmIntrinsics::_linkToInterface) {
+        // MemberName doesn't keep information about resolved interface class (REFC) once
+        // resolution is over, but resolved method holder (DECC) can be used as a
+        // conservative approximation.
+        declared_interface = callee->holder();
+      } else {
+        assert(!orig_callee->is_method_handle_intrinsic(), "not allowed");
+        declared_interface = caller->get_declared_method_holder_at_bci(bci)->as_instance_klass();
+      }
+      assert(declared_interface->is_interface(), "required");
       ciInstanceKlass* singleton = declared_interface->unique_implementor();
 
       if (singleton != nullptr) {
         assert(singleton != declared_interface, "not a unique implementor");
 
         ciMethod* cha_monomorphic_target =
-            callee->find_monomorphic_target(caller->holder(), declared_interface, singleton);
+            callee->find_monomorphic_target(caller->holder(), declared_interface, singleton, check_access);
 
         if (cha_monomorphic_target != nullptr &&
             cha_monomorphic_target->holder() != env()->Object_klass()) { // subtype check against Object is useless
@@ -382,7 +453,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           }
         }
       }
-    } // call_does_dispatch && bytecode == Bytecodes::_invokeinterface
+    } // call_does_dispatch && is_interface
 
     // Nothing claimed the intrinsic, we go with straight-forward inlining
     // for already discovered intrinsic.
@@ -645,6 +716,15 @@ void Parse::do_call() {
     set_stack(sp() - nargs, casted_receiver);
   }
 
+  // Scalarize value objects passed into this invocation if we know that they are not larval
+  for (int arg_idx = 0; arg_idx < nargs; arg_idx++) {
+    if (arg_can_be_larval(callee, arg_idx)) {
+      continue;
+    }
+
+    cast_to_non_larval(peek(nargs - 1 - arg_idx));
+  }
+
   // Note:  It's OK to try to inline a virtual call.
   // The call generator will not attempt to inline a polymorphic call
   // unless it knows how to optimize the receiver dispatch.
@@ -668,8 +748,6 @@ void Parse::do_call() {
   orig_callee = callee = nullptr;
 
   // ---------------------
-  // Round double arguments before call
-  round_double_arguments(cg->method());
 
   // Feed profiling data for arguments to the type system so it can
   // propagate it as speculative types
@@ -809,58 +887,26 @@ void Parse::do_call() {
     if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
     }
-    if (rtype->is_inlinetype() && !peek()->is_InlineType()) {
-      Node* retnode = pop();
-      retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
-      push_node(T_OBJECT, retnode);
+
+    if (!rtype->is_void() && cg->method()->intrinsic_id() != vmIntrinsicID::_makePrivateBuffer) {
+      Node* retnode = peek();
+      const Type* rettype = gvn().type(retnode);
+      if (rettype->is_inlinetypeptr() && !retnode->is_InlineType()) {
+        retnode = InlineTypeNode::make_from_oop(this, retnode, rettype->inline_klass());
+        dec_sp(1);
+        push(retnode);
+      }
     }
 
-    // Note that:
-    // - The caller map is the state just before the call of the currently parsed method with all arguments
-    //   on the stack. Therefore, we have caller_map->arg(0) == this.
-    // - local(0) contains the updated receiver after calling an inline type constructor.
-    // - Abstract value classes are not ciInlineKlass instances and thus abstract_value_klass->is_inlinetype() is false.
-    //   We use the bottom type of the receiver node to determine if we have a value class or not.
-    const bool is_current_method_inline_type_constructor =
-        // Is current method a constructor (i.e <init>)?
-        _method->is_object_constructor() &&
-        // Is the holder of the current constructor method an inline type?
-        _caller->map()->argument(_caller, 0)->bottom_type()->is_inlinetypeptr();
-    assert(!is_current_method_inline_type_constructor || !cg->method()->is_object_constructor() || receiver != nullptr,
-           "must have valid receiver after calling another constructor");
-    if (is_current_method_inline_type_constructor &&
-        // Is the just called method an inline type constructor?
-        cg->method()->is_object_constructor() && receiver->bottom_type()->is_inlinetypeptr() &&
-         // AND:
-         // 1) ... invoked on the same receiver? Then it's another constructor on the same object doing the initialization.
-        (receiver == _caller->map()->argument(_caller, 0) ||
-         // 2) ... abstract? Then it's the call to the super constructor which eventually calls Object.<init> to
-         //                    finish the initialization of this larval.
-         cg->method()->holder()->is_abstract() ||
-         // 3) ... Object.<init>? Then we know it's the final call to finish the larval initialization. Other
-         //        Object.<init> calls would have a non-inline-type receiver which we already excluded in the check above.
-         cg->method()->holder()->is_java_lang_Object())
-        ) {
-      assert(local(0)->is_InlineType() && receiver->bottom_type()->is_inlinetypeptr() && receiver->is_InlineType() &&
-             _caller->map()->argument(_caller, 0)->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(),
-             "Unexpected receiver");
-      InlineTypeNode* updated_receiver = local(0)->as_InlineType();
-      InlineTypeNode* cloned_updated_receiver = updated_receiver->clone_if_required(&_gvn, _map);
-      cloned_updated_receiver->set_is_larval(false);
-      cloned_updated_receiver = _gvn.transform(cloned_updated_receiver)->as_InlineType();
-      // Receiver updated by the just called constructor. We need to update the map to make the effect visible. After
-      // the super() call, only the updated receiver in local(0) will be used from now on. Therefore, we do not need
-      // to update the original receiver 'receiver' but only the 'updated_receiver'.
-      replace_in_map(updated_receiver, cloned_updated_receiver);
-
-      if (_caller->has_method()) {
-        // If the current method is inlined, we also need to update the exit map to propagate the updated receiver
-        // to the caller map.
-        Node* receiver_in_caller = _caller->map()->argument(_caller, 0);
-        assert(receiver_in_caller->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(),
-               "Receiver type mismatch");
-        _exits.map()->replace_edge(receiver_in_caller, cloned_updated_receiver, &_gvn);
-      }
+    if (cg->method()->is_object_constructor() && receiver != nullptr && gvn().type(receiver)->is_inlinetypeptr()) {
+      InlineTypeNode* non_larval = InlineTypeNode::make_from_oop(this, receiver, gvn().type(receiver)->inline_klass());
+      // Relinquish the oop input, we will delay the allocation to the point it is needed, see the
+      // comments in InlineTypeNode::Ideal for more details
+      non_larval = non_larval->clone_if_required(&gvn(), nullptr);
+      non_larval->set_oop(gvn(), null());
+      non_larval->set_is_buffered(gvn(), false);
+      non_larval = gvn().transform(non_larval)->as_InlineType();
+      map()->replace_edge(receiver, non_larval);
     }
   }
 

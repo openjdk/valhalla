@@ -43,7 +43,7 @@ import java.util.List;
 import static jdk.test.lib.Asserts.*;
 
 /*
- * @test FlatArraysTest
+ * @test id=default
  * @summary Plain array test for Inline Types
  * @requires vm.flagless
  * @modules java.base/jdk.internal.value
@@ -51,8 +51,20 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
- * @compile --source 25 FlatArraysTest.java
+ * @compile --source 26 FlatArraysTest.java
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ */
+
+/*
+ * @test id=no-array-flattening
+ * @summary Plain array test for Inline Types
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.misc
+ * @library /test/lib
+ * @enablePreview
+ * @compile --source 26 FlatArraysTest.java
  * @run main/othervm -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 
@@ -427,13 +439,15 @@ public class FlatArraysTest {
 
       System.out.println("Regular reference array");
       Object[] array = (Object[])Array.newInstance(c, ARRAY_SIZE);
-      assertFalse(ValueClass.isFlatArray(array));
+      Method ef = c.getMethod("expectingFlatNullableAtomicArray", null);
+      boolean expectFlat = (Boolean) ef.invoke(null, null);
+      assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullableArray(array, o);
 
       System.out.println("NonAtomic NullRestricted array");
       array = ValueClass.newNullRestrictedNonAtomicArray(c, ARRAY_SIZE, c.newInstance());
-      Method ef = c.getMethod("expectingFlatNullRestrictedArray", null);
-      boolean expectFlat = (Boolean)ef.invoke(null, null);
+      ef = c.getMethod("expectingFlatNullRestrictedArray", null);
+      expectFlat = (Boolean)ef.invoke(null, null);
       assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullFreeArray(array, o);
 
@@ -468,11 +482,11 @@ public class FlatArraysTest {
   }
 
   static void testSpecialArrayLayoutFromArray(Object[] array, boolean expectException) {
-    int lk = UNSAFE.arrayLayout(array.getClass());
+    int lk = UNSAFE.arrayLayout(array);
     boolean exception = false;
     try {
       Object[] newArray = UNSAFE.newSpecialArray(array.getClass().getComponentType(), 10, lk);
-      int newLk = UNSAFE.arrayLayout(newArray.getClass());
+      int newLk = UNSAFE.arrayLayout(newArray);
       assertEquals(newLk, lk);
     } catch(IllegalArgumentException e) {
       e.printStackTrace();
@@ -485,7 +499,7 @@ public class FlatArraysTest {
     boolean exception = false;
     try {
       Object[] array = UNSAFE.newSpecialArray(c, 10, layout);
-      int lk = UNSAFE.arrayLayout(array.getClass());
+      int lk = UNSAFE.arrayLayout(array);
       assertEquals(lk, layout);
     } catch (IllegalArgumentException e) {
       e.printStackTrace();
@@ -507,7 +521,7 @@ public class FlatArraysTest {
 
     // Test array creation from another array
     Object[] array0 = new SmallValue[10];
-    testSpecialArrayLayoutFromArray(array0, true);
+    testSpecialArrayLayoutFromArray(array0, !arrayFlatteningEnabled);
     if (arrayFlatteningEnabled) {
       Object[] array1 = ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, 10, new SmallValue());
       testSpecialArrayLayoutFromArray(array1, false);

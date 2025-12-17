@@ -33,8 +33,10 @@ class ClassLoaderData;
 // ObjArrayKlass is the klass for objArrays
 
 class ObjArrayKlass : public ArrayKlass {
-  friend class VMStructs;
+  friend class Deoptimization;
   friend class JVMCIVMStructs;
+  friend class oopFactory;
+  friend class VMStructs;
 
  public:
   static const KlassKind Kind = ObjArrayKlassKind;
@@ -43,50 +45,74 @@ class ObjArrayKlass : public ArrayKlass {
   // If you add a new field that points to any metaspace object, you
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
   Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
+ protected:
+  Klass* _element_klass;            // The klass of the elements of this array type
+  ObjArrayKlass* _next_refined_array_klass;
 
+ protected:
   // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free);
-  static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, bool null_free, TRAPS);
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
+  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
+
+  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
+  ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
+  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+
+   // Create array_name for element klass
+  static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
+
  public:
   // For dummy objects
   ObjArrayKlass() {}
+
+  virtual Klass* element_klass() const      { return _element_klass; }
+  virtual void set_element_klass(Klass* k)  { _element_klass = k; }
+
+
+  ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
+  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
+  void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
+  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
+  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
+  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+
+  // Compiler/Interpreter offset
+  static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }
 
-  ModuleEntry* module() const;
-  PackageEntry* package() const;
+  ModuleEntry* module() const override;
+  PackageEntry* package() const override;
 
   // Dispatched operation
-  bool can_be_primary_super_slow() const;
+  bool can_be_primary_super_slow() const override;
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<InstanceKlass*>* transitive_interfaces);
-  DEBUG_ONLY(bool is_objArray_klass_slow()  const  { return true; })
-  size_t oop_size(oop obj) const;
+                                                  Array<InstanceKlass*>* transitive_interfaces) override;
+  DEBUG_ONLY(bool is_objArray_klass_slow() const override { return true; })
+  size_t oop_size(oop obj) const override;
 
   // Allocation
   static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
-                                                int n, Klass* element_klass,
-                                                bool null_free, TRAPS);
+                                                int n, Klass* element_klass, TRAPS);
 
-  objArrayOop allocate(int length, TRAPS);
-  oop multi_allocate(int rank, jint* sizes, TRAPS);
+  oop multi_allocate(int rank, jint* sizes, TRAPS) override;
 
   // Copying
-  void  copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
+  void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) override;
 
   // Compute protection domain
-  oop protection_domain() const { return bottom_klass()->protection_domain(); }
+  oop protection_domain() const override { return bottom_klass()->protection_domain(); }
 
-  virtual void metaspace_pointers_do(MetaspaceClosure* iter);
+  void metaspace_pointers_do(MetaspaceClosure* iter) override;
 
- private:
-  // Either oop or narrowOop depending on UseCompressedOops.
-  // must be called from within ObjArrayKlass.cpp
-  void do_copy(arrayOop s, size_t src_offset,
-               arrayOop d, size_t dst_offset,
-               int length, TRAPS);
+#if INCLUDE_CDS
+  void remove_unshareable_info() override;
+  void remove_java_mirror() override;
+  void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+#endif
+
  public:
   static ObjArrayKlass* cast(Klass* k) {
     return const_cast<ObjArrayKlass*>(cast(const_cast<const Klass*>(k)));
@@ -99,10 +125,10 @@ class ObjArrayKlass : public ArrayKlass {
 
   // Sizing
   static int header_size()                { return sizeof(ObjArrayKlass)/wordSize; }
-  int size() const                        { return ArrayKlass::static_size(header_size()); }
+  int size() const override               { return ArrayKlass::static_size(header_size()); }
 
   // Initialization (virtual from Klass)
-  void initialize(TRAPS);
+  void initialize(TRAPS) override;
 
   // Oop fields (and metadata) iterators
   //
@@ -135,24 +161,24 @@ class ObjArrayKlass : public ArrayKlass {
   inline void oop_oop_iterate_elements_bounded(objArrayOop a, OopClosureType* closure, void* low, void* high);
 
  public:
-  u2 compute_modifier_flags() const;
+  u2 compute_modifier_flags() const override;
 
  public:
   // Printing
-  void print_on(outputStream* st) const;
-  void print_value_on(outputStream* st) const;
+  void print_on(outputStream* st) const override;
+  void print_value_on(outputStream* st) const override;
 
-  void oop_print_value_on(oop obj, outputStream* st);
+  void oop_print_value_on(oop obj, outputStream* st) override;
 #ifndef PRODUCT
-  void oop_print_on      (oop obj, outputStream* st);
+  void oop_print_on      (oop obj, outputStream* st) override;
 #endif //PRODUCT
 
-  const char* internal_name() const;
+  const char* internal_name() const override;
 
   // Verification
-  void verify_on(outputStream* st);
+  void verify_on(outputStream* st) override;
 
-  void oop_verify_on(oop obj, outputStream* st);
+  void oop_verify_on(oop obj, outputStream* st) override;
 };
 
 #endif // SHARE_OOPS_OBJARRAYKLASS_HPP

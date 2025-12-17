@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 0
+ * @run main runtime.valhalla.inlinetypes.field_layout.ValueFieldInheritanceTest 0
  */
 
 /*
@@ -40,7 +40,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 1
+ * @run main runtime.valhalla.inlinetypes.field_layout.ValueFieldInheritanceTest 1
  */
 
 /*
@@ -51,7 +51,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 2
+ * @run main runtime.valhalla.inlinetypes.field_layout.ValueFieldInheritanceTest 2
  */
 
 /*
@@ -62,8 +62,10 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
- * @run main/othervm ValueFieldInheritanceTest 3
+ * @run main runtime.valhalla.inlinetypes.field_layout.ValueFieldInheritanceTest 3
  */
+
+package runtime.valhalla.inlinetypes.field_layout;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -155,7 +157,7 @@ public class ValueFieldInheritanceTest {
 
   static class TestRunner {
     public static void main(String[] args) throws Exception {
-      Class testClass = Class.forName("ValueFieldInheritanceTest");
+      Class testClass = Class.forName("runtime.valhalla.inlinetypes.field_layout.ValueFieldInheritanceTest");
       Asserts.assertNotNull(testClass);
       Method[] testMethods = testClass.getMethods();
       for (Method test : testMethods) {
@@ -211,7 +213,7 @@ public class ValueFieldInheritanceTest {
     // NullMarkersTest fat = new NullMarkersTest();
 
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, "ValueFieldInheritanceTest$TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, "runtime.valhalla.inlinetypes.field_layout.ValueFieldInheritanceTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {

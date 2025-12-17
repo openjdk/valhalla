@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,28 +26,26 @@
  * @bug 8331461
  * @summary [lworld] javac is generating a class file with the LoadableDescriptors attribute but with minor version '0'
  * @library /tools/lib
+ * @enablePreview
  * @modules
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.file
  *      jdk.compiler/com.sun.tools.javac.main
- *      jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run main LoadableDescriptorsAttrTest2
  */
 
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.util.Assert;
-import com.sun.tools.classfile.ClassFile;
 
 import toolbox.TestRunner;
 import toolbox.ToolBox;
-import toolbox.JavacTask;
-import toolbox.Task;
 
 public class LoadableDescriptorsAttrTest2 extends TestRunner {
     ToolBox tb = new ToolBox();
@@ -90,9 +88,9 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 .run()
                 .writeAll();
         Path classFilePath = classes.resolve("Ident.class");
-        ClassFile classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+        var classFile = ClassFile.of().parse(classFilePath);
+        Assert.check(classFile.minorVersion() == 65535);
+        Assert.check(classFile.findAttribute(Attributes.loadableDescriptors()).isPresent());
 
         // now with the value class in the classpath
         new toolbox.JavacTask(tb)
@@ -103,9 +101,9 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 .writeAll();
 
         classFilePath = classes.resolve("Ident.class");
-        classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+        classFile = ClassFile.of().parse(classFilePath);
+        Assert.check(classFile.minorVersion() == 65535);
+        Assert.check(classFile.findAttribute(Attributes.loadableDescriptors()).isPresent());
     }
 
     @Test
@@ -130,9 +128,9 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 .run()
                 .writeAll();
         Path classFilePath = classes.resolve("Ident.class");
-        ClassFile classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+        var classFile = ClassFile.of().parse(classFilePath);
+        Assert.check(classFile.minorVersion() == 65535);
+        Assert.check(classFile.findAttribute(Attributes.loadableDescriptors()).isPresent());
 
         // now with the value class in the classpath
         new toolbox.JavacTask(tb)
@@ -143,9 +141,10 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 .writeAll();
 
         classFilePath = classes.resolve("Ident.class");
-        classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+        classFile = ClassFile.of().parse(classFilePath);
+        Assert.check(classFile.minorVersion() == 65535);
+        Assert.check(classFile.findAttribute(Attributes.loadableDescriptors()).isPresent());
+
     }
 
     @Test
@@ -172,9 +171,10 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 .run()
                 .writeAll();
         Path classFilePath = classes.resolve("Ident.class");
-        ClassFile classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+        var classFile = ClassFile.of().parse(classFilePath);
+        Assert.check(classFile.minorVersion() == 65535);
+        Assert.check(classFile.findAttribute(Attributes.loadableDescriptors()).isPresent());
+
 
         // now with the value class in the classpath
         new toolbox.JavacTask(tb)
@@ -185,8 +185,9 @@ public class LoadableDescriptorsAttrTest2 extends TestRunner {
                 .writeAll();
 
         classFilePath = classes.resolve("Ident.class");
-        classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("LoadableDescriptors") != null);
+        classFile = ClassFile.of().parse(classFilePath);
+        Assert.check(classFile.minorVersion() == 65535);
+        Assert.check(classFile.findAttribute(Attributes.loadableDescriptors()).isPresent());
+
     }
 }

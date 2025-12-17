@@ -251,6 +251,11 @@ void ciKlass::print_impl(outputStream* st) {
   st->print(" name=");
   print_name_on(st);
   st->print(" loaded=%s", (is_loaded() ? "true" : "false"));
+  GUARDED_VM_ENTRY(
+    if (is_flat_array_klass()) {
+      st->print(" layout_kind=%d", (int)((FlatArrayKlass*)get_Klass())->layout_kind());
+    }
+  )
 }
 
 // ------------------------------------------------------------------

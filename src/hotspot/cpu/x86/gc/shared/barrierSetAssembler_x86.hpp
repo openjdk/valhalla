@@ -44,7 +44,7 @@ public:
                                   Register src, Register dst, Register count) {}
 
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                       Register dst, Address src, Register tmp1, Register tmp_thread);
+                       Register dst, Address src, Register tmp1);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
 
@@ -96,7 +96,7 @@ public:
                                              Register obj, Register tmp, Label& slowpath);
 
   virtual void tlab_allocate(MacroAssembler* masm,
-                             Register thread, Register obj,
+                             Register obj,
                              Register var_size_in_bytes,
                              int con_size_in_bytes,
                              Register t1, Register t2,
@@ -116,8 +116,6 @@ public:
 };
 
 #ifdef COMPILER2
-
-#ifdef _LP64
 
 // This class saves and restores the registers that need to be preserved across
 // the runtime call represented by a given C2 barrier stub. Use as follows:
@@ -162,8 +160,6 @@ public:
   SaveLiveRegisters(MacroAssembler* masm, BarrierStubC2* stub);
   ~SaveLiveRegisters();
 };
-
-#endif // _LP64
 
 #endif // COMPILER2
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,29 @@ import java.lang.invoke.*;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 /*
- * @test ObjectMethods
+ * @test id=compressed-class-pointers
  * @summary Check object methods implemented by the VM behave with value types
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
  * @compile ObjectMethods.java
  * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ */
+
+/*
+ * @test id=no-compressed-class-pointers
+ * @summary Check object methods implemented by the VM behave with value types
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @enablePreview
+ * @compile ObjectMethods.java
  * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ */
+
+/*
+ * @test id=no-verify
+ * @summary Check object methods implemented by the VM behave with value types
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @enablePreview
+ * @compile ObjectMethods.java
  * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 

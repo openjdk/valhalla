@@ -779,7 +779,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
             if (op == ZOMO) {
                 return blend(broadcast(-1), compare(NE, 0));
             }
-            if (op == NOT) {
+            else if (op == NOT) {
                 return broadcast(-1).lanewise(XOR, this);
             }
         }
@@ -807,7 +807,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
             if (op == ZOMO) {
                 return blend(broadcast(-1), compare(NE, 0, m));
             }
-            if (op == NOT) {
+            else if (op == NOT) {
                 return lanewise(XOR, broadcast(-1), m);
             }
         }
@@ -817,6 +817,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
             this, m,
             UN_IMPL.find(op, opc, IntVector::unaryOperations));
     }
+
 
     private static final
     ImplCache<Unary, UnaryOperation<IntVector, VectorMask<Integer>>>
@@ -914,6 +915,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
                     = this.compare(EQ, (int) 0, m);
                 return this.blend(that, mask);
             }
+
             if (opKind(op, VO_SHIFT)) {
                 // As per shift specification for Java, mask the shift count.
                 // This allows the JIT to ignore some ISA details.
@@ -939,6 +941,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
             this, that, m,
             BIN_IMPL.find(op, opc, IntVector::binaryOperationsMF));
     }
+
 
     private static final
     ImplCache<Binary, BinaryOperation<IntVector, VectorMask<Integer>>>
@@ -2948,6 +2951,8 @@ public abstract value class IntVector extends AbstractVector<Integer> {
                     toBits(v.rOpMF(MAX_OR_INF, m, (i, a, b) -> (int) VectorMath.minUnsigned(a, b)));
             case VECTOR_OP_UMAX: return (v, m) ->
                     toBits(v.rOpMF(MIN_OR_INF, m, (i, a, b) -> (int) VectorMath.maxUnsigned(a, b)));
+            case VECTOR_OP_SUADD: return (v, m) ->
+                    toBits(v.rOpMF((int)0, m, (i, a, b) -> (int) VectorMath.addSaturatingUnsigned(a, b)));
             case VECTOR_OP_AND: return (v, m) ->
                     toBits(v.rOpMF((int)-1, m, (i, a, b) -> (int)(a & b)));
             case VECTOR_OP_OR: return (v, m) ->
@@ -3184,8 +3189,8 @@ public abstract value class IntVector extends AbstractVector<Integer> {
 
         return VectorSupport.loadWithMap(
             vectorType, null, int.class, vsp.laneCount(),
-            isp.vectorType(),
-            a, ARRAY_BASE, vix, null,
+            isp.vectorType(), isp.length(),
+            a, ARRAY_BASE, vix, null, null, null, null,
             a, offset, indexMap, mapOffset, vsp,
             (c, idx, iMap, idy, s, vm) ->
             s.vOpMF(n -> c[idx + iMap[idy+n]]));
@@ -3457,7 +3462,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
 
         VectorSupport.storeWithMap(
             vsp.vectorType(), null, vsp.elementType(), vsp.laneCount(),
-            isp.vectorType(),
+            isp.vectorType(), isp.length(),
             a, arrayAddress(a, 0), vix,
             this, null,
             a, offset, indexMap, mapOffset,
@@ -3634,8 +3639,8 @@ public abstract value class IntVector extends AbstractVector<Integer> {
 
         return VectorSupport.loadWithMap(
             vectorType, maskClass, int.class, vsp.laneCount(),
-            isp.vectorType(),
-            a, ARRAY_BASE, vix, m,
+            isp.vectorType(), isp.length(),
+            a, ARRAY_BASE, vix, null, null, null, m,
             a, offset, indexMap, mapOffset, vsp,
             (c, idx, iMap, idy, s, vm) ->
             s.vOpMF(vm, n -> c[idx + iMap[idy+n]]));
@@ -3731,7 +3736,7 @@ public abstract value class IntVector extends AbstractVector<Integer> {
 
         VectorSupport.storeWithMap(
             vsp.vectorType(), maskClass, vsp.elementType(), vsp.laneCount(),
-            isp.vectorType(),
+            isp.vectorType(), isp.length(),
             a, arrayAddress(a, 0), vix,
             this, m,
             a, offset, indexMap, mapOffset,

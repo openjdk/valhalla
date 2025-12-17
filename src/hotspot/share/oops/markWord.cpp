@@ -36,35 +36,18 @@ STATIC_ASSERT(markWord::klass_shift == markWord::hash_bits + markWord::hash_shif
 
 markWord markWord::displaced_mark_helper() const {
   assert(has_displaced_mark_helper(), "check");
-  if (has_monitor()) {
-    // Has an inflated monitor. Must be checked before has_locker().
-    ObjectMonitor* monitor = this->monitor();
-    return monitor->header();
-  }
-  if (has_locker()) {  // has a stack lock
-    BasicLock* locker = this->locker();
-    return locker->displaced_header();
-  }
-  // This should never happen:
-  fatal("bad header=" INTPTR_FORMAT, value());
-  return markWord(value());
+  // Make sure we have an inflated monitor.
+  guarantee(has_monitor(), "bad header=" INTPTR_FORMAT, value());
+  ObjectMonitor* monitor = this->monitor();
+  return monitor->header();
 }
 
 void markWord::set_displaced_mark_helper(markWord m) const {
   assert(has_displaced_mark_helper(), "check");
-  if (has_monitor()) {
-    // Has an inflated monitor. Must be checked before has_locker().
-    ObjectMonitor* monitor = this->monitor();
-    monitor->set_header(m);
-    return;
-  }
-  if (has_locker()) {  // has a stack lock
-    BasicLock* locker = this->locker();
-    locker->set_displaced_header(m);
-    return;
-  }
-  // This should never happen:
-  fatal("bad header=" INTPTR_FORMAT, value());
+  // Make sure we have an inflated monitor.
+  guarantee(has_monitor(), "bad header=" INTPTR_FORMAT, value());
+  ObjectMonitor* monitor = this->monitor();
+  monitor->set_header(m);
 }
 
 void markWord::print_on(outputStream* st, bool print_monitor_info) const {
@@ -72,6 +55,7 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
     st->print(" marked(" INTPTR_FORMAT ")", value());
   } else if (has_monitor()) {  // last bits = 10
     // have to check has_monitor() before is_locked()
+    // Valhalla: inline types/arrays can't be monitored
     st->print(" monitor(" INTPTR_FORMAT ")=", value());
     if (print_monitor_info && !UseObjectMonitorTable) {
       ObjectMonitor* mon = monitor();
@@ -83,16 +67,35 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
     }
   } else if (is_locked()) {  // last bits != 01 => 00
     // thin locked
+    // Valhalla: inline types can not possess an object monitor
     st->print(" locked(" INTPTR_FORMAT ")", value());
   } else {
     st->print(" mark(");
     if (is_unlocked()) {   // last bits = 01
       st->print("is_unlocked");
+      if (is_inline_type()) {
+        st->print(" inline_type");
+        if (is_larval_state()) {
+          st->print("=larval");
+        }
+      }
       if (has_no_hash()) {
         st->print(" no_hash");
       } else {
         st->print(" hash=" INTPTR_FORMAT, hash());
       }
+#ifdef _LP64 // 64 bit encodings have array information
+      // flat or null-free do not imply each other
+      bool flat = is_flat_array();
+      bool null_free = is_null_free_array();
+      if (flat && !null_free) {
+        st->print(" flat_array");
+      } else if (!flat && null_free) {
+        st->print(" null_free_array");
+      } else if (flat && null_free) {
+        st->print(" flat_null_free_array");
+      }
+#endif
     } else {
       st->print("??");
     }

@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
+
 /**
  * A tree node representing an HTML element, containing the name of the element,
  * a collection of attributes, and content.
@@ -176,6 +178,7 @@ public class HtmlTree extends Content {
      */
     @Override
     public HtmlTree add(Content content) {
+        Objects.requireNonNull(content, "Content must not be null");
         if (content instanceof ContentBuilder cb) {
             cb.contents.forEach(this::add);
         } else if (!content.isDiscardable()) {
@@ -275,6 +278,15 @@ public class HtmlTree extends Content {
             n += c.charCount();
         }
         return n;
+    }
+
+    @Override
+    public Content stripTags() {
+        var text = new ContentBuilder();
+        for (Content c : content) {
+            text.add(c.stripTags());
+        }
+        return text;
     }
 
     /*
@@ -584,8 +596,7 @@ public class HtmlTree extends Content {
      * @return the element
      */
     public static HtmlTree FOOTER() {
-        return new HtmlTree(HtmlTag.FOOTER)
-                .setRole(HtmlAttr.Role.CONTENTINFO);
+        return new HtmlTree(HtmlTag.FOOTER);
     }
 
     /**
@@ -1153,6 +1164,18 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree WBR() {
         return WBR_INSTANCE;
+    }
+
+    /**
+     * {@return an HTML {@code IMG} element}
+     *
+     * @param src the path of the image
+     * @param alt alternate text for the image
+     */
+    public static HtmlTree IMG(DocPath src, String alt) {
+        return new HtmlTree(HtmlTag.IMG)
+                .put(HtmlAttr.SRC, src.getPath())
+                .put(HtmlAttr.ALT, alt);
     }
 
     @Override

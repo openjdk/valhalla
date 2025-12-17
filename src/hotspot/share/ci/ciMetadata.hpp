@@ -60,8 +60,8 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_flat_array_klass() const  { return false; }
   virtual bool is_obj_array_klass() const   { return false; }
   virtual bool is_type_array_klass() const  { return false; }
-  virtual bool is_wrapper() const           { return false; }
-  virtual bool flat_in_array() const        { return false; }
+  virtual bool is_early_larval() const      { return false; }
+  virtual bool maybe_flat_in_array() const  { return false; }
   virtual void dump_replay_data(outputStream* st) { /* do nothing */ }
 
   ciMethod*                as_method() {
@@ -112,14 +112,10 @@ class ciMetadata: public ciBaseObject {
     assert(is_inlinetype(), "bad cast");
     return (ciInlineKlass*)this;
   }
-  ciWrapper*               as_wrapper() {
-    assert(is_wrapper(), "bad cast");
-    return (ciWrapper*)this;
-  }
 
   Metadata* constant_encoding() { return _metadata; }
 
-  bool equals(ciMetadata* obj) const { return (this == obj); }
+  bool equals(const ciMetadata* obj) const { return (this == obj); }
 
   uint hash() { return ident() * 31; } // ???
 

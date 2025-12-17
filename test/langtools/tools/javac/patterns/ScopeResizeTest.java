@@ -26,7 +26,6 @@
  * @bug 8292756
  * @summary Verify the Scope can be safely and correctly resized to accommodate pattern binding variables
  *          when the Scope for a guard is constructed.
- * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api

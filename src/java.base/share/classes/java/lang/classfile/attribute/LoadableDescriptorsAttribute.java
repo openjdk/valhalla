@@ -24,6 +24,9 @@
  */
 package java.lang.classfile.attribute;
 
+import java.lang.classfile.AttributeMapper;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ClassDesc;
 import java.util.Arrays;
@@ -32,18 +35,31 @@ import java.util.List;
 import java.lang.classfile.Attribute;
 import java.lang.classfile.ClassElement;
 import java.lang.classfile.constantpool.ClassEntry;
+
+import jdk.internal.classfile.impl.AbstractPoolEntry;
 import jdk.internal.classfile.impl.BoundAttribute;
 import jdk.internal.classfile.impl.UnboundAttribute;
 import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
 
 /**
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
+ * Models the {@link Attributes#loadableDescriptors() LoadableDescriptors}
+ * attribute (JVMS {@jvms 4.7.32}), which suggests the JVM may load mentioned
+ * types before the {@code class} file carrying this attribute is loaded.
+ * <p>
+ * This attribute only appears on classes, and does not permit {@linkplain
+ * AttributeMapper#allowMultiple multiple instances} in a class.  It has a
+ * data dependency on the {@linkplain AttributeMapper.AttributeStability#CP_REFS
+ * constant pool}.
+ * <p>
+ * The attribute was introduced in the Java SE Platform version XX, major
+ * version {@value ClassFile#JAVA_25_VERSION}. (FIXME)
+ *
+ * @see Attributes#loadableDescriptors()
+ * @jvms 4.7.32 The {@code LoadableDescriptors} Attribute
+ * @since Valhalla
  */
-@PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
+@PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 public sealed interface LoadableDescriptorsAttribute
         extends Attribute<LoadableDescriptorsAttribute>, ClassElement
         permits BoundAttribute.BoundLoadableDescriptorsAttribute, UnboundAttribute.UnboundLoadableDescriptorsAttribute {
@@ -52,6 +68,13 @@ public sealed interface LoadableDescriptorsAttribute
      * {@return the list of loadable descriptors}
      */
     List<Utf8Entry> loadableDescriptors();
+
+    /**
+     * {@return the list of loadable descriptors, as nominal descriptors}
+     */
+    default List<ClassDesc> loadableDescriptorSymbols() {
+        return Util.mappedList(loadableDescriptors(), Util::fieldTypeSymbol);
+    }
 
     /**
      * {@return a {@code LoadableDescriptors} attribute}

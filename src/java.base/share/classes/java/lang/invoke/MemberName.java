@@ -25,9 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.CheckedType;
-import jdk.internal.value.NormalCheckedType;
-import jdk.internal.value.NullRestrictedCheckedType;
 import sun.invoke.util.VerifyAccess;
 
 import java.lang.reflect.Constructor;
@@ -227,14 +224,6 @@ final class MemberName implements Member, Cloneable {
         return (Class<?>) type;
     }
 
-    /**
-     * Return {@code CheckedType} representing the type of this member.
-     */
-    public CheckedType getCheckedFieldType() {
-        return isNullRestricted() ? NullRestrictedCheckedType.of(getFieldType())
-                                  : NormalCheckedType.of(getFieldType());
-    }
-
     /** Utility method to produce either the method type or field type of this member. */
     public Object getType() {
         return (isInvocable() ? getMethodType() : getFieldType());
@@ -399,6 +388,10 @@ final class MemberName implements Member, Cloneable {
     /** Utility method to query the modifier flags of this member. */
     public boolean isFinal() {
         return Modifier.isFinal(flags);
+    }
+    /** Utility method to query the modifier flags of this member. */
+    public boolean isStrict() {
+        return Modifier.isStrict(flags);
     }
     /** Utility method to query whether this member or its defining class is final. */
     public boolean canBeStaticallyBound() {
@@ -734,7 +727,7 @@ final class MemberName implements Member, Cloneable {
     }
 
     @Override
-    @SuppressWarnings("removal")
+    @SuppressWarnings("deprecation")
     public int hashCode() {
         // Avoid autoboxing getReferenceKind(), since this is used early and will force
         // early initialization of Byte$ByteCache

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
@@ -110,7 +111,7 @@ public final class Boolean implements java.io.Serializable,
      * Also consider using the final fields {@link #TRUE} and {@link #FALSE}
      * if possible.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Boolean(boolean value) {
         this.value = value;
     }
@@ -130,7 +131,7 @@ public final class Boolean implements java.io.Serializable,
      * {@code boolean} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Boolean} object.
      */
-    @Deprecated(since="9", forRemoval = true)
+    @Deprecated(since="9")
     public Boolean(String s) {
         this(parseBoolean(s));
     }
@@ -182,7 +183,10 @@ public final class Boolean implements java.io.Serializable,
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Boolean valueOf(boolean b) {
-        return (b ? TRUE : FALSE);
+        if (!PreviewFeatures.isEnabled()) {
+            return (b ? TRUE : FALSE);
+        }
+        return new Boolean(b);
     }
 
     /**

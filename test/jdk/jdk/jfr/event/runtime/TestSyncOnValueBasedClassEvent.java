@@ -37,9 +37,9 @@ import jdk.test.lib.jfr.Events;
  * @bug 8242263
  * @requires vm.hasJFR
  * @requires vm.flagless
+ * @enablePreview false
  * @library /test/lib
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:DiagnoseSyncOnValueBasedClasses=2 jdk.jfr.event.runtime.TestSyncOnValueBasedClassEvent
- * @run main/othervm --enable-preview -XX:+UnlockDiagnosticVMOptions -XX:DiagnoseSyncOnValueBasedClasses=2 jdk.jfr.event.runtime.TestSyncOnValueBasedClassEvent
  */
 public class TestSyncOnValueBasedClassEvent {
     static final String EVENT_NAME = EventNames.SyncOnValueBasedClass;

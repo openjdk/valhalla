@@ -33,13 +33,15 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import java.util.function.ToIntBiFunction;
 
+import static com.sun.tools.javac.code.TypeTag.ARRAY;
 import static com.sun.tools.javac.code.TypeTag.BOT;
 import static com.sun.tools.javac.code.TypeTag.DOUBLE;
 import static com.sun.tools.javac.code.TypeTag.INT;
 import static com.sun.tools.javac.code.TypeTag.LONG;
+import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
-import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableEntry;
+import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
@@ -194,7 +196,7 @@ public class Code {
 
     public Set<VarSymbol> currentUnsetFields;
 
-    boolean generateAssertUnsetFieldsFrame;
+    boolean generateEarlyLarvalFrame;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -209,7 +211,7 @@ public class Code {
                 Symtab syms,
                 Types types,
                 PoolWriter poolWriter,
-                boolean generateAssertUnsetFieldsFrame) {
+                boolean generateEarlyLarvalFrame) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -231,7 +233,7 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.generateAssertUnsetFieldsFrame = generateAssertUnsetFieldsFrame;
+        this.generateEarlyLarvalFrame = generateEarlyLarvalFrame;
     }
 
 
@@ -1235,7 +1237,7 @@ public class Code {
     StackMapFrame[] stackMapBuffer = null;
 
     /** A buffer of compressed StackMapTable entries. */
-    StackMapTableEntry[] stackMapTableBuffer = null;
+    StackMapTableFrame[] stackMapTableBuffer = null;
     int stackMapBufferSize = 0;
 
     /** The last PC at which we generated a stack map. */
@@ -1324,13 +1326,17 @@ public class Code {
         StackMapFrame frame = new StackMapFrame();
         frame.pc = pc;
 
+        boolean hasUninitalizedThis = false;
         int localCount = 0;
         Type[] locals = new Type[localsSize];
         for (int i=0; i<localsSize; i++, localCount++) {
             if (state.defined.isMember(i) && lvar[i] != null) {
                 Type vtype = lvar[i].sym.type;
-                if (!(vtype instanceof UninitializedType))
+                if (!(vtype instanceof UninitializedType)) {
                     vtype = types.erasure(vtype);
+                } else if (vtype.hasTag(TypeTag.UNINITIALIZED_THIS)) {
+                    hasUninitalizedThis = true;
+                }
                 locals[i] = vtype;
                 if (width(vtype) > 1) i++;
             }
@@ -1357,24 +1363,25 @@ public class Code {
         }
 
         Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
-        boolean generateAssertUnsetFieldsEntry = unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame && !lastFrame.unsetFields.equals(unsetFieldsAtPC) ;
+        boolean encloseWithEarlyLarvalFrame = unsetFieldsAtPC != null && generateEarlyLarvalFrame && hasUninitalizedThis
+                && !lastFrame.unsetFields.equals(unsetFieldsAtPC);
 
         if (stackMapTableBuffer == null) {
-            stackMapTableBuffer = new StackMapTableEntry[20];
+            stackMapTableBuffer = new StackMapTableFrame[20];
         } else {
             stackMapTableBuffer = ArrayUtils.ensureCapacity(
                                     stackMapTableBuffer,
-                                    stackMapBufferSize + (generateAssertUnsetFieldsEntry ? 1 : 0));
+                                    stackMapBufferSize);
         }
 
-        if (generateAssertUnsetFieldsEntry) {
-            stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
+        StackMapTableFrame tableFrame = StackMapTableFrame.getInstance(frame, lastFrame, types, pc);
+        if (encloseWithEarlyLarvalFrame) {
+            tableFrame = new StackMapTableFrame.EarlyLarvalFrame(tableFrame, unsetFieldsAtPC);
             frame.unsetFields = unsetFieldsAtPC;
         } else {
             frame.unsetFields = lastFrame.unsetFields;
         }
-        stackMapTableBuffer[stackMapBufferSize++] =
-                StackMapTableEntry.getInstance(frame, lastFrame, types, pc);
+        stackMapTableBuffer[stackMapBufferSize++] = tableFrame;
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;
@@ -1835,11 +1842,7 @@ public class Code {
             for (int i=0; i<stacksize; ) {
                 Type t = stack[i];
                 Type tother = other.stack[i];
-                Type result =
-                    t==tother ? t :
-                    types.isSubtype(t, tother) ? tother :
-                    types.isSubtype(tother, t) ? t :
-                    error();
+                Type result = commonSuperClass(t, tother);
                 int w = width(result);
                 stack[i] = result;
                 if (w == 2) Assert.checkNull(stack[i+1]);
@@ -1848,8 +1851,54 @@ public class Code {
             return this;
         }
 
-        Type error() {
-            throw new AssertionError("inconsistent stack types at join point");
+        private Type commonSuperClass(Type t1, Type t2) {
+            if (t1 == t2) {
+                return t1;
+            } else if (types.isSubtype(t1, t2)) {
+                return t2;
+            } else if (types.isSubtype(t2, t1)) {
+                return t1;
+            } else {
+                /* the most semantically correct approach here would be to invoke Types::lub
+                 * and then erase the result.
+                 * But this approach can be too slow for some complex cases, see JDK-8369654.
+                 * This is why the method below leverages the fact that the result
+                 * will be erased to produce a correct supertype using a simpler approach compared
+                 * to a full blown lub.
+                 */
+                Type es = erasedSuper(t1, t2);
+                if (es == null || es.hasTag(BOT)) {
+                    throw Assert.error("Cannot find a common super class of: " +
+                                       t1 + " and " + t2);
+                }
+                return es;
+            }
+        }
+
+        private Type erasedSuper(Type t1, Type t2) {
+            if (t1.hasTag(ARRAY) && t2.hasTag(ARRAY)) {
+                Type elem1 = types.elemtype(t1);
+                Type elem2 = types.elemtype(t2);
+                if (elem1.isPrimitive() || elem2.isPrimitive()) {
+                    return (elem1.tsym == elem2.tsym) ? t1 : syms.serializableType;
+                } else { // both are arrays of references
+                    return new ArrayType(erasedSuper(elem1, elem2), syms.arrayClass);
+                }
+            } else {
+                t1 = types.skipTypeVars(t1, false);
+                t2 = types.skipTypeVars(t2, false);
+                List<Type> result = types.closureMin(
+                        types.intersect(
+                            t1.hasTag(ARRAY) ?
+                                    List.of(syms.serializableType, syms.cloneableType, syms.objectType) :
+                                    types.erasedSupertypes(t1),
+                            t2.hasTag(ARRAY) ?
+                                    List.of(syms.serializableType, syms.cloneableType, syms.objectType) :
+                                    types.erasedSupertypes(t2)
+                        )
+                );
+                return result.head;
+            }
         }
 
         void dump() {

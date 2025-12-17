@@ -29,10 +29,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -45,14 +43,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.value.LayoutIteration;
+import jdk.internal.value.ValueClass;
+
 import sun.invoke.util.Wrapper;
 
 import static java.lang.invoke.MethodHandles.constant;
@@ -74,6 +74,7 @@ import static java.util.stream.Collectors.toMap;
  * private entry points called by VM.
  */
 final class ValueObjectMethods {
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private ValueObjectMethods() {}
     private static final boolean VERBOSE =
             System.getProperty("value.bsm.debug") != null;
@@ -138,7 +139,7 @@ final class ValueObjectMethods {
         private static List<Class<?>> valueTypeFields(Class<?> type) {
             return LayoutIteration.ELEMENTS.get(type).stream()
                     .<Class<?>>map(mh -> mh.type().returnType())
-                    .filter(Class::isValue)
+                    .filter(ValueClass::isConcreteValueClass)
                     .distinct()
                     .toList();
         }
@@ -172,7 +173,7 @@ final class ValueObjectMethods {
          * fields of the two value objects are substitutable. The method type is (V, V)boolean
          */
         static MethodHandle valueTypeEquals(Class<?> type, List<MethodHandle> getters) {
-            assert type.isValue();
+            assert ValueClass.isConcreteValueClass(type);
 
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -200,7 +201,7 @@ final class ValueObjectMethods {
          * The method type is (V)int.
          */
         static MethodHandle valueTypeHashCode(Class<?> type, List<MethodHandle> getters) {
-            assert type.isValue();
+            assert ValueClass.isConcreteValueClass(type);
 
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle classHasher = dropArguments(hashCodeForType(Class.class).bindTo(type), 0, type);
@@ -369,7 +370,7 @@ final class ValueObjectMethods {
         }
 
         static MethodHandleBuilder newBuilder(Class<?> type) {
-            assert type.isValue();
+            assert ValueClass.isConcreteValueClass(type);
 
             Deque<Class<?>> deque = new ArrayDeque<>();
             deque.add(type);
@@ -418,6 +419,7 @@ final class ValueObjectMethods {
          * @param visited a map of a visited type to a builder
          */
         private MethodHandleBuilder(Class<?> type, Deque<Class<?>> path, Map<Class<?>, MethodHandleBuilder> visited) {
+            assert ValueClass.isConcreteValueClass(type) : type;
             this.type = type;
             this.fieldValueTypes = valueTypeFields(type);
             this.path = path;
@@ -1114,7 +1116,7 @@ final class ValueObjectMethods {
      */
     private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
-            System.out.println("substitutable " + a.getClass() + ": " + a + " vs " + b);
+            System.out.println("isSubstitutable " + a + " vs " + b);
         }
 
         // Called directly from the VM.
@@ -1171,7 +1173,7 @@ final class ValueObjectMethods {
         if (type.isPrimitive()) {
             return MethodHandleBuilder.builtinPrimitiveSubstitutable(type);
         }
-        if (type.isValue()) {
+        if (ValueClass.isConcreteValueClass(type)) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
         }
         return MethodHandleBuilder.referenceTypeEquals(type);
@@ -1403,4 +1405,109 @@ final class ValueObjectMethods {
         throw new IllegalArgumentException("missing leading MethodHandle parameters: " + mt);
     }
 
+    private static boolean isSubstitutableAlt(Object a, Object b) {
+        if (VERBOSE) {
+            System.out.println("isSubstitutableAlt " + a + " vs " + b);
+        }
+      // This method assumes a and b are not null and their are both instances of the same value class
+      final Unsafe U = UNSAFE;
+      int[] map = U.getFieldMap(a.getClass());
+      int nbNonRef = map[0];
+      for (int i = 0; i < nbNonRef; i++) {
+        int offset = map[i * 2 + 1];
+        int size = map[i * 2 + 2];
+        int nlong = size / 8;
+        for (int j = 0; j < nlong; j++) {
+          long la = U.getLong(a, offset);
+          long lb = U.getLong(b, offset);
+          if (la != lb) return false;
+          offset += 8;
+        }
+        size -= nlong * 8;
+        int nint = size / 4;
+        for (int j = 0; j < nint; j++) {
+          int ia = U.getInt(a, offset);
+          int ib = U.getInt(b, offset);
+          if (ia != ib) return false;
+          offset += 4;
+        }
+        size -= nint * 4;
+        int nshort = size / 2;
+        for (int j = 0; j < nshort; j++) {
+          short sa = U.getShort(a, offset);
+          short sb = U.getShort(b, offset);
+          if (sa != sb) return false;
+          offset += 2;
+        }
+        size -= nshort * 2;
+        for (int j = 0; j < size; j++) {
+          byte ba = U.getByte(a, offset);
+          byte bb = U.getByte(b, offset);
+          if (ba != bb) return false;
+          offset++;
+        }
+      }
+      for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
+        int offset = map[i];
+        Object oa = U.getReference(a, offset);
+        Object ob = U.getReference(b, offset);
+        if (oa != ob) return false;
+      }
+      return true;
+    }
+
+    /**
+     * Return the identity hashCode of a value object.
+     * The hashCode is computed using Unsafe.getFieldMap.
+     * @param obj a value class instance, non-null
+     * @return the hashCode of the object
+     */
+    private static int valueObjectHashCodeAlt(Object obj) {
+        if (VERBOSE) {
+            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj);
+        }
+        // This method assumes a is not null and is an instance of a value class
+        Class<?> type = obj.getClass();
+        final Unsafe U = UNSAFE;
+        int[] map = U.getFieldMap(type);
+        int result = 0;
+        int nbNonRef = map[0];
+        for (int i = 0; i < nbNonRef; i++) {
+            int offset = map[i * 2 + 1];
+            int size = map[i * 2 + 2];
+            int nlong = size / 8;
+            for (int j = 0; j < nlong; j++) {
+                long la = U.getLong(obj, offset);
+                result = 31 * result + (int) la;
+                result = 31 * result + (int) (la >>> 32);
+                offset += 8;
+            }
+            size -= nlong * 8;
+            int nint = size / 4;
+            for (int j = 0; j < nint; j++) {
+                int ia = U.getInt(obj, offset);
+                result = 31 * result + ia;
+                offset += 4;
+            }
+            size -= nint * 4;
+            int nshort = size / 2;
+            for (int j = 0; j < nshort; j++) {
+                short sa = U.getShort(obj, offset);
+                result = 31 * result + sa;
+                offset += 2;
+            }
+            size -= nshort * 2;
+            for (int j = 0; j < size; j++) {
+                byte ba = U.getByte(obj, offset);
+                result = 31 * result + ba;
+                offset++;
+            }
+        }
+        for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
+            int offset = map[i];
+            Object oa = U.getReference(obj, offset);
+            result = 31 * result + Objects.hashCode(oa);
+        }
+        return result;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest 0
+ * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 0
  */
 
   /*
@@ -40,7 +40,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest 1
+ * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 1
  */
 
   /*
@@ -51,8 +51,10 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest 2
+ * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 2
  */
+
+ package runtime.valhalla.inlinetypes.field_layout;
 
  import java.util.ArrayList;
  import java.util.Collections;
@@ -99,16 +101,16 @@
 
   List<String> testNames = new ArrayList<String>();
 
-  @LooselyConsistentValue static value class ValueOneByte { byte val = 0; }
-  @LooselyConsistentValue static value class ValueOneChar { char val = 0; }
-  @LooselyConsistentValue static value class ValueOneShort { short val = 0; }
-  @LooselyConsistentValue static value class ValueOneInt { int val = 0; }
-  @LooselyConsistentValue static value class ValueOneLong { long val = 0; }
-  @LooselyConsistentValue static value class ValueOneFloat { float val = 0f; }
-  @LooselyConsistentValue static value class ValueOneDouble { double val = 0d; }
+  @LooselyConsistentValue public static value class ValueOneByte { byte val = 0; }
+  @LooselyConsistentValue public static value class ValueOneChar { char val = 0; }
+  @LooselyConsistentValue public static value class ValueOneShort { short val = 0; }
+  @LooselyConsistentValue public static value class ValueOneInt { int val = 0; }
+  @LooselyConsistentValue public static value class ValueOneLong { long val = 0; }
+  @LooselyConsistentValue public static value class ValueOneFloat { float val = 0f; }
+  @LooselyConsistentValue public static value class ValueOneDouble { double val = 0d; }
 
-  @LooselyConsistentValue static value class ValueByteLong { byte b = 0; long l = 0; }
-  @LooselyConsistentValue static value class ValueByteInt { byte b = 0; int i = 0; }
+  @LooselyConsistentValue public static value class ValueByteLong { byte b = 0; long l = 0; }
+  @LooselyConsistentValue public static value class ValueByteInt { byte b = 0; int i = 0; }
 
   void generateTests() throws Exception {
     for (String vName : valueNames) {

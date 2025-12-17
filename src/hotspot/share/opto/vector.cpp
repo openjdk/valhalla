@@ -40,6 +40,10 @@ void PhaseVector::optimize_vector_boxes() {
 
   C->igvn_worklist()->ensure_empty(); // should be done with igvn
 
+  if (StressMacroExpansion) {
+    C->shuffle_macro_nodes();
+  }
+
   expand_vunbox_nodes();
   scalarize_vbox_nodes();
 
@@ -63,7 +67,7 @@ void PhaseVector::do_cleanup() {
   }
   {
     Compile::TracePhase tp(_t_vector_igvn);
-    _igvn.reset_from_gvn(C->initial_gvn());
+    _igvn.reset();
     _igvn.optimize();
     if (C->failing())  return;
   }
@@ -250,6 +254,7 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
                                            VectorSet &visited) {
   // JDK-8304948 shows an example that there may be a cycle in the graph.
   if (visited.test_set(vbox->_idx)) {
+    assert(vbox->is_Phi() || vbox->is_CheckCastPP(), "either phi or expanded");
     return vbox; // already visited
   }
 
@@ -300,7 +305,7 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
     return C->initial_gvn()->transform(vbox);
   }
 
-  assert(!vbox->is_Phi(), "should be expanded");
+  assert(vbox->is_CheckCastPP(), "should be expanded");
   // TODO: assert that expanded vbox is initialized with the same value (vect).
   return vbox; // already expanded
 }
@@ -331,11 +336,13 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
 
   Node* klass_node = kit.makecon(TypeKlassPtr::make(vk));
   Node* alloc_oop  = kit.new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true);
-  vector->store(&kit, alloc_oop, alloc_oop, vk);
+  DecoratorSet decorators = IN_HEAP | MO_UNORDERED | C2_MISMATCHED;
+  Node* payload_alloc_oop = kit.basic_plus_adr(alloc_oop, vk->payload_offset());
+  vector->store(&kit, alloc_oop, payload_alloc_oop, true, decorators);
 
   C->set_max_vector_size(MAX2(C->max_vector_size(), vect_type->length_in_bytes()));
 
-  kit.replace_call(vbox_alloc, alloc_oop, true);
+  kit.replace_call(vbox_alloc, alloc_oop, false);
   C->remove_macro_node(vbox_alloc);
   return alloc_oop;
 }

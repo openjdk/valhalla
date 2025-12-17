@@ -1239,6 +1239,7 @@ public class XArrayList<E> extends AbstractList<E>
         /**
          * Constructs a sublist of an arbitrary XArrayList.
          */
+        @SuppressWarnings("initialization")
         public SubList(XArrayList<E> root, int fromIndex, int toIndex) {
             this.root = root;
             this.parent = null;
@@ -1250,6 +1251,7 @@ public class XArrayList<E> extends AbstractList<E>
         /**
          * Constructs a sublist of another SubList.
          */
+        @SuppressWarnings("initialization")
         private SubList(SubList<E> parent, int fromIndex, int toIndex) {
             this.root = parent.root;
             this.parent = parent;

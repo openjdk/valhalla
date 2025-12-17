@@ -53,7 +53,7 @@ class StackMapFrame : public ResourceObj {
   }
 
   // Maps a strict field's name and signature to whether or not it was initialized
-  typedef ResourceHashtable<NameAndSig, bool, 17,
+  typedef HashTable<NameAndSig, bool, 17,
                     AnyObj::RESOURCE_AREA, mtInternal,
                     nameandsig_hash, nameandsig_equals> AssertUnsetFieldTable;
  private:

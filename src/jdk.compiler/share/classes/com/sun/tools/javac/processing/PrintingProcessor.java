@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,7 @@ import com.sun.tools.javac.util.StringUtils;
  * deletion without notice.</b>
  */
 @SupportedAnnotationTypes("*")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
+@SupportedSourceVersion(SourceVersion.RELEASE_26)
 public class PrintingProcessor extends AbstractProcessor {
     PrintWriter writer;
 
@@ -259,9 +259,7 @@ public class PrintingProcessor extends AbstractProcessor {
                 if (kind == CLASS) {
                     TypeMirror supertype = e.getSuperclass();
                     if (supertype.getKind() != TypeKind.NONE) {
-                        TypeElement e2 = (TypeElement)
-                            ((DeclaredType) supertype).asElement();
-                        if (e2.getSuperclass().getKind() != TypeKind.NONE)
+                        if (isImportantType(supertype))
                             writer.print(" extends " + supertype);
                     }
                 }
@@ -502,12 +500,15 @@ public class PrintingProcessor extends AbstractProcessor {
             case METHOD:
             case FIELD:
                 Element enclosingElement = e.getEnclosingElement();
-                if (enclosingElement != null &&
-                    enclosingElement.getKind().isInterface()) {
-                    modifiers.remove(Modifier.PUBLIC);
-                    modifiers.remove(Modifier.ABSTRACT); // only for methods
-                    modifiers.remove(Modifier.STATIC);   // only for fields
-                    modifiers.remove(Modifier.FINAL);    // only for fields
+                if (enclosingElement != null) {
+                    if (enclosingElement.getKind().isInterface()) {
+                        modifiers.remove(Modifier.PUBLIC);
+                        modifiers.remove(Modifier.ABSTRACT); // only for methods
+                        modifiers.remove(Modifier.STATIC);   // only for fields
+                        modifiers.remove(Modifier.FINAL);    // only for fields
+                    } else if (enclosingElement.getKind() == RECORD) {
+                        modifiers.remove(Modifier.STRICTFP);
+                    }
                 }
                 break;
 
@@ -524,11 +525,27 @@ public class PrintingProcessor extends AbstractProcessor {
             List<? extends TypeParameterElement> typeParams = e.getTypeParameters();
             if (!typeParams.isEmpty()) {
                 writer.print(typeParams.stream()
-                             .map(tpe -> annotationsToString(tpe) + tpe.toString())
+                             .map(tpe -> annotationsToString(tpe) + tpe.toString() + printTypeVariableBoundsIfNeeded(tpe))
                              .collect(Collectors.joining(", ", "<", ">")));
                 if (pad)
                     writer.print(" ");
             }
+        }
+
+        private String printTypeVariableBoundsIfNeeded(TypeParameterElement tpe) {
+            List<? extends TypeMirror> printableBounds =
+                    tpe.getBounds()
+                       .stream()
+                       .filter(type -> isImportantType(type))
+                       .toList();
+
+            if (printableBounds.isEmpty()) {
+                return "";
+            }
+
+            return " extends " + printableBounds.stream()
+                                                .map(t -> t.toString())
+                                                .collect(Collectors.joining(" & "));
         }
 
         private String annotationsToString(Element e) {
@@ -770,5 +787,22 @@ public class PrintingProcessor extends AbstractProcessor {
             writer.print(spaces[indentation]);
         }
 
+        /**{@return true if this type is either not {@code java.lang.Object},
+         * or is annotated, and hence needs to be included in the output,
+         * even for cases where there's implicit {@code java.lang.Object} type.}
+         *
+         * @param type the type to check.
+         */
+        private boolean isImportantType(TypeMirror type) {
+            if (!type.getAnnotationMirrors().isEmpty()) {
+                return true;
+            }
+            TypeElement e2 = (TypeElement)
+                ((DeclaredType) type).asElement();
+            if (!e2.getKind().isClass()) {
+                return true;
+            }
+            return e2.getSuperclass().getKind() != TypeKind.NONE;
+        }
     }
 }

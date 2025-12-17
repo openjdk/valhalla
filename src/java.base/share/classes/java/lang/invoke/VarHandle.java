@@ -473,6 +473,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  */
 public abstract sealed class VarHandle implements Constable
      permits IndirectVarHandle, LazyInitializingVarHandle, SegmentVarHandle,
+             ArrayVarHandle,
              VarHandleByteArrayAsChars.ByteArrayViewVarHandle,
              VarHandleByteArrayAsDoubles.ByteArrayViewVarHandle,
              VarHandleByteArrayAsFloats.ByteArrayViewVarHandle,
@@ -500,14 +501,12 @@ public abstract sealed class VarHandle implements Constable
              VarHandleLongs.Array,
              VarHandleLongs.FieldInstanceReadOnly,
              VarHandleLongs.FieldStaticReadOnly,
-             VarHandleReferences.Array,
              VarHandleReferences.FieldInstanceReadOnly,
              VarHandleReferences.FieldStaticReadOnly,
              VarHandleShorts.Array,
              VarHandleShorts.FieldInstanceReadOnly,
              VarHandleShorts.FieldStaticReadOnly,
              VarHandleFlatValues.FieldInstanceReadOnly,
-             VarHandleNonAtomicReferences.Array,
              VarHandleNonAtomicReferences.FieldInstanceReadOnly,
              VarHandleNonAtomicReferences.FieldStaticReadOnly,
              VarHandleNonAtomicFlatValues.FieldInstanceReadOnly {

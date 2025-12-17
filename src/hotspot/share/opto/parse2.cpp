@@ -22,6 +22,7 @@
  *
  */
 
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciSymbols.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -85,7 +86,7 @@ void Parse::array_load(BasicType bt) {
   if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
     assert(UseArrayFlattening && is_reference_type(bt) && element_ptr->can_be_inline_type() &&
-           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->flat_in_array()), "array can't be flat");
+           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->maybe_flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -114,25 +115,18 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
-          // Element type is known, cast and load from flat array layout.
           ciInlineKlass* vk = element_ptr->inline_klass();
-          bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
-          bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
-          if (is_null_free) {
-            // TODO 8350865 Impossible type
-            is_not_null_free = false;
-          }
-          bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
-          bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
-
-          adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
-          int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-          Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset);
+          Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+          Node* vt = InlineTypeNode::make_from_flat_array(this, vk, flat_array, array_index);
           ideal.set(res, vt);
         } else {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
+          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          if (is_null_free) {
+            inline_type = cast_not_null(inline_type);
+          }
           ideal.set(res, inline_type);
         }
       }
@@ -219,7 +213,7 @@ void Parse::array_store(BasicType bt) {
     bool not_inline = !stored_value_casted_type->maybe_null() && !stored_value_casted_type->is_oopptr()->can_be_inline_type();
     bool not_null_free = not_inline;
     bool not_flat = not_inline || ( stored_value_casted_type->is_inlinetypeptr() &&
-                                   !stored_value_casted_type->inline_klass()->flat_in_array());
+                                   !stored_value_casted_type->inline_klass()->maybe_flat_in_array());
     if (!array_type->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free.
       array_type = array_type->cast_to_not_null_free();
@@ -273,14 +267,7 @@ void Parse::array_store(BasicType bt) {
 
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
-            bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
-            if (is_null_free) {
-              // TODO 8350865 Impossible type
-              is_not_null_free = false;
-            }
-            bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
-            bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
+            Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
@@ -291,9 +278,8 @@ void Parse::array_store(BasicType bt) {
               assert(_gvn.type(stored_value_casted) == TypePtr::NULL_PTR, "Unexpected value");
               stored_value_casted = InlineTypeNode::make_null(_gvn, vk);
             }
-            adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
-            int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+
+            stored_value_casted->as_InlineType()->store_flat_array(this, flat_array, array_index);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);
@@ -1485,11 +1471,11 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 
 Node* Parse::floating_point_mod(Node* a, Node* b, BasicType type) {
   assert(type == BasicType::T_FLOAT || type == BasicType::T_DOUBLE, "only float and double are floating points");
-  CallNode* mod = type == BasicType::T_DOUBLE ? static_cast<CallNode*>(new ModDNode(C, a, b)) : new ModFNode(C, a, b);
+  CallLeafPureNode* mod = type == BasicType::T_DOUBLE ? static_cast<CallLeafPureNode*>(new ModDNode(C, a, b)) : new ModFNode(C, a, b);
 
-  Node* prev_mem = set_predefined_input_for_runtime_call(mod);
-  mod = _gvn.transform(mod)->as_Call();
-  set_predefined_output_for_runtime_call(mod, prev_mem, TypeRawPtr::BOTTOM);
+  set_predefined_input_for_runtime_call(mod);
+  mod = _gvn.transform(mod)->as_CallLeafPure();
+  set_predefined_output_for_runtime_call(mod);
   Node* result = _gvn.transform(new ProjNode(mod, TypeFunc::Parms + 0));
   record_for_igvn(mod);
   return result;
@@ -1833,7 +1819,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken, Node** stress_count_mem) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1864,6 +1850,9 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
   bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
   if (do_stress_trap) {
     increment_trap_stress_counter(counter, incr_store);
+    if (stress_count_mem != nullptr) {
+      *stress_count_mem = incr_store;
+    }
   }
 
   // Sanity check the probability value
@@ -2130,10 +2119,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_is_init())->is_zero_type())) {
-      // Null checking a scalarized but nullable inline type. Check the IsInit
+        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_null_marker())->is_zero_type())) {
+      // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineType()->get_null_marker(), intcon(0));
       do_if(btest, cmp);
       return;
     } else {
@@ -2313,7 +2302,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_all_memory(mem);
 
   kill_dead_locals();
-  ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
+  ciSymbol* subst_method_name = UseAltSubstitutabilityMethod ? ciSymbols::isSubstitutableAlt_name() : ciSymbols::isSubstitutable_name();
+  ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(subst_method_name, ciSymbols::object_object_boolean_signature());
   CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
@@ -2327,21 +2317,25 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // This is the last check, do_if can emit traps now.
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
+  Node* stress_count_mem = nullptr;
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap);
+    do_if(btest, subst_cmp, can_trap, false, nullptr, &stress_count_mem);
     if (!stopped()) {
       ctl = control();
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap, false, &ctl);
+    do_if(btest, subst_cmp, can_trap, false, &ctl, &stress_count_mem);
     if (!stopped()) {
       eq_region->init_req(2, control());
       eq_io_phi->init_req(2, i_o());
       eq_mem_phi->init_req(2, reset_memory());
     }
+  }
+  if (stress_count_mem != nullptr) {
+    set_memory(stress_count_mem, stress_count_mem->adr_type());
   }
   ne_region->init_req(5, ctl);
   ne_io_phi->init_req(5, i_o());
@@ -2869,19 +2863,19 @@ void Parse::do_one_bytecode() {
 
   // double stores
   case Bytecodes::_dstore_0:
-    set_pair_local( 0, dprecision_rounding(pop_pair()) );
+    set_pair_local( 0, pop_pair() );
     break;
   case Bytecodes::_dstore_1:
-    set_pair_local( 1, dprecision_rounding(pop_pair()) );
+    set_pair_local( 1, pop_pair() );
     break;
   case Bytecodes::_dstore_2:
-    set_pair_local( 2, dprecision_rounding(pop_pair()) );
+    set_pair_local( 2, pop_pair() );
     break;
   case Bytecodes::_dstore_3:
-    set_pair_local( 3, dprecision_rounding(pop_pair()) );
+    set_pair_local( 3, pop_pair() );
     break;
   case Bytecodes::_dstore:
-    set_pair_local( iter().get_index(), dprecision_rounding(pop_pair()) );
+    set_pair_local( iter().get_index(), pop_pair() );
     break;
 
   case Bytecodes::_pop:  dec_sp(1);   break;
@@ -3063,32 +3057,28 @@ void Parse::do_one_bytecode() {
     b = pop();
     a = pop();
     c = _gvn.transform( new SubFNode(a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_fadd:
     b = pop();
     a = pop();
     c = _gvn.transform( new AddFNode(a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_fmul:
     b = pop();
     a = pop();
     c = _gvn.transform( new MulFNode(a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_fdiv:
     b = pop();
     a = pop();
     c = _gvn.transform( new DivFNode(nullptr,a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_frem:
@@ -3138,8 +3128,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_d2f:
     a = pop_pair();
     b = _gvn.transform( new ConvD2FNode(a));
-    // This breaks _227_mtrt (speed & correctness) and _222_mpegaudio (speed)
-    //b = _gvn.transform(new RoundFloatNode(nullptr, b) );
     push( b );
     break;
 
@@ -3147,11 +3135,6 @@ void Parse::do_one_bytecode() {
     if (Matcher::convL2FSupported()) {
       a = pop_pair();
       b = _gvn.transform( new ConvL2FNode(a));
-      // For x86_32.ad, FILD doesn't restrict precision to 24 or 53 bits.
-      // Rather than storing the result into an FP register then pushing
-      // out to memory to round, the machine instruction that implements
-      // ConvL2D is responsible for rounding.
-      // c = precision_rounding(b);
       push(b);
     } else {
       l2f();
@@ -3161,8 +3144,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_l2d:
     a = pop_pair();
     b = _gvn.transform( new ConvL2DNode(a));
-    // For x86_32.ad, rounding is always necessary (see _l2f above).
-    // c = dprecision_rounding(b);
     push_pair(b);
     break;
 
@@ -3182,32 +3163,28 @@ void Parse::do_one_bytecode() {
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new SubDNode(a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_dadd:
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new AddDNode(a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_dmul:
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new MulDNode(a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_ddiv:
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new DivDNode(nullptr,a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_dneg:
@@ -3392,8 +3369,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_i2f:
     a = pop();
     b = _gvn.transform( new ConvI2FNode(a) ) ;
-    c = precision_rounding(b);
-    push (b);
+    push(b);
     break;
 
   case Bytecodes::_i2d:
@@ -3415,11 +3391,9 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
   case Bytecodes::_freturn:
-    return_current(pop());
+    return_current(cast_to_non_larval(pop()));
     break;
   case Bytecodes::_lreturn:
-    return_current(pop_pair());
-    break;
   case Bytecodes::_dreturn:
     return_current(pop_pair());
     break;
@@ -3472,11 +3446,11 @@ void Parse::do_one_bytecode() {
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
     a = null();
-    b = pop();
+    b = cast_to_non_larval(pop());
     if (b->is_InlineType()) {
-      // Null checking a scalarized but nullable inline type. Check the IsInit
+      // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive
-      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
+      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_null_marker(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
@@ -3501,8 +3475,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = pop();
-    b = pop();
+    a = cast_to_non_larval(pop());
+    b = cast_to_non_larval(pop());
     do_acmp(btest, b, a);
     break;
 
@@ -3611,8 +3585,10 @@ void Parse::do_one_bytecode() {
     jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
+    printer->set_parse(this);
     printer->print_graph(buffer);
     printer->set_traverse_outs(old);
+    printer->set_parse(nullptr);
   }
 #endif
 }

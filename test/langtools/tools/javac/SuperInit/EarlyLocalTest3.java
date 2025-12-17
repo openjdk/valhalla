@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,11 @@
  * @test
  * @bug 8333313
  * @summary Verify references to local classes declared in early construction contexts
- * @enablePreview
+ * @run main EarlyLocalTest3
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester EarlyLocalTest3
  */
+
 public class EarlyLocalTest3 {
 
     class Test {

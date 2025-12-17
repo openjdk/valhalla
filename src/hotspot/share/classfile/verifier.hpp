@@ -31,7 +31,7 @@
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/resourceHash.hpp"
+#include "utilities/hashTable.hpp"
 
 struct NameAndSig {
   Symbol* _name;
@@ -48,7 +48,7 @@ class Verifier : AllStatic {
     INVOKEDYNAMIC_MAJOR_VERSION         = 51,
     NO_RELAX_ACCESS_CTRL_CHECK_VERSION  = 52,
     DYNAMICCONSTANT_MAJOR_VERSION       = 55,
-    VALUE_TYPES_MAJOR_VERSION           = 67,
+    VALUE_TYPES_MAJOR_VERSION           = 70,
     JAVA_PREVIEW_MINOR_VERSION          = 65535,
   };
 
@@ -293,7 +293,7 @@ class sig_as_verification_types : public ResourceObj {
 
 // This hashtable is indexed by the Utf8 constant pool indexes pointed to
 // by constant pool (Interface)Method_refs' NameAndType signature entries.
-typedef ResourceHashtable<int, sig_as_verification_types*, 1007>
+typedef HashTable<int, sig_as_verification_types*, 1007>
                           method_signatures_table_type;
 
 // A new instance of this class is created for each class being verified
@@ -356,17 +356,6 @@ class ClassVerifier : public StackObj {
     StackMapFrame* current_frame, u4 code_length, bool in_try_block,
     bool* this_uninit, const constantPoolHandle& cp, StackMapTable* stackmap_table,
     TRAPS);
-
-  // Used by ends_in_athrow() to push all handlers that contain bci onto the
-  // handler_stack, if the handler has not already been pushed on the stack.
-  void push_handlers(ExceptionTable* exhandlers,
-                     GrowableArray<u4>* handler_list,
-                     GrowableArray<u4>* handler_stack,
-                     u4 bci);
-
-  // Returns true if all paths starting with start_bc_offset end in athrow
-  // bytecode or loop.
-  bool ends_in_athrow(u4 start_bc_offset);
 
   void verify_invoke_instructions(
     RawBytecodeStream* bcs, u4 code_length, StackMapFrame* current_frame,

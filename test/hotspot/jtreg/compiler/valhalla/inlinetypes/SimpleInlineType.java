@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+package compiler.valhalla.inlinetypes;
+
 value class SimpleInlineType {
     int x;
 
@@ -30,6 +32,11 @@ value class SimpleInlineType {
 
     static SimpleInlineType create() {
         return new SimpleInlineType();
+    }
+
+    @Override
+    public String toString() {
+        return "SimpleInlineType[x=" + x + "]";
     }
 }
 

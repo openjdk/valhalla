@@ -66,7 +66,7 @@ value class MyValue2Inline {
 
     @Override
     public String toString() {
-        return "d=" + d + ", l=" + l;
+        return "MyValue2Inline[d=" + d + ", l=" + l + "]";
     }
 }
 
@@ -129,11 +129,6 @@ public value class MyValue2 extends MyAbstract {
         return x + y + (long)v.d + v.l;
     }
 
-    @Override
-    public String toString() {
-        return "x=" + x + ", y=" + y + ", v=[" + v + "]";
-    }
-
     @ForceInline
     static MyValue2 setX(MyValue2 v, int x) {
         return new MyValue2(x, v.y, v.v);
@@ -147,5 +142,10 @@ public value class MyValue2 extends MyAbstract {
     @ForceInline
     static MyValue2 setV(MyValue2 v, MyValue2Inline vi) {
         return new MyValue2(v.x, v.y, vi);
+    }
+
+    @Override
+    public String toString() {
+        return "MyValue2[x=" + x + ", y=" + y + ", v=" + v + "]";
     }
 }

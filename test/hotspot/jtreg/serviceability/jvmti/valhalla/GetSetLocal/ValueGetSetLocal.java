@@ -62,11 +62,13 @@ public class ValueGetSetLocal {
         public void meth(ValueClass obj1,       // slot 1
                          ValueHolder obj2) {    // slot 2
             Object obj3 = obj2;                 // slot 3
-            if (!nTestLocals(Thread.currentThread())) {
+            // SetLocalObject can only set locals for top frame of virtual threads.
+            boolean testSetLocal = !Thread.currentThread().isVirtual();
+            if (!nTestLocals(Thread.currentThread(), testSetLocal)) {
                 throw new RuntimeException("ERROR: nTestLocals failed");
             }
             // nTestLocals sets obj3 = obj1
-            if (!Objects.equals(obj3, obj1)) {
+            if (testSetLocal && !Objects.equals(obj3, obj1)) {
                 throw new RuntimeException("ERROR: obj3 != obj1" + " (obj3 = " + obj3 + ")");
             }
         }
@@ -86,5 +88,5 @@ public class ValueGetSetLocal {
         testObj2.meth(testObj1, testObj2);
     }
 
-    private static native boolean nTestLocals(Thread thread);
+    private static native boolean nTestLocals(Thread thread, boolean testSetLocal);
 }

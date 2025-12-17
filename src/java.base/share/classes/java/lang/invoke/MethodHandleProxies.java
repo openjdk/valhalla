@@ -35,12 +35,10 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -56,6 +54,7 @@ import jdk.internal.loader.ClassLoaders;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.module.Modules;
 import jdk.internal.util.ClassFileDumper;
+import jdk.internal.util.ReferencedKeySet;
 
 import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodHandleStatics.*;
@@ -201,7 +200,7 @@ public final class MethodHandleProxies {
     private static final ClassFileDumper DUMPER = ClassFileDumper.getInstance(
             "jdk.invoke.MethodHandleProxies.dumpClassFiles", "DUMP_MH_PROXY_CLASSFILES");
 
-    private static final Set<Class<?>> WRAPPER_TYPES = Collections.newSetFromMap(new WeakHashMap<>());
+    private static final Set<Class<?>> WRAPPER_TYPES = ReferencedKeySet.create(false, ReferencedKeySet.concurrentHashMapSupplier());
     private static final ClassValue<WeakReferenceHolder<Class<?>>> PROXIES = new ClassValue<>() {
         @Override
         protected WeakReferenceHolder<Class<?>> computeValue(Class<?> intfc) {
@@ -346,7 +345,7 @@ public final class MethodHandleProxies {
                         ClassLoaders.platformClassLoader() : loader)))
                         .build(proxyDesc, clb -> {
             clb.withSuperclass(CD_Object)
-               .withFlags((PreviewFeatures.isEnabled() ? ACC_IDENTITY  : 0) | ACC_FINAL | ACC_SYNTHETIC)
+               .withFlags(ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC)
                .withInterfaceSymbols(ifaceDesc)
                // static and instance fields
                .withField(TYPE_NAME, CD_Class, ACC_PRIVATE | ACC_STATIC | ACC_FINAL)

@@ -29,7 +29,7 @@
 # new warning is added to javac, it can be temporarily added to the
 # disabled warnings list.
 #
-# DISABLED_WARNINGS_java +=
+DISABLED_WARNINGS_java += initialization
 
 DOCLINT += -Xdoclint:all/protected \
     '-Xdoclint/package:java.*,javax.*'
@@ -40,11 +40,6 @@ CLEAN += intrinsic.properties
 
 EXCLUDE_FILES += \
   $(TOPDIR)/src/java.base/share/classes/jdk/internal/module/ModuleLoaderMap.java
-
-EXCLUDES += java/lang/doc-files \
-    java/lang/classfile/snippet-files \
-    java/lang/classfile/components/snippet-files \
-    java/lang/foreign/snippet-files
 
 # Exclude BreakIterator classes that are just used in compile process to generate
 # data files and shouldn't go in the product

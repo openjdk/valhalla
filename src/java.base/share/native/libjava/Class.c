@@ -57,7 +57,6 @@ static JNINativeMethod methods[] = {
     {"getSuperclass",    "()" CLS,          NULL},
     {"getInterfaces0",   "()[" CLS,         (void *)&JVM_GetClassInterfaces},
     {"isHidden",         "()Z",             (void *)&JVM_IsHiddenClass},
-    {"isIdentity",       "()Z",             (void *)&JVM_IsIdentityClass},
     {"getDeclaredFields0","(Z)[" FLD,       (void *)&JVM_GetClassDeclaredFields},
     {"getDeclaredMethods0","(Z)[" MHD,      (void *)&JVM_GetClassDeclaredMethods},
     {"getDeclaredConstructors0","(Z)[" CTR, (void *)&JVM_GetClassDeclaredConstructors},
@@ -76,7 +75,6 @@ static JNINativeMethod methods[] = {
     {"isRecord0",            "()Z",         (void *)&JVM_IsRecord},
     {"getPermittedSubclasses0", "()[" CLS,  (void *)&JVM_GetPermittedSubclasses},
     {"getClassFileVersion0", "()I",         (void *)&JVM_GetClassFileVersion},
-    {"getClassAccessFlagsRaw0", "()I",      (void *)&JVM_GetClassAccessFlags},
 };
 
 #undef OBJ
@@ -97,7 +95,7 @@ Java_java_lang_Class_registerNatives(JNIEnv *env, jclass cls)
 
 JNIEXPORT jclass JNICALL
 Java_java_lang_Class_forName0(JNIEnv *env, jclass this, jstring classname,
-                              jboolean initialize, jobject loader, jclass caller)
+                              jboolean initialize, jobject loader)
 {
     char *clname;
     jclass cls = 0;
@@ -135,7 +133,7 @@ Java_java_lang_Class_forName0(JNIEnv *env, jclass this, jstring classname,
         goto done;
     }
 
-    cls = JVM_FindClassFromCaller(env, clname, initialize, loader, caller);
+    cls = JVM_FindClassFromLoader(env, clname, initialize, loader);
 
  done:
     if (clname != buf) {

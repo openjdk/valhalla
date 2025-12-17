@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,15 +32,10 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
 import java.io.Serializable;
+import java.lang.classfile.ClassFile;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Proxy;
+import java.lang.reflect.*;
 import java.util.Set;
 
 import jdk.internal.access.JavaLangReflectAccess;
@@ -526,6 +521,30 @@ public class ReflectionFactory {
         } catch (ReflectiveOperationException e) {
             return null;
         }
+    }
+
+    public final Set<AccessFlag> parseAccessFlags(int mask, AccessFlag.Location location, Class<?> classFile) {
+        return AccessFlag.maskToAccessFlags(mask, location, classFileFormatVersion(classFile));
+    }
+
+    public final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
+        if (cl.isArray() || cl.isPrimitive())
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
+        int raw = SharedSecrets.getJavaLangAccess().classFileVersion(cl);
+
+        int major = raw & 0xFFFF;
+        int minor = raw >>> Character.SIZE;
+
+        assert VM.isSupportedClassFileVersion(major, minor) : major + "." + minor;
+
+        if (major >= ClassFile.JAVA_12_VERSION) {
+            if (minor == 0)
+                return ClassFileFormatVersion.fromMajor(raw);
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
+        } else if (major == ClassFile.JAVA_1_VERSION) {
+            return minor < 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
+        }
+        return ClassFileFormatVersion.fromMajor(major);
     }
 
     //--------------------------------------------------------------------------

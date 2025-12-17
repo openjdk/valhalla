@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+package compiler.valhalla.inlinetypes.bootstrap;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,10 +34,13 @@ import jdk.test.lib.Utils;
 public class InstallBootstrapClasses {
 
     private static void copyClass(String name) throws IOException {
-        Path source = Path.of(Utils.TEST_CLASSES).resolve(name);
+        Path source = Path.of(Utils.TEST_CLASSES).resolve("compiler/valhalla/inlinetypes/bootstrap/" + name);
         Path dest = Path.of("boot");
         Path target = dest.resolve(name);
         Files.createDirectories(dest);
+        System.out.println("TEST_CLASSES: " + Utils.TEST_CLASSES);
+        System.out.println("source: " + source);
+        System.out.println("target: " + target);
         Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
 

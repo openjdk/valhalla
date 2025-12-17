@@ -23,7 +23,7 @@
 
 /*
  * @test id=serialgc
- * @bug 8321734 8348961
+ * @bug 8321734 8348961 8332406
  * @requires vm.gc.Serial
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
@@ -37,7 +37,7 @@
 
 /*
  * @test
- * @bug 8321734 8348961
+ * @bug 8321734 8348961 8332406
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
  *          super class being flat in array while the sub klass could be flat in array.
@@ -95,7 +95,7 @@ public class TestFlatInArraysFolding {
             // Use IgnoreUnrecognizedVMOptions since LoopMaxUnroll is a C2 flag.
             // testSubTypeCheck() only triggers with SerialGC.
             Scenario serialGCScenario = new Scenario(4, "-XX:+UseSerialGC", "-XX:+IgnoreUnrecognizedVMOptions",
-                                                     "-XX:LoopMaxUnroll=0");
+                                                     "-XX:LoopMaxUnroll=0", "-XX:+UseArrayFlattening");
             testFramework.addScenarios(serialGCScenario);
         }
         Scenario noMethodTraps = new Scenario(5, "-XX:PerMethodTrapLimit=0", "-Xbatch");
@@ -118,9 +118,15 @@ public class TestFlatInArraysFolding {
                   IRNode.STORE_I, "1"}, // CmpP folded in unswitched loop version with flat in array?
         applyIf = {"LoopMaxUnroll", "0"})
     static void testCmpP() {
+        Object[] arr = oArr;
+        if (arr == null) {
+            // Needed for the 'arrayElement == arr' to fold in
+            // the flat array case because both could be null.
+            throw new NullPointerException("arr is null");
+        }
         for (int i = 0; i < 100; i++) {
             Object arrayElement = oArrArr[i];
-            if (arrayElement == oArr) {
+            if (arrayElement == arr) {
                 iFld = 34;
             }
         }
@@ -211,11 +217,17 @@ public class TestFlatInArraysFolding {
             // a value class. Thus, the result in an empty set. But this is missing in the type system. We fail with
             // an assertion. This is fixed with 8348961.
             //
+            // Pre-8332406:
             // To make this type system change work, we require that the TypeInstKlassPtr::not_flat_in_array() takes
             // exactness information into account to also fold the corresponding control path. This requires another
             // follow up fix: The super class of a sub type check is always an exact class, i.e. "o instanceof Super".
             // We need a version of TypeInstKlassPtr::not_flat_in_array() that treats "Super" as inexact. Failing to do
             // so will erroneously fold a sub type check away (covered by testSubTypeCheckForObjectReceiver()).
+            //
+            // Post-8332406:
+            // We now directly cast the klass pointer in SubTypeCheckNode::sub() to inexact which triggers a
+            // recomputation of the flat in array property. This will turn an exact TypeInstKlassPtr such as Object,
+            // which is not flat in array, into an inexact maybe flat in array TypeInstKlassPtr.
             o.hashCode();
         }
     }
@@ -284,4 +296,39 @@ public class TestFlatInArraysFolding {
     }
 
     static value class V {}
+
+    static final Object OBJ = new Object();
+
+    @Test
+    static Object testEqualMeet1(boolean b, Object[] array, int i) {
+        return b ? array[i] : OBJ;
+    }
+
+    @Run(test = "testEqualMeet1")
+    public void testEqualMeet1_verifier() {
+        testEqualMeet1(true, new Object[1], 0);
+        testEqualMeet1(false, new Object[1], 0);
+    }
+
+    @Test
+    static Object testEqualMeet2(boolean b, Object[] array, int i) {
+        return b ? OBJ : array[i];
+    }
+
+    @Run(test = "testEqualMeet2")
+    public void testEqualMeet2_verifier() {
+        testEqualMeet2(true, new Object[1], 0);
+        testEqualMeet2(false, new Object[1], 0);
+    }
+
+    @Test
+    public static Object test8332406(boolean b, Object[] array, int i) {
+        return b ? array[i] : OBJ;
+    }
+
+    @Run(test = "test8332406")
+    public static void runTest8332406() {
+        test8332406(true, new Object[1], 0);
+        test8332406(false, new Object[1], 0);
+    }
 }

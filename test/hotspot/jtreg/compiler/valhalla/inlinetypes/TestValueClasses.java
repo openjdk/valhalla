@@ -28,8 +28,11 @@ import jdk.test.lib.Asserts;
 
 import java.lang.reflect.Method;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.ALLOC;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -44,7 +47,79 @@ import jdk.internal.vm.annotation.Strict;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 6
  */
 
 @ForceCompileClassInitializer
@@ -59,7 +134,7 @@ public class TestValueClasses {
         scenarios[4].addFlags("-XX:-UseTLAB", "-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValueClass1.class,
                                      MyValueClass2.class,
                                      MyValueClass2Inline.class)
@@ -168,7 +243,7 @@ public class TestValueClasses {
 
     // Test scalarization in safepoint debug info and re-allocation on deopt
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public long test3(boolean deopt, boolean b1, boolean b2, Method m) {
         MyValueClass1 ret = MyValueClass1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -216,7 +291,7 @@ public class TestValueClasses {
 
     // Test scalarization in safepoint debug info and re-allocation on deopt
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public boolean test4(boolean deopt, boolean b, Method m) {
         MyValueClass1 val = b ? null : MyValueClass1.createWithFieldsInline(rI, rL);
         Test3Wrapper wrapper = new Test3Wrapper(val);
@@ -527,9 +602,9 @@ public class TestValueClasses {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
     public MyValueClass1 test15(MyValueClass1 vt) {
         MyValueClass1 res = test15_helper1(vt);
         vt = MyValueClass1.createWithFieldsInline(rI, rL);
@@ -564,9 +639,9 @@ public class TestValueClasses {
     // Test that calling convention optimization prevents buffering of return values
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        counts = {ALLOC_G, " <= 1"}) // 1 MyValueClass2Inline allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 1"}) // 1 MyValueClass2Inline allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation  (if not the all-zero value)
+        counts = {ALLOC, " <= 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation  (if not the all-zero value)
     public MyValueClass2 test16(int c, boolean b) {
         MyValueClass2 res = null;
         if (c == 1) {

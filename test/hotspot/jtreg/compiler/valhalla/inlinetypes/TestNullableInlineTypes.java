@@ -39,8 +39,16 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.CMP_N;
+import static compiler.lib.ir_framework.IRNode.CMP_P;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
  * @test
@@ -52,7 +60,85 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 6
  */
 
 @ForceCompileClassInitializer
@@ -65,7 +151,7 @@ public class TestNullableInlineTypes {
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -112,7 +198,7 @@ public class TestNullableInlineTypes {
     MyValue1 valueField1 = testValue1;
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public long test1(MyValue1 vt) {
         long result = 0;
         try {
@@ -131,7 +217,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public long test2(MyValue1 vt) {
         long result = 0;
         try {
@@ -150,7 +236,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public long test3() {
         long result = 0;
         try {
@@ -172,7 +258,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test4() {
         try {
             valueField1 = nullField;
@@ -190,7 +276,7 @@ public class TestNullableInlineTypes {
     @Test
     // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
-        failOn = {ALLOC})
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test5(MyValue1 vt) {
         Object o = vt;
         vt = (MyValue1)o;
@@ -244,7 +330,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test7() {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
@@ -268,7 +354,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test8() {
         try {
             valueField1 = nullField;
@@ -285,7 +371,7 @@ public class TestNullableInlineTypes {
 
     // Merge of two value objects, one being null
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test9(boolean flag) {
         MyValue1 v;
         if (flag) {
@@ -309,7 +395,7 @@ public class TestNullableInlineTypes {
 
     // null constant
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test10(boolean flag) {
         MyValue1 val = flag ? valueField1 : null;
         valueField1 = val;
@@ -328,7 +414,7 @@ public class TestNullableInlineTypes {
 
     // null constant
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test11(boolean flag) {
         MyValue1 val = flag ? null : valueField1;
         valueField1 = val;
@@ -355,7 +441,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test12() {
         valueField1 = test12_helper();
     }
@@ -400,7 +486,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test13(A a) {
         valueField1 = a.test13_helper();
     }
@@ -444,7 +530,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test14(MyValue1[] va, int index) {
         test14_inline(va, nullField, index);
     }
@@ -472,7 +558,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
@@ -501,7 +587,7 @@ public class TestNullableInlineTypes {
 
     // Test c2c call passing null for a value class
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public boolean test16(Object arg) throws Exception {
         Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class);
         return (boolean)test16method.invoke(this, arg);
@@ -528,7 +614,7 @@ public class TestNullableInlineTypes {
     @Test
     // TODO 8284443 When passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
-        failOn = {ALLOC})
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Test17Value test17(boolean b) {
         Test17Value vt1 = new Test17Value(null);
         Test17Value vt2 = new Test17Value(testValue1);
@@ -558,7 +644,7 @@ public class TestNullableInlineTypes {
 
     // Test passing null for a value class
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test18() throws Throwable {
         test18_mh1.invokeExact(nullValue);
         test18_mh2.invokeExact(nullValue);
@@ -589,7 +675,7 @@ public class TestNullableInlineTypes {
 
     // Same as test12 but with non-final mh
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test19() throws Throwable {
         test19_mh1.invokeExact(nullValue);
         test19_mh2.invokeExact(nullValue);
@@ -607,7 +693,7 @@ public class TestNullableInlineTypes {
 
     // Same as test12/13 but with constant null
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test20(MethodHandle mh) throws Throwable {
         mh.invoke(null);
     }
@@ -651,7 +737,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Test21Value test21(Test21Value vt) {
         vt = vt.test1();
         try {
@@ -674,7 +760,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test22() {
         valueField1 = test22_helper();
     }
@@ -691,9 +777,9 @@ public class TestNullableInlineTypes {
 
     @Test
     @IR(applyIfAnd = {"UseArrayFlattening", "true", "InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC})
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     @IR(applyIfAnd = {"UseArrayFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC})
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test23(MyValue1 val) {
         MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         arr[0] = val;
@@ -713,7 +799,7 @@ public class TestNullableInlineTypes {
     static MyValue1 nullBox;
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test24() {
         return Objects.requireNonNull(nullBox);
     }
@@ -734,7 +820,7 @@ public class TestNullableInlineTypes {
     // Test that when checkcasting from null-ok to null-free and back to null-ok we
     // keep track of the information that the value object can never be null.
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test25(boolean b, MyValue1 vt1, MyValue1 vt2) {
         vt1 = (MyValue1)vt1;
         Object obj = b ? vt1 : vt2; // We should not allocate here
@@ -760,7 +846,7 @@ public class TestNullableInlineTypes {
 
     // Test that chains of casts are folded and don't trigger an allocation
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test26(MyValue3 vt) {
         return ((MyValue3)((Object)((MyValue3)(MyValue3)((MyValue3)((Object)vt)))));
     }
@@ -773,7 +859,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test27(MyValue3 vt) {
         return ((MyValue3)((Object)((MyValue3)(MyValue3)((MyValue3)((Object)vt)))));
     }
@@ -813,7 +899,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public long test29(MyValue1 vt, MyValue1 vtBox) {
         long result = 0;
         for (int i = 0; i < 100; ++i) {
@@ -854,7 +940,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public long test30() {
         return test30_callee(nullField);
     }
@@ -871,7 +957,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Object test31(Object o) {
         return (Test31Value)o;
     }
@@ -884,7 +970,7 @@ public class TestNullableInlineTypes {
     private static final MyValue1 constNullRefField = null;
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test32() {
         return constNullRefField;
     }
@@ -914,7 +1000,7 @@ public class TestNullableInlineTypes {
     public static final Test33Value2 test33Val = new Test33Value2();
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Test33Value2 test33() {
         return test33Val;
     }
@@ -967,7 +1053,7 @@ public class TestNullableInlineTypes {
     // Test that when explicitly null checking a value object, we keep
     // track of the information that the value object can never be null.
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test37(boolean b, MyValue1 vt1, MyValue1 vt2) {
         if (vt1 == null) {
             return 0;
@@ -989,7 +1075,7 @@ public class TestNullableInlineTypes {
     // Test that when explicitly null checking a value object receiver,
     // we keep track of the information that the value object can never be null.
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test38(boolean b, MyValue1 vt1, MyValue1 vt2) {
         vt1.hash(); // Inlined - Explicit null check
         // vt1 should be scalarized because it's always non-null
@@ -1009,7 +1095,7 @@ public class TestNullableInlineTypes {
     // Test that when implicitly null checking a value object receiver,
     // we keep track of the information that the value object can never be null.
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test39(boolean b, MyValue1 vt1, MyValue1 vt2) {
         vt1.hashInterpreted(); // Not inlined - Implicit null check
         // vt1 should be scalarized because it's always non-null
@@ -1028,7 +1114,7 @@ public class TestNullableInlineTypes {
 
     // Test NPE when casting constant null to a value class
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test40() {
         Object NULL = null;
         MyValue1 val = (MyValue1)NULL;
@@ -1052,7 +1138,7 @@ public class TestNullableInlineTypes {
 
     // Test scalarization of .ref
     @Test
-    @IR(failOn = {ALLOC_G, STORE, TRAP})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test41(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1080,7 +1166,7 @@ public class TestNullableInlineTypes {
 
     // Same as test41 but with call to hash()
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test42(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1128,7 +1214,7 @@ public class TestNullableInlineTypes {
 
     // Test scalarization when .ref is referenced in safepoint debug info
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test44(boolean b1, boolean b2, Method m) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1189,7 +1275,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test46(boolean b) {
         MyValue1 val = null;
         if (b) {
@@ -1225,7 +1311,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test48(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1266,7 +1352,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, TRAP})
+    @IR(failOn = {ALLOC, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public void test50(boolean b) {
         Object o = null;
         if (b) {
@@ -1307,7 +1393,7 @@ public class TestNullableInlineTypes {
     MyValue1Wrapper wrapperField = new MyValue1Wrapper(testValue1);
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE, TRAP})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test51(boolean b) {
         MyValue1Wrapper val = new MyValue1Wrapper(null);
         if (b) {
@@ -1323,7 +1409,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test52(boolean b) {
         MyValue1 val = MyValue1.createDefaultInline();
         if (b) {
@@ -1340,7 +1426,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test53(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1357,7 +1443,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test54(boolean b1, boolean b2) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1380,7 +1466,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE, TRAP})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test55(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper w = new MyValue1Wrapper(val);
@@ -1408,7 +1494,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test56(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper w = new MyValue1Wrapper(val);
@@ -1458,7 +1544,7 @@ public class TestNullableInlineTypes {
 
     // Test scalarization when .ref is referenced in safepoint debug info
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test58(boolean b1, boolean b2, Method m) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper w = new MyValue1Wrapper(val);
@@ -1521,7 +1607,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test60(boolean b) {
         MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b) {
@@ -1559,7 +1645,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test62(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper w = new MyValue1Wrapper(val);
@@ -1602,7 +1688,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, TRAP})
+    @IR(failOn = {ALLOC, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public void test64(boolean b) {
         MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b) {
@@ -1624,7 +1710,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test65(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1649,7 +1735,7 @@ public class TestNullableInlineTypes {
 
     // Test that .ref arg does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test66(boolean b1, boolean b2, MyValue1 arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1692,7 +1778,7 @@ public class TestNullableInlineTypes {
 
     // Test that .ref return does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public long test67(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1733,7 +1819,7 @@ public class TestNullableInlineTypes {
 
     // Test that scalarization enabled by cast is applied to parsing map
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test68(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1772,7 +1858,7 @@ public class TestNullableInlineTypes {
 
     // Same as test68 but with ClassCastException
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test69(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1818,7 +1904,7 @@ public class TestNullableInlineTypes {
 
     // Same as test68 but with ClassCastException and frequent NullPointerException
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test70(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1864,7 +1950,7 @@ public class TestNullableInlineTypes {
 
     // Same as test68 but with .ref cast
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test71(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1903,7 +1989,7 @@ public class TestNullableInlineTypes {
 
     // Same as test71 but with ClassCastException and hash() call
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public long test72(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1949,7 +2035,7 @@ public class TestNullableInlineTypes {
 
     // Same as test71 but with ClassCastException and frequent NullPointerException
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test73(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1994,7 +2080,7 @@ public class TestNullableInlineTypes {
 
     // Same as test73 but result of cast is used and hash() is called
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public long test74(boolean b1, boolean b2, Object arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2034,7 +2120,7 @@ public class TestNullableInlineTypes {
 
     // Test new merge path being added for exceptional control flow
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test75(MyValue1 vt, Object obj) {
         try {
             vt = (MyValue1)obj;
@@ -2059,7 +2145,7 @@ public class TestNullableInlineTypes {
 
     // Test that constant null field does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test76(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2102,7 +2188,7 @@ public class TestNullableInlineTypes {
 
     // Test that constant object field with value class content does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test77(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2132,7 +2218,7 @@ public class TestNullableInlineTypes {
 
     // Test that constant null does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test78(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2173,7 +2259,7 @@ public class TestNullableInlineTypes {
 
     // Same as test78 but will trigger different order of PhiNode inputs
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test79(boolean b1, boolean b2, Method m) {
         Object val = test79_helper();
         if (b1) {
@@ -2219,7 +2305,7 @@ public class TestNullableInlineTypes {
 
     // Test that phi nodes referencing themselves (loops) do not block scalarization
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test80() {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         for (int i = 0; i < 100; ++i) {
@@ -2248,7 +2334,7 @@ public class TestNullableInlineTypes {
 
     // Test nested loops
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test81() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -2283,7 +2369,7 @@ public class TestNullableInlineTypes {
 
     // Test loops with casts
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test82() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -2319,9 +2405,9 @@ public class TestNullableInlineTypes {
         return null;
     }
 
-    // Test that CastPP does not block sclarization in safepoints
+    // Test that CastPP does not block scalarization in safepoints
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test83(boolean b, Method m) {
         Object val = test83_helper(b);
         if (val != null) {
@@ -2350,7 +2436,7 @@ public class TestNullableInlineTypes {
 
     // Same as test80 but with wrapper
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test84() {
         Object val = new MyValue1Wrapper(MyValue1.createWithFieldsInline(rI, rL));
         for (int i = 0; i < 100; ++i) {
@@ -2379,7 +2465,7 @@ public class TestNullableInlineTypes {
 
     // Same as test81 but with wrapper
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test85() {
         Object val = new MyValue1Wrapper(null);
         for (int i = 0; i < 10; ++i) {
@@ -2418,10 +2504,10 @@ public class TestNullableInlineTypes {
     // Test scalarization with phi referencing itself
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC, STORE},
-        counts = {LOAD, " = 4"}) // 4 loads from the non-flattened MyValue1.v4 fields
+        failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS},
+        counts = {LOAD_OF_ANY_KLASS, " = 4"}) // 4 loads from the non-flattened MyValue1.v4 fields
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, STORE})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public long test86(MyValue1 vt) {
         ObjectWrapper val = new ObjectWrapper(vt);
         for (int i = 0; i < 10; ++i) {
@@ -2536,7 +2622,7 @@ public class TestNullableInlineTypes {
 
     // Test scalarization with speculative NULL type
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public boolean test90(Method m) throws Exception {
         Object arg = null;
         return (boolean)m.invoke(this, arg);
@@ -2552,7 +2638,7 @@ public class TestNullableInlineTypes {
     // Test that scalarization does not introduce redundant/unused checks
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, CMPP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, CMP_N, CMP_P})
     public Object test91(MyValue1 vt) {
         return vt;
     }
@@ -2566,7 +2652,7 @@ public class TestNullableInlineTypes {
 
     // Same as test91 but with field access
     @Test
-    @IR(failOn = {ALLOC, CMPP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, CMP_N, CMP_P})
     public Object test92() {
         return test92Field;
     }
@@ -2616,9 +2702,9 @@ public class TestNullableInlineTypes {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     public MyValue1 test94(MyValue1 vt) {
         MyValue1 res = test94_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2652,9 +2738,9 @@ public class TestNullableInlineTypes {
     // Same as test94 but with static methods to trigger simple adapter logic
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
+        counts = {ALLOC, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     public static MyValue1 test95(MyValue1 vt) {
         MyValue1 res = test95_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2688,9 +2774,9 @@ public class TestNullableInlineTypes {
     // Test that calling convention optimization prevents buffering of return values
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC_G})
+        failOn = {ALLOC})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue2 return is the all-zero value
+        counts = {ALLOC, " <= 1"}) // No allocation required if the MyValue2 return is the all-zero value
     public MyValue2 test96(int c, boolean b) {
         MyValue2 res = null;
         if (c == 1) {
@@ -2739,9 +2825,9 @@ public class TestNullableInlineTypes {
     // Same as test96 but with MyValue3 return
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC_G})
+        failOn = {ALLOC})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue3 return is the all-zero value
+        counts = {ALLOC, " <= 1"}) // No allocation required if the MyValue3 return is the all-zero value
     public MyValue3 test97(int c, boolean b) {
         MyValue3 res = null;
         if (c == 1) {
@@ -3310,7 +3396,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = ALLOC_G)
+    @IR(failOn = ALLOC)
     int testCircularSafepointUse() {
         CircularValue7 v = new CircularValue7(true);  // v is non escaping -> EA can remove allocation
         dontInline(); // Not inlined -> safepoint
@@ -3327,7 +3413,7 @@ public class TestNullableInlineTypes {
 
 
     @Test
-    @IR(failOn = ALLOC_G)
+    @IR(failOn = ALLOC)
     int testCircularSafepointUse2(int i) {
         // With AlwaysIncrementalInline:
         // We allocate here because <init> is not inlined at parsing.

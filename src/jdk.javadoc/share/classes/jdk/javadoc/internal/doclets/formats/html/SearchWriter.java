@@ -108,6 +108,7 @@ public class SearchWriter extends HtmlDocletWriter {
 
         var select = HtmlTree.of(HtmlTag.SELECT)
                 .setId(HtmlId.of("search-modules"))
+                .put(HtmlAttr.ARIA_LABEL, resources.getText("doclet.selectModule"))
                 .add(HtmlTree.of(HtmlTag.OPTION)
                         .put(HtmlAttr.VALUE, "")
                         .add(contents.getContent("doclet.search.all_modules")));
@@ -143,10 +144,9 @@ public class SearchWriter extends HtmlDocletWriter {
                 .add(HtmlTree.SPAN(Text.of("link"))
                         .setId(HtmlId.of("page-search-link")))
                 .add(HtmlTree.BUTTON(HtmlId.of("page-search-copy"))
-                        .add(HtmlTree.of(HtmlTag.IMG)
-                                .put(HtmlAttr.SRC, pathToRoot.resolve(DocPaths.RESOURCE_FILES)
-                                        .resolve(DocPaths.CLIPBOARD_SVG).getPath())
-                                .put(HtmlAttr.ALT, copyUrlText))
+                        .add(HtmlTree.IMG(pathToRoot.resolve(DocPaths.RESOURCE_FILES)
+                                        .resolve(DocPaths.CLIPBOARD_SVG),
+                                copyUrlText))
                         .add(HtmlTree.SPAN(Text.of(copyText))
                                 .put(HtmlAttr.DATA_COPIED, copiedText))
                         .addStyle(HtmlStyles.copy)

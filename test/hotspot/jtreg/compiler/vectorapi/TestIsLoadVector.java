@@ -26,6 +26,7 @@ package compiler.vectorapi;
 /*
  * @test
  * @bug 8333099
+   @enablePreview
  * @summary We should check for is_LoadVector before checking for equality between vector types
  * @run main/othervm -XX:CompileCommand=compileonly,compiler.vectorapi.TestIsLoadVector::test -Xcomp compiler.vectorapi.TestIsLoadVector
  */

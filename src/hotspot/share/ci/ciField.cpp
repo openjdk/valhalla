@@ -22,19 +22,24 @@
  *
  */
 
+#include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
+#include "ci/ciSymbol.hpp"
 #include "ci/ciSymbols.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/vmClasses.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jvm_io.h"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/reflection.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // ciField
 //
@@ -219,39 +224,94 @@ ciField::ciField(fieldDescriptor *fd, bool bundled) :
          "bootstrap classes must not create & cache unshared fields");
 }
 
-// Special copy constructor used to flatten inline type fields by
-// copying the fields of the inline type to a new holder klass.
-ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) {
-  assert(field->holder()->is_inlinetype() || field->holder()->is_abstract(), "should only be used for inline type field flattening");
-  // Set the is_final flag
-  jint final = is_final ? JVM_ACC_FINAL : ~JVM_ACC_FINAL;
-  AccessFlags flags(field->flags().as_int() & final);
-  _flags = ciFlags(flags);
+// Special copy constructor used for initializing base and synthetic multifields
+ciField::ciField(ciInstanceKlass* holder, ciField* field) {
+  assert(field->is_multifield_base() || field->is_multifield(), "should be a base or synthetic multifield");
+
   _holder = holder;
-  _offset = offset;
-  // Copy remaining fields
-  _name = field->_name;
+  _flags = field->flags();
+  _offset = field->offset_in_bytes();
+
+  char buffer[256];
+  jio_snprintf(buffer, sizeof(buffer), "%s", field->name()->as_utf8());
+  _name = ciSymbol::make(buffer);
+
   _signature = field->_signature;
   _type = field->_type;
-  // Trust final flat fields
-  _is_constant = is_final;
+  _is_constant = field->is_strict() && field->is_final();
   _known_to_link_with_put = field->_known_to_link_with_put;
   _known_to_link_with_get = field->_known_to_link_with_get;
-  _constant_value = field->_constant_value;
-  assert(!field->is_flat(), "field must not be flat");
-  _is_flat = false;
-  _is_null_free = field->_is_null_free;
-  _null_marker_offset = field->_null_marker_offset;
-  _original_holder = (field->_original_holder != nullptr) ? field->_original_holder : field->_holder;
+  _constant_value = ciConstant();
   _is_multifield_base = field->_is_multifield_base;
   _is_multifield = field->_is_multifield;
+
+  _is_flat = false;
+  _is_null_free = false;
+  _null_marker_offset = -1;
+  _original_holder = (field->_original_holder != nullptr) ? field->_original_holder : field->_holder;
+}
+
+// Special copy constructor used to flatten inline type fields by
+// copying the fields of the inline type to a new holder klass.
+ciField::ciField(ciField* declared_field, ciField* subfield) {
+  assert(subfield->holder()->is_inlinetype() || subfield->holder()->is_abstract(), "should only be used for inline type field flattening");
+  assert(!subfield->is_flat(), "subfield must not be flat");
+  assert(declared_field->is_flat(), "declared field must be flat");
+
+  _flags = declared_field->flags();
+  _holder = declared_field->holder();
+  _offset = declared_field->offset_in_bytes() + (subfield->offset_in_bytes() - declared_field->type()->as_inline_klass()->payload_offset());
+
+  char buffer[256];
+  jio_snprintf(buffer, sizeof(buffer), "%s.%s", declared_field->name()->as_utf8(), subfield->name()->as_utf8());
+  _name = ciSymbol::make(buffer);
+
+  _signature = subfield->_signature;
+  _type = subfield->_type;
+  _is_constant = declared_field->is_strict() && declared_field->is_final();
+  _known_to_link_with_put = subfield->_known_to_link_with_put;
+  _known_to_link_with_get = subfield->_known_to_link_with_get;
+  _constant_value = ciConstant();
+  _is_multifield_base = subfield->_is_multifield_base;
+  _is_multifield = subfield->_is_multifield;
+
+  _is_flat = false;
+  _is_null_free = false;
+  _null_marker_offset = -1;
+  _original_holder = (subfield->_original_holder != nullptr) ? subfield->_original_holder : subfield->_holder;
+}
+
+// Constructor for the ciField of a null marker
+ciField::ciField(ciField* declared_field) {
+  assert(declared_field->is_flat(), "declared field must be flat");
+  assert(!declared_field->is_null_free(), "must have a null marker");
+
+  _flags = declared_field->flags();
+  _holder = declared_field->holder();
+  _offset = declared_field->null_marker_offset();
+  _is_multifield_base = declared_field->_is_multifield_base;
+  _is_multifield = declared_field->_is_multifield;
+
+  char buffer[256];
+  jio_snprintf(buffer, sizeof(buffer), "%s.$nullMarker$", declared_field->name()->as_utf8());
+  _name = ciSymbol::make(buffer);
+
+  _signature = ciSymbols::bool_signature();
+  _type = ciType::make(T_BOOLEAN);
+
+  _is_constant = declared_field->is_strict() && declared_field->is_final();
+  _known_to_link_with_put = nullptr;
+  _known_to_link_with_get = nullptr;
+  _constant_value = ciConstant();
+
+  _is_flat = false;
+  _is_null_free = false;
+  _null_marker_offset = -1;
+  _original_holder = nullptr;
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   if (holder == nullptr)
-    return false;
-  if (holder->name() == ciSymbols::java_lang_System())
-    // Never trust strangely unstable finals:  System.out, etc.
     return false;
   // Even if general trusting is disabled, trust system-built closures in these packages.
   if (holder->is_in_package("java/lang/invoke") || holder->is_in_package("sun/invoke") ||
@@ -267,14 +327,8 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   // Trust final fields in inline type buffers
   if (holder->is_inlinetype())
     return true;
-  // Trust final fields in all boxed classes
-  if (holder->is_box_klass())
-    return true;
   // Trust final fields in records
   if (holder->is_record())
-    return true;
-  // Trust final fields in String
-  if (holder->name() == ciSymbols::java_lang_String())
     return true;
   // Trust Atomic*FieldUpdaters: they are very important for performance, and make up one
   // more reason not to use Unsafe, if their final fields are trusted. See more in JDK-8140483.
@@ -317,17 +371,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
       // not be constant is when the field is a *special* static & final field
       // whose value may change.  The three examples are java.lang.System.in,
       // java.lang.System.out, and java.lang.System.err.
-      assert(vmClasses::System_klass() != nullptr, "Check once per vm");
-      if (k == vmClasses::System_klass()) {
-        // Check offsets for case 2: System.in, System.out, or System.err
-        if (_offset == java_lang_System::in_offset()  ||
-            _offset == java_lang_System::out_offset() ||
-            _offset == java_lang_System::err_offset()) {
-          _is_constant = false;
-          return;
-        }
-      }
-      _is_constant = true;
+      _is_constant = !fd->is_mutable_static_final();
     } else {
       // An instance field can be constant if it's a final static field or if
       // it's a final non-static field of a trusted class (classes in
@@ -452,7 +496,19 @@ bool ciField::will_link(ciMethod* accessing_method,
                      _name->get_symbol(), _signature->get_symbol(),
                      methodHandle(THREAD, accessing_method->get_Method()));
   fieldDescriptor result;
-  LinkResolver::resolve_field(result, link_info, bc, false, CHECK_AND_CLEAR_(false));
+  LinkResolver::resolve_field(result, link_info, bc, ClassInitMode::dont_init, CHECK_AND_CLEAR_(false));
+
+  // Strict statics may require tracking if their class is not fully initialized.
+  // For now we can bail out of the compiler and let the interpreter handle it.
+  if (is_static && result.is_strict_static_unset()) {
+    // If we left out this logic, we would get (a) spurious <clinit>
+    // failures for C2 code because compiled putstatic would not write
+    // the "unset" bits, and (b) missed failures for too-early reads,
+    // since the compiled getstatic would not check the "unset" bits.
+    // Test C1 on <clinit> with "-XX:TieredStopAtLevel=2 -Xcomp -Xbatch".
+    // Test C2 on <clinit> with "-XX:-TieredCompilation -Xcomp -Xbatch".
+    return false;
+  }
 
   // update the hit-cache, unless there is a problem with memory scoping:
   if (accessing_method->holder()->is_shared() || !is_shared()) {
@@ -507,6 +563,8 @@ void ciField::print() {
   tty->print(" is_flat=%s", bool_to_str(_is_flat));
   tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
   tty->print(" null_marker_offset=%d", _null_marker_offset);
+  tty->print(" is_multifield_base=%d", _is_multifield_base);
+  tty->print(" is_multifield=%d", _is_multifield);
   tty->print(">");
 }
 
@@ -516,4 +574,29 @@ void ciField::print() {
 // Print the name of this field
 void ciField::print_name_on(outputStream* st) {
   name()->print_symbol_on(st);
+}
+
+ciMultiField::ciMultiField(ciField* declared_field, ciField* subfield) : ciField(declared_field->holder(), subfield) {
+  assert(subfield->is_multifield_base(), "");
+  Arena* arena = CURRENT_ENV->arena();
+  ciMultiField* mfield_base = static_cast<ciMultiField*>(subfield);
+  _secondary_fields = nullptr;
+  if (mfield_base->secondary_fields() != nullptr) {
+    int sec_fields_count = mfield_base->secondary_fields()->length();
+    _secondary_fields = new (arena) GrowableArray<ciField*>(arena, sec_fields_count, 0, nullptr);
+    // Currently, multifields are only composed of primitive type sub-fields.
+    for (int i = 0; i < sec_fields_count; i++) {
+      ciField* mfield = mfield_base->secondary_field_at(i);
+      _secondary_fields->append(new (arena) ciField(declared_field->holder(), mfield));
+    }
+  }
+}
+
+void ciMultiField::set_secondary_fields(GrowableArray<ciField*>* fields) {
+  Arena* arena = CURRENT_ENV->arena();
+  _secondary_fields = new (arena) GrowableArray<ciField*>(arena, fields->length(), 0, nullptr);
+  for (int i = 0; i < fields->length(); i++) {
+    ciField* field = fields->at(i);
+    _secondary_fields->append(new (arena) ciField(field->holder(), field));
+  }
 }

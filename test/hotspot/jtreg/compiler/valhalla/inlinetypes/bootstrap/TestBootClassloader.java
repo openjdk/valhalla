@@ -21,6 +21,8 @@
  * questions.
  */
 
+package compiler.valhalla.inlinetypes.bootstrap;
+
 import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
@@ -43,10 +45,10 @@ import jdk.internal.vm.annotation.Strict;
  * @compile ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm InstallBootstrapClasses
+ * @run main/othervm compiler.valhalla.inlinetypes.bootstrap.InstallBootstrapClasses
  * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
- *                   -XX:CompileCommand=inline,*::get* TestBootClassloader
+ *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.bootstrap.TestBootClassloader::test*
+ *                   -XX:CompileCommand=inline,*::get* compiler.valhalla.inlinetypes.bootstrap.TestBootClassloader
  */
 
 public class TestBootClassloader {

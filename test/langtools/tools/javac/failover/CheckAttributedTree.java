@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
  * @bug 6970584 8006694 8062373 8129962
  * @summary assorted position errors in compiler syntax trees
  *  temporarily workaround combo tests are causing time out in several platforms
- * @enablePreview
  * @library ../lib
  * @modules java.desktop
  *          jdk.compiler/com.sun.tools.javac.api
@@ -35,7 +34,7 @@
  *          jdk.compiler/com.sun.tools.javac.tree
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
- * @run main CheckAttributedTree -q -r -et ERRONEOUS .
+ * @run main/timeout=480 CheckAttributedTree -q -r -et ERRONEOUS .
  */
 
 import java.awt.BorderLayout;
