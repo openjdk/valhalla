@@ -30,6 +30,7 @@
 #include "opto/opcodes.hpp"
 #include "opto/predicates_enums.hpp"
 #include "opto/type.hpp"
+#include "runtime/arguments.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -84,7 +85,7 @@ private:
   bool _is_unreachable_region;
   LoopStatus _loop_status;
 
-  bool is_possible_unsafe_loop(const PhaseGVN* phase) const;
+  bool is_possible_unsafe_loop() const;
   bool is_unreachable_from_root(const PhaseGVN* phase) const;
 public:
   // Node layout (parallels PhiNode):
@@ -260,7 +261,7 @@ public:
   }
 
   bool can_be_inline_type() const {
-    return EnableValhalla && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
+    return Arguments::is_valhalla_enabled() && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
   }
 
   Node* try_push_inline_types_down(PhaseGVN* phase, bool can_reshape);

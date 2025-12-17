@@ -27,7 +27,7 @@
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueGetObjectSize -XX:+EnableValhalla ValueGetObjectSize
+ * @run main/othervm/native -agentlib:ValueGetObjectSize ValueGetObjectSize
  */
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;

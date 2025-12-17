@@ -25,6 +25,7 @@
  * @test
  * @bug 8301720
  * @summary Test expected value of SUPER AccessFlag for pre-ValueClass .class file
+ * @requires !java.enablePreview
  * @compile -source 20 -target 20 SuperAccessFlagTest.java
  * @comment  Cannot use --release 20 because the accessFlags() method is
  *           not found in release 20; therefore -source and -target are used instead.
