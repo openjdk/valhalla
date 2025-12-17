@@ -74,6 +74,8 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
      * @param fileManager delegate to this file manager
      * @param shouldClose whether the delegate should be closed when this
      *     instance is closed.
+     *
+     * @since 26
      */
     protected ForwardingJavaFileManager(M fileManager, boolean shouldClose) {
         this.fileManager = Objects.requireNonNull(fileManager);
