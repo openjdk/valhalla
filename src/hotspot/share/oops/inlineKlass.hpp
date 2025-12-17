@@ -87,7 +87,7 @@ class InlineKlass: public InstanceKlass {
   address calculate_members_address() const;
 
   Members& members() {
-    assert(_adr_inline_klass_members != 0, "Should have been initialized");
+    assert(_adr_inline_klass_members != nullptr, "Should have been initialized");
     return *reinterpret_cast<Members*>(_adr_inline_klass_members);
   }
 
