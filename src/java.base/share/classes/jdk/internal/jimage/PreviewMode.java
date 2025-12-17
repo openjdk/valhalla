@@ -93,7 +93,7 @@ public enum PreviewMode {
     // See also:
     // * src/hotspot/share/runtime/arguments.cpp
     // * src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java
-    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = false;
+    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = true;
     private static final boolean DISABLE_PREVIEW_PATCHING = Boolean.parseBoolean(
             System.getProperty(
                     "DISABLE_PREVIEW_PATCHING",

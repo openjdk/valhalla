@@ -42,6 +42,7 @@
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/methodCounters.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/vm_version.hpp"
@@ -3008,7 +3009,7 @@ void LIRGenerator::do_Base(Base* x) {
 
   // Check if we need a membar at the beginning of the java.lang.Object
   // constructor to satisfy the memory model for strict fields.
-  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     __ membar_storestore();
   }
 

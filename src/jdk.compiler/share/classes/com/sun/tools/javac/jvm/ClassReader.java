@@ -3609,7 +3609,7 @@ public class ClassReader {
     // See also:
     // * src/hotspot/share/runtime/arguments.cpp
     // * src/java.base/share/classes/jdk/internal/jimage/PreviewMode.java
-    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = false;
+    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = true;
     private static final boolean DISABLE_PREVIEW_PATCHING = Boolean.parseBoolean(
             System.getProperty(
                     "DISABLE_PREVIEW_PATCHING",

@@ -508,7 +508,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
 
       // Load fields from a buffered value with an inline class specific handler
       __ load_klass(rdi, rax, rscratch1);
-      __ movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
       __ movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
       // Unpack handler can be null if inline type is not scalarizable in returns
       __ testptr(rdi, rdi);

@@ -537,6 +537,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "RequireSharedSpaces",          JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "LockingMode",                  JDK_Version::jdk(24), JDK_Version::jdk(26), JDK_Version::jdk(27) },
+  { "EnableValhalla",               JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::undefined() },
 #ifdef _LP64
   { "UseCompressedClassPointers",   JDK_Version::jdk(25),  JDK_Version::jdk(27), JDK_Version::undefined() },
 #endif
@@ -2090,7 +2091,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 // See also:
 // * src/java.base/share/classes/jdk/internal/jimage/PreviewMode.java
 // * src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java
-#define DISABLE_PREVIEW_PATCHING_DEFAULT false
+#define DISABLE_PREVIEW_PATCHING_DEFAULT true
 
 bool Arguments::disable_preview_patching() {
   const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
@@ -2106,8 +2107,8 @@ bool Arguments::disable_preview_patching() {
 // Finalize --patch-module args and --enable-preview related to value class module patches.
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
-  // If --enable-preview and EnableValhalla is true, modules may have preview mode resources.
-  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
+  // If --enable-preview is true, modules may have preview mode resources.
+  bool enable_valhalla_preview = is_valhalla_enabled();
   // Whether to use module patching, or the new preview mode feature for preview resources.
   bool disable_patching = disable_preview_patching();
 
@@ -2450,10 +2451,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     // --enable_preview
     } else if (match_option(option, "--enable-preview")) {
       set_enable_preview();
-      // --enable-preview enables Valhalla, EnableValhalla VM option will eventually be removed before integration
-      if (FLAG_SET_CMDLINE(EnableValhalla, true) != JVMFlag::SUCCESS) {
-        return JNI_EINVAL;
-      }
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
@@ -3996,7 +3993,7 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  if (!EnableValhalla || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
+  if (!is_valhalla_enabled() || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
     // Disable calling convention optimizations if inline types are not supported.
     // Also these aren't useful in -Xint. However, don't disable them when dumping or using
     // the CDS archive, as the values must match between dumptime and runtime.
