@@ -26,7 +26,6 @@ package compiler.valhalla.inlinetypes;
 public class InlineTypeRegexes {
     public static final String MYVALUE_KLASS = "compiler/valhalla/inlinetypes/.*MyValue\\w*";
     public static final String ANY_KLASS = "compiler/valhalla/inlinetypes/[\\w/]*";
-    public static final String VALUE_OBJECT_METHODS_IS_SUBSTITUTABLE = "java.lang.runtime.ValueObjectMethods::isSubstitutable";
     public static final String STORE_INLINE_TYPE_FIELDS = "store_inline_type_fields";
     public static final String JDK_INTERNAL_MISC_UNSAFE = "# Static  jdk.internal.misc.Unsafe::";
     public static final String LOAD_UNKNOWN_INLINE = "C2 Runtime load_unknown_inline";

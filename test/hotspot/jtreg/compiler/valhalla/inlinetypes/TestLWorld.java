@@ -45,7 +45,6 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.SUBSTITUTABILITY_TEST;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import static compiler.lib.ir_framework.IRNode.ALLOC;
@@ -3712,7 +3711,7 @@ public class TestLWorld {
     // acmp doesn't need substitutability test when one input is known
     // not to be a value type
     @Test
-    @IR(failOn = SUBSTITUTABILITY_TEST)
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test124(NonValueClass o1, Object o2) {
         return o1 == o2;
     }
@@ -3726,7 +3725,7 @@ public class TestLWorld {
 
     // acmp doesn't need substitutability test when one input is null
     @Test
-    @IR(failOn = {SUBSTITUTABILITY_TEST})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test125(Object o1) {
         Object o2 = null;
         return o1 == o2;

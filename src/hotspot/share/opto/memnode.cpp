@@ -2266,12 +2266,13 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = value_basic_type();
 
-    if (tinst != nullptr) {
+    // Fold loads of the field map
+    if (UseAltSubstitutabilityMethod && tinst != nullptr) {
       ciInstanceKlass* ik = tinst->instance_klass();
       int offset = tinst->offset();
       if (ik == phase->C->env()->Class_klass()) {
         ciType* t = tinst->java_mirror_type();
-        if (t != nullptr && t->is_inlinetype() && UseAltSubstitutabilityMethod && offset == t->as_inline_klass()->field_map_offset()) {
+        if (t != nullptr && t->is_inlinetype() && offset == t->as_inline_klass()->field_map_offset()) {
           ciConstant map = t->as_inline_klass()->get_field_map();
           bool is_narrow_oop = (bt == T_NARROWOOP);
           return Type::make_from_constant(map, true, 1, is_narrow_oop);
