@@ -265,7 +265,7 @@ ciField::ciField(ciField* declared_field) {
   _signature = ciSymbols::bool_signature();
   _type = ciType::make(T_BOOLEAN);
 
-  _is_constant = (declared_field->is_strict() && declared_field->is_final()) || declared_field->is_constant();;
+  _is_constant = (declared_field->is_strict() && declared_field->is_final()) || declared_field->is_constant();
   _known_to_link_with_put = nullptr;
   _known_to_link_with_get = nullptr;
   _constant_value = ciConstant();

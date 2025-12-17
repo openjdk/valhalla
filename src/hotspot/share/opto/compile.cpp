@@ -2124,32 +2124,33 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
     assert(n != nullptr, "unexpected nullptr");
     if (n->is_LoadFlat()) {
       LoadFlatNode* loadn = n->as_LoadFlat();
-
-      const Type* base_type = igvn.type(loadn->base());
-      const TypeOopPtr* oopptr = base_type->isa_oopptr();
-      ciObject* oop = oopptr->const_oop();
-      ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
-      ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
-      int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
-
       bool non_atomic_is_fine = false;
-      if (holder != nullptr) {
-        ciKlass* klass = holder->klass();
-        ciInstanceKlass* iklass = klass->as_instance_klass();
-        ciField* field = iklass->get_non_flat_field_by_offset(off);
-        ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
-        ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
-        non_atomic_is_fine = FoldStableValues && field->is_stable() && cst.is_valid() && cst.as_boolean();
-      } else if (array != nullptr) {
-        const TypeAryPtr* aryptr = oopptr->is_aryptr();
-        ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
-        non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+      if (FoldStableValues) {
+        const Type* base_type = igvn.type(loadn->base());
+        const TypeOopPtr* oopptr = base_type->isa_oopptr();
+        ciObject* oop = oopptr->const_oop();
+        ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
+        ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
+        int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
+
+        if (holder != nullptr) {
+          ciKlass* klass = holder->klass();
+          ciInstanceKlass* iklass = klass->as_instance_klass();
+          const ciField* field = iklass->get_non_flat_field_by_offset(off);
+          ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
+          ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
+          non_atomic_is_fine = FoldStableValues && field->is_stable() && cst.is_valid() && cst.as_boolean();
+        } else if (array != nullptr) {
+          const TypeAryPtr* aryptr = oopptr->is_aryptr();
+          ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
+          non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+        }
       }
 
       if (non_atomic_is_fine) {
-        n->as_LoadFlat()->expand_non_atomic(igvn);
+        loadn->expand_non_atomic(igvn);
       } else {
-        n->as_LoadFlat()->expand_atomic(igvn);
+        loadn->expand_atomic(igvn);
       }
     } else {
       n->as_StoreFlat()->expand_atomic(igvn);

@@ -101,9 +101,6 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
   return value;
 }
 
-// ------------------------------------------------------------------
-// ciInstance::null_marker_value
-//
 // Constant value of the null marker.
 ciConstant ciInstance::null_marker_value() {
   if (!klass()->is_inlinetype()) {
