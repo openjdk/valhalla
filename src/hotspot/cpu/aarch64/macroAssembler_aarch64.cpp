@@ -5543,7 +5543,7 @@ void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Regi
 }
 
 void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
-  ldr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  ldr(offset, Address(inline_klass, InlineKlass::adr_members_offset()));
   ldrw(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
@@ -7037,7 +7037,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      ldr(tmp1, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      ldr(tmp1, Address(klass, InlineKlass::adr_members_offset()));
       ldr(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
       blr(tmp1);
     }
