@@ -100,11 +100,6 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties pr
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
-  if (LayoutKindHelper::is_atomic_flat(lk)) {
-    // For classes without a non-atomic layout, trying to create a non-atomic array will create one
-    // with atomic property, we need to normalize the true properties of the array
-    props = (ArrayProperties) (props &~ ArrayProperties::NON_ATOMIC);
-  }
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
   assert(element_klass->must_be_atomic() || (!AlwaysAtomicAccesses), "Atomic by-default");

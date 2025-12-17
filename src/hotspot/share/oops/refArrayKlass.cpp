@@ -63,8 +63,6 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
                                        TRAPS) {
   assert(!ArrayKlass::is_null_restricted(props) || (n == 1 && element_klass->is_inline_klass()),
          "null-free unsupported");
-  // RefArrays are always atomic
-  props = (ArrayProperties) (props &~ ArrayProperties::NON_ATOMIC);
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;

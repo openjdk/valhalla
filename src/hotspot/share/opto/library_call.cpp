@@ -4873,7 +4873,6 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 
         ciArrayKlass* array_klass = ciArrayKlass::make(t, null_free, atomic, true);
         assert(array_klass->is_elem_null_free() == null_free, "inconsistency");
-        assert(array_klass->is_elem_atomic() == atomic, "inconsistency");
 
         // TOOD 8350865 ZGC needs card marks on initializing oop stores
         if (UseZGC && null_free && !array_klass->is_flat_array_klass()) {
@@ -4897,7 +4896,6 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
           assert(arytype->is_null_free() == null_free, "inconsistency");
           assert(arytype->is_not_null_free() == !null_free, "inconsistency");
-          assert(arytype->is_atomic() == atomic, "inconsistency");
           set_result(obj);
           return true;
         }

@@ -40,6 +40,7 @@
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/markWord.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -222,12 +223,12 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayPr
   ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
   switch (ad._kind) {
     case Klass::RefArrayKlassKind: {
-      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), props, CHECK_NULL);
+      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
       break;
     }
     case Klass::FlatArrayKlassKind: {
       assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
-      ak = FlatArrayKlass::allocate_klass(element_klass(), props, ad._layout_kind, CHECK_NULL);
+      ak = FlatArrayKlass::allocate_klass(element_klass(), ad._properties, ad._layout_kind, CHECK_NULL);
       break;
     }
     default:
@@ -404,6 +405,8 @@ PackageEntry* ObjArrayKlass::package() const {
 
 ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
   assert(props != ArrayProperties::INVALID, "Sanity check");
+  ArrayDescription ad = array_layout_selection(element_klass(), props);
+  props = ad._properties;
 
   if (properties() == props) {
     assert(is_refArray_klass() || is_flatArray_klass(), "Must be a concrete array klass");

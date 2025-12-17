@@ -1896,7 +1896,7 @@ Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
   ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, false);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   arytype = arytype->cast_to_flat(true)->cast_to_null_free(is_null_free);
-  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
 Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic) {
@@ -1907,8 +1907,7 @@ Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bo
   assert(arytype->is_flat(), "inconsistency");
   assert(arytype->is_null_free() == is_null_free, "inconsistency");
   assert(arytype->is_not_null_free() == !is_null_free, "inconsistency");
-  assert(arytype->is_atomic() == is_atomic, "inconsistency");
-  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
 //-------------------------load_array_element-------------------------
