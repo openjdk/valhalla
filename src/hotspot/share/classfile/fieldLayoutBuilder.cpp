@@ -1548,6 +1548,11 @@ void FieldLayoutBuilder::generate_acmp_maps() {
         // skip
         break;
 
+      case LayoutRawBlock::MULTIFIELD:
+        // FIXME
+        assert(false, "Unhandled layout kind");
+        break;
+
       case LayoutRawBlock::REGULAR:
         {
           FieldInfo* fi = _field_info->adr_at(b->field_index());
