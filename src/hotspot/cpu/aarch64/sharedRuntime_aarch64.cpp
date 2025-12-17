@@ -208,7 +208,6 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
   // will allow deoptimization at this safepoint to find all possible
   // debug-info recordings, as well as let GC find all oops.
 
-  OopMapSet *oop_maps = new OopMapSet();
   OopMap* oop_map = new OopMap(frame_size_in_slots, 0);
 
   for (int i = 0; i < Register::number_of_registers; i++) {
