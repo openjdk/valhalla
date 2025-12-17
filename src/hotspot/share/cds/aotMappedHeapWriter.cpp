@@ -43,6 +43,7 @@
 #include "oops/oopHandle.inline.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -300,7 +301,7 @@ objArrayOop AOTMappedHeapWriter::allocate_root_segment(size_t offset, int elemen
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, Universe::objectArrayKlass()->prototype_header());
   } else {
-    assert(!EnableValhalla || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
+    assert(!Arguments::is_valhalla_enabled() || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
     oopDesc::set_mark(mem, markWord::prototype());
     oopDesc::release_set_klass(mem, Universe::objectArrayKlass());
   }
@@ -475,7 +476,7 @@ HeapWord* AOTMappedHeapWriter::init_filler_array_at_buffer_top(int array_length,
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, markWord::prototype().set_narrow_klass(nk));
   } else {
-    assert(!EnableValhalla || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
+    assert(!Arguments::is_valhalla_enabled() || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
     oopDesc::set_mark(mem, markWord::prototype());
     cast_to_oop(mem)->set_narrow_klass(nk);
   }
@@ -741,11 +742,11 @@ void AOTMappedHeapWriter::update_header_for_requested_obj(oop requested_obj, oop
   }
   // We need to retain the identity_hash, because it may have been used by some hashtables
   // in the shared heap.
-  if (!src_obj->fast_no_hash_check() && (!(EnableValhalla && src_obj->mark().is_inline_type()))) {
+  if (!src_obj->fast_no_hash_check() && (!(Arguments::is_valhalla_enabled() && src_obj->mark().is_inline_type()))) {
     intptr_t src_hash = src_obj->identity_hash();
     if (UseCompactObjectHeaders) {
       fake_oop->set_mark(fake_oop->mark().copy_set_hash(src_hash));
-    } else if (EnableValhalla) {
+    } else if (Arguments::is_valhalla_enabled()) {
       fake_oop->set_mark(src_klass->prototype_header().copy_set_hash(src_hash));
     } else {
       fake_oop->set_mark(markWord::prototype().copy_set_hash(src_hash));

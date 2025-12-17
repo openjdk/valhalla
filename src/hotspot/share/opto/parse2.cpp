@@ -45,6 +45,7 @@
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/runtime.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -2102,7 +2103,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     record_profile_for_speculation(right, right_type, right_ptr);
   }
 
-  if (!EnableValhalla) {
+  if (!Arguments::is_valhalla_enabled()) {
     Node* cmp = CmpP(left, right);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);

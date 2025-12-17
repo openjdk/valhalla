@@ -475,7 +475,6 @@ class Arguments : AllStatic {
 
   static bool is_internal_module_property(const char* option);
   static bool is_incompatible_cds_internal_module_property(const char* property);
-  static bool patching_migrated_classes(const char* property, const char* value);
 
   // Miscellaneous System property value getter and setters.
   static void set_dll_dir(const char *value) { _sun_boot_library_path->set_value(value); }
@@ -518,6 +517,10 @@ class Arguments : AllStatic {
   // preview features
   static void set_enable_preview() { _enable_preview = true; }
   static bool enable_preview() { return _enable_preview; }
+  static bool is_valhalla_enabled() {
+    // Valhalla is a feature opted-in by --enable-preview
+    return enable_preview();
+  }
 
   // jdwp
   static bool has_jdwp_agent() { return _has_jdwp_agent; }

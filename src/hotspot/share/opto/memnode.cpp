@@ -54,6 +54,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/traceMergeStoresTag.hpp"
 #include "opto/vectornode.hpp"
+#include "runtime/arguments.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -2440,7 +2441,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   if (!UseCompactObjectHeaders) {
     Node* alloc = is_new_object_mark_load();
     if (alloc != nullptr) {
-      if (EnableValhalla) {
+      if (Arguments::is_valhalla_enabled()) {
         // The mark word may contain property bits (inline, flat, null-free)
         Node* klass_node = alloc->in(AllocateNode::KlassNode);
         const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();

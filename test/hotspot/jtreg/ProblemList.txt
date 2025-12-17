@@ -97,6 +97,7 @@ compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
 compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
 compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
 compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
+compiler/valhalla/inlinetypes/TestTrivialMethods.java 8373692 generic-all
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
@@ -156,8 +157,6 @@ runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774       
 runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
 
 # Valhalla + AOT
-runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8369043 generic-aarch64
-runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8369043 generic-aarch64
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
