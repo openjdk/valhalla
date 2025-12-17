@@ -67,7 +67,6 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardLocation;
 import toolbox.JavacTask;
 import toolbox.TestRunner;
-import toolbox.TestRunner.Test;
 import toolbox.ToolBox;
 import toolbox.ToolBox.MemoryFileManager;
 

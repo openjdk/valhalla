@@ -853,6 +853,14 @@ public class ToolBox {
 
         /**
          * Constructs a memory file manager which stores output files in memory,
+         * and delegates to a default file manager for input files.
+         */
+        public MemoryFileManager() {
+            this(ToolProvider.getSystemJavaCompiler().getStandardFileManager(null, null, null), true);
+        }
+
+        /**
+         * Constructs a memory file manager which stores output files in memory,
          * and delegates to a specified file manager for input files.
          *
          * @param fileManager the file manager to be used for input files
@@ -874,6 +882,19 @@ public class ToolBox {
         }
 
         /**
+         * Returns the set of names of files that have been written to a given
+         * location.
+         *
+         * @param location the location
+         * @return the set of file names
+         */
+        public Set<String> getFileNames(Location location) {
+            Map<String, Content> filesForLocation = files.get(location);
+            return (filesForLocation == null)
+                    ? Collections.emptySet() : filesForLocation.keySet();
+        }
+
+        /**
          * Returns the content written to a file in a given location,
          * or null if no such file has been written.
          *
@@ -892,8 +913,13 @@ public class ToolBox {
          *
          * @param location the location
          * @param name     the name of the file
-         * @return the content
+         * @return the content as a string
          */
+        public String getFileString(Location location, String name) {
+            Content content = getFile(location, name);
+            return (content == null) ? null : content.getString();
+        }
+
         private Content getFile(Location location, String name) {
             Map<String, Content> filesForLocation = files.get(location);
             return (filesForLocation == null) ? null : filesForLocation.get(name);
