@@ -29,7 +29,7 @@
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.main
  * @build toolbox.ToolBox toolbox.JavacTask
- * @run main/othervm -DDISABLE_PREVIEW_PATCHING=true PreviewAutoSuppress
+ * @run main PreviewAutoSuppress
  */
 import java.lang.classfile.*;
 import java.io.InputStream;
