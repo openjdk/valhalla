@@ -82,6 +82,7 @@
 #include "opto/type.hpp"
 #include "opto/vector.hpp"
 #include "opto/vectornode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -707,7 +708,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _boxing_late_inlines(comp_arena(), 2, 0, nullptr),
       _vector_reboxing_late_inlines(comp_arena(), 2, 0, nullptr),
       _late_inlines_pos(0),
-      _number_of_mh_late_inlines(0),
+      _has_mh_late_inlines(false),
       _oom(false),
       _replay_inline_data(nullptr),
       _inline_printer(this),
@@ -978,7 +979,7 @@ Compile::Compile(ciEnv* ci_env,
       _igvn_worklist(nullptr),
       _types(nullptr),
       _node_hash(nullptr),
-      _number_of_mh_late_inlines(0),
+      _has_mh_late_inlines(false),
       _oom(false),
       _replay_inline_data(nullptr),
       _inline_printer(this),
@@ -5578,7 +5579,7 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
 Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
   const TypeInstPtr* ta = phase->type(a)->isa_instptr();
   const TypeInstPtr* tb = phase->type(b)->isa_instptr();
-  if (!EnableValhalla || ta == nullptr || tb == nullptr ||
+  if (!Arguments::is_valhalla_enabled() || ta == nullptr || tb == nullptr ||
       ta->is_zero_type() || tb->is_zero_type() ||
       !ta->can_be_inline_type() || !tb->can_be_inline_type()) {
     // Use old acmp if one operand is null or not an inline type
@@ -5820,7 +5821,7 @@ void Compile::end_method() {
 
 #ifndef PRODUCT
 bool Compile::should_print_phase(const int level) const {
-  return PrintPhaseLevel > 0 && directive()->PhasePrintLevelOption >= level &&
+  return PrintPhaseLevel >= 0 && directive()->PhasePrintLevelOption >= level &&
          _method != nullptr; // Do not print phases for stubs.
 }
 

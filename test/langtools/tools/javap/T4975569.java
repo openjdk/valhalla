@@ -27,6 +27,10 @@
  * @summary javap doesn't print new flag bits
  * @modules jdk.jdeps/com.sun.tools.javap
  * @modules java.base/jdk.internal.misc
+ * @comment Ensure that that this test is skipped if the test is run on a preview enabled
+            VM as the compiled test class has not been forced into preview mode.
+            Valhalla affects the outcome.
+ * @requires !java.enablePreview
  * @run main T4975569
  */
 

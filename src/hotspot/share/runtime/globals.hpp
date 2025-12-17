@@ -1698,8 +1698,9 @@ const int ObjectAlignmentInBytes = 8;
           "putback")                                                        \
                                                                             \
   /* new oopmap storage allocation */                                       \
-  develop(intx, MinOopMapAllocation,     8,                                 \
+  develop(int, MinOopMapAllocation, 8,                                      \
           "Minimum number of OopMap entries in an OopMapSet")               \
+          range(0, max_jint)                                                \
                                                                             \
   /* recompilation */                                                       \
   product_pd(intx, CompileThreshold,                                        \
@@ -1974,9 +1975,6 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
-                                                                            \
-  product(bool, EnableValhalla, true,                                       \
-          "Enable experimental Valhalla features")                          \
                                                                             \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \
           "Pass each inline type field as an argument at calls")            \
