@@ -76,7 +76,7 @@ TypeArrayKlass* TypeArrayKlass::allocate_klass(ClassLoaderData* loader_data, Bas
 }
 
 u2 TypeArrayKlass::compute_modifier_flags() const {
-  u2 identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+  u2 identity_flag = (Arguments::is_valhalla_enabled()) ? JVM_ACC_IDENTITY : 0;
 
   return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
                     | identity_flag;

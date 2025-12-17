@@ -30,6 +30,7 @@
 #include "opto/opcodes.hpp"
 #include "opto/predicates_enums.hpp"
 #include "opto/type.hpp"
+#include "runtime/arguments.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -260,7 +261,7 @@ public:
   }
 
   bool can_be_inline_type() const {
-    return EnableValhalla && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
+    return Arguments::is_valhalla_enabled() && _type->isa_instptr() && _type->is_instptr()->can_be_inline_type();
   }
 
   Node* try_push_inline_types_down(PhaseGVN* phase, bool can_reshape);
