@@ -28,6 +28,4 @@
 #############################################################################
 
 # Valhalla
-tools/javac/diags/CheckExamples.java                                            8373828    generic-all
-tools/javac/preview/PreviewAutoSuppress.java                                    8373826    generic-all
 tools/javac/processing/filer/TestOriginatingElements.java                       8373825    generic-all
