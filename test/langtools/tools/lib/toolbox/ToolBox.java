@@ -891,7 +891,7 @@ public class ToolBox {
         public Set<String> getFileNames(Location location) {
             Map<String, Content> filesForLocation = files.get(location);
             return (filesForLocation == null)
-                    ? Collections.emptySet() : filesForLocation.keySet();
+                ? Collections.emptySet() : filesForLocation.keySet();
         }
 
         /**
