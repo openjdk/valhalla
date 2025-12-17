@@ -2033,23 +2033,22 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       IdealKit ideal(this);
       IdealVariable res(ideal);
       ideal.declarations_done();
-      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
-        // Return value is null
-        ideal.set(res, makecon(TypePtr::NULL_PTR));
-      } ideal.else_(); {
-        // Return value is non-null
-        sync_kit(ideal);
+      // Change return type of call to scalarized return
+      const TypeFunc* tf = call->_tf;
+      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+      call->_tf = new_tf;
+      _gvn.set_type(call, call->Value(&_gvn));
+      _gvn.set_type(ret, ret->Value(&_gvn));
+      // Don't add store to buffer call if we are strength reducing
+      if (!C->strength_reduction()) {
+        ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+          // Return value is null
+          ideal.set(res, makecon(TypePtr::NULL_PTR));
+        } ideal.else_(); {
+          // Return value is non-null
+          sync_kit(ideal);
 
-        // Change return type of call to scalarized return
-        const TypeFunc* tf = call->_tf;
-        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
-        call->_tf = new_tf;
-        _gvn.set_type(call, call->Value(&_gvn));
-        _gvn.set_type(ret, ret->Value(&_gvn));
-
-        // Don't add store to buffer call if we are strength reducing
-        if (!C->strength_reduction()) {
           Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                                                       OptoRuntime::store_inline_type_fields_Type(),
                                                       StubRoutines::store_inline_type_fields_to_buf(),
@@ -2072,14 +2071,14 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
           buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
 
           ideal.set(res, buf);
-        } else {
-          for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-            Node* proj =_gvn.transform(new ProjNode(call, i));
-          }
-          ideal.set(res, ret);
+          ideal.sync_kit(this);
+        } ideal.end_if();
+      } else {
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+          Node* proj =_gvn.transform(new ProjNode(call, i));
         }
-        ideal.sync_kit(this);
-      } ideal.end_if();
+        ideal.set(res, ret);
+      }
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
     }
