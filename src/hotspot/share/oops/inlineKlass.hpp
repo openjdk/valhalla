@@ -47,10 +47,27 @@ class InlineKlass: public InstanceKlass {
 
   // The member fields of the InlineKlass.
   //
-  // The InstanceKlass objects have dynamic size because of vtables and other
-  // features (see InstanceKlass::size). Therefore, we can't put C++ fields
-  // directly into the InlineKlass class, but instead we stamp out a block of
-  // these members after the part of the object that comes from the InstanceKlass.
+  // All Klass objects have vtables starting at offset `sizeof(InstanceKlass)`.
+  //
+  // This has the effect that sub-klasses of InstanceKlass can't have their own
+  // C++ fields, because those would overlap with the vtables (or some of the
+  // other dynamically-sized sections).
+  //
+  // To work around this we stamp out the block members *after* all
+  // dynamically-sized sections belonging to the InstanceKlass part of the
+  // object.
+  //
+  // InlineKlass object layout:
+  //   +-----------------------+
+  //   | sizeof(InstanceKlass) |
+  //   +-----------------------+ <= InstanceKlass:header_size()
+  //   | vtable                |
+  //   +-----------------------+
+  //   | other sections        |
+  //   +-----------------------+ <= end_of_instance_klass()
+  //   | InlineKlass::Members  |
+  //   +-----------------------+
+  //
   class Members {
     friend class InlineKlass;
 
