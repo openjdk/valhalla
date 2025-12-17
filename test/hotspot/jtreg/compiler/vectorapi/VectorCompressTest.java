@@ -33,6 +33,7 @@ import jdk.test.lib.Asserts;
  * @bug 8366333
  * @key randomness
  * @library /test/lib /
+ * @enablePreview
  * @summary IR test for VectorAPI compress
  * @modules jdk.incubator.vector
  *

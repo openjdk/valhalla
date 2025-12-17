@@ -31,6 +31,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @bug 8366588
  * @key randomness
+ * @enablePreview
  * @library /test/lib /
  * @summary VectorAPI: Re-intrinsify VectorMask.laneIsSet where the input index is a variable
  * @modules jdk.incubator.vector

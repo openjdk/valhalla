@@ -1116,7 +1116,7 @@ final class ValueObjectMethods {
      */
     private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
-            System.out.println("substitutable " + a.getClass() + ": " + a + " vs " + b);
+            System.out.println("isSubstitutable " + a + " vs " + b);
         }
 
         // Called directly from the VM.
@@ -1406,6 +1406,9 @@ final class ValueObjectMethods {
     }
 
     private static boolean isSubstitutableAlt(Object a, Object b) {
+        if (VERBOSE) {
+            System.out.println("isSubstitutableAlt " + a + " vs " + b);
+        }
       // This method assumes a and b are not null and their are both instances of the same value class
       final Unsafe U = UNSAFE;
       int[] map = U.getFieldMap(a.getClass());
@@ -1451,5 +1454,60 @@ final class ValueObjectMethods {
         if (oa != ob) return false;
       }
       return true;
+    }
+
+    /**
+     * Return the identity hashCode of a value object.
+     * The hashCode is computed using Unsafe.getFieldMap.
+     * @param obj a value class instance, non-null
+     * @return the hashCode of the object
+     */
+    private static int valueObjectHashCodeAlt(Object obj) {
+        if (VERBOSE) {
+            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj);
+        }
+        // This method assumes a is not null and is an instance of a value class
+        Class<?> type = obj.getClass();
+        final Unsafe U = UNSAFE;
+        int[] map = U.getFieldMap(type);
+        int result = 0;
+        int nbNonRef = map[0];
+        for (int i = 0; i < nbNonRef; i++) {
+            int offset = map[i * 2 + 1];
+            int size = map[i * 2 + 2];
+            int nlong = size / 8;
+            for (int j = 0; j < nlong; j++) {
+                long la = U.getLong(obj, offset);
+                result = 31 * result + (int) la;
+                result = 31 * result + (int) (la >>> 32);
+                offset += 8;
+            }
+            size -= nlong * 8;
+            int nint = size / 4;
+            for (int j = 0; j < nint; j++) {
+                int ia = U.getInt(obj, offset);
+                result = 31 * result + ia;
+                offset += 4;
+            }
+            size -= nint * 4;
+            int nshort = size / 2;
+            for (int j = 0; j < nshort; j++) {
+                short sa = U.getShort(obj, offset);
+                result = 31 * result + sa;
+                offset += 2;
+            }
+            size -= nshort * 2;
+            for (int j = 0; j < size; j++) {
+                byte ba = U.getByte(obj, offset);
+                result = 31 * result + ba;
+                offset++;
+            }
+        }
+        for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
+            int offset = map[i];
+            Object oa = U.getReference(obj, offset);
+            result = 31 * result + Objects.hashCode(oa);
+        }
+        return result;
     }
 }

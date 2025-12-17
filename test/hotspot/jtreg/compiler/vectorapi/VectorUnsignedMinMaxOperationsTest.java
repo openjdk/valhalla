@@ -26,6 +26,7 @@
 * @bug 8342676
 * @summary Unsigned Vector Min / Max transforms
 * @modules jdk.incubator.vector
+* @enablePreview
 * @library /test/lib /
 * @run driver compiler.vectorapi.VectorUnsignedMinMaxOperationsTest
 */

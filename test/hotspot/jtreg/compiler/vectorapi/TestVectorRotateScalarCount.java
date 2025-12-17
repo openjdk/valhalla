@@ -32,6 +32,7 @@ import jdk.incubator.vector.*;
  * @bug 8351635
  * @summary Test missing pattern in vector rotate generation
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @library /test/lib /
  * @run driver compiler.vectorapi.TestVectorRotateScalarCount
  */

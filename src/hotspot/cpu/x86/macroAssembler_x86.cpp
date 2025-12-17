@@ -5912,77 +5912,6 @@ void MacroAssembler::reinit_heapbase() {
   }
 }
 
-#if COMPILER2_OR_JVMCI
-
-// clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
-void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
-  // cnt - number of qwords (8-byte words).
-  // base - start address, qword aligned.
-  Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
-  bool use64byteVector = (MaxVectorSize == 64) && (VM_Version::avx3_threshold() == 0);
-  if (use64byteVector) {
-    evpbroadcastq(xtmp, val, AVX_512bit);
-  } else if (MaxVectorSize >= 32) {
-    movdq(xtmp, val);
-    punpcklqdq(xtmp, xtmp);
-    vinserti128_high(xtmp, xtmp);
-  } else {
-    movdq(xtmp, val);
-    punpcklqdq(xtmp, xtmp);
-  }
-  jmp(L_zero_64_bytes);
-
-  BIND(L_loop);
-  if (MaxVectorSize >= 32) {
-    fill64(base, 0, xtmp, use64byteVector);
-  } else {
-    movdqu(Address(base,  0), xtmp);
-    movdqu(Address(base, 16), xtmp);
-    movdqu(Address(base, 32), xtmp);
-    movdqu(Address(base, 48), xtmp);
-  }
-  addptr(base, 64);
-
-  BIND(L_zero_64_bytes);
-  subptr(cnt, 8);
-  jccb(Assembler::greaterEqual, L_loop);
-
-  // Copy trailing 64 bytes
-  if (use64byteVector) {
-    addptr(cnt, 8);
-    jccb(Assembler::equal, L_end);
-    fill64_masked(3, base, 0, xtmp, mask, cnt, val, true);
-    jmp(L_end);
-  } else {
-    addptr(cnt, 4);
-    jccb(Assembler::less, L_tail);
-    if (MaxVectorSize >= 32) {
-      vmovdqu(Address(base, 0), xtmp);
-    } else {
-      movdqu(Address(base,  0), xtmp);
-      movdqu(Address(base, 16), xtmp);
-    }
-  }
-  addptr(base, 32);
-  subptr(cnt, 4);
-
-  BIND(L_tail);
-  addptr(cnt, 4);
-  jccb(Assembler::lessEqual, L_end);
-  if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
-    fill32_masked(3, base, 0, xtmp, mask, cnt, val);
-  } else {
-    decrement(cnt);
-
-    BIND(L_sloop);
-    movq(Address(base, 0), xtmp);
-    addptr(base, 8);
-    decrement(cnt);
-    jccb(Assembler::greaterEqual, L_sloop);
-  }
-  BIND(L_end);
-}
-
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
   assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   // An inline type might be returned. If fields are in registers we
@@ -6391,6 +6320,77 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     }
     pop(rbp);
   }
+}
+
+#if COMPILER2_OR_JVMCI
+
+// clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
+void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
+  // cnt - number of qwords (8-byte words).
+  // base - start address, qword aligned.
+  Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
+  bool use64byteVector = (MaxVectorSize == 64) && (VM_Version::avx3_threshold() == 0);
+  if (use64byteVector) {
+    evpbroadcastq(xtmp, val, AVX_512bit);
+  } else if (MaxVectorSize >= 32) {
+    movdq(xtmp, val);
+    punpcklqdq(xtmp, xtmp);
+    vinserti128_high(xtmp, xtmp);
+  } else {
+    movdq(xtmp, val);
+    punpcklqdq(xtmp, xtmp);
+  }
+  jmp(L_zero_64_bytes);
+
+  BIND(L_loop);
+  if (MaxVectorSize >= 32) {
+    fill64(base, 0, xtmp, use64byteVector);
+  } else {
+    movdqu(Address(base,  0), xtmp);
+    movdqu(Address(base, 16), xtmp);
+    movdqu(Address(base, 32), xtmp);
+    movdqu(Address(base, 48), xtmp);
+  }
+  addptr(base, 64);
+
+  BIND(L_zero_64_bytes);
+  subptr(cnt, 8);
+  jccb(Assembler::greaterEqual, L_loop);
+
+  // Copy trailing 64 bytes
+  if (use64byteVector) {
+    addptr(cnt, 8);
+    jccb(Assembler::equal, L_end);
+    fill64_masked(3, base, 0, xtmp, mask, cnt, val, true);
+    jmp(L_end);
+  } else {
+    addptr(cnt, 4);
+    jccb(Assembler::less, L_tail);
+    if (MaxVectorSize >= 32) {
+      vmovdqu(Address(base, 0), xtmp);
+    } else {
+      movdqu(Address(base,  0), xtmp);
+      movdqu(Address(base, 16), xtmp);
+    }
+  }
+  addptr(base, 32);
+  subptr(cnt, 4);
+
+  BIND(L_tail);
+  addptr(cnt, 4);
+  jccb(Assembler::lessEqual, L_end);
+  if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
+    fill32_masked(3, base, 0, xtmp, mask, cnt, val);
+  } else {
+    decrement(cnt);
+
+    BIND(L_sloop);
+    movq(Address(base, 0), xtmp);
+    addptr(base, 8);
+    decrement(cnt);
+    jccb(Assembler::greaterEqual, L_sloop);
+  }
+  BIND(L_end);
 }
 
 // Clearing constant sized memory using YMM/ZMM registers.
@@ -10389,13 +10389,13 @@ void MacroAssembler::check_stack_alignment(Register sp, const char* msg, unsigne
   bind(L_stack_ok);
 }
 
-// Implements lightweight-locking.
+// Implements fast-locking.
 //
 // obj: the object to be locked
 // reg_rax: rax
 // thread: the thread which attempts to lock obj
 // tmp: a temporary register
-void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Register reg_rax, Register tmp, Label& slow) {
+void MacroAssembler::fast_lock(Register basic_lock, Register obj, Register reg_rax, Register tmp, Label& slow) {
   Register thread = r15_thread;
 
   assert(reg_rax == rax, "");
@@ -10454,13 +10454,13 @@ void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Registe
   movl(Address(thread, JavaThread::lock_stack_top_offset()), top);
 }
 
-// Implements lightweight-unlocking.
+// Implements fast-unlocking.
 //
 // obj: the object to be unlocked
 // reg_rax: rax
 // thread: the thread
 // tmp: a temporary register
-void MacroAssembler::lightweight_unlock(Register obj, Register reg_rax, Register tmp, Label& slow) {
+void MacroAssembler::fast_unlock(Register obj, Register reg_rax, Register tmp, Label& slow) {
   Register thread = r15_thread;
 
   assert(reg_rax == rax, "");
@@ -10492,7 +10492,7 @@ void MacroAssembler::lightweight_unlock(Register obj, Register reg_rax, Register
   Label not_unlocked;
   testptr(reg_rax, markWord::unlocked_value);
   jcc(Assembler::zero, not_unlocked);
-  stop("lightweight_unlock already unlocked");
+  stop("fast_unlock already unlocked");
   bind(not_unlocked);
 #endif
 

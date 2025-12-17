@@ -35,6 +35,7 @@ import jdk.test.lib.Asserts;
  * @bug 8351627
  * @summary C2 AArch64 ROR/ROL: assert((1 << ((T>>1)+3)) > shift) failed: Invalid Shift value
  * @modules jdk.incubator.vector
+ * @enablePreview
  * @library /test/lib /
  * @run main/othervm -XX:-TieredCompilation compiler.vectorapi.TestRotateWithZero
  */

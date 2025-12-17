@@ -33,6 +33,7 @@ import jdk.test.lib.Asserts;
  * @bug 8363989
  * @key randomness
  * @library /test/lib /
+ * @enablePreview
  * @summary AArch64: Add missing backend support of VectorAPI expand operation
  * @modules jdk.incubator.vector
  *

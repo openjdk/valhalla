@@ -33,6 +33,7 @@ import jdk.test.lib.Asserts;
  * @bug 8354242
  * @key randomness
  * @library /test/lib /
+ * @enablePreview
  * @summary test combining vector not operation with compare
  * @modules jdk.incubator.vector
  * @requires vm.opt.final.MaxVectorSize == "null" | vm.opt.final.MaxVectorSize >= 16

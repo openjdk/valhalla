@@ -25,6 +25,7 @@
  * @test
  * @bug 8350463
  * @summary AArch64: Add vector rearrange support for small lane count vectors
+ * @enablePreview
  * @modules jdk.incubator.vector
  * @library /test/lib /
  *

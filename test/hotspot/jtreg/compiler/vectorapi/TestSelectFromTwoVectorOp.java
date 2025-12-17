@@ -41,6 +41,7 @@ import jdk.test.lib.Utils;
  * @library /test/lib /
  * @summary Verify that SelectFromTwoVector IR node is correctly being
  *          generated on aarch64 and x86
+ * @enablePreview
  * @modules jdk.incubator.vector
  * @run driver compiler.vectorapi.TestSelectFromTwoVectorOp
  */

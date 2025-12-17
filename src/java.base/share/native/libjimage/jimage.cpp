@@ -110,9 +110,8 @@ JIMAGE_FindResource(JImageFile* image,
     size_t module_name_len = strlen(module_name);
     size_t name_len = strlen(name);
     size_t preview_infix_len = strlen(preview_infix);
-
-    // TBD:   assert(module_name_len > 0, "module name must be non-empty");
-    assert(name_len > 0 && "resource name must be non-empty");
+    assert(module_name_len > 0 && "module name must be non-empty");
+    assert(name_len > 0 && "name must non-empty");
 
     // Do not attempt to lookup anything of the form /modules/... or /packages/...
     if (strncmp(module_name, str_modules, sizeof(str_modules)) == 0
