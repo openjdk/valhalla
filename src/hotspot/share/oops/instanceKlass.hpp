@@ -1059,7 +1059,7 @@ public:
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
 
   // Use this to return the size of an instance in heap words:
-  virtual int size_helper() const {
+  int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
 
