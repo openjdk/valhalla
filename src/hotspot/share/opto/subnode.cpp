@@ -28,7 +28,9 @@
 #include "memory/allocation.inline.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
+#include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/convertnode.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
@@ -924,11 +926,29 @@ Node *CmpINode::Ideal( PhaseGVN *phase, bool can_reshape ) {
 
 //------------------------------Ideal------------------------------------------
 Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  Node* a = nullptr;
-  Node* b = nullptr;
-  if (is_double_null_check(phase, a, b) && (phase->type(a)->is_zero_type() || phase->type(b)->is_zero_type())) {
-    // Degraded to a simple null check, use old acmp
-    return new CmpPNode(a, b);
+  // Optimize expressions like
+  //   CmpL(OrL(CastP2X(..), CastP2X(..)), 0L)
+  // that are used by acmp to implement a "both operands are null" check.
+  // See also the corresponding code in CmpPNode::Ideal.
+  if (can_reshape && in(1)->Opcode() == Op_OrL &&
+      in(2)->bottom_type()->is_zero_type()) {
+    for (int i = 1; i <= 2; ++i) {
+      Node* orIn = in(1)->in(i);
+      if (orIn->Opcode() == Op_CastP2X) {
+        Node* castIn = orIn->in(1);
+        if (castIn->is_InlineType()) {
+          // Replace the CastP2X by the null marker
+          InlineTypeNode* vt = castIn->as_InlineType();
+          Node* nm = phase->transform(new ConvI2LNode(vt->get_null_marker()));
+          phase->is_IterGVN()->replace_input_of(in(1), i, nm);
+          return this;
+        } else if (!phase->type(castIn)->maybe_null()) {
+          // Never null. Replace the CastP2X by constant 1L.
+          phase->is_IterGVN()->replace_input_of(in(1), i, phase->longcon(1));
+          return this;
+        }
+      }
+    }
   }
   const TypeLong *t2 = phase->type(in(2))->isa_long();
   if (Opcode() == Op_CmpL && in(1)->Opcode() == Op_ConvI2L && t2 && t2->is_con()) {
@@ -938,31 +958,6 @@ Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
   }
   return nullptr;
-}
-
-// Match double null check emitted by Compile::optimize_acmp()
-bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
-  if (in(1)->Opcode() == Op_OrL &&
-      in(1)->in(1)->Opcode() == Op_CastP2X &&
-      in(1)->in(2)->Opcode() == Op_CastP2X &&
-      in(2)->bottom_type()->is_zero_type()) {
-    assert(Arguments::is_valhalla_enabled(), "unexpected double null check");
-    a = in(1)->in(1)->in(1);
-    b = in(1)->in(2)->in(1);
-    return true;
-  }
-  return false;
-}
-
-//------------------------------Value------------------------------------------
-const Type* CmpLNode::Value(PhaseGVN* phase) const {
-  Node* a = nullptr;
-  Node* b = nullptr;
-  if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(b)->maybe_null())) {
-    // One operand is never nullptr, emit constant false
-    return TypeInt::CC_GT;
-  }
-  return SubNode::Value(phase);
 }
 
 //=============================================================================
@@ -1217,6 +1212,24 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     return new CmpINode(in(1)->as_InlineType()->get_null_marker(), phase->intcon(0));
+  }
+  if (in(1)->is_InlineType() || in(2)->is_InlineType()) {
+    // In C2 IR, CmpP on value objects is a pointer comparison, not a value comparison.
+    // For non-null operands it cannot reliably be true, since their buffer oops are not
+    // guaranteed to be identical. Therefore, the comparison can only be true when both
+    // operands are null. Convert expressions like this to a "both operands are null" check:
+    //   CmpL(OrL(CastP2X(..), CastP2X(..)), 0L)
+    // CmpLNode::Ideal might optimize this further to avoid keeping buffer allocations alive.
+    Node* input[2];
+    for (int i = 1; i <= 2; ++i) {
+      if (in(i)->is_InlineType()) {
+        input[i-1] = phase->transform(new ConvI2LNode(in(i)->as_InlineType()->get_null_marker()));
+      } else {
+        input[i-1] = phase->transform(new CastP2XNode(nullptr, in(i)));
+      }
+    }
+    Node* orL = phase->transform(new OrXNode(input[0], input[1]));
+    return new CmpXNode(orL, phase->MakeConX(0));
   }
 
   // Normalize comparisons between Java mirrors into comparisons of the low-

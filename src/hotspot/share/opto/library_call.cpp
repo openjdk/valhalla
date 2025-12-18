@@ -487,6 +487,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_arrayInstanceBaseOffset:  return inline_arrayInstanceBaseOffset();
   case vmIntrinsics::_arrayInstanceIndexScale:  return inline_arrayInstanceIndexScale();
   case vmIntrinsics::_arrayLayout:              return inline_arrayLayout();
+  case vmIntrinsics::_getFieldMap:              return inline_getFieldMap();
 
   case vmIntrinsics::_onSpinWait:               return inline_onspinwait();
 
@@ -3315,7 +3316,7 @@ bool LibraryCallKit::inline_arrayLayout() {
   }
 
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
-  Node* layout_kind_addr = basic_plus_adr(klass_node, klass_node, layout_kind_offset);
+  Node* layout_kind_addr = basic_plus_adr(klass_node, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::POS, T_INT, MemNode::unordered);
 
   region->init_req(1, control());
@@ -3323,6 +3324,32 @@ bool LibraryCallKit::inline_arrayLayout() {
 
   set_control(_gvn.transform(region));
   set_result(_gvn.transform(phi));
+  return true;
+}
+
+// private native int[] getFieldMap0(Class <?> c);
+//   int offset = c._klass._acmp_maps_offset;
+//   return (int[])c.obj_field(offset);
+bool LibraryCallKit::inline_getFieldMap() {
+  if (!UseAltSubstitutabilityMethod) {
+    return false;
+  }
+
+  Node* mirror = argument(1);
+  Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
+
+  int field_map_offset_offset = in_bytes(InstanceKlass::acmp_maps_offset_offset());
+  Node* field_map_offset_addr = basic_plus_adr(klass, field_map_offset_offset);
+  Node* field_map_offset = make_load(nullptr, field_map_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  field_map_offset = _gvn.transform(ConvI2L(field_map_offset));
+
+  Node* map_addr = basic_plus_adr(mirror, field_map_offset);
+  const TypeAryPtr* val_type = TypeAryPtr::INTS->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
+  // TODO 8350865 Remove this
+  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
+  Node* map = access_load_at(mirror, map_addr, TypeAryPtr::INTS, val_type, T_ARRAY, IN_HEAP | MO_UNORDERED);
+
+  set_result(map);
   return true;
 }
 
@@ -4392,6 +4419,15 @@ bool LibraryCallKit::inline_native_Continuation_pinning(bool unpin) {
   set_all_memory(_gvn.transform(result_mem));
 
   return true;
+}
+
+//---------------------------load_mirror_from_klass----------------------------
+// Given a klass oop, load its java mirror (a java.lang.Class oop).
+Node* LibraryCallKit::load_mirror_from_klass(Node* klass) {
+  Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
+  Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+  // mirror = ((OopHandle)mirror)->resolve();
+  return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
 }
 
 //-----------------------load_klass_from_mirror_common-------------------------

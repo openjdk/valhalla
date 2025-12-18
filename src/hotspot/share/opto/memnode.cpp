@@ -275,6 +275,9 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         } else if (is_strict_final_load && base_local != nullptr && !call_can_modify_local_object(field, call)) {
           result = call->in(TypeFunc::Memory);
         }
+      } else if (proj_in->Opcode() == Op_Tuple) {
+        // The call will be folded, skip over it.
+        break;
       } else if (proj_in->is_Initialize()) {
         AllocateNode* alloc = proj_in->as_Initialize()->allocation();
         // Stop if this is the initialization for the object instance which
@@ -2018,6 +2021,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       && phase->C->get_alias_index(phase->type(address)->is_ptr()) != Compile::AliasIdxRaw) {
     // Check for useless control edge in some common special cases
     if (in(MemNode::Control) != nullptr
+        // TODO 8350865 Can we re-enable this?
         && !(phase->type(address)->is_inlinetypeptr() && is_mismatched_access())
         && can_remove_control()
         && phase->type(base)->higher_equal(TypePtr::NOTNULL)
@@ -2173,7 +2177,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     assert(value->bottom_type()->higher_equal(_type), "sanity");
     return value->bottom_type();
   }
-
   // Try to guess loaded type from pointer type
   if (tp->isa_aryptr()) {
     const TypeAryPtr* ary = tp->is_aryptr();
@@ -2266,6 +2269,20 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = value_basic_type();
 
+    // Fold loads of the field map
+    if (UseAltSubstitutabilityMethod && tinst != nullptr) {
+      ciInstanceKlass* ik = tinst->instance_klass();
+      int offset = tinst->offset();
+      if (ik == phase->C->env()->Class_klass()) {
+        ciType* t = tinst->java_mirror_type();
+        if (t != nullptr && t->is_inlinetype() && offset == t->as_inline_klass()->field_map_offset()) {
+          ciConstant map = t->as_inline_klass()->get_field_map();
+          bool is_narrow_oop = (bt == T_NARROWOOP);
+          return Type::make_from_constant(map, true, 1, is_narrow_oop);
+        }
+      }
+    }
+
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
@@ -2316,7 +2333,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
-      if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
+      if (klass->is_inlinetype() && tkls->offset() == in_bytes(InstanceKlass::acmp_maps_offset_offset())) {
+        return TypeInt::make(klass->as_inline_klass()->field_map_offset());
+      }
+      if (klass->is_obj_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset())) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
         return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr();
       }
