@@ -426,10 +426,11 @@ public final class Modifier {
      * The Java source modifiers that can be applied to a class.
      * @jls 8.1.1 Class Modifiers
      */
+    // Does not include IDENTITY - this is used by SYNCHRONIZED for printing already
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.IDENTITY       | Modifier.STRICT;
+        Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.
