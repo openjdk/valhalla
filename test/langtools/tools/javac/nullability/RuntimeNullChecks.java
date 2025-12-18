@@ -93,15 +93,15 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                """
-                class Test {//
-                    public static void main(String... args) {
-                        String s = null;
-                        String![] sr = new String![10];
-                        sr[0] = s; // NPE at runtime, assignment
-                    }
-                }
-                """,
+//                """
+//                class Test {//
+//                    public static void main(String... args) {
+//                        String s = null;
+//                        String[] sr = new String![10];
+//                        sr[0] = s; // NPE at runtime, assignment
+//                    }
+//                }
+//                """,
                 """
                 class Test {
                     static String id(String! arg) { return arg; }
@@ -152,7 +152,7 @@ public class RuntimeNullChecks extends TestRunner {
                     public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) {
                         return action.run();
                     }
-                    boolean isSystemProperty(String key, String value, String def, Object? o) {
+                    boolean isSystemProperty(String key, String value, String def, Object o) {
                         return doPrivileged(
                             new Inner().new MyPrivilegedAction<Boolean>(o) {
                                 @Override

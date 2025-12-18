@@ -324,8 +324,7 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCExpression elemtype = copy(t.elemtype, p);
         List<JCExpression> dims = copy(t.dims, p);
         List<JCExpression> elems = copy(t.elems, p);
-        return M.at(t.pos).NewArray(elemtype, dims, elems,
-                ((JCNewArray)node).nullMarkers);
+        return M.at(t.pos).NewArray(elemtype, dims, elems);
     }
 
     @DefinedBy(Api.COMPILER_TREE)

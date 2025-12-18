@@ -231,7 +231,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 class Foo {
-                                    Foo[]! s;
+                                    Foo[][]! s;
                                 }
                                 """,
                                 Result.Error,
@@ -240,66 +240,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """
                                 value class Point { public implicit Point(); }
                                 class Foo {
-                                    Point![]! s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo![]! s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                value class Point { public implicit Point(); }
-                                class Foo {
-                                    Point![]![]! s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo![]![]! s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                value class Point { public implicit Point(); }
-                                class Foo {
-                                    Point[]![] s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo[]![] s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                value class Point { public implicit Point(); }
-                                class Foo {
-                                    Point[]![][] s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo[]![][] s;
+                                    Point[][]! s;
                                 }
                                 """,
                                 Result.Error,
