@@ -42,6 +42,7 @@
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/methodCounters.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/vm_version.hpp"
@@ -1740,7 +1741,7 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
   return elm_op;
 }
 
-void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
+void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset) {
   assert(field != nullptr, "Need a subelement type specified");
 
   // Find the starting address of the source (inside the array)
@@ -1752,12 +1753,12 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
 
   DecoratorSet decorators = IN_HEAP;
   access_load_at(decorators, subelt_type,
-                     elm_item, LIR_OprFact::intConst(sub_offset), result,
+                     elm_item, LIR_OprFact::longConst(sub_offset), result,
                      nullptr, nullptr);
 }
 
 void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
-                                          ciField* field, int sub_offset) {
+                                          ciField* field, size_t sub_offset) {
   assert(sub_offset == 0 || field != nullptr, "Sanity check");
 
   // Find the starting address of the source (inside the array)
@@ -1773,7 +1774,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "flat fields must have been expanded");
     int obj_offset = inner_field->offset_in_bytes();
-    int elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
+    size_t elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
 
     // Types which are smaller than int are still passed in an int register.
@@ -1796,7 +1797,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     DecoratorSet decorators = IN_HEAP;
     if (is_load) {
       access_load_at(decorators, field_type,
-                     elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                     elm_item, LIR_OprFact::longConst(elm_offset), temp,
                      nullptr, nullptr);
       access_store_at(decorators, field_type,
                       obj_item, LIR_OprFact::intConst(obj_offset), temp,
@@ -1806,7 +1807,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
                      obj_item, LIR_OprFact::intConst(obj_offset), temp,
                      nullptr, nullptr);
       access_store_at(decorators, field_type,
-                      elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                      elm_item, LIR_OprFact::longConst(elm_offset), temp,
                       nullptr, nullptr);
     }
   }
@@ -3008,7 +3009,7 @@ void LIRGenerator::do_Base(Base* x) {
 
   // Check if we need a membar at the beginning of the java.lang.Object
   // constructor to satisfy the memory model for strict fields.
-  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     __ membar_storestore();
   }
 

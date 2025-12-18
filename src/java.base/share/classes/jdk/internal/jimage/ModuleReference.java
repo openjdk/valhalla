@@ -53,8 +53,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
     /** If set, this package exists in non-preview mode. */
     private static final int FLAGS_PKG_HAS_NORMAL_VERSION = 0x2;
     /** If set, the associated module has resources (in normal or preview mode). */
-    // TODO: Make this private again when image writer code is updated.
-    public static final int FLAGS_PKG_HAS_RESOURCES = 0x4;
+    private static final int FLAGS_PKG_HAS_RESOURCES = 0x4;
 
     /**
      * References are ordered with preview versions first which permits early
@@ -71,7 +70,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      *
      * <p>The same reference can be used for multiple packages in the same module.
      */
-    public static ModuleReference forPackageIn(String moduleName, boolean isPreview) {
+    public static ModuleReference forPackage(String moduleName, boolean isPreview) {
         return new ModuleReference(moduleName, FLAGS_PKG_HAS_RESOURCES | previewFlag(isPreview));
     }
 
@@ -80,7 +79,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      *
      * <p>The same reference can be used for multiple packages in the same module.
      */
-    public static ModuleReference forEmptyPackageIn(String moduleName, boolean isPreview) {
+    public static ModuleReference forEmptyPackage(String moduleName, boolean isPreview) {
         return new ModuleReference(moduleName, previewFlag(isPreview));
     }
 
@@ -118,7 +117,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      * under many modules, it only has resources in one.
      */
     public boolean hasResources() {
-        return ((flags & FLAGS_PKG_HAS_RESOURCES) != 0);
+        return (flags & FLAGS_PKG_HAS_RESOURCES) != 0;
     }
 
     /**
@@ -176,9 +175,9 @@ public final class ModuleReference implements Comparable<ModuleReference> {
         if (bufferSize == 0 || (bufferSize & 0x1) != 0) {
             throw new IllegalArgumentException("Invalid buffer size");
         }
-        int testFlags = (includeNormal ? FLAGS_PKG_HAS_NORMAL_VERSION : 0)
+        int includeMask = (includeNormal ? FLAGS_PKG_HAS_NORMAL_VERSION : 0)
                 + (includePreview ? FLAGS_PKG_HAS_PREVIEW_VERSION : 0);
-        if (testFlags == 0) {
+        if (includeMask == 0) {
             throw new IllegalArgumentException("Invalid flags");
         }
 
@@ -188,14 +187,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
             int nextIdx(int idx) {
                 for (; idx < bufferSize; idx += 2) {
                     // If any of the test flags are set, include this entry.
-
-                    // Temporarily allow for *neither* flag to be set. This is what would
-                    // be written by a 1.0 version of the jimage flag, and indicates a
-                    // normal resource without a preview version.
-                    // TODO: Remove the zero-check below once image writer code is updated.
-                    int previewFlags =
-                            buffer.get(idx) & (FLAGS_PKG_HAS_NORMAL_VERSION | FLAGS_PKG_HAS_PREVIEW_VERSION);
-                    if (previewFlags == 0 || (previewFlags & testFlags) != 0) {
+                    if ((buffer.get(idx) & includeMask) != 0) {
                         return idx;
                     } else if (!includeNormal) {
                         // Preview entries are first in the offset buffer, so we

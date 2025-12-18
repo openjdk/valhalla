@@ -453,14 +453,22 @@ int LIR_Assembler::emit_deopt_handler() {
   }
 
   int offset = code_offset();
-  InternalAddress here(__ pc());
 
-  __ pushptr(here.addr(), rscratch1);
-  __ jump(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
+  Label start;
+  __ bind(start);
+
+  __ call(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
+
+  int entry_offset = __ offset();
+
+  __ jmp(start);
+
   guarantee(code_offset() - offset <= deopt_handler_size(), "overflow");
+  assert(code_offset() - entry_offset >= NativePostCallNop::first_check_size,
+         "out of bounds read in post-call NOP check");
   __ end_a_stub();
 
-  return offset;
+  return entry_offset;
 }
 
 void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
@@ -500,7 +508,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
 
       // Load fields from a buffered value with an inline class specific handler
       __ load_klass(rdi, rax, rscratch1);
-      __ movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
       __ movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
       // Unpack handler can be null if inline type is not scalarizable in returns
       __ testptr(rdi, rdi);

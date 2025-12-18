@@ -108,7 +108,7 @@ TEST_VM(markWord, printing) {
     st = new LockerThread(&done, h_obj());
     st->doit();
 
-    ol.wait(THREAD);
+    ol.wait_uninterruptibly(THREAD);
     assert_test_pattern(h_obj, "monitor");
     done.wait_with_safepoint_check(THREAD);  // wait till the thread is done.
   }
@@ -192,7 +192,7 @@ static void assert_flat_array_type(markWord mark) {
 }
 
 TEST_VM(markWord, null_free_flat_array_prototype) {
-  markWord mark = markWord::flat_array_prototype(LayoutKind::NON_ATOMIC_FLAT);
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
   assert_unlocked_state(mark);
   EXPECT_TRUE(mark.is_neutral());
 

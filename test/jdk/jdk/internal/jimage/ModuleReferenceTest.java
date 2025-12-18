@@ -34,8 +34,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 
-import static jdk.internal.jimage.ModuleReference.forEmptyPackageIn;
-import static jdk.internal.jimage.ModuleReference.forPackageIn;
+import static jdk.internal.jimage.ModuleReference.forEmptyPackage;
+import static jdk.internal.jimage.ModuleReference.forPackage;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -57,7 +57,7 @@ public final class ModuleReferenceTest {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     public void emptyRefs(boolean isPreview) {
-        ModuleReference ref = forEmptyPackageIn("module", isPreview);
+        ModuleReference ref = forEmptyPackage("module", isPreview);
 
         assertEquals("module", ref.name());
         assertFalse(ref.hasResources());
@@ -68,7 +68,7 @@ public final class ModuleReferenceTest {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     public void resourceRefs(boolean isPreview) {
-        ModuleReference ref = forPackageIn("module", isPreview);
+        ModuleReference ref = forPackage("module", isPreview);
 
         assertEquals("module", ref.name());
         assertTrue(ref.hasResources());
@@ -79,8 +79,8 @@ public final class ModuleReferenceTest {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     public void mergedRefs(boolean isPreview) {
-        ModuleReference emptyRef = forEmptyPackageIn("module", true);
-        ModuleReference resourceRef = forPackageIn("module", isPreview);
+        ModuleReference emptyRef = forEmptyPackage("module", true);
+        ModuleReference resourceRef = forPackage("module", isPreview);
         ModuleReference merged = emptyRef.merge(resourceRef);
 
         // Merging preserves whether there's content.
@@ -92,10 +92,10 @@ public final class ModuleReferenceTest {
     @Test
     public void writeBuffer() {
         List<ModuleReference> refs = Arrays.asList(
-                forEmptyPackageIn("alpha", true),
-                forEmptyPackageIn("beta", false).merge(forEmptyPackageIn("beta", true)),
-                forPackageIn("gamma", false),
-                forEmptyPackageIn("zeta", false));
+                forEmptyPackage("alpha", true),
+                forEmptyPackage("beta", false).merge(forEmptyPackage("beta", true)),
+                forPackage("gamma", false),
+                forEmptyPackage("zeta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         ModuleReference.write(refs, buffer, fakeEncoder());
         assertArrayEquals(
@@ -119,8 +119,8 @@ public final class ModuleReferenceTest {
     @Test
     public void writeBuffer_badCapacity() {
         List<ModuleReference> refs = Arrays.asList(
-                forPackageIn("first", false),
-                forEmptyPackageIn("alpha", false));
+                forPackage("first", false),
+                forEmptyPackage("alpha", false));
         IntBuffer buffer = IntBuffer.allocate(10);
         var err = assertThrows(
                 IllegalArgumentException.class,
@@ -129,11 +129,11 @@ public final class ModuleReferenceTest {
     }
 
     @Test
-    public void writeBuffer_multipleContent() {
+    public void writeBuffer_multiplePackagesWithResources() {
         // Only one module reference (at most) can have resources.
         List<ModuleReference> refs = Arrays.asList(
-                forPackageIn("alpha", false),
-                forPackageIn("beta", false));
+                forPackage("alpha", false),
+                forPackage("beta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         var err = assertThrows(
                 IllegalArgumentException.class,
@@ -145,8 +145,8 @@ public final class ModuleReferenceTest {
     public void writeBuffer_badOrdering() {
         // Badly ordered because preview references should come first.
         List<ModuleReference> refs = Arrays.asList(
-                forEmptyPackageIn("alpha", false),
-                forEmptyPackageIn("beta", true));
+                forEmptyPackage("alpha", false),
+                forEmptyPackage("beta", true));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         var err = assertThrows(
                 IllegalArgumentException.class,
@@ -158,8 +158,8 @@ public final class ModuleReferenceTest {
     public void writeBuffer_duplicateRef() {
         // Technically distinct, and correctly sorted, but with duplicate names.
         List<ModuleReference> refs = Arrays.asList(
-                forEmptyPackageIn("duplicate", true),
-                forEmptyPackageIn("duplicate", false));
+                forEmptyPackage("duplicate", true),
+                forEmptyPackage("duplicate", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         var err = assertThrows(
                 IllegalArgumentException.class,
@@ -205,10 +205,10 @@ public final class ModuleReferenceTest {
     @Test
     public void sortOrder_previewFirst() {
         List<ModuleReference> refs = Arrays.asList(
-                forEmptyPackageIn("normal.beta", false),
-                forPackageIn("preview.beta", true),
-                forEmptyPackageIn("preview.alpha", true),
-                forEmptyPackageIn("normal.alpha", false));
+                forEmptyPackage("normal.beta", false),
+                forPackage("preview.beta", true),
+                forEmptyPackage("preview.alpha", true),
+                forEmptyPackage("normal.alpha", false));
         refs.sort(Comparator.naturalOrder());
         // Non-empty first with remaining sorted by name.
         assertEquals(

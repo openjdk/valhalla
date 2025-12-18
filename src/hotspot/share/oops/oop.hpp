@@ -25,6 +25,7 @@
 #ifndef SHARE_OOPS_OOP_HPP
 #define SHARE_OOPS_OOP_HPP
 
+#include "cppstdlib/type_traits.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "oops/accessDecorators.hpp"
@@ -35,8 +36,6 @@
 #include "runtime/atomicAccess.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-
-#include <type_traits>
 
 // oopDesc is the top baseclass for objects classes. The {name}Desc classes describe
 // the format of Java objects so the fields can be accessed from C++.
@@ -95,7 +94,6 @@ class oopDesc {
   // Used only to re-initialize the mark word (e.g., of promoted
   // objects during a GC) -- requires a valid klass pointer
   inline void init_mark();
-  inline void reinit_mark(); // special for parallelGC
 
   inline Klass* klass() const;
   inline Klass* klass_or_null() const;

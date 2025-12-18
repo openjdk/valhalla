@@ -57,6 +57,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/javaThread.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/mountUnmountDisabler.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
@@ -1398,8 +1399,7 @@ void IterateThroughHeapObjectClosure::visit_flat_fields(const JvmtiHeapwalkObjec
       field_offset += obj.offset() - obj.inline_klass()->payload_offset();
     }
     // check for possible nulls
-    bool can_be_null = field->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
-    if (can_be_null) {
+    if (LayoutKindHelper::is_nullable_flat(field->layout_kind())) {
       address payload = cast_from_oop<address>(obj.obj()) + field_offset;
       if (field->inline_klass()->is_payload_marked_as_null(payload)) {
         continue;
@@ -1421,7 +1421,7 @@ void IterateThroughHeapObjectClosure::visit_flat_array_elements(const JvmtiHeapw
   flatArrayOop array = flatArrayOop(obj.obj());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  bool need_null_check = faklass->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
 
   for (int index = 0; index < array->length(); index++) {
     address addr = (address)array->value_at_addr(index, faklass->layout_helper());
@@ -2533,6 +2533,39 @@ class SimpleRootsClosure : public OopClosure {
   virtual void do_oop(narrowOop* obj_p) { ShouldNotReachHere(); }
 };
 
+// A supporting closure used to process ClassLoaderData roots.
+class CLDRootsClosure: public OopClosure {
+private:
+  bool _continue;
+public:
+  CLDRootsClosure(): _continue(true) {}
+
+  inline bool stopped() {
+    return !_continue;
+  }
+
+  void do_oop(oop* obj_p) {
+    if (stopped()) {
+      return;
+    }
+
+    oop o = NativeAccess<AS_NO_KEEPALIVE>::oop_load(obj_p);
+    // ignore null
+    if (o == nullptr) {
+      return;
+    }
+
+    jvmtiHeapReferenceKind kind = JVMTI_HEAP_REFERENCE_OTHER;
+    if (o->klass() == vmClasses::Class_klass()) {
+      kind = JVMTI_HEAP_REFERENCE_SYSTEM_CLASS;
+    }
+
+    // invoke the callback
+    _continue = CallbackInvoker::report_simple_root(kind, o);
+  }
+  virtual void do_oop(narrowOop* obj_p) { ShouldNotReachHere(); }
+};
+
 // A supporting closure used to process JNI locals
 class JNILocalRootsClosure : public OopClosure {
  private:
@@ -2876,7 +2909,7 @@ inline bool VM_HeapWalkOperation::iterate_over_flat_array(const JvmtiHeapwalkObj
   flatArrayOop array = flatArrayOop(o.obj());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  bool need_null_check = faklass->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
 
   // array reference to its class
   oop mirror = faklass->java_mirror();
@@ -3100,8 +3133,7 @@ inline bool VM_HeapWalkOperation::iterate_over_object(const JvmtiHeapwalkObject&
     if (!is_primitive_field_type(type)) {
       if (field->is_flat()) {
         // check for possible nulls
-        bool can_be_null = field->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
-        if (can_be_null) {
+        if (LayoutKindHelper::is_nullable_flat(field->layout_kind())) {
           address payload = cast_from_oop<address>(o.obj()) + field_offset;
           if (field->inline_klass()->is_payload_marked_as_null(payload)) {
             continue;
@@ -3162,10 +3194,10 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
   }
 
   // Preloaded classes and loader from the system dictionary
-  blk.set_kind(JVMTI_HEAP_REFERENCE_SYSTEM_CLASS);
-  CLDToOopClosure cld_closure(&blk, ClassLoaderData::_claim_none);
+  CLDRootsClosure cld_roots_closure;
+  CLDToOopClosure cld_closure(&cld_roots_closure, ClassLoaderData::_claim_none);
   ClassLoaderDataGraph::always_strong_cld_do(&cld_closure);
-  if (blk.stopped()) {
+  if (cld_roots_closure.stopped()) {
     return false;
   }
 
@@ -3389,7 +3421,7 @@ void JvmtiTagMap::iterate_over_reachable_objects(jvmtiHeapRootCallback heap_root
                                                  jvmtiObjectReferenceCallback object_ref_callback,
                                                  const void* user_data) {
   // VTMS transitions must be disabled before the EscapeBarrier.
-  JvmtiVTMSTransitionDisabler disabler;
+  MountUnmountDisabler disabler;
 
   JavaThread* jt = JavaThread::current();
   EscapeBarrier eb(true, jt);
@@ -3419,7 +3451,7 @@ void JvmtiTagMap::iterate_over_objects_reachable_from_object(jobject object,
   Arena dead_object_arena(mtServiceability);
   GrowableArray<jlong> dead_objects(&dead_object_arena, 10, 0, 0);
 
-  JvmtiVTMSTransitionDisabler disabler;
+  MountUnmountDisabler disabler;
 
   {
     MutexLocker ml(Heap_lock);
@@ -3441,7 +3473,7 @@ void JvmtiTagMap::follow_references(jint heap_filter,
                                     const void* user_data)
 {
   // VTMS transitions must be disabled before the EscapeBarrier.
-  JvmtiVTMSTransitionDisabler disabler;
+  MountUnmountDisabler disabler;
 
   oop obj = JNIHandles::resolve(object);
   JavaThread* jt = JavaThread::current();

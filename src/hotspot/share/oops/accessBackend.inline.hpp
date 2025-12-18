@@ -27,6 +27,7 @@
 
 #include "oops/accessBackend.hpp"
 
+#include "cppstdlib/type_traits.hpp"
 #include "oops/access.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -34,8 +35,6 @@
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/orderAccess.hpp"
-
-#include <type_traits>
 
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>
@@ -336,4 +335,5 @@ inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, Inlin
   assert(is_aligned(src, md->layout_alignment(lk)) && is_aligned(dst, md->layout_alignment(lk)), "Unaligned value_copy");
   AccessInternal::value_copy_internal(src, dst, static_cast<size_t>(md->layout_size_in_bytes(lk)));
 }
+
 #endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

@@ -73,5 +73,15 @@ public class SystemImageReader {
         return SYSTEM_IMAGE_READER;
     }
 
+    /**
+     * Returns the "raw" API for accessing underlying jimage resource entries.
+     *
+     * <p>This is only meaningful for use by code dealing directly with jimage
+     * files, and cannot be used to reliably lookup resources used at runtime.
+     */
+    public static ResourceEntries getResourceEntries() {
+        return get().getResourceEntries();
+    }
+
     private SystemImageReader() {}
 }

@@ -178,6 +178,7 @@ class LibraryCallKit : public GraphKit {
                               bool is_immutable);
   Node* generate_current_thread(Node* &tls_output);
   Node* generate_virtual_thread(Node* threadObj);
+  Node* load_mirror_from_klass(Node* klass);
   Node* load_klass_from_mirror_common(Node* mirror, bool never_see_null,
                                       RegionNode* region, int null_path,
                                       int offset);
@@ -278,7 +279,7 @@ class LibraryCallKit : public GraphKit {
 
   typedef enum { Relaxed, Opaque, Volatile, Acquire, Release } AccessKind;
   DecoratorSet mo_decorator_for_access_kind(AccessKind kind);
-  bool inline_unsafe_access(bool is_store, BasicType type, AccessKind kind, bool is_unaligned, bool is_flat = false);
+  bool inline_unsafe_access(bool is_store, BasicType type, AccessKind kind, bool is_unaligned);
   bool inline_unsafe_flat_access(bool is_store, AccessKind kind);
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
@@ -304,9 +305,11 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_Continuation_pinning(bool unpin);
 
   bool inline_native_time_funcs(address method, const char* funcName);
+
+  bool inline_native_vthread_start_transition(address funcAddr, const char* funcName, bool is_final_transition);
+  bool inline_native_vthread_end_transition(address funcAddr, const char* funcName, bool is_first_transition);
+
 #if INCLUDE_JVMTI
-  bool inline_native_notify_jvmti_funcs(address funcAddr, const char* funcName, bool is_start, bool is_end);
-  bool inline_native_notify_jvmti_hide();
   bool inline_native_notify_jvmti_sync();
 #endif
 
@@ -347,6 +350,10 @@ class LibraryCallKit : public GraphKit {
   typedef enum { LS_get_add, LS_get_set, LS_cmp_swap, LS_cmp_swap_weak, LS_cmp_exchange } LoadStoreKind;
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
   bool inline_unsafe_fence(vmIntrinsics::ID id);
+  bool inline_arrayInstanceBaseOffset();
+  bool inline_arrayInstanceIndexScale();
+  bool inline_arrayLayout();
+  bool inline_getFieldMap();
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
   bool inline_fp_range_check(vmIntrinsics::ID id);
@@ -368,7 +375,7 @@ class LibraryCallKit : public GraphKit {
   Node* inline_cipherBlockChaining_AESCrypt_predicate(bool decrypting);
   Node* inline_electronicCodeBook_AESCrypt_predicate(bool decrypting);
   Node* inline_counterMode_AESCrypt_predicate();
-  Node* get_key_start_from_aescrypt_object(Node* aescrypt_object);
+  Node* get_key_start_from_aescrypt_object(Node* aescrypt_object, bool is_decrypt);
   bool inline_ghash_processBlocks();
   bool inline_chacha20Block();
   bool inline_kyberNtt();

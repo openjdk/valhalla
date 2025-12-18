@@ -78,6 +78,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamField;
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.chrono.Chronology;
 import java.time.chrono.IsoChronology;
@@ -98,6 +100,8 @@ import java.time.temporal.TemporalUnit;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.time.temporal.ValueRange;
 import java.util.Objects;
+
+import jdk.internal.util.DecimalDigits;
 
 /**
  * A year-month in the ISO-8601 calendar system, such as {@code 2007-12}.
@@ -145,6 +149,20 @@ public final class YearMonth
      */
     @java.io.Serial
     private static final long serialVersionUID = 4183400860270640070L;
+
+    /**
+     * For backward compatibility of the serialized {@code YearMonth.class} object,
+     * explicitly declare the types of the serialized fields as defined in Java SE 8.
+     * Instances of {@code YearMonth} are serialized using the dedicated
+     * serialized form by {@code writeReplace}.
+     * @serialField year int The year.
+     * @serialField month int The month-of-year.
+     */
+    @java.io.Serial
+    private static final ObjectStreamField[] serialPersistentFields = {
+            new ObjectStreamField("year", int.class),
+            new ObjectStreamField("month", int.class),
+    };
     /**
      * Parser.
      */
@@ -157,11 +175,11 @@ public final class YearMonth
     /**
      * @serial The year.
      */
-    private final int year;
+    private final transient int year;
     /**
-     * @serial The month-of-year, not null.
+     * @serial The month-of-year..
      */
-    private final int month;
+    private final transient byte month;
 
     //-----------------------------------------------------------------------
     /**
@@ -314,7 +332,7 @@ public final class YearMonth
      */
     private YearMonth(int year, int month) {
         this.year = year;
-        this.month = month;
+        this.month = (byte) month;
     }
 
     /**
@@ -1205,18 +1223,17 @@ public final class YearMonth
     public String toString() {
         int absYear = Math.abs(year);
         StringBuilder buf = new StringBuilder(9);
-        if (absYear < 1000) {
+        if (absYear < 10000) {
             if (year < 0) {
-                buf.append(year - 10000).deleteCharAt(1);
-            } else {
-                buf.append(year + 10000).deleteCharAt(0);
+                buf.append('-');
             }
+            DecimalDigits.appendQuad(buf, absYear);
         } else {
             buf.append(year);
         }
-        return buf.append(month < 10 ? "-0" : "-")
-            .append(month)
-            .toString();
+        buf.append('-');
+        DecimalDigits.appendPair(buf, month);
+        return buf.toString();
     }
 
     //-----------------------------------------------------------------------

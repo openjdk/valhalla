@@ -45,6 +45,7 @@
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/runtime.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -229,14 +230,13 @@ void Parse::array_store(BasicType bt) {
       array = cast;
     }
 
-    if (!array_type->is_flat() && array_type->is_null_free()) {
-      // Store to non-flat null-free inline type array (elements can never be null)
+    if (array_type->is_null_free() && elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
+      // Array of null-free empty inline type, there is only 1 state for the elements
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
-      if (elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
-        // Ignore empty inline stores, array is already initialized.
-        return;
-      }
-    } else if (!array_type->is_not_flat()) {
+      return;
+    }
+
+    if (!array_type->is_not_flat()) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseArrayFlattening && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
@@ -1994,7 +1994,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               speculative_ptr_kind(tinput) == ProfileNeverNull &&
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
-  assert(!stopped(), "null input should have been caught earlier");
   return cast;
 }
 
@@ -2103,7 +2102,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     record_profile_for_speculation(right, right_type, right_ptr);
   }
 
-  if (!EnableValhalla) {
+  if (!Arguments::is_valhalla_enabled()) {
     Node* cmp = CmpP(left, right);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);
@@ -2118,25 +2117,16 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
-    if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_null_marker())->is_zero_type())) {
-      // Null checking a scalarized but nullable inline type. Check the null marker
-      // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_null_marker(), intcon(0));
-      do_if(btest, cmp);
-      return;
-    } else {
-      PreserveReexecuteState preexecs(this);
-      inc_sp(2);
-      jvms()->set_should_reexecute(true);
-      left = left->as_InlineType()->buffer(this)->get_oop();
-    }
+    PreserveReexecuteState preexecs(this);
+    inc_sp(2);
+    jvms()->set_should_reexecute(true);
+    left = left->as_InlineType()->buffer(this);
   }
   if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    right = right->as_InlineType()->buffer(this)->get_oop();
+    right = right->as_InlineType()->buffer(this);
   }
 
   // First, do a normal pointer comparison
@@ -2246,30 +2236,35 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Pointers are not equal, check if first operand is non-null
   Node* ne_region = new RegionNode(6);
-  Node* null_ctl;
+  Node* null_ctl = nullptr;
+  Node* not_null_left = nullptr;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
   ne_region->init_req(1, null_ctl);
 
-  // First operand is non-null, check if it is an inline type
-  Node* is_value = inline_type_test(not_null_right);
-  IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
-  Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-  ne_region->init_req(2, not_value);
-  set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+  if (!stopped()) {
+    // First operand is non-null, check if it is an inline type
+    Node* is_value = inline_type_test(not_null_right);
+    IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+    Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
+    ne_region->init_req(2, not_value);
+    set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
 
-  // The first operand is an inline type, check if the second operand is non-null
-  Node* not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
-  ne_region->init_req(3, null_ctl);
+    // The first operand is an inline type, check if the second operand is non-null
+    not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
+    ne_region->init_req(3, null_ctl);
 
-  // Check if both operands are of the same class.
-  Node* kls_left = load_object_klass(not_null_left);
-  Node* kls_right = load_object_klass(not_null_right);
-  Node* kls_cmp = CmpP(kls_left, kls_right);
-  Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-  IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-  Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-  set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-  ne_region->init_req(4, kls_ne);
+    if (!stopped()) {
+      // Check if both operands are of the same class.
+      Node* kls_left = load_object_klass(not_null_left);
+      Node* kls_right = load_object_klass(not_null_right);
+      Node* kls_cmp = CmpP(kls_left, kls_right);
+      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+      ne_region->init_req(4, kls_ne);
+    }
+  }
 
   if (stopped()) {
     record_for_igvn(ne_region);
@@ -2304,7 +2299,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   kill_dead_locals();
   ciSymbol* subst_method_name = UseAltSubstitutabilityMethod ? ciSymbols::isSubstitutableAlt_name() : ciSymbols::isSubstitutable_name();
   ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(subst_method_name, ciSymbols::object_object_boolean_signature());
-  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
+  CallStaticJavaNode* call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
   call->init_req(TypeFunc::Parms+1, not_null_right);

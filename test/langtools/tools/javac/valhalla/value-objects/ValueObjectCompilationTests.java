@@ -770,6 +770,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         if (!field.flags().has(AccessFlag.STATIC)) {
                             Set<AccessFlag> fieldFlags = field.flags().flags();
                             Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
+                            if (field.attributes().size() != 0) {
+                                for (var attr : field.attributes()) {
+                                    Assert.check(!attr.attributeName().stringValue().equals("RuntimeInvisibleAnnotations"));
+                                }
+                            }
                         }
                     }
                 }
@@ -1149,6 +1154,40 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """,
                 "new,dup,invokespecial,astore_1,aload_1,invokevirtual,pop,aload_0,aload_1,putfield,aload_0,invokespecial,return"
+        );
+
+        assertFail("compiler.err.invalid.canonical.constructor.in.record",
+                """
+                record R(int x) {
+                    public R {
+                        super();
+                    }
+                }
+                """
+        );
+
+        assertFail("compiler.err.invalid.canonical.constructor.in.record",
+                """
+                record R(int x) {
+                    public R {
+                        this();
+                    }
+                    public R() {
+                        this(1);
+                    }
+                }
+                """
+        );
+
+        assertOK(
+                """
+                record R(int x) {
+                    public R(int x) {
+                        this.x = x;
+                        super();
+                    }
+                }
+                """
         );
     }
 

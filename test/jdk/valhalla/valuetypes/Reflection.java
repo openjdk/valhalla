@@ -158,4 +158,11 @@ public class Reflection {
             }
         }
     }
+
+    @Test
+    @SuppressWarnings("removal")
+    public void testArraysWrongType() {
+        Integer[] array = {1, 2, 3};
+        assertThrows(IllegalArgumentException.class, () -> Array.set(array, 2, new Byte((byte) 5)));
+    }
 }

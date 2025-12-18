@@ -261,6 +261,7 @@ class java_lang_Class : AllStatic {
   static int _reflectionData_offset;
   static int _modifiers_offset;
   static int _is_primitive_offset;
+  static int _is_identity_offset;
   static int _raw_access_flags_offset;
 
   static bool _offsets_computed;
@@ -275,6 +276,13 @@ class java_lang_Class : AllStatic {
   static void initialize_mirror_fields(InstanceKlass* ik, Handle mirror, Handle protection_domain,
                                        Handle classData, TRAPS);
   static void set_mirror_module_field(JavaThread* current, Klass* K, Handle mirror, Handle module);
+  static void set_is_identity(oop java_class, bool value);
+
+  static void set_modifiers(oop java_class, u2 value);
+  static void set_raw_access_flags(oop java_class, u2 value);
+  static void set_is_primitive(oop java_class);
+  static void release_set_array_klass(oop java_class, Klass* klass);
+
  public:
   static void allocate_fixup_lists();
   static void compute_offsets();
@@ -309,12 +317,10 @@ class java_lang_Class : AllStatic {
   static bool is_instance(oop obj);
 
   static bool is_primitive(oop java_class);
-  static void set_is_primitive(oop java_class);
   static BasicType primitive_type(oop java_class);
   static oop primitive_mirror(BasicType t);
-  // JVM_NewArray support
   static Klass* array_klass_acquire(oop java_class);
-  static void release_set_array_klass(oop java_class, Klass* klass);
+
   // compiler support for class operations
   static int klass_offset()                { CHECK_INIT(_klass_offset); }
   static int array_klass_offset()          { CHECK_INIT(_array_klass_offset); }
@@ -334,7 +340,6 @@ class java_lang_Class : AllStatic {
   static objArrayOop signers(oop java_class);
   static oop  class_data(oop java_class);
   static void set_class_data(oop java_class, oop classData);
-  static void set_reflection_data(oop java_class, oop reflection_data);
   static int reflection_data_offset() { return _reflectionData_offset; }
 
   static oop class_loader(oop java_class);
@@ -347,10 +352,6 @@ class java_lang_Class : AllStatic {
   static void set_source_file(oop java_class, oop source_file);
 
   static int modifiers(oop java_class);
-  static void set_modifiers(oop java_class, u2 value);
-
-  static int raw_access_flags(oop java_class);
-  static void set_raw_access_flags(oop java_class, u2 value);
 
   static size_t oop_size(oop java_class);
   static void set_oop_size(HeapWord* java_class, size_t size);
@@ -379,8 +380,8 @@ class java_lang_Class : AllStatic {
 
 #define THREAD_INJECTED_FIELDS(macro)                                  \
   macro(java_lang_Thread, jvmti_thread_state, intptr_signature, false) \
-  macro(java_lang_Thread, jvmti_VTMS_transition_disable_count, int_signature, false) \
-  macro(java_lang_Thread, jvmti_is_in_VTMS_transition, bool_signature, false) \
+  macro(java_lang_Thread, vthread_transition_disable_count, int_signature, false) \
+  macro(java_lang_Thread, is_in_vthread_transition, bool_signature, false) \
   JFR_ONLY(macro(java_lang_Thread, jfr_epoch, short_signature, false))
 
 class java_lang_Thread : AllStatic {
@@ -394,8 +395,8 @@ class java_lang_Thread : AllStatic {
   static int _contextClassLoader_offset;
   static int _eetop_offset;
   static int _jvmti_thread_state_offset;
-  static int _jvmti_VTMS_transition_disable_count_offset;
-  static int _jvmti_is_in_VTMS_transition_offset;
+  static int _vthread_transition_disable_count_offset;
+  static int _is_in_vthread_transition_offset;
   static int _interrupted_offset;
   static int _interruptLock_offset;
   static int _tid_offset;
@@ -448,12 +449,15 @@ class java_lang_Thread : AllStatic {
 
   static JvmtiThreadState* jvmti_thread_state(oop java_thread);
   static void set_jvmti_thread_state(oop java_thread, JvmtiThreadState* state);
-  static int  VTMS_transition_disable_count(oop java_thread);
-  static void inc_VTMS_transition_disable_count(oop java_thread);
-  static void dec_VTMS_transition_disable_count(oop java_thread);
-  static bool is_in_VTMS_transition(oop java_thread);
-  static void set_is_in_VTMS_transition(oop java_thread, bool val);
-  static int  is_in_VTMS_transition_offset();
+
+  static int  vthread_transition_disable_count(oop java_thread);
+  static void inc_vthread_transition_disable_count(oop java_thread);
+  static void dec_vthread_transition_disable_count(oop java_thread);
+  static int  vthread_transition_disable_count_offset() { return _vthread_transition_disable_count_offset; }
+
+  static bool is_in_vthread_transition(oop java_thread);
+  static void set_is_in_vthread_transition(oop java_thread, bool val);
+  static int  is_in_vthread_transition_offset() { return _is_in_vthread_transition_offset; }
 
   // Clear all scoped value bindings on error
   static void clear_scopedValueBindings(oop java_thread);
@@ -566,6 +570,7 @@ class java_lang_VirtualThread : AllStatic {
   static int _next_offset;
   static int _onWaitingList_offset;
   static int _notified_offset;
+  static int _interruptible_wait_offset;
   static int _recheckInterval_offset;
   static int _timeout_offset;
   static int _objectWaiter_offset;
@@ -618,6 +623,7 @@ class java_lang_VirtualThread : AllStatic {
   static jlong timeout(oop vthread);
   static void set_timeout(oop vthread, jlong value);
   static void set_notified(oop vthread, jboolean value);
+  static void set_interruptible_wait(oop vthread, jboolean value);
   static bool is_preempted(oop vthread);
   static JavaThreadStatus map_state_to_thread_status(int state);
 

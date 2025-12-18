@@ -24,11 +24,10 @@
 
 #include "cds/aotLogging.hpp"
 #include "cds/aotMapLogger.hpp"
-#include "cds/archiveHeapLoader.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/classListWriter.hpp"
 #include "cds/filemap.hpp"
-#include "cds/heapShared.hpp"
+#include "cds/heapShared.inline.hpp"
 #include "classfile/classLoaderDataShared.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "code/aotCodeCache.hpp"
@@ -148,7 +147,7 @@ const char* CDSConfig::default_archive_path() {
       tmp.print_raw("_coh");
     }
 #endif
-    if (is_valhalla_preview()) {
+    if (Arguments::is_valhalla_enabled()) {
       tmp.print_raw("_valhalla");
     }
     tmp.print_raw(".jsa");
@@ -306,7 +305,7 @@ void CDSConfig::ergo_init_classic_archive_paths() {
 }
 
 void CDSConfig::check_internal_module_property(const char* key, const char* value) {
-  if (Arguments::is_incompatible_cds_internal_module_property(key) && !Arguments::patching_migrated_classes(key, value)) {
+  if (Arguments::is_incompatible_cds_internal_module_property(key)) {
     stop_using_optimized_module_handling();
     aot_log_info(aot)("optimized module handling: disabled due to incompatible property: %s=%s", key, value);
   }
@@ -548,7 +547,7 @@ void CDSConfig::check_aotmode_record() {
   bool has_output = !FLAG_IS_DEFAULT(AOTCacheOutput);
 
   if (!has_output && !has_config) {
-      vm_exit_during_initialization("At least one of AOTCacheOutput and AOTConfiguration must be specified when using -XX:AOTMode=record");
+    vm_exit_during_initialization("At least one of AOTCacheOutput and AOTConfiguration must be specified when using -XX:AOTMode=record");
   }
 
   if (has_output) {
@@ -914,11 +913,6 @@ static const char* check_options_incompatible_with_dumping_heap() {
     return "UseCompressedClassPointers must be true";
   }
 
-  // Almost all GCs support heap region dump, except ZGC (so far).
-  if (UseZGC) {
-    return "ZGC is not supported";
-  }
-
   return nullptr;
 #else
   return "JVM not configured for writing Java heap objects";
@@ -981,10 +975,6 @@ bool CDSConfig::are_vm_options_incompatible_with_dumping_heap() {
 }
 
 bool CDSConfig::is_dumping_heap() {
-  if (is_valhalla_preview()) {
-    // Not working yet -- e.g., HeapShared::oop_hash() needs to be implemented for value oops
-    return false;
-  }
   if (!(is_dumping_classic_static_archive() || is_dumping_final_static_archive())
       || are_vm_options_incompatible_with_dumping_heap()
       || _disable_heap_dumping) {
@@ -994,7 +984,7 @@ bool CDSConfig::is_dumping_heap() {
 }
 
 bool CDSConfig::is_loading_heap() {
-  return ArchiveHeapLoader::is_in_use();
+  return HeapShared::is_archived_heap_in_use();
 }
 
 bool CDSConfig::is_using_full_module_graph() {
@@ -1006,7 +996,7 @@ bool CDSConfig::is_using_full_module_graph() {
     return false;
   }
 
-  if (is_using_archive() && ArchiveHeapLoader::can_use()) {
+  if (is_using_archive() && HeapShared::can_use_archived_heap()) {
     // Classes used by the archived full module graph are loaded in JVMTI early phase.
     assert(!(JvmtiExport::should_post_class_file_load_hook() && JvmtiExport::has_early_class_hook_env()),
            "CDS should be disabled if early class hooks are enabled");

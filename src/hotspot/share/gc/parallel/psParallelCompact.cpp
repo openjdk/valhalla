@@ -83,6 +83,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -1364,54 +1365,61 @@ void PSParallelCompact::adjust_pointers_in_spaces(uint worker_id, volatile uint*
 
 class PSAdjustTask final : public WorkerTask {
   ThreadsClaimTokenScope                     _threads_claim_token_scope;
-  SubTasksDone                               _sub_tasks;
   WeakProcessor::Task                        _weak_proc_task;
   OopStorageSetStrongParState<false, false>  _oop_storage_iter;
   uint                                       _nworkers;
+  volatile bool                              _code_cache_claimed;
   volatile uint _claim_counters[PSParallelCompact::last_space_id] = {};
 
-  enum PSAdjustSubTask {
-    PSAdjustSubTask_code_cache,
-
-    PSAdjustSubTask_num_elements
-  };
+  bool try_claim_code_cache_task() {
+    return AtomicAccess::load(&_code_cache_claimed) == false
+        && AtomicAccess::cmpxchg(&_code_cache_claimed, false, true) == false;
+  }
 
 public:
   PSAdjustTask(uint nworkers) :
     WorkerTask("PSAdjust task"),
     _threads_claim_token_scope(),
-    _sub_tasks(PSAdjustSubTask_num_elements),
     _weak_proc_task(nworkers),
-    _nworkers(nworkers) {
+    _oop_storage_iter(),
+    _nworkers(nworkers),
+    _code_cache_claimed(false) {
 
     ClassLoaderDataGraph::verify_claimed_marks_cleared(ClassLoaderData::_claim_stw_fullgc_adjust);
   }
 
   void work(uint worker_id) {
-    ParCompactionManager* cm = ParCompactionManager::gc_thread_compaction_manager(worker_id);
-    cm->preserved_marks()->adjust_during_full_gc();
     {
-      // adjust pointers in all spaces
+      // Pointers in heap.
+      ParCompactionManager* cm = ParCompactionManager::gc_thread_compaction_manager(worker_id);
+      cm->preserved_marks()->adjust_during_full_gc();
+
       PSParallelCompact::adjust_pointers_in_spaces(worker_id, _claim_counters);
     }
+
     {
-      ResourceMark rm;
-      Threads::possibly_parallel_oops_do(_nworkers > 1, &pc_adjust_pointer_closure, nullptr);
-    }
-    _oop_storage_iter.oops_do(&pc_adjust_pointer_closure);
-    {
+      // All (strong and weak) CLDs.
       CLDToOopClosure cld_closure(&pc_adjust_pointer_closure, ClassLoaderData::_claim_stw_fullgc_adjust);
       ClassLoaderDataGraph::cld_do(&cld_closure);
     }
+
     {
+      // Threads stack frames. No need to visit on-stack nmethods, because all
+      // nmethods are visited in one go via CodeCache::nmethods_do.
+      ResourceMark rm;
+      Threads::possibly_parallel_oops_do(_nworkers > 1, &pc_adjust_pointer_closure, nullptr);
+      if (try_claim_code_cache_task()) {
+        NMethodToOopClosure adjust_code(&pc_adjust_pointer_closure, NMethodToOopClosure::FixRelocations);
+        CodeCache::nmethods_do(&adjust_code);
+      }
+    }
+
+    {
+      // VM internal strong and weak roots.
+      _oop_storage_iter.oops_do(&pc_adjust_pointer_closure);
       AlwaysTrueClosure always_alive;
       _weak_proc_task.work(worker_id, &always_alive, &pc_adjust_pointer_closure);
     }
-    if (_sub_tasks.try_claim_task(PSAdjustSubTask_code_cache)) {
-      NMethodToOopClosure adjust_code(&pc_adjust_pointer_closure, NMethodToOopClosure::FixRelocations);
-      CodeCache::nmethods_do(&adjust_code);
-    }
-    _sub_tasks.all_tasks_claimed();
   }
 };
 
@@ -1442,6 +1450,20 @@ static void split_regions_for_worker(size_t start, size_t end,
                 + (worker_id < remainder ? 1 : 0);
 }
 
+static bool safe_to_read_header(size_t words) {
+  precond(words > 0);
+
+  // Safe to read if we have enough words for the full header, i.e., both
+  // markWord and Klass pointer.
+  const bool safe = words >= (size_t)oopDesc::header_size();
+
+  // If using Compact Object Headers, the full header is inside the markWord,
+  // so will always be safe to read
+  assert(!UseCompactObjectHeaders || safe, "Compact Object Headers should always be safe");
+
+  return safe;
+}
+
 void PSParallelCompact::forward_to_new_addr() {
   GCTraceTime(Info, gc, phases) tm("Forward", &_gc_timer);
   uint nworkers = ParallelScavengeHeap::heap()->workers().active_workers();
@@ -1452,6 +1474,23 @@ void PSParallelCompact::forward_to_new_addr() {
     explicit ForwardTask(uint num_workers) :
       WorkerTask("PSForward task"),
       _num_workers(num_workers) {}
+
+    static bool should_preserve_mark(oop obj, HeapWord* end_addr) {
+      size_t remaining_words = pointer_delta(end_addr, cast_from_oop<HeapWord*>(obj));
+
+      if (Arguments::is_valhalla_enabled() && !safe_to_read_header(remaining_words)) {
+        // When using Valhalla, it might be necessary to preserve the Valhalla-
+        // specific bits in the markWord. If the entire object header is
+        // copied, the correct markWord (with the appropriate Valhalla bits)
+        // can be safely read from the Klass. However, if the full header is
+        // not copied, we cannot safely read the Klass to obtain this information.
+        // In such cases, we always preserve the markWord to ensure that all
+        // relevant bits, including Valhalla-specific ones, are retained.
+        return true;
+      } else {
+        return obj->mark().must_be_preserved();
+      }
+    }
 
     static void forward_objs_in_range(ParCompactionManager* cm,
                                       HeapWord* start,
@@ -1467,8 +1506,12 @@ void PSParallelCompact::forward_to_new_addr() {
         }
         assert(mark_bitmap()->is_marked(cur_addr), "inv");
         oop obj = cast_to_oop(cur_addr);
+
         if (new_addr != cur_addr) {
-          cm->preserved_marks()->push_if_necessary(obj, obj->mark());
+          if (should_preserve_mark(obj, end)) {
+            cm->preserved_marks()->push_always(obj, obj->mark());
+          }
+
           FullGCForwarding::forward_to(obj, cast_to_oop(new_addr));
         }
         size_t obj_size = obj->size();
@@ -2110,6 +2153,20 @@ HeapWord* PSParallelCompact::partial_obj_end(HeapWord* region_start_addr) {
   return region_start_addr + accumulated_size;
 }
 
+static markWord safe_mark_word_prototype(HeapWord* cur_addr, HeapWord* end_addr) {
+  // If the original markWord contains bits that cannot be reconstructed because
+  // the header cannot be safely read, a placeholder is used. In this case,
+  // the correct markWord is preserved before compaction and restored after
+  // compaction completes.
+  size_t remaining_words = pointer_delta(end_addr, cur_addr);
+
+  if (UseCompactObjectHeaders || (Arguments::is_valhalla_enabled() && safe_to_read_header(remaining_words))) {
+    return cast_to_oop(cur_addr)->klass()->prototype_header();
+  } else {
+    return markWord::prototype();
+  }
+}
+
 // Use region_idx as the destination region, and evacuate all live objs on its
 // source regions to this destination region.
 void PSParallelCompact::fill_region(ParCompactionManager* cm, MoveAndUpdateClosure& closure, size_t region_idx)
@@ -2225,7 +2282,12 @@ void PSParallelCompact::fill_region(ParCompactionManager* cm, MoveAndUpdateClosu
         // This obj doesn't extend into next region; size() is safe to use.
         obj_size = cast_to_oop(cur_addr)->size();
       }
-      closure.do_addr(cur_addr, obj_size);
+
+      markWord mark = safe_mark_word_prototype(cur_addr, end_addr);
+
+      // Perform the move and update of the object
+      closure.do_addr(cur_addr, obj_size, mark);
+
       cur_addr += obj_size;
     } while (cur_addr < end_addr && !closure.is_full());
 
@@ -2345,7 +2407,7 @@ void MoveAndUpdateClosure::complete_region(HeapWord* dest_addr, PSParallelCompac
   region_ptr->set_completed();
 }
 
-void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
+void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words, markWord mark) {
   assert(destination() != nullptr, "sanity");
   _source = addr;
 
@@ -2364,7 +2426,7 @@ void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
     assert(FullGCForwarding::is_forwarded(cast_to_oop(source())), "inv");
     assert(FullGCForwarding::forwardee(cast_to_oop(source())) == cast_to_oop(destination()), "inv");
     Copy::aligned_conjoint_words(source(), copy_destination(), words);
-    cast_to_oop(copy_destination())->reinit_mark();
+    cast_to_oop(copy_destination())->set_mark(mark);
   }
 
   update_state(words);

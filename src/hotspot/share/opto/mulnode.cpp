@@ -198,6 +198,7 @@ const Type* MulNode::Value(PhaseGVN* phase) const {
     if( t2->higher_equal( zero ) ) return zero;
   }
 
+  // TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
   // Code pattern on return from a call that returns an __Value.  Can
   // be optimized away if the return value turns out to be an oop.
   if (op == Op_AndX &&
@@ -1131,6 +1132,19 @@ Node* LShiftNode::IdealIL(PhaseGVN* phase, bool can_reshape, BasicType bt) {
         // Compute X<<con0 + (con1<<con0)
         return AddNode::make(lsh, phase->integercon(java_shift_left(t12->get_con_as_long(bt), con, bt), bt), bt);
       }
+    }
+  }
+  // Check for "(con0 - X) << con1"
+  // Transform is legal, but check for profit.  Avoid breaking 'i2s'
+  // and 'i2b' patterns which typically fold into 'StoreC/StoreB'.
+  if (add1_op == Op_Sub(bt) && (bt != T_INT || con < 16)) {    // Left input is a sub?
+    // Left input is a sub from a constant?
+    const TypeInteger* t11 = phase->type(add1->in(1))->isa_integer(bt);
+    if (t11 != nullptr && t11->is_con()) {
+      // Compute X << con0
+      Node* lsh = phase->transform(LShiftNode::make(add1->in(2), in(2), bt));
+      // Compute (con1<<con0) - (X<<con0)
+      return SubNode::make(phase->integercon(java_shift_left(t11->get_con_as_long(bt), con, bt), bt), lsh, bt);
     }
   }
 

@@ -42,6 +42,7 @@
 #include "oops/resolvedMethodEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -1131,7 +1132,7 @@ void TemplateTable::aastore() {
 
   // Have a null in rax, rdx=array, ecx=index.  Store null at ary[idx]
   __ bind(is_null);
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     Label write_null_to_null_free_array, store_null;
 
       // Move array class to rdi
@@ -1957,7 +1958,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ profile_acmp(rbx, rdx, rax, rcx);
 
   const int is_inline_type_mask = markWord::inline_type_pattern;
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
 
@@ -2340,7 +2341,7 @@ void TemplateTable::resolve_cache_and_index_for_method(int byte_no,
   // Class initialization barrier slow path lands here as well.
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache);
   __ movl(temp, code);
-  __ call_VM(noreg, entry, temp);
+  __ call_VM_preemptable(noreg, entry, temp);
   // Update registers with resolved info
   __ load_method_entry(cache, index);
   __ bind(L_done);
@@ -2387,7 +2388,7 @@ void TemplateTable::resolve_cache_and_index_for_field(int byte_no,
   // Class initialization barrier slow path lands here as well.
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache);
   __ movl(temp, code);
-  __ call_VM(noreg, entry, temp);
+  __ call_VM_preemptable(noreg, entry, temp);
   // Update registers with resolved info
   __ load_field_entry(cache, index);
   __ bind(L_done);
@@ -2679,7 +2680,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(tos_state, atos);
   __ jcc(Assembler::notEqual, notObj);
   // atos
-  if (!EnableValhalla) {
+  if (!Arguments::is_valhalla_enabled()) {
     if (!is_static) pop_and_check_object(obj);
     do_oop_load(_masm, field, rax);
     __ push(atos);
@@ -2957,7 +2958,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
 
   // atos
   {
-    if (!EnableValhalla) {
+    if (!Arguments::is_valhalla_enabled()) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
@@ -3758,8 +3759,8 @@ void TemplateTable::_new() {
 
   __ get_constant_pool(c_rarg1);
   __ get_unsigned_2_byte_index_at_bcp(c_rarg2, 1);
-  call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), c_rarg1, c_rarg2);
-   __ verify_oop(rax);
+  __ call_VM_preemptable(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), c_rarg1, c_rarg2);
+  __ verify_oop(rax);
 
   // continue
   __ bind(done);

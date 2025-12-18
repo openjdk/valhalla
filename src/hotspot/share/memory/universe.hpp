@@ -116,7 +116,6 @@ class Universe: AllStatic {
 
   static intptr_t _non_oop_bits;
 
-
   // array of dummy objects used with +FullGCAlot
   DEBUG_ONLY(static OopHandle   _fullgc_alot_dummy_array;)
   DEBUG_ONLY(static int         _fullgc_alot_dummy_next;)
@@ -128,9 +127,6 @@ class Universe: AllStatic {
   static bool _bootstrapping;                         // true during genesis
   static bool _module_initialized;                    // true after call_initPhase2 called
   static bool _fully_initialized;                     // true after universe_init and initialize_vtables called
-
-  // Shutdown
-  static volatile bool _is_shutting_down;
 
   // the array of preallocated errors with backtraces
   static objArrayOop  preallocated_out_of_memory_errors();
@@ -245,6 +241,7 @@ class Universe: AllStatic {
   static oop          array_index_out_of_bounds_exception_instance();
   static oop          array_store_exception_instance();
   static oop          class_cast_exception_instance();
+  static oop          preempted_exception_instance();
   static oop          vm_exception()                  { return internal_error_instance(); }
 
   static Array<Klass*>* the_array_interfaces_array()  { return _the_array_interfaces_array; }
@@ -259,6 +256,7 @@ class Universe: AllStatic {
   static Method*      is_substitutable_method();
   static Method*      value_object_hash_code_method();
   static Method*      is_substitutableAlt_method();
+  static Method*      value_object_hash_codeAlt_method();
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }
@@ -331,8 +329,6 @@ class Universe: AllStatic {
   static bool is_bootstrapping()                      { return _bootstrapping; }
   static bool is_module_initialized()                 { return _module_initialized; }
   static bool is_fully_initialized()                  { return _fully_initialized; }
-
-  static bool is_shutting_down()                  { return  AtomicAccess::load_acquire(&_is_shutting_down); }
 
   static bool        on_page_boundary(void* addr);
   static bool        should_fill_in_stack_trace(Handle throwable);

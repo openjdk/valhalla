@@ -70,7 +70,8 @@
             java.management
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run junit/othervm/timeout=480 -Xint -XX:+UseG1GC -XX:+UseCompressedOops -Xlog:gc*=info
+ * @run junit/othervm/timeout=480 -XX:+UnlockDiagnosticVMOptions
+                                  -Xint -XX:+UseG1GC -XX:+UseCompressedOops -Xlog:gc*=info
                                   -XX:ParallelGCThreads=1 -XX:ConcGCThreads=1 -XX:-UseDynamicNumberOfGCThreads
                                   -XX:-G1UseConcRefinement -XX:+UseCompressedClassPointers
                                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

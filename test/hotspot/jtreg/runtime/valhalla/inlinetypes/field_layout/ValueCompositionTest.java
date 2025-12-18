@@ -113,13 +113,13 @@ public class ValueCompositionTest {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container0");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     if (useAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.ATOMIC_FLAT, f0.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_ATOMIC_FLAT, f0.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
     }
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f1.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
     }
@@ -140,13 +140,13 @@ public class ValueCompositionTest {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container1");
     FieldLayoutAnalyzer.FieldBlock f = cl.getFieldFromName("val0", false);
     if (useAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.ATOMIC_FLAT, f.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_ATOMIC_FLAT, f.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f.layoutKind());
     }
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f1.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
     }
@@ -193,10 +193,10 @@ public class ValueCompositionTest {
   static public void check_3(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container3");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f1.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
     }
@@ -216,10 +216,10 @@ public class ValueCompositionTest {
   static public void check_4(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container4");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f1.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
     }
@@ -240,7 +240,7 @@ public class ValueCompositionTest {
   static public void check_5(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container5");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
   }
@@ -263,10 +263,10 @@ public class ValueCompositionTest {
   static public void check_6(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container6");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f1.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
     }
@@ -286,10 +286,10 @@ public class ValueCompositionTest {
   static public void check_7(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container7");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f1.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
     }
@@ -310,7 +310,7 @@ public class ValueCompositionTest {
   static public void check_8(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container8");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
   }

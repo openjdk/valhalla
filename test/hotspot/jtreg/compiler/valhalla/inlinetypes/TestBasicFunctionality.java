@@ -141,6 +141,7 @@ public class TestBasicFunctionality {
     public static void main(String[] args) {
         InlineTypes.getFramework()
                    .addScenarios(InlineTypes.DEFAULT_SCENARIOS[Integer.parseInt(args[0])])
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -378,7 +379,7 @@ static MyValue1 tmp = null;
     // Test loop with uncommon trap referencing a value object
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {SCOPE_OBJECT, ">= 1", LOAD_OF_ANY_KLASS, "<= 12"}) // TODO 8227588 (loads should be removed)
+        counts = {SCOPE_OBJECT, ">= 1"}) // LOAD_OF_ANY_KLASS, "<= 12"}) // TODO 8372332, 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 10, MyValue1.DEFAULT);
