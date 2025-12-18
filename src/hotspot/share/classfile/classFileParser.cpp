@@ -92,9 +92,6 @@
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
 #endif
-#if INCLUDE_JFR
-#include "jfr/support/jfrTraceIdExtension.hpp"
-#endif
 
 // We generally try to create the oops directly when parsing, rather than
 // allocating temporary data structures and copying the bytes twice. A
@@ -160,7 +157,9 @@
 
 #define JAVA_26_VERSION                   70
 
-#define CONSTANT_CLASS_DESCRIPTORS        70
+#define JAVA_27_VERSION                   71
+
+#define CONSTANT_CLASS_DESCRIPTORS        71
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -2371,7 +2370,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
     return nullptr;
   }
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     if (((flags & JVM_ACC_SYNCHRONIZED) == JVM_ACC_SYNCHRONIZED)
         && ((flags & JVM_ACC_STATIC) == 0 )
         && !_access_flags.is_identity_class()) {
@@ -3875,7 +3874,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
               permitted_subclasses_attribute_start = cfs->current();
               permitted_subclasses_attribute_length = attribute_length;
             }
-            if (EnableValhalla && tag == vmSymbols::tag_loadable_descriptors()) {
+            if (Arguments::is_valhalla_enabled() && tag == vmSymbols::tag_loadable_descriptors()) {
               if (parsed_loadable_descriptors_attribute) {
                 classfile_parse_error("Multiple LoadableDescriptors attributes in class file %s", CHECK);
                 return;
@@ -4275,9 +4274,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 70.65535 and later
-  return _major_version > JAVA_26_VERSION ||
-         (_major_version == JAVA_26_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 71.65535 and later
+  return _major_version > JAVA_27_VERSION ||
+         (_major_version == JAVA_27_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5473,9 +5472,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
   apply_parsed_class_metadata(ik, _java_fields_count);
-  if (ik->is_inline_klass()) {
-    InlineKlass::cast(ik)->init_fixed_block();
-  }
 
   // can only set dynamic nest-host after static nest information is set
   if (cl_inst_info.dynamic_nest_host() != nullptr) {
@@ -5648,7 +5644,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->initialize_calling_convention(CHECK);
   }
 
-  if (EnableValhalla && !access_flags().is_identity_class() && !access_flags().is_interface()
+  if (Arguments::is_valhalla_enabled() && !access_flags().is_identity_class() && !access_flags().is_interface()
       && _class_name != vmSymbols::java_lang_Object() && UseAltSubstitutabilityMethod) {
     // Both abstract and concrete value classes need a field map for acmp
     ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
@@ -5716,8 +5712,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
       }
     }
   }
-
-  JFR_ONLY(INIT_ID(ik);)
 
   // If we reach here, all is well.
   // Now remove the InstanceKlass* from the _klass_to_deallocate field
@@ -6255,7 +6249,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       return;
     }
 
-    if (EnableValhalla) {
+    if (Arguments::is_valhalla_enabled()) {
       check_identity_and_value_modifiers(this, _super_klass, CHECK);
     }
 
@@ -6270,8 +6264,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                   _class_name->as_klass_external_name()));
   }
 
-  // Determining is the class allows tearing or not (default is not)
-  if (EnableValhalla && !_access_flags.is_identity_class()) {
+  // Determining if the class allows tearing or not (default is not)
+  if (Arguments::is_valhalla_enabled() && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
       // Conditions above are not sufficient to determine atomicity requirements,
@@ -6324,7 +6318,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                           interf->class_in_module_of_loader()));
       }
 
-      if (EnableValhalla) {
+      if (Arguments::is_valhalla_enabled()) {
         // Check modifiers and set carries_identity_modifier/carries_value_modifier flags
         check_identity_and_value_modifiers(this, InstanceKlass::cast(interf), CHECK);
       }
@@ -6369,7 +6363,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   assert(_parsed_annotations != nullptr, "invariant");
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     _inline_layout_info_array = MetadataFactory::new_array<InlineLayoutInfo>(_loader_data,
                                                    java_fields_count(),
                                                    CHECK);

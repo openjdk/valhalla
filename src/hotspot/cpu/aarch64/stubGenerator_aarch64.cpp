@@ -404,7 +404,7 @@ class StubGenerator: public StubCodeGenerator {
       __ tbz(r0, 0, is_long);
       // Load pack handler address
       __ andr(rscratch1, r0, -2);
-      __ ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
       __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_jobject_offset()));
       __ blr(rscratch1);
       __ b(exit);
@@ -2901,7 +2901,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKe (key) in little endian int array
   //
   address generate_aescrypt_encryptBlock() {
     __ align(CodeEntryAlignment);
@@ -2934,7 +2934,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKd (key) in little endian int array
   //
   address generate_aescrypt_decryptBlock() {
     assert(UseAES, "need AES cryptographic extension support");
@@ -2968,7 +2968,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKe (key) in little endian int array
   //   c_rarg3   - r vector byte array address
   //   c_rarg4   - input length
   //
@@ -3073,7 +3073,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKd (key) in little endian int array
   //   c_rarg3   - r vector byte array address
   //   c_rarg4   - input length
   //
@@ -3200,7 +3200,7 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source byte array address
   //   c_rarg1   - destination byte array address
-  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg2   - sessionKe (key) in little endian int array
   //   c_rarg3   - counter vector byte array address
   //   c_rarg4   - input length
   //   c_rarg5   - saved encryptedCounter start

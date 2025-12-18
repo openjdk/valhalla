@@ -611,7 +611,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
   if (!kit->stopped()) {
     assert(vk->has_nullable_atomic_layout(), "element type %s does not have a nullable flat layout", vk->name()->as_utf8());
     kit->set_all_memory(input_memory_state);
-    Node* cast = kit->cast_to_flat_array(base, vk, false, true, true);
+    Node* cast = kit->cast_to_flat_array_exact(base, vk, false, true);
     Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
     store_flat(kit, cast, ptr, true, false, false, decorators);
 
@@ -633,7 +633,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     if (!kit->stopped()) {
       assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, true);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       store_flat(kit, cast, ptr, true, false, true, decorators);
 
@@ -647,7 +647,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     if (!kit->stopped()) {
       assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, false);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       store_flat(kit, cast, ptr, false, false, true, decorators);
 
@@ -692,6 +692,158 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
         bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
         kit->access_store_at(base, field_ptr, field_ptr_type, field_val, val_type, bt, decorators);
       }
+    }
+  }
+}
+
+// Adds a check between val1 and val2. Jumps to 'region' if check passes and optionally sets the corresponding phi input to false.
+static void acmp_val_guard(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2) {
+  Node* cmp = nullptr;
+  switch (bt) {
+  case T_FLOAT:
+    val1 = igvn->register_new_node_with_optimizer(new MoveF2INode(val1));
+    val2 = igvn->register_new_node_with_optimizer(new MoveF2INode(val2));
+    // Fall-through to the int case
+  case T_BOOLEAN:
+  case T_CHAR:
+  case T_BYTE:
+  case T_SHORT:
+  case T_INT:
+    cmp = igvn->register_new_node_with_optimizer(new CmpINode(val1, val2));
+    break;
+  case T_DOUBLE:
+    val1 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val1));
+    val2 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val2));
+    // Fall-through to the long case
+  case T_LONG:
+    cmp = igvn->register_new_node_with_optimizer(new CmpLNode(val1, val2));
+    break;
+  default:
+    assert(is_reference_type(bt), "must be");
+    cmp = igvn->register_new_node_with_optimizer(new CmpPNode(val1, val2));
+  }
+  Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, test));
+  IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(*ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
+  Node* if_f = igvn->register_new_node_with_optimizer(new IfFalseNode(iff));
+  Node* if_t = igvn->register_new_node_with_optimizer(new IfTrueNode(iff));
+
+  region->add_req(if_t);
+  if (phi != nullptr) {
+    phi->add_req(igvn->intcon(0));
+  }
+  *ctrl = if_f;
+}
+
+// Check if a substitutability check between 'this' and 'other' can be implemented in IR
+bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
+  if (other != nullptr && other->is_InlineType() && bottom_type() != other->bottom_type()) {
+    // Different types, this is dead code because there's a check above that guarantees this.
+    return false;
+  }
+  for (uint i = 0; i < field_count(); i++) {
+    ciType* ft = field_type(i);
+    if (ft->is_inlinetype()) {
+      // Check recursively
+      if (!field_value(i)->as_InlineType()->can_emit_substitutability_check(nullptr)){
+        return false;
+      }
+    } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
+      // Comparing this field might require (another) substitutability check, bail out
+      return false;
+    }
+  }
+  return true;
+}
+
+// Emit IR to check substitutability between 'this' (left operand) and the value object referred to by 'other' (right operand).
+// Parse-time checks guarantee that both operands have the same type. If 'other' is not an InlineTypeNode, we need to emit loads for the field values.
+void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* other, bool flat) const {
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  DecoratorSet decorators = IN_HEAP | MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD;
+  MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
+
+  ciInlineKlass* vk = inline_klass();
+  for (uint i = 0; i < field_count(); i++) {
+    int field_off = field_offset(i);
+    if (flat) {
+      // Flat access, no header
+      field_off -= vk->payload_offset();
+    }
+    Node* this_field = field_value(i);
+    ciType* ft = field_type(i);
+    BasicType bt = ft->basic_type();
+
+    Node* other_base = base;
+    Node* other_field = other;
+
+    // Get field value of the other operand
+    if (other->is_InlineType()) {
+      other_field = other->as_InlineType()->field_value(i);
+      other_base = nullptr;
+    } else {
+      // 'other' is an oop, compute address of the field
+      other_field = igvn->register_new_node_with_optimizer(new AddPNode(base, other, igvn->MakeConX(field_off)));
+      if (field_is_flat(i)) {
+        // Flat field, load is handled recursively below
+        assert(this_field->is_InlineType(), "inconsistent field value");
+      } else {
+        // Non-flat field, load the field value and update the base because we are now operating on a different object
+        assert(is_java_primitive(bt) || other_field->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent field type");
+        C2AccessValuePtr addr(other_field, other_field->bottom_type()->is_ptr());
+        C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
+        other_field = bs->load_at(access, Type::get_const_type(ft));
+        other_base = other_field;
+      }
+    }
+
+    if (this_field->is_InlineType()) {
+      RegionNode* done_region = new RegionNode(1);
+      if (!field_is_null_free(i)) {
+        // Nullable field, check null marker before accessing the fields
+        if (field_is_flat(i)) {
+          // Flat field, check embedded null marker
+          Node* null_marker = nullptr;
+          if (other_field->is_InlineType()) {
+            // TODO 8350865 Should we add an IGVN optimization to fold null marker loads from InlineTypeNodes?
+            null_marker = other_field->as_InlineType()->get_null_marker();
+          } else {
+            Node* nm_offset = igvn->MakeConX(ft->as_inline_klass()->null_marker_offset_in_payload());
+            Node* nm_adr = igvn->register_new_node_with_optimizer(new AddPNode(base, other_field, nm_offset));
+            C2AccessValuePtr addr(nm_adr, nm_adr->bottom_type()->is_ptr());
+            C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
+            null_marker = bs->load_at(access, TypeInt::BOOL);
+          }
+          // Return false if null markers are not equal
+          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, this_field->as_InlineType()->get_null_marker(), null_marker);
+
+          // Null markers are equal. If both operands are null, skip the comparison of the fields.
+          acmp_val_guard(igvn, done_region, nullptr, ctrl, T_INT, BoolTest::eq, this_field->as_InlineType()->get_null_marker(), igvn->intcon(0));
+        } else {
+          // Non-flat field, check if oop is null
+
+          // Check if 'this' is null
+          RegionNode* not_null_region = new RegionNode(1);
+          acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, this_field->as_InlineType()->get_null_marker(), igvn->intcon(0));
+
+          // 'this' is null. If 'other' is non-null, return false.
+          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, other_field, igvn->zerocon(T_OBJECT));
+
+          // Both are null, skip comparing the fields
+          done_region->add_req(*ctrl);
+
+          // 'this' is not null. If 'other' is null, return false.
+          *ctrl = igvn->register_new_node_with_optimizer(not_null_region);
+          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, other_field, igvn->zerocon(T_OBJECT));
+        }
+      }
+      // Both operands are non-null, compare all the fields recursively
+      this_field->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, other_base, other_field, field_is_flat(i));
+
+      done_region->add_req(*ctrl);
+      *ctrl = igvn->register_new_node_with_optimizer(done_region);
+    } else {
+      assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
+      acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, this_field, other_field);
     }
   }
 }
@@ -1173,7 +1325,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   if (!kit->stopped()) {
     assert(vk->has_nullable_atomic_layout(), "element type %s does not have a nullable flat layout", vk->name()->as_utf8());
     kit->set_all_memory(input_memory_state);
-    Node* cast = kit->cast_to_flat_array(base, vk, false, true, true);
+    Node* cast = kit->cast_to_flat_array_exact(base, vk, false, true);
     Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
     vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, true, false, false, decorators);
 
@@ -1195,7 +1347,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     if (!kit->stopped()) {
       assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, true);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, true, false, true, decorators);
 
@@ -1209,7 +1361,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     if (!kit->stopped()) {
       assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, false);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, false, false, true, decorators);
 

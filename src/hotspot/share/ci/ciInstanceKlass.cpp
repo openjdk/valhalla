@@ -38,6 +38,7 @@
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -816,7 +817,7 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
 }
 
 bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
-  if (!EnableValhalla) {
+  if (!Arguments::is_valhalla_enabled()) {
     return false;
   }
   if (!is_loaded() || is_inlinetype()) {

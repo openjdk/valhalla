@@ -747,34 +747,6 @@ void SharedRuntime::throw_and_post_jvmti_exception(JavaThread* current, Symbol* 
   throw_and_post_jvmti_exception(current, h_exception);
 }
 
-#if INCLUDE_JVMTI
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_start(oopDesc* vt, jboolean hide, JavaThread* current))
-  assert(hide == JNI_FALSE, "must be VTMS transition finish");
-  jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
-  JvmtiVTMSTransitionDisabler::VTMS_vthread_start(vthread);
-  JNIHandles::destroy_local(vthread);
-JRT_END
-
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_end(oopDesc* vt, jboolean hide, JavaThread* current))
-  assert(hide == JNI_TRUE, "must be VTMS transition start");
-  jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
-  JvmtiVTMSTransitionDisabler::VTMS_vthread_end(vthread);
-  JNIHandles::destroy_local(vthread);
-JRT_END
-
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_mount(oopDesc* vt, jboolean hide, JavaThread* current))
-  jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
-  JvmtiVTMSTransitionDisabler::VTMS_vthread_mount(vthread, hide);
-  JNIHandles::destroy_local(vthread);
-JRT_END
-
-JRT_ENTRY(void, SharedRuntime::notify_jvmti_vthread_unmount(oopDesc* vt, jboolean hide, JavaThread* current))
-  jobject vthread = JNIHandles::make_local(const_cast<oopDesc*>(vt));
-  JvmtiVTMSTransitionDisabler::VTMS_vthread_unmount(vthread, hide);
-  JNIHandles::destroy_local(vthread);
-JRT_END
-#endif // INCLUDE_JVMTI
-
 // The interpreter code to call this tracing function is only
 // called/generated when UL is on for redefine, class and has the right level
 // and tags. Since obsolete methods are never compiled, we don't have
@@ -819,6 +791,8 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
   // determine handler bci, if any
   EXCEPTION_MARK;
 
+  Handle orig_exception(THREAD, exception());
+
   int handler_bci = -1;
   int scope_depth = 0;
   if (!force_unwind) {
@@ -840,7 +814,7 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
         // thrown (bugs 4307310 and 4546590). Set "exception" reference
         // argument to ensure that the correct exception is thrown (4870175).
         recursive_exception_occurred = true;
-        exception = Handle(THREAD, PENDING_EXCEPTION);
+        exception.replace(PENDING_EXCEPTION);
         CLEAR_PENDING_EXCEPTION;
         if (handler_bci >= 0) {
           bci = handler_bci;
@@ -869,8 +843,10 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
 
   // If the compiler did not anticipate a recursive exception, resulting in an exception
   // thrown from the catch bci, then the compiled exception handler might be missing.
-  // This is rare.  Just deoptimize and let the interpreter handle it.
+  // This is rare.  Just deoptimize and let the interpreter rethrow the original
+  // exception at the original bci.
   if (t == nullptr && recursive_exception_occurred) {
+    exception.replace(orig_exception()); // restore original exception
     bool make_not_entrant = false;
     return Deoptimization::deoptimize_for_missing_exception_handler(nm, make_not_entrant);
   }
@@ -2940,6 +2916,19 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
           GrowableArray<Method*>* supers = get_supers();
           for (int i = 0; i < supers->length(); ++i) {
             Method* super_method = supers->at(i);
+            if (AOTCodeCache::is_using_adapter() && super_method->adapter()->get_sig_cc() == nullptr) {
+              // Calling conventions have to be regenerated at runtime and are accessed through method adapters,
+              // which are archived in the AOT code cache. If the adapters are not regenerated, the
+              // calling conventions should be regenerated here.
+              CompiledEntrySignature ces(super_method);
+              ces.compute_calling_conventions();
+              if (ces.has_scalarized_args()) {
+                // Save a C heap allocated version of the scalarized signature and store it in the adapter
+                GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
+                heap_sig->appendAll(ces.sig_cc());
+                super_method->adapter()->set_sig_cc(heap_sig);
+              }
+            }
             if (super_method->is_scalarized_arg(arg_num)) {
               scalar_super = true;
             } else {
@@ -3394,6 +3383,7 @@ void AdapterHandlerEntry::remove_unshareable_info() {
 #endif // ASSERT
    _adapter_blob = nullptr;
    _linked = false;
+   _sig_cc = nullptr;
 }
 
 class CopyAdapterTableToArchive : StackObj {

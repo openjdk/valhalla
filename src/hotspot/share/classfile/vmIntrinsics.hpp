@@ -663,10 +663,10 @@ class methodHandle;
   do_intrinsic(_Continuation_unpin,        jdk_internal_vm_Continuation, unpin_name, void_method_signature, F_SN)       \
                                                                                                                         \
   /* java/lang/VirtualThread */                                                                                         \
-  do_intrinsic(_notifyJvmtiVThreadStart, java_lang_VirtualThread, notifyJvmtiStart_name, void_method_signature, F_RN)   \
-  do_intrinsic(_notifyJvmtiVThreadEnd, java_lang_VirtualThread, notifyJvmtiEnd_name, void_method_signature, F_RN)       \
-  do_intrinsic(_notifyJvmtiVThreadMount, java_lang_VirtualThread, notifyJvmtiMount_name, bool_void_signature, F_RN)     \
-  do_intrinsic(_notifyJvmtiVThreadUnmount, java_lang_VirtualThread, notifyJvmtiUnmount_name, bool_void_signature, F_RN) \
+  do_intrinsic(_vthreadEndFirstTransition, java_lang_VirtualThread, endFirstTransition_name, void_method_signature, F_RN) \
+  do_intrinsic(_vthreadStartFinalTransition, java_lang_VirtualThread, startFinalTransition_name, void_method_signature, F_RN) \
+  do_intrinsic(_vthreadStartTransition, java_lang_VirtualThread, startTransition_name, bool_void_signature, F_RN)       \
+  do_intrinsic(_vthreadEndTransition, java_lang_VirtualThread, endTransition_name, bool_void_signature, F_RN)           \
   do_intrinsic(_notifyJvmtiVThreadDisableSuspend, java_lang_VirtualThread, notifyJvmtiDisableSuspend_name, bool_void_signature, F_SN) \
                                                                                                                         \
   /* support for UnsafeConstants */                                                                                     \
@@ -709,10 +709,13 @@ class methodHandle;
   do_intrinsic(_arrayInstanceBaseOffset,  jdk_internal_misc_Unsafe,     arrayInstanceBaseOffset_name, arrayProperties_signature, F_RN) \
    do_name(     arrayInstanceBaseOffset_name,                           "arrayInstanceBaseOffset0")                              \
    do_signature(arrayProperties_signature,                              "([Ljava/lang/Object;)I")                                \
-  do_intrinsic(_arrayInstanceIndexScale,  jdk_internal_misc_Unsafe,     _arrayInstanceIndexScale_name, arrayProperties_signature, F_RN) \
-   do_name(    _arrayInstanceIndexScale_name,                           "arrayInstanceIndexScale0")                              \
-  do_intrinsic(_arrayLayout,  jdk_internal_misc_Unsafe,                 _arrayLayout_name, arrayProperties_signature, F_RN)      \
-   do_name(    _arrayLayout_name,                                       "arrayLayout0")                                          \
+  do_intrinsic(_arrayInstanceIndexScale,  jdk_internal_misc_Unsafe,     arrayInstanceIndexScale_name, arrayProperties_signature, F_RN) \
+   do_name(     arrayInstanceIndexScale_name,                           "arrayInstanceIndexScale0")                              \
+  do_intrinsic(_arrayLayout,              jdk_internal_misc_Unsafe,     arrayLayout_name, arrayProperties_signature, F_RN)       \
+   do_name(     arrayLayout_name,                                       "arrayLayout0")                                          \
+  do_intrinsic(_getFieldMap,              jdk_internal_misc_Unsafe,     getFieldMap_name, getFieldMap_signature, F_RN)           \
+   do_name(     getFieldMap_name,                                       "getFieldMap0")                                          \
+   do_signature(getFieldMap_signature,                                  "(Ljava/lang/Class;)[I")                                 \
                                                                                                                         \
   /* Custom branch frequencies profiling support for JSR292 */                                                          \
   do_class(java_lang_invoke_MethodHandleImpl,               "java/lang/invoke/MethodHandleImpl")                        \

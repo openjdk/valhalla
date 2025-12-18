@@ -81,6 +81,8 @@ public:
 
   bool must_be_atomic() const;
   bool is_naturally_atomic(bool null_free);
+  int field_map_offset() const;
+  ciConstant get_field_map() const;
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP
