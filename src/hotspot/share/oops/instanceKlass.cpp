@@ -597,7 +597,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
-  _adr_inlineklass_fixed_block(nullptr)
+  _adr_inline_klass_members(nullptr)
 {
   set_vtable_length(parser.vtable_size());
   set_access_flags(parser.access_flags());
@@ -837,6 +837,28 @@ bool InstanceKlass::is_enum_subclass() const {
 
 bool InstanceKlass::should_be_initialized() const {
   return !is_initialized();
+}
+
+// Static size helper
+int InstanceKlass::size(int vtable_length,
+                        int itable_length,
+                        int nonstatic_oop_map_size,
+                        bool is_interface,
+                        bool is_inline_type) {
+  return align_metadata_size(header_size() +
+         vtable_length +
+         itable_length +
+         nonstatic_oop_map_size +
+         (is_interface ? (int)sizeof(Klass*) / wordSize : 0) +
+         (is_inline_type ? (int)sizeof(InlineKlass::Members) / wordSize : 0));
+}
+
+int InstanceKlass::size() const {
+  return size(vtable_length(),
+              itable_length(),
+              nonstatic_oop_map_size(),
+              is_interface(),
+              is_inline_klass());
 }
 
 klassItable InstanceKlass::itable() const {
@@ -1099,7 +1121,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     interk->link_class_impl(CHECK_false);
   }
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     // Aggressively preloading all classes from the LoadableDescriptors attribute
     // so inline classes can be scalarized in the calling conventions computed below
     load_classes_from_loadable_descriptors_attribute(this, THREAD);

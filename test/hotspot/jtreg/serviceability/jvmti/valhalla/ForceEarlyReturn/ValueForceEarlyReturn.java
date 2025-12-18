@@ -27,7 +27,7 @@
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueForceEarlyReturn -XX:+EnableValhalla ValueForceEarlyReturn
+ * @run main/othervm/native -agentlib:ValueForceEarlyReturn ValueForceEarlyReturn
  */
 
 import java.util.Objects;

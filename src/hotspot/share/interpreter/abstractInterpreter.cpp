@@ -41,6 +41,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -156,7 +157,7 @@ AbstractInterpreter::MethodKind AbstractInterpreter::method_kind(const methodHan
           // No need to use the method kind with a memory barrier on entry
           // because the method is empty and already has a memory barrier on return
           return zerolocals;
-        } else if (EnableValhalla) {
+        } else if (Arguments::is_valhalla_enabled()) {
           // For non-empty Object constructors, we need a memory barrier
           // when entering the method to ensure correctness of strict fields
           return object_init;

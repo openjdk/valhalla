@@ -19,26 +19,41 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "oops/layoutKind.hpp"
+/**
+ * @test
+ * @bug 8373261
+ * @enablePreview
+ * @summary VerifyError: Strict fields not a subset of initial strict instance fields
+ */
 
-const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
-  switch(lk) {
-    case LayoutKind::REFERENCE:
-      return "REFERENCE";
-    case LayoutKind::BUFFERED:
-      return "BUFFERED";
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      return "NULL_FREE_NON_ATOMIC_FLAT";
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      return "NULL_FREE_ATOMIC_FLAT";
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      return "NULLABLE_ATOMIC_FLAT";
-    case LayoutKind::UNKNOWN:
-      return "UNKNOWN";
-    default:
-      ShouldNotReachHere();
-  }
+public class StrictFieldsVerifierErrorTest {
+    static value class Val1 {
+        int i1;
+        int i2;
+        int i3;
+        int i4;
+
+        public Val1() {
+            this.i1 = 0;
+            this.i2 = 0;
+            this.i3 = 0;
+            this.i4 = 0;
+        }
+    }
+
+    static value class Val2 {
+        int i1;
+        Val1 val1;
+
+        public Val2(boolean b) {
+            this.i1 = 0;
+            this.val1 = b ? null : new Val1();
+        }
+    }
+
+    public static void main(String[] args) {
+        Val2 val = new Val2(true);
+    }
 }

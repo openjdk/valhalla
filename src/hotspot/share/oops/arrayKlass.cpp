@@ -221,10 +221,10 @@ oop ArrayKlass::component_mirror() const {
 ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
   ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
   switch(lk) {
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
       break;
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:

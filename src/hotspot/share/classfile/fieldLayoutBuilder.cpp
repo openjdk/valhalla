@@ -65,10 +65,10 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
     if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
-      if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NON_ATOMIC_FLAT;
-      return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
+      if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
+      return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::NULL_FREE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
-      return vk->has_non_atomic_layout() ? LayoutKind::NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
+      return vk->has_non_atomic_layout() ? LayoutKind::NULL_FREE_NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
     }
   } else {
     if (UseNullableValueFlattening && vk->has_nullable_atomic_layout()) {
@@ -81,11 +81,11 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
 static void get_size_and_alignment(InlineKlass* vk, LayoutKind kind, int* size, int* alignment) {
   switch(kind) {
-    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       *size = vk->non_atomic_size_in_bytes();
       *alignment = vk->non_atomic_alignment();
       break;
-    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
       *size = vk->atomic_size_in_bytes();
       *alignment = *size;
       break;
@@ -1518,7 +1518,7 @@ void FieldLayoutBuilder::epilogue() {
   static bool first_layout_print = true;
 
 
-  if (PrintFieldLayout || (PrintInlineLayout && _has_flattening_information)) {
+  if (PrintFieldLayout || (PrintInlineLayout && (_has_flattening_information || _is_abstract_value))) {
     ResourceMark rm;
     stringStream st;
     if (first_layout_print) {
@@ -1539,21 +1539,31 @@ void FieldLayoutBuilder::epilogue() {
     st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
       st.print_cr("First field offset = %d", _payload_offset);
-      st.print_cr("Payload layout: %d/%d", _payload_size_in_bytes, _payload_alignment);
+      st.print_cr("%s layout: %d/%d", LayoutKindHelper::layout_kind_as_string(LayoutKind::BUFFERED),
+                  _payload_size_in_bytes, _payload_alignment);
       if (has_non_atomic_flat_layout()) {
-        st.print_cr("Non atomic flat layout: %d/%d", _non_atomic_layout_size_in_bytes, _non_atomic_layout_alignment);
+        st.print_cr("%s layout: %d/%d",
+                    LayoutKindHelper::layout_kind_as_string(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT),
+                    _non_atomic_layout_size_in_bytes, _non_atomic_layout_alignment);
       } else {
-        st.print_cr("Non atomic flat layout: -/-");
+        st.print_cr("%s layout: -/-",
+                    LayoutKindHelper::layout_kind_as_string(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT));
       }
       if (has_atomic_layout()) {
-        st.print_cr("Atomic flat layout: %d/%d", _atomic_layout_size_in_bytes, _atomic_layout_size_in_bytes);
+        st.print_cr("%s layout: %d/%d",
+                    LayoutKindHelper::layout_kind_as_string(LayoutKind::NULL_FREE_ATOMIC_FLAT),
+                    _atomic_layout_size_in_bytes, _atomic_layout_size_in_bytes);
       } else {
-        st.print_cr("Atomic flat layout: -/-");
+        st.print_cr("%s layout: -/-",
+                    LayoutKindHelper::layout_kind_as_string(LayoutKind::NULL_FREE_ATOMIC_FLAT));
       }
       if (has_nullable_atomic_layout()) {
-        st.print_cr("Nullable flat layout: %d/%d", _nullable_layout_size_in_bytes, _nullable_layout_size_in_bytes);
+        st.print_cr("%s layout: %d/%d",
+                    LayoutKindHelper::layout_kind_as_string(LayoutKind::NULLABLE_ATOMIC_FLAT),
+                    _nullable_layout_size_in_bytes, _nullable_layout_size_in_bytes);
       } else {
-        st.print_cr("Nullable flat layout: -/-");
+        st.print_cr("%s layout: -/-",
+                    LayoutKindHelper::layout_kind_as_string(LayoutKind::NULLABLE_ATOMIC_FLAT));
       }
       if (_null_marker_offset != -1) {
         st.print_cr("Null marker offset = %d", _null_marker_offset);

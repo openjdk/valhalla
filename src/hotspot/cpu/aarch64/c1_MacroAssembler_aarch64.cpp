@@ -33,6 +33,7 @@
 #include "interpreter/interpreter.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markWord.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -101,7 +102,7 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register t1, Register t2) {
   assert_different_registers(obj, klass, len);
 
-  if (UseCompactObjectHeaders || EnableValhalla) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     // COH: Markword contains class pointer which is only known at runtime.
     // Valhalla: Could have value class which has a different prototype header to a normal object.
     // In both cases, we need to fetch dynamically.
