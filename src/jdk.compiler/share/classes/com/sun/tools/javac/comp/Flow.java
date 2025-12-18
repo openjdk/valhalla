@@ -2123,7 +2123,7 @@ public class Flow {
                                 } else {
                                     checkInit(TreeInfo.diagnosticPositionFor(var, vardecl), var);
                                 }
-                            } else if (!tree.sym.isImplicitConstructor()) { // implicit constructors are special, ignore them
+                            } else {
                                 checkInit(TreeInfo.diagEndPos(tree.body), var);
                             }
                         }
@@ -2625,7 +2625,7 @@ public class Flow {
 
                 // If super(): at this point all initialization blocks will execute
 
-                if (name == names._super && !currentMethod.sym.isImplicitConstructor()) {
+                if (name == names._super) {
                     // strict fields should have been initialized at this point
                     for (int i = firstadr; i < nextadr; i++) {
                         JCVariableDecl vardecl = vardecls[i];

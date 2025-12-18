@@ -1,2 +1,0 @@
-CheckImplicitCreationAttrIsUnique.java:13:9: compiler.err.cant.access: DuplicateImplicitCreationAttr, (compiler.misc.bad.class.file.header: DuplicateImplicitCreationAttr.class, (compiler.misc.attribute.must.be.unique: ImplicitCreation))
-1 error

@@ -128,12 +128,6 @@ public enum Modifier {
     VALUE,
 
     /**
-     * The modifier {@code implicit}
-     * @since 21
-     */
-    IMPLICIT,
-
-    /**
      * The modifier {@code final}
      *
      * @jls 8.1.1.2 {@code sealed}, {@code non-sealed}, and {@code final} Classes

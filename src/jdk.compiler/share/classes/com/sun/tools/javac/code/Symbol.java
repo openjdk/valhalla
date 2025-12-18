@@ -491,12 +491,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init;
     }
 
-    /** Is this symbol an implicit constructor?
-     */
-    public boolean isImplicitConstructor() {
-        return isConstructor() && ((flags() & IMPLICIT) != 0);
-    }
-
     public boolean isDynamic() {
         return false;
     }
@@ -1358,8 +1352,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         public boolean isPermittedExplicit = false;
 
-        private boolean hasImplicitConstructor = false;
-
         private record PermittedClassWithPos(Symbol permittedClass, int pos) {}
 
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
@@ -1724,35 +1716,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         @DefinedBy(Api.LANGUAGE_MODEL)
         public List<Type> getPermittedSubclasses() {
             return permitted.stream().map(s -> s.permittedClass().type).collect(List.collector());
-        }
-
-        public boolean hasImplicitConstructor() {
-            if (hasImplicitConstructor) {
-                return true;
-            } else {
-                if (getImplicitConstructor() != null) {
-                    hasImplicitConstructor = true;
-                }
-                return hasImplicitConstructor;
-            }
-        }
-
-        public void implicitConstructorFound() {
-            hasImplicitConstructor = true;
-        }
-
-        private MethodSymbol getImplicitConstructor() {
-            for (Symbol s : members().getSymbols(NON_RECURSIVE)) {
-                switch (s.kind) {
-                    case MTH:
-                        if (s.isConstructor()) {
-                            if (s.isImplicitConstructor()) {
-                                return (MethodSymbol) s;
-                            }
-                        }
-                }
-            }
-            return null;
         }
     }
 

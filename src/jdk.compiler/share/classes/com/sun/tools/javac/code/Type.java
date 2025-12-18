@@ -240,10 +240,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
-    public boolean hasImplicitConstructor() {
-        return false;
-    }
-
     // Does this type need to be preloaded in the context of the referring class ??
     public boolean requiresLoadableDescriptors(Symbol referringClass) {
         if (this.tsym == referringClass)
@@ -1212,11 +1208,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public boolean isParameterized() {
             return allparams().tail != null;
             // optimization, was: allparams().nonEmpty();
-        }
-
-        @Override
-        public boolean hasImplicitConstructor() {
-            return tsym != null && tsym.kind == TYP && ((ClassSymbol)tsym).hasImplicitConstructor();
         }
 
         @Override

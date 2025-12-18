@@ -1020,19 +1020,6 @@ public class ClassWriter extends ClassFile {
         return 0;
     }
 
-    /** Write "ImplicitCreation" attribute.
-     */
-    int writeImplicitCreationIfNeeded(ClassSymbol csym) {
-        if (allowNullRestrictedTypes && csym.isValueClass() && csym.hasImplicitConstructor()) {
-            int alenIdx = writeAttr(names.ImplicitCreation);
-            int flags = /*ACC_DEFAULT |*/ (csym.isSubClass(syms.looselyConsistentValueType.tsym, types) ? ACC_NON_ATOMIC : 0);
-            databuf.appendChar(flags);
-            endAttr(alenIdx);
-            return 1;
-        }
-        return 0;
-    }
-
     /** Write "NullRestricted" attribute.
      */
     int writeNullRestrictedIfNeeded(Symbol sym) {
@@ -1876,10 +1863,6 @@ public class ClassWriter extends ClassFile {
 
         if (target.hasSealedClasses()) {
             acount += writePermittedSubclassesIfNeeded(c);
-        }
-
-        if (target.hasValueClasses()) {
-            acount += writeImplicitCreationIfNeeded(c);
         }
 
         if (!poolWriter.bootstrapMethods.isEmpty()) {

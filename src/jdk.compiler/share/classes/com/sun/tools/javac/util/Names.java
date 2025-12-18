@@ -170,7 +170,6 @@ public class Names {
     public final Name Value;
     public final Name Varargs;
     public final Name PermittedSubclasses;
-    public final Name ImplicitCreation;
     public final Name NullRestricted;
 
     // members of java.lang.annotation.ElementType
@@ -240,7 +239,6 @@ public class Names {
     public final Name requiresIdentityInternal;
 
     // value classes
-    public final Name implicit;
     public final Name newInstance;
     public final Name asNullRestrictedType;
 
@@ -375,7 +373,6 @@ public class Names {
         Value = fromString("Value");
         Varargs = fromString("Varargs");
         PermittedSubclasses = fromString("PermittedSubclasses");
-        ImplicitCreation = fromString("ImplicitCreation");
         NullRestricted = fromString("NullRestricted");
 
         // members of java.lang.annotation.ElementType
@@ -439,7 +436,6 @@ public class Names {
         requiresIdentityInternal = fromString("jdk.internal.RequiresIdentity+Annotation");
 
         //value classes
-        implicit = fromString("implicit");
         newInstance = fromString("newInstance");
         asNullRestrictedType = fromString("asNullRestrictedType");
     }

@@ -133,9 +133,6 @@ public class Flags {
     @Use({FlagTarget.METHOD})
     @NoToStringValue
     public static final int ACC_VARARGS  = 1<<7;
-    @Use({FlagTarget.CLASS})
-    @NoToStringValue
-    public static final int ACC_NON_ATOMIC = 1<<8;
     @Use({FlagTarget.VARIABLE})
     @NoToStringValue
     public static final int ACC_STRICT   = 1<<11;
@@ -541,12 +538,6 @@ public class Flags {
     public static final long STRICT = 1L<<19; // VarSymbols
 
     /**
-     * Flag to indicate that a value class constructor is implicit
-     */
-    @Use({FlagTarget.METHOD})
-    public static final long IMPLICIT    = 1L<<59;
-
-    /**
      * Describe modifier flags as they might appear in source code, i.e.,
      * separated by spaces and in the order suggested by JLS 8.1.1.
      */
@@ -585,12 +576,11 @@ public class Flags {
         ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
         ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
         ValueFieldFlags                   = (long) VarFlags | STRICT | FINAL,
-        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS | IMPLICIT,
+        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,
         LocalVarFlags                     = FINAL | PARAMETER,
-        ReceiverParamFlags                = PARAMETER,
-        ImplicitConstructorFlags          = PUBLIC | IMPLICIT;
+        ReceiverParamFlags                = PARAMETER;
 
     public static Set<Modifier> asModifierSet(long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
@@ -613,7 +603,6 @@ public class Flags {
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
             if (0 != (flags & VALUE_CLASS))     modifiers.add(Modifier.VALUE);
-            if (0 != (flags & IMPLICIT))        modifiers.add(Modifier.IMPLICIT);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
