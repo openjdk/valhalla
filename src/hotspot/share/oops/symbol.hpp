@@ -246,9 +246,6 @@ class Symbol : public MetaspaceObj {
     return starts_with('(') && ends_with('V');
   }
 
-  Symbol* fundamental_name(TRAPS);
-  bool is_same_fundamental_type(Symbol*) const;
-
   // Test if the symbol has the give substring at or after the i-th char.
   int index_of_at(int i, const char* substr, int substr_len) const;
 

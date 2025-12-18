@@ -569,6 +569,7 @@ class SignatureStream : public StackObj {
   oop as_java_mirror(Handle class_loader, FailureMode failure_mode, TRAPS);
 };
 
+class SigEntry;
 class SigEntryFilter;
 typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
 

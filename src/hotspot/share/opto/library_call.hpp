@@ -178,6 +178,7 @@ class LibraryCallKit : public GraphKit {
                               bool is_immutable);
   Node* generate_current_thread(Node* &tls_output);
   Node* generate_virtual_thread(Node* threadObj);
+  Node* load_mirror_from_klass(Node* klass);
   Node* load_klass_from_mirror_common(Node* mirror, bool never_see_null,
                                       RegionNode* region, int null_path,
                                       int offset);
@@ -352,6 +353,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_arrayInstanceBaseOffset();
   bool inline_arrayInstanceIndexScale();
   bool inline_arrayLayout();
+  bool inline_getFieldMap();
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
   bool inline_fp_range_check(vmIntrinsics::ID id);

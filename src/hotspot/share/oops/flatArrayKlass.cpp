@@ -42,6 +42,7 @@
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -372,7 +373,7 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
   // With the addition of ACC_IDENTITY
   u2 element_flags = element_klass()->compute_modifier_flags();
 
-  u2 identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+  u2 identity_flag = (Arguments::is_valhalla_enabled()) ? JVM_ACC_IDENTITY : 0;
 
   return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
                         | (identity_flag | JVM_ACC_ABSTRACT | JVM_ACC_FINAL);

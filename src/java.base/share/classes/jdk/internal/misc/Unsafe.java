@@ -4422,6 +4422,7 @@ public final class Unsafe {
     private native int arrayInstanceIndexScale0(Object[] array);
     private native long getObjectSize0(Object o);
     private native int getLoadAverage0(double[] loadavg, int nelems);
+    @IntrinsicCandidate
     private native int[] getFieldMap0(Class <?> c);
 
 

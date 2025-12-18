@@ -41,6 +41,7 @@ class MethodLiveness;
 class Arena;
 class BCEscapeAnalyzer;
 class InlineTree;
+class SigEntry;
 class xmlStream;
 
 // Whether profiling found an oop to be always, never or sometimes
