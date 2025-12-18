@@ -771,7 +771,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
 
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
-    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
     ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
     // Unpack handler can be null if inline type is not scalarizable in returns
     cbz(rscratch1, skip);
@@ -845,7 +845,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
   ldr(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset()));
 
   Label slow_case, done;
-  lightweight_lock(lock_reg, obj_reg, tmp, tmp2, tmp3, slow_case);
+  fast_lock(lock_reg, obj_reg, tmp, tmp2, tmp3, slow_case);
   b(done);
 
   bind(slow_case);
@@ -877,7 +877,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
   const Register swap_reg   = r0;
   const Register header_reg = c_rarg2;  // Will contain the old oopMark
   const Register obj_reg    = c_rarg3;  // Will contain the oop
-  const Register tmp_reg    = c_rarg4;  // Temporary used by lightweight_unlock
+  const Register tmp_reg    = c_rarg4;  // Temporary used by fast_unlock
 
   save_bcp(); // Save in case of exception
 
@@ -888,7 +888,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
   str(zr, Address(lock_reg, BasicObjectLock::obj_offset()));
 
   Label slow_case, done;
-  lightweight_unlock(obj_reg, header_reg, swap_reg, tmp_reg, slow_case);
+  fast_unlock(obj_reg, header_reg, swap_reg, tmp_reg, slow_case);
   b(done);
 
   bind(slow_case);

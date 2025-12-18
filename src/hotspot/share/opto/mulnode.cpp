@@ -198,6 +198,7 @@ const Type* MulNode::Value(PhaseGVN* phase) const {
     if( t2->higher_equal( zero ) ) return zero;
   }
 
+  // TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
   // Code pattern on return from a call that returns an __Value.  Can
   // be optimized away if the return value turns out to be an oop.
   if (op == Op_AndX &&

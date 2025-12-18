@@ -1081,7 +1081,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
 #else
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rdi, rax, rscratch1);
-    movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
     movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
     // Unpack handler can be null if inline type is not scalarizable in returns
     testptr(rdi, rdi);
@@ -1251,7 +1251,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
   // Load object pointer into obj_reg
   movptr(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset()));
 
-  lightweight_lock(lock_reg, obj_reg, swap_reg, tmp_reg, slow_case);
+  fast_lock(lock_reg, obj_reg, swap_reg, tmp_reg, slow_case);
   jmp(done);
 
   bind(slow_case);
@@ -1293,7 +1293,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
   // Free entry
   movptr(Address(lock_reg, BasicObjectLock::obj_offset()), NULL_WORD);
 
-  lightweight_unlock(obj_reg, swap_reg, header_reg, slow_case);
+  fast_unlock(obj_reg, swap_reg, header_reg, slow_case);
   jmp(done);
 
   bind(slow_case);

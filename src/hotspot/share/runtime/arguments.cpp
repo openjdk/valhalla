@@ -319,6 +319,10 @@ bool needs_module_property_warning = false;
 #define ENABLE_NATIVE_ACCESS_LEN 20
 #define ILLEGAL_NATIVE_ACCESS "illegal.native.access"
 #define ILLEGAL_NATIVE_ACCESS_LEN 21
+#define ENABLE_FINAL_FIELD_MUTATION "enable.final.field.mutation"
+#define ENABLE_FINAL_FIELD_MUTATION_LEN 27
+#define ILLEGAL_FINAL_FIELD_MUTATION "illegal.final.field.mutation"
+#define ILLEGAL_FINAL_FIELD_MUTATION_LEN 28
 
 // Return TRUE if option matches 'property', or 'property=', or 'property.'.
 static bool matches_property_suffix(const char* option, const char* property, size_t len) {
@@ -345,7 +349,9 @@ bool Arguments::internal_module_property_helper(const char* property, bool check
     if (matches_property_suffix(property_suffix, PATCH, PATCH_LEN) ||
         matches_property_suffix(property_suffix, LIMITMODS, LIMITMODS_LEN) ||
         matches_property_suffix(property_suffix, UPGRADE_PATH, UPGRADE_PATH_LEN) ||
-        matches_property_suffix(property_suffix, ILLEGAL_NATIVE_ACCESS, ILLEGAL_NATIVE_ACCESS_LEN)) {
+        matches_property_suffix(property_suffix, ILLEGAL_NATIVE_ACCESS, ILLEGAL_NATIVE_ACCESS_LEN) ||
+        matches_property_suffix(property_suffix, ENABLE_FINAL_FIELD_MUTATION, ENABLE_FINAL_FIELD_MUTATION_LEN) ||
+        matches_property_suffix(property_suffix, ILLEGAL_FINAL_FIELD_MUTATION, ILLEGAL_FINAL_FIELD_MUTATION_LEN)) {
       return true;
     }
 
@@ -357,18 +363,6 @@ bool Arguments::internal_module_property_helper(const char* property, bool check
           matches_property_suffix(property_suffix, PATH, PATH_LEN) ||
           matches_property_suffix(property_suffix, ADDMODS, ADDMODS_LEN) ||
           matches_property_suffix(property_suffix, ENABLE_NATIVE_ACCESS, ENABLE_NATIVE_ACCESS_LEN)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-bool Arguments::patching_migrated_classes(const char* property, const char* value) {
-  if (strncmp(property, MODULE_PROPERTY_PREFIX, MODULE_PROPERTY_PREFIX_LEN) == 0) {
-    const char* property_suffix = property + MODULE_PROPERTY_PREFIX_LEN;
-    if (matches_property_suffix(property_suffix, PATCH, PATCH_LEN)) {
-      if (strcmp(value, "java.base-valueclasses.jar")) {
         return true;
       }
     }
@@ -543,13 +537,17 @@ static SpecialFlag const special_jvm_flags[] = {
   { "RequireSharedSpaces",          JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "LockingMode",                  JDK_Version::jdk(24), JDK_Version::jdk(26), JDK_Version::jdk(27) },
+  { "EnableValhalla",               JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::undefined() },
 #ifdef _LP64
-  { "UseCompressedClassPointers",   JDK_Version::jdk(25),  JDK_Version::jdk(26), JDK_Version::undefined() },
+  { "UseCompressedClassPointers",   JDK_Version::jdk(25),  JDK_Version::jdk(27), JDK_Version::undefined() },
 #endif
   { "ParallelRefProcEnabled",       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "ParallelRefProcBalancingEnabled", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "PSChunkLargeArrays",           JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "MaxRAM",                       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "AggressiveHeap",               JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "NeverActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "AlwaysActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "CreateMinidumpOnCrash",        JDK_Version::jdk(9),  JDK_Version::undefined(), JDK_Version::undefined() },
 
@@ -1483,10 +1481,10 @@ void Arguments::set_conservative_max_heap_alignment() {
   // the alignments imposed by several sources: any requirements from the heap
   // itself and the maximum page size we may run the VM with.
   size_t heap_alignment = GCConfig::arguments()->conservative_max_heap_alignment();
-  _conservative_max_heap_alignment = MAX4(heap_alignment,
+  _conservative_max_heap_alignment = MAX3(heap_alignment,
                                           os::vm_allocation_granularity(),
-                                          os::max_page_size(),
-                                          GCArguments::compute_heap_alignment());
+                                          os::max_page_size());
+  assert(is_power_of_2(_conservative_max_heap_alignment), "Expected to be a power-of-2");
 }
 
 jint Arguments::set_ergonomics_flags() {
@@ -1594,8 +1592,8 @@ void Arguments::set_heap_size() {
     }
 
     if (UseCompressedOops) {
-      size_t heap_end = HeapBaseMinAddress + MaxHeapSize;
-      size_t max_coop_heap = max_heap_for_compressed_oops();
+      uintptr_t heap_end = HeapBaseMinAddress + MaxHeapSize;
+      uintptr_t max_coop_heap = max_heap_for_compressed_oops();
 
       // Limit the heap size to the maximum possible when using compressed oops
       if (heap_end < max_coop_heap) {
@@ -1609,10 +1607,10 @@ void Arguments::set_heap_size() {
       // and UseCompressedOops was not specified.
       if (reasonable_max > max_coop_heap) {
         if (FLAG_IS_ERGO(UseCompressedOops) && has_ram_limit) {
-          aot_log_info(aot)("UseCompressedOops disabled due to "
-                            "max heap %zu > compressed oop heap %zu. "
-                            "Please check the setting of MaxRAMPercentage %5.2f.",
-                            reasonable_max, max_coop_heap, MaxRAMPercentage);
+          log_debug(gc, heap, coops)("UseCompressedOops disabled due to "
+                                     "max heap %zu > compressed oop heap %zu. "
+                                     "Please check the setting of MaxRAMPercentage %5.2f.",
+                                     reasonable_max, (size_t)max_coop_heap, MaxRAMPercentage);
           FLAG_SET_ERGO(UseCompressedOops, false);
         } else {
           reasonable_max = max_coop_heap;
@@ -1819,6 +1817,7 @@ static unsigned int addreads_count = 0;
 static unsigned int addexports_count = 0;
 static unsigned int addopens_count = 0;
 static unsigned int enable_native_access_count = 0;
+static unsigned int enable_final_field_mutation = 0;
 static bool patch_mod_javabase = false;
 
 // Check the consistency of vm_init_args
@@ -2086,69 +2085,10 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
   return JNI_OK;
 }
 
-// Temporary system property to disable preview patching and enable the new preview mode
-// feature for testing/development. Once the preview mode feature is finished, the value
-// will be always 'true' and this code, and all related dead-code can be removed.
-#define DISABLE_PREVIEW_PATCHING_DEFAULT false
-
-bool Arguments::disable_preview_patching() {
-  const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
-  return (prop != nullptr)
-      ? strncmp(prop, "true", strlen("true")) == 0
-      : DISABLE_PREVIEW_PATCHING_DEFAULT;
-}
-
-// VALUECLASS_STR must match string used in the build
-#define VALUECLASS_STR "valueclasses"
-#define VALUECLASS_JAR "-" VALUECLASS_STR ".jar"
-
 // Finalize --patch-module args and --enable-preview related to value class module patches.
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
-  // If --enable-preview and EnableValhalla is true, modules may have preview mode resources.
-  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
-  // Whether to use module patching, or the new preview mode feature for preview resources.
-  bool disable_patching = disable_preview_patching();
-
-  // This must be called, even with 'false', to enable resource lookup from JImage.
-  ClassLoader::init_jimage(disable_patching && enable_valhalla_preview);
-
-  // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
-  // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  if (!disable_patching && enable_valhalla_preview) {
-    char * valueclasses_dir = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-    const char * fileSep = os::file_separator();
-
-    jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%s" VALUECLASS_STR "%s",
-                 Arguments::get_java_home(), fileSep, fileSep, fileSep);
-    DIR* dir = os::opendir(valueclasses_dir);
-    if (dir != nullptr) {
-      char * module_name = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-      char * path = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-
-      for (dirent * entry = os::readdir(dir); entry != nullptr; entry = os::readdir(dir)) {
-        // Test if file ends-with "-valueclasses.jar"
-        int len = (int)strlen(entry->d_name) - (sizeof(VALUECLASS_JAR) - 1);
-        if (len <= 0 || strcmp(&entry->d_name[len], VALUECLASS_JAR) != 0) {
-          continue;         // too short or not the expected suffix
-        }
-
-        strcpy(module_name, entry->d_name);
-        module_name[len] = '\0';     // truncate to just module-name
-
-        jio_snprintf(path, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
-        add_patch_mod_prefix(module_name, path, true /* append */, true /* cds OK*/);
-        log_info(class)("--enable-preview appending value classes for module %s: %s", module_name, entry->d_name);
-      }
-      FreeHeap(module_name);
-      FreeHeap(path);
-      os::closedir(dir);
-    }
-    FreeHeap(valueclasses_dir);
-  }
-
-  // Create numbered properties for each module that has been patched either
-  // by --patch-module (or --enable-preview if disable_patching is false).
+  // Create numbered properties for each module that has been patched by --patch-module.
   // Format is "jdk.module.patch.<n>=<module_name>=<path>"
   if (_patch_mod_prefix != nullptr) {
     char * prop_value = AllocateHeap(JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, mtArguments);
@@ -2366,6 +2306,19 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
       if (res != JNI_OK) {
         return res;
       }
+    } else if (match_option(option, "--enable-final-field-mutation=", &tail)) {
+      if (!create_numbered_module_property("jdk.module.enable.final.field.mutation", tail, enable_final_field_mutation++)) {
+        return JNI_ENOMEM;
+      }
+    } else if (match_option(option, "--illegal-final-field-mutation=", &tail)) {
+      if (strcmp(tail, "allow") == 0 || strcmp(tail, "warn") == 0 || strcmp(tail, "debug") == 0 || strcmp(tail, "deny") == 0) {
+        PropertyList_unique_add(&_system_properties, "jdk.module.illegal.final.field.mutation", tail,
+                                AddProperty, WriteableProperty, InternalProperty);
+      } else {
+        jio_fprintf(defaultStream::error_stream(),
+                    "Value specified to --illegal-final-field-mutation not recognized: '%s'\n", tail);
+        return JNI_ERR;
+      }
     } else if (match_option(option, "--sun-misc-unsafe-memory-access=", &tail)) {
       if (strcmp(tail, "allow") == 0 || strcmp(tail, "warn") == 0 || strcmp(tail, "debug") == 0 || strcmp(tail, "deny") == 0) {
         PropertyList_unique_add(&_system_properties, "sun.misc.unsafe.memory.access", tail,
@@ -2436,10 +2389,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     // --enable_preview
     } else if (match_option(option, "--enable-preview")) {
       set_enable_preview();
-      // --enable-preview enables Valhalla, EnableValhalla VM option will eventually be removed before integration
-      if (FLAG_SET_CMDLINE(EnableValhalla, true) != JVMFlag::SUCCESS) {
-        return JNI_EINVAL;
-      }
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
@@ -2560,6 +2509,9 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
       }
     } else if (match_option(option, "-Xmaxjitcodesize", &tail) ||
                match_option(option, "-XX:ReservedCodeCacheSize=", &tail)) {
+      if (match_option(option, "-Xmaxjitcodesize", &tail)) {
+        warning("Option -Xmaxjitcodesize was deprecated in JDK 26 and will likely be removed in a future release.");
+      }
       julong long_ReservedCodeCacheSize = 0;
 
       ArgsRange errcode = parse_memory_size(tail, &long_ReservedCodeCacheSize, 1);
@@ -3086,7 +3038,9 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
-  // finalize --module-patch and related --enable-preview
+  ClassLoader::init_jimage(is_valhalla_enabled());
+
+  // finalize --module-patch.
   if (finalize_patch_module() != JNI_OK) {
     return JNI_ERR;
   }
@@ -3979,7 +3933,7 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  if (!EnableValhalla || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
+  if (!is_valhalla_enabled() || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
     // Disable calling convention optimizations if inline types are not supported.
     // Also these aren't useful in -Xint. However, don't disable them when dumping or using
     // the CDS archive, as the values must match between dumptime and runtime.

@@ -544,6 +544,9 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
           if (init_value->is_EncodeP()) {
             init_value = init_value->in(1);
           }
+          if (!init_value->is_InlineType()) {
+            return nullptr;
+          }
           assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
           offset = adr_t->is_aryptr()->field_offset().get() + init_value->bottom_type()->inline_klass()->payload_offset();
           init_value = init_value->as_InlineType()->field_value_by_offset(offset, true);
@@ -2741,8 +2744,8 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
         fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
       }
     }
-    Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* members  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
                                         nullptr,
                                         "pack handler",

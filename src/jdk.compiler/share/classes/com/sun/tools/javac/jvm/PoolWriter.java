@@ -96,7 +96,7 @@ public class PoolWriter {
     /** The inner classes to be written, as an ordered set (enclosing first). */
     LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>();
 
-    Set<Symbol> loadableDescriptors = new HashSet<>();
+    Set<Symbol> loadableDescriptors = new LinkedHashSet<>();
 
     /** The list of entries in the BootstrapMethods attribute. */
     Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();

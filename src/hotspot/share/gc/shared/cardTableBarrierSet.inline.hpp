@@ -111,7 +111,7 @@ oop_arraycopy_partial_barrier(BarrierSetT *bs, T* dst_raw, T* p) {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
-inline void CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT>::
+inline OopCopyResult CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                       arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                       size_t length) {
@@ -137,14 +137,12 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
       // Apply any required checks
       if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && CompressedOops::is_null(element)) {
         oop_arraycopy_partial_barrier(bs, dst_raw, p);
-        throw_array_null_pointer_store_exception(src_obj, dst_obj, JavaThread::current());
-        return;
+        return OopCopyResult::failed_check_null;
       }
       if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
           (!oopDesc::is_instanceof_or_null(CompressedOops::decode(element), bound))) {
         oop_arraycopy_partial_barrier(bs, dst_raw, p);
-        throw_array_store_exception(src_obj, dst_obj, JavaThread::current());
-        return;
+        return OopCopyResult::failed_check_class_cast;
       }
       // write
       bs->template write_ref_field_pre<decorators>(p);
@@ -152,6 +150,8 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
     }
     bs->write_ref_array((HeapWord*)dst_raw, length);
   }
+
+  return OopCopyResult::ok;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>

@@ -58,7 +58,7 @@ class RecordComponent;
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
 //    [EMBEDDED implementor of the interface] only exist for interface
-//    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
+//    [EMBEDDED InlineKlass::Members] only if is an InlineKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -138,28 +138,6 @@ class OopMapBlock {
 
 struct JvmtiCachedClassFileData;
 
-class SigEntry;
-
-class InlineKlassFixedBlock {
-  Array<SigEntry>** _extended_sig;
-  Array<VMRegPair>** _return_regs;
-  address* _pack_handler;
-  address* _pack_handler_jobject;
-  address* _unpack_handler;
-  int* _null_reset_value_offset;
-  int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
-  int _payload_size_in_bytes;   // size of payload layout
-  int _payload_alignment;       // alignment required for payload
-  int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
-  int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
-  int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
-  int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
-  int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
-                                // payload_offset must be subtracted to get the offset from the beginning of the payload
-
-  friend class InlineKlass;
-};
-
 class InlineLayoutInfo : public MetaspaceObj {
   InlineKlass* _klass;
   LayoutKind _kind;
@@ -188,8 +166,8 @@ class InlineLayoutInfo : public MetaspaceObj {
   void metaspace_pointers_do(MetaspaceClosure* it);
   MetaspaceObj::Type type() const { return InlineLayoutInfoType; }
 
-  static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
-  static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
+  static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
+  static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
 };
 
 class InstanceKlass: public Klass {
@@ -291,10 +269,12 @@ class InstanceKlass: public Klass {
   // _idnum_allocated_count.
   volatile ClassState _init_state;          // state of class
 
-  u1              _reference_type;                // reference type
+  u1              _reference_type;          // reference type
   int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
-                                            // the InlineKlassFixedBlock that only exist for InlineKlass.
+                                            // the InlineKlass::Members that only exist for InlineKlass.
+
+  AccessFlags        _access_flags;    // Access flags. The class/interface distinction is stored here.
 
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
@@ -344,7 +324,9 @@ class InstanceKlass: public Klass {
 
   Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
-  const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
+
+  // Located here because sub-klasses can't have their own C++ fields
+  address _adr_inline_klass_members;
 
   // embedded Java vtable follows here
   // embedded Java itables follows here
@@ -373,6 +355,22 @@ class InstanceKlass: public Klass {
 
   // Sets finalization state
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
+
+  // Access flags
+  AccessFlags access_flags() const         { return _access_flags;  }
+  void set_access_flags(AccessFlags flags) { _access_flags = flags; }
+
+  bool is_public() const                { return _access_flags.is_public(); }
+  bool is_final() const                 { return _access_flags.is_final(); }
+  bool is_interface() const override    { return _access_flags.is_interface(); }
+  bool is_abstract() const override     { return _access_flags.is_abstract(); }
+  bool is_synthetic() const             { return _access_flags.is_synthetic(); }
+  void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
+  bool is_identity_class() const override { return _access_flags.is_identity_class(); }
+
+  static ByteSize access_flags_offset() { return byte_offset_of(InstanceKlass, _access_flags); }
+
+  void set_is_cloneable();
 
   // Quick checks for the loader that defined this class (without switching on this->class_loader())
   bool defined_by_boot_loader() const      { return _misc_flags.defined_by_boot_loader(); }
@@ -569,8 +567,8 @@ public:
   };
 
   // package
-  PackageEntry* package() const     { return _package_entry; }
-  ModuleEntry* module() const;
+  PackageEntry* package() const override { return _package_entry; }
+  ModuleEntry* module() const override;
   bool in_javabase_module() const;
   bool in_unnamed_package() const   { return (_package_entry == nullptr); }
   void set_package(ClassLoaderData* loader_data, PackageEntry* pkg_entry, TRAPS);
@@ -629,15 +627,15 @@ public:
   bool is_marked_dependent() const         { return _misc_flags.is_marked_dependent(); }
   void set_is_marked_dependent(bool value) { _misc_flags.set_is_marked_dependent(value); }
 
-  static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
-  static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
+  static ByteSize kind_offset() { return byte_offset_of(InstanceKlass, _kind); }
+  static ByteSize misc_flags_offset() { return byte_offset_of(InstanceKlass, _misc_flags); }
 
   // initialization (virtuals from Klass)
-  bool should_be_initialized() const;  // means that initialize should be called
+  bool should_be_initialized() const override;  // means that initialize should be called
   void initialize_with_aot_initialized_mirror(TRAPS);
   void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
-  void initialize(TRAPS);
-  void initialize_preemptable(TRAPS);
+  void initialize(TRAPS) override;
+  void initialize_preemptable(TRAPS) override;
   void link_class(TRAPS);
   bool link_class_or_fail(TRAPS); // returns false on failure
   void rewrite_class(TRAPS);
@@ -653,6 +651,7 @@ public:
     return _acmp_maps_offset;
   }
   void set_acmp_maps_offset(int offset) { _acmp_maps_offset = offset; }
+  static ByteSize acmp_maps_offset_offset() { return byte_offset_of(InstanceKlass, _acmp_maps_offset); }
 
   // this class cp index
   u2 this_class_index() const             { return _this_class_index; }
@@ -665,7 +664,7 @@ public:
   // find field in direct superinterfaces, returns the interface in which the field is defined
   Klass* find_interface_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
   // find field according to JVM spec 5.4.3.2, returns the klass in which the field is defined
-  Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
+  Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const override;
   // find instance or static fields according to JVM spec 5.4.3.2, returns the klass in which the field is defined
   Klass* find_field(Symbol* name, Symbol* sig, bool is_static, fieldDescriptor* fd) const;
 
@@ -724,7 +723,7 @@ public:
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
                                  OverpassLookupMode overpass_mode,
-                                 PrivateLookupMode private_mode = PrivateLookupMode::find) const;
+                                 PrivateLookupMode private_mode = PrivateLookupMode::find) const override;
 
   // lookup a method in all the interfaces that this class implements
   // (returns null if not found)
@@ -747,7 +746,7 @@ public:
   void set_constants(ConstantPool* c)    { _constants = c; }
 
   // protection domain
-  oop protection_domain() const;
+  oop protection_domain() const override;
 
   // signers
   objArrayOop signers() const;
@@ -930,7 +929,7 @@ public:
 
   // Check whether reflection/jni/jvm code is allowed to instantiate this class;
   // if not, throw either an Error or an Exception.
-  virtual void check_valid_for_instantiation(bool throwError, TRAPS);
+  void check_valid_for_instantiation(bool throwError, TRAPS) override;
 
   // initialization
   void call_class_initializer(TRAPS);
@@ -974,8 +973,8 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
-  static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
-  static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
+  static ByteSize inline_layout_info_array_offset() { return byte_offset_of(InstanceKlass, _inline_layout_info_array); }
+  static ByteSize adr_inline_klass_members_offset() { return byte_offset_of(InstanceKlass, _adr_inline_klass_members); }
 
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;
@@ -1000,12 +999,12 @@ public:
  public:
   // virtual operations from Klass
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<InstanceKlass*>* transitive_interfaces);
-  bool can_be_primary_super_slow() const;
-  size_t oop_size(oop obj)  const             { return size_helper(); }
+                                                  Array<InstanceKlass*>* transitive_interfaces) override;
+  bool can_be_primary_super_slow() const override;
+  size_t oop_size(oop obj)  const override    { return size_helper(); }
   // slow because it's a virtual call and used for verifying the layout_helper.
   // Using the layout_helper bits, we can call is_instance_klass without a virtual call.
-  DEBUG_ONLY(bool is_instance_klass_slow() const      { return true; })
+  DEBUG_ONLY(bool is_instance_klass_slow() const override { return true; })
 
   // Iterators
   void do_local_static_fields(FieldClosure* cl);
@@ -1031,32 +1030,20 @@ public:
     return (Klass::super() == nullptr) ? nullptr : InstanceKlass::cast(Klass::super());
   }
 
-  virtual InstanceKlass* java_super() const {
+  InstanceKlass* java_super() const override {
     return InstanceKlass::super();
   }
 
   // Sizing (in words)
-  static int header_size()            { return sizeof(InstanceKlass)/wordSize; }
+  static int header_size() { return sizeof(InstanceKlass) / wordSize; }
 
-  static int size(int vtable_length, int itable_length,
+  static int size(int vtable_length,
+                  int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface,
-                  bool is_inline_type) {
-    return align_metadata_size(header_size() +
-           vtable_length +
-           itable_length +
-           nonstatic_oop_map_size +
-           (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
-  }
+                  bool is_inline_type);
 
-  int size() const                    { return size(vtable_length(),
-                                               itable_length(),
-                                               nonstatic_oop_map_size(),
-                                               is_interface(),
-                                               is_inline_klass());
-  }
-
+  int size() const override;
 
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
@@ -1067,6 +1054,10 @@ public:
   inline Klass** end_of_nonstatic_oop_maps() const;
 
   inline InstanceKlass* volatile* adr_implementor() const;
+
+  // The end of the memory block that belongs to this InstanceKlass.
+  // Sub-klasses can place their fields after this address.
+  inline address end_of_instance_klass() const;
 
   void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
   Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
@@ -1087,7 +1078,7 @@ public:
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
 
   // Use this to return the size of an instance in heap words:
-  virtual int size_helper() const {
+  int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
 
@@ -1129,15 +1120,15 @@ public:
   void static deallocate_record_components(ClassLoaderData* loader_data,
                                            Array<RecordComponent*>* record_component);
 
-  virtual bool on_stack() const;
+  bool on_stack() const override;
 
   // callbacks for actions during class unloading
   static void unload_class(InstanceKlass* ik);
 
-  virtual void release_C_heap_structures(bool release_sub_metadata = true);
+  void release_C_heap_structures(bool release_sub_metadata = true) override;
 
   // Naming
-  const char* signature_name() const;
+  const char* signature_name() const override;
   const char* signature_name_of_carrier(char c) const;
 
   // Oop fields (and metadata) iterators
@@ -1217,12 +1208,12 @@ public:
   oop init_lock() const;
 
   // Returns the array class for the n'th dimension
-  virtual ArrayKlass* array_klass(int n, TRAPS);
-  virtual ArrayKlass* array_klass_or_null(int n);
+  ArrayKlass* array_klass(int n, TRAPS) override;
+  ArrayKlass* array_klass_or_null(int n) override;
 
   // Returns the array class with this class as element type
-  virtual ArrayKlass* array_klass(TRAPS);
-  virtual ArrayKlass* array_klass_or_null();
+  ArrayKlass* array_klass(TRAPS) override;
+  ArrayKlass* array_klass_or_null() override;
 
   static void clean_initialization_error_table();
 private:
@@ -1261,9 +1252,9 @@ public:
 
 #if INCLUDE_CDS
   // CDS support - remove and restore oops from metadata. Oops are not shared.
-  virtual void remove_unshareable_info();
+  void remove_unshareable_info() override;
   void remove_unshareable_flags();
-  virtual void remove_java_mirror();
+  void remove_java_mirror() override;
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   void init_shared_package_entry();
   bool can_be_verified_at_dumptime() const;
@@ -1276,22 +1267,22 @@ public:
     _misc_flags.set_has_init_deps_processed(true);
   }
 
-  u2 compute_modifier_flags() const;
+  u2 compute_modifier_flags() const override;
 
 public:
   // JVMTI support
-  jint jvmti_class_status() const;
+  jint jvmti_class_status() const override;
 
-  virtual void metaspace_pointers_do(MetaspaceClosure* iter);
+  void metaspace_pointers_do(MetaspaceClosure* iter) override;
 
  public:
   // Printing
-  void print_on(outputStream* st) const;
-  void print_value_on(outputStream* st) const;
+  void print_on(outputStream* st) const override;
+  void print_value_on(outputStream* st) const override;
 
-  void oop_print_value_on(oop obj, outputStream* st);
+  void oop_print_value_on(oop obj, outputStream* st) override;
 
-  void oop_print_on      (oop obj, outputStream* st) { oop_print_on(obj, st, 0, 0); }
+  void oop_print_on      (oop obj, outputStream* st) override { oop_print_on(obj, st, 0, 0); }
   void oop_print_on      (oop obj, outputStream* st, int indent = 0, int base_offset = 0);
 
 #ifndef PRODUCT
@@ -1300,12 +1291,12 @@ public:
   bool verify_itable_index(int index);
 #endif
 
-  const char* internal_name() const;
+  const char* internal_name() const override;
 
   // Verification
-  void verify_on(outputStream* st);
+  void verify_on(outputStream* st) override;
 
-  void oop_verify_on(oop obj, outputStream* st);
+  void oop_verify_on(oop obj, outputStream* st) override;
 
   // Logging
   void print_class_load_logging(ClassLoaderData* loader_data,

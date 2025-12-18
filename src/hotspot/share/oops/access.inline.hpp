@@ -125,22 +125,23 @@ namespace AccessInternal {
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_ARRAYCOPY, decorators>: public AllStatic {
     template <typename T>
-    static void access_barrier(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
-                               arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
-                               size_t length) {
+    static OopCopyResult access_barrier(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                        arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                        size_t length) {
       GCBarrierType::arraycopy_in_heap(src_obj, src_offset_in_bytes, src_raw,
                                        dst_obj, dst_offset_in_bytes, dst_raw,
                                        length);
+      return OopCopyResult::ok;
     }
 
     template <typename T>
-    static void oop_access_barrier(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
-                                   arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
-                                   size_t length) {
+    static OopCopyResult oop_access_barrier(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                            arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                            size_t length) {
       typedef typename HeapOopType<decorators>::type OopType;
-      GCBarrierType::oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, reinterpret_cast<OopType*>(src_raw),
-                                           dst_obj, dst_offset_in_bytes, reinterpret_cast<OopType*>(dst_raw),
-                                           length);
+      return GCBarrierType::oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, reinterpret_cast<OopType*>(src_raw),
+                                                  dst_obj, dst_offset_in_bytes, reinterpret_cast<OopType*>(dst_raw),
+                                                  length);
     }
   };
 
@@ -337,14 +338,14 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators, typename T>
-  void RuntimeDispatch<decorators, T, BARRIER_ARRAYCOPY>::arraycopy_init(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
-                                                                         arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
-                                                                         size_t length) {
+  OopCopyResult RuntimeDispatch<decorators, T, BARRIER_ARRAYCOPY>::arraycopy_init(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                                                                  arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                                                                  size_t length) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_ARRAYCOPY>::resolve_barrier();
     _arraycopy_func = function;
-    function(src_obj, src_offset_in_bytes, src_raw,
-             dst_obj, dst_offset_in_bytes, dst_raw,
-             length);
+    return function(src_obj, src_offset_in_bytes, src_raw,
+                    dst_obj, dst_offset_in_bytes, dst_raw,
+                    length);
   }
 
   template <DecoratorSet decorators, typename T>

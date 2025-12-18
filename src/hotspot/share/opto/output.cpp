@@ -392,6 +392,11 @@ void PhaseOutput::Output() {
 
   C2_MacroAssembler masm(cb);
   fill_buffer(&masm, blk_starts);
+  if (C->failing()) {
+    // If we bailed out during matching, not all nodes were visited and the
+    // label might be in inconsistent state (used but not bound). Reset it.
+    verified_entry.reset();
+  }
 }
 
 bool PhaseOutput::need_stack_bang(int frame_size_in_bytes) const {

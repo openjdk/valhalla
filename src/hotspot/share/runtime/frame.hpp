@@ -458,7 +458,6 @@ class frame {
   void oops_compiled_arguments_do(Symbol* signature, bool has_receiver, bool has_appendix, const RegisterMap* reg_map, OopClosure* f) const;
   template <typename RegisterMapT>
   void oops_interpreted_do(OopClosure* f, const RegisterMapT* map, bool query_oop_map_cache = true) const;
-  void buffered_values_interpreted_do(BufferedValueClosure* f);
 
  private:
   void oops_interpreted_arguments_do(Symbol* signature, bool has_receiver, OopClosure* f) const;
