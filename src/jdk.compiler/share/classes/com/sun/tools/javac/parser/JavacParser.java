@@ -1614,7 +1614,7 @@ public class JavacParser implements Parser {
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
                 if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                    checkBangLocation();
+                    checkNullRestrictionLocation();
                     selectTypeMode();
                     setNullMarker(t);
                     nextToken();
@@ -1635,7 +1635,7 @@ public class JavacParser implements Parser {
                         if (token.kind == RBRACKET) {
                             nextToken();
                             if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                                checkBangLocation();
+                                checkNullRestrictionLocation();
                                 pendingNullRestriction = true;
                                 nextToken();
                             }
@@ -1895,7 +1895,7 @@ public class JavacParser implements Parser {
 
             if (allowNullRestrictedTypes && isMode(TYPE) && typeArgs == null && EMOTIONAL_QUALIFIER.test(token.kind) &&
                     (t instanceof JCIdent || t instanceof JCFieldAccess || t instanceof JCArrayTypeTree)) {
-                checkBangLocation();
+                checkNullRestrictionLocation();
                 setNullMarker(t);
                 selectTypeMode();
                 nextToken();
@@ -1909,7 +1909,7 @@ public class JavacParser implements Parser {
                         t = bracketsOpt(t);
                         t = toP(F.at(pos1).TypeArray(t));
                         if (allowNullRestrictedTypes && isMode(TYPE) && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                            checkBangLocation();
+                            checkNullRestrictionLocation();
                             setNullMarker(t);
                             nextToken();
                         }
@@ -2624,22 +2624,30 @@ public class JavacParser implements Parser {
         return t;
     }
 
-    void checkBangLocation() {
+    /*
+     * Null restriction support. If we see a null restriction token (e.g. '!'),
+     * we check that the token is not followed by unsupported tokens, like '[', '(' and '.'.
+     * Then, we also make sure that null restriction is enabled in this context
+     * e.g. by making sure the ALLOW_BANG mode is set.
+     */
+    void checkNullRestrictionLocation() {
+        Assert.check(EMOTIONAL_QUALIFIER.test(token.kind));
         if (peekToken(BAD_BANG_LOCATION)) {
-            unsupportedBang();
+            unsupportedNullRestriction();
         } else {
-            checkAllowedBangs();
+            checkNullRestrictonAllowed();
         }
     }
 
-    void checkAllowedBangs() {
+    void checkNullRestrictonAllowed() {
+        Assert.check(EMOTIONAL_QUALIFIER.test(token.kind));
         if ((mode & ALLOW_BANGS) == 0) {
-            unsupportedBang();
+            unsupportedNullRestriction();
         }
     }
 
-    void unsupportedBang() {
-        reportSyntaxError(token.pos, Errors.BangNotAllowedHere);
+    void unsupportedNullRestriction() {
+        reportSyntaxError(token.pos, Errors.UnsupportedNullRestriction);
     }
 
     /** BracketsOpt = [ "[" "]" { [Annotations] "[" "]"} ]
@@ -2653,7 +2661,7 @@ public class JavacParser implements Parser {
         accept(RBRACKET);
         Token nullMarker = null;
         if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-            checkBangLocation();
+            checkNullRestrictionLocation();
             nullMarker = token;
             nextToken();
         }
@@ -2783,7 +2791,7 @@ public class JavacParser implements Parser {
             }
 
             if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                checkAllowedBangs();
+                checkNullRestrictonAllowed();
                 setNullMarker(t);
                 nextToken();
             }
@@ -2892,7 +2900,7 @@ public class JavacParser implements Parser {
             dims.append(parseExpression());
             accept(RBRACKET);
             if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                checkBangLocation();
+                checkNullRestrictionLocation();
                 nextToken();
             }
             while (token.kind == LBRACKET
@@ -2907,7 +2915,7 @@ public class JavacParser implements Parser {
                     dims.append(parseExpression());
                     accept(RBRACKET);
                     if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                        checkBangLocation();
+                        checkNullRestrictionLocation();
                         nextToken();
                     }
                 }
