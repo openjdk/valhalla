@@ -44,5 +44,4 @@ runtime/cds/SharedStringsDedup.java                                             
 runtime/cds/SharedStringsRunAuto.java                                                            8372606 generic-all
 runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                                        8372602 generic-all
 runtime/cds/appcds/aotCode/AOTCodeFlags.java                                                     8372602 generic-all
-runtime/cds/serviceability/ReplaceCriticalClasses.java                                           8372686 windows-all
 runtime/cds/serviceability/ReplaceCriticalClassesForSubgraphs.java                               8372599 generic-all
