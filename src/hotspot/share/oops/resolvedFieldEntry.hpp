@@ -80,7 +80,6 @@ public:
     ResolvedFieldEntry(0) {}
 
   // Bit shift to get flags
-  // Note: Only two flags exists at the moment but more could be added
   enum {
       is_volatile_shift     = 0,
       is_final_shift        = 1, // unused
