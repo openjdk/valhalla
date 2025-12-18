@@ -753,7 +753,8 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      */
     public static final class UnicodeBlock extends Subset {
         /**
-         * NUM_ENTITIES should match the total number of UnicodeBlocks.
+         * NUM_ENTITIES should match the total number of UnicodeBlock identifier
+         * names plus their aliases.
          * It should be adjusted whenever the Unicode Character Database
          * is upgraded.
          */

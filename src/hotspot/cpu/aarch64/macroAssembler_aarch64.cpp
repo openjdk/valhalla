@@ -49,6 +49,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/icache.hpp"
@@ -5727,7 +5728,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
     bind(initialize_header);
     pop(klass);
     Register mark_word = t2;
-    if (UseCompactObjectHeaders || EnableValhalla) {
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       ldr(mark_word, Address(klass, Klass::prototype_header_offset()));
       str(mark_word, Address(new_obj, oopDesc::mark_offset_in_bytes()));
     } else {

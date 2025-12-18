@@ -468,31 +468,30 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current
   bool is_preview = jimage_is_preview_enabled();
 
   jlong size;
-  JImageLocationRef location = jimage_find_resource("", name, is_preview, &size);
+  JImageLocationRef location = 0;
 
-  if (location == 0) {
-    TempNewSymbol class_name = SymbolTable::new_symbol(name);
-    TempNewSymbol pkg_name = ClassLoader::package_from_class_name(class_name);
+  TempNewSymbol class_name = SymbolTable::new_symbol(name);
+  TempNewSymbol pkg_name = ClassLoader::package_from_class_name(class_name);
 
-    if (pkg_name != nullptr) {
-      if (!Universe::is_module_initialized()) {
-        location = jimage_find_resource(JAVA_BASE_NAME, name, is_preview, &size);
-      } else {
-        PackageEntry* package_entry = ClassLoader::get_package_entry(pkg_name, loader_data);
-        if (package_entry != nullptr) {
-          ResourceMark rm(current);
-          // Get the module name
-          ModuleEntry* module = package_entry->module();
-          assert(module != nullptr, "Boot classLoader package missing module");
-          assert(module->is_named(), "Boot classLoader package is in unnamed module");
-          const char* module_name = module->name()->as_C_string();
-          if (module_name != nullptr) {
-            location = jimage_find_resource(module_name, name, is_preview, &size);
-          }
+  if (pkg_name != nullptr) {
+    if (!Universe::is_module_initialized()) {
+      location = jimage_find_resource(JAVA_BASE_NAME, name, is_preview, &size);
+    } else {
+      PackageEntry* package_entry = ClassLoader::get_package_entry(pkg_name, loader_data);
+      if (package_entry != nullptr) {
+        ResourceMark rm(current);
+        // Get the module name
+        ModuleEntry* module = package_entry->module();
+        assert(module != nullptr, "Boot classLoader package missing module");
+        assert(module->is_named(), "Boot classLoader package is in unnamed module");
+        const char* module_name = module->name()->as_C_string();
+        if (module_name != nullptr) {
+          location = jimage_find_resource(module_name, name, is_preview, &size);
         }
       }
     }
   }
+
   if (location != 0) {
     if (UsePerfData) {
       ClassLoader::perf_sys_classfile_bytes_read()->inc(size);
@@ -1119,12 +1118,12 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
     // appear in the _patch_mod_entries. The runtime shared class visibility
     // check will determine if a shared class is visible based on the runtime
     // environment, including the runtime --patch-module setting.
-    if (!CDSConfig::is_valhalla_preview()) {
+    if (!Arguments::is_valhalla_enabled()) {
       // Dynamic dumping requires UseSharedSpaces to be enabled. Since --patch-module
       // is not supported with UseSharedSpaces, we can never come here during dynamic dumping.
       assert(!CDSConfig::is_dumping_archive(), "CDS doesn't support --patch-module during dumping");
     }
-    if (CDSConfig::is_valhalla_preview() || !CDSConfig::is_dumping_static_archive()) {
+    if (Arguments::is_valhalla_enabled() || !CDSConfig::is_dumping_static_archive()) {
       stream = search_module_entries(THREAD, _patch_mod_entries, pkg_entry, file_name);
       if (stream != nullptr) {
         is_patched = true;
