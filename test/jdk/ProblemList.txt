@@ -500,6 +500,7 @@ java/awt/GraphicsDevice/DisplayModes/UnknownRefrshRateTest.java 8286436 macosx-a
 java/awt/image/multiresolution/MultiresolutionIconTest.java 8291979 linux-x64,windows-all
 java/awt/event/SequencedEvent/MultipleContextsFunctionalTest.java 8305061 macosx-x64
 sun/java2d/DirectX/OnScreenRenderingResizeTest/OnScreenRenderingResizeTest.java 8301177 linux-x64
+sun/awt/image/bug8038000.java 8373065 generic-all
 
 # Several tests which fail on some hidpi systems/macosx12-aarch64 system
 java/awt/Window/8159168/SetShapeTest.java 8274106 macosx-aarch64
@@ -723,7 +724,6 @@ javax/swing/plaf/synth/7158712/bug7158712.java 8324782 macosx-all
 # jdk_jdi
 
 com/sun/jdi/InvokeHangTest.java                                 8218463 linux-all
-com/sun/jdi/MethodInvokeWithTraceOnTest.java                    8373022 generic-all
 
 com/sun/jdi/cds/CDSBreakpointTest.java                          8304168 generic-all
 com/sun/jdi/cds/CDSDeleteAllBkptsTest.java                      8304168 generic-all
@@ -836,6 +836,7 @@ tools/sincechecker/modules/java.base/JavaBaseCheckSince.java 8372801 generic-all
 
 # valhalla
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
+java/lang/reflect/Modifier/toStringTest.java 8373989 generic-all
 
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
