@@ -157,7 +157,9 @@
 
 #define JAVA_26_VERSION                   70
 
-#define CONSTANT_CLASS_DESCRIPTORS        70
+#define JAVA_27_VERSION                   71
+
+#define CONSTANT_CLASS_DESCRIPTORS        71
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
