@@ -117,7 +117,7 @@ void Parse::array_load(BasicType bt) {
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
           ciInlineKlass* vk = element_ptr->inline_klass();
-          Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+          Node* flat_array = cast_to_flat_array(array, vk);
           Node* vt = InlineTypeNode::make_from_flat_array(this, vk, flat_array, array_index);
           ideal.set(res, vt);
         } else {
@@ -230,14 +230,13 @@ void Parse::array_store(BasicType bt) {
       array = cast;
     }
 
-    if (!array_type->is_flat() && array_type->is_null_free()) {
-      // Store to non-flat null-free inline type array (elements can never be null)
+    if (array_type->is_null_free() && elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
+      // Array of null-free empty inline type, there is only 1 state for the elements
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
-      if (elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
-        // Ignore empty inline stores, array is already initialized.
-        return;
-      }
-    } else if (!array_type->is_not_flat()) {
+      return;
+    }
+
+    if (!array_type->is_not_flat()) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseArrayFlattening && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
@@ -268,7 +267,7 @@ void Parse::array_store(BasicType bt) {
 
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+            Node* flat_array = cast_to_flat_array(array, vk);
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
