@@ -693,7 +693,7 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) {
 // Emit IR to check substitutability between 'this' and the value object referred to by 'ptr' (might be a buffer address or an InlineTypeNode)
 void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr, bool flat) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  // TODO double-check
+  // TODO 8228361 double-check
   // DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
   DecoratorSet decorators = MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD | IN_HEAP | C2_UNKNOWN_CONTROL_LOAD;
   MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
@@ -735,7 +735,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
         if (!field_is_null_free(i)) {
           Node* nm = nullptr;
           if (field_ptr->is_InlineType()) {
-            // TODO shouldn't below access just be folded? Apparently it's not.
+            // TODO 8228361 shouldn't below access just be folded? Apparently it's not.
             nm = field_ptr->as_InlineType()->get_null_marker();
           } else {
             int nm_offset = field_off + ft->as_inline_klass()->null_marker_offset_in_payload();

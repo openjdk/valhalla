@@ -4020,8 +4020,7 @@ public class TestLWorld {
 
     // Test that acmp of different inline objects with same content is removed
     @Test
-    // TODO 8228361
-    // @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test137(int i) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4035,8 +4034,7 @@ public class TestLWorld {
 
     // Same as test137 but with null
     @Test
-    // TODO 8228361
-    // @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test138(int i, boolean b) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -5026,21 +5024,12 @@ public class TestLWorld {
             this.i = rI;
         }
 
-        // TODO Workarounds for 8373261, remove once fixed
-        public static AllPrimitives doIt1(Value178_1 other, int[] offsets) {
-            return (offsets[test178Idx++] != 0) ? null : new AllPrimitives(other.prims2, offsets);
-        }
-
-        public static Integer doIt2(Value178_1 other, int[] offsets) {
-            return (offsets[test178Idx++] != 0) ? null : (other.i + offsets[test178Idx++]);
-        }
-
         public Value178_1(Value178_1 other, int[] offsets) {
             this.l1 = other.l1 + offsets[test178Idx++];
             this.l2 = other.l2 + offsets[test178Idx++];
             this.prims1 = new AllPrimitives(other.prims1, offsets);
-            this.prims2 = doIt1(other, offsets);
-            this.i = doIt2(other, offsets);
+            this.prims2 = (offsets[test178Idx++] != 0) ? null : new AllPrimitives(other.prims2, offsets);
+            this.i = (offsets[test178Idx++] != 0) ? null : (other.i + offsets[test178Idx++]);
         }
 
         public String toString() {
@@ -5077,27 +5066,14 @@ public class TestLWorld {
             this.prims2 = new AllPrimitives(rI, rI);
         }
 
-        // TODO Workarounds for 8373261, remove once fixed
-        public static Value178_1 doIt1(Value178 other, int[] offsets) {
-            return (offsets[test178Idx++] != 0) ? null : new Value178_1(other.val2, offsets);
-        }
-
-        public static Value178_1 doIt2(Value178 other, int[] offsets) {
-            return (offsets[test178Idx++] != 0) ? null : new Value178_1(other.val4, offsets);
-        }
-
-        public static AllPrimitives doIt3(Value178 other, int[] offsets) {
-            return (offsets[test178Idx++] != 0) ? null : new AllPrimitives(other.prims2, offsets);
-        }
-
         public Value178(Value178 other, int[] offsets) {
             test178Idx = 0;
             this.val1 = new Value178_1(other.val1, offsets);
-            this.val2 = doIt1(other, offsets);
+            this.val2 = (offsets[test178Idx++] != 0) ? null : new Value178_1(other.val2, offsets);
             this.val3 = new Value178_1(other.val3, offsets);
-            this.val4 = doIt2(other, offsets);
+            this.val4 = (offsets[test178Idx++] != 0) ? null : new Value178_1(other.val4, offsets);
             this.prims1 = new AllPrimitives(other.prims1, offsets);
-            this.prims2 = doIt3(other, offsets);
+            this.prims2 = (offsets[test178Idx++] != 0) ? null : new AllPrimitives(other.prims2, offsets);
         }
 
         public String toString() {
