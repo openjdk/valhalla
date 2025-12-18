@@ -3942,7 +3942,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
       atomic = not_flat;
     }
 
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free, atomic);
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, flat, not_flat, not_null_free, atomic);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam nullptrs down in the subarrays.
