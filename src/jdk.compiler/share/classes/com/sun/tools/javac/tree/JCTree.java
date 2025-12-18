@@ -1973,18 +1973,15 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCAnnotation> annotations;
         // type annotations on dimensions
         public List<List<JCAnnotation>> dimAnnotations;
-        public List<NullMarker> nullMarkers;
         public List<JCExpression> elems;
         protected JCNewArray(JCExpression elemtype,
                              List<JCExpression> dims,
-                             List<JCExpression> elems,
-                             List<NullMarker> nullMarkers)
+                             List<JCExpression> elems)
         {
             this.elemtype = elemtype;
             this.dims = dims;
             this.annotations = List.nil();
             this.dimAnnotations = List.nil();
-            this.nullMarkers = nullMarkers;
             this.elems = elems;
         }
         @Override

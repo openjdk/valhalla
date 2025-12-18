@@ -439,17 +439,7 @@ public class TreeMaker implements JCTree.Factory {
                                List<JCExpression> dims,
                                List<JCExpression> elems)
     {
-        JCNewArray tree = new JCNewArray(elemtype, dims, elems, List.nil());
-        tree.pos = pos;
-        return tree;
-    }
-
-    public JCNewArray NewArray(JCExpression elemtype,
-                             List<JCExpression> dims,
-                             List<JCExpression> elems,
-                             List<NullMarker> nullMarkers)
-    {
-        JCNewArray tree = new JCNewArray(elemtype, dims, elems, nullMarkers);
+        JCNewArray tree = new JCNewArray(elemtype, dims, elems);
         tree.pos = pos;
         return tree;
     }
