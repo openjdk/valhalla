@@ -734,6 +734,7 @@ public:
 
   virtual bool is_interface() const     { return false; }
   virtual bool is_abstract() const      { return false; }
+  virtual bool is_identity_class() const { return false; }
 
   bool has_finalizer() const            { return _misc_flags.has_finalizer(); }
   void set_has_finalizer()              { _misc_flags.set_has_finalizer(true); }

@@ -366,7 +366,7 @@ class InstanceKlass: public Klass {
   bool is_abstract() const override     { return _access_flags.is_abstract(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
-  bool is_identity_class() const        { return _access_flags.is_identity_class(); }
+  bool is_identity_class() const override { return _access_flags.is_identity_class(); }
 
   static ByteSize access_flags_offset() { return byte_offset_of(InstanceKlass, _access_flags); }
 
