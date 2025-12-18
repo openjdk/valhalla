@@ -475,7 +475,6 @@ class Arguments : AllStatic {
 
   static bool is_internal_module_property(const char* option);
   static bool is_incompatible_cds_internal_module_property(const char* property);
-  static bool patching_migrated_classes(const char* property, const char* value);
 
   // Miscellaneous System property value getter and setters.
   static void set_dll_dir(const char *value) { _sun_boot_library_path->set_value(value); }
@@ -486,7 +485,6 @@ class Arguments : AllStatic {
   // Set up the underlying pieces of the boot class path
   static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
   static int finalize_patch_module();
-  static bool disable_preview_patching();
 
   static void set_boot_class_path(const char *value, bool has_jimage) {
     // During start up, set by os::set_boot_path()
