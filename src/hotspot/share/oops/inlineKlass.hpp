@@ -25,13 +25,19 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
-#include "classfile/classFileParser.hpp"
-#include "classfile/javaClasses.hpp"
-#include "oops/arrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
-#include "oops/method.hpp"
-#include "runtime/registerMap.hpp"
+#include "oops/layoutKind.hpp"
+#include "oops/oopsHierarchy.hpp"
+#include "utilities/exceptions.hpp"
+#include "utilities/globalDefinitions.hpp"
 
+template <typename T>
+class Array;
+class ClassFileParser;
+template <typename T>
+class GrowableArray;
+class Method;
+class RegisterMap;
 class SigEntry;
 
 // An InlineKlass is a specialized InstanceKlass for concrete value classes
@@ -40,7 +46,6 @@ class SigEntry;
 class InlineKlass: public InstanceKlass {
   friend class VMStructs;
   friend class InstanceKlass;
-  friend class ClassFileParser;
 
  public:
   static const KlassKind Kind = InlineKlassKind;
@@ -177,19 +182,21 @@ class InlineKlass: public InstanceKlass {
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
-  bool is_payload_marked_as_null(address payload) {
+  jbyte* null_marker_address(address payload) {
     assert(has_nullable_atomic_layout(), " Must have");
-    return *((jbyte*)payload + null_marker_offset_in_payload()) == 0;
+    return (jbyte*)payload + null_marker_offset_in_payload();
+  }
+
+  bool is_payload_marked_as_null(address payload) {
+    return *null_marker_address(payload) == 0;
   }
 
   void mark_payload_as_non_null(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
-    *((jbyte*)payload + null_marker_offset_in_payload()) = 1;
+    *null_marker_address(payload) = 1;
   }
 
   void mark_payload_as_null(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
-    *((jbyte*)payload + null_marker_offset_in_payload()) = 0;
+    *null_marker_address(payload) = 0;
   }
 
   bool is_layout_supported(LayoutKind lk);
@@ -199,9 +206,6 @@ class InlineKlass: public InstanceKlass {
 
 #if INCLUDE_CDS
   void remove_unshareable_info() override;
-  void remove_java_mirror() override;
-  void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) override;
-  void metaspace_pointers_do(MetaspaceClosure* it) override;
 #endif
 
  private:
@@ -225,13 +229,7 @@ class InlineKlass: public InstanceKlass {
     return static_cast<const InlineKlass*>(k);
   }
 
-  // Use this to return the size of an instance in heap words.
-  // Note that this size only applies to heap allocated stand-alone instances.
-  int size_helper() const override {
-    return layout_helper_to_size_helper(layout_helper());
-  }
-
-  // allocate_instance() allocates a stand alone value in the Java heap
+  // Allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
   instanceOop allocate_instance(TRAPS);
 
@@ -244,6 +242,7 @@ class InlineKlass: public InstanceKlass {
   int nonstatic_oop_count();
 
   // Methods to copy payload between containers
+  //
   // Methods taking a LayoutKind argument expect that both the source and the destination
   // layouts are compatible with the one specified in argument (alignment, size, presence
   // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
@@ -300,14 +299,8 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(Members, _null_marker_offset);
   }
 
+  oop null_reset_value();
   void set_null_reset_value(oop val);
-
-  oop null_reset_value() {
-    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
-    oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
-    assert(val != nullptr, "Sanity check");
-    return val;
-  }
 
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;

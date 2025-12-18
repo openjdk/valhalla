@@ -26,15 +26,11 @@
 
 #include "oops/inlineKlass.hpp"
 
-#include "memory/iterator.hpp"
-#include "oops/flatArrayKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
-#include "oops/oop.inline.hpp"
 #include "utilities/devirtualizer.inline.hpp"
-#include "utilities/macros.hpp"
 
 inline address InlineKlass::payload_addr(oop o) const {
-  return ((address) (void*) o) + payload_offset();
+  return cast_from_oop<address>(o) + payload_offset();
 }
 
 template <typename T, class OopClosureType>
