@@ -22,7 +22,6 @@
  *
  */
 
-#include "ci/ciArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"

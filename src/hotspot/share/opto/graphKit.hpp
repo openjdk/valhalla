@@ -26,8 +26,6 @@
 #define SHARE_OPTO_GRAPHKIT_HPP
 
 #include "ci/ciEnv.hpp"
-#include "ci/ciInlineKlass.hpp"
-#include "ci/ciInstanceKlass.hpp"
 #include "ci/ciMethodData.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "opto/addnode.hpp"

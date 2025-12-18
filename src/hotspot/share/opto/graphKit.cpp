@@ -23,11 +23,9 @@
  */
 
 #include "asm/register.hpp"
-#include "ci/ciArrayKlass.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArray.hpp"
-#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "classfile/javaClasses.hpp"
 #include "compiler/compileLog.hpp"
@@ -38,7 +36,6 @@
 #include "oops/flatArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
-#include "opto/compile.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/graphKit.hpp"
 #include "opto/idealKit.hpp"
@@ -58,7 +55,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/bitMap.inline.hpp"
-#include "utilities/globalDefinitions.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -1906,7 +1902,7 @@ Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
 
 Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic) {
   assert(is_null_free || is_atomic, "nullable arrays must be atomic");
-  ciObjArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, true, is_null_free, is_atomic);
+  ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, true, is_null_free, is_atomic);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   assert(arytype->klass_is_exact(), "inconsistency");
   assert(arytype->is_flat(), "inconsistency");
