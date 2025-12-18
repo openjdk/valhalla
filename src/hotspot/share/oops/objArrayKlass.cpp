@@ -178,8 +178,8 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
   if (!UseArrayFlattening || element->is_array_klass() || element->is_identity_class() || element->is_abstract()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
-  assert(element->is_final(), "Flat layouts below require monomorphic elements");
   InlineKlass* vk = InlineKlass::cast(element);
+  assert(vk->is_final(), "Flat layouts below require monomorphic elements");
   if (is_null_restricted(properties)) {
     if (is_non_atomic(properties)) {
       // Null-restricted + non-atomic

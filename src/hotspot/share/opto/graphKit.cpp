@@ -1902,7 +1902,7 @@ Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_
   assert(arytype->is_null_free() == is_null_free, "inconsistency");
   assert(arytype->is_not_null_free() == is_not_null_free, "inconsistency");
   assert(arytype->is_atomic() == is_atomic, "inconsistency");
-  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
 }
 
 //-------------------------load_array_element-------------------------

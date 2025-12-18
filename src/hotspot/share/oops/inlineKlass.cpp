@@ -46,6 +46,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/registerMap.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -95,6 +96,13 @@ address InlineKlass::calculate_members_address() const {
   return end_of_instance_klass();
 }
 
+oop InlineKlass::null_reset_value() {
+  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
+  oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
+  assert(val != nullptr, "Sanity check");
+  return val;
+}
+
 void InlineKlass::set_null_reset_value(oop val) {
   assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
@@ -104,9 +112,7 @@ void InlineKlass::set_null_reset_value(oop val) {
 }
 
 instanceOop InlineKlass::allocate_instance(TRAPS) {
-  int size = size_helper();  // Query before forming handle.
-
-  instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
+  instanceOop oop = InstanceKlass::allocate_instance(CHECK_NULL);
   assert(oop->mark().is_inline_type(), "Expected inline type");
   return oop;
 }
@@ -647,9 +653,6 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
 
 // CDS support
 #if INCLUDE_CDS
-void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
-  InstanceKlass::metaspace_pointers_do(it);
-}
 
 void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
@@ -667,15 +670,9 @@ void InlineKlass::remove_unshareable_info() {
   assert(pack_handler() == nullptr, "pack handler not null");
 }
 
-void InlineKlass::remove_java_mirror() {
-  InstanceKlass::remove_java_mirror();
-}
-
-void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-}
 #endif // CDS
-// oop verify
+
+// Verification
 
 void InlineKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
