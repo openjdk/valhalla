@@ -39,6 +39,7 @@
 #include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/reverse_bits.hpp"
 
@@ -946,7 +947,7 @@ bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
       in(1)->in(1)->Opcode() == Op_CastP2X &&
       in(1)->in(2)->Opcode() == Op_CastP2X &&
       in(2)->bottom_type()->is_zero_type()) {
-    assert(EnableValhalla, "unexpected double null check");
+    assert(Arguments::is_valhalla_enabled(), "unexpected double null check");
     a = in(1)->in(1)->in(1);
     b = in(1)->in(2)->in(1);
     return true;

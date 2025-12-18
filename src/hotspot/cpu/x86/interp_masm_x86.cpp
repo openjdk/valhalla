@@ -1081,7 +1081,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
 #else
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rdi, rax, rscratch1);
-    movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
     movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
     // Unpack handler can be null if inline type is not scalarizable in returns
     testptr(rdi, rdi);

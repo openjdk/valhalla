@@ -56,6 +56,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/traceMergeStoresTag.hpp"
 #include "opto/vectornode.hpp"
+#include "runtime/arguments.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -2160,10 +2161,12 @@ LoadNode::load_array_final_field(const TypeKlassPtr *tkls,
                                  ciKlass* klass) const {
   assert(!UseCompactObjectHeaders || tkls->offset() != in_bytes(Klass::prototype_header_offset()),
          "must not happen");
-  if (tkls->offset() == in_bytes(Klass::access_flags_offset())) {
-    // The field is Klass::_access_flags.  Return its (constant) value.
+
+  if (tkls->isa_instklassptr() && tkls->offset() == in_bytes(InstanceKlass::access_flags_offset())) {
+    // The field is InstanceKlass::_access_flags.  Return its (constant) value.
     assert(Opcode() == Op_LoadUS, "must load an unsigned short from _access_flags");
-    return TypeInt::make(klass->access_flags());
+    ciInstanceKlass* iklass = tkls->is_instklassptr()->instance_klass();
+    return TypeInt::make(iklass->access_flags());
   }
   if (tkls->offset() == in_bytes(Klass::misc_flags_offset())) {
     // The field is Klass::_misc_flags.  Return its (constant) value.
@@ -2453,7 +2456,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   if (!UseCompactObjectHeaders) {
     Node* alloc = is_new_object_mark_load();
     if (alloc != nullptr) {
-      if (EnableValhalla) {
+      if (Arguments::is_valhalla_enabled()) {
         // The mark word may contain property bits (inline, flat, null-free)
         Node* klass_node = alloc->in(AllocateNode::KlassNode);
         const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();

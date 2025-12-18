@@ -181,12 +181,12 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
   if (!UseArrayFlattening || element->is_array_klass() || element->is_identity_class() || element->is_abstract()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
-  assert(element->is_final(), "Flat layouts below require monomorphic elements");
   InlineKlass* vk = InlineKlass::cast(element);
   if (!vk->maybe_flat_in_array()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
 
+  assert(vk->is_final(), "Flat layouts below require monomorphic elements");
   if (is_null_restricted(properties)) {
     if (is_non_atomic(properties)) {
       // Null-restricted + non-atomic
@@ -386,7 +386,7 @@ u2 ObjArrayKlass::compute_modifier_flags() const {
   // Return the flags of the bottom element type.
   u2 element_flags = bottom_klass()->compute_modifier_flags();
 
-  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+  int identity_flag = (Arguments::is_valhalla_enabled()) ? JVM_ACC_IDENTITY : 0;
 
   return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
                         | (identity_flag | JVM_ACC_ABSTRACT | JVM_ACC_FINAL);

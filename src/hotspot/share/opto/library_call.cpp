@@ -1210,7 +1210,7 @@ bool LibraryCallKit::inline_preconditions_checkIndex(BasicType bt) {
   jlong upper_bound = _gvn.type(length)->is_integer(bt)->hi_as_long();
   Node* casted_length = ConstraintCastNode::make_cast_for_basic_type(
       control(), length, TypeInteger::make(0, upper_bound, Type::WidenMax, bt),
-      ConstraintCastNode::RegularDependency, bt);
+      ConstraintCastNode::DependencyType::FloatingNarrowing, bt);
   casted_length = _gvn.transform(casted_length);
   replace_in_map(length, casted_length);
   length = casted_length;
@@ -1240,7 +1240,7 @@ bool LibraryCallKit::inline_preconditions_checkIndex(BasicType bt) {
   // index is now known to be >= 0 and < length, cast it
   Node* result = ConstraintCastNode::make_cast_for_basic_type(
       control(), index, TypeInteger::make(0, upper_bound, Type::WidenMax, bt),
-      ConstraintCastNode::RegularDependency, bt);
+      ConstraintCastNode::DependencyType::FloatingNarrowing, bt);
   result = _gvn.transform(result);
   set_result(result);
   replace_in_map(index, result);
@@ -2837,7 +2837,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     if (layout == LayoutKind::REFERENCE) {
       if (!base_type->is_aryptr()->is_not_flat()) {
         const TypeAryPtr* array_type = base_type->is_aryptr()->cast_to_not_flat();
-        Node* new_base = _gvn.transform(new CastPPNode(control(), base, array_type, ConstraintCastNode::StrongDependency));
+        Node* new_base = _gvn.transform(new CastPPNode(control(), base, array_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
         replace_in_map(base, new_base);
         base = new_base;
       }
@@ -2853,7 +2853,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         ptr = basic_plus_adr(base, ConvL2X(offset));
         const TypeAryPtr* ptr_type = _gvn.type(ptr)->is_aryptr();
         if (ptr_type->field_offset().get() != 0) {
-          ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::StrongDependency));
+          ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::DependencyType::NonFloatingNarrowing));
         }
       } else {
         uncommon_trap(Deoptimization::Reason_intrinsic,
@@ -2871,7 +2871,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     const Type* value_type = _gvn.type(value);
     if (!value_type->is_inlinetypeptr()) {
       value_type = Type::get_const_type(value_klass)->filter_speculative(value_type);
-      Node* new_value = _gvn.transform(new CastPPNode(control(), value, value_type, ConstraintCastNode::StrongDependency));
+      Node* new_value = _gvn.transform(new CastPPNode(control(), value, value_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
       new_value = InlineTypeNode::make_from_oop(this, new_value, value_klass);
       replace_in_map(value, new_value);
       value = new_value;
@@ -4441,7 +4441,7 @@ Node* LibraryCallKit::generate_klass_flags_guard(Node* kls, int modifier_mask, i
 
 Node* LibraryCallKit::generate_interface_guard(Node* kls, RegionNode* region) {
   return generate_klass_flags_guard(kls, JVM_ACC_INTERFACE, 0, region,
-                                    Klass::access_flags_offset(), TypeInt::CHAR, T_CHAR);
+                                    InstanceKlass::access_flags_offset(), TypeInt::CHAR, T_CHAR);
 }
 
 // Use this for testing if Klass is_hidden, has_finalizer, and is_cloneable_fast.
@@ -4553,12 +4553,16 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
     // Arrays store an intermediate super as _super, but must report Object.
     // Other types can report the actual _super.
     // (To verify this code sequence, check the asserts in JVM_IsInterface.)
-    if (generate_interface_guard(kls, region) != nullptr)
-      // A guard was added.  If the guard is taken, it was an interface.
-      phi->add_req(null());
-    if (generate_array_guard(kls, region) != nullptr)
+    if (generate_array_guard(kls, region) != nullptr) {
       // A guard was added.  If the guard is taken, it was an array.
       phi->add_req(makecon(TypeInstPtr::make(env()->Object_klass()->java_mirror())));
+    }
+    // Check for interface after array since this checks AccessFlags offset into InstanceKlass.
+    // In other words, we are accessing subtype-specific information, so we need to determine the subtype first.
+    if (generate_interface_guard(kls, region) != nullptr) {
+      // A guard was added.  If the guard is taken, it was an interface.
+      phi->add_req(null());
+    }
     // If we fall through, it's a plain class.  Get its _super.
     if (!stopped()) {
       p = basic_plus_adr(kls, in_bytes(Klass::super_offset()));

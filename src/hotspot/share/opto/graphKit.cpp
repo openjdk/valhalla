@@ -50,6 +50,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subtypenode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -1896,7 +1897,7 @@ Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
   ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, false);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   arytype = arytype->cast_to_flat(true)->cast_to_null_free(is_null_free);
-  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
 }
 
 Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic) {
@@ -1907,7 +1908,7 @@ Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bo
   assert(arytype->is_flat(), "inconsistency");
   assert(arytype->is_null_free() == is_null_free, "inconsistency");
   assert(arytype->is_not_null_free() == !is_null_free, "inconsistency");
-  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
 }
 
 //-------------------------load_array_element-------------------------
@@ -1927,7 +1928,7 @@ Node* GraphKit::load_array_element(Node* ary, Node* idx, const TypeAryPtr* aryty
 // Arguments (pre-popped from the stack) are taken from the JVMS.
 void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline) {
   PreserveReexecuteState preexecs(this);
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     // Make sure the call is "re-executed", if buffering of inline type arguments triggers deoptimization.
     // At this point, the call hasn't been executed yet, so we will only ever execute the call once.
     jvms()->set_should_reexecute(true);
@@ -3748,7 +3749,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
 
   bool not_inline = !toop->can_be_inline_type();
   bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->maybe_flat_in_array());
-  if (EnableValhalla && (not_inline || not_flat_in_array)) {
+  if (Arguments::is_valhalla_enabled() && (not_inline || not_flat_in_array)) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
     Node* array = nullptr;
