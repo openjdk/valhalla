@@ -4126,14 +4126,10 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
-        NullMarker nullMarker = NullMarker.NOT_NULL;
 
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
-            if (t.getNullMarker().ordinal() > nullMarker.ordinal()) {
-                nullMarker = t.getNullMarker();
-            }
             switch (t.getTag()) {
             case CLASS:
                 boundkind |= kinds[i] = CLASS_BOUND;
@@ -4183,8 +4179,7 @@ public class Types {
                 }
             }
             // lub(A[], B[]) is lub(A, B)[]
-            return new ArrayType(lub(elements), syms.arrayClass)
-                    .asNullMarked(nullMarker);
+            return new ArrayType(lub(elements), syms.arrayClass);
 
         case CLASS_BOUND:
             // calculate lub(A, B)
@@ -4219,8 +4214,7 @@ public class Types {
             }
             //step 4 - let MEC be { G1, G2 ... Gn }, then we have that
             //lub = lci(Inv(G1)) & lci(Inv(G2)) & ... & lci(Inv(Gn))
-            return compoundMin(candidates)
-                    .asNullMarked(nullMarker);
+            return compoundMin(candidates);
 
         default:
             // calculate lub(A, B[])
@@ -4273,18 +4267,15 @@ public class Types {
     public Type glb(Type t, Type s) {
         if (s == null)
             return t;
-
-        final NullMarker nullMarker = t.getNullMarker().ordinal() < s.getNullMarker().ordinal() ?
-                    t.getNullMarker() : s.getNullMarker();
-        if (t.isPrimitive() || s.isPrimitive())
+        else if (t.isPrimitive() || s.isPrimitive())
             return syms.errType;
         else if (isSubtypeNoCapture(t, s))
-            return t.asNullMarked(nullMarker);
+            return t;
         else if (isSubtypeNoCapture(s, t))
-            return s.asNullMarked(nullMarker);
+            return s;
 
         List<Type> closure = union(closure(t), closure(s));
-        return glbFlattened(closure, t).asNullMarked(nullMarker);
+        return glbFlattened(closure, t);
     }
     //where
     /**
