@@ -274,6 +274,8 @@ class InstanceKlass: public Klass {
                                             // unfortunately, abstract values need one too so it cannot be stored in
                                             // the InlineKlassFixedBlock that only exist for InlineKlass.
 
+  AccessFlags        _access_flags;    // Access flags. The class/interface distinction is stored here.
+
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
 
@@ -353,6 +355,22 @@ class InstanceKlass: public Klass {
 
   // Sets finalization state
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
+
+  // Access flags
+  AccessFlags access_flags() const         { return _access_flags;  }
+  void set_access_flags(AccessFlags flags) { _access_flags = flags; }
+
+  bool is_public() const                { return _access_flags.is_public(); }
+  bool is_final() const                 { return _access_flags.is_final(); }
+  bool is_interface() const override    { return _access_flags.is_interface(); }
+  bool is_abstract() const override     { return _access_flags.is_abstract(); }
+  bool is_synthetic() const             { return _access_flags.is_synthetic(); }
+  void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
+  bool is_identity_class() const        { return _access_flags.is_identity_class(); }
+
+  static ByteSize access_flags_offset() { return byte_offset_of(InstanceKlass, _access_flags); }
+
+  void set_is_cloneable();
 
   // Quick checks for the loader that defined this class (without switching on this->class_loader())
   bool defined_by_boot_loader() const      { return _misc_flags.defined_by_boot_loader(); }

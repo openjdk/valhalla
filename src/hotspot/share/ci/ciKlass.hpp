@@ -133,9 +133,6 @@ public:
   // Fetch modifier flags.
   jint                   modifier_flags();
 
-  // Fetch Klass::access_flags.
-  jint                   access_flags();
-
   markWord prototype_header() const;
 
   // Fetch Klass::misc_flags.
