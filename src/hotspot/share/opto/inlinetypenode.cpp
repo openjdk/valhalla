@@ -690,12 +690,11 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) {
   return true;
 }
 
-// Emit IR to check substitutability between 'this' and the value object referred to by 'ptr' (might be a buffer address or an InlineTypeNode)
+// Emit IR to check substitutability between 'this' (left operand) and the value object referred to by 'ptr' (right operand).
+// Parse-time checks guarantee that both operands have the same type. If 'ptr' is not an InlineTypeNode, we need to emit loads for the field values.
 void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr, bool flat) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  // TODO 8228361 double-check
-  // DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
-  DecoratorSet decorators = MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD | IN_HEAP | C2_UNKNOWN_CONTROL_LOAD;
+  DecoratorSet decorators = IN_HEAP | MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD;
   MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
 
   ciInlineKlass* vk = inline_klass();
@@ -712,16 +711,19 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
     Node* field_base = base;
     Node* field_ptr = ptr;
 
-    // Get field value of other operand
+    // Get field value of the other operand
     if (ptr->is_InlineType()) {
       field_ptr = ptr->as_InlineType()->field_value(i);
       field_base = nullptr;
     } else {
-      assert(base != nullptr, "lost base");
+      // 'ptr' is an oop, compute address of the field
       field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(field_off)));
-      if (!field_is_flat(i)) {
-        // Not flat, load the field value and update the base because we are now operating on a different object
-        assert(is_java_primitive(bt) || field_ptr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
+      if (field_is_flat(i)) {
+        // Flat field, load is handled recursively below
+        assert(val->is_InlineType(), "inconsistent field value");
+      } else {
+        // Non-flat field, load the field value and update the base because we are now operating on a different object
+        assert(is_java_primitive(bt) || field_ptr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent field type");
         C2AccessValuePtr addr(field_ptr, field_ptr->bottom_type()->is_ptr());
         C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
         field_ptr = bs->load_at(access, Type::get_const_type(ft));
@@ -731,46 +733,45 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
 
     if (val->is_InlineType()) {
       RegionNode* done_region = new RegionNode(1);
-      if (field_is_flat(i)) {
-        if (!field_is_null_free(i)) {
-          Node* nm = nullptr;
+      if (!field_is_null_free(i)) {
+        // Nullable field, check null marker before accessing the fields
+        if (field_is_flat(i)) {
+          // Flat field, check embedded null marker
+          Node* null_marker = nullptr;
           if (field_ptr->is_InlineType()) {
-            // TODO 8228361 shouldn't below access just be folded? Apparently it's not.
-            nm = field_ptr->as_InlineType()->get_null_marker();
+            // TODO 8350865 Should we add an IGVN optimization to fold null marker loads from InlineTypeNodes?
+            null_marker = field_ptr->as_InlineType()->get_null_marker();
           } else {
-            int nm_offset = field_off + ft->as_inline_klass()->null_marker_offset_in_payload();
-            assert(base != nullptr, "lost base");
-            Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(nm_offset)));
-
-            C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
+            Node* nm_offset = igvn->MakeConX(ft->as_inline_klass()->null_marker_offset_in_payload());
+            Node* nm_adr = igvn->register_new_node_with_optimizer(new AddPNode(base, field_ptr, nm_offset));
+            C2AccessValuePtr addr(nm_adr, nm_adr->bottom_type()->is_ptr());
             C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
-            nm = bs->load_at(access, TypeInt::BOOL);
+            null_marker = bs->load_at(access, TypeInt::BOOL);
           }
-
           // Return false if null markers are not equal
-          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), nm);
+          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), null_marker);
 
-          // Null markers are equal, if both are null we can skip the comparison of fields
+          // Null markers are equal. If both operands are null, skip the comparison of the fields.
           acmp_val_guard(igvn, done_region, nullptr, ctrl, T_INT, BoolTest::eq, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
+        } else {
+          // Non-flat field, check if oop is null
+
+          // Check if left operand is null
+          RegionNode* not_null_region = new RegionNode(1);
+          acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
+
+          // Left operand is null. If right operand is non-null, return false.
+          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, field_ptr, igvn->zerocon(T_OBJECT));
+
+          // Both are null, skip comparing the fields
+          done_region->add_req(*ctrl);
+
+          // Left operand is not null. If right operand is null, return false.
+          *ctrl = igvn->register_new_node_with_optimizer(not_null_region);
+          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, field_ptr, igvn->zerocon(T_OBJECT));
         }
-      } else {
-        // Check if 'val' is null
-        RegionNode* not_null_region = new RegionNode(1);
-        acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
-
-        // 'val' is null, if other is non-null, return false
-        acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, field_ptr, igvn->zerocon(T_OBJECT));
-
-        // Both are null, skip comparing the fields
-        done_region->add_req(*ctrl);
-
-        // 'val' is not null, if other is null, return false
-        *ctrl = igvn->register_new_node_with_optimizer(not_null_region);
-        acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, field_ptr, igvn->zerocon(T_OBJECT));
-
-        // Both are non-null, compare all the fields recursively
       }
-      // Recursively compare all the fields
+      // Both operands are non-null, compare all the fields recursively
       val->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, field_base, field_ptr, field_is_flat(i));
 
       done_region->add_req(*ctrl);
