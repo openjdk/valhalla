@@ -74,7 +74,7 @@ public class CtorDebuggingTest extends TestScaffold {
         Value(int x, int y) {
             this.x = x;                 // @1 breakpoint
             this.y = y;                 // @2 breakpoint
-			System.out.println(".");    // @3 breakpoint
+            System.out.println(".");    // @3 breakpoint
         }
     }
 
@@ -84,23 +84,23 @@ public class CtorDebuggingTest extends TestScaffold {
         public static Value v3;
 
         public static void main(String[] args) throws Exception {
-			// ensure the class is loaded
-    	    Class.forName(Value.class.getName());
-			List<String> argList = Arrays.asList(args);
-			if (argList.contains("1")) {
+            // ensure the class is loaded
+            Class.forName(Value.class.getName());
+            List<String> argList = Arrays.asList(args);
+            if (argList.contains("1")) {
                 v1 = new Value(0, 0);
             }
-			if (argList.contains("2")) {
+            if (argList.contains("2")) {
                 v2 = new Value(3, 0);
             }
-			if (argList.contains("3")) {
+            if (argList.contains("3")) {
                 v3 = new Value(3, 6);
             }
-			System.out.println(">>main"); // @prepared breakpoint
+            System.out.println(">>main"); // @prepared breakpoint
             Value v = new Value(3, 6);
-			System.out.println("<<main"); // @done breakpoint
+            System.out.println("<<main"); // @done breakpoint
         }
-	}
+    }
 
 
     public static void main(String[] args) throws Exception {
@@ -115,57 +115,57 @@ public class CtorDebuggingTest extends TestScaffold {
     }
 
     ObjectReference getStaticFieldObject(ReferenceType cls, String fieldName) throws Exception {
-		Field field = cls.fieldByName(fieldName);
-		ObjectReference result = (ObjectReference)cls.getValue(field);
-		System.out.println(fieldName + " static field: " + valueString(result));
-		return result;
-	}
+        Field field = cls.fieldByName(fieldName);
+        ObjectReference result = (ObjectReference)cls.getValue(field);
+        System.out.println(fieldName + " static field: " + valueString(result));
+        return result;
+    }
 
     ObjectReference getThisObject(BreakpointEvent bkptEvent) {
         try {
             return bkptEvent.thread().frame(0).thisObject();
         } catch (IncompatibleThreadStateException ex) {
             System.out.println("ERROR: cannot get 'this' object: " + ex);
-			return null;
+            return null;
         }
     }
 
     String valueString(ObjectReference obj) {
-		if (obj == null) {
-			return "null";
-		}
+        if (obj == null) {
+            return "null";
+        }
         IntegerValue ix = (IntegerValue)obj.getValue(xField);
         IntegerValue iy = (IntegerValue)obj.getValue(yField);
-		return obj + " (" + "x: " + ix + ", y: " + iy + ")";
+        return obj + " (" + "x: " + ix + ", y: " + iy + ")";
     }
 
     void assertEquals(Object obj1, Object obj2) {
-		if (!Objects.equals(obj1, obj2)) {
-			throw new RuntimeException("Must be equal: " + obj1 + " and " + obj2);
-		}
-	}
+        if (!Objects.equals(obj1, obj2)) {
+            throw new RuntimeException("Must be equal: " + obj1 + " and " + obj2);
+        }
+    }
 
-	void assertNotEquals(Object obj1, Object obj2) {
-		if (Objects.equals(obj1, obj2)) {
-			throw new RuntimeException("Must be different: " + obj1 + " and " + obj2);
-		}
-	}
+    void assertNotEquals(Object obj1, Object obj2) {
+        if (Objects.equals(obj1, obj2)) {
+            throw new RuntimeException("Must be different: " + obj1 + " and " + obj2);
+        }
+    }
 
     // Parses the specified source file for "@{id} breakpoint" tags and returns <id, line_number> map.
     // Example:
     //   System.out.println("BP is here");  // @my_breakpoint breakpoint
     public static Map<String, Integer> parseBreakpoints(String filePath) {
-		return parseTags("breakpoint", filePath);
-	}
+        return parseTags("breakpoint", filePath);
+    }
 
     public static Map<String, Integer> parseTags(String tag, String filePath) {
         final String regexp = "\\@(.*?) " + tag;
-		Pattern pattern = Pattern.compile(regexp);
+        Pattern pattern = Pattern.compile(regexp);
         int lineNum = 1;
-		Map<String, Integer> result = new HashMap<>();
+        Map<String, Integer> result = new HashMap<>();
         try {
             for (String line: Files.readAllLines(Paths.get(filePath))) {
-	            Matcher matcher = pattern.matcher(line);
+                Matcher matcher = pattern.matcher(line);
                 if (matcher.find()) {
                     result.put(matcher.group(1), lineNum);
                 }
