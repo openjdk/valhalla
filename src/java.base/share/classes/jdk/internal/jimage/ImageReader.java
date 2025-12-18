@@ -266,9 +266,10 @@ public final class ImageReader implements AutoCloseable {
             }
         }
 
+        // Map of currently open shared-readers.
         private static final Map<ReaderKey, SharedImageReader> OPEN_FILES = new HashMap<>();
 
-        // List of openers for this shared image.
+        // List of openers for this shared image. Synchronized on OPEN_FILES.
         private final Set<ImageReader> openers = new HashSet<>();
 
         // Attributes of the jimage file. The jimage file does not contain
@@ -276,14 +277,14 @@ public final class ImageReader implements AutoCloseable {
         // of the jimage file itself (creation, modification, access times).
         private final BasicFileAttributes imageFileAttributes;
 
-        // Cache of all user visible nodes, guarded by synchronizing 'this' instance.
+        // Cache of all user visible nodes. Synchronized on 'this'.
         private final Map<String, Node> nodes;
 
         // Preview mode support.
         private final boolean previewMode;
         // A relativized mapping from non-preview name to directories containing
         // preview-only nodes. This is used to add preview-only content to
-        // directories as they are completed.
+        // directories as they are completed. Synchronized on 'this'.
         private final HashMap<String, Directory> previewDirectoriesToMerge;
 
         private SharedImageReader(Path imagePath, ByteOrder byteOrder, boolean previewMode) throws IOException {
@@ -405,18 +406,18 @@ public final class ImageReader implements AutoCloseable {
 
             synchronized (OPEN_FILES) {
                 ReaderKey key = new ReaderKey(imagePath, previewMode);
-                SharedImageReader reader = OPEN_FILES.get(key);
+                SharedImageReader sharedReader = OPEN_FILES.get(key);
 
-                if (reader == null) {
+                if (sharedReader == null) {
                     // Will fail with an IOException if wrong byteOrder.
-                    reader = new SharedImageReader(imagePath, byteOrder, previewMode);
-                    OPEN_FILES.put(key, reader);
-                } else if (reader.getByteOrder() != byteOrder) {
-                    throw new IOException("\"" + reader.getName() + "\" is not an image file");
+                    sharedReader = new SharedImageReader(imagePath, byteOrder, previewMode);
+                    OPEN_FILES.put(key, sharedReader);
+                } else if (sharedReader.getByteOrder() != byteOrder) {
+                    throw new IOException("\"" + sharedReader.getName() + "\" is not an image file");
                 }
 
-                ImageReader image = new ImageReader(reader);
-                reader.openers.add(image);
+                ImageReader image = new ImageReader(sharedReader);
+                sharedReader.openers.add(image);
 
                 return image;
             }
@@ -425,19 +426,22 @@ public final class ImageReader implements AutoCloseable {
         public void close(ImageReader image) throws IOException {
             Objects.requireNonNull(image);
 
+            boolean shouldCloseSharedReader;
             synchronized (OPEN_FILES) {
                 if (!openers.remove(image)) {
                     throw new IOException("image file already closed");
                 }
-
-                if (openers.isEmpty()) {
-                    close();
-                    nodes.clear();
-
-                    if (!OPEN_FILES.remove(new ReaderKey(getImagePath(), previewMode), this)) {
-                        throw new IOException("image file not found in open list");
-                    }
+                shouldCloseSharedReader = openers.isEmpty();
+                if (shouldCloseSharedReader
+                        && !OPEN_FILES.remove(new ReaderKey(getImagePath(), previewMode), this)) {
+                    throw new IOException("image file not found in open list");
                 }
+            }
+            if (shouldCloseSharedReader) {
+                synchronized (this) {
+                    nodes.clear();
+                }
+                super.close();
             }
         }
 
