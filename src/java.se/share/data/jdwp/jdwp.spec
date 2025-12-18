@@ -1801,33 +1801,6 @@ JDWP "Java(tm) Debug Wire Protocol"
             (Error VM_DEAD)
         )
     )
-    (Command IsSameObject=11
-        "Determines whether two objects refer to the same Java object."
-        (Out
-            (object object1 "The object ID")
-            (object object2 "The object ID")
-        )
-        (Reply
-            (boolean isSameObject "true if the objects refer to the same Java object; false otherwise")
-        )
-        (ErrorSet
-            (Error INVALID_OBJECT)
-            (Error VM_DEAD)
-        )
-    )
-    (Command ObjectHashCode=12
-        "Returns hash code for an object."
-        (Out
-            (object object "The object ID")
-        )
-        (Reply
-            (int hashCode "hash code value for the object")
-        )
-        (ErrorSet
-            (Error INVALID_OBJECT)
-            (Error VM_DEAD)
-        )
-    )
 )
 
 (CommandSet StringReference=10
