@@ -670,7 +670,7 @@ static void acmp_val_guard(PhaseIterGVN* igvn, RegionNode* region, Node* phi, No
 }
 
 // Check if a substitutability check between 'this' and 'other' can be implemented in IR
-bool InlineTypeNode::can_emit_substitutability_check(Node* other) {
+bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
   if (other != nullptr && other->is_InlineType() && bottom_type() != other->bottom_type()) {
     // Different types, this is dead code because there's a check above that guarantees this.
     return false;
@@ -690,9 +690,9 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) {
   return true;
 }
 
-// Emit IR to check substitutability between 'this' (left operand) and the value object referred to by 'ptr' (right operand).
-// Parse-time checks guarantee that both operands have the same type. If 'ptr' is not an InlineTypeNode, we need to emit loads for the field values.
-void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr, bool flat) {
+// Emit IR to check substitutability between 'this' (left operand) and the value object referred to by 'other' (right operand).
+// Parse-time checks guarantee that both operands have the same type. If 'other' is not an InlineTypeNode, we need to emit loads for the field values.
+void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* other, bool flat) const {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   DecoratorSet decorators = IN_HEAP | MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD;
   MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
@@ -704,81 +704,81 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
       // Flat access, no header
       field_off -= vk->payload_offset();
     }
-    Node* val = field_value(i);
+    Node* this_field = field_value(i);
     ciType* ft = field_type(i);
     BasicType bt = ft->basic_type();
 
-    Node* field_base = base;
-    Node* field_ptr = ptr;
+    Node* other_base = base;
+    Node* other_field = other;
 
     // Get field value of the other operand
-    if (ptr->is_InlineType()) {
-      field_ptr = ptr->as_InlineType()->field_value(i);
-      field_base = nullptr;
+    if (other->is_InlineType()) {
+      other_field = other->as_InlineType()->field_value(i);
+      other_base = nullptr;
     } else {
-      // 'ptr' is an oop, compute address of the field
-      field_ptr = igvn->register_new_node_with_optimizer(new AddPNode(base, ptr, igvn->MakeConX(field_off)));
+      // 'other' is an oop, compute address of the field
+      other_field = igvn->register_new_node_with_optimizer(new AddPNode(base, other, igvn->MakeConX(field_off)));
       if (field_is_flat(i)) {
         // Flat field, load is handled recursively below
-        assert(val->is_InlineType(), "inconsistent field value");
+        assert(this_field->is_InlineType(), "inconsistent field value");
       } else {
         // Non-flat field, load the field value and update the base because we are now operating on a different object
-        assert(is_java_primitive(bt) || field_ptr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent field type");
-        C2AccessValuePtr addr(field_ptr, field_ptr->bottom_type()->is_ptr());
+        assert(is_java_primitive(bt) || other_field->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent field type");
+        C2AccessValuePtr addr(other_field, other_field->bottom_type()->is_ptr());
         C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
-        field_ptr = bs->load_at(access, Type::get_const_type(ft));
-        field_base = field_ptr;
+        other_field = bs->load_at(access, Type::get_const_type(ft));
+        other_base = other_field;
       }
     }
 
-    if (val->is_InlineType()) {
+    if (this_field->is_InlineType()) {
       RegionNode* done_region = new RegionNode(1);
       if (!field_is_null_free(i)) {
         // Nullable field, check null marker before accessing the fields
         if (field_is_flat(i)) {
           // Flat field, check embedded null marker
           Node* null_marker = nullptr;
-          if (field_ptr->is_InlineType()) {
+          if (other_field->is_InlineType()) {
             // TODO 8350865 Should we add an IGVN optimization to fold null marker loads from InlineTypeNodes?
-            null_marker = field_ptr->as_InlineType()->get_null_marker();
+            null_marker = other_field->as_InlineType()->get_null_marker();
           } else {
             Node* nm_offset = igvn->MakeConX(ft->as_inline_klass()->null_marker_offset_in_payload());
-            Node* nm_adr = igvn->register_new_node_with_optimizer(new AddPNode(base, field_ptr, nm_offset));
+            Node* nm_adr = igvn->register_new_node_with_optimizer(new AddPNode(base, other_field, nm_offset));
             C2AccessValuePtr addr(nm_adr, nm_adr->bottom_type()->is_ptr());
             C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
             null_marker = bs->load_at(access, TypeInt::BOOL);
           }
           // Return false if null markers are not equal
-          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), null_marker);
+          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, this_field->as_InlineType()->get_null_marker(), null_marker);
 
           // Null markers are equal. If both operands are null, skip the comparison of the fields.
-          acmp_val_guard(igvn, done_region, nullptr, ctrl, T_INT, BoolTest::eq, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
+          acmp_val_guard(igvn, done_region, nullptr, ctrl, T_INT, BoolTest::eq, this_field->as_InlineType()->get_null_marker(), igvn->intcon(0));
         } else {
           // Non-flat field, check if oop is null
 
-          // Check if left operand is null
+          // Check if 'this' is null
           RegionNode* not_null_region = new RegionNode(1);
-          acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, val->as_InlineType()->get_null_marker(), igvn->intcon(0));
+          acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, this_field->as_InlineType()->get_null_marker(), igvn->intcon(0));
 
-          // Left operand is null. If right operand is non-null, return false.
-          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, field_ptr, igvn->zerocon(T_OBJECT));
+          // 'this' is null. If 'other' is non-null, return false.
+          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, other_field, igvn->zerocon(T_OBJECT));
 
           // Both are null, skip comparing the fields
           done_region->add_req(*ctrl);
 
-          // Left operand is not null. If right operand is null, return false.
+          // 'this' is not null. If 'other' is null, return false.
           *ctrl = igvn->register_new_node_with_optimizer(not_null_region);
-          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, field_ptr, igvn->zerocon(T_OBJECT));
+          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, other_field, igvn->zerocon(T_OBJECT));
         }
       }
       // Both operands are non-null, compare all the fields recursively
-      val->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, field_base, field_ptr, field_is_flat(i));
+      this_field->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, other_base, other_field, field_is_flat(i));
 
       done_region->add_req(*ctrl);
       *ctrl = igvn->register_new_node_with_optimizer(done_region);
     } else {
       assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
-      acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, val, field_ptr);
+      acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, this_field, other_field);
     }
   }
 }

@@ -141,8 +141,8 @@ public:
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Implementation of the substitutability check for acmp
-  bool can_emit_substitutability_check(Node* other);
-  void check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* ptr, bool flat = false);
+  bool can_emit_substitutability_check(Node* other) const;
+  void check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* other, bool flat = false) const;
 
   // Allocates the inline type (if not yet allocated)
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);

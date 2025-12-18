@@ -1214,7 +1214,10 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return new CmpINode(in(1)->as_InlineType()->get_null_marker(), phase->intcon(0));
   }
   if (in(1)->is_InlineType() || in(2)->is_InlineType()) {
-    // If one operand is an inline type, convert this to a "both operands are null" check:
+    // In C2 IR, CmpP on value objects is a pointer comparison, not a value comparison.
+    // For non-null operands it cannot reliably be true, since their buffer oops are not
+    // guaranteed to be identical. Therefore, the comparison can only be true when both
+    // operands are null. Convert expressions like this to a "both operands are null" check:
     //   CmpL(OrL(CastP2X(..), CastP2X(..)), 0L)
     // CmpLNode::Ideal might optimize this further to avoid keeping buffer allocations alive.
     Node* input[2];
