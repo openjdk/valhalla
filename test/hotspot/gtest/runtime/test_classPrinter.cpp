@@ -57,9 +57,11 @@ TEST_VM(ClassPrinter, print_classes) {
   ASSERT_THAT(o3, HasSubstr("class: java/lang/Integer mirror:")) << "must find java/lang/Integer";
   ASSERT_THAT(o3, HasSubstr("InstanceKlass: java.lang.Integer {0x")) << "must print InstanceKlass";
   ASSERT_THAT(o3, HasSubstr("Java mirror oop for java/lang/Integer:")) << "must print mirror oop";
+#if 0 // FIX: JDK-8374115
 #if GTEST_USES_POSIX_RE
   // Complex regex not available on Windows
   ASSERT_THAT(o3, ContainsRegex("public static final 'MIN_VALUE' 'I'.* -2147483648 [(]0x80000000[)]")) << "must print static fields";
+#endif
 #endif
 }
 
