@@ -170,11 +170,21 @@ class ArrayKlass: public Klass {
 };
 
 class ArrayDescription : public StackObj {
-  public:
-   Klass::KlassKind _kind;
-   ArrayKlass::ArrayProperties _properties;
-   LayoutKind _layout_kind;
-   ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) { _kind = k; _properties = p; _layout_kind = lk; }
+public:
+  Klass::KlassKind _kind;
+  ArrayKlass::ArrayProperties _properties;
+  LayoutKind _layout_kind;
+  ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) {
+    _kind = k;
+    _layout_kind = lk;
+
+    if (lk == LayoutKind::REFERENCE || LayoutKindHelper::is_atomic_flat(lk)) {
+      p = (ArrayKlass::ArrayProperties) (p &~ ArrayKlass::NON_ATOMIC);
+    } else {
+      p = (ArrayKlass::ArrayProperties) (p | ArrayKlass::NON_ATOMIC);
+    }
+    _properties = p;
+  }
  };
 
 #endif // SHARE_OOPS_ARRAYKLASS_HPP

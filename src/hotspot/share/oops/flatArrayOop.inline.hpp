@@ -29,6 +29,7 @@
 
 #include "classfile/vmSymbols.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"

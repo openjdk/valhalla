@@ -1029,7 +1029,7 @@ void PhaseIterGVN::optimize() {
   // max_live_nodes_increase_per_iteration in between checks. If this
   // assumption does not hold, there is a risk that we exceed the max node
   // limit in between checks and trigger an assert during node creation.
-  const int max_live_nodes_increase_per_iteration = NodeLimitFudgeFactor * 3;
+  const int max_live_nodes_increase_per_iteration = NodeLimitFudgeFactor * 5;
 
   uint loop_count = 0;
   // Pull from worklist and transform the node. If the node has changed,
@@ -2671,8 +2671,18 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
   if (use_op == Op_CastP2X) {
     for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
       Node* u = use->fast_out(i2);
+      // TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
       if (u->Opcode() == Op_AndX) {
         worklist.push(u);
+      }
+      // Search for CmpL(OrL(CastP2X(..), CastP2X(..)), 0L)
+      if (u->Opcode() == Op_OrL) {
+        for (DUIterator_Fast i3max, i3 = u->fast_outs(i3max); i3 < i3max; i3++) {
+          Node* cmp = u->fast_out(i3);
+          if (cmp->Opcode() == Op_CmpL) {
+            worklist.push(cmp);
+          }
+        }
       }
     }
   }
@@ -3102,6 +3112,7 @@ void PhaseCCP::push_counted_loop_phi(Unique_Node_List& worklist, Node* parent, c
   }
 }
 
+// TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
 void PhaseCCP::push_cast(Unique_Node_List& worklist, const Node* use) {
   uint use_op = use->Opcode();
   if (use_op == Op_CastP2X) {
