@@ -5431,23 +5431,17 @@ public class Types {
                     ArrayType at = (ArrayType) type;
                     append('[');
                     assembleSig(at.elemtype, includeNullMarkers);
-                    /*if (includeNullMarkers) {   // there is no type in the VM for null-restricted arrays, for now
-                        NullMarker nmArray = at.getNullMarker();
-                        if (nmArray != NullMarker.UNSPECIFIED) {
-                            append(nmArray.typeSuffix().charAt(0));
-                        }
-                    }*/
                     break;
                 case METHOD:
                     MethodType mt = (MethodType) type;
                     append('(');
-                    assembleSig(mt.argtypes);
+                    assembleSig(mt.argtypes, includeNullMarkers);
                     append(')');
-                    assembleSig(mt.restype);
+                    assembleSig(mt.restype, includeNullMarkers);
                     if (hasTypeVar(mt.thrown)) {
                         for (List<Type> l = mt.thrown; l.nonEmpty(); l = l.tail) {
                             append('^');
-                            assembleSig(l.head);
+                            assembleSig(l.head, includeNullMarkers);
                         }
                     }
                     break;
@@ -5476,22 +5470,12 @@ public class Types {
                     }
                     append('T');
                     append(type.tsym.name);
-                    if (includeNullMarkers) {
-                        if (Types.this.isDeclaredParametric(type)) {
-                            append('=');// '*' is already used for wildcards
-                        } else {
-                            NullMarker nmTV = type.getNullMarker();
-                            if (nmTV != NullMarker.UNSPECIFIED) {
-                                append(nmTV.typeSuffix().charAt(0));
-                            }
-                        }
-                    }
                     append(';');
                     break;
                 case FORALL:
                     Type.ForAll ft = (Type.ForAll) type;
                     assembleParamsSig(ft.tvars);
-                    assembleSig(ft.qtype);
+                    assembleSig(ft.qtype, includeNullMarkers);
                     break;
                 default:
                     throw new AssertionError("typeSig " + type.getTag());
@@ -5610,10 +5594,6 @@ public class Types {
     public boolean isParametric(Type type) {
         return type.getNullMarker() == NullMarker.PARAMETRIC ||
                 (type.hasTag(TYPEVAR) && type.getNullMarker() == NullMarker.UNSPECIFIED && !tvarUnspecifiedNullity);
-    }
-
-    public boolean isDeclaredParametric(Type type) {
-        return type.getNullMarker() == NullMarker.PARAMETRIC;
     }
 
     public boolean isNullUnspecified(Type type) {
