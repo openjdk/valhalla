@@ -56,7 +56,6 @@ private:
   ciConstant null_marker_of_element_by_offset_impl(arrayOop ary, int index);
   ciConstant check_constant_null_marker_cache(int off);
   void add_to_constant_null_marker_cache(int off, ciConstant val);
-  //ciConstant element_value_impl(arrayOop ary, int index, int offset);
 
   GrowableArray<ConstantValue>* _constant_null_markers = nullptr;
 };

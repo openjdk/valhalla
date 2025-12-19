@@ -392,7 +392,7 @@ static const Type* make_constant_from_non_flat_array_element(ciArray* array, int
       !con.is_null_or_zero()) {  // not a default value
     bool is_narrow_oop = (loadbt == T_NARROWOOP);
     return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
-      }
+  }
   return nullptr;
 }
 

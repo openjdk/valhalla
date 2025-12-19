@@ -2129,11 +2129,18 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
     assert(n != nullptr, "unexpected nullptr");
     if (n->is_LoadFlat()) {
       LoadFlatNode* loadn = n->as_LoadFlat();
+      // Expending a flat load atomically means that we get a chunk of memory spanning multiple fields
+      // that we chop with bitwise operations. That is too subtle for some optimizations, especially
+      // constant folding when fields are constant. But if the flattened field being accessed is read-only
+      // then no concurrent writes can happen and non-atomic loads are fine, allowing better optimizations.
+      // A way for fields to be read-only is to be stable and already initialized. Here, we check if the
+      // field being accessed is stable, and if the null marker of the field/array element is non-zero.
+      // If so, we know that the stable value was initialized away from the default value (null), and
+      // that we can assume it's read-only, so can the load can be performed non-atomically.
       bool non_atomic_is_fine = false;
       if (FoldStableValues) {
-        const Type* base_type = igvn.type(loadn->base());
-        const TypeOopPtr* oopptr = base_type->isa_oopptr();
-        ciObject* oop = oopptr->const_oop();
+        const TypeOopPtr* base_type = igvn.type(loadn->base())->isa_oopptr();
+        ciObject* oop = base_type->const_oop();
         ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
         ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
         int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
@@ -2144,11 +2151,11 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
           const ciField* field = iklass->get_non_flat_field_by_offset(off);
           ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
           ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
-          non_atomic_is_fine = FoldStableValues && field->is_stable() && cst.is_valid() && cst.as_boolean();
+          non_atomic_is_fine = field->is_stable() && cst.is_valid() && cst.as_boolean();
         } else if (array != nullptr) {
-          const TypeAryPtr* aryptr = oopptr->is_aryptr();
+          const TypeAryPtr* aryptr = base_type->is_aryptr();
           ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
-          non_atomic_is_fine = FoldStableValues && aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+          non_atomic_is_fine = aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
         }
       }
 

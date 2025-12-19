@@ -82,7 +82,6 @@ public class StableRefPlainTest {
     @IR(applyIf = {"enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
     static int testNoFold() {
         // Access should not be folded.
-        // No barriers expected for plain fields.
         Integer i = BLANK_CARRIER.field;
         return i != null ? i : 0;
     }
@@ -113,7 +112,6 @@ public class StableRefPlainTest {
     @IR(applyIf = {"enable-valhalla", "false"}, failOn = { IRNode.MEMBAR })
     @IR(applyIf = {"enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
     static void testMethodInit() {
-        // Reference inits do not have membars.
         INIT_CARRIER.init();
     }
 
