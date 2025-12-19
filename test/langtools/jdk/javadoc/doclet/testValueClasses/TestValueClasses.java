@@ -99,28 +99,4 @@ public class TestValueClasses extends JavadocTester {
                 <div class="type-signature"><span class="modifiers">public value record </span><span class="element-name type-name-label">ValueRecord</span>()
                 """);
     }
-
-    @Test
-    public void testImplicitConstModifiers(Path base) throws IOException {
-        Path src = base.resolve("src");
-        tb.writeJavaFiles(src,
-                """
-                package p;
-
-                public value class ValueClassWithImplicitConst {
-                    public implicit ValueClassWithImplicitConst();
-                }
-                """);
-
-        javadoc("-d", base.resolve("out").toString(),
-                "--enable-preview", "-source", String.valueOf(Runtime.version().feature()),
-                "-sourcepath", src.toString(),
-                "p");
-        checkExit(Exit.OK);
-
-        checkOutput("p/ValueClassWithImplicitConst.html", true,
-                """
-                <div class="member-signature"><span class="modifiers">public implicit</span>&nbsp;<span class="element-name">ValueClassWithImplicitConst</span>()</div>
-                """);
-    }
 }

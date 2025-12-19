@@ -1130,8 +1130,6 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
-                selfType = selfType.hasImplicitConstructor() ?
-                        selfType.addMetadata(new TypeMetadata.NullMarker(JCNullableTypeExpression.NullMarker.NOT_NULL)) : selfType;
                 if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(

@@ -1181,14 +1181,6 @@ public class Attr extends JCTree.Visitor {
             for (List<JCExpression> l = tree.thrown; l.nonEmpty(); l = l.tail)
                 chk.checkType(l.head.pos(), l.head.type, syms.throwableType);
 
-            if (allowNullRestrictedTypes && tree.sym.isImplicitConstructor()) {
-                if (tree.body == null) {
-                    tree.body = make.Block(0, List.nil());
-                } else {
-                    log.error(tree.pos(), Errors.ImplicitConstCantHaveBody);
-                }
-            }
-
             if (tree.body == null) {
                 // Empty bodies are only allowed for
                 // abstract, native, or interface methods, or for methods
@@ -1739,7 +1731,7 @@ public class Attr extends JCTree.Visitor {
                     elemOrType = types.elemtype(elemOrType);
                 }
                 if (allowNullRestrictedTypesForValueClassesOnly &&
-                        ((types.isNonNullable(result) || types.isNonNullable(elemOrType)) && (!elemOrType.isValueClass() || !elemOrType.hasImplicitConstructor()))) {
+                        ((types.isNonNullable(result) || types.isNonNullable(elemOrType)) && (!elemOrType.isValueClass()))) {
                     log.error(tree.pos(),
                             types.elemtype(result) == null?
                                     Errors.TypeCantBeNullRestricted(result) :
@@ -5816,11 +5808,6 @@ public class Attr extends JCTree.Visitor {
         try {
             annotate.flush();
             attribClass(c);
-            if (c.type.isValueClass()) {
-                final Env<AttrContext> env = typeEnvs.get(c);
-                if (allowNullRestrictedTypes && env != null && env.tree != null && env.tree.hasTag(CLASSDEF) && TreeInfo.getImplicitConstructor(((JCClassDecl)env.tree).defs) != null)
-                    chk.checkNonCyclicMembership((JCClassDecl)env.tree);
-            }
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);
         }
@@ -6010,7 +5997,6 @@ public class Attr extends JCTree.Visitor {
                 }
 
                 attribClassBody(env, c);
-                chk.checkConstraintsOfValueClassesWithImplicitConst((JCClassDecl) env.tree, c);
 
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
                 chk.checkClassOverrideEqualsAndHashIfNeeded(env.tree.pos(), c);

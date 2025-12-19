@@ -135,7 +135,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 List.of(
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point! s = null;
                                 }
@@ -152,7 +152,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point[]! s = null;
                                 }
@@ -181,7 +181,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class MyList<T> {
                                     void add(T e) {}
                                 }
@@ -204,7 +204,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 List.of(
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point! s;
                                 }
@@ -221,7 +221,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point[]! s;
                                 }
@@ -238,7 +238,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point![]! s;
                                 }
@@ -255,7 +255,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point![]![]! s;
                                 }
@@ -272,7 +272,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point[]![] s;
                                 }
@@ -289,7 +289,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     Point[]![][] s;
                                 }
@@ -314,7 +314,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 List.of(
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     void m(Point! s1, Point? s3) {
                                         s1 = s3;
@@ -336,7 +336,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 ""),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     void m(Point! s1, Point s3) {
                                         s3 = s1;
@@ -383,7 +383,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 import java.util.*;
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     void test(List<? extends Point!> ls1, List<? extends Point> ls3) {
                                         ls1 = ls3;
@@ -395,7 +395,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 import java.util.*;
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class Foo {
                                     void test(List<? extends Point!> ls1, List<? extends Point?> ls3) {
                                         ls1 = ls3;
@@ -583,7 +583,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """
                                 class Test {
                                     class Box<X> {}
-                                    static value class Point { public implicit Point(); }
+                                    static value class Point { }
                                     @SafeVarargs
                                     private <Z> Z make_box_uni(Z... bs) {
                                         return bs[0];
@@ -599,7 +599,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """
                                 class Test {
                                     class Box<X> {}
-                                    static value class Point { public implicit Point(); }
+                                    static value class Point { }
                                     @SafeVarargs
                                     private <Z> Z make_box_uni(Z... bs) {
                                         return bs[0];
@@ -645,7 +645,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 interface Shape {}
-                                value class Point implements Shape { public implicit Point(); }
+                                value class Point implements Shape { }
                                 class Box<T> {}
                                 class Test {
                                     void m(Box<Point!> lp) {
@@ -659,7 +659,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 interface Shape {}
-                                value class Point implements Shape { public implicit Point(); }
+                                value class Point implements Shape { }
                                 class Box<T> {}
                                 class Test {
                                     void m(Box<Shape> lp) {
@@ -723,7 +723,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 ""),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 class MyCollection<T> {}
                                 class MyList<T> extends MyCollection<T!> {
                                     static <E> MyList<E> of(E e1) {
@@ -804,7 +804,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 value class Test {
-                                    public implicit Test();
                                     void m(Test t1, Test[] t2, Test[][] t3, Test[][][] t4) {
                                         Test! l1 = (Test!) t1;
                                         Test![] l2 = (Test![]) t2;
@@ -844,7 +843,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.warn.overrides.with.different.nullness.1"),
                         new DiagAndCode(
                                 """
-                                value class Point { public implicit Point(); }
+                                value class Point { }
                                 abstract class A {
                                     abstract String lookup(Point! arg);
                                 }

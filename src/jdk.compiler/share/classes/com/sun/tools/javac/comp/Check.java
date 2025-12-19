@@ -731,30 +731,6 @@ public class Check {
         }
     }
 
-    void checkConstraintsOfValueClassesWithImplicitConst(JCClassDecl classDecl, ClassSymbol c) {
-        if (allowNullRestrictedTypes) {
-            JCMethodDecl implicitConstructor = TreeInfo.getImplicitConstructor(classDecl.defs);
-            if (implicitConstructor != null) {
-                Type encl = c.type.getEnclosingType();
-                if (encl != null && encl.hasTag(CLASS)) {
-                    log.error(classDecl.pos(), Errors.ValueClassWithImplicitCannotBeInner(c));
-                }
-                if ((c.flags() & HASINITBLOCK) != 0) {
-                    log.error(classDecl.pos(), Errors.ValueClassWithImplicitDeclaresInitBlock(c));
-                }
-                for (Symbol s : c.members().getSymbols(NON_RECURSIVE)) {
-                    switch (s.kind) {
-                        case VAR:
-                            if ((s.flags() & STATIC) == 0 & (s.flags() & HASINIT) != 0) {
-                                log.error(classDecl.pos(), Errors.ValueClassWithImplicitInstanceFieldInitializer(c));
-                            }
-                            break;
-                    }
-                }
-            }
-        }
-    }
-
     /** Check that type is a valid qualifier for a constructor reference expression
      */
     Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
@@ -1257,17 +1233,8 @@ public class Check {
                     // private
                     implicit = PRIVATE;
                     mask = PRIVATE;
-                } else if ((flags & IMPLICIT) != 0) {
-                    if ((flags & PUBLIC) == 0) {
-                        log.error(pos, Errors.ImplicitConstMustBePublic);
-                    }
-                    if ((sym.owner.flags_field & VALUE_CLASS) == 0) {
-                        log.error(pos, Errors.ImplicitConstMustBeDeclaredInValueClass);
-                    }
-                    mask = ImplicitConstructorFlags;
-                } else {
+                } else
                     mask = ConstructorFlags;
-                }
             }  else if ((sym.owner.flags_field & INTERFACE) != 0) {
                 if ((sym.owner.flags_field & ANNOTATION) != 0) {
                     mask = AnnotationTypeElementMask;
@@ -2411,49 +2378,6 @@ public class Check {
         }
     }
 
-    // A primitive class cannot contain a field of its own type either or indirectly.
-    // TODO, update this method once we have null restricted types
-    void checkNonCyclicMembership(JCClassDecl tree) {
-        if (!tree.sym.type.hasImplicitConstructor()) {
-            return;
-        }
-        Assert.check((tree.sym.flags_field & LOCKED) == 0);
-        try {
-            tree.sym.flags_field |= LOCKED;
-            for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                if (l.head.hasTag(VARDEF)) {
-                    JCVariableDecl field = (JCVariableDecl) l.head;
-                    if (cyclePossible(field.sym)) {
-                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
-                    }
-                }
-            }
-        } finally {
-            tree.sym.flags_field &= ~LOCKED;
-        }
-    }
-    // where
-    private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {
-        /*
-        if ((c.flags_field & LOCKED) != 0) {
-            log.error(pos, Errors.CyclicPrimitiveClassMembership(c));
-            return;
-        }
-        try {
-            c.flags_field |= LOCKED;
-            for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR && cyclePossible((VarSymbol) s), NON_RECURSIVE)) {
-                checkNonCyclicMembership((ClassSymbol) fld.type.tsym, pos);
-            }
-        } finally {
-            c.flags_field &= ~LOCKED;
-        }
-        */
-    }
-        // where
-        private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && symbol.type.isValueClass() && symbol.type.hasImplicitConstructor() && types.isNonNullable(symbol.type);
-        }
-
     void checkNonCyclicDecl(JCClassDecl tree) {
         CycleChecker cc = new CycleChecker();
         cc.scan(tree);
@@ -2709,20 +2633,6 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
-
-        boolean implementsLooselyConsistentValue = false;
-        try {
-            implementsLooselyConsistentValue = allowValueClasses && allowNullRestrictedTypes ? types.asSuper(c, syms.looselyConsistentValueType.tsym) != null : false;
-        } catch (CompletionFailure cf) {
-            // ignore
-        }
-        boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
-        boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
-        if (c.getKind() == TypeKind.DECLARED && implementsLooselyConsistentValue && !c.tsym.isAbstract()) {
-            if (!cIsValue || !((ClassSymbol)c.tsym).hasImplicitConstructor()) {
-                log.error(pos, Errors.CantImplementInterface(c.tsym));
-            }
-        }
         Type identitySuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {

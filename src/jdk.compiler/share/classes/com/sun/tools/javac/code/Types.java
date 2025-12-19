@@ -1819,7 +1819,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT) && (!t.hasImplicitConstructor() || !isNonNullable(t)))
+                if (s.hasTag(ERROR) || s.hasTag(BOT) && (!isNonNullable(t)))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
