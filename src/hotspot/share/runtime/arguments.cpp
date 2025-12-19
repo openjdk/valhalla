@@ -3934,16 +3934,14 @@ jint Arguments::apply_ergo() {
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
   if (!is_valhalla_enabled()) {
-#define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)                                                        \
-    if (!FLAG_IS_DEFAULT(flag)) {                                                                         \
-      warning("Disabling Valhalla-specific flag \"%s\" since --enable-preview is not specified.", #flag); \
-    }                                                                                                     \
-    FLAG_SET_DEFAULT(flag, false);
-
-  #define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                     \
+#define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
     if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
       warning("Valhalla-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
     }
+
+#define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
+    WARN_IF_NOT_DEFAULT_FLAG(flag)                  \
+    FLAG_SET_DEFAULT(flag, false);
 
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypePassFieldsAsArgs);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypeReturnedAsFields);
