@@ -166,8 +166,8 @@ class InlineLayoutInfo : public MetaspaceObj {
   void metaspace_pointers_do(MetaspaceClosure* it);
   MetaspaceObj::Type type() const { return InlineLayoutInfoType; }
 
-  static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
-  static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
+  static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
+  static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
 };
 
 class InstanceKlass: public Klass {
@@ -627,8 +627,8 @@ public:
   bool is_marked_dependent() const         { return _misc_flags.is_marked_dependent(); }
   void set_is_marked_dependent(bool value) { _misc_flags.set_is_marked_dependent(value); }
 
-  static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
-  static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
+  static ByteSize kind_offset() { return byte_offset_of(InstanceKlass, _kind); }
+  static ByteSize misc_flags_offset() { return byte_offset_of(InstanceKlass, _misc_flags); }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const override;  // means that initialize should be called
@@ -651,6 +651,7 @@ public:
     return _acmp_maps_offset;
   }
   void set_acmp_maps_offset(int offset) { _acmp_maps_offset = offset; }
+  static ByteSize acmp_maps_offset_offset() { return byte_offset_of(InstanceKlass, _acmp_maps_offset); }
 
   // this class cp index
   u2 this_class_index() const             { return _this_class_index; }
@@ -972,8 +973,8 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
-  static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
-  static ByteSize adr_inline_klass_members_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inline_klass_members)); }
+  static ByteSize inline_layout_info_array_offset() { return byte_offset_of(InstanceKlass, _inline_layout_info_array); }
+  static ByteSize adr_inline_klass_members_offset() { return byte_offset_of(InstanceKlass, _adr_inline_klass_members); }
 
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;

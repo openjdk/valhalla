@@ -836,7 +836,6 @@ tools/sincechecker/modules/java.base/JavaBaseCheckSince.java 8372801 generic-all
 
 # valhalla
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
-java/lang/reflect/Modifier/toStringTest.java 8373989 generic-all
 
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
