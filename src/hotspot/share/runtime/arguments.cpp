@@ -3983,7 +3983,6 @@ jint Arguments::apply_ergo() {
     }
   }
 
-
 #ifndef PRODUCT
   if (!LogVMOutput && FLAG_IS_DEFAULT(LogVMOutput)) {
     if (use_vm_log()) {
