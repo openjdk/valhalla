@@ -38,4 +38,3 @@ java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java            8372745 gener
 java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64
 java/util/NavigableMap/LockStep.java                               8372824 generic-all
 java/util/Collections/CheckedSetBash.java                          8372824 generic-all
-jdk/internal/misc/CDS/ArchivedEnumTest.java                        8372743 generic-all

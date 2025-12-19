@@ -1023,7 +1023,8 @@ public:
                                    JVMState* jvms, bool allow_inline, float profile_factor, ciKlass* speculative_receiver_type = nullptr,
                                    bool allow_intrinsics = true);
   bool should_delay_inlining(ciMethod* call_method, JVMState* jvms) {
-    return should_delay_string_inlining(call_method, jvms) ||
+    return C->directive()->should_delay_inline(call_method) ||
+           should_delay_string_inlining(call_method, jvms) ||
            should_delay_boxing_inlining(call_method, jvms) ||
            should_delay_vector_inlining(call_method, jvms);
   }
@@ -1339,8 +1340,6 @@ public:
 
   // Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
   static Node* constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl, bool carry_dependency = false);
-
-  Node* optimize_acmp(PhaseGVN* phase, Node* a, Node* b);
 
   // Auxiliary method for randomized fuzzing/stressing
   int random();

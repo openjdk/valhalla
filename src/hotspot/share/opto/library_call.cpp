@@ -64,6 +64,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/unsafe.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/mountUnmountDisabler.hpp"
 #include "runtime/objectMonitor.hpp"
@@ -487,6 +488,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_arrayInstanceBaseOffset:  return inline_arrayInstanceBaseOffset();
   case vmIntrinsics::_arrayInstanceIndexScale:  return inline_arrayInstanceIndexScale();
   case vmIntrinsics::_arrayLayout:              return inline_arrayLayout();
+  case vmIntrinsics::_getFieldMap:              return inline_getFieldMap();
 
   case vmIntrinsics::_onSpinWait:               return inline_onspinwait();
 
@@ -2846,7 +2848,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         // Flat array must have an exact type
         bool is_null_free = !LayoutKindHelper::is_nullable_flat(layout);
         bool is_atomic = LayoutKindHelper::is_atomic_flat(layout);
-        Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
+        Node* new_base = cast_to_flat_array_exact(base, value_klass, is_null_free, is_atomic);
         replace_in_map(base, new_base);
         base = new_base;
         ptr = basic_plus_adr(base, ConvL2X(offset));
@@ -3315,7 +3317,7 @@ bool LibraryCallKit::inline_arrayLayout() {
   }
 
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
-  Node* layout_kind_addr = basic_plus_adr(klass_node, klass_node, layout_kind_offset);
+  Node* layout_kind_addr = basic_plus_adr(klass_node, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::POS, T_INT, MemNode::unordered);
 
   region->init_req(1, control());
@@ -3323,6 +3325,32 @@ bool LibraryCallKit::inline_arrayLayout() {
 
   set_control(_gvn.transform(region));
   set_result(_gvn.transform(phi));
+  return true;
+}
+
+// private native int[] getFieldMap0(Class <?> c);
+//   int offset = c._klass._acmp_maps_offset;
+//   return (int[])c.obj_field(offset);
+bool LibraryCallKit::inline_getFieldMap() {
+  if (!UseAltSubstitutabilityMethod) {
+    return false;
+  }
+
+  Node* mirror = argument(1);
+  Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
+
+  int field_map_offset_offset = in_bytes(InstanceKlass::acmp_maps_offset_offset());
+  Node* field_map_offset_addr = basic_plus_adr(klass, field_map_offset_offset);
+  Node* field_map_offset = make_load(nullptr, field_map_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  field_map_offset = _gvn.transform(ConvI2L(field_map_offset));
+
+  Node* map_addr = basic_plus_adr(mirror, field_map_offset);
+  const TypeAryPtr* val_type = TypeAryPtr::INTS->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
+  // TODO 8350865 Remove this
+  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
+  Node* map = access_load_at(mirror, map_addr, TypeAryPtr::INTS, val_type, T_ARRAY, IN_HEAP | MO_UNORDERED);
+
+  set_result(map);
   return true;
 }
 
@@ -4265,7 +4293,7 @@ bool LibraryCallKit::inline_native_setCurrentThread() {
 const Type* LibraryCallKit::scopedValueCache_type() {
   ciKlass* objects_klass = ciObjArrayKlass::make(env()->Object_klass());
   const TypeOopPtr* etype = TypeOopPtr::make_from_klass(env()->Object_klass());
-  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
+  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true, true);
 
   // Because we create the scopedValue cache lazily we have to make the
   // type of the result BotPTR.
@@ -4392,6 +4420,15 @@ bool LibraryCallKit::inline_native_Continuation_pinning(bool unpin) {
   set_all_memory(_gvn.transform(result_mem));
 
   return true;
+}
+
+//---------------------------load_mirror_from_klass----------------------------
+// Given a klass oop, load its java mirror (a java.lang.Class oop).
+Node* LibraryCallKit::load_mirror_from_klass(Node* klass) {
+  Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
+  Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+  // mirror = ((OopHandle)mirror)->resolve();
+  return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
 }
 
 //-----------------------load_klass_from_mirror_common-------------------------
@@ -4876,7 +4913,6 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 
         ciArrayKlass* array_klass = ciArrayKlass::make(t, null_free, atomic, true);
         assert(array_klass->is_elem_null_free() == null_free, "inconsistency");
-        assert(array_klass->is_elem_atomic() == atomic, "inconsistency");
 
         // TOOD 8350865 ZGC needs card marks on initializing oop stores
         if (UseZGC && null_free && !array_klass->is_flat_array_klass()) {
@@ -4884,7 +4920,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
         }
 
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
-          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces, true);
+          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces);
           if (null_free) {
             if (init_val->is_InlineType()) {
               if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
@@ -4900,7 +4936,6 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
           assert(arytype->is_null_free() == null_free, "inconsistency");
           assert(arytype->is_not_null_free() == !null_free, "inconsistency");
-          assert(arytype->is_atomic() == atomic, "inconsistency");
           set_result(obj);
           return true;
         }
@@ -5159,7 +5194,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
-      const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
+      bool not_flat = !UseArrayFlattening;
+      const Type* akls = TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), Type::trust_interfaces, not_flat, false, false, false, not_flat, true);
       Node* cast = new CastPPNode(control(), refined_klass_node, akls);
       refined_klass_node = _gvn.transform(cast);
     }
@@ -6796,7 +6832,15 @@ bool LibraryCallKit::inline_arraycopy() {
       assert(stopped(), "Should be stopped");
     }
 
-    const TypeKlassPtr* dest_klass_t = _gvn.type(refined_dest_klass)->is_klassptr();
+    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->isa_klassptr();
+    if (dest_klass_t == nullptr) {
+      // refined_dest_klass may not be an array, which leads to dest_klass being top. This means we
+      // are in a dead path.
+      uncommon_trap(Deoptimization::Reason_intrinsic,
+                    Deoptimization::Action_make_not_entrant);
+      return true;
+    }
+
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     arraycopy_move_allocation_here(alloc, dest, saved_jvms_before_guards, saved_reexecute_sp, new_idx);
@@ -6890,7 +6934,7 @@ LibraryCallKit::tightly_coupled_allocation(Node* ptr) {
 
 CallStaticJavaNode* LibraryCallKit::get_uncommon_trap_from_success_proj(Node* node) {
   if (node->is_IfProj()) {
-    Node* other_proj = node->as_IfProj()->other_if_proj();
+    IfProjNode* other_proj = node->as_IfProj()->other_if_proj();
     for (DUIterator_Fast jmax, j = other_proj->fast_outs(jmax); j < jmax; j++) {
       Node* obs = other_proj->fast_out(j);
       if (obs->in(0) == other_proj && obs->is_CallStaticJava() &&
