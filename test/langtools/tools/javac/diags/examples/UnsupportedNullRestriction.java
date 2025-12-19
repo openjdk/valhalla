@@ -21,13 +21,9 @@
  * questions.
  */
 
-// key: compiler.warn.unchecked.nullness.conversion
-// key: compiler.note.preview.filename
-// key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version} -Xlint:null
+// key: compiler.err.unsupported.null.restriction
+// options: --enable-preview -source ${jdk.version}
 
-class UncheckedNullnessConversion {
-    void m(UncheckedNullnessConversion! s1, UncheckedNullnessConversion? s3) {
-        s1 = s3;
-    }
+class UnsupportedNullRestriction {
+    String![] s;
 }
