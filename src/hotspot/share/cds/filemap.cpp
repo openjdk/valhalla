@@ -2091,10 +2091,7 @@ ClassFileStream* FileMapInfo::open_stream_for_jvmti(InstanceKlass* ik, Handle cl
   ClassPathEntry* cpe = get_classpath_entry_for_jvmti(path_index, CHECK_NULL);
   assert(cpe != nullptr, "must be");
 
-  Symbol* name = ik->name();
-  const char* const class_name = name->as_C_string();
-  const char* const file_name = ClassLoader::file_name_for_class_name(class_name,
-                                                                      name->utf8_length());
+  const char* const file_name = ClassLoader::file_name_for_class_name(ik->name());
   ClassLoaderData* loader_data = ClassLoaderData::class_loader_data(class_loader());
   const AOTClassLocation* cl = AOTClassLocationConfig::runtime()->class_location_at(path_index);
   ClassFileStream* cfs;
@@ -2107,7 +2104,7 @@ ClassFileStream* FileMapInfo::open_stream_for_jvmti(InstanceKlass* ik, Handle cl
     cfs = cpe->open_stream_for_loader(THREAD, file_name, loader_data);
   }
   assert(cfs != nullptr, "must be able to read the classfile data of shared classes for built-in loaders.");
-  log_debug(aot, jvmti)("classfile data for %s [%d: %s] = %d bytes", class_name, path_index,
+  log_debug(aot, jvmti)("classfile data for %s [%d: %s] = %d bytes", file_name, path_index,
                         cfs->source(), cfs->length());
   return cfs;
 }

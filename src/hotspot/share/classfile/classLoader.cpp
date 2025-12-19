@@ -986,21 +986,28 @@ objArrayOop ClassLoader::get_system_packages(TRAPS) {
 }
 
 // caller needs ResourceMark
-const char* ClassLoader::file_name_for_class_name(const char* class_name,
-                                                  int class_name_len) {
+char* ClassLoader::symbol_name_to_padded_buffer(const Symbol* symbol, int padding_len) {
+  assert(symbol != nullptr, "invariant");
+  assert(padding_len >= 0, "invariant");
+
+  // Include terminating nul.
+  int name_len = symbol->utf8_length() + 1;
+  char* const buffer = NEW_RESOURCE_ARRAY(char, name_len + padding_len);
+  symbol->as_C_string(buffer, name_len);
+  return buffer;
+}
+
+// caller needs ResourceMark
+const char* ClassLoader::file_name_for_class_name(const Symbol* class_name) {
   assert(class_name != nullptr, "invariant");
-  assert((int)strlen(class_name) == class_name_len, "invariant");
 
   static const char class_suffix[] = ".class";
-  size_t class_suffix_len = sizeof(class_suffix);
+  static const int suffix_len = strlen(class_suffix);
 
-  char* const file_name = NEW_RESOURCE_ARRAY(char,
-                                             class_name_len +
-                                             class_suffix_len); // includes term null
-
-  strncpy(file_name, class_name, class_name_len);
-  strncpy(&file_name[class_name_len], class_suffix, class_suffix_len);
-
+  // Just suffix length (a trailing nul is already accounted for in the copy).
+  char* const file_name = symbol_name_to_padded_buffer(class_name, suffix_len);
+  // Append over existing trailing nul, so need to copy a new one.
+  strncpy(&file_name[class_name->utf8_length()], class_suffix, suffix_len + 1);
   return file_name;
 }
 
@@ -1081,13 +1088,10 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
   ResourceMark rm(THREAD);
   HandleMark hm(THREAD);
 
-  const char* const class_name = name->as_C_string();
-
-  EventMarkClassLoading m("Loading class %s", class_name);
-
-  const char* const file_name = file_name_for_class_name(class_name,
-                                                         name->utf8_length());
+  const char* const file_name = file_name_for_class_name(name);
   assert(file_name != nullptr, "invariant");
+
+  EventMarkClassLoading m("Loading class %s", file_name);
 
   // Lookup stream for parsing .class file
   ClassFileStream* stream = nullptr;
@@ -1347,9 +1351,7 @@ void ClassLoader::record_result(JavaThread* current, InstanceKlass* ik,
     assert(classpath_index == -1, "sanity");
   }
 
-  const char* const class_name = ik->name()->as_C_string();
-  const char* const file_name = file_name_for_class_name(class_name,
-                                                         ik->name()->utf8_length());
+  const char* const file_name = file_name_for_class_name(ik->name());
   assert(file_name != nullptr, "invariant");
   record_result_for_builtin_loader(checked_cast<s2>(classpath_index), ik, redefined);
 }

@@ -247,8 +247,9 @@ class ClassLoader: AllStatic {
   // Canonicalizes path names, so strcmp will work properly. This is mainly
   // to avoid confusing the zip library
   static char* get_canonical_path(const char* orig, Thread* thread);
-  static const char* file_name_for_class_name(const char* class_name,
-                                              int class_name_len);
+
+  static char* symbol_name_to_padded_buffer(const Symbol* symbol, int padding_len);
+  static const char* file_name_for_class_name(const Symbol* class_name);
   static PackageEntry* get_package_entry(Symbol* pkg_name, ClassLoaderData* loader_data);
   static int crc32(int crc, const char* buf, int len);
   static bool update_class_path_entry_list(JavaThread* current,

@@ -708,8 +708,7 @@ bool AOTClassLocationConfig::is_valid_classpath_index(int classpath_index, Insta
       JavaThread* current = JavaThread::current();
       ResourceMark rm(current);
       const char* const class_name = ik->name()->as_C_string();
-      const char* const file_name = ClassLoader::file_name_for_class_name(class_name,
-                                                                          ik->name()->utf8_length());
+      const char* const file_name = ClassLoader::file_name_for_class_name(ik->name());
       if (!zip->has_entry(current, file_name)) {
         aot_log_warning(aot)("class %s cannot be archived because it was not defined from %s as claimed",
                          class_name, zip->name());
