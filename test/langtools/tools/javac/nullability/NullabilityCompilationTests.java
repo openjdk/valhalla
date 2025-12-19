@@ -166,32 +166,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.prob.found.req"),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test<T> {
-                                    void m() {
-                                        Supplier<? extends T> factory = nullFactory();
-                                    }
-                                    Supplier<? extends T!> nullFactory() { return () -> null; }
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.prob.found.req"),
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class MyList<T> {
-                                    void add(T e) {}
-                                }
-                                class Test {
-                                    void m(MyList<? super Point!> ls) {
-                                        ls.add(null);
-                                    }
-                                }
-                                """,
-                                Result.Error,
                                 "compiler.err.prob.found.req")
                 )
         );
@@ -240,15 +214,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """
                                 value class Point { }
                                 class Foo {
-                                    Point![]! s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo![]! s;
+                                    Point[]! s;
                                 }
                                 """,
                                 Result.Error,
@@ -257,7 +223,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """
                                 value class Point { }
                                 class Foo {
-                                    Point![]![]! s;
+                                    Point[][]! s;
                                 }
                                 """,
                                 Result.Error,
@@ -265,41 +231,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 class Foo {
-                                    Foo![]![]! s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class Foo {
-                                    Point[]![] s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo[]![] s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class Foo {
-                                    Point[]![][] s;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo[]![][] s;
+                                    Foo[][]! s;
                                 }
                                 """,
                                 Result.Error,
@@ -312,18 +244,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     void testUncheckedNullnessConversions () {
         testList(
                 List.of(
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class Foo {
-                                    void m(Point! s1, Point? s3) {
-                                        s1 = s3;
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
                         new DiagAndCode(
                                 """
                                 class Foo {
@@ -344,295 +264,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                class Foo<T extends String!> {
-                                    Foo<String?> f2;
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                class Foo<T extends String!> {
-                                    Foo<String> f2;
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                class Foo<T extends Object!> {
-                                    Foo<String?> f2;
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                class Foo<T extends Object!> {
-                                    Foo<String> f2;
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        // wildcards
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                value class Point { }
-                                class Foo {
-                                    void test(List<? extends Point!> ls1, List<? extends Point> ls3) {
-                                        ls1 = ls3;
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                value class Point { }
-                                class Foo {
-                                    void test(List<? extends Point!> ls1, List<? extends Point?> ls3) {
-                                        ls1 = ls3;
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                class Foo {
-                                    void test(List<? extends Object!> ls1, List<? extends String> ls3) {
-                                        ls1 = ls3;
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                class Foo {
-                                    void test(List<? extends Object!> ls1, List<? extends String?> ls3) {
-                                        ls1 = ls3;
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                class Test {
-                                    static value class Atom {}
-                                    static class Box<X> {}
-                                    void test(Box<? extends Atom!> t1, Box<Atom> t2) {
-                                        t1 = t2;
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                class Test {
-                                    static value class Atom {}
-                                    static class Box<X> {}
-                                    void test(Box<? extends Atom!> t1, Box<Atom?> t2) {
-                                        t1 = t2;
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                class Wrapper<T> {}
-                                class Test<T> {
-                                    Wrapper<T> newWrapper() { return null; }
-                                    void m() {
-                                        Wrapper<T!> w = newWrapper();
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                class Wrapper<T> {}
-                                class Test<T> {
-                                    Wrapper<T?> newWrapper() { return null; }
-                                    void m() {
-                                        Wrapper<T!> w = newWrapper();
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test {
-                                    void plot(Function<String, String> f) {}
-                                    void m(Function<String!, String> gradient) {
-                                        plot(gradient);
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test {
-                                    void plot(Function<String?, String> f) {}
-                                    void m(Function<String!, String> gradient) {
-                                        plot(gradient);
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test {
-                                    void plot(Function<String!, String> f) {}
-                                    void m(Function<String, String> gradient) {
-                                        plot(gradient);
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test {
-                                    void plot(Function<String!, String> f) {}
-                                    void m(Function<String?, String> gradient) {
-                                        plot(gradient);
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test<T> {
-                                    void m() {
-                                        Supplier<? extends T!> factory = nullFactory();
-                                    }
-                                    Supplier<? extends T> nullFactory() { return () -> null; }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                class Test<T> {
-                                    Set<Map.Entry<String, T>> allEntries() { return null; }
-                                    void m() {
-                                        Set<Map.Entry<String, T!>> entries = allEntries();
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.function.*;
-                                class Test<T> {
-                                    T field;
-                                    void foo(Consumer<? super T!> action) {
-                                        action.accept(field);
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                class Test<T> {
-                                    Set<Map.Entry<String, T!>> allEntries() { return null; }
-                                    void m() {
-                                        Set<Map.Entry<String, T>> entries = allEntries();
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                class Test {
-                                    class Box<X> {}
-                                    static value class Point { }
-                                    @SafeVarargs
-                                    private <Z> Z make_box_uni(Z... bs) {
-                                        return bs[0];
-                                    }
-                                    void test(Box<Point!> bref, Box<Point> bval) {
-                                        Box<? extends Point!> res = make_box_uni(bref, bval);
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                class Test {
-                                    class Box<X> {}
-                                    static value class Point { }
-                                    @SafeVarargs
-                                    private <Z> Z make_box_uni(Z... bs) {
-                                        return bs[0];
-                                    }
-                                    void test(Box<Point!> bref, Box<Point?> bval) {
-                                        Box<? extends Point!> res = make_box_uni(bref, bval);
-                                    }
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.unchecked.nullness.conversion",
-                                1),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                class Foo {
-                                    void test(List<? extends String!> ls1, List<? extends String> ls3) {
-                                        ls3 = ls1;
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                import java.util.*;
-                                class Foo {
-                                    void test(List<? extends String!> ls1, List<? extends Object> ls3) {
-                                        ls3 = ls1;
-                                    }
-                                }
-                                """,
-                                Result.Clean,
                                 "")
                 )
         );
@@ -642,34 +273,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     void testNoWarnings() {
         testList(
                 List.of(
-                        new DiagAndCode(
-                                """
-                                interface Shape {}
-                                value class Point implements Shape { }
-                                class Box<T> {}
-                                class Test {
-                                    void m(Box<Point!> lp) {
-                                        foo(lp);
-                                    }
-                                    void foo(Box<? extends Shape> ls) {}
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                interface Shape {}
-                                value class Point implements Shape { }
-                                class Box<T> {}
-                                class Test {
-                                    void m(Box<Shape> lp) {
-                                        foo(lp);
-                                    }
-                                    void foo(Box<? super Point!> ls) {}
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
                         new DiagAndCode(
                                 """
                                 value class Point {}
@@ -701,39 +304,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 class C<T> {
                                     T x = null;
                                     void set(T arg) { x = arg; }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                value class Point {}
-                                class MyList<T> {
-                                    static <E> MyList<E> of(E e1) {
-                                        return null;
-                                    }
-                                }
-                                class Test {
-                                    void m() {
-                                        MyList.of(new Point!());
-                                    }
-                                }
-                                """,
-                                Result.Clean,
-                                ""),
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class MyCollection<T> {}
-                                class MyList<T> extends MyCollection<T!> {
-                                    static <E> MyList<E> of(E e1) {
-                                        return null;
-                                    }
-                                }
-                                class Test {
-                                    void m() {
-                                        MyCollection<Point> mpc = MyList.of(new Point!());
-                                    }
                                 }
                                 """,
                                 Result.Clean,
@@ -803,57 +373,47 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 ""),
                         new DiagAndCode(
                                 """
+                                class Test {
+                                    void test1() {
+                                        String[][] arr_local = null;
+                                        arr_local = new String[3][4];
+                                        arr_local = new String![3][4];
+                                    }
+
+                                    void test2() {
+                                        String[][]! arr_local = new String[0][0];
+                                        arr_local = new String[3][4];
+                                        arr_local = new String![3][4];
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
                                 value class Test {
                                     void m(Test t1, Test[] t2, Test[][] t3, Test[][][] t4) {
                                         Test! l1 = (Test!) t1;
-                                        Test![] l2 = (Test![]) t2;
-                                        Test![][] l3 = (Test![][]) t3;
-                                        Test![][][] l4 = (Test![][][]) t4;
-
-                                        Test[]! l5 = (Test[]!) t2;
-                                        Test[][]! l6 = (Test[][]!) t3;
-                                        Test[][][]! l7 = (Test[][][]!) t4;
-
-                                        Test[]![]! l8 = (Test[]![]!) t3;
-                                        Test[]![]![]! l9 = (Test[]![]![]!) t4;
+                                        Test[]! l2 = (Test[]!) t2;
+                                        Test[][]! l3 = (Test[][]!) t3;
+                                        Test[][][]! l4 = (Test[][][]!) t4;
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test() {
+                                        String! s_nonnull = "";
+                                        String s = null;
+                                        s = s_nonnull;
                                     }
                                 }
                                 """,
                                 Result.Clean,
                                 "")
-                )
-        );
-    }
-
-    @Test
-    void testOverridingWarnings() {
-        testList(
-                List.of(
-                        new DiagAndCode(
-                                """
-                                abstract class A {
-                                    abstract String! lookup(String arg);
-                                }
-
-                                abstract class B extends A {
-                                    abstract String? lookup(String arg);
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.overrides.with.different.nullness.1"),
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                abstract class A {
-                                    abstract String lookup(Point! arg);
-                                }
-
-                                abstract class B extends A {
-                                    abstract String lookup(Point? arg);
-                                }
-                                """,
-                                Result.Warning,
-                                "compiler.warn.overrides.with.different.nullness.2")
                 )
         );
     }
