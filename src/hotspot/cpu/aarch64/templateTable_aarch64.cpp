@@ -3299,7 +3299,7 @@ void TemplateTable::fast_storefield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vputfield:
     {
-      Label is_flat, has_null_marker, done;
+      Label is_flat, done;
       __ test_field_is_flat(r5, noreg /* temp */, is_flat);
       __ null_check(r0);
       do_oop_store(_masm, field, r0, IN_HEAP);
