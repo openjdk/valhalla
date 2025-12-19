@@ -831,11 +831,25 @@ public class JavacParser implements Parser {
         }
     }
 
+    public JCExpression qualident(boolean allowAnnos, int newmode) {
+        int prevmode = mode;
+        setMode(newmode);
+        try {
+            return qualident(allowAnnos);
+        } finally {
+            setMode(prevmode);
+        }
+    }
+
     /**
      * Qualident = Ident { DOT [Annotations] Ident }
      */
     public JCExpression qualident(boolean allowAnnos) {
         JCExpression t = toP(F.at(token.pos).Ident(ident()));
+        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+            checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT);
+            nextToken();
+        }
         while (token.kind == DOT) {
             int pos = token.pos;
             nextToken();
@@ -846,6 +860,10 @@ public class JavacParser implements Parser {
             t = toP(F.at(pos).Select(t, ident()));
             if (tyannos != null && tyannos.nonEmpty()) {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
+            }
+            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT);
+                nextToken();
             }
         }
         return t;
@@ -1614,9 +1632,10 @@ public class JavacParser implements Parser {
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
                 if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                    checkNullRestrictionLocation();
-                    selectTypeMode();
-                    setNullMarker(t);
+                    if (checkNullRestrictionLocation()) {
+                        selectTypeMode();
+                        setNullMarker(t);
+                    }
                     nextToken();
                 }
                 loop: while (true) {
@@ -1895,9 +1914,10 @@ public class JavacParser implements Parser {
 
             if (allowNullRestrictedTypes && isMode(TYPE) && typeArgs == null && EMOTIONAL_QUALIFIER.test(token.kind) &&
                     (t instanceof JCIdent || t instanceof JCFieldAccess || t instanceof JCArrayTypeTree)) {
-                checkNullRestrictionLocation();
-                setNullMarker(t);
-                selectTypeMode();
+                if (checkNullRestrictionLocation()) {
+                    setNullMarker(t);
+                    selectTypeMode();
+                }
                 nextToken();
             } else if (token.kind == LBRACKET) {
                 nextToken();
@@ -2144,7 +2164,8 @@ public class JavacParser implements Parser {
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, RPAREN, ARROW))) {
                         // Identifier, '!'/'?', Identifier/'_'/'assert'/'enum', ','/')' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
-                    } else if (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN)) {
+                    } else if (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN) ||
+                            allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, AMP)) {
                         // this must be a cast with emotional type
                         return ParensResult.CAST;
                     } else if (allowNullRestrictedTypes && (peekToken(lookahead, EMOTIONAL_QUALIFIER, GENERIC_TYPE_END) ||
@@ -2178,7 +2199,8 @@ public class JavacParser implements Parser {
                         return ParensResult.EXPLICIT_LAMBDA;
                     } else if (peekToken(lookahead, RBRACKET, RPAREN) ||
                             (allowNullRestrictedTypes && peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER, RPAREN)) ||
-                            peekToken(lookahead, RBRACKET, AMP)) {
+                            peekToken(lookahead, RBRACKET, AMP) ||
+                            (allowNullRestrictedTypes && peekToken(lookahead, RBRACKET, EMOTIONAL_QUALIFIER, AMP))) {
                         // '[', ']', ')' -> cast
                         // '[', ']', '!', ')' -> cast
                         // '[', ']', '&' -> cast (intersection type)
@@ -2208,7 +2230,8 @@ public class JavacParser implements Parser {
                     if (depth == 0) {
                         if (peekToken(lookahead, RPAREN) ||
                                 (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, RPAREN)) ||
-                                peekToken(lookahead, AMP)) {
+                                peekToken(lookahead, AMP) ||
+                                (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, AMP))) {
                             // '>', ')' -> cast
                             // '>', '&' -> cast
                             return ParensResult.CAST;
@@ -2270,6 +2293,7 @@ public class JavacParser implements Parser {
     protected Predicate<TokenKind> EMOTIONAL_QUALIFIER = t -> t == BANG;
     protected Predicate<TokenKind> GENERIC_TYPE_END = t -> t == GT || t == GTGT || t == GTGTGT;
     protected Predicate<TokenKind> BAD_BANG_LOCATION = t -> t == LBRACKET || t == MONKEYS_AT || t == DOT || t == LPAREN;
+    protected Predicate<TokenKind> BAD_BANG_LOCATION_QUALIDENT = t -> t == MONKEYS_AT || t == DOT || t == LPAREN;
 
     enum ParensResult {
         CAST,
@@ -2630,24 +2654,44 @@ public class JavacParser implements Parser {
      * Then, we also make sure that null restriction is enabled in this context
      * e.g. by making sure the ALLOW_BANG mode is set.
      */
-    void checkNullRestrictionLocation() {
+    boolean checkNullRestrictionLocation() {
         Assert.check(EMOTIONAL_QUALIFIER.test(token.kind));
         if (peekToken(BAD_BANG_LOCATION)) {
             unsupportedNullRestriction();
+            return false;
         } else {
-            checkNullRestrictonAllowed();
+            return checkNullRestrictonAllowed();
         }
     }
 
-    void checkNullRestrictonAllowed() {
+    boolean checkNullRestrictionLocation(Predicate<TokenKind> badLocationFilter) {
+        Assert.check(EMOTIONAL_QUALIFIER.test(token.kind));
+        if (peekToken(badLocationFilter)) {
+            unsupportedNullRestriction();
+            return false;
+        } else {
+            return checkNullRestrictonAllowed();
+        }
+    }
+
+    boolean checkNullRestrictonAllowed() {
         Assert.check(EMOTIONAL_QUALIFIER.test(token.kind));
         if ((mode & ALLOW_BANGS) == 0) {
             unsupportedNullRestriction();
+            return false;
         }
+        return true;
     }
 
     void unsupportedNullRestriction() {
         reportSyntaxError(token.pos, Errors.UnsupportedNullRestriction);
+    }
+
+    void skipUnsupportedNullRestriction() {
+        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+            unsupportedNullRestriction();
+            nextToken();
+        }
     }
 
     /** BracketsOpt = [ "[" "]" { [Annotations] "[" "]"} ]
@@ -2761,7 +2805,7 @@ public class JavacParser implements Parser {
             break;
         default:
         }
-        JCExpression t = qualident(true);
+        JCExpression t = qualident(true, TYPE | ALLOW_BANGS);
 
         int prevmode = mode;
         selectTypeMode();
@@ -3438,12 +3482,12 @@ public class JavacParser implements Parser {
 
     List<JCExpression> catchTypes() {
         ListBuffer<JCExpression> catchTypes = new ListBuffer<>();
-        catchTypes.add(parseType());
+        catchTypes.add(parseType(TYPE | ALLOW_BANGS));
         while (token.kind == BAR) {
             nextToken();
             // Instead of qualident this is now parseType.
             // But would that allow too much, e.g. arrays or generics?
-            catchTypes.add(parseType());
+            catchTypes.add(parseType(TYPE | ALLOW_BANGS));
         }
         return catchTypes.toList();
     }

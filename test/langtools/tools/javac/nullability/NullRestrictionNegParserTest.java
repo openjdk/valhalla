@@ -1,0 +1,41 @@
+/*
+ * @test /nodynamiccopyright/
+ * @enablePreview
+ * @summary smoke test for negative parser test for null restrictions
+ * @compile/fail/ref=NullRestrictionNegParserTest.out -XDrawDiagnostics NullRestrictionNegParserTest.java
+ */
+
+class NullRestrictionNegParserTest {
+    static class Foo extends Bar! { } // not valid, superclass
+    static class Foo implements Bar! { } // not valid, superinterface
+
+    class Foo<X extends String!> { } // not valid, type-param bound
+    <X extends String!> void foo() { } // not valid, type-param bound
+
+    void foo() throws Error! { } // not valid, throws type
+
+    void testNew() {
+        new Foo!(); // bad, class creation expression
+    }
+
+    void testNewArray() {
+        var z = new Foo![2]; // ok
+        var y = new Foo![2]!; // bad, bang can't appear at the end
+        var x = new Foo![2][][][]!; // bad, bang can't appear at the end
+        var x = new Foo![2][]![][]!; // bad, bang can't appear in the middle or at the end
+        var x = new Foo![2][1][1][1]!; // bad, bang can't appear at the end
+        var x = new Foo![2][1]![1][1]!; // bad, bang can't appear at the end
+        var x = new Bar!.Foo![2][1]![1][1]!; // bad, bang can't appear at the end, and bad qualifier
+    }
+
+    void testNoBangInQualifiedTypeNames() {
+        a!.x x = ""; // bad, bang before '.'
+        a!.b!.x x = ""; // bad, bang before '.'
+        a!.m(); // bad, bang before '.'
+        a.b!.m(); // bad, bang before '.'
+    }
+
+    static class TestConstructor {
+        TestConstructor!() { } // bad, no bang in constructor type
+    }
+}
