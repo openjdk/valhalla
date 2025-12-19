@@ -249,6 +249,9 @@ class ClassLoader: AllStatic {
   static char* get_canonical_path(const char* orig, Thread* thread);
   static const char* file_name_for_class_name(const char* class_name,
                                               int class_name_len);
+  // REVIEWER-NOTE: Where best to put this - it should be private!
+  static const char* create_preview_file_name(const char* file_name);
+
   static PackageEntry* get_package_entry(Symbol* pkg_name, ClassLoaderData* loader_data);
   static int crc32(int crc, const char* buf, int len);
   static bool update_class_path_entry_list(JavaThread* current,
@@ -310,11 +313,13 @@ class ClassLoader: AllStatic {
   // Add a module's exploded directory to the boot loader's exploded module build list
   static void add_to_exploded_build_list(JavaThread* current, Symbol* module_name);
 
-  // Search the module list for the class file stream based on the file name and java package
+  // Search the module list for the class file stream based on the file name and java package.
+  // If preview_file_name is not nullptr, it is tried first for each classpath entry.
   static ClassFileStream* search_module_entries(JavaThread* current,
                                                 const GrowableArray<ModuleClassPathList*>* const module_list,
                                                 PackageEntry* pkg_entry, // Java package entry derived from the class name
-                                                const char* const file_name);
+                                                const char* const file_name,
+                                                const char* const preview_file_name);
 
   // Load individual .class file
   static InstanceKlass* load_class(Symbol* class_name, PackageEntry* pkg_entry, bool search_append_only, TRAPS);
@@ -360,7 +365,7 @@ class ClassLoader: AllStatic {
   // Called once, after all flags are processed, to finish initializing the
   // JImage file. Until this is called, jimage_find_resource(), and any other
   // JImage resource lookups or access will fail.
-  static void init_jimage(bool enable_preview);
+  static void set_preview_mode(bool enable_preview);
 
   // Determines if the named module is present in the
   // modules jimage file or in the exploded modules directory.
