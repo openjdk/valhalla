@@ -236,8 +236,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   __ jcc(Assembler::equal, done);
   generate_pre_barrier_slow_path(masm, obj, pre_val, thread, tmp, done);
 
-  // Barriers might be emitted when converting between (scalarized) calling conventions for inline
-  // types. Save all argument registers before calling into the runtime.
+  // Determine and save the live input values
   __ push_call_clobbered_registers();
 
   // Calling the runtime using the regular call_VM_leaf mechanism generates
