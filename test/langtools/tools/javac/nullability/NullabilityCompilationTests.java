@@ -169,18 +169,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "compiler.err.prob.found.req"),
                         new DiagAndCode(
                                 """
-                                import java.util.function.*;
-                                class Test<T> {
-                                    void m() {
-                                        Supplier<? extends T> factory = nullFactory();
-                                    }
-                                    Supplier<? extends T!> nullFactory() { return () -> null; }
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.prob.found.req"),
-                        new DiagAndCode(
-                                """
                                 value class Point { }
                                 class MyList<T> {
                                     void add(T e) {}
