@@ -90,6 +90,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.LABELLED;
 import static com.sun.tools.javac.tree.JCTree.Tag.METHODDEF;
 import static com.sun.tools.javac.tree.JCTree.Tag.NEWCLASS;
 import static com.sun.tools.javac.tree.JCTree.Tag.NULLCHK;
+import static com.sun.tools.javac.tree.JCTree.Tag.NULLCHK2;
 import static com.sun.tools.javac.tree.JCTree.Tag.TYPEAPPLY;
 import static com.sun.tools.javac.tree.JCTree.Tag.VARDEF;
 
@@ -760,7 +761,7 @@ public class Analyzer {
         public JCTree visitNewClass(NewClassTree node, Void aVoid) {
             JCNewClass oldNewClazz = (JCNewClass)node;
             JCNewClass newNewClazz = (JCNewClass)super.visitNewClass(node, aVoid);
-            if (!oldNewClazz.args.isEmpty() && oldNewClazz.args.head.hasTag(NULLCHK)) {
+            if (!oldNewClazz.args.isEmpty() && (oldNewClazz.args.head.hasTag(NULLCHK) || oldNewClazz.args.head.hasTag(NULLCHK2))) {
                 //workaround to Attr generating trees
                 newNewClazz.encl = ((JCUnary)newNewClazz.args.head).arg;
                 newNewClazz.args = newNewClazz.args.tail;

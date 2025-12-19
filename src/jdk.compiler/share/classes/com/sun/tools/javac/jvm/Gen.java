@@ -2344,6 +2344,10 @@ public class Gen extends JCTree.Visitor {
         callMethod(tree.pos(), syms.objectsType, names.requireNonNull,
                    List.of(syms.objectType), true);
         code.emitop0(pop);
+
+        // for the new API we should generate:
+        // dup; invokestatic Checks.nonNull;
+        // The alternative would be invokestatic Objects.requireNonNull; checkcast Foo;
     }
 
     public void visitBinary(JCBinary tree) {
