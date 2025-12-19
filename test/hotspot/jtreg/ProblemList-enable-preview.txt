@@ -37,11 +37,6 @@ compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJav
 runtime/exceptionMsgs/ArrayIndexOutOfBoundsException/ArrayIndexOutOfBoundsExceptionTest.java#id1 8369045 macosx-aarch64
 
 # Runtime (all Valhalla):
-runtime/cds/DumpSymbolAndStringTable.java                                                        8373875 generic-all
-runtime/cds/NonBootLoaderClasses.java                                                            8373596 generic-all
-runtime/cds/PrintSharedArchiveAndExit.java                                                       8373596 generic-all
-runtime/cds/SharedStringsDedup.java                                                              8372607 generic-all
-runtime/cds/SharedStringsRunAuto.java                                                            8372606 generic-all
 runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                                        8372602 generic-all
 runtime/cds/appcds/aotCode/AOTCodeFlags.java                                                     8372602 generic-all
 runtime/cds/serviceability/ReplaceCriticalClassesForSubgraphs.java                               8372599 generic-all
