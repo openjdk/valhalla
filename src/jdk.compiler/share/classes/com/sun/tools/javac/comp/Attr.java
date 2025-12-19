@@ -193,7 +193,6 @@ public class Attr extends JCTree.Visitor {
                 Feature.VALUE_CLASSES.allowedInSource(source);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
-        allowNullRestrictedTypesForValueClassesOnly = options.isSet("allowNullRestrictedTypesForValueClassesOnly");
     }
 
     /** Switch: reifiable types in instanceof enabled?
@@ -230,10 +229,6 @@ public class Attr extends JCTree.Visitor {
     /** Are null-restricted types allowed
      */
     private final boolean allowNullRestrictedTypes;
-
-    /** Are null-restricted types allowed for value classes only
-     */
-    private final boolean allowNullRestrictedTypesForValueClassesOnly;
 
     /** Check kind and type of given tree against protokind and prototype.
      *  If check succeeds, store type in tree and return it.
@@ -1729,14 +1724,6 @@ public class Attr extends JCTree.Visitor {
                 Type elemOrType = result;
                 while (!elemOrType.hasTag(ERROR) && types.elemtype(elemOrType) != null) {
                     elemOrType = types.elemtype(elemOrType);
-                }
-                if (allowNullRestrictedTypesForValueClassesOnly &&
-                        ((types.isNonNullable(result) || types.isNonNullable(elemOrType)) && (!elemOrType.isValueClass()))) {
-                    log.error(tree.pos(),
-                            types.elemtype(result) == null?
-                                    Errors.TypeCantBeNullRestricted(result) :
-                                    Errors.TypeCantBeNullRestricted2(result)
-                    );
                 }
             }
         }
