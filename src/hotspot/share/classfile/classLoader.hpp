@@ -249,9 +249,6 @@ class ClassLoader: AllStatic {
   static char* get_canonical_path(const char* orig, Thread* thread);
   static const char* file_name_for_class_name(const char* class_name,
                                               int class_name_len);
-  // REVIEWER-NOTE: Where best to put this - it should be private!
-  static const char* create_preview_file_name(const char* file_name);
-
   static PackageEntry* get_package_entry(Symbol* pkg_name, ClassLoaderData* loader_data);
   static int crc32(int crc, const char* buf, int len);
   static bool update_class_path_entry_list(JavaThread* current,
