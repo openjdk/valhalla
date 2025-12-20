@@ -4818,16 +4818,6 @@ public class Attr extends JCTree.Visitor {
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
 
-        // check nullness of site
-        if (types.isNullable(site)) {
-            chk.warnNullableTypes(tree.selected, LintWarnings.AccessingMemberOfNullable);
-        }
-
-        if (types.isParametric(site)) {
-            // see JDK-8339087
-            //chk.warnNullableTypes(tree.selected, Warnings.AccessingMemberOfParametric);
-        }
-
         // don't allow T.class T[].class, etc
         if (skind == KindSelector.TYP) {
             Type elt = site;
