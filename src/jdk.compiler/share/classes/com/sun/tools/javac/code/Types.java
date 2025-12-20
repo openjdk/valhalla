@@ -107,7 +107,6 @@ public class Types {
 
     /* are nullable and null-restricted types allowed? */
     private boolean allowNullRestrictedTypes;
-    private boolean tvarUnspecifiedNullity;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
@@ -139,7 +138,6 @@ public class Types {
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
         Options options = Options.instance(context);
         dumpStacktraceOnError = options.isSet("dev") || options.isSet(DOE);
-        tvarUnspecifiedNullity = options.isSet("tvarUnspecifiedNullity");
     }
     // </editor-fold>
 
@@ -2435,9 +2433,7 @@ public class Types {
                             } else {
                                 ListBuffer<Type> newBaseParams = new ListBuffer<>();
                                 for (Type tvar : ownerParams) {
-                                    Type baseParam = isParametric(tvar) ?
-                                            baseParams.head :
-                                            baseParams.head.asNullMarked(NullMarker.UNSPECIFIED);
+                                    Type baseParam = baseParams.head.asNullMarked(NullMarker.UNSPECIFIED);
                                     newBaseParams.add(baseParam);
                                     baseParams = baseParams.tail;
                                 }
@@ -5583,22 +5579,12 @@ public class Types {
 
     // <editor-fold defaultstate="collapsed" desc="nullability methods">
 
-    public boolean isNullable(Type type) {
-        return type.getNullMarker() == NullMarker.NULLABLE;
-    }
-
     public boolean isNonNullable(Type type) {
         return type.getNullMarker() == NullMarker.NOT_NULL;
     }
 
-    public boolean isParametric(Type type) {
-        return type.getNullMarker() == NullMarker.PARAMETRIC ||
-                (type.hasTag(TYPEVAR) && type.getNullMarker() == NullMarker.UNSPECIFIED && !tvarUnspecifiedNullity);
-    }
-
     public boolean isNullUnspecified(Type type) {
-        return type.getNullMarker() == NullMarker.UNSPECIFIED &&
-                (!type.hasTag(TYPEVAR) || tvarUnspecifiedNullity);
+        return type.getNullMarker() == NullMarker.UNSPECIFIED;
     }
 
     /**

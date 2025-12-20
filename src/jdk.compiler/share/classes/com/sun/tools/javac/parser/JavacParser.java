@@ -2017,15 +2017,7 @@ public class JavacParser implements Parser {
 
     void setNullMarker(JCExpression exp, Token tk) {
         checkSourceLevel(Feature.NULL_RESTRICTED_TYPES);
-        ((JCNullableTypeExpression)exp).setNullMarker(nullMarker(tk));
-    }
-
-    NullMarker nullMarker(Token tk) {
-        return tk.kind == QUES ?
-                NullMarker.NULLABLE :
-                tk.kind == BANG ?
-                        NullMarker.NOT_NULL :
-                        NullMarker.PARAMETRIC;
+        ((JCNullableTypeExpression)exp).setNullMarker(NullMarker.NOT_NULL);
     }
 
     /**

@@ -2197,9 +2197,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 }
             } else {
                 Type bound2 = bound.map(toTypeVarMap).baseType();
-                if (types.isParametric(qtype)) {
-                    bound2 = bound2.asNullMarked(bound.getNullMarker());
-                }
                 List<Type> prevBounds = bounds.get(ib);
                 if (bound == qtype) return;
                 for (Type b : prevBounds) {

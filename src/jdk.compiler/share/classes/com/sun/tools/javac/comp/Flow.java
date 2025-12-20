@@ -1751,13 +1751,6 @@ public class Flow {
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
-        boolean isUninitializedNonNullableOrParametricField(VarSymbol sym) {
-            return sym.owner.kind == TYP &&
-                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
-                            classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
-                            (types.isNonNullable(sym.type) || types.isParametric(sym.type)));
-        }
-
         boolean isUninitializedNonNullableField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                     ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
@@ -1866,9 +1859,6 @@ public class Flow {
                 if (isUninitializedNonNullableField(sym)) {
                     if (types.isNonNullable(sym.type)) {
                         log.error(pos, Errors.NonNullableShouldBeInitialized);
-                    } else {
-                        // see JDK-8339087
-                        //log.warning(pos, Warnings.ParametricShouldBeInitialized);
                     }
                 } else {
                     log.error(pos, errkey);

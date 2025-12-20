@@ -609,9 +609,8 @@ public class ClassReader {
                     sbp = startSbp;
                 }
             }
-            case '?': case '!' : case '=': {
-                char nmChar = (char) c;
-                nm = (nmChar == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(nmChar)));
+            case '!' : {
+                nm = NullMarker.NOT_NULL;
                 continue;
             }
             case '<':           // generic arguments
@@ -684,9 +683,8 @@ public class ClassReader {
                         }
                 };
                 char currentCh = (char)signature[sigp];
-                if (currentCh == '?' || currentCh == '!' || currentCh == '=' ) {
-                    nm = (currentCh == '=' ? NullMarker.PARAMETRIC : NullMarker.of(String.valueOf(currentCh)));
-                    outer = outer.asNullMarked(nm);
+                if (currentCh == '!' ) {
+                    outer = outer.asNullMarked(NullMarker.NOT_NULL);
                     sigp++;
                 }
                 switch (signature[sigp++]) {
