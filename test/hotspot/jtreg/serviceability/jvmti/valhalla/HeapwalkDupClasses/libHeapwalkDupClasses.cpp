@@ -44,7 +44,7 @@ heap_reference_callback(jvmtiHeapReferenceKind reference_kind,
                         void* user_data) {
   if (reference_kind == JVMTI_HEAP_REFERENCE_SYSTEM_CLASS) {
     CallbackData* data = (CallbackData*)user_data;
-	data->counter++;
+    data->counter++;
     *tag_ptr = data->tag;
   }
   return JVMTI_VISIT_OBJECTS;
