@@ -3023,7 +3023,7 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
-  ClassLoader::init_jimage(is_valhalla_enabled());
+  ClassLoader::set_preview_mode(is_valhalla_enabled());
 
   // finalize --module-patch.
   if (finalize_patch_module() != JNI_OK) {
