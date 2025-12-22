@@ -825,6 +825,7 @@ public:
   // must always specify w
   static const TypeInt* make(jint lo, jint hi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jint, juint>& t, int widen);
+  static const TypeInt* make(const TypeIntPrototype<jint, juint>& t, int widen) { return make_or_top(t, widen)->is_int(); }
 
   // Check for single integer
   bool is_con() const { return _lo == _hi; }
@@ -906,6 +907,7 @@ public:
   // must always specify w
   static const TypeLong* make(jlong lo, jlong hi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jlong, julong>& t, int widen);
+  static const TypeLong* make(const TypeIntPrototype<jlong, julong>& t, int widen) { return make_or_top(t, widen)->is_long(); }
 
   // Check for single integer
   bool is_con() const { return _lo == _hi; }
@@ -1031,8 +1033,8 @@ private:
   friend class TypeAryPtr;
 
 public:
-  static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false,
-                             bool flat = false, bool not_flat = false, bool not_null_free = false, bool atomic = false);
+  static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable,
+                             bool flat, bool not_flat, bool not_null_free, bool atomic);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -1813,7 +1815,9 @@ public:
   virtual const Type *xdual() const;    // Compute dual right now.
 
   // Inline type array properties
+  const TypeAryPtr* cast_to_flat(bool flat) const;
   const TypeAryPtr* cast_to_not_flat(bool not_flat = true) const;
+  const TypeAryPtr* cast_to_null_free(bool null_free) const;
   const TypeAryPtr* cast_to_not_null_free(bool not_null_free = true) const;
   const TypeAryPtr* update_properties(const TypeAryPtr* new_type) const;
   jint flat_layout_helper() const;
@@ -1950,7 +1954,6 @@ public:
   virtual bool klass_is_exact()    const { return _ptr == Constant; }
 
   static const TypeKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling = ignore_interfaces);
-  static const TypeKlassPtr *make(PTR ptr, ciKlass* klass, Offset offset, InterfaceHandling interface_handling = ignore_interfaces);
 
   virtual bool  is_loaded() const { return _klass->is_loaded(); }
 
@@ -2133,7 +2136,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type);
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -2141,10 +2144,10 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type = false);
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type = false);
-  static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling, bool refined_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type);
+  static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
+  const TypeAryKlassPtr* cast_to_non_refined() const;
   const TypeAryKlassPtr* cast_to_refined_array_klass_ptr(bool refined = true) const;
 
   const Type *elem() const { return _elem; }
