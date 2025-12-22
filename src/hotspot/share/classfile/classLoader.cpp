@@ -732,7 +732,7 @@ void ClassLoader::add_to_exploded_build_list(JavaThread* current, Symbol* module
         const char* preview_path = get_preview_path(path);
         if (os::stat(preview_path, &st) == 0) {
           ClassPathEntry* preview_entry = create_class_path_entry(current, preview_path, &st);
-          if (nullptr != preview_entry) {
+          if (preview_entry != nullptr) {
             module_cpl->add_to_list(preview_entry);
             log_info(class, load)("preview path: %s", preview_path);
           }
