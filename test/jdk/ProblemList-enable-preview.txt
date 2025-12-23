@@ -31,9 +31,6 @@
 java/foreign/TestRestricted.java                                   8372744 generic-all
 java/lang/module/ModuleReader/ModuleReaderTest.java                8372744 generic-all
 java/lang/module/ModuleReader/patched/PatchedModuleReaderTest.java 8372744 generic-all
-java/lang/StackWalker/LocalsAndOperands.java#id0                   8369045 macosx-all
-java/lang/StackWalker/LocalsAndOperands.java#id1                   8369045 macosx-all
-java/lang/StringBuilder/CompactStringBuilder.java                  8369045 macosx-all
 java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java            8372745 generic-all
 java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64
 java/util/NavigableMap/LockStep.java                               8372824 generic-all
