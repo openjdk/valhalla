@@ -856,7 +856,7 @@ public class ToolBox {
          * and delegates to a default file manager for input files.
          */
         public MemoryFileManager() {
-            this(ToolProvider.getSystemJavaCompiler().getStandardFileManager(null, null, null));
+            this(ToolProvider.getSystemJavaCompiler().getStandardFileManager(null, null, null), true);
         }
 
         /**
@@ -864,9 +864,11 @@ public class ToolBox {
          * and delegates to a specified file manager for input files.
          *
          * @param fileManager the file manager to be used for input files
+         * @param shouldClose whether the delegate file manager should be closed
+         *     when this instance is closed
          */
-        public MemoryFileManager(JavaFileManager fileManager) {
-            super(fileManager);
+        public MemoryFileManager(JavaFileManager fileManager, boolean shouldClose) {
+            super(fileManager, shouldClose);
             files = new HashMap<>();
         }
 
