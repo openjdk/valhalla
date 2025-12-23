@@ -340,8 +340,7 @@ public:
     ciArrayKlass* pop_objOrFlatArray() {
       ciType* array = pop_value();
       if (array == null_type())  return nullptr;
-      assert(array->is_obj_array_klass() || array->is_flat_array_klass(),
-             "must be a flat or an object array type");
+      assert(array->is_obj_array_klass(), "must be an object array type");
       return array->as_array_klass();
     }
     ciTypeArrayKlass* pop_typeArray() {
