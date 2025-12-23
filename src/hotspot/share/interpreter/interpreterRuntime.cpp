@@ -260,7 +260,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDes
   InstanceKlass* holder = entry->field_holder();
   InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
   InlineKlass* vk = li->klass();
-  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), true, CHECK);
+  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))

@@ -158,8 +158,7 @@ void TemplateTable::jsr() {
 // Implementation of TemplateTable: Debugging
 
 void TemplateTable::transition(TosState tos_in, TosState tos_out) {
-  assert(_desc->tos_in()  == tos_in,
-         "inconsistent tos_in  information");
+  assert(_desc->tos_in()  == tos_in , "inconsistent tos_in  information");
   assert(_desc->tos_out() == tos_out, "inconsistent tos_out information");
 }
 
