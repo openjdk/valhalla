@@ -7161,11 +7161,18 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
   Label L_null, L_notNull;
   // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
-  // TODO 8366717 We need to make sure that r14 (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register tmp1 = r10;
   Register tmp2 = r11;
+
+#ifndef ASSERT
+  RegSet clobbered_gp_regs = MacroAssembler::call_clobbered_gp_registers();
+  assert(clobbered_gp_regs.contains(tmp1), "tmp1 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp2), "tmp2 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(r14), "r14 must be saved explicitly if it's not a clobber");
+#endif
+
   Register fromReg = noreg;
-  ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
+  ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, true);
   bool done = true;
   bool mark_done = true;
   VMReg toReg;
@@ -7266,7 +7273,6 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
   }
 
-  // TODO 8366717 This is probably okay but looks fishy because stream is reset in the "Set null marker to zero" case just above. Same on x64.
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 
