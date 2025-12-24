@@ -5954,9 +5954,15 @@ void MacroAssembler::remove_frame(int framesize) {
 
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   if (needs_stack_repair) {
-    // Remove the extension of the caller's frame used for inline type unpacking
+    // The method has a scalarized entry point (where fields of value object arguments
+    // are passed through registers and stack), and a non-scalarized entry point (where
+    // value object arguments are given as oops). The non-scalarized entry point will
+    // first load each field of value object arguments and store them in registers and on
+    // the stack in a way compatible with the scalarized entry point. To do so, some extra
+    // stack space might be reserved (if argument registers are not enough). On leaving the
+    // method, this space must be freed.
     //
-    // Right now the stack looks like this:
+    // In case we used the non-scalarized entry point the stack looks like this:
     //
     // | Arguments from caller     |
     // |---------------------------|  <-- caller's SP
@@ -5982,18 +5988,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // will fix only this one. Overall, FP/LR #2 are not reliable and are simply
     // needed to add space between the extension space and the locals, as there
     // would be between the real arguments and the locals if we don't need to
-    // do unpacking.
+    // do unpacking (from the scalarized entry point).
     //
     // When restoring, one must then load FP #1 into x29, and LR #1 into x30,
     // while keeping in mind that from the scalarized entry point, there will be
-    // only one copy of each.
+    // only one copy of each. Indeed, in the case we used the scalarized calling
+    // convention, the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP / start of this method's frame
+    // | Saved LR                  |
+    // | Saved FP                  |
+    // |---------------------------|  <-- FP
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
     //
     // The sp_inc stack slot holds the total size of the frame including the
     // extension space minus two words for the saved FP and LR. That is how to
     // find FP/LR #1. This size is expressed in bytes. Be careful when using it
     // from C++ in pointer arithmetic; you might need to divide it by wordSize.
     //
-    // TODO 8371993 store fake values instead of LR/FP#2
+    // One can find sp_inc since the start the method's frame is SP + initial_framesize.
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 

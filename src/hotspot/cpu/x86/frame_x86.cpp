@@ -656,6 +656,31 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   return sender_sp;
 }
 
+
+// See comment in MacroAssembler::remove_frame
+frame::CompiledFramePointers frame::compiled_frame_details() const {
+  // frame owned by optimizing compiler
+  assert(_cb->frame_size() > 0, "must have non-zero frame size");
+  intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
+  assert(sender_sp == real_fp(), "");
+
+  // This is the saved value of EBP which may or may not really be an FP.
+  // It is only an FP if the sender is an interpreter frame (or C1?).
+  // saved_fp_addr should be correct even for a bottom thawed frame (with a return barrier)
+  intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
+
+  // Repair the sender sp if the frame has been extended
+  sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
+
+  CompiledFramePointers cfp;
+  cfp.sender_sp = sender_sp;
+  cfp.saved_fp_addr = saved_fp_addr;
+  // On Intel the return_address is always the word on the stack
+  cfp.sender_pc_addr = (address*)(sender_sp - frame::return_addr_offset);
+
+  return cfp;
+}
+
 intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
   assert(nm != nullptr && nm->needs_stack_repair(), "");
   // The stack increment resides just below the saved rbp on the stack
