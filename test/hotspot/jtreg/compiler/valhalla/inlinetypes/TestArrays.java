@@ -822,7 +822,7 @@ public class TestArrays {
     }
 
     // non escaping allocations
-    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
+    // TODO 8350865: Support flat arrays in System.arraycopy
     // @Test(failOn = ALLOC_OF_MYVALUE_KLASS, + ALLOC_ARRAY_OF_MYVALUE_KLASS + LOOP + LOAD_OF_ANY_KLASS + STORE_OF_ANY_KLASS + UNSTABLE_IF_TRAP, PREDICATE_TRAP)
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
