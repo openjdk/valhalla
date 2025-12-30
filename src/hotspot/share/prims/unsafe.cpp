@@ -373,7 +373,7 @@ UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsafe, jobject 
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
-  return InstanceKlass::cast(k)->null_marker_offset(slot);
+  return InstanceKlass::cast(k)->field_null_marker_offset(slot);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jint, Unsafe_ArrayLayout(JNIEnv *env, jobject unsafe, jarray array)) {
