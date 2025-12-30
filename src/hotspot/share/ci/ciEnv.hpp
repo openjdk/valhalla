@@ -199,13 +199,18 @@ private:
     if (o == nullptr) return nullptr;
     return get_object(o)->as_instance();
   }
+  ciObjArrayKlass* get_obj_array_klass(Klass* o) {
+    if (o == nullptr) return nullptr;
+    assert(o->is_objArray_klass() && !o->is_flatArray_klass() && !o->is_refArray_klass(), "must be exact");
+    return get_metadata(o)->as_obj_array_klass();
+  }
   ciFlatArrayKlass* get_flat_array_klass(Klass* o) {
     if (o == nullptr) return nullptr;
     return get_metadata(o)->as_flat_array_klass();
   }
-  ciObjArrayKlass* get_obj_array_klass(Klass* o) {
+  ciRefArrayKlass* get_ref_array_klass(Klass* o) {
     if (o == nullptr) return nullptr;
-    return get_metadata(o)->as_obj_array_klass();
+    return get_metadata(o)->as_ref_array_klass();
   }
   ciTypeArrayKlass* get_type_array_klass(Klass* o) {
     if (o == nullptr) return nullptr;
