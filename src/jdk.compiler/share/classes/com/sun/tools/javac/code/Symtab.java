@@ -251,7 +251,6 @@ public class Symtab {
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
-    public final Type looselyConsistentValueType;
     public final Type reflectArrayType;
 
     /** The symbol representing the length field of an array.
@@ -660,7 +659,6 @@ public class Symtab {
         synthesizeBoxTypeIfMissing(voidType);
 
         // for value objects
-        looselyConsistentValueType = enterClass("java.lang.LooselyConsistentValue");
         reflectArrayType = enterClass("java.lang.reflect.Array");
         numberType = enterClass("java.lang.Number");
 
