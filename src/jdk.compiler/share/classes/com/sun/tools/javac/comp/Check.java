@@ -4524,10 +4524,6 @@ public class Check {
             } else {
                 boolean warned = this.warned;
                 if (warned) return;
-                if (types.isParametric(expected)) {
-                    // not sure this is the right warning
-                    Check.this.warnNullableTypes(pos(), LintWarnings.NarrowingNullnessConversion);
-                }
             }
         }
     }

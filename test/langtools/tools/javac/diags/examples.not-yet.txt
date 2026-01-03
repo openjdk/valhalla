@@ -230,9 +230,9 @@ compiler.warn.proc.use.proc.or.implicit
 compiler.misc.feature.null.restricted.types
 compiler.warn.accessing.member.of.nullable
 compiler.warn.narrowing.nullness.conversion
-compiler.warn.accessing.member.of.parametric
-compiler.warn.parametric.should.be.initialized
 compiler.misc.attribute.must.be.unique                                   # bad class file
 compiler.misc.attribute.not.applicable.to.field.type                     # bad class file
 compiler.misc.attribute.only.applicable.to.fields                        # bad class file
-unsupported.null.restriction
+compiler.warn.unchecked.nullness.conversion
+compiler.warn.overrides.with.different.nullness.1
+compiler.warn.overrides.with.different.nullness.2

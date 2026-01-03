@@ -107,7 +107,6 @@ public class Types {
 
     /* are nullable and null-restricted types allowed? */
     private boolean allowNullRestrictedTypes;
-    private boolean tvarUnspecifiedNullity;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
@@ -139,7 +138,6 @@ public class Types {
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
         Options options = Options.instance(context);
         dumpStacktraceOnError = options.isSet("dev") || options.isSet(DOE);
-        tvarUnspecifiedNullity = options.isSet("tvarUnspecifiedNullity");
     }
     // </editor-fold>
 
@@ -2435,9 +2433,7 @@ public class Types {
                             } else {
                                 ListBuffer<Type> newBaseParams = new ListBuffer<>();
                                 for (Type tvar : ownerParams) {
-                                    Type baseParam = isParametric(tvar) ?
-                                            baseParams.head :
-                                            baseParams.head.asNullMarked(NullMarker.UNSPECIFIED);
+                                    Type baseParam = baseParams.head.asNullMarked(NullMarker.UNSPECIFIED);
                                     newBaseParams.add(baseParam);
                                     baseParams = baseParams.tail;
                                 }
@@ -5431,23 +5427,17 @@ public class Types {
                     ArrayType at = (ArrayType) type;
                     append('[');
                     assembleSig(at.elemtype, includeNullMarkers);
-                    /*if (includeNullMarkers) {   // there is no type in the VM for null-restricted arrays, for now
-                        NullMarker nmArray = at.getNullMarker();
-                        if (nmArray != NullMarker.UNSPECIFIED) {
-                            append(nmArray.typeSuffix().charAt(0));
-                        }
-                    }*/
                     break;
                 case METHOD:
                     MethodType mt = (MethodType) type;
                     append('(');
-                    assembleSig(mt.argtypes);
+                    assembleSig(mt.argtypes, includeNullMarkers);
                     append(')');
-                    assembleSig(mt.restype);
+                    assembleSig(mt.restype, includeNullMarkers);
                     if (hasTypeVar(mt.thrown)) {
                         for (List<Type> l = mt.thrown; l.nonEmpty(); l = l.tail) {
                             append('^');
-                            assembleSig(l.head);
+                            assembleSig(l.head, includeNullMarkers);
                         }
                     }
                     break;
@@ -5476,22 +5466,12 @@ public class Types {
                     }
                     append('T');
                     append(type.tsym.name);
-                    if (includeNullMarkers) {
-                        if (Types.this.isDeclaredParametric(type)) {
-                            append('=');// '*' is already used for wildcards
-                        } else {
-                            NullMarker nmTV = type.getNullMarker();
-                            if (nmTV != NullMarker.UNSPECIFIED) {
-                                append(nmTV.typeSuffix().charAt(0));
-                            }
-                        }
-                    }
                     append(';');
                     break;
                 case FORALL:
                     Type.ForAll ft = (Type.ForAll) type;
                     assembleParamsSig(ft.tvars);
-                    assembleSig(ft.qtype);
+                    assembleSig(ft.qtype, includeNullMarkers);
                     break;
                 default:
                     throw new AssertionError("typeSig " + type.getTag());
@@ -5599,26 +5579,12 @@ public class Types {
 
     // <editor-fold defaultstate="collapsed" desc="nullability methods">
 
-    public boolean isNullable(Type type) {
-        return type.getNullMarker() == NullMarker.NULLABLE;
-    }
-
     public boolean isNonNullable(Type type) {
         return type.getNullMarker() == NullMarker.NOT_NULL;
     }
 
-    public boolean isParametric(Type type) {
-        return type.getNullMarker() == NullMarker.PARAMETRIC ||
-                (type.hasTag(TYPEVAR) && type.getNullMarker() == NullMarker.UNSPECIFIED && !tvarUnspecifiedNullity);
-    }
-
-    public boolean isDeclaredParametric(Type type) {
-        return type.getNullMarker() == NullMarker.PARAMETRIC;
-    }
-
     public boolean isNullUnspecified(Type type) {
-        return type.getNullMarker() == NullMarker.UNSPECIFIED &&
-                (!type.hasTag(TYPEVAR) || tvarUnspecifiedNullity);
+        return type.getNullMarker() == NullMarker.UNSPECIFIED;
     }
 
     /**
