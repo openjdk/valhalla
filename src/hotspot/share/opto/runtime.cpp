@@ -363,7 +363,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
-        vk->write_value_to_addr(h_init_val(), ((flatArrayOop)result)->value_at_addr(i, fak->layout_helper()), fak->layout_kind(), true, CHECK);
+        vk->write_value_to_addr(h_init_val(), ((flatArrayOop)result)->value_at_addr(i, fak->layout_helper()), fak->layout_kind(), CHECK);
       }
     }
   } else if (array_type->is_typeArray_klass()) {

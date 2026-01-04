@@ -66,8 +66,8 @@
 //             null marker). The reset value instance is needed because the VM needs an instance guaranteed to
 //             always be filled with zeros, and the default value could have its null marker set to non-zero if
 //             it is used as a source to update a NULLABLE_ATOMIC_FLAT field.
-// BUFFERED: this layout is only used in heap buffered instances of a value class. It is computed to be compatible
-//             to be compatible in size and alignment with all other flat layouts supported by the value class.
+// BUFFERED:   This layout is only used in heap buffered instances of a value class. It is computed to be compatible
+//             in size and alignment with all other flat layouts supported by the value class.
 //
 //
 // IMPORTANT: The REFERENCE layout must always be associated with the numerical value zero, because the implementation

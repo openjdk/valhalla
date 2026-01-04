@@ -465,7 +465,7 @@ UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj,
   assert_and_log_unsafe_value_access(base, offset, vk);
   LayoutKind lk = (LayoutKind)layoutKind;
   oop v = JNIHandles::resolve(value);
-  vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, lk, true, CHECK);
+  vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, lk, CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
