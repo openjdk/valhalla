@@ -253,6 +253,7 @@ public class Symtab {
     public final Type numberType;
     public final Type looselyConsistentValueType;
     public final Type reflectArrayType;
+    public final Type checksType;
 
     /** The symbol representing the length field of an array.
      */
@@ -663,6 +664,7 @@ public class Symtab {
         looselyConsistentValueType = enterClass("java.lang.LooselyConsistentValue");
         reflectArrayType = enterClass("java.lang.reflect.Array");
         numberType = enterClass("java.lang.Number");
+        checksType = enterClass("java.lang.runtime.Checks");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
