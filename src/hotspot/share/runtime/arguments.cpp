@@ -536,14 +536,11 @@ static SpecialFlag const special_jvm_flags[] = {
   { "DynamicDumpSharedSpaces",      JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "RequireSharedSpaces",          JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
-  { "LockingMode",                  JDK_Version::jdk(24), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "EnableValhalla",               JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::undefined() },
 #ifdef _LP64
   { "UseCompressedClassPointers",   JDK_Version::jdk(25),  JDK_Version::jdk(27), JDK_Version::undefined() },
 #endif
   { "ParallelRefProcEnabled",       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "ParallelRefProcBalancingEnabled", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
-  { "PSChunkLargeArrays",           JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "MaxRAM",                       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "AggressiveHeap",               JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "NeverActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
@@ -553,35 +550,12 @@ static SpecialFlag const special_jvm_flags[] = {
 
   // -------------- Obsolete Flags - sorted by expired_in --------------
 
-#ifdef LINUX
-  { "UseOprofile",                  JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-#endif
   { "MetaspaceReclaimPolicy",       JDK_Version::undefined(), JDK_Version::jdk(21), JDK_Version::undefined() },
-  { "G1UpdateBufferSize",           JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "ShenandoahPacing",             JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::jdk(27) },
 #if defined(AARCH64)
   { "NearCpool",                    JDK_Version::undefined(), JDK_Version::jdk(25), JDK_Version::undefined() },
 #endif
 
-  { "AdaptiveSizeMajorGCDecayTimeScale",                JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveSizePolicyInitializingSteps",              JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveSizePolicyOutputInterval",                 JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveSizeThroughPutPolicy",                     JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveTimeWeight",                               JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "PausePadding",                                     JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "SurvivorPadding",                                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "TenuredGenerationSizeIncrement",                   JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "TenuredGenerationSizeSupplement",                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "TenuredGenerationSizeSupplementDecay",             JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveGenerationSizePolicyAtMajorCollection", JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveGenerationSizePolicyAtMinorCollection", JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveSizeDecayMajorGCCost",                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveSizePolicyFootprintGoal",               JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveSizePolicyWithSystemGC",                JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UsePSAdaptiveSurvivorSizePolicy",                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-
-  { "PretenureSizeThreshold",       JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "HeapMaximumCompactionInterval",JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
+  { "PSChunkLargeArrays",           JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
 
 #ifdef ASSERT
   { "DummyObsoleteTestFlag",        JDK_Version::undefined(), JDK_Version::jdk(18), JDK_Version::undefined() },
@@ -1118,6 +1092,13 @@ void Arguments::print_summary_on(outputStream* st) {
     st->print("%s", java_command());
   }
   st->cr();
+}
+
+void Arguments::set_jvm_flags_file(const char *value) {
+  if (_jvm_flags_file != nullptr) {
+    os::free(_jvm_flags_file);
+  }
+  _jvm_flags_file = os::strdup_check_oom(value);
 }
 
 void Arguments::print_jvm_flags_on(outputStream* st) {
@@ -2895,6 +2876,10 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
   return JNI_OK;
 }
 
+void Arguments::set_ext_dirs(char *value) {
+  _ext_dirs = os::strdup_check_oom(value);
+}
+
 void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append, bool allow_cds) {
   if (!allow_cds) {
     CDSConfig::set_module_patching_disables_cds();
@@ -3038,7 +3023,7 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
-  ClassLoader::init_jimage(is_valhalla_enabled());
+  ClassLoader::set_preview_mode(is_valhalla_enabled());
 
   // finalize --module-patch.
   if (finalize_patch_module() != JNI_OK) {
@@ -3933,17 +3918,54 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  if (!is_valhalla_enabled() || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
-    // Disable calling convention optimizations if inline types are not supported.
-    // Also these aren't useful in -Xint. However, don't disable them when dumping or using
-    // the CDS archive, as the values must match between dumptime and runtime.
-    FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
-    FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
-  }
-  if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
-    // Flattening is disabled
-    FLAG_SET_DEFAULT(UseArrayFlattening, false);
-    FLAG_SET_DEFAULT(UseFieldFlattening, false);
+  if (!is_valhalla_enabled()) {
+#define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
+    if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
+      warning("Valhalla-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
+    }
+
+#define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
+    WARN_IF_NOT_DEFAULT_FLAG(flag)                  \
+    FLAG_SET_DEFAULT(flag, false);
+
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypePassFieldsAsArgs);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypeReturnedAsFields);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseArrayFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseFieldFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNonAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
+    WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
+    WARN_IF_NOT_DEFAULT_FLAG(UseAltSubstitutabilityMethod);
+#ifdef ASSERT
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(StressCallingConvention);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PreloadClasses);
+    WARN_IF_NOT_DEFAULT_FLAG(PrintInlineKlassFields);
+#endif
+#ifdef COMPILER1
+    DEBUG_ONLY(DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(C1UseDelayedFlattenedFieldReads);)
+#endif
+#ifdef COMPILER2
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseArrayLoadStoreProfile);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseACmpProfile);
+#endif
+#undef DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT
+#undef WARN_IF_NOT_DEFAULT_FLAG
+  } else {
+    if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
+      // Disable calling convention optimizations if inline types are not supported.
+      // Also these aren't useful in -Xint. However, don't disable them when dumping or using
+      // the CDS archive, as the values must match between dumptime and runtime.
+      FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
+      FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
+    }
+    if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
+      // Flattening is disabled
+      FLAG_SET_DEFAULT(UseArrayFlattening, false);
+      FLAG_SET_DEFAULT(UseFieldFlattening, false);
+    }
   }
 
 #ifndef PRODUCT
