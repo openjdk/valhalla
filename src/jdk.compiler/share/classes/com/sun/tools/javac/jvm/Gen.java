@@ -2340,6 +2340,10 @@ public class Gen extends JCTree.Visitor {
     }
 
     /** Generate a null check from the object value at stack top. */
+    private void genNullCheck(JCTree tree) {
+        genNullCheck(tree, false);
+    }
+
     private void genNullCheck(JCTree tree, boolean nullRestricted) {
         code.statBegin(tree.pos);
         if (!nullRestricted) {
@@ -2535,7 +2539,7 @@ public class Gen extends JCTree.Visitor {
                 base.drop();
             } else {
                 base.load();
-                genNullCheck(tree.selected, false);
+                genNullCheck(tree.selected);
             }
             result = items.
                 makeImmediateItem(sym.type, ((VarSymbol) sym).getConstValue());
