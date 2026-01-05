@@ -49,6 +49,9 @@
 #endif
 
 // C2 compiled method's prolog code.
+// Beware! This sp_inc is NOT the same as the one mentioned in MacroAssembler::remove_frame but only the size
+// of the extension space + the additional copy of the return address. That means, it doesn't contain the
+// frame size (where the local and sp_inc are) and the saved RBP.
 void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   if (C->clinit_barrier_on_entry()) {
     assert(VM_Version::supports_fast_class_init_checks(), "sanity");
