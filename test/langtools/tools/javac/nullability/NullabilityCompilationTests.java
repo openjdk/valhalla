@@ -54,9 +54,6 @@ import tools.javac.combo.CompilationTestCase;
 public class NullabilityCompilationTests extends CompilationTestCase {
     private static String[] PREVIEW_OPTIONS = {
             "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
-    private static String[] PREVIEW_PLUS_LINT_OPTIONS = {
-            "--enable-preview", "-source", Integer.toString(Runtime.version().feature()),
-            "-Xlint:null" };
 
     public NullabilityCompilationTests() {
         setDefaultFilename("Test.java");
@@ -64,7 +61,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
 
     enum TestResult {
         COMPILE_OK,
-        COMPILE_WITH_WARNING,
         ERROR
     }
 
@@ -81,11 +77,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         setCompileOptions(compilerOptions);
         try {
             if (testResult != TestResult.COMPILE_OK) {
-                if (testResult == TestResult.COMPILE_WITH_WARNING) {
-                    assertOKWithWarning(diagsMessage, diagsCount, code);
-                } else {
-                    assertFail(diagsMessage, code);
-                }
+                assertFail(diagsMessage, code);
             } else {
                 if (diagConsumer == null) {
                     assertOK(code);
@@ -101,27 +93,15 @@ public class NullabilityCompilationTests extends CompilationTestCase {
 
     void testList(List<DiagAndCode> testList) {
         for (DiagAndCode diagAndCode : testList) {
-            if (diagAndCode.result == Result.Clean) {
-                testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.code);
-            } else if (diagAndCode.result == Result.Warning) {
-                testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.COMPILE_WITH_WARNING, diagAndCode.code, null);
-                testHelper(PREVIEW_OPTIONS, diagAndCode.code,
-                        d -> {
-                            if (d.getKind() == Diagnostic.Kind.WARNING) {
-                                // shouldn't issue any warnings if the -Xlint:null option is not passed
-                                throw new AssertionError("unexpected warning for " + diagAndCode.code);
-                            }
-                        });
-            } else {
-                testHelper(PREVIEW_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.ERROR, diagAndCode.code, null);
-            }
             if (diagAndCode.result != Result.Error) {
                 testHelper(PREVIEW_OPTIONS, diagAndCode.code);
+            } else {
+                testHelper(PREVIEW_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.ERROR, diagAndCode.code, null);
             }
         }
     }
 
-    enum Result { Warning, Error, Clean}
+    enum Result { Error, Clean }
 
     record DiagAndCode(String code, Result result, String diag, int diagsCount) {
         DiagAndCode(String code, Result result, String diag) {

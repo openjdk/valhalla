@@ -44,7 +44,6 @@ import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.comp.AttrContext;
@@ -1034,17 +1033,12 @@ public class Types {
     //where
         private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
             if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
-                boolean result;
                 if (((ArrayType)t).elemtype.isPrimitive()) {
-                    result = isSameType(elemtype(t), elemtype(s));
+                    return isSameType(elemtype(t), elemtype(s));
                 } else {
-                    result = isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
+                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
-                if (result && allowNullRestrictedTypes && hasNarrowerNullability(s, t)) {
-                    warn.warn(LintCategory.NULL);
-                }
-                return result;
-            } else if (isSubtype(t, s, capture, warn)) {
+            } else if (isSubtype(t, s, capture)) {
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
@@ -1094,21 +1088,9 @@ public class Types {
     public final boolean isSubtypeNoCapture(Type t, Type s) {
         return isSubtype(t, s, false);
     }
-    public boolean isSubtype(Type t, Type s, boolean capture, Warner warner) {
-        try {
-            pushWarner(warner);
-            return isSubtype(t, s, capture);
-        } finally {
-            popWarner();
-        }
-    }
     public boolean isSubtype(Type t, Type s, boolean capture) {
-        if (t.equalsIgnoreMetadata(s)) {
-            if (allowNullRestrictedTypes && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
-                warnStack.head.warn(LintCategory.NULL);
-            }
+        if (t.equalsIgnoreMetadata(s))
             return true;
-        }
         if (s.isPartial())
             return isSuperType(s, t);
 
@@ -1221,39 +1203,30 @@ public class Types {
                 if (sup == null) return false;
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
-                boolean result = sup.tsym == s.tsym
+                return sup.tsym == s.tsym
                      // Check type variable containment
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
-                if (result && allowNullRestrictedTypes && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
-                    warnStack.head.warn(LintCategory.NULL);
-                }
-                return result;
             }
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
-                boolean result = false;
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
-                        result = isSameType(t.elemtype, elemtype(s));
+                        return isSameType(t.elemtype, elemtype(s));
                     else
-                        result = isSubtypeNoCapture(t.elemtype, elemtype(s));
+                        return isSubtypeNoCapture(t.elemtype, elemtype(s));
                 }
 
-                if (!result && s.hasTag(CLASS)) {
+                if (s.hasTag(CLASS)) {
                     Name sname = s.tsym.getQualifiedName();
-                    result = sname == names.java_lang_Object
+                    return sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
                         || sname == names.java_io_Serializable;
                 }
 
-                if (result && allowNullRestrictedTypes && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
-                    warnStack.head.warn(LintCategory.NULL);
-                }
-
-                return result;
+                return false;
             }
 
             @Override
@@ -1394,12 +1367,8 @@ public class Types {
         abstract class TypeEqualityVisitor extends TypeRelation {
 
             public Boolean visitType(Type t, Type s) {
-                if (t.equalsIgnoreMetadata(s)) {
-                    if (allowNullRestrictedTypes && warnStack.nonEmpty() && !hasSameNullability(s, t)) {
-                        warnStack.head.warn(LintCategory.NULL);
-                    }
+                if (t.equalsIgnoreMetadata(s))
                     return true;
-                }
 
                 if (s.isPartial())
                     return visit(s, t);
@@ -1468,32 +1437,23 @@ public class Types {
                     }
                     return tMap.isEmpty();
                 }
-                boolean equal = t.tsym == s.tsym
+                return t.tsym == s.tsym
                     && visit(t.getEnclosingType(), s.getEnclosingType())
                     && sameTypeArguments(t.getTypeArguments(), s.getTypeArguments());
-                if (equal && allowNullRestrictedTypes && warnStack.nonEmpty() && !hasSameNullability(s, t)) {
-                    warnStack.head.warn(LintCategory.NULL);
-                }
-                return equal;
             }
 
             abstract boolean sameTypeArguments(List<Type> ts, List<Type> ss);
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
-                boolean result;
-                if (t == s) {
-                    result = true;
-                } else if (s.isPartial()) {
-                    result = visit(s, t);
-                } else {
-                    result = s.hasTag(ARRAY) &&
-                            containsTypeEquivalent(t.elemtype, elemtype(s));
-                }
-                if (result && allowNullRestrictedTypes && warnStack.nonEmpty() && !hasSameNullability(s, t)) {
-                    warnStack.head.warn(LintCategory.NULL);
-                }
-                return result;
+                if (t == s)
+                    return true;
+
+                if (s.isPartial())
+                    return visit(s, t);
+
+                return s.hasTag(ARRAY)
+                    && containsTypeEquivalent(t.elemtype, elemtype(s));
             }
 
             @Override
@@ -2227,16 +2187,6 @@ public class Types {
     }
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="warn stack">
-    public void pushWarner(Warner warner) {
-        warnStack = warnStack.prepend(warner);
-    }
-
-    public void popWarner() {
-        warnStack = warnStack.tail;
-    }
-    // </editor-fold>
-
     // <editor-fold defaultstate="collapsed" desc="asSuper">
     /**
      * Return the (most specific) base type of t that starts with the
@@ -2426,18 +2376,8 @@ public class Types {
                             if (baseParams.isEmpty()) {
                                 // then base is a raw type
                                 return erasure(sym.type);
-                            } else if (baseParams.length() != ownerParams.length()) {
-                                // rare type, recovery
-                                return subst(sym.type, ownerParams,
-                                        baseParams.map(ta -> ta.asNullMarked(NullMarker.UNSPECIFIED)));
                             } else {
-                                ListBuffer<Type> newBaseParams = new ListBuffer<>();
-                                for (Type tvar : ownerParams) {
-                                    Type baseParam = baseParams.head.asNullMarked(NullMarker.UNSPECIFIED);
-                                    newBaseParams.add(baseParam);
-                                    baseParams = baseParams.tail;
-                                }
-                                return subst(sym.type, ownerParams, newBaseParams.toList());
+                                return subst(sym.type, ownerParams, baseParams);
                             }
                         }
                     }
@@ -2580,11 +2520,11 @@ public class Types {
                 return combineMetadata(erased, t);
             }
 
-        @Override
-        public Type visitArrayType(ArrayType t, Boolean aBoolean) {
-            Type erased = super.visitArrayType(t, aBoolean);
-            return combineMetadata(erased, t);
-        }
+            @Override
+            public Type visitArrayType(ArrayType t, Boolean aBoolean) {
+                Type erased = super.visitArrayType(t, aBoolean);
+                return combineMetadata(erased, t);
+            }
     };
 
     public List<Type> erasure(List<Type> ts) {
@@ -2928,16 +2868,7 @@ public class Types {
      * @return true if t is a subsignature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return isSubSignature(t, s, noWarnings);
-    }
-
-    public boolean isSubSignature(Type t, Type s, Warner warn) {
-        try {
-            warnStack = warnStack.prepend(warn);
-            return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
-        } finally {
-            warnStack = warnStack.tail;
-        }
+        return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
     }
 
     /**
