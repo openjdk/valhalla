@@ -849,7 +849,10 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
     if (is_oop) {
       __ push(r13);
       __ push(rbx);
+      // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep it valid.
+      __ push(to.base());
       __ store_heap_oop(to, val, rscratch1, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      __ pop(to.base());
       __ pop(rbx);
       __ pop(r13);
     } else {
@@ -3834,7 +3837,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       Register val = r_1->as_Register();
       assert_different_registers(to.base(), val, r14, r13, rbx, rscratch1);
       if (is_reference_type(bt)) {
-        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep rax ok.
+        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep rax valid.
         __ mov(rbx, rax);
         Address to_with_rbx(rbx, off);
         __ store_heap_oop(to_with_rbx, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);

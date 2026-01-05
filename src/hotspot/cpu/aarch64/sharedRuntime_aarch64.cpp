@@ -565,7 +565,10 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
     }
     assert_different_registers(to.base(), val, tmp1, tmp2, tmp3);
     if (is_oop) {
+      // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep it valid.
+      __ push(to.base());
       __ store_heap_oop(to, val, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      __ pop(to.base());
     } else {
       __ store_sized_value(to, val, size_in_bytes);
     }
@@ -3041,7 +3044,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       Register val = r_1->as_Register();
       assert_different_registers(to.base(), val, r15, r16, r17);
       if (is_reference_type(bt)) {
-        __ store_heap_oop(to, val, r15, r16, r17, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep r0 valid.
+        __ mov(r17, r0);
+        Address to_with_r17(r17, off);
+        __ store_heap_oop(to_with_r17, val, r15, r16, r17, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
       }
