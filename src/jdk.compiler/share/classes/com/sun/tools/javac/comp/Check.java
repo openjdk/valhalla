@@ -36,7 +36,6 @@ import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.NestingKind;
-import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.source.tree.CaseTree;
@@ -266,16 +265,6 @@ public class Check {
      */
     public void warnUnchecked(DiagnosticPosition pos, LintWarning warnKey) {
         log.warning(pos, warnKey);
-    }
-
-    /** Warn about operation with bang types.
-     *  @param pos        Position to be used for error reporting.
-     *  @param warnKey    A warning key.
-     */
-    public void warnNullableTypes(DiagnosticPosition pos, LintWarning warnKey) {
-        if (allowNullRestrictedTypes) {
-            log.warning(pos, warnKey);
-        }
     }
 
     /** Report a failure to complete a class.
@@ -610,10 +599,9 @@ public class Check {
         if (!tree.type.isErroneous()
                 && types.isSameType(tree.expr.type, tree.clazz.type)
                 && !(ignoreAnnotatedCasts && TreeInfo.containsTypeAnnotation(tree.clazz))
-                && !is292targetTypeCast(tree)) {
-            if (!lint.isEnabled(LintCategory.NULL) || !types.hasNarrowerNullability(tree.clazz.type, tree.expr.type)) {
-                log.warning(tree.pos(), LintWarnings.RedundantCast(tree.clazz.type));
-            }
+                && !is292targetTypeCast(tree)
+                && !types.hasNarrowerNullability(tree.clazz.type, tree.expr.type)) {
+            log.warning(tree.pos(), LintWarnings.RedundantCast(tree.clazz.type));
         }
     }
     //where
@@ -639,22 +627,12 @@ public class Check {
      *  @param a             The type that should be bounded by bs.
      *  @param bound         The bound.
      */
-    private boolean checkExtends(JCTree pos, Type a, Type bound) {
+    private boolean checkExtends(Type a, Type bound) {
          if (a.isUnbound()) {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
              a = types.cvarUpperBound(a);
-             try {
-                 if (pos != null) {
-                     types.pushWarner(new NullnessWarner(pos));
-                 }
-                 return types.isSubtype(a, bound, true);
-             } finally {
-                 if (pos != null) {
-                     types.popWarner();
-                 }
-             }
-
+             return types.isSubtype(a, bound);
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.wildUpperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
@@ -1096,14 +1074,10 @@ public class Check {
      * @return true if 't' is well-formed
      */
     public boolean checkValidGenericType(Type t) {
-        return checkValidGenericType(null, t);
-    }
-
-    public boolean checkValidGenericType(JCTree pos, Type t) {
-        return firstIncompatibleTypeArg(pos, t) == null;
+        return firstIncompatibleTypeArg(t) == null;
     }
     //WHERE
-        private Type firstIncompatibleTypeArg(JCTree pos, Type type) {
+        private Type firstIncompatibleTypeArg(Type type) {
             List<Type> formals = type.tsym.type.allparams();
             List<Type> actuals = type.allparams();
             List<Type> args = type.getTypeArguments();
@@ -1140,7 +1114,7 @@ public class Check {
                 Type actual = args.head;
                 if (!isTypeArgErroneous(actual) &&
                         !bounds.head.isErroneous() &&
-                        !checkExtends(pos, actual, bounds.head)) {
+                        !checkExtends(actual, bounds.head)) {
                     return args.head;
                 }
                 args = args.tail;
@@ -1482,7 +1456,7 @@ public class Check {
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
-                Type incompatibleArg = firstIncompatibleTypeArg(tree, tree.type);
+                Type incompatibleArg = firstIncompatibleTypeArg(tree.type);
                 if (incompatibleArg != null) {
                     for (JCTree arg : tree.arguments) {
                         if (arg.type == incompatibleArg) {
@@ -1886,22 +1860,8 @@ public class Check {
         Type otres = types.subst(ot.getReturnType(), otvars, mtvars);
 
         overrideWarner.clear();
-        boolean resultTypesOK = false;
-        try {
-            types.pushWarner(overrideWarner);
-            resultTypesOK = types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
-            if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.OverridesWithDifferentNullness1);
-            }
-            overrideWarner.remove(LintCategory.NULL);
-            // at this point we know this will be true but to gather the warnings
-            types.isSubSignature(mt, ot, overrideWarner);
-            if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.OverridesWithDifferentNullness2);
-            }
-        } finally {
-            types.popWarner();
-        }
+        boolean resultTypesOK =
+            types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),
@@ -2633,6 +2593,7 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
+
         Type identitySuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
@@ -4452,28 +4413,6 @@ public class Check {
         return;
     }
 
-    private class NullnessWarner extends Warner {
-        public NullnessWarner(DiagnosticPosition pos) {
-            super(pos);
-        }
-
-        @Override
-        public void warn(LintCategory lint) {
-            if (allowNullRestrictedTypes) {
-                boolean warned = this.warned;
-                super.warn(lint);
-                if (warned) return; // suppress redundant diagnostics
-                switch (lint) {
-                    case NULL:
-                        Check.this.warnNullableTypes(pos(), LintWarnings.UncheckedNullnessConversion);
-                        break;
-                    default:
-                        throw new AssertionError("Unexpected lint: " + lint);
-                }
-            }
-        }
-    }
-
     private class ConversionWarner extends Warner {
         final String uncheckedKey;
         final Type found;
@@ -4502,34 +4441,14 @@ public class Check {
                         log.warning(pos(), LintWarnings.VarargsUnsafeUseVarargsParam(method.params.last()));
                     }
                     break;
-                case NULL:
-                    Check.this.warnNullableTypes(pos(), LintWarnings.UncheckedNullnessConversion);
-                    break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);
-            }
-            this.warned = true;
-        }
-    }
-
-    private class CastWarner extends ConversionWarner {
-        public CastWarner(DiagnosticPosition pos, String key, Type found, Type expected) {
-            super(pos, key, found, expected);
-        }
-
-        @Override
-        public void warn(LintCategory lint) {
-            if (lint != LintCategory.NULL) {
-                super.warn(lint);
-            } else {
-                boolean warned = this.warned;
-                if (warned) return;
             }
         }
     }
 
     public Warner castWarner(DiagnosticPosition pos, Type found, Type expected) {
-        return new CastWarner(pos, "unchecked.cast.to.type", found, expected);
+        return new ConversionWarner(pos, "unchecked.cast.to.type", found, expected);
     }
 
     public Warner convertWarner(DiagnosticPosition pos, Type found, Type expected) {
