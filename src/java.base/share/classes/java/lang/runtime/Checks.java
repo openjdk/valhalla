@@ -28,11 +28,8 @@ package java.lang.runtime;
 import jdk.internal.vm.annotation.ForceInline;
 
 /**
- * This class consists of {@code static} utility methods for operating
- * on objects, or checking certain conditions before operation.  These utilities
- * include {@code null}-safe or {@code null}-tolerant methods for computing the
- * hash code of an object, returning a string for an object, comparing two
- * objects, and checking if indexes or sub-range values are out of bounds.
+ * This class consists of {@code static} utility methods for checking
+ * if any of their arguments is {@code null}.
  *
  * @since valhalla
  */
@@ -46,9 +43,9 @@ public final class Checks {
      * method is designed primarily for doing parameter validation in methods
      * and constructors, as demonstrated below:
      * <blockquote><pre>
-     * public Foo(Bar bar) {
-     *     Checks.nullCheck(bar);
-     *     this.bar = bar;
+     * public Foo(Obj obj) {
+     *     Checks.nullCheck(obj);
+     *     this.obj = obj;
      * }
      * </pre></blockquote>
      *
@@ -61,8 +58,106 @@ public final class Checks {
             throw new NullPointerException();
     }
 
-    /*public static void nullCheck(Object o1, Object o2) {}
-    public static void nullCheck(Object o1, Object o2, Object o3) {}
-    public static void nullCheck(Object o1, Object o2, Object o3, Object o4) {}
-    public static void nullCheck(Object o1, Object o2, Object o3, Object o4, Object o5) {}*/
+    /**
+     * Checks that the specified object references are not {@code null}. This
+     * method is designed primarily for doing parameter validation in methods
+     * and constructors, as demonstrated below:
+     * <blockquote><pre>
+     * public Foo(Obj1 obj1, Obj2 obj2) {
+     *     Checks.nullCheck(obj1, obj2);
+     *     this.obj1 = obj1;
+     *     this.obj2 = obj2;
+     * }
+     * </pre></blockquote>
+     *
+     * @param obj1 an object reference to check for nullity
+     * @param obj2 an object reference to check for nullity
+     * @throws NullPointerException if any of {@code obj1} or {@code obj2} is {@code null}
+     */
+    @ForceInline
+    public static void nullCheck(Object obj1, Object obj2) {
+        if (obj1 == null || obj2 == null)
+            throw new NullPointerException();
+    }
+
+    /**
+     * Checks that the specified object references are not {@code null}. This
+     * method is designed primarily for doing parameter validation in methods
+     * and constructors, as demonstrated below:
+     * <blockquote><pre>
+     * public Foo(Obj1 obj1, Obj2 obj2, Obj3 obj3) {
+     *     Checks.nullCheck(obj1, obj2, obj3);
+     *     this.obj1 = obj1;
+     *     this.obj2 = obj2;
+     *     this.obj3 = obj3;
+     * }
+     * </pre></blockquote>
+     *
+     * @param obj1 an object reference to check for nullity
+     * @param obj2 an object reference to check for nullity
+     * @param obj3 an object reference to check for nullity
+     * @throws NullPointerException if any of {@code obj1}, {@code obj2} or
+     * {@code obj3} is {@code null}
+     */
+    @ForceInline
+    public static void nullCheck(Object obj1, Object obj2, Object obj3) {
+        if (obj1 == null || obj2 == null || obj3 == null)
+            throw new NullPointerException();
+    }
+
+    /**
+     * Checks that the specified object references are not {@code null}. This
+     * method is designed primarily for doing parameter validation in methods
+     * and constructors, as demonstrated below:
+     * <blockquote><pre>
+     * public Foo(Obj1 obj1, Obj2 obj2, Obj3 obj3, Obj4 obj4) {
+     *     Checks.nullCheck(obj1, obj2, obj3, obj4);
+     *     this.obj1 = obj1;
+     *     this.obj2 = obj2;
+     *     this.obj3 = obj3;
+     *     this.obj4 = obj4;
+     * }
+     * </pre></blockquote>
+     *
+     * @param obj1 an object reference to check for nullity
+     * @param obj2 an object reference to check for nullity
+     * @param obj3 an object reference to check for nullity
+     * @param obj4 an object reference to check for nullity
+     * @throws NullPointerException if any of {@code obj1}, {@code obj2},
+     * {@code obj3} or {@code obj4} is {@code null}
+     */
+    @ForceInline
+    public static void nullCheck(Object obj1, Object obj2, Object obj3, Object obj4) {
+        if (obj1 == null || obj2 == null || obj3 == null || obj4 == null)
+            throw new NullPointerException();
+    }
+
+    /**
+     * Checks that the specified object references are not {@code null}. This
+     * method is designed primarily for doing parameter validation in methods
+     * and constructors, as demonstrated below:
+     * <blockquote><pre>
+     * public Foo(Obj1 obj1, Obj2 obj2, Obj3 obj3, Obj4 obj4, Obj5 obj5) {
+     *     Checks.nullCheck(obj1, obj2, obj3, obj4, obj5);
+     *     this.obj1 = obj1;
+     *     this.obj2 = obj2;
+     *     this.obj3 = obj3;
+     *     this.obj4 = obj4;
+     *     this.obj5 = obj5;
+     * }
+     * </pre></blockquote>
+     *
+     * @param obj1 an object reference to check for nullity
+     * @param obj2 an object reference to check for nullity
+     * @param obj3 an object reference to check for nullity
+     * @param obj4 an object reference to check for nullity
+     * @param obj5 an object reference to check for nullity
+     * @throws NullPointerException if any of {@code obj1}, {@code obj2},
+     * {@code obj3}, {@code obj4} or {@code obj5} is {@code null}
+     */
+    @ForceInline
+    public static void nullCheck(Object obj1, Object obj2, Object obj3, Object obj4, Object obj5) {
+        if (obj1 == null || obj2 == null || obj3 == null || obj4 == null || obj5 == null)
+            throw new NullPointerException();
+    }
 }
