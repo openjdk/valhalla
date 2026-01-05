@@ -180,14 +180,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
   if (needs_post_barrier) {
     // flatten object address if needed
     if (!precise || (dst.index() == noreg && dst.disp() == 0)) {
-      if (tmp3 != noreg) {
-        // When tmp3 is given, we cannot corrupt the dst.base() register (from MacroAssembler::pack_inline_helper or do_oop_store)
-        __ movptr(tmp3, dst.base());
-        store_check(masm, tmp3, dst);
-      } else {
-        // It's OK to corrupt the dst.base() register.
-        store_check(masm, dst.base(), dst);
-      }
+      store_check(masm, dst.base(), dst);
     } else {
       __ lea(tmp1, dst);
       store_check(masm, tmp1, dst);

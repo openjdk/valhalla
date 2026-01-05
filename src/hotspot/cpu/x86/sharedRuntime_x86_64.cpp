@@ -3825,7 +3825,6 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     VMReg r_1 = pair.first();
-    VMReg r_2 = pair.second();
     Address to(rax, off);
     if (bt == T_FLOAT) {
       __ movflt(to, r_1->as_XMMRegister());
@@ -3835,7 +3834,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       Register val = r_1->as_Register();
       assert_different_registers(to.base(), val, r14, r13, rbx, rscratch1);
       if (is_reference_type(bt)) {
-        __ store_heap_oop(to, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep rax ok.
+        __ mov(rbx, rax);
+        Address to_with_rbx(rbx, off);
+        __ store_heap_oop(to_with_rbx, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
       }
