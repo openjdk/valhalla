@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
 
 import com.sun.tools.javac.util.Assert;
-import com.sun.tools.javac.util.StringUtils;
 
 /** Access flags and other modifiers for Java classes and members.
  *
@@ -254,14 +253,6 @@ public class Flags {
      */
     @Use({FlagTarget.METHOD})
     public static final long BRIDGE          = 1L<<31;
-
-    /** Flag is set for a class symbol if it defines one or more non-empty
-     *  instance initializer block(s). This is relevant only for class symbols
-     *  that originate from source types. For binary types the instance initializer
-     *  blocks are "normalized" into the constructors.
-     */
-    @Use({FlagTarget.CLASS})
-    public static final long HASINITBLOCK     = 1L<<32;
 
     /** Flag that marks formal parameters.
      */
