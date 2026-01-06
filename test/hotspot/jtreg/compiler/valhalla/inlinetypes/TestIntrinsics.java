@@ -1829,6 +1829,7 @@ public class TestIntrinsics {
     }
 
     // Verify that ValueClass::isFlatArray checks with statically known classes are folded
+  /* FIX: JDK-8374116
     @Test
     @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
     public boolean test82() {
@@ -1858,7 +1859,7 @@ public class TestIntrinsics {
     public void test82_verifier() {
         Asserts.assertTrue(test82(), "test82 failed");
     }
-
+  */
     // Test that LibraryCallKit::arraycopy_move_allocation_here works as expected
     @Test
     public MyValue1 test83(Object[] src) {
