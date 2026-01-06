@@ -2117,10 +2117,9 @@ public class Flow {
 
         Set<VarSymbol> findUninitStrictFields() {
             Set<VarSymbol> unsetFields = new LinkedHashSet<>();
-            for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
-                JCVariableDecl variableDecl = vardecls[i];
-                if (variableDecl.sym.isStrict()) {
-                    unsetFields.add(variableDecl.sym);
+            for (int i = firstadr; i < nextadr; i++) {
+                if (uninits.isMember(i) && vardecls[i].sym.isStrict()) {
+                    unsetFields.add(vardecls[i].sym);
                 }
             }
             return unsetFields;

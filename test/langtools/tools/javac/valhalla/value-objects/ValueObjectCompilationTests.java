@@ -770,6 +770,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         if (!field.flags().has(AccessFlag.STATIC)) {
                             Set<AccessFlag> fieldFlags = field.flags().flags();
                             Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
+                            if (field.attributes().size() != 0) {
+                                for (var attr : field.attributes()) {
+                                    Assert.check(!attr.attributeName().stringValue().equals("RuntimeInvisibleAnnotations"));
+                                }
+                            }
                         }
                     }
                 }
