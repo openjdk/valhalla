@@ -163,6 +163,7 @@ public class Symtab {
     public final Type objectType;
     public final Type objectMethodsType;
     public final Type exactConversionsSupportType;
+    public final Type objectsType;
     public final Type classType;
     public final Type classLoaderType;
     public final Type stringType;
@@ -559,6 +560,7 @@ public class Symtab {
                 objectType.tsym);
         objectMethodsType = enterClass("java.lang.runtime.ObjectMethods");
         exactConversionsSupportType = enterClass("java.lang.runtime.ExactConversionsSupport");
+        objectsType = enterClass("java.util.Objects");
         classType = enterClass("java.lang.Class");
         stringType = enterClass("java.lang.String");
         stringBufferType = enterClass("java.lang.StringBuffer");

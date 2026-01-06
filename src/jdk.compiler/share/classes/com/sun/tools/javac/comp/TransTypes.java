@@ -183,7 +183,7 @@ public class TransTypes extends TreeTranslator {
 
     JCExpression generateNullCheckIfNeeded(JCExpression tree) {
         if (expectedNullness == NullMarker.NOT_NULL && !types.isNonNullable(tree.type)) {
-            return attr.makeNullCheck(tree);
+            return attr.makeNullCheck(tree, true);
         }
         return tree;
     }
@@ -1069,7 +1069,7 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitUnary(JCUnary tree) {
-        tree.arg = translate(tree.arg, (tree.getTag() == Tag.NULLCHK)
+        tree.arg = translate(tree.arg, (tree.getTag() == Tag.NULLCHK || tree.getTag() == Tag.NULLCHK2)
             ? tree.type
             : tree.operator.type.getParameterTypes().head);
         result = tree;

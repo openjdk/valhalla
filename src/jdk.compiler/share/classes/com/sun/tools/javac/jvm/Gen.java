@@ -142,6 +142,18 @@ public class Gen extends JCTree.Visitor {
         Source source = Source.instance(context);
         allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
                 Source.Feature.VALUE_CLASSES.allowedInSource(source);
+        String opt = Options.instance(context).get("useRuntimeChecks");
+        if (target.hasRuntimeChecks()) {
+            if (opt == null) {
+                opt = "true";
+            }
+        } else {
+            if (opt != null && !"false".equals(opt)) {
+                Assert.error("using java.lang.runtime.Checks is requested on a platform that does not support it.");
+            }
+            opt = "false";
+        }
+        hasRuntimeChecks = opt.equals("true");
     }
 
     /** Switches
@@ -152,6 +164,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
     private final boolean allowValueClasses;
+    private final boolean hasRuntimeChecks;
 
     /** Code buffer, set by genMethod.
      */
@@ -2328,9 +2341,10 @@ public class Gen extends JCTree.Visitor {
                 }
                 break;
             case NULLCHK:
+            case NULLCHK2:
                 result = od.load();
                 code.emitop0(dup);
-                genNullCheck(tree);
+                genNullCheck(tree, tree.getTag() == NULLCHK2);
                 break;
             default:
                 Assert.error();
@@ -2340,9 +2354,19 @@ public class Gen extends JCTree.Visitor {
 
     /** Generate a null check from the object value at stack top. */
     private void genNullCheck(JCTree tree) {
+        genNullCheck(tree, false);
+    }
+
+    private void genNullCheck(JCTree tree, boolean nullRestricted) {
         code.statBegin(tree.pos);
-        callMethod(tree.pos(), syms.checksType, names.nullCheck,
-                List.of(syms.objectType), true);
+        if (!nullRestricted || !hasRuntimeChecks) {
+            callMethod(tree.pos(), syms.objectsType, names.requireNonNull,
+                    List.of(syms.objectType), true);
+            code.emitop0(pop);
+        } else {
+            callMethod(tree.pos(), syms.checksType, names.nullCheck,
+                    List.of(syms.objectType), true);
+        }
     }
 
     public void visitBinary(JCBinary tree) {

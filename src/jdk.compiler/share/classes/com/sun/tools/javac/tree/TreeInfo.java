@@ -1177,7 +1177,8 @@ public class TreeInfo {
         case PREDEC: return prefixPrec;
         case POSTINC:
         case POSTDEC:
-        case NULLCHK: return postfixPrec;
+        case NULLCHK:
+        case NULLCHK2: return postfixPrec;
         case ASSIGN: return assignPrec;
         case BITOR_ASG:
         case BITXOR_ASG:
@@ -1316,6 +1317,7 @@ public class TreeInfo {
 
         // Null check (implementation detail), for example, __.getClass()
         case NULLCHK:
+        case NULLCHK2:
             return Tree.Kind.OTHER;
 
         case ANNOTATION:
