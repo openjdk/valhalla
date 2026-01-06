@@ -28,6 +28,7 @@ package sun.reflect.generics.factory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.Method;
+import java.lang.reflect.NullRestrictedType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -103,6 +104,10 @@ public class CoreReflectionFactory implements GenericsFactory {
                                                    Type owner) {
         return ParameterizedTypeImpl.make((Class<?>) declaration,
                                           typeArgs, owner);
+    }
+
+    public NullRestrictedType makeNullRestrictedType(Type baseType) {
+        return NullRestrictedTypeImpl.make(baseType);
     }
 
     public TypeVariable<?> findTypeVariable(String name){
