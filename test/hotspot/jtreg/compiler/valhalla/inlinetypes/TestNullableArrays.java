@@ -979,8 +979,8 @@ public class TestNullableArrays {
     }
 
     // non escaping allocations
-    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     @Test
+    // TODO 8372332: Add LOAD_OF_ANY_KLASS when return values are not scalarized
     @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
@@ -1033,8 +1033,7 @@ public class TestNullableArrays {
 
     // non escaping allocation with memory phi
     @Test
-    // TODO 8227588
-    // @Test(failOn = ALLOC_OF_MYVALUE_KLASS + ALLOC_ARRAY_OF_MYVALUE_KLASS + LOOP + LOAD_OF_ANY_KLASS + STORE_OF_ANY_KLASS + UNSTABLE_IF_TRAP, PREDICATE_TRAP)
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test31(boolean b, boolean deopt, Method m) {
         MyValue2[] src = new MyValue2[1];
         if (b) {
