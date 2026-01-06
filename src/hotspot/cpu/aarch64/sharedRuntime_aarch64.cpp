@@ -566,9 +566,9 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
     assert_different_registers(to.base(), val, tmp1, tmp2, tmp3);
     if (is_oop) {
       // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep it valid.
-      __ push(to.base());
+      __ push(to.base(), sp);
       __ store_heap_oop(to, val, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
-      __ pop(to.base());
+      __ pop(to.base(), sp);
     } else {
       __ store_sized_value(to, val, size_in_bytes);
     }

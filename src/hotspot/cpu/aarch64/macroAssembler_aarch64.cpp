@@ -7368,7 +7368,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
         // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep val_obj valid.
         mov(tmp3, val_obj);
         Address dst_with_tmp3(tmp3, off);
-        store_heap_oop(dst, src, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        store_heap_oop(dst_with_tmp3, src, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         store_sized_value(dst, src, size_in_bytes);
       }
