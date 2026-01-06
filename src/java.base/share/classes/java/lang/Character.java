@@ -28,6 +28,7 @@ package java.lang;
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -9389,6 +9390,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
         this.value = value;
     }
 
+    @AOTSafeClassInitializer
     private static final class CharacterCache {
         private CharacterCache(){}
 
