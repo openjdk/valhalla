@@ -41,6 +41,8 @@ import combo.ComboParameter;
 import combo.ComboTask.Result;
 import combo.ComboTestHelper;
 
+import javax.tools.Diagnostic.Kind;
+
 public class NullRestrictionParserTest extends ComboInstance<NullRestrictionParserTest> {
 
     enum AnnoKind implements ComboParameter {
@@ -71,7 +73,9 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
         STRING_NN_ARR_NN_ARR("#{ANNO}String[]![]!", 1),
         NN_STRING_ARR_ARR("#{ANNO}String![]!", 1),
         NN_STRING_NN_ARR_ARR("#{ANNO}String![]![]", 2),
-        NN_STRING_NN_ARR_NN_ARR("#{ANNO}String![]![]!", 2);
+        NN_STRING_NN_ARR_NN_ARR("#{ANNO}String![]![]!", 2),
+        NN_LIST_STRING("#{ANNO}List<String>!", 0);
+        //NN_LIST_STRING_ARR("#{ANNO}List<String>[]!", 0); // this doesn't work because of an issue (see JDK-8374629)
 
 
         final String typeTemplate;
@@ -101,6 +105,7 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
     static final String TEMPLATE = """
             import java.lang.annotation.ElementType;
             import java.lang.annotation.Target;
+            import java.util.List;
 
             class Test {
 
@@ -177,7 +182,9 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
 
         var errors = res.diagnosticsForKey("compiler.err.unsupported.null.restriction");
 
-        if (expectedErrors != errors.length()) {
+        var otherErrors = res.diagnosticsForKind(Kind.ERROR).size() - errors.length();
+
+        if (expectedErrors != errors.length() || otherErrors > 0) {
             fail("invalid diagnostics for source:\n" +
                     res.compilationInfo() +
                     "\nFound error: " + errors +

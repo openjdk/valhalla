@@ -516,6 +516,13 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
+        case '!':
+            sigp++;
+            if (signature[sigp] != 'L' && signature[sigp] != '[' && signature[sigp] != 'T') {
+                // after a bang, we expect either a ref type, an array or a type var
+                throw badClassFile("bad.class.signature", quoteBadSignature());
+            }
+            return sigToType().asNullMarked(NullMarker.NOT_NULL);
         case 'L':
             {
                 // int oldsigp = sigp;
@@ -581,7 +588,6 @@ public class ClassReader {
         sigp++;
         Type outer = Type.noType;
         int startSbp = sbp;
-        NullMarker nm = NullMarker.UNSPECIFIED;
 
         while (true) {
             final byte c = signature[sigp++];
@@ -600,18 +606,10 @@ public class ClassReader {
                     } else {
                         result = new ClassType(outer, List.nil(), t, List.nil());
                     }
-                    if (nm != NullMarker.UNSPECIFIED) {
-                        result = result.asNullMarked(nm);
-                        nm = NullMarker.UNSPECIFIED;
-                    }
                     return result;
                 } finally {
                     sbp = startSbp;
                 }
-            }
-            case '!' : {
-                nm = NullMarker.NOT_NULL;
-                continue;
             }
             case '<':           // generic arguments
                 ClassSymbol t = enterClass(readName(signatureBuffer,

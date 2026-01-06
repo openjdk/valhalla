@@ -1913,7 +1913,7 @@ public class JavacParser implements Parser {
             final List<JCAnnotation> annos = typeAnnotationsOpt();
 
             if (allowNullRestrictedTypes && isMode(TYPE) && typeArgs == null && EMOTIONAL_QUALIFIER.test(token.kind) &&
-                    (t instanceof JCIdent || t instanceof JCFieldAccess || t instanceof JCArrayTypeTree)) {
+                    (t instanceof JCIdent || t instanceof JCFieldAccess || t instanceof JCArrayTypeTree || t instanceof JCTypeApply)) {
                 if (checkNullRestrictionLocation()) {
                     setNullMarker(t);
                     selectTypeMode();
@@ -3679,7 +3679,10 @@ public class JavacParser implements Parser {
                     typeDepth--;
                     if (typeDepth == 0 && !peekToken(lookahead, DOT)) {
                          return peekToken(lookahead, LAX_IDENTIFIER) ||
-                                peekToken(lookahead, tk -> tk == LPAREN) ? PatternResult.PATTERN
+                                peekToken(lookahead, tk -> tk == LPAREN) ||
+                                (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER)) ||
+                                (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, tk -> tk == LPAREN))
+                                 ? PatternResult.PATTERN
                                                                          : PatternResult.EXPRESSION;
                     } else if (typeDepth < 0) return PatternResult.EXPRESSION;
                     break;
