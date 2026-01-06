@@ -1720,12 +1720,6 @@ public class Attr extends JCTree.Visitor {
                 }
             }
             chk.checkRequiresIdentity(tree, env.info.lint);
-            if (allowNullRestrictedTypes) {
-                Type elemOrType = result;
-                while (!elemOrType.hasTag(ERROR) && types.elemtype(elemOrType) != null) {
-                    elemOrType = types.elemtype(elemOrType);
-                }
-            }
         }
         finally {
             chk.setLint(prevLint);
@@ -1836,9 +1830,6 @@ public class Attr extends JCTree.Visitor {
             if ((tree.flags & STATIC) != 0) {
                 localEnv.info.staticLevel++;
             } else {
-                if (tree.stats.size() > 0) {
-                    env.info.scope.owner.flags_field |= HASINITBLOCK;
-                }
                 localEnv.info.instanceInitializerBlock = true;
             }
             // Attribute all type annotations in the block
@@ -5133,11 +5124,6 @@ public class Attr extends JCTree.Visitor {
                 // The computed type of a variable is the type of the
                 // variable symbol, taken as a member of the site type.
                 owntype = (sym.owner.kind == TYP &&
-                           /* we shouldn't do a memberType invocation if symbol owner and site are the same
-                            * this has been done in the context of nullness markers due to a loss of the nullness
-                            * markers info when type variables are adapted
-                            */
-                           sym.owner.type != site &&
                            sym.name != names._this && sym.name != names._super)
                     ? types.memberType(site, sym)
                     : sym.type;
@@ -6053,12 +6039,16 @@ public class Attr extends JCTree.Visitor {
                 chk.validateRepeatable(c, repeatable, cbPos);
             }
         } else {
-            // Check that all extended classes and interfaces
-            // are compatible (i.e. no two define methods with same arguments
-            // yet different return types).  (JLS 8.4.8.3)
-            chk.checkCompatibleSupertypes(tree.pos(), c.type);
-            chk.checkDefaultMethodClashes(tree.pos(), c.type);
-            chk.checkPotentiallyAmbiguousOverloads(tree, c.type);
+            try {
+                // Check that all extended classes and interfaces
+                // are compatible (i.e. no two define methods with same arguments
+                // yet different return types).  (JLS 8.4.8.3)
+                chk.checkCompatibleSupertypes(tree.pos(), c.type);
+                chk.checkDefaultMethodClashes(tree.pos(), c.type);
+                chk.checkPotentiallyAmbiguousOverloads(tree, c.type);
+            } catch (CompletionFailure cf) {
+                chk.completionError(tree.pos(), cf);
+            }
         }
 
         // Check that class does not import the same parameterized interface
