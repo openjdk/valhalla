@@ -84,46 +84,6 @@ void Symbol::set_permanent() {
 }
 #endif
 
-Symbol* Symbol::fundamental_name(TRAPS) {
-  if (char_at(0) == JVM_SIGNATURE_CLASS && ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    return SymbolTable::new_symbol(this, 1, utf8_length() - 1);
-  } else {
-    // reference count is incremented to be consistent with the behavior with
-    // the SymbolTable::new_symbol() call above
-    this->increment_refcount();
-    return this;
-  }
-}
-
-bool Symbol::is_same_fundamental_type(Symbol* s) const {
-  if (this == s) return true;
-  if (utf8_length() < 3) return false;
-  int offset1, offset2, len;
-  if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (char_at(0) != JVM_SIGNATURE_CLASS) return false;
-    offset1 = 1;
-    len = utf8_length() - 2;
-  } else {
-    offset1 = 0;
-    len = utf8_length();
-  }
-  if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
-    offset2 = 1;
-  } else {
-    offset2 = 0;
-  }
-  if ((offset2 + len) > s->utf8_length()) return false;
-  if ((utf8_length() - offset1 * 2) != (s->utf8_length() - offset2 * 2))
-    return false;
-  int l = len;
-  while (l-- > 0) {
-    if (char_at(offset1 + l) != s->char_at(offset2 + l))
-      return false;
-  }
-  return true;
-}
-
 // ------------------------------------------------------------------
 // Symbol::index_of
 //
