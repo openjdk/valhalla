@@ -196,7 +196,6 @@ public class Names {
     public final Name ex;
     public final Name module_info;
     public final Name package_info;
-    public final Name requireNonNull;
     public final Name main;
 
     // lambda-related
@@ -400,7 +399,6 @@ public class Names {
         ex = fromString("ex");
         module_info = fromString("module-info");
         package_info = fromString("package-info");
-        requireNonNull = fromString("requireNonNull");
         main = fromString("main");
 
         //lambda-related

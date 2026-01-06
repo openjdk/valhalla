@@ -2328,10 +2328,9 @@ public class Gen extends JCTree.Visitor {
                 }
                 break;
             case NULLCHK:
-            case NULLCHK2:
                 result = od.load();
                 code.emitop0(dup);
-                genNullCheck(tree, tree.getTag() == NULLCHK2);
+                genNullCheck(tree);
                 break;
             default:
                 Assert.error();
@@ -2341,19 +2340,9 @@ public class Gen extends JCTree.Visitor {
 
     /** Generate a null check from the object value at stack top. */
     private void genNullCheck(JCTree tree) {
-        genNullCheck(tree, false);
-    }
-
-    private void genNullCheck(JCTree tree, boolean nullRestricted) {
         code.statBegin(tree.pos);
-        if (!nullRestricted) {
-            callMethod(tree.pos(), syms.objectsType, names.requireNonNull,
-                    List.of(syms.objectType), true);
-            code.emitop0(pop);
-        } else {
-            callMethod(tree.pos(), syms.checksType, names.nullCheck,
-                    List.of(syms.objectType), true);
-        }
+        callMethod(tree.pos(), syms.checksType, names.nullCheck,
+                List.of(syms.objectType), true);
     }
 
     public void visitBinary(JCBinary tree) {

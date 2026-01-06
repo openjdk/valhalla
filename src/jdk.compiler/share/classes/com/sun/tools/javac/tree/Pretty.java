@@ -1311,7 +1311,6 @@ public class Pretty extends JCTree.Visitor {
             case POSTINC: return "++";
             case POSTDEC: return "--";
             case NULLCHK: return "<*nullchk*>";
-            case NULLCHK2: return "<*nullchk2*>";
             case OR:      return "||";
             case AND:     return "&&";
             case EQ:      return "==";
