@@ -1,0 +1,6 @@
+SeparateCompilationTest.java:13:17: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, java.lang.String)
+SeparateCompilationTest.java:14:21: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, java.lang.String[])
+SeparateCompilationTest.java:15:17: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, java.lang.String)
+SeparateCompilationTest.java:16:21: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, java.lang.String[])
+SeparateCompilationTest.java:17:22: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, java.util.List<java.lang.String>)
+5 errors

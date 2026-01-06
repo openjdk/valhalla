@@ -3417,16 +3417,24 @@ public class Types {
                  from.nonEmpty();
                  from = from.tail, to = to.tail) {
                 if (t.equalsIgnoreMetadata(from.head)) {
-                    return to.head.withTypeVar(t);
+                    return to.head.withTypeVar(t)
+                            .asNullMarked(t.getNullMarker());
                 }
             }
             return t;
         }
 
         @Override
+        public Type visitArrayType(ArrayType t, Void unused) {
+            return super.visitArrayType(t, unused)
+                    .asNullMarked(t.getNullMarker());
+        }
+
+        @Override
         public Type visitClassType(ClassType t, Void ignored) {
             if (!t.isCompound()) {
-                return super.visitClassType(t, ignored);
+                return super.visitClassType(t, ignored)
+                        .asNullMarked(t.getNullMarker());
             } else {
                 Type st = visit(supertype(t));
                 List<Type> is = visit(interfaces(t), ignored);
@@ -5344,18 +5352,14 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
+                    appendNullMarkerIfNeeded(type, includeNullMarkers);
                     append('L');
                     assembleClassSig(type, includeNullMarkers);
-                    if (includeNullMarkers) {
-                        NullMarker nullMarker = type.getNullMarker();
-                        if (nullMarker != NullMarker.UNSPECIFIED) {
-                            append(nullMarker.typeSuffix().charAt(0));
-                        }
-                    }
                     append(';');
                     break;
                 case ARRAY:
                     ArrayType at = (ArrayType) type;
+                    appendNullMarkerIfNeeded(type, includeNullMarkers);
                     append('[');
                     assembleSig(at.elemtype, includeNullMarkers);
                     break;
@@ -5395,6 +5399,7 @@ public class Types {
                     if (((TypeVar)type).isCaptured()) {
                         reportIllegalSignature(type);
                     }
+                    appendNullMarkerIfNeeded(type, includeNullMarkers);
                     append('T');
                     append(type.tsym.name);
                     append(';');
@@ -5406,6 +5411,15 @@ public class Types {
                     break;
                 default:
                     throw new AssertionError("typeSig " + type.getTag());
+            }
+        }
+
+        void appendNullMarkerIfNeeded(Type type, boolean includeNullMarkers) {
+            if (includeNullMarkers) {
+                NullMarker nullMarker = type.getNullMarker();
+                if (nullMarker != NullMarker.UNSPECIFIED) {
+                    append(nullMarker.typeSuffix().charAt(0));
+                }
             }
         }
 
