@@ -415,7 +415,7 @@ public class ThisEscapeAnalyzer extends TreeScanner {
             case REFERENCE:
             case IDENT:
             case NULLCHK:
-            case NULLCHK2:
+            case NULLRESTRICTEDCHK:
             case LETEXPR:
                 referenceExpressionNode = true;
                 break;

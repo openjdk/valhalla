@@ -29,7 +29,6 @@ package com.sun.tools.javac.comp;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.jvm.Target;
@@ -49,8 +48,6 @@ import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.comp.CompileStates.CompileState;
 import com.sun.tools.javac.tree.JCTree.JCBreak;
-
-import javax.lang.model.type.TypeKind;
 
 /** This pass translates Generic Java to conventional Java.
  *
@@ -1069,7 +1066,7 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitUnary(JCUnary tree) {
-        tree.arg = translate(tree.arg, (tree.getTag() == Tag.NULLCHK || tree.getTag() == Tag.NULLCHK2)
+        tree.arg = translate(tree.arg, (tree.getTag() == Tag.NULLCHK || tree.getTag() == Tag.NULLRESTRICTEDCHK)
             ? tree.type
             : tree.operator.type.getParameterTypes().head);
         result = tree;
