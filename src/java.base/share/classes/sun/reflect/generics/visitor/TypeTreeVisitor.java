@@ -42,6 +42,7 @@ public interface TypeTreeVisitor<T> {
 
     void visitFormalTypeParameter(FormalTypeParameter ftp);
 
+    void visitNullRestrictedTypeSignature(NullRestrictedTypeSignature nt);
     void visitClassTypeSignature(ClassTypeSignature ct);
     void visitArrayTypeSignature(ArrayTypeSignature a);
     void visitTypeVariableSignature(TypeVariableSignature tv);

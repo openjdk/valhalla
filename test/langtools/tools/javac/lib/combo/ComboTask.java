@@ -39,8 +39,13 @@ import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.HashMap;
@@ -194,6 +199,31 @@ public class ComboTask {
         doRunTest(c, JavacTask::generate);
     }
 
+    /**
+     * Parse, analyze, perform code generation for the sources associated with this task and finally
+     * executes them
+     */
+    public void execute(Consumer<ExecutionTask> c) {
+        generate(generationResult -> {
+            try {
+                if (generationResult.hasErrors()) {
+                    // we have nothing else to do
+                    return;
+                }
+                Iterable<? extends JavaFileObject> jfoIterable = generationResult.get();
+                java.util.List<URL> urlList = new ArrayList<>();
+                for (JavaFileObject jfo : jfoIterable) {
+                    String urlStr = jfo.toUri().toURL().toString();
+                    urlStr = urlStr.substring(0, urlStr.length() - jfo.getName().length());
+                    urlList.add(new URL(urlStr));
+                }
+                c.accept(new ExecutionTask(new URLClassLoader(urlList.toArray(new URL[urlList.size()]))));
+            } catch (IOException ex) {
+                throw new AssertionError(ex);
+            }
+        });
+    }
+
     private <V> void doRunTest(Consumer<Result<Iterable<? extends V>>> c,
                                Convertor<V> task2Data) {
         env.pool().getTask(out, env.fileManager(),
@@ -242,12 +272,7 @@ public class ComboTask {
          * Set the name of the class to be loaded.
          */
         public ExecutionTask withClass(String className) {
-            Assert.check(className != null, "class name value is null, impossible to proceed");
-            try {
-                c = classLoader.loadClass(className);
-            } catch (Throwable t) {
-                throw new IllegalStateException(t);
-            }
+            load(className);
             return this;
         }
 
@@ -275,6 +300,15 @@ public class ComboTask {
         public ExecutionTask withHandler(Consumer<Throwable> handler) {
             this.handler = handler;
             return this;
+        }
+
+        public Class<?> load(String className) {
+            Assert.check(className != null, "class name value is null, impossible to proceed");
+            try {
+                return classLoader.loadClass(className);
+            } catch (Throwable t) {
+                throw new IllegalStateException(t);
+            }
         }
 
         /**

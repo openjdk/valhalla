@@ -36,6 +36,7 @@ public class NullRestrictedTypeImpl implements NullRestrictedType {
 
     private NullRestrictedTypeImpl(Type baseType) {
         this.baseType = baseType;
+        checkNonRestricted(baseType);
     }
 
     private void checkNonRestricted(Type type) {
@@ -79,6 +80,6 @@ public class NullRestrictedTypeImpl implements NullRestrictedType {
     }
 
     public String toString() {
-        return "!" + baseType.getTypeName();
+        return baseType.getTypeName() + "!";
     }
 }
