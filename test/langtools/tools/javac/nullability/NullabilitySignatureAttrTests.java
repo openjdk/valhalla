@@ -27,16 +27,15 @@
  * @test
  * @bug 8338910 8347754
  * @summary [lw5] enhance the Signature attribute to represent nullability
+ * @enablePreview
  * @library /lib/combo /tools/lib
  * @modules
  *     jdk.compiler/com.sun.tools.javac.util
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
  *     jdk.compiler/com.sun.tools.javac.code
- *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run junit NullabilitySignatureAttrTests
- * @ignore
  */
 
 import java.io.File;
@@ -49,20 +48,11 @@ import java.util.Set;
 
 import com.sun.tools.javac.util.Assert;
 
-import com.sun.tools.classfile.Attribute;
-import com.sun.tools.classfile.Attributes;
-import com.sun.tools.classfile.ClassFile;
-import com.sun.tools.classfile.Code_attribute;
-import com.sun.tools.classfile.ConstantPool;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
-import com.sun.tools.classfile.ImplicitCreation_attribute;
-import com.sun.tools.classfile.NullRestricted_attribute;
-import com.sun.tools.classfile.Field;
-import com.sun.tools.classfile.Instruction;
-import com.sun.tools.classfile.Method;
-import com.sun.tools.classfile.Signature_attribute;
+import java.lang.classfile.Attribute;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.Instruction;
+import java.lang.classfile.Opcode;
 
 import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
@@ -86,19 +76,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData( // case 0
                     """
                     class Test {
-                        Test! t = new Test();
+                        String! t = "";
                     }
                     """,
-                    "LTest!;"
-            ),
-            new SignatureData( // case 1
-                    """
-                    class Test {
-                        Test? t;
-                    }
-                    """,
-                    "LTest?;"
-            ),
+                    "!Ljava/lang/String;"
+            )/*,
             new SignatureData( // case 2
                     """
                     import java.util.*;
@@ -182,7 +164,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     }
                     """,
                     "[[Ljava/lang/String?;"
-            )
+            )*/
     );
 
     @Test
@@ -192,15 +174,15 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             System.err.println("executing test at index " + testNo++);
             File dir = assertOK(true, sd.source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                Field field = classFile.fields[0];
-                Signature_attribute sa = (Signature_attribute)field.attributes.get("Signature");
-                System.err.println(sa.getSignature(classFile.constant_pool).toString());
-                Assert.check(sa.getSignature(classFile.constant_pool).toString().equals(sd.expectedSignature));
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                var field = classFile.fields().get(0);
+                var sa = field.findAttribute(Attributes.signature()).orElseThrow();
+                Assert.check(sa.signature().toString().equals(sd.expectedSignature));
             }
         }
     }
 
+    /*
     record SepCompilationData(String clientSrc, String serverSrc, List<String> sourceExpectedWarnings, List<String> sepCompExpectedWarnings) {}
     final List<SepCompilationData> sepCompilationDataList = List.of(
             new SepCompilationData(  // case 0
@@ -512,5 +494,5 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             tb.deleteFiles(out.resolve("Client.class"));
             tb.deleteFiles(out.resolve("Server.class"));
         }
-    }
+    }*/
 }
