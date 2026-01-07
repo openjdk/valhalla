@@ -516,12 +516,23 @@ public class TransTypes extends TreeTranslator {
     public void visitMethodDef(JCMethodDecl tree) {
         Type prevRetType = returnType;
         try {
-            returnType = erasure(tree.type).getReturnType();
+            returnType = erasure(tree.type.getReturnType()).asNullMarked(tree.type.getReturnType().getNullMarker());
             tree.restype = translate(tree.restype, null);
             tree.typarams = List.nil();
             tree.params = translateVarDefs(tree.params);
             tree.recvparam = translate(tree.recvparam, null);
             tree.thrown = translate(tree.thrown, null);
+            ListBuffer<JCStatement> paramNullChecks = new ListBuffer<>();
+            for (JCVariableDecl param : tree.params) {
+                if (types.isNonNullable(param.type)) {
+                    paramNullChecks.add(
+                            make.at(tree.body.pos()).Exec(attr.makeNullCheck(make.at(tree.body.pos()).Ident(param), true))
+                    );
+                }
+            }
+            if (!paramNullChecks.isEmpty()) {
+                tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
+            }
             tree.body = translate(tree.body, tree.sym.erasure(types).getReturnType());
             tree.type = erasure(tree.type);
             result = tree;
@@ -936,8 +947,12 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitReturn(JCReturn tree) {
-        if (!returnType.hasTag(VOID))
+        if (!returnType.hasTag(VOID)) {
+            if (types.isNonNullable(returnType) && !types.isNonNullable(tree.expr.type)) {
+                tree.expr = attr.makeNullCheck(tree.expr, true);
+            }
             tree.expr = translate(tree.expr, returnType);
+        }
         result = tree;
     }
 
@@ -1049,7 +1064,7 @@ public class TransTypes extends TreeTranslator {
 
     public void visitAssign(JCAssign tree) {
         if (types.isNonNullable(tree.lhs.type) && !types.isNonNullable(tree.rhs.type)) {
-            tree.rhs = attr.makeNullCheck(tree.rhs);
+            tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
         tree.lhs = translate(tree.lhs, null);
         tree.rhs = translate(tree.rhs, erasure(tree.lhs.type));

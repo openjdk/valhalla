@@ -1441,6 +1441,9 @@ public class TransPatterns extends TreeTranslator {
     }
 
     JCExpression convert(JCExpression expr, Type target) {
+        if (types.isNonNullable(target) && !types.isNonNullable(expr.type)) {
+            expr = attr.makeNullCheck(expr, true);
+        }
         if (types.isSubtype(expr.type, target)) {
             //cast not needed
             return expr;
