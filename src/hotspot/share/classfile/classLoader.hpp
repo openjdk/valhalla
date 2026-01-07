@@ -360,7 +360,7 @@ class ClassLoader: AllStatic {
   // Called once, after all flags are processed, to finish initializing the
   // JImage file. Until this is called, jimage_find_resource(), and any other
   // JImage resource lookups or access will fail.
-  static void init_jimage(bool enable_preview);
+  static void set_preview_mode(bool enable_preview);
 
   // Determines if the named module is present in the
   // modules jimage file or in the exploded modules directory.

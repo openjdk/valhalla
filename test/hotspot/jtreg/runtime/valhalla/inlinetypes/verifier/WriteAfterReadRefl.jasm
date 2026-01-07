@@ -41,7 +41,7 @@ class WriteAfterReadRefl {
     }
 */
 
-super class WriteAfterReadRefl version 70:65535
+super class WriteAfterReadRefl version 71:65535
 {
   @-jdk/internal/vm/annotation/Strict { }
   strict static final  Field F1__STRICT:"Ljava/lang/String;";

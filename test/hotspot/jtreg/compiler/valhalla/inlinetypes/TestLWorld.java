@@ -45,19 +45,22 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.SUBSTITUTABILITY_TEST;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import static compiler.lib.ir_framework.IRNode.ALLOC;
 import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
+import static compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD;
 import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
+import static compiler.lib.ir_framework.IRNode.LOAD;
+import static compiler.lib.ir_framework.IRNode.STORE;
 import static compiler.lib.ir_framework.IRNode.LOAD_P;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.MEMBAR;
 import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
@@ -151,7 +154,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @run main compiler.valhalla.inlinetypes.TestLWorld 6
  */
 
-@ForceCompileClassInitializer
+// TODO 8373598 Re-enable
+//@ForceCompileClassInitialize
 public class TestLWorld {
 
     public static void main(String[] args) {
@@ -3707,7 +3711,7 @@ public class TestLWorld {
     // acmp doesn't need substitutability test when one input is known
     // not to be a value type
     @Test
-    @IR(failOn = SUBSTITUTABILITY_TEST)
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test124(NonValueClass o1, Object o2) {
         return o1 == o2;
     }
@@ -3721,7 +3725,7 @@ public class TestLWorld {
 
     // acmp doesn't need substitutability test when one input is null
     @Test
-    @IR(failOn = {SUBSTITUTABILITY_TEST})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test125(Object o1) {
         Object o2 = null;
         return o1 == o2;
@@ -4016,8 +4020,7 @@ public class TestLWorld {
 
     // Test that acmp of different inline objects with same content is removed
     @Test
-    // TODO 8228361
-    // @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test137(int i) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4031,8 +4034,7 @@ public class TestLWorld {
 
     // Same as test137 but with null
     @Test
-    // TODO 8228361
-    // @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
     public boolean test138(int i, boolean b) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4232,8 +4234,8 @@ public class TestLWorld {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
-    @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
-        counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
+    @IR(failOn = {DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
+        counts = {STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test150() {
         MyValue2 val = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface receiver = MyValue1.createWithFieldsInline(rI, rL);
@@ -4257,8 +4259,8 @@ public class TestLWorld {
     @Test
     // Dynamic call does not null check the receiver, so it cannot be strength reduced to a static
     // call without an explicit null check
-    @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
-        counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
+    @IR(failOn = {DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
+        counts = {STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test151(MyValue2 val) {
         val = Objects.requireNonNull(val);
         MyAbstract receiver = MyValue1.createWithFieldsInline(rI, rL);
@@ -4851,6 +4853,407 @@ public class TestLWorld {
         Asserts.assertTrue(test173(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
         Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
         Asserts.assertFalse(test173(new boolean[0], new int[0]));
+    }
+
+    static final MyClass152 MY_NON_VALUE = new MyClass152(rI);
+    static final int[] MY_ARRAY = new int[0];
+
+    @LooselyConsistentValue
+    static value class AllPrimitives {
+        boolean boolValue;
+        byte byteValue;
+        short shortValue;
+        int intValue;
+        long longValue;
+        char charValue;
+        float floatValue;
+        double doubleValue;
+
+        MyClass152 nonValue = MY_NON_VALUE;
+        int[] array = MY_ARRAY;
+        Integer integerValue;
+
+        public AllPrimitives(int i, Integer integerValue) {
+            this.boolValue = (rI % 2) == 0;
+            this.byteValue = (byte) i;
+            this.shortValue = (short) i;
+            this.intValue = i;
+            this.longValue = rL;
+            this.charValue = (char) i;
+            this.floatValue = (float) i;
+            this.doubleValue = rD;
+            this.integerValue = integerValue;
+        }
+
+        public AllPrimitives(AllPrimitives other, int[] offsets) {
+            this.boolValue = (offsets[test178Idx++] != 0) ? !other.boolValue : other.boolValue;
+            this.byteValue = (byte)(other.byteValue + offsets[test178Idx++]);
+            this.shortValue = (short)(other.shortValue + offsets[test178Idx++]);
+            this.intValue = other.intValue + offsets[test178Idx++];
+            this.longValue = other.longValue + offsets[test178Idx++];
+            this.charValue = (char)(other.charValue + offsets[test178Idx++]);
+            this.floatValue = (float)(other.floatValue + offsets[test178Idx++]);
+            this.doubleValue = other.doubleValue + offsets[test178Idx++];
+            this.integerValue = other.integerValue + offsets[test178Idx++];
+        }
+
+        public String toString() {
+            return "AllPrimitives(" + boolValue + ", " + byteValue + ", " + shortValue + ", " + intValue + ", " + longValue + ", " + charValue + ", " + floatValue + ", " + doubleValue + ", " + integerValue + ")";
+        }
+    }
+
+    // Hides the type during parsing when always incrementally inlining
+    @ForceInline
+    public Object getter(Object o) {
+        return o;
+    }
+
+    // Verify that the substitutability runtime call is removed if (at least) one of the arguments has a known type
+    @Test
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        counts = {LOAD, "= 2"}) // Need to load from non-flat 'integerValue' fields
+    public boolean test174(AllPrimitives x, AllPrimitives y) {
+        return getter(x) == getter(y);
+    }
+
+    @Run(test = "test174")
+    public void test174_verifier() {
+        AllPrimitives x = new AllPrimitives(rI, rI);
+        AllPrimitives y = new AllPrimitives(rI + 1, rI);
+        AllPrimitives z = new AllPrimitives(rI, null);
+        Asserts.assertTrue(test174(x, x));
+        Asserts.assertTrue(test174(z, z));
+        Asserts.assertTrue(test174(null, null));
+        Asserts.assertFalse(test174(x, y));
+        Asserts.assertFalse(test174(x, null));
+        Asserts.assertFalse(test174(null, x));
+        Asserts.assertFalse(test174(x, z));
+        Asserts.assertFalse(test174(z, x));
+        Asserts.assertFalse(test174(z, new AllPrimitives(rI, 0)));
+    }
+
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    public boolean test175(AllPrimitives x, Integer y) {
+        return getter(x) == getter(y);
+    }
+
+    @Run(test = "test175")
+    public void test175_verifier() {
+        AllPrimitives x = new AllPrimitives(rI, rI);
+        Asserts.assertTrue(test175(null, null));
+        Asserts.assertFalse(test175(x, null));
+        Asserts.assertFalse(test175(null, 42));
+        Asserts.assertFalse(test175(x, 42));
+    }
+
+    // Same as test174 but only one operand has a known type
+    @Test
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        counts = {LOAD, "= 15"}) // Need to load the fields from 'y'
+    public boolean test176(AllPrimitives x, Object y) {
+        return getter(x) == getter(y);
+    }
+
+    @Run(test = "test176")
+    public void test176_verifier() {
+        AllPrimitives x = new AllPrimitives(rI, rI);
+        AllPrimitives y = new AllPrimitives(rI + 1, rI);
+        AllPrimitives z = new AllPrimitives(rI, null);
+        Asserts.assertTrue(test176(x, x));
+        Asserts.assertTrue(test174(z, z));
+        Asserts.assertTrue(test176(null, null));
+        Asserts.assertFalse(test176(x, y));
+        Asserts.assertFalse(test176(x, null));
+        Asserts.assertFalse(test176(null, x));
+        Asserts.assertFalse(test176(x, 42));
+        Asserts.assertFalse(test176(x, z));
+        Asserts.assertFalse(test176(z, x));
+        Asserts.assertFalse(test176(z, new AllPrimitives(rI, 0)));
+    }
+
+    // Same as above but type of 'y' is only known after loop opts
+    @Test
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        counts = {LOAD, "= 14"}) // Need to load the fields from 'x'
+    public boolean test177(Object x, AllPrimitives y) {
+        Object val = null;
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 2; i < limit; i++) {
+            val = y;
+        }
+        return getter(x) == getter(val);
+    }
+
+    @Run(test = "test177")
+    public void test177_verifier() {
+        AllPrimitives x = new AllPrimitives(rI, rI);
+        AllPrimitives y = new AllPrimitives(rI + 1, rI);
+        AllPrimitives z = new AllPrimitives(rI, null);
+        Asserts.assertTrue(test177(x, x));
+        Asserts.assertTrue(test174(z, z));
+        Asserts.assertTrue(test177(null, null));
+        Asserts.assertFalse(test177(x, y));
+        Asserts.assertFalse(test177(x, null));
+        Asserts.assertFalse(test177(null, x));
+        Asserts.assertFalse(test177(42, x));
+        Asserts.assertFalse(test177(x, z));
+        Asserts.assertFalse(test177(z, x));
+        Asserts.assertFalse(test177(z, new AllPrimitives(rI, 0)));
+    }
+
+    @LooselyConsistentValue
+    static value class Value178_1 {
+        long l1;
+        long l2;
+        @Strict
+        @NullRestricted
+        AllPrimitives prims1;
+        AllPrimitives prims2;
+        Integer i;
+
+        public Value178_1() {
+            this.l1 = rL;
+            this.l2 = rL + 1;
+            this.prims1 = new AllPrimitives(rI, rI);
+            this.prims2 = new AllPrimitives(rI, rI);
+            this.i = rI;
+        }
+
+        public Value178_1(Value178_1 other, int[] offsets) {
+            this.l1 = other.l1 + offsets[test178Idx++];
+            this.l2 = other.l2 + offsets[test178Idx++];
+            this.prims1 = new AllPrimitives(other.prims1, offsets);
+            this.prims2 = (offsets[test178Idx++] != 0) ? null : new AllPrimitives(other.prims2, offsets);
+            this.i = (offsets[test178Idx++] != 0) ? null : (other.i + offsets[test178Idx++]);
+        }
+
+        public String toString() {
+            return "Value178_1(" + l1 + ", " + l2 + ", " + prims1 + ", " + prims2 + ")";
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class Value178 {
+        @Strict
+        @NullRestricted
+        Value178_1 val1;
+
+        Value178_1 val2;
+
+        @Strict
+        @NullRestricted
+        Value178_1 val3;
+
+        Value178_1 val4;
+
+        @Strict
+        @NullRestricted
+        AllPrimitives prims1;
+
+        AllPrimitives prims2;
+
+        public Value178() {
+            this.val1 = new Value178_1();
+            this.val2 = new Value178_1();
+            this.val3 = new Value178_1();
+            this.val4 = new Value178_1();
+            this.prims1 = new AllPrimitives(rI, rI);
+            this.prims2 = new AllPrimitives(rI, rI);
+        }
+
+        public Value178(Value178 other, int[] offsets) {
+            test178Idx = 0;
+            this.val1 = new Value178_1(other.val1, offsets);
+            this.val2 = (offsets[test178Idx++] != 0) ? null : new Value178_1(other.val2, offsets);
+            this.val3 = new Value178_1(other.val3, offsets);
+            this.val4 = (offsets[test178Idx++] != 0) ? null : new Value178_1(other.val4, offsets);
+            this.prims1 = new AllPrimitives(other.prims1, offsets);
+            this.prims2 = (offsets[test178Idx++] != 0) ? null : new AllPrimitives(other.prims2, offsets);
+        }
+
+        public String toString() {
+            return "Value178(" + val1 + ", " + val2 + ", " + val3 + ", " + val4 + ", " + prims1 + ", " + prims2 + ")";
+        }
+    }
+
+    static int test178Idx = 0;
+
+    static Value178[] test178Values;
+
+    static {
+        Value178 defVal = new Value178();
+
+        // The 'offset' array is used to modify exactly one of the fields in Value178
+        int[] offsets = new int[113];
+        Value178 val2 = new Value178(defVal, offsets);
+        Asserts.assertEquals(offsets.length, test178Idx);
+        Asserts.assertEquals(defVal, val2);
+
+        test178Values = new Value178[offsets.length];
+        for (int i = 0; i < offsets.length; ++i) {
+            offsets[i] = 1;
+            if (i > 0) {
+                offsets[i-1] = 0;
+            }
+            test178Values[i] = new Value178(defVal, offsets);
+        }
+    }
+
+    // Test acmp with deep nesting of flat fields
+    @Test
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    public boolean test178(Value178 x, Value178 y) {
+        return getter(x) == getter(y);
+    }
+
+    @Run(test = "test178")
+    public void test178_verifier(RunInfo info) {
+        if (info.isWarmUp()) {
+            Asserts.assertTrue(test178(test178Values[0], test178Values[0]));
+            Asserts.assertTrue(test178(null, null));
+            Asserts.assertFalse(test178(test178Values[0], test178Values[1]));
+        } else {
+            // After warmup, check all combinations
+            for (int i = 0; i < test178Values.length; ++i) {
+                Value178 val1 = test178Values[i];
+                Asserts.assertTrue(test178(val1, val1), "i = " + i + ": " + val1 + " should be equal to itself");
+                for (int j = 0; j < test178Values.length; ++j) {
+                    Value178 val2 = test178Values[j];
+                    if (i == j) {
+                        Asserts.assertTrue(test178(val1, val2), "i = " + i + ": " + val1 + " should be equal to " + val2);
+                    } else {
+                        // Verify that the modification of one field is detected
+                        Asserts.assertFalse(test178(val1, val2), "i = " + i + ": " + val1 + " should not be equal to " + val2);
+                        Asserts.assertFalse(test178(val2, val1), "i = " + i + ": " + val2 + " should not be equal to " + val1);
+                    }
+                }
+            }
+        }
+    }
+
+    // Same as test178 but with object argument
+    @Test
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    public boolean test179(Value178 x, Object y) {
+        return getter(x) == getter(y);
+    }
+
+    @Run(test = "test179")
+    public void test179_verifier(RunInfo info) {
+        if (info.isWarmUp()) {
+            Asserts.assertTrue(test179(test178Values[0], test178Values[0]));
+            Asserts.assertTrue(test179(null, null));
+            Asserts.assertFalse(test179(test178Values[0], test178Values[1]));
+        } else {
+            // After warmup, check all combinations
+            for (int i = 0; i < test178Values.length; ++i) {
+                Value178 val1 = test178Values[i];
+                Asserts.assertTrue(test179(val1, val1), "i = " + i + ": " + val1 + " should be equal to itself");
+                for (int j = 0; j < test178Values.length; ++j) {
+                    Value178 val2 = test178Values[j];
+                    if (i == j) {
+                        Asserts.assertTrue(test179(val1, val2), "i = " + i + ": " + val1 + " should be equal to " + val2);
+                    } else {
+                        // Verify that the modification of one field is detected
+                        Asserts.assertFalse(test179(val1, val2), "i = " + i + ": " + val1 + " should not be equal to " + val2);
+                        Asserts.assertFalse(test179(val2, val1), "i = " + i + ": " + val2 + " should not be equal to " + val1);
+                    }
+                }
+            }
+        }
+        Asserts.assertFalse(test179(test178Values[0], 42));
+    }
+
+    static final Value178 op1 = test178Values[Math.abs(rI) % test178Values.length];
+    static final Value178 op2 = op1;
+    static final Value178 op3 = new Value178();
+
+    // Test constant folding
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    public boolean test180() {
+        Object val1 = null;
+        Object val2 = null;
+        Object val3 = null;
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 2; i < limit; i++) {
+            val1 = op1;
+            val2 = op2;
+            val3 = op3;
+        }
+        boolean b1 = (val1 == val2);
+        boolean b2 = (val2 == val1);
+        boolean b3 = (val1 != val3);
+        boolean b4 = (val3 != val1);
+        return b1 && b2 && b3 && b4;
+    }
+
+    @Run(test = "test180")
+    public void test180_verifier() {
+        Asserts.assertTrue(test180());
+    }
+
+    @LooselyConsistentValue
+    static value class Value181 {
+        Object obj;
+
+        public Value181(Object obj) {
+            this.obj = obj;
+        }
+    }
+
+    // Non-optimizable case because the object field would require another substitutability check
+    @Test
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    public boolean test181(Value181 val1, Value181 val2) {
+        return val1 == val2;
+    }
+
+    @Run(test = "test181")
+    public void test181_verifier() {
+        Value181 val1 = new Value181(new Value181(42));
+        Value181 val2 = new Value181(new Value181(42));
+        Value181 val3 = new Value181(new Value181(43));
+        Asserts.assertTrue(test181(val1, val1));
+        Asserts.assertTrue(test181(val1, val2));
+        Asserts.assertFalse(test181(val2, val3));
+    }
+
+    @LooselyConsistentValue
+    static value class Value182 {
+        @Strict
+        @NullRestricted
+        Value181 val; // This will require another substitutability check because it has an Object field
+
+        public Value182(Value181 val) {
+            this.val = val;
+        }
+    }
+
+    // Same as test181 but the Object field "hides" one level deeper
+    @Test
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    public boolean test182(Value182 val1, Value182 val2) {
+        return val1 == val2;
+    }
+
+    @Run(test = "test182")
+    public void test182_verifier() {
+        Value182 val1 = new Value182(new Value181(42));
+        Value182 val2 = new Value182(new Value181(43));
+        Value182 val3 = new Value182(new Value181(new Value181(42)));
+        Value182 val4 = new Value182(new Value181(new Value181(42)));
+        Asserts.assertTrue(test182(val1, val1));
+        Asserts.assertTrue(test182(val2, val2));
+        Asserts.assertFalse(test182(val1, val2));
+        Asserts.assertFalse(test182(val2, val3));
+        Asserts.assertTrue(test182(val3, val4));
     }
 }
 

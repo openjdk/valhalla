@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,31 @@
  *
  */
 
-#ifndef SHARE_JFR_UTILITIES_JFRSPINLOCKHELPER_HPP
-#define SHARE_JFR_UTILITIES_JFRSPINLOCKHELPER_HPP
+#ifndef SHARE_VM_CI_CIREFARRAYKLASS_HPP
+#define SHARE_VM_CI_CIREFARRAYKLASS_HPP
 
-#include "runtime/javaThread.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 
-class JfrSpinlockHelper {
- private:
-  volatile int* const _lock;
+// A ciRefArrayKlass represents the klass of a refined array in which the elements are stored as
+// reference
+class ciRefArrayKlass : public ciObjArrayKlass {
+private:
+  CI_PACKAGE_ACCESS
+  friend class ciEnv;
 
- public:
-  JfrSpinlockHelper(volatile int* lock) : _lock(lock) {
-    Thread::SpinAcquire(_lock);
+protected:
+  ciRefArrayKlass(Klass* k) : ciObjArrayKlass(k) {
+    assert(k->is_refArray_klass(), "wrong type");
   }
 
-  ~JfrSpinlockHelper() {
-    Thread::SpinRelease(_lock);
+  virtual const char* type_string() override { return "ciRefArrayKlass"; }
+
+public:
+  virtual bool is_ref_array_klass() const override { return true; }
+
+  virtual ciKlass* exact_klass() override {
+    return this;
   }
 };
 
-#endif // SHARE_JFR_UTILITIES_JFRSPINLOCKHELPER_HPP
+#endif // SHARE_VM_CI_CIREFARRAYKLASS_HPP

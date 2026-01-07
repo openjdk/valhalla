@@ -46,6 +46,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/registerMap.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -53,42 +54,53 @@
 #include "utilities/copy.hpp"
 #include "utilities/stringUtils.hpp"
 
+InlineKlass::Members::Members()
+  : _extended_sig(nullptr),
+    _return_regs(nullptr),
+    _pack_handler(nullptr),
+    _pack_handler_jobject(nullptr),
+    _unpack_handler(nullptr),
+    _null_reset_value_offset(0),
+    _payload_offset(-1),
+    _payload_size_in_bytes(-1),
+    _payload_alignment(-1),
+    _non_atomic_size_in_bytes(-1),
+    _non_atomic_alignment(-1),
+    _atomic_size_in_bytes(-1),
+    _nullable_size_in_bytes(-1),
+    _null_marker_offset(-1) {
+}
+
 InlineKlass::InlineKlass() {
   assert(CDSConfig::is_dumping_archive() || UseSharedSpaces, "only for CDS");
 }
 
-  // Constructor
+// Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InlineKlass::Kind, markWord::inline_type_prototype()) {
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
 
-  // Set up the offset to the InstanceKlassFixedBlock of this klass
-  _adr_inlineklass_fixed_block = new (calculate_fixed_block_address()) InlineKlassFixedBlock;
+  // Set up the offset to the members of this klass
+  _adr_inline_klass_members = calculate_members_address();
 
-  // Addresses used for inline type calling convention
-  set_extended_sig(nullptr);
-  set_return_regs(nullptr);
-  set_pack_handler(nullptr);
-  set_pack_handler_jobject(nullptr);
-  set_unpack_handler(nullptr);
+  // Placement install the members
+  new (_adr_inline_klass_members) Members();
 
+  // Sanity check construction of the members
   assert(pack_handler() == nullptr, "pack handler not null");
-
-  set_null_reset_value_offset(0);
-  set_payload_offset(-1);
-  set_payload_size_in_bytes(-1);
-  set_payload_alignment(-1);
-  set_non_atomic_size_in_bytes(-1);
-  set_non_atomic_alignment(-1);
-  set_atomic_size_in_bytes(-1);
-  set_nullable_size_in_bytes(-1);
-  set_null_marker_offset(-1);
 }
 
-address InlineKlass::calculate_fixed_block_address() const {
-  // The fix block is placed after all other fields inherited from the InstanceKlass
+address InlineKlass::calculate_members_address() const {
+  // The members are placed after all other contents inherited from the InstanceKlass
   return end_of_instance_klass();
+}
+
+oop InlineKlass::null_reset_value() {
+  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
+  oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
+  assert(val != nullptr, "Sanity check");
+  return val;
 }
 
 void InlineKlass::set_null_reset_value(oop val) {
@@ -100,9 +112,7 @@ void InlineKlass::set_null_reset_value(oop val) {
 }
 
 instanceOop InlineKlass::allocate_instance(TRAPS) {
-  int size = size_helper();  // Query before forming handle.
-
-  instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
+  instanceOop oop = InstanceKlass::allocate_instance(CHECK_NULL);
   assert(oop->mark().is_inline_type(), "Expected inline type");
   return oop;
 }
@@ -187,7 +197,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-    if (is_payload_marked_as_null((address)src)) {
+      if (is_payload_marked_as_null((address)src)) {
         if (!contains_oops()) {
           mark_payload_as_null((address)dst);
           return;
@@ -200,7 +210,6 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
         }
       } else {
         // Copy has to be performed, even if this is an empty value, because of the null marker
-        mark_payload_as_non_null((address)src);
         if (dest_is_initialized) {
           HeapAccess<>::value_copy(src, dst, this, lk);
         } else {
@@ -253,7 +262,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
   }
 }
 
-void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
+void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
     if (!LayoutKindHelper::is_nullable_flat(lk)) {
@@ -277,7 +286,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
       mark_payload_as_non_null((address)src_addr);
     }
   }
-  copy_payload_to_addr(src_addr, dst, lk, dest_is_initialized);
+  copy_payload_to_addr(src_addr, dst, lk, true /* dest_is_initialized */);
 }
 
 // Arrays of...
@@ -429,11 +438,11 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
 
 void InlineKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (extended_sig() != nullptr) {
-    MetadataFactory::free_array<SigEntry>(loader_data, fixed_block()._extended_sig);
+    MetadataFactory::free_array<SigEntry>(loader_data, members()._extended_sig);
     set_extended_sig(nullptr);
   }
   if (return_regs() != nullptr) {
-    MetadataFactory::free_array<VMRegPair>(loader_data, fixed_block()._return_regs);
+    MetadataFactory::free_array<VMRegPair>(loader_data, members()._return_regs);
     set_return_regs(nullptr);
   }
   cleanup_blobs();
@@ -643,16 +652,13 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
 
 // CDS support
 #if INCLUDE_CDS
-void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
-  InstanceKlass::metaspace_pointers_do(it);
-}
 
 void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
   // update it to point to the "buffered" copy of this class.
-  _adr_inlineklass_fixed_block = reinterpret_cast<InlineKlassFixedBlock*>(calculate_fixed_block_address());
-  ArchivePtrMarker::mark_pointer((address*)&_adr_inlineklass_fixed_block);
+  _adr_inline_klass_members = calculate_members_address();
+  ArchivePtrMarker::mark_pointer(&_adr_inline_klass_members);
 
   set_extended_sig(nullptr);
   set_return_regs(nullptr);
@@ -663,15 +669,9 @@ void InlineKlass::remove_unshareable_info() {
   assert(pack_handler() == nullptr, "pack handler not null");
 }
 
-void InlineKlass::remove_java_mirror() {
-  InstanceKlass::remove_java_mirror();
-}
-
-void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-}
 #endif // CDS
-// oop verify
+
+// Verification
 
 void InlineKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
