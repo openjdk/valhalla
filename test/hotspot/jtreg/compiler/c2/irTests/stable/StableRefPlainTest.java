@@ -114,8 +114,9 @@ public class StableRefPlainTest {
 
     @Test
     @IR(applyIf = {"enable-valhalla", "false"}, failOn = { IRNode.MEMBAR })
-    // We have barriers from the atomic expansion of the LoadFlatNode
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
+    // We have barriers from the atomic expansion of the StoreFlatNode. Store is not eliminated with
+    // or without Valhalla, but Valhalla's StoreFlat require barriers.
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "enable-valhalla", "true"}, counts = { IRNode.MEMBAR, "0" })
     static void testMethodInit() {
         INIT_CARRIER.init();
     }
