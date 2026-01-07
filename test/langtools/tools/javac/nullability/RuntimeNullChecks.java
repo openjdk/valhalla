@@ -76,6 +76,7 @@ public class RuntimeNullChecks extends TestRunner {
     public void testRuntimeChecks(Path base) throws Exception {
         int i = 0;
         for (String code: new String[] {
+                // local variables
                 """
                 class Test {
                     public static void main(String... args) {
