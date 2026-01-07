@@ -91,17 +91,6 @@ public class NullRestrictionReflectiveTest extends ComboInstance<NullRestriction
             }
             """;
 
-    static final int num_types;
-
-    static {
-        int occurrences = 0;
-        int start = -1;
-        while (start + 1 < TEMPLATE.length() && (start = TEMPLATE.indexOf("#{TYPE}", start + 1)) != -1) {
-            occurrences++;
-        }
-        num_types = occurrences;
-    }
-
     @Override
     public void doWork() throws IOException {
         newCompilationTask()
