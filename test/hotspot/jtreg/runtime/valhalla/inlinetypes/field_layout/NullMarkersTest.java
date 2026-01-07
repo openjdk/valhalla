@@ -365,12 +365,12 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
         compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
         break;
       case "64_COOP_CCP_COH":
-        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedOopsArg = "-XX:+UseCompressedOops";
         compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
         compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
         break;
       case "64_NCOOP_CCP_COH":
-        compressedOopsArg = "-XX:+UseCompressedOops";
+        compressedOopsArg = "-XX:-UseCompressedOops";
         compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
         compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
         break;

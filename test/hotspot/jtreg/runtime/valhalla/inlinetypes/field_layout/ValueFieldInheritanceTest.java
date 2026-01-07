@@ -223,7 +223,7 @@ public class ValueFieldInheritanceTest {
     String compactObjectHeader;
 
     switch(args[0]) {
-      case "0":
+      case "32":
         compressedOopsArg = null;
         compressedKlassPointersArg = null;
         compactObjectHeader = null;
