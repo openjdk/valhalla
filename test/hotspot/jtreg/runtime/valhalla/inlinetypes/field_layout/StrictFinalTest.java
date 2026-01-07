@@ -74,11 +74,17 @@ public class StrictFinalTest {
     }
 
     static value class Container0 {
-        Value0 val0 = new Value0();
+        Value0 val0;
+        Container0(Value0 v) {
+          val0 = v;
+        }
     }
 
     static public void test_0() {
-        Container0 c = new Container0();
+        var c = new Container0(null);
+        Asserts.assertNull(c.val0);
+        c = new Container0(new Value0());
+        Asserts.assertNotNull(c.val0);
     }
 
     static public void check_0(FieldLayoutAnalyzer fla) {
@@ -94,11 +100,17 @@ public class StrictFinalTest {
     }
 
     static value class Container1 {
-        Value1 val0 = new Value1();
+        Value1 val0;
+        Container1(Value1 v) {
+          val0 = v;
+        }
     }
 
     static public void test_1() {
-        Container1 c = new Container1();
+        var c = new Container1(null);
+        Asserts.assertNull(c.val0);
+        c = new Container1(new Value1());
+        Asserts.assertNotNull(c.val0);
     }
 
     static public void check_1(FieldLayoutAnalyzer fla) {
@@ -109,12 +121,17 @@ public class StrictFinalTest {
     }
 
     static class Container2 {
-        Value1 val0 = new Value1();
+        Value1 val0;
     }
 
 
     static public void test_2() {
         Container2 c = new Container2();
+        Asserts.assertNull(c.val0);
+        c.val0 = new Value1();
+        Asserts.assertNotNull(c.val0);
+        c.val0 = null;
+        Asserts.assertNull(c.val0);
     }
 
     static public void check_2(FieldLayoutAnalyzer fla) {
@@ -144,12 +161,18 @@ public class StrictFinalTest {
     // }
 
     static class Container4 {
-        final Value1 val0 = new Value1();
+        final Value1 val0;
+        Container4(Value1 v) {
+          val0 = v;
+        }
     }
 
 
     static public void test_4() {
-        Container4 c = new Container4();
+        var c = new Container4(null);
+        Asserts.assertNull(c.val0);
+        c = new Container4(new Value1());
+        Asserts.assertNotNull(c.val0);
     }
 
     static public void check_4(FieldLayoutAnalyzer fla) {
@@ -161,12 +184,17 @@ public class StrictFinalTest {
 
     static class Container5 {
         @Strict
-        final Value1 val0 = new Value1();
+        final Value1 val0;
+        Container5(Value1 v) {
+          val0 = v;
+        }
     }
 
     static public void test_5() {
-        Container5 c = new Container5();
+        var c = new Container5(new Value1());
         Asserts.assertNotNull(c.val0);
+        c = new Container5(null);
+        Asserts.assertNull(c.val0);
     }
 
     static public void check_5(FieldLayoutAnalyzer fla) {
@@ -195,12 +223,17 @@ public class StrictFinalTest {
 
     @LooselyConsistentValue
     static value class Container7 {
-        Value1 val0 = new Value1();
+        Value1 val0;
+        Container7(Value1 v) {
+          val0 = v;
+        }
     }
 
     static public void test_7() {
-        Container7 c = new Container7();
+        var c = new Container7(new Value1());
         Asserts.assertNotNull(c.val0);
+        c = new Container7(null);
+        Asserts.assertNull(c.val0);
     }
 
     static public void check_7(FieldLayoutAnalyzer fla) {
