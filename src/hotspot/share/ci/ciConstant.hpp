@@ -118,7 +118,7 @@ public:
   bool is_loaded() const;
 
   // Debugging output
-  void print();
+  void print() const;
 };
 
 #endif // SHARE_CI_CICONSTANT_HPP

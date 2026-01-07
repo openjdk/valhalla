@@ -79,7 +79,11 @@ public class StableRefPlainTest {
     @Test
     @IR(counts = { IRNode.LOAD, ">0" })
     @IR(applyIf = {"enable-valhalla", "false"}, failOn = { IRNode.MEMBAR })
-    @IR(applyIf = {"enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
+    // We have barriers with valhalla from the atomic expansion of the LoadFlatNode
+    // Indeed, since the field is not initialized, it is not known to be constant yet,
+    // and so, the LoadFlat cannot be expanded non-atomically. We need barriers to synchronize
+    // the LoadFlat and potential updates to sub-field of the flatten field.
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
     static int testNoFold() {
         // Access should not be folded.
         Integer i = BLANK_CARRIER.field;
@@ -110,7 +114,8 @@ public class StableRefPlainTest {
 
     @Test
     @IR(applyIf = {"enable-valhalla", "false"}, failOn = { IRNode.MEMBAR })
-    @IR(applyIf = {"enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
+    // We have barriers from the atomic expansion of the LoadFlatNode
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
     static void testMethodInit() {
         INIT_CARRIER.init();
     }

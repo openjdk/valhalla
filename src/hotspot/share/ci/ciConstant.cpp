@@ -63,7 +63,7 @@ bool ciConstant::is_loaded() const {
 
 // ------------------------------------------------------------------
 // ciConstant::print
-void ciConstant::print() {
+void ciConstant::print() const {
   tty->print("<ciConstant type=%s value=",
              basictype_to_str(basic_type()));
   switch (basic_type()) {

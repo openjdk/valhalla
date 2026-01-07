@@ -189,7 +189,7 @@ public:
   bool is_autobox_cache();
 
   // Debugging output
-  void print();
+  void print() const;
   void print_name_on(outputStream* st);
 };
 

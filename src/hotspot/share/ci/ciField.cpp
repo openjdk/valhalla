@@ -504,7 +504,7 @@ bool ciField::is_autobox_cache() {
 
 // ------------------------------------------------------------------
 // ciField::print
-void ciField::print() {
+void ciField::print() const {
   tty->print("<ciField name=");
   _holder->print_name();
   tty->print(".");
