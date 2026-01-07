@@ -65,8 +65,9 @@ class    ciKlass;
 class     ciInstanceKlass;
 class       ciInlineKlass;
 class     ciArrayKlass;
-class       ciFlatArrayKlass;
 class       ciObjArrayKlass;
+class         ciFlatArrayKlass;
+class         ciRefArrayKlass;
 class       ciTypeArrayKlass;
 
 // Simulate Java Language style package-private access with

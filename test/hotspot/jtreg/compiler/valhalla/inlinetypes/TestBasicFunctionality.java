@@ -32,6 +32,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
+import jdk.test.whitebox.WhiteBox;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
@@ -379,7 +380,8 @@ static MyValue1 tmp = null;
     // Test loop with uncommon trap referencing a value object
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {SCOPE_OBJECT, ">= 1"}) // LOAD_OF_ANY_KLASS, "<= 12"}) // TODO 8372332, 8227588 (loads should be removed)
+        failOn = LOAD_OF_ANY_KLASS,
+        counts = {SCOPE_OBJECT, ">= 1"})
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 10, MyValue1.DEFAULT);
@@ -404,6 +406,10 @@ static MyValue1 tmp = null;
 
     @Run(test = "test12")
     public void test12_verifier(RunInfo info) {
+        // Disable OSR compilation prevents the method from getting recompiled because the IR rules
+        // expect all loads moved into the uncommon trap, which is not the case when the method get
+        // recompiled and the path that was unreached before is now compiled
+        WhiteBox.getWhiteBox().makeMethodNotCompilable(info.getTest(), CompLevel.C2.getValue(), true);
         long result = test12(info.isWarmUp());
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
