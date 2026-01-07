@@ -24,6 +24,7 @@
 
 #include "ci/bcEscapeAnalyzer.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciSymbols.hpp"
 #include "code/vmreg.hpp"
 #include "compiler/compileLog.hpp"
 #include "compiler/oopMap.hpp"
@@ -39,6 +40,7 @@
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
+#include "opto/movenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/regmask.hpp"
@@ -492,14 +494,8 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         while (ndim-- > 0) {
           st->print("[]");
         }
-      } else if (cik->is_flat_array_klass()) {
-        ciKlass* cie = cik->as_flat_array_klass()->base_element_klass();
-        cie->print_name_on(st);
-        st->print("[%d]", spobj->n_fields());
-        int ndim = cik->as_array_klass()->dimension() - 1;
-        while (ndim-- > 0) {
-          st->print("[]");
-        }
+      } else {
+        assert(false, "unexpected type %s", cik->name()->as_utf8());
       }
       st->print("={");
       uint nf = spobj->n_fields();
@@ -1171,11 +1167,66 @@ bool CallStaticJavaNode::cmp( const Node &n ) const {
 Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (can_reshape && uncommon_trap_request() != 0) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
-    if (remove_unknown_flat_array_load(igvn, in(0), in(TypeFunc::Memory), in(TypeFunc::Parms))) {
-      if (!in(0)->is_Region()) {
+    if (remove_unknown_flat_array_load(igvn, control(), memory(), in(TypeFunc::Parms))) {
+      if (!control()->is_Region()) {
         igvn->replace_input_of(this, 0, phase->C->top());
       }
       return this;
+    }
+  }
+
+  // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
+  if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
+      (method()->name() == ciSymbols::isSubstitutableAlt_name() || method()->name() == ciSymbols::isSubstitutable_name())) {
+    Node* left = in(TypeFunc::Parms);
+    Node* right = in(TypeFunc::Parms + 1);
+    if (!left->is_top() && !right->is_top() && (left->is_InlineType() || right->is_InlineType())) {
+      if (!left->is_InlineType()) {
+        swap(left, right);
+      }
+      InlineTypeNode* vt = left->as_InlineType();
+
+      // Check if the field layout can be optimized
+      if (vt->can_emit_substitutability_check(right)) {
+        PhaseIterGVN* igvn = phase->is_IterGVN();
+
+        Node* ctrl = control();
+        RegionNode* region = new RegionNode(1);
+        Node* phi = new PhiNode(region, TypeInt::POS);
+
+        Node* base = right;
+        Node* ptr = right;
+        if (!base->is_InlineType()) {
+          // Parse time checks guarantee that both operands are non-null and have the same type
+          base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
+          ptr = base;
+        }
+        // Emit IR for field-wise comparison
+        vt->check_substitutability(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
+
+        // Equals
+        region->add_req(ctrl);
+        phi->add_req(igvn->intcon(1));
+
+        ctrl = igvn->register_new_node_with_optimizer(region);
+        Node* res = igvn->register_new_node_with_optimizer(phi);
+
+        // Kill exception projections and return a tuple that will replace the call
+        CallProjections* projs = extract_projections(false /*separate_io_proj*/);
+        if (projs->fallthrough_catchproj != nullptr) {
+          igvn->replace_node(projs->fallthrough_catchproj, ctrl);
+        }
+        if (projs->catchall_memproj != nullptr) {
+          igvn->replace_node(projs->catchall_memproj, igvn->C->top());
+        }
+        if (projs->catchall_ioproj != nullptr) {
+          igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
+        }
+        if (projs->catchall_catchproj != nullptr) {
+          igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
+        }
+        return TupleNode::make(tf()->range_cc(), ctrl, i_o(), memory(), frameptr(), returnadr(), res);
+      }
     }
   }
 

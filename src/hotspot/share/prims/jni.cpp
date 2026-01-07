@@ -1969,7 +1969,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
     InlineKlass* vklass = li->klass();
     oop v = JNIHandles::resolve(value);
-    vklass->write_value_to_addr(v, ((char*)(oopDesc*)o) + offset, li->kind(), true, CHECK);
+    vklass->write_value_to_addr(v, ((char*)(oopDesc*)o) + offset, li->kind(), CHECK);
   }
   log_debug_if_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
