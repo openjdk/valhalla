@@ -241,6 +241,7 @@ public class Names {
     // value classes
     public final Name newInstance;
     public final Name asNullRestrictedType;
+    public final Name nullCheck;
 
     public final Name.Table table;
 
@@ -438,6 +439,7 @@ public class Names {
         //value classes
         newInstance = fromString("newInstance");
         asNullRestrictedType = fromString("asNullRestrictedType");
+        nullCheck = fromString("nullCheck");
     }
 
     protected Name.Table createTable(Options options) {

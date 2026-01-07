@@ -140,3 +140,14 @@ bool ciInlineKlass::must_be_atomic() const {
 bool ciInlineKlass::is_naturally_atomic(bool null_free) {
   return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
 }
+
+int ciInlineKlass::field_map_offset() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->acmp_maps_offset();)
+}
+
+ciConstant ciInlineKlass::get_field_map() const {
+  VM_ENTRY_MARK
+  InlineKlass* vk = get_InlineKlass();
+  oop array = vk->java_mirror()->obj_field(vk->acmp_maps_offset());
+  return ciConstant(T_ARRAY, CURRENT_ENV->get_object(array));
+}

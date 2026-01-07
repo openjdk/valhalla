@@ -1387,6 +1387,8 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
     }
   }
 
+  assert(!mh->has_scalarized_args() || adapter->get_sig_cc() != nullptr, "sigcc should not be null here");
+
   mh->set_adapter_entry(adapter);
   return adapter->get_c2i_entry();
 }

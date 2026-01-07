@@ -252,6 +252,7 @@ public class Symtab {
     public final MethodSymbol objectFinalize;
     public final Type numberType;
     public final Type reflectArrayType;
+    public final Type checksType;
 
     /** The symbol representing the length field of an array.
      */
@@ -632,7 +633,7 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
-        strictType = enterSyntheticAnnotation("jdk.internal.vm.annotation.Strict");
+        strictType = enterClass("jdk.internal.vm.annotation.Strict");
         migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");
@@ -661,6 +662,7 @@ public class Symtab {
         // for value objects
         reflectArrayType = enterClass("java.lang.reflect.Array");
         numberType = enterClass("java.lang.Number");
+        checksType = enterClass("java.lang.runtime.Checks");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a

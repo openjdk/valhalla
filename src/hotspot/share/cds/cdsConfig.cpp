@@ -305,7 +305,7 @@ void CDSConfig::ergo_init_classic_archive_paths() {
 }
 
 void CDSConfig::check_internal_module_property(const char* key, const char* value) {
-  if (Arguments::is_incompatible_cds_internal_module_property(key) && !Arguments::patching_migrated_classes(key, value)) {
+  if (Arguments::is_incompatible_cds_internal_module_property(key)) {
     stop_using_optimized_module_handling();
     aot_log_info(aot)("optimized module handling: disabled due to incompatible property: %s=%s", key, value);
   }
@@ -975,10 +975,6 @@ bool CDSConfig::are_vm_options_incompatible_with_dumping_heap() {
 }
 
 bool CDSConfig::is_dumping_heap() {
-  if (Arguments::is_valhalla_enabled()) {
-    // Not working yet -- e.g., HeapShared::oop_hash() needs to be implemented for value oops
-    return false;
-  }
   if (!(is_dumping_classic_static_archive() || is_dumping_final_static_archive())
       || are_vm_options_incompatible_with_dumping_heap()
       || _disable_heap_dumping) {
@@ -1051,23 +1047,19 @@ void CDSConfig::set_has_aot_linked_classes(bool has_aot_linked_classes) {
   _has_aot_linked_classes |= has_aot_linked_classes;
 }
 
-bool CDSConfig::is_initing_classes_at_dump_time() {
-  return is_dumping_heap() && is_dumping_aot_linked_classes();
-}
-
 bool CDSConfig::is_dumping_invokedynamic() {
   // Requires is_dumping_aot_linked_classes(). Otherwise the classes of some archived heap
   // objects used by the archive indy callsites may be replaced at runtime.
   return AOTInvokeDynamicLinking && is_dumping_aot_linked_classes() && is_dumping_heap();
 }
 
-// When we are dumping aot-linked classes and we are able to write archived heap objects, we automatically
-// enable the archiving of MethodHandles. This will in turn enable the archiving of MethodTypes and hidden
+// When we are dumping aot-linked classes, we automatically enable the archiving of MethodHandles.
+// This will in turn enable the archiving of MethodTypes and hidden
 // classes that are used in the implementation of MethodHandles.
 // Archived MethodHandles are required for higher-level optimizations such as AOT resolution of invokedynamic
 // and dynamic proxies.
 bool CDSConfig::is_dumping_method_handles() {
-  return is_initing_classes_at_dump_time();
+  return is_dumping_aot_linked_classes();
 }
 
 #endif // INCLUDE_CDS_JAVA_HEAP

@@ -684,7 +684,10 @@ public class Operators {
                 new UnaryBooleanOperator(Tag.NOT)
                         .addUnaryOperator(BOOLEAN, BOOLEAN, bool_not),
                 new UnaryReferenceOperator(Tag.NULLCHK)
-                        .addUnaryOperator(OBJECT, OBJECT, nullchk));
+                        .addUnaryOperator(OBJECT, OBJECT, nullchk),
+                new UnaryReferenceOperator(Tag.NULLCHK2)
+                        .addUnaryOperator(OBJECT, OBJECT, nullchk)
+        );
     }
 
     /**
@@ -837,6 +840,7 @@ public class Operators {
         setOperatorName(Tag.POSTINC, "++");
         setOperatorName(Tag.POSTDEC, "--");
         setOperatorName(Tag.NULLCHK, "<*nullchk*>");
+        setOperatorName(Tag.NULLCHK2, "<*nullchk2*>");
         setOperatorName(Tag.OR, "||");
         setOperatorName(Tag.AND, "&&");
         setOperatorName(Tag.EQ, "==");

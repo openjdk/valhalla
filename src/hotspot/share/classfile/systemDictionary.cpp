@@ -214,7 +214,15 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
       bool created = false;
       ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader, created);
       if (created && Arguments::enable_preview()) {
-        add_migrated_value_classes(cld);
+        if (CDSConfig::is_using_aot_linked_classes() && java_system_loader() == nullptr) {
+          // We are inside AOTLinkedClassBulkLoader::preload_classes().
+          //
+          // AOTLinkedClassBulkLoader will automatically initiate the loading of all archived
+          // public classes from the boot loader into platform/system loaders, so there's
+          // no need to call add_migrated_value_classes().
+        } else {
+          add_migrated_value_classes(cld);
+        }
       }
       return cld;
     }
@@ -1978,7 +1986,7 @@ Symbol* SystemDictionary::find_resolution_error(const constantPoolHandle& pool, 
 
 void SystemDictionary::add_nest_host_error(const constantPoolHandle& pool,
                                            int which,
-                                           const char* message) {
+                                           const stringStream& message) {
   {
     MutexLocker ml(Thread::current(), SystemDictionary_lock);
     ResolutionErrorEntry* entry = ResolutionErrorTable::find_entry(pool, which);
@@ -1987,14 +1995,19 @@ void SystemDictionary::add_nest_host_error(const constantPoolHandle& pool,
       // constant pool index. In this case resolution succeeded but there's an error in this nest host
       // that we use the table to record.
       assert(pool->resolved_klass_at(which) != nullptr, "klass should be resolved if there is no entry");
-      ResolutionErrorTable::add_entry(pool, which, message);
+      ResolutionErrorTable::add_entry(pool, which, message.as_string(true /* on C-heap */));
     } else {
       // An existing entry means we had a true resolution failure (LinkageError) with our nest host, but we
       // still want to add the error message for the higher-level access checks to report. We should
       // only reach here under the same error condition, so we can ignore the potential race with setting
-      // the message, and set it again.
-      assert(entry->nest_host_error() == nullptr || strcmp(entry->nest_host_error(), message) == 0, "should be the same message");
-      entry->set_nest_host_error(message);
+      // the message.
+      const char* nhe = entry->nest_host_error();
+      if (nhe == nullptr) {
+        entry->set_nest_host_error(message.as_string(true /* on C-heap */));
+      } else {
+        DEBUG_ONLY(const char* msg = message.base();)
+        assert(strcmp(nhe, msg) == 0, "New message %s, differs from original %s", msg, nhe);
+      }
     }
   }
 }
@@ -2291,9 +2304,10 @@ static bool is_always_visible_class(oop mirror) {
     return true; // primitive array
   }
   assert(klass->is_instance_klass(), "%s", klass->external_name());
-  return klass->is_public() &&
-         (InstanceKlass::cast(klass)->is_same_class_package(vmClasses::Object_klass()) ||       // java.lang
-          InstanceKlass::cast(klass)->is_same_class_package(vmClasses::MethodHandle_klass()));  // java.lang.invoke
+  InstanceKlass* ik = InstanceKlass::cast(klass);
+  return ik->is_public() &&
+         (ik->is_same_class_package(vmClasses::Object_klass()) ||       // java.lang
+          ik->is_same_class_package(vmClasses::MethodHandle_klass()));  // java.lang.invoke
 }
 
 // Find or construct the Java mirror (java.lang.Class instance) for

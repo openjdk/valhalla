@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @key randomness
  * @bug 8367244
  * @summary Ensure the stress counter is wired correctly with StressUnstableIf for acmp.
  * @enablePreview

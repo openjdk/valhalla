@@ -34,7 +34,7 @@ class BadChild extends Parent {
 }
 */
 
-identity class BadChild1 extends Parent version 70:65535
+identity class BadChild1 extends Parent version 71:65535
 {
   @-jdk/internal/vm/annotation/Strict { }
   strict Field x:I;
