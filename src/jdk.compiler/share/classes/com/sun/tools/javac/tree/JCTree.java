@@ -343,7 +343,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         /** unary operator for null reference checks, only used internally
          *  for null restricted types
          */
-        NULLCHK2,
+        NULLRESTRICTEDCHK,
 
         /** Binary operators, of type Binary.
          */

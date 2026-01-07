@@ -2328,10 +2328,10 @@ public class Gen extends JCTree.Visitor {
                 }
                 break;
             case NULLCHK:
-            case NULLCHK2:
+            case NULLRESTRICTEDCHK:
                 result = od.load();
                 code.emitop0(dup);
-                genNullCheck(tree, tree.getTag() == NULLCHK2);
+                genNullCheck(tree, tree.getTag() == NULLRESTRICTEDCHK);
                 break;
             default:
                 Assert.error();
