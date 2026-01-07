@@ -264,4 +264,10 @@ public enum Target {
     public boolean switchBootstrapOnlyAllowsReferenceTypesAsCaseLabels() {
         return compareTo(Target.JDK1_23) < 0;
     }
+
+    /** Does the target JDK defines class j.l.runtime.Checks?
+     */
+    public boolean hasRuntimeChecks() {
+        return compareTo(JDK1_26) >= 0;
+    }
 }

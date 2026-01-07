@@ -3498,6 +3498,12 @@ public class Attr extends JCTree.Visitor {
     /** Make an attributed null check tree.
      */
     public JCExpression makeNullCheck(JCExpression arg) {
+        return makeNullCheck(arg, false);
+    }
+
+    /** Make an attributed null check tree.
+     */
+    public JCExpression makeNullCheck(JCExpression arg, boolean nullRestricted) {
         // optimization: new Outer() can never be null; skip null check
         if (arg.getTag() == NEWCLASS)
             return arg;
@@ -3505,7 +3511,7 @@ public class Attr extends JCTree.Visitor {
         Name name = TreeInfo.name(arg);
         if (name == names._this || name == names._super) return arg;
 
-        JCTree.Tag optag = NULLCHK;
+        JCTree.Tag optag = !nullRestricted ? NULLCHK : NULLCHK2;
         JCUnary tree = make.at(arg.pos).Unary(optag, arg);
         tree.operator = operators.resolveUnary(arg, optag, arg.type);
         tree.type = arg.type;

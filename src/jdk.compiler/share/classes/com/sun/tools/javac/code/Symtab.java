@@ -252,6 +252,7 @@ public class Symtab {
     public final MethodSymbol objectFinalize;
     public final Type numberType;
     public final Type reflectArrayType;
+    public final Type checksType;
 
     /** The symbol representing the length field of an array.
      */
@@ -661,6 +662,7 @@ public class Symtab {
         // for value objects
         reflectArrayType = enterClass("java.lang.reflect.Array");
         numberType = enterClass("java.lang.Number");
+        checksType = enterClass("java.lang.runtime.Checks");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
