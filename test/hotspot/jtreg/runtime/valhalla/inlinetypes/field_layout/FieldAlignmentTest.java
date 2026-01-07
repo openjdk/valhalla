@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,8 @@
  * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 0
  */
 
-  /*
- * @test id=CompressedOops
+/*
+ * @test id=CompressedOopsCompressKlassPointersNoCompactHeader
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
@@ -43,8 +43,8 @@
  * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 1
  */
 
-  /*
- * @test id=NoCompressedOops
+/*
+ * @test id=NoCompressedOopsCompressKlassPointersNoCompactHeader
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
@@ -52,6 +52,39 @@
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
  * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 2
+ */
+
+/*
+ * @test id=NoCompressedOopsNoCompressKlassPointersNoCompactHeader
+ * @requires vm.bits == 64
+ * @requires vm.flagless
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 3
+ */
+
+/*
+ * @test id=CompressedOopsCompressKlassPointersCompactHeader
+ * @requires vm.bits == 64
+ * @requires vm.flagless
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 4
+ */
+
+/*
+ * @test id=NoCompressedOopsNoCompressKlassPointersCompactHeader
+ * @requires vm.bits == 64
+ * @requires vm.flagless
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.FieldAlignmentTest 5
  */
 
  package runtime.valhalla.inlinetypes.field_layout;
@@ -152,7 +185,10 @@
     jdk.test.lib.helpers.ClassFileInstaller.writeClassToDisk(className, byteCode);
   }
 
-  static ProcessBuilder exec(String compressedOopsArg, String... args) throws Exception {
+  static ProcessBuilder exec(String compressedOopsArg,
+                             String compressedKlassPointersArg,
+                             String compactObjectHeader,
+                             String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
@@ -160,6 +196,12 @@
     Collections.addAll(argsList, "-Xshare:off");
     if (compressedOopsArg != null) {
       Collections.addAll(argsList, compressedOopsArg);
+    }
+    if (compressedKlassPointersArg != null) {
+      Collections.addAll(argsList, compressedKlassPointersArg);
+    }
+    if (compactObjectHeader != null) {
+      Collections.addAll(argsList, compactObjectHeader);
     }
     Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") +".");
@@ -169,13 +211,33 @@
 
   public static void main(String[] args) throws Exception {
     String compressedOopsArg;
+    String compressedKlassPointersArg;
+    String compactObjectHeaderArg;
 
     switch(args[0]) {
       case "0": compressedOopsArg = null;
+                compressedKlassPointersArg = null;
+                compactObjectHeaderArg = null;
                 break;
       case "1": compressedOopsArg = "-XX:+UseCompressedOops";
+                compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
+                compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
                 break;
       case "2": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+                compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+                break;
+      case "3": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
+                compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+                break;
+      case "4": compressedOopsArg = "-XX:+UseCompressedOops";
+                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+                compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
+                break;
+      case "5": compressedOopsArg = "-XX:-UseCompressedOops";
+                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
+                compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
                 break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
@@ -186,7 +248,7 @@
     fat.generateTestRunner();
 
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec(compressedOopsArg, "TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, compactObjectHeaderArg, "TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {
