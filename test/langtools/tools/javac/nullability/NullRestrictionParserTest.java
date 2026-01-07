@@ -41,6 +41,7 @@ import combo.ComboParameter;
 import combo.ComboTask.Result;
 import combo.ComboTestHelper;
 
+import javax.lang.model.SourceVersion;
 import javax.tools.Diagnostic.Kind;
 
 public class NullRestrictionParserTest extends ComboInstance<NullRestrictionParserTest> {
@@ -171,8 +172,9 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
 
     @Override
     public void doWork() throws IOException {
+        String latestVersion = String.valueOf(SourceVersion.latestSupported().runtimeVersion().feature());
         newCompilationTask()
-                .withOptions(List.of("--enable-preview", "--release", "26"))
+                .withOptions(List.of("--enable-preview", "--release", latestVersion))
                 .withSourceFromTemplate(TEMPLATE)
                 .parse(this::check);
     }

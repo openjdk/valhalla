@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,9 @@ import combo.ComboParameter;
 import combo.ComboTask.ExecutionTask;
 import combo.ComboTestHelper;
 
+import javax.lang.model.SourceVersion;
 import java.io.IOException;
+import java.lang.Runtime.Version;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -93,8 +95,9 @@ public class NullRestrictionReflectiveTest extends ComboInstance<NullRestriction
 
     @Override
     public void doWork() throws IOException {
+        String latestVersion = String.valueOf(SourceVersion.latestSupported().runtimeVersion().feature());
         newCompilationTask()
-                .withOptions(List.of("--enable-preview", "--release", "26"))
+                .withOptions(List.of("--enable-preview", "--release", latestVersion))
                 .withSourceFromTemplate(TEMPLATE)
                 .execute(this::check);
     }

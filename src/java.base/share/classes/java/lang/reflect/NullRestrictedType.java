@@ -33,7 +33,7 @@ import jdk.internal.javac.PreviewFeature.Feature;
  * {@code String!}.
  *
  * <p>Instances of classes that implement this interface must implement
- * an equals() method that equates any two null rrestricted type instances that
+ * an equals() method that equates any two null restricted type instances that
  * share the same base type.
  */
 @PreviewFeature(feature = Feature.VALUE_OBJECTS, reflective = true)
