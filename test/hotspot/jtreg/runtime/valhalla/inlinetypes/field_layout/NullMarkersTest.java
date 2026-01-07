@@ -22,69 +22,69 @@
  */
 
  /*
- * @test id=NullMarker32
+ * @test id=32
  * @requires vm.bits == 32
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 0
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 32
  */
 
 /*
- * @test id=NullMarker64CompressedOops
+ * @test id=64_COOP_CCP_NCOH
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 1
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_COOP_CCP_NCOH
  */
 
 /*
- * @test id=NullMarker64NoCompressedOops
+ * @test id=64_NCOOP_CCP_NCOH
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 2
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_NCOOP_CCP_NCOH
  */
 
 /*
- * @test id=NullMarker64NoCompressedOopsNoCompressedKlassPointers
+ * @test id=64_NCOOP_NCCP_NCOH
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 3
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_NCOOP_NCCP_NCOH
  */
 
 /*
- * @test id=NullMarker64CompactObjectHeaderNoCompress
+ * @test id=64_COOP_CCP_COH
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 4
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_COOP_CCP_COH
  */
 
 /*
- * @test id=NullMarker64CompactObjectHeaderWithCompress
+ * @test id=64_NCOOP_CCP_COH
  * @requires vm.bits == 64
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 5
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_NCOOP_CCP_COH
  */
 
 package runtime.valhalla.inlinetypes.field_layout;
@@ -344,30 +344,36 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
     String compactObjectHeaderArg;
 
     switch(args[0]) {
-      case "0": compressedOopsArg = null;
-                compressedKlassPointersArg = null;
-                compactObjectHeaderArg = null;
-                break;
-      case "1": compressedOopsArg = "-XX:+UseCompressedOops";
-                compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
-                compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
-                break;
-      case "2": compressedOopsArg = "-XX:-UseCompressedOops";
-                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
-                compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
-                break;
-      case "3": compressedOopsArg = "-XX:-UseCompressedOops";
-                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
-                compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
-                break;
-      case "4": compressedOopsArg = "-XX:-UseCompressedOops";
-                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
-                compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
-                break;
-      case "5": compressedOopsArg = "-XX:+UseCompressedOops";
-                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
-                compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
-                break;
+      case "32":
+        compressedOopsArg = null;
+        compressedKlassPointersArg = null;
+        compactObjectHeaderArg = null;
+        break;
+      case "64_COOP_CCP_NCOH":
+        compressedOopsArg = "-XX:+UseCompressedOops";
+        compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+        break;
+      case "64_NCOOP_CCP_NCOH":
+        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+        break;
+      case "64_NCOOP_NCCP_NCOH":
+        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+        break;
+      case "64_COOP_CCP_COH":
+        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
+        break;
+      case "64_NCOOP_CCP_COH":
+        compressedOopsArg = "-XX:+UseCompressedOops";
+        compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
+        break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
 
