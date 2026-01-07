@@ -172,7 +172,7 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
     @Override
     public void doWork() throws IOException {
         newCompilationTask()
-                .withOptions(List.of("--enable-preview", "--release", "26"))
+                .withOptions(List.of("--enable-preview", "--release", System.getProperty("java.specification.version")))
                 .withSourceFromTemplate(TEMPLATE)
                 .parse(this::check);
     }
