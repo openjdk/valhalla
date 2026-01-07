@@ -48,6 +48,7 @@ public class StableFlatArrayTest {
         TestFramework tf = new TestFramework();
         tf.addTestClassesToBootClassPath();
                 tf.addFlags(
+                        "--enable-preview",
                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED"
                 )
                 .start();
