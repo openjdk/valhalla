@@ -99,14 +99,14 @@ static JImageGetResource_t             JImageGetResource      = nullptr;
 // JImageFile pointer, or null if exploded JDK build.
 static JImageFile*                     JImage_file            = nullptr;
 
-// JImageMode status to control preview behaviour. JImage_file is unusable
-// for normal lookup until (JImage_mode != JIMAGE_MODE_UNINITIALIZED).
-enum JImageMode {
-  JIMAGE_MODE_UNINITIALIZED = 0,
-  JIMAGE_MODE_DEFAULT = 1,
-  JIMAGE_MODE_ENABLE_PREVIEW = 2
+// PreviewMode status to control preview behaviour. JImage_file is unusable
+// for normal lookup until (Preview_mode != PREVIEW_MODE_UNINITIALIZED).
+enum PreviewMode {
+  PREVIEW_MODE_UNINITIALIZED = 0,
+  PREVIEW_MODE_DEFAULT = 1,
+  PREVIEW_MODE_ENABLE_PREVIEW = 2
 };
-static JImageMode                      JImage_mode            = JIMAGE_MODE_UNINITIALIZED;
+static PreviewMode                     Preview_mode           = PREVIEW_MODE_UNINITIALIZED;
 
 // Globals
 
@@ -234,7 +234,7 @@ Symbol* ClassLoader::package_from_class_name(const Symbol* name, bool* bad_class
 }
 
 // --------------------------------
-// The following jimage_xxx static functions encapsulate all JImage_file and JImage_mode access.
+// The following jimage_xxx static functions encapsulate all JImage_file and Preview_mode access.
 // This is done to make it easy to reason about the JImage file state (exists vs initialized etc.).
 
 // Opens the named JImage file and sets the JImage file reference.
@@ -266,23 +266,15 @@ static JImageFile* jimage_non_null() {
   return JImage_file;
 }
 
-// Called once to set the access mode for resource (i.e. preview or non-preview) before
-// general resource lookup can occur.
-static void jimage_init(bool enable_preview) {
-  assert(JImage_mode == JIMAGE_MODE_UNINITIALIZED, "jimage_init must not be called twice");
-  JImage_mode = enable_preview ? JIMAGE_MODE_ENABLE_PREVIEW : JIMAGE_MODE_DEFAULT;
-}
-
 // Returns true if jimage_init() has been called. Once the JImage file is initialized,
 // jimage_is_preview_enabled() can be called to correctly determine the access mode.
 static bool jimage_is_initialized() {
-  return jimage_exists() && JImage_mode != JIMAGE_MODE_UNINITIALIZED;
+  return jimage_exists() && Preview_mode != PREVIEW_MODE_UNINITIALIZED;
 }
 
 // Returns the access mode for an initialized JImage file (reflects --enable-preview).
-static bool jimage_is_preview_enabled() {
-  assert(jimage_is_initialized(), "jimage is not initialized");
-  return JImage_mode == JIMAGE_MODE_ENABLE_PREVIEW;
+static bool is_preview_enabled() {
+  return Preview_mode == PREVIEW_MODE_ENABLE_PREVIEW;
 }
 
 // Looks up the location of a named JImage resource. This "raw" lookup function allows
@@ -465,7 +457,7 @@ ClassFileStream* ClassPathImageEntry::open_stream(JavaThread* current, const cha
 //     2. A package is in at most one module in the jimage file.
 //
 ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current, const char* name, ClassLoaderData* loader_data) {
-  bool is_preview = jimage_is_preview_enabled();
+  const bool is_preview = is_preview_enabled();
 
   jlong size;
   JImageLocationRef location = 0;
@@ -694,11 +686,21 @@ void ClassLoader::setup_bootstrap_search_path_impl(JavaThread* current, const ch
 static const char* get_exploded_module_path(const char* module_name, bool c_heap) {
   const char *home = Arguments::get_java_home();
   const char file_sep = os::file_separator()[0];
-  // 10 represents the length of "modules" + 2 file separators + \0
+  // 10 represents the length of "modules" (7) + 2 file separators + \0
   size_t len = strlen(home) + strlen(module_name) + 10;
   char *path = c_heap ? NEW_C_HEAP_ARRAY(char, len, mtModule) : NEW_RESOURCE_ARRAY(char, len);
   jio_snprintf(path, len, "%s%cmodules%c%s", home, file_sep, file_sep, module_name);
   return path;
+}
+
+// Gets a preview path for a given class path as a resource.
+static const char* get_preview_path(const char* path) {
+  const char file_sep = os::file_separator()[0];
+  // 18 represents the length of "META-INF" (8) + "preview" (7) + 2 file separators + \0
+  size_t len = strlen(path) + 18;
+  char *preview_path = NEW_RESOURCE_ARRAY(char, len);
+  jio_snprintf(preview_path, len, "%s%cMETA-INF%cpreview", path, file_sep, file_sep);
+  return preview_path;
 }
 
 // During an exploded modules build, each module defined to the boot loader
@@ -716,19 +718,32 @@ void ClassLoader::add_to_exploded_build_list(JavaThread* current, Symbol* module
   if (os::stat(path, &st) == 0) {
     // Directory found
     ClassPathEntry* new_entry = create_class_path_entry(current, path, &st);
-
     // If the path specification is valid, enter it into this module's list.
     // There is no need to check for duplicate modules in the exploded entry list,
     // since no two modules with the same name can be defined to the boot loader.
     // This is checked at module definition time in Modules::define_module.
     if (new_entry != nullptr) {
       ModuleClassPathList* module_cpl = new ModuleClassPathList(module_sym);
+      log_info(class, load)("path: %s", path);
+
+      // If we are in preview mode, attempt to add a preview entry *before* the
+      // new class path entry if a preview path exists.
+      if (is_preview_enabled()) {
+        const char* preview_path = get_preview_path(path);
+        if (os::stat(preview_path, &st) == 0) {
+          ClassPathEntry* preview_entry = create_class_path_entry(current, preview_path, &st);
+          if (preview_entry != nullptr) {
+            module_cpl->add_to_list(preview_entry);
+            log_info(class, load)("preview path: %s", preview_path);
+          }
+        }
+      }
+
       module_cpl->add_to_list(new_entry);
       {
         MutexLocker ml(current, Module_lock);
         _exploded_entries->push(module_cpl);
       }
-      log_info(class, load)("path: %s", path);
     }
   }
 }
@@ -1118,12 +1133,12 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
     // appear in the _patch_mod_entries. The runtime shared class visibility
     // check will determine if a shared class is visible based on the runtime
     // environment, including the runtime --patch-module setting.
-    if (!CDSConfig::is_valhalla_preview()) {
+    if (!Arguments::is_valhalla_enabled()) {
       // Dynamic dumping requires UseSharedSpaces to be enabled. Since --patch-module
       // is not supported with UseSharedSpaces, we can never come here during dynamic dumping.
       assert(!CDSConfig::is_dumping_archive(), "CDS doesn't support --patch-module during dumping");
     }
-    if (CDSConfig::is_valhalla_preview() || !CDSConfig::is_dumping_static_archive()) {
+    if (Arguments::is_valhalla_enabled() || !CDSConfig::is_dumping_static_archive()) {
       stream = search_module_entries(THREAD, _patch_mod_entries, pkg_entry, file_name);
       if (stream != nullptr) {
         is_patched = true;
@@ -1477,7 +1492,7 @@ char* ClassLoader::lookup_vm_options() {
 
   jio_snprintf(modules_path, JVM_MAXPATHLEN, "%s%slib%smodules", Arguments::get_java_home(), fileSep, fileSep);
   if (jimage_open(modules_path)) {
-    // Special case where we lookup the options string *before* calling jimage_init().
+    // Special case where we lookup the options string *before* set_preview_mode() is called.
     // Since VM arguments have not been parsed, and the ClassPathImageEntry singleton
     // has not been created yet, we access the JImage file directly in non-preview mode.
     jlong size;
@@ -1494,10 +1509,9 @@ char* ClassLoader::lookup_vm_options() {
 }
 
 // Finishes initializing the JImageFile (if present) by setting the access mode.
-void ClassLoader::init_jimage(bool enable_preview) {
-  if (jimage_exists()) {
-    jimage_init(enable_preview);
-  }
+void ClassLoader::set_preview_mode(bool enable_preview) {
+  assert(Preview_mode == PREVIEW_MODE_UNINITIALIZED, "set_preview_mode must not be called twice");
+  Preview_mode = enable_preview ? PREVIEW_MODE_ENABLE_PREVIEW : PREVIEW_MODE_DEFAULT;
 }
 
 bool ClassLoader::is_module_observable(const char* module_name) {

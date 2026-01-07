@@ -28,3 +28,10 @@
 #############################################################################
 
 
+java/foreign/TestRestricted.java                                   8372744 generic-all
+java/lang/module/ModuleReader/ModuleReaderTest.java                8372744 generic-all
+java/lang/module/ModuleReader/patched/PatchedModuleReaderTest.java 8372744 generic-all
+java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java            8372745 generic-all
+java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64
+java/util/NavigableMap/LockStep.java                               8372824 generic-all
+java/util/Collections/CheckedSetBash.java                          8372824 generic-all

@@ -370,18 +370,6 @@ bool Arguments::internal_module_property_helper(const char* property, bool check
   return false;
 }
 
-bool Arguments::patching_migrated_classes(const char* property, const char* value) {
-  if (strncmp(property, MODULE_PROPERTY_PREFIX, MODULE_PROPERTY_PREFIX_LEN) == 0) {
-    const char* property_suffix = property + MODULE_PROPERTY_PREFIX_LEN;
-    if (matches_property_suffix(property_suffix, PATCH, PATCH_LEN)) {
-      if (strcmp(value, "java.base-valueclasses.jar")) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 // Process java launcher properties.
 void Arguments::process_sun_java_launcher_properties(JavaVMInitArgs* args) {
   // See if sun.java.launcher is defined.
@@ -548,13 +536,11 @@ static SpecialFlag const special_jvm_flags[] = {
   { "DynamicDumpSharedSpaces",      JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "RequireSharedSpaces",          JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
-  { "LockingMode",                  JDK_Version::jdk(24), JDK_Version::jdk(26), JDK_Version::jdk(27) },
 #ifdef _LP64
   { "UseCompressedClassPointers",   JDK_Version::jdk(25),  JDK_Version::jdk(27), JDK_Version::undefined() },
 #endif
   { "ParallelRefProcEnabled",       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "ParallelRefProcBalancingEnabled", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
-  { "PSChunkLargeArrays",           JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "MaxRAM",                       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "AggressiveHeap",               JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "NeverActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
@@ -564,35 +550,12 @@ static SpecialFlag const special_jvm_flags[] = {
 
   // -------------- Obsolete Flags - sorted by expired_in --------------
 
-#ifdef LINUX
-  { "UseOprofile",                  JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-#endif
   { "MetaspaceReclaimPolicy",       JDK_Version::undefined(), JDK_Version::jdk(21), JDK_Version::undefined() },
-  { "G1UpdateBufferSize",           JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "ShenandoahPacing",             JDK_Version::jdk(25), JDK_Version::jdk(26), JDK_Version::jdk(27) },
 #if defined(AARCH64)
   { "NearCpool",                    JDK_Version::undefined(), JDK_Version::jdk(25), JDK_Version::undefined() },
 #endif
 
-  { "AdaptiveSizeMajorGCDecayTimeScale",                JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveSizePolicyInitializingSteps",              JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveSizePolicyOutputInterval",                 JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveSizeThroughPutPolicy",                     JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "AdaptiveTimeWeight",                               JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "PausePadding",                                     JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "SurvivorPadding",                                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "TenuredGenerationSizeIncrement",                   JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "TenuredGenerationSizeSupplement",                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "TenuredGenerationSizeSupplementDecay",             JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveGenerationSizePolicyAtMajorCollection", JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveGenerationSizePolicyAtMinorCollection", JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveSizeDecayMajorGCCost",                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveSizePolicyFootprintGoal",               JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UseAdaptiveSizePolicyWithSystemGC",                JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "UsePSAdaptiveSurvivorSizePolicy",                  JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-
-  { "PretenureSizeThreshold",       JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
-  { "HeapMaximumCompactionInterval",JDK_Version::undefined(), JDK_Version::jdk(26), JDK_Version::jdk(27) },
+  { "PSChunkLargeArrays",           JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
 
 #ifdef ASSERT
   { "DummyObsoleteTestFlag",        JDK_Version::undefined(), JDK_Version::jdk(18), JDK_Version::undefined() },
@@ -1131,6 +1094,13 @@ void Arguments::print_summary_on(outputStream* st) {
   st->cr();
 }
 
+void Arguments::set_jvm_flags_file(const char *value) {
+  if (_jvm_flags_file != nullptr) {
+    os::free(_jvm_flags_file);
+  }
+  _jvm_flags_file = os::strdup_check_oom(value);
+}
+
 void Arguments::print_jvm_flags_on(outputStream* st) {
   if (_num_jvm_flags > 0) {
     for (int i=0; i < _num_jvm_flags; i++) {
@@ -1618,10 +1588,10 @@ void Arguments::set_heap_size() {
       // and UseCompressedOops was not specified.
       if (reasonable_max > max_coop_heap) {
         if (FLAG_IS_ERGO(UseCompressedOops) && has_ram_limit) {
-          aot_log_info(aot)("UseCompressedOops disabled due to "
-                            "max heap %zu > compressed oop heap %zu. "
-                            "Please check the setting of MaxRAMPercentage %5.2f.",
-                            reasonable_max, (size_t)max_coop_heap, MaxRAMPercentage);
+          log_debug(gc, heap, coops)("UseCompressedOops disabled due to "
+                                     "max heap %zu > compressed oop heap %zu. "
+                                     "Please check the setting of MaxRAMPercentage %5.2f.",
+                                     reasonable_max, (size_t)max_coop_heap, MaxRAMPercentage);
           FLAG_SET_ERGO(UseCompressedOops, false);
         } else {
           reasonable_max = max_coop_heap;
@@ -2096,69 +2066,10 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
   return JNI_OK;
 }
 
-// Temporary system property to disable preview patching and enable the new preview mode
-// feature for testing/development. Once the preview mode feature is finished, the value
-// will be always 'true' and this code, and all related dead-code can be removed.
-#define DISABLE_PREVIEW_PATCHING_DEFAULT false
-
-bool Arguments::disable_preview_patching() {
-  const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
-  return (prop != nullptr)
-      ? strncmp(prop, "true", strlen("true")) == 0
-      : DISABLE_PREVIEW_PATCHING_DEFAULT;
-}
-
-// VALUECLASS_STR must match string used in the build
-#define VALUECLASS_STR "valueclasses"
-#define VALUECLASS_JAR "-" VALUECLASS_STR ".jar"
-
 // Finalize --patch-module args and --enable-preview related to value class module patches.
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
-  // If --enable-preview and EnableValhalla is true, modules may have preview mode resources.
-  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
-  // Whether to use module patching, or the new preview mode feature for preview resources.
-  bool disable_patching = disable_preview_patching();
-
-  // This must be called, even with 'false', to enable resource lookup from JImage.
-  ClassLoader::init_jimage(disable_patching && enable_valhalla_preview);
-
-  // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
-  // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  if (!disable_patching && enable_valhalla_preview) {
-    char * valueclasses_dir = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-    const char * fileSep = os::file_separator();
-
-    jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%s" VALUECLASS_STR "%s",
-                 Arguments::get_java_home(), fileSep, fileSep, fileSep);
-    DIR* dir = os::opendir(valueclasses_dir);
-    if (dir != nullptr) {
-      char * module_name = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-      char * path = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-
-      for (dirent * entry = os::readdir(dir); entry != nullptr; entry = os::readdir(dir)) {
-        // Test if file ends-with "-valueclasses.jar"
-        int len = (int)strlen(entry->d_name) - (sizeof(VALUECLASS_JAR) - 1);
-        if (len <= 0 || strcmp(&entry->d_name[len], VALUECLASS_JAR) != 0) {
-          continue;         // too short or not the expected suffix
-        }
-
-        strcpy(module_name, entry->d_name);
-        module_name[len] = '\0';     // truncate to just module-name
-
-        jio_snprintf(path, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
-        add_patch_mod_prefix(module_name, path, true /* append */, true /* cds OK*/);
-        log_info(class)("--enable-preview appending value classes for module %s: %s", module_name, entry->d_name);
-      }
-      FreeHeap(module_name);
-      FreeHeap(path);
-      os::closedir(dir);
-    }
-    FreeHeap(valueclasses_dir);
-  }
-
-  // Create numbered properties for each module that has been patched either
-  // by --patch-module (or --enable-preview if disable_patching is false).
+  // Create numbered properties for each module that has been patched by --patch-module.
   // Format is "jdk.module.patch.<n>=<module_name>=<path>"
   if (_patch_mod_prefix != nullptr) {
     char * prop_value = AllocateHeap(JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, mtArguments);
@@ -2459,10 +2370,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     // --enable_preview
     } else if (match_option(option, "--enable-preview")) {
       set_enable_preview();
-      // --enable-preview enables Valhalla, EnableValhalla VM option will eventually be removed before integration
-      if (FLAG_SET_CMDLINE(EnableValhalla, true) != JVMFlag::SUCCESS) {
-        return JNI_EINVAL;
-      }
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
@@ -2969,6 +2876,10 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
   return JNI_OK;
 }
 
+void Arguments::set_ext_dirs(char *value) {
+  _ext_dirs = os::strdup_check_oom(value);
+}
+
 void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append, bool allow_cds) {
   if (!allow_cds) {
     CDSConfig::set_module_patching_disables_cds();
@@ -3112,7 +3023,9 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
-  // finalize --module-patch and related --enable-preview
+  ClassLoader::set_preview_mode(is_valhalla_enabled());
+
+  // finalize --module-patch.
   if (finalize_patch_module() != JNI_OK) {
     return JNI_ERR;
   }
@@ -4005,17 +3918,54 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  if (!EnableValhalla || (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces)) {
-    // Disable calling convention optimizations if inline types are not supported.
-    // Also these aren't useful in -Xint. However, don't disable them when dumping or using
-    // the CDS archive, as the values must match between dumptime and runtime.
-    FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
-    FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
-  }
-  if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
-    // Flattening is disabled
-    FLAG_SET_DEFAULT(UseArrayFlattening, false);
-    FLAG_SET_DEFAULT(UseFieldFlattening, false);
+  if (!is_valhalla_enabled()) {
+#define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
+    if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
+      warning("Valhalla-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
+    }
+
+#define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
+    WARN_IF_NOT_DEFAULT_FLAG(flag)                  \
+    FLAG_SET_DEFAULT(flag, false);
+
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypePassFieldsAsArgs);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypeReturnedAsFields);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseArrayFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseFieldFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNonAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
+    WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
+    WARN_IF_NOT_DEFAULT_FLAG(UseAltSubstitutabilityMethod);
+#ifdef ASSERT
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(StressCallingConvention);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PreloadClasses);
+    WARN_IF_NOT_DEFAULT_FLAG(PrintInlineKlassFields);
+#endif
+#ifdef COMPILER1
+    DEBUG_ONLY(DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(C1UseDelayedFlattenedFieldReads);)
+#endif
+#ifdef COMPILER2
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseArrayLoadStoreProfile);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseACmpProfile);
+#endif
+#undef DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT
+#undef WARN_IF_NOT_DEFAULT_FLAG
+  } else {
+    if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
+      // Disable calling convention optimizations if inline types are not supported.
+      // Also these aren't useful in -Xint. However, don't disable them when dumping or using
+      // the CDS archive, as the values must match between dumptime and runtime.
+      FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
+      FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
+    }
+    if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
+      // Flattening is disabled
+      FLAG_SET_DEFAULT(UseArrayFlattening, false);
+      FLAG_SET_DEFAULT(UseFieldFlattening, false);
+    }
   }
 
 #ifndef PRODUCT

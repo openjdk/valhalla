@@ -1399,6 +1399,7 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(int, SpecTrapLimitExtraEntries,  3, EXPERIMENTAL,                 \
           "Extra method data trap entries for speculation")                 \
+          range(0, 100)                                                     \
                                                                             \
   product(double, InlineFrequencyRatio, 0.25, DIAGNOSTIC,                   \
           "Ratio of call site execution to caller method invocation")       \
@@ -1978,9 +1979,6 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
-                                                                            \
-  product(bool, EnableValhalla, true,                                       \
-          "Enable experimental Valhalla features")                          \
                                                                             \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \
           "Pass each inline type field as an argument at calls")            \

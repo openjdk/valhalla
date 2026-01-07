@@ -68,9 +68,9 @@ public class StrictFinalTest {
 
     @LooselyConsistentValue
     static value class Value0 {
-        // Just big enough to be bigger than 64 bits with the null marker
-        int i = 0;
-        int j = 0;
+        // bigger than 64 bits even without the null marker
+        long i = 0;
+        long j = 0;
     }
 
     static value class Container0 {

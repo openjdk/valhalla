@@ -46,6 +46,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
@@ -3647,7 +3648,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 
     // initialize object header only.
     bind(initialize_header);
-    if (UseCompactObjectHeaders || EnableValhalla) {
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       pop(klass);
       Register mark_word = t2;
       movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
@@ -5523,7 +5524,7 @@ void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Regi
 }
 
 void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
-  movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  movptr(offset, Address(inline_klass, InlineKlass::adr_members_offset()));
   movl(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
@@ -5976,7 +5977,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(klass, InlineKlass::adr_members_offset()));
       movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       call(rbx);
     }
@@ -6064,7 +6065,11 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 }
 
 // Calculate the extra stack space required for packing or unpacking inline
-// args and adjust the stack pointer
+// args and adjust the stack pointer.
+//
+// This extra stack space take into account the copy #2 of the return address,
+// but NOT the saved RBP or the normal size of the frame (see MacroAssembler::remove_frame
+// for notations).
 int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
   // Two additional slots to account for return address
   int sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
@@ -6075,7 +6080,13 @@ int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
   assert(sp_inc > 0, "sanity");
   pop(r13);
   subptr(rsp, sp_inc);
+#ifdef ASSERT
+  movl(Address(rsp, -VMRegImpl::stack_slot_size), badRegWordVal);
+  movl(Address(rsp, -2 * VMRegImpl::stack_slot_size), badRegWordVal);
+  subptr(rsp, 2 * VMRegImpl::stack_slot_size);
+#else
   push(r13);
+#endif
   return sp_inc;
 }
 
@@ -6310,7 +6321,60 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
-    // TODO 8284443 Add a comment drawing the frame like in Aarch64's version of MacroAssembler::remove_frame
+    // The method has a scalarized entry point (where fields of value object arguments
+    // are passed through registers and stack), and a non-scalarized entry point (where
+    // value object arguments are given as oops). The non-scalarized entry point will
+    // first load each field of value object arguments and store them in registers and on
+    // the stack in a way compatible with the scalarized entry point. To do so, some extra
+    // stack space might be reserved (if argument registers are not enough). On leaving the
+    // method, this space must be freed.
+    //
+    // In case we used the non-scalarized entry point the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP
+    // | Return address #1         |
+    // |---------------------------|
+    // | Extension space for       |
+    // |   inline arg (un)packing  |
+    // |---------------------------|
+    // | Return address #2         |
+    // | Saved RBP                 |
+    // |---------------------------|  <-- start of this method's frame
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
+    //
+    // There is two copies of the return address on the stack. They will be identical at
+    // first, but that can change.
+    // If the caller has been deoptimized, the copy #1 will be patched to point at the
+    // deopt blob, and the copy #2 will still point into the old method. In short
+    // the copy #2 is not reliable and should not be used. It is mostly needed to
+    // add space between the extension space and the locals, as there would be between
+    // the real arguments and the locals if we don't need to do unpacking (from the
+    // scalarized entry point).
+    //
+    // When leaving, one must use the copy #1 of the return address, while keeping in mind
+    // that from the scalarized entry point, there will be only one copy. Indeed, in the
+    // case we used the scalarized calling convention, the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP
+    // | Return address            |
+    // | Saved RBP                 |
+    // |---------------------------|  <-- start of this method's frame
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
+    //
+    // The sp_inc stack slot holds the total size of the frame, including the extension
+    // space the possible copy #2 of the return address and the saved RBP (but never the
+    // copy #1 of the return address). That is how to find the copy #1 of the return address.
+    // This size is expressed in bytes. Be careful when using it from C++ in pointer arithmetic;
+    // you might need to divide it by wordSize.
+    //
+    // One can find sp_inc since the start the method's frame is SP + initial_framesize.
+
     movq(rbp, Address(rsp, initial_framesize));
     // The stack increment resides just below the saved rbp
     addq(rsp, Address(rsp, initial_framesize - wordSize));
@@ -9635,9 +9699,9 @@ void MacroAssembler::evpmins(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpminsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9654,9 +9718,9 @@ void MacroAssembler::evpmaxs(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpmaxsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9673,9 +9737,9 @@ void MacroAssembler::evpmins(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpminsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9692,9 +9756,9 @@ void MacroAssembler::evpmaxs(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpmaxsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }

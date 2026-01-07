@@ -49,6 +49,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/icache.hpp"
@@ -5499,7 +5500,6 @@ void  MacroAssembler::set_narrow_klass(Register dst, Klass* k) {
   assert (UseCompressedClassPointers, "should only be used for compressed headers");
   assert (oop_recorder() != nullptr, "this assembler needs an OopRecorder");
   int index = oop_recorder()->find_index(k);
-  assert(! Universe::heap()->is_in(k), "should not be an oop");
 
   InstructionMark im(this);
   RelocationHolder rspec = metadata_Relocation::spec(index);
@@ -5542,7 +5542,7 @@ void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Regi
 }
 
 void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
-  ldr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  ldr(offset, Address(inline_klass, InlineKlass::adr_members_offset()));
   ldrw(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
@@ -5727,7 +5727,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
     bind(initialize_header);
     pop(klass);
     Register mark_word = t2;
-    if (UseCompactObjectHeaders || EnableValhalla) {
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       ldr(mark_word, Address(klass, Klass::prototype_header_offset()));
       str(mark_word, Address(new_obj, oopDesc::mark_offset_in_bytes()));
     } else {
@@ -5954,9 +5954,15 @@ void MacroAssembler::remove_frame(int framesize) {
 
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   if (needs_stack_repair) {
-    // Remove the extension of the caller's frame used for inline type unpacking
+    // The method has a scalarized entry point (where fields of value object arguments
+    // are passed through registers and stack), and a non-scalarized entry point (where
+    // value object arguments are given as oops). The non-scalarized entry point will
+    // first load each field of value object arguments and store them in registers and on
+    // the stack in a way compatible with the scalarized entry point. To do so, some extra
+    // stack space might be reserved (if argument registers are not enough). On leaving the
+    // method, this space must be freed.
     //
-    // Right now the stack looks like this:
+    // In case we used the non-scalarized entry point the stack looks like this:
     //
     // | Arguments from caller     |
     // |---------------------------|  <-- caller's SP
@@ -5982,18 +5988,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // will fix only this one. Overall, FP/LR #2 are not reliable and are simply
     // needed to add space between the extension space and the locals, as there
     // would be between the real arguments and the locals if we don't need to
-    // do unpacking.
+    // do unpacking (from the scalarized entry point).
     //
     // When restoring, one must then load FP #1 into x29, and LR #1 into x30,
     // while keeping in mind that from the scalarized entry point, there will be
-    // only one copy of each.
+    // only one copy of each. Indeed, in the case we used the scalarized calling
+    // convention, the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP / start of this method's frame
+    // | Saved LR                  |
+    // | Saved FP                  |
+    // |---------------------------|  <-- FP
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
     //
     // The sp_inc stack slot holds the total size of the frame including the
     // extension space minus two words for the saved FP and LR. That is how to
     // find FP/LR #1. This size is expressed in bytes. Be careful when using it
     // from C++ in pointer arithmetic; you might need to divide it by wordSize.
     //
-    // TODO 8371993 store fake values instead of LR/FP#2
+    // One can find sp_inc since the start the method's frame is SP + initial_framesize.
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
@@ -7036,7 +7052,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      ldr(tmp1, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      ldr(tmp1, Address(klass, InlineKlass::adr_members_offset()));
       ldr(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
       blr(tmp1);
     }
