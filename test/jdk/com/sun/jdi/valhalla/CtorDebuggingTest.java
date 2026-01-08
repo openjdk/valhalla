@@ -151,6 +151,28 @@ public class CtorDebuggingTest extends TestScaffold {
         }
     }
 
+    // Sanoty testing ReferenceTypeImpl.isInlined() logic.
+    void verifyClassIsInlined(ClassType theClass, boolean expected) {
+        // VM constants
+        final int IDENTITY = 0x0020;
+        final int INTERFACE = 0x00000200;
+        final int ABSTRACT = 0x00000400;
+
+        int modifiers = theClass.modifiers();
+        boolean isIdentity = (modifiers & IDENTITY) != 0;
+        boolean isInterface = (modifiers & INTERFACE) != 0;
+        boolean isAbstract = (modifiers & ABSTRACT) != 0;
+        boolean isInlined = !isIdentity && !isInterface && !isAbstract;
+        System.out.println("Class " + theClass + " is inlined: " + (isInlined ? "YES" : "NO"));
+        if (isInlined != expected) {
+            throw new RuntimeException("IsInlined verification failed: "
+                                     + " " + isInlined + ", expected: " + expected
+                                     + " (isIdentity: " + isIdentity
+                                     + " (isInterface: " + isInterface
+                                     + " (isAbstract: " + isAbstract + ")");
+        }
+    }
+
     // Parses the specified source file for "@{id} breakpoint" tags and returns <id, line_number> map.
     // Example:
     //   System.out.println("BP is here");  // @my_breakpoint breakpoint
@@ -186,7 +208,7 @@ public class CtorDebuggingTest extends TestScaffold {
     }
 
     // TestScaffold is not very good in handling multiple breakpoints.
-    // this halper class is a listener which resumes debuggee after breakpoints.
+    // This halper class is a listener which resumes debuggee after breakpoints.
     class MultiBreakpointHandler extends TargetAdapter {
         boolean needToResume = false;
         // the map stores "this" in all breakpoints
@@ -311,6 +333,9 @@ public class CtorDebuggingTest extends TestScaffold {
         System.out.println(Value.class.getName() + ": " + valueClass);
         xField = valueClass.fieldByName("x");
         yField = valueClass.fieldByName("y");
+
+        verifyClassIsInlined(valueClass, true);
+        verifyClassIsInlined(targetClass, false);
 
         ObjectReference v1 = getStaticFieldObject(targetClass, "v1");
         ObjectReference v2 = getStaticFieldObject(targetClass, "v2");
