@@ -2448,7 +2448,8 @@ public class Types {
         // We don't want to erase primitive types and String type as that
         // operation is idempotent. Also, erasing these could result in loss
         // of information such as constant values attached to such types.
-        return (t.isPrimitive()) || (syms.stringType.tsym == t.tsym);
+        return (t.isPrimitive()) ||
+                (syms.stringType.tsym == t.tsym && !isNonNullable(t));
     }
 
     private Type erasure(Type t, boolean recurse) {
@@ -2507,7 +2508,8 @@ public class Types {
                 Type erased = t.tsym.erasure(Types.this);
                 if (recurse) {
                     erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
-                            t.dropMetadata(Annotations.class).getMetadata());
+                            t.dropMetadata(Annotations.class)
+                             .dropMetadata(TypeMetadata.NullMarker.class).getMetadata());
                     return erased;
                 } else {
                     return combineMetadata(erased, t);
