@@ -57,6 +57,20 @@ class NullRestrictionNegParserTest {
         Runnable r = Foo<String>.Foo<Integer>![]!::m;
     }
 
+    void testInnerClassCreator() {
+        encl.new Foo!();
+        encl.new Foo<String!>();
+        encl.new Foo<String>!();
+    }
+
+    void testQualifiedType() {
+        A<String>!.B<Integer> a;
+        A!<String>.B<Integer> a;
+        A<String>.B!<Integer> a;
+        A<String>.B<Integer!> a;
+        A<String!>.B<Integer> a;
+    }
+
     static class TestConstructor {
         TestConstructor!() { } // bad, no bang in constructor type
     }

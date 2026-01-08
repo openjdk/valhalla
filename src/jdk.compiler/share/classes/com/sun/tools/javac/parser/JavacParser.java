@@ -1785,7 +1785,6 @@ public class JavacParser implements Parser {
                                 nextToken();
                                 selectTypeMode();
                                 t = toP(F.at(token.pos).Select(t, ident()));
-                                skipUnsupportedNullRestriction();
                                 t = typeArgumentsOpt(t);
                                 skipUnsupportedNullRestriction();
                             }
@@ -2510,7 +2509,7 @@ public class JavacParser implements Parser {
     /**  TypeArgumentsOpt = [ TypeArguments ]
      */
     JCExpression typeArgumentsOpt(JCExpression t) {
-        if (token.kind == LT &&
+        if (isParameterizedTypeStart() &&
             isMode(TYPE) &&
             !isMode(NOPARAMS)) {
             selectTypeMode();
@@ -2519,6 +2518,12 @@ public class JavacParser implements Parser {
             return t;
         }
     }
+
+    private boolean isParameterizedTypeStart() {
+        return token.kind == LT ||
+                (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind) && peekToken(LT));
+    }
+
     List<JCExpression> typeArgumentsOpt() {
         return typeArgumentsOpt(TYPE);
     }
@@ -2617,6 +2622,7 @@ public class JavacParser implements Parser {
     }
 
     JCTypeApply typeArguments(JCExpression t, boolean diamondAllowed) {
+        skipUnsupportedNullRestriction(); // null-restriction not supported immediately before '<'
         int pos = token.pos;
         List<JCExpression> args = typeArguments(diamondAllowed);
         return toP(F.at(pos).TypeApply(t, args));
@@ -2910,11 +2916,14 @@ public class JavacParser implements Parser {
             t = toP(F.at(newAnnotations.head.pos).AnnotatedType(newAnnotations, t));
         }
 
-        if (token.kind == LT) {
+        if (isParameterizedTypeStart()) {
             int prevmode = mode;
             t = typeArguments(t, true);
             setMode(prevmode);
         }
+
+        skipUnsupportedNullRestriction();
+
         return classCreatorRest(newpos, encl, typeArgs, t);
     }
 

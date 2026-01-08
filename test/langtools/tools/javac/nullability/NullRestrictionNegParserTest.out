@@ -37,5 +37,13 @@ NullRestrictionNegParserTest.java:55:45: compiler.err.unsupported.null.restricti
 NullRestrictionNegParserTest.java:56:46: compiler.err.unsupported.null.restriction
 NullRestrictionNegParserTest.java:57:46: compiler.err.unsupported.null.restriction
 NullRestrictionNegParserTest.java:57:49: compiler.err.unsupported.null.restriction
-NullRestrictionNegParserTest.java:61:24: compiler.err.unsupported.null.restriction
-40 errors
+NullRestrictionNegParserTest.java:61:21: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:62:28: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:63:29: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:67:18: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:68:10: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:69:20: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:70:28: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:71:17: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:75:24: compiler.err.unsupported.null.restriction
+48 errors
