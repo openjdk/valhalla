@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,8 +77,8 @@
 //             rest of the value atomically. If the null marker indicates a non-null value, the fields of the
 //             field's value can be read independently. Same rules for a putfield, no atomicity requirement,
 //             as long as all fields and the null marker are up to date at the end of the putfield.
-// BUFFERED: this layout is only used in heap buffered instances of a value class. It is computed to be compatible
-//             to be compatible in size and alignment with all other flat layouts supported by the value class.
+// BUFFERED:   This layout is only used in heap buffered instances of a value class. It is computed to be compatible
+//             in size and alignment with all other flat layouts supported by the value class.
 //
 //
 // IMPORTANT: The REFERENCE layout must always be associated with the numerical value zero, because the implementation

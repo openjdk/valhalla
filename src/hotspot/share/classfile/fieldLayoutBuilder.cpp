@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1084,12 +1084,37 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   assert(_layout->start()->block_kind() == LayoutRawBlock::RESERVED, "Unexpected");
 
-  if (_layout->super_has_fields() && !_is_abstract_value) {  // non-static field layout
-    if (!_has_nonstatic_fields) {
-      assert(_is_abstract_value, "Concrete value types have at least one field");
-      // Nothing to do
-    } else {
-      // decide which alignment to use, then set first allowed field offset
+  if (!_layout->super_has_fields()) {
+    // No inherited fields, the layout must be empty except for the RESERVED block
+    // PADDING is inserted if needed to ensure the correct alignment of the payload.
+    if (_is_abstract_value && _has_nonstatic_fields) {
+      // non-static fields of the abstract class must be laid out without knowning
+      // the alignment constraints of the fields of the sub-classes, so the worst
+      // case scenario is assumed, which is currently the alignment of T_LONG.
+      // PADDING is added if needed to ensure the payload will respect this alignment.
+      _payload_alignment = type2aelembytes(BasicType::T_LONG);
+    }
+    assert(_layout->start()->next_block()->block_kind() == LayoutRawBlock::EMPTY, "Unexpected");
+    LayoutRawBlock* first_empty = _layout->start()->next_block();
+    if (first_empty->offset() % _payload_alignment != 0) {
+      LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _payload_alignment - (first_empty->offset() % _payload_alignment));
+      _layout->insert(first_empty, padding);
+      if (first_empty->size() == 0) {
+        _layout->remove(first_empty);
+      }
+      _layout->set_start(padding);
+    }
+  } else { // the class has inherited some fields from its super(s)
+    if (!_is_abstract_value) {
+      // This is the step where the layout of the final concrete value class' layout
+      // is computed. Super abstract value classes might have been too conservative
+      // regarding alignment constraints, but now that the full set of non-static fields is
+      // known, compute which alignment to use, then set first allowed field offset
+
+      assert(_has_nonstatic_fields, "Concrete value classes must have at least one field");
+      if (_payload_alignment == -1) { // current class declares no local nonstatic fields
+        _payload_alignment = _layout->super_min_align_required();
+      }
 
       assert(_layout->super_alignment() >= _payload_alignment, "Incompatible alignment");
       assert(_layout->super_alignment() % _payload_alignment == 0, "Incompatible alignment");
@@ -1101,20 +1126,6 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         _payload_alignment = new_alignment;
       }
       _layout->set_start(_layout->first_field_block());
-    }
-  } else {
-    if (_is_abstract_value && _has_nonstatic_fields) {
-      _payload_alignment = type2aelembytes(BasicType::T_LONG);
-    }
-    assert(_layout->start()->next_block()->block_kind() == LayoutRawBlock::EMPTY || !UseCompressedClassPointers, "Unexpected");
-    LayoutRawBlock* first_empty = _layout->start()->next_block();
-    if (first_empty->offset() % _payload_alignment != 0) {
-      LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _payload_alignment - (first_empty->offset() % _payload_alignment));
-      _layout->insert(first_empty, padding);
-      if (first_empty->size() == 0) {
-        _layout->remove(first_empty);
-      }
-      _layout->set_start(padding);
     }
   }
 

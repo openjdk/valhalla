@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,12 +78,18 @@ public class FieldLayoutAnalyzer {
     }
   }
 
-  public static enum LayoutKind {
-    NON_FLAT,
-    NULL_FREE_NON_ATOMIC_FLAT,
-    NULL_FREE_ATOMIC_FLAT,
-    NULLABLE_ATOMIC_FLAT,
-    NULLABLE_NON_ATOMIC_FLAT;
+  public static public enum LayoutKind {
+    NON_FLAT(false),
+    NULL_FREE_NON_ATOMIC_FLAT(false),
+    NULL_FREE_ATOMIC_FLAT(false),
+    NULLABLE_ATOMIC_FLAT(true),
+    NULLABLE_NON_ATOMIC_FLAT(true);
+
+    private final boolean hasNullMarker;
+
+    private LayoutKind(boolean hasNullMarker) {
+      this.hasNullMarker = hasNullMarker;
+    }
 
     static LayoutKind parseLayoutKind(String s) {
       switch(s) {
@@ -95,6 +101,10 @@ public class FieldLayoutAnalyzer {
         default:
           throw new RuntimeException("Unknown layout kind: " + s);
       }
+    }
+
+    boolean hasNullMarker() {
+      return this.hasNullMarker;
     }
   }
 
@@ -126,6 +136,7 @@ public class FieldLayoutAnalyzer {
     }
 
     boolean isFlat() { return type == BlockType.FLAT; } // Warning: always return false for inherited fields, even flat ones
+    boolean hasNullMarker() { return layoutKind.hasNullMarker(); }
 
     static FieldBlock parseField(String line) {
       String[] fieldLine = line.split("\\s+");
@@ -250,7 +261,7 @@ public class FieldLayoutAnalyzer {
     void processField(String line, boolean isStatic) {
       FieldBlock block = FieldBlock.parseField(line);
       if (isStatic) {
-        Asserts.assertTrue(block.type != BlockType.INHERITED); // static fields cannotbe inherited
+        Asserts.assertTrue(block.type != BlockType.INHERITED); // static fields cannot be inherited
         staticFields.add(block);
       } else {
         nonStaticFields.add(block);

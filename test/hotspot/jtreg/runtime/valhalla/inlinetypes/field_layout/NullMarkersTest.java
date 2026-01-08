@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,54 +22,79 @@
  */
 
  /*
- * @test id=NullMarker32
- * @ignore
+ * @test id=32
  * @requires vm.bits == 32
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main NullMarkersTest 0
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 32
  */
 
 /*
- * @test id=NullMarker64CompressedOops
- * @ignore
+ * @test id=64_COOP_CCP_NCOH
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main NullMarkersTest 1
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_COOP_CCP_NCOH
  */
 
 /*
- * @test id=NullMarker64NoCompressedOops
- * @ignore
+ * @test id=64_NCOOP_CCP_NCOH
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main NullMarkersTest 2
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_NCOOP_CCP_NCOH
  */
 
 /*
- * @test id=NullMarker64NoCompressedOopsNoCompressedKlassPointers
- * @ignore
+ * @test id=64_NCOOP_NCCP_NCOH
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
- * @run main NullMarkersTest 3
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_NCOOP_NCCP_NCOH
  */
+
+/*
+ * @test id=64_COOP_CCP_COH
+ * @requires vm.bits == 64
+ * @requires vm.flagless
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_COOP_CCP_COH
+ */
+
+/*
+ * @test id=64_NCOOP_CCP_COH
+ * @requires vm.bits == 64
+ * @requires vm.flagless
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java NullMarkersTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.NullMarkersTest 64_NCOOP_CCP_COH
+ */
+
+package runtime.valhalla.inlinetypes.field_layout;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
@@ -80,10 +105,12 @@ import jdk.test.lib.process.ProcessTools;
 
 public class NullMarkersTest {
 
+static final String pkg = "runtime/valhalla/inlinetypes/field_layout/";
+static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
 
   static class TestRunner {
     public static void main(String[] args) throws Exception {
-      Class testClass = Class.forName("NullMarkersTest");
+      Class testClass = Class.forName(pkg_path+"NullMarkersTest");
       Asserts.assertNotNull(testClass);
       Method[] testMethods = testClass.getMethods();
       for (Method test : testMethods) {
@@ -111,7 +138,7 @@ public class NullMarkersTest {
   }
 
   static public void check_0(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("NullMarkersTest$Container0");
+    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container0");
     FieldLayoutAnalyzer.FieldBlock f = cl.getFieldFromName("val", false);
     Asserts.assertTrue(f.isFlat());
     Asserts.assertTrue(f.hasNullMarker());
@@ -134,7 +161,7 @@ public class NullMarkersTest {
   }
 
   static public void check_1(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("NullMarkersTest$Container1");
+    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container1");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     Asserts.assertTrue(f0.isFlat());
     Asserts.assertTrue(f0.hasNullMarker());
@@ -146,8 +173,12 @@ public class NullMarkersTest {
     Asserts.assertFalse(f2.hasNullMarker());
   }
 
-  static value class Value2 {
-    long l = 0;
+  static abstract value class Value2a {
+    byte b = 0;
+  }
+
+  static value class Value2 extends Value2a{
+    int i = 0;
   }
 
   static class Container2a {
@@ -163,18 +194,18 @@ public class NullMarkersTest {
   }
 
   static public void check_2(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cla = fla.getClassLayoutFromName("NullMarkersTest$Container2a");
+    FieldLayoutAnalyzer.ClassLayout cla = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container2a");
     FieldLayoutAnalyzer.FieldBlock fa = cla.getFieldFromName("vala", false);
     Asserts.assertTrue(fa.isFlat());
     Asserts.assertTrue(fa.hasNullMarker());
-    FieldLayoutAnalyzer.ClassLayout clb = fla.getClassLayoutFromName("NullMarkersTest$Container2b");
+    FieldLayoutAnalyzer.ClassLayout clb = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container2b");
     FieldLayoutAnalyzer.FieldBlock fb = clb.getFieldFromName("valb", false);
     Asserts.assertTrue(fb.isFlat());
     Asserts.assertTrue(fb.hasNullMarker());
   }
 
   static value class Value3 {
-    double d = 0.0d;
+    float f = 0.0f;
   }
 
   static class Container3a {
@@ -201,21 +232,21 @@ public class NullMarkersTest {
   }
 
   static public void check_3(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cla = fla.getClassLayoutFromName("NullMarkersTest$Container3a");
+    FieldLayoutAnalyzer.ClassLayout cla = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container3a");
     FieldLayoutAnalyzer.FieldBlock f0 = cla.getFieldFromName("val0", false);
     Asserts.assertTrue(f0.isFlat());
     Asserts.assertFalse(f0.hasNullMarker());
     FieldLayoutAnalyzer.FieldBlock f1 = cla.getFieldFromName("val1", false);
     Asserts.assertTrue(f1.isFlat());
     Asserts.assertTrue(f1.hasNullMarker());
-    FieldLayoutAnalyzer.ClassLayout clb = fla.getClassLayoutFromName("NullMarkersTest$Container3b");
+    FieldLayoutAnalyzer.ClassLayout clb = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container3b");
     FieldLayoutAnalyzer.FieldBlock f2 = clb.getFieldFromName("val2", false);
     Asserts.assertTrue(f2.isFlat());
     Asserts.assertTrue(f2.hasNullMarker());
     FieldLayoutAnalyzer.FieldBlock f3 = clb.getFieldFromName("val3", false);
     Asserts.assertTrue(f3.isFlat());
     Asserts.assertFalse(f3.hasNullMarker());
-    FieldLayoutAnalyzer.ClassLayout clc = fla.getClassLayoutFromName("NullMarkersTest$Container3c");
+    FieldLayoutAnalyzer.ClassLayout clc = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container3c");
     FieldLayoutAnalyzer.FieldBlock f4 = clc.getFieldFromName("val4", false);
     Asserts.assertTrue(f4.isFlat());
     Asserts.assertTrue(f4.hasNullMarker());
@@ -240,7 +271,7 @@ public class NullMarkersTest {
   }
 
   static void check_4(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("NullMarkersTest$Container4");
+    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container4");
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     Asserts.assertTrue(f0.isFlat());
     Asserts.assertTrue(f0.hasNullMarker());
@@ -276,7 +307,7 @@ public class NullMarkersTest {
   }
 
   static void check_5(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("NullMarkersTest$Container5");
+    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName(pkg+"NullMarkersTest$Container5");
     FieldLayoutAnalyzer.FieldBlock fa = cl.getFieldFromName("vala", false);
     Asserts.assertTrue(fa.isFlat());
     Asserts.assertTrue(fa.hasNullMarker());
@@ -302,7 +333,7 @@ public class NullMarkersTest {
     }
     Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, "-XX:+UseNullableValueFlattening");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
+   Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
@@ -310,20 +341,39 @@ public class NullMarkersTest {
   public static void main(String[] args) throws Exception {
     String compressedOopsArg;
     String compressedKlassPointersArg;
+    String compactObjectHeaderArg;
 
     switch(args[0]) {
-      case "0": compressedOopsArg = null;
-                compressedKlassPointersArg = null;
-                break;
-      case "1": compressedOopsArg = "-XX:+UseCompressedOops";
-                compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
-                break;
-      case "2": compressedOopsArg = "-XX:-UseCompressedOops";
-                compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
-                break;
-      case "3": compressedOopsArg = "-XX:-UseCompressedOops";
-                compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
-                break;
+      case "32":
+        compressedOopsArg = null;
+        compressedKlassPointersArg = null;
+        compactObjectHeaderArg = null;
+        break;
+      case "64_COOP_CCP_NCOH":
+        compressedOopsArg = "-XX:+UseCompressedOops";
+        compressedKlassPointersArg =  "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+        break;
+      case "64_NCOOP_CCP_NCOH":
+        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+        break;
+      case "64_NCOOP_NCCP_NCOH":
+        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedKlassPointersArg = "-XX:-UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:-UseCompactObjectHeaders";
+        break;
+      case "64_COOP_CCP_COH":
+        compressedOopsArg = "-XX:+UseCompressedOops";
+        compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
+        break;
+      case "64_NCOOP_CCP_COH":
+        compressedOopsArg = "-XX:-UseCompressedOops";
+        compressedKlassPointersArg = "-XX:+UseCompressedClassPointers";
+        compactObjectHeaderArg = "-XX:+UseCompactObjectHeaders";
+        break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
 
@@ -331,7 +381,7 @@ public class NullMarkersTest {
     NullMarkersTest fat = new NullMarkersTest();
 
     // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, "NullMarkersTest$TestRunner");
+    ProcessBuilder pb = exec(compressedOopsArg, compressedKlassPointersArg, pkg+"NullMarkersTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {

@@ -259,7 +259,7 @@ class InlineKlass: public InstanceKlass {
   // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
   // is compatible with all the other layouts.
 
-  void write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS);
+  void write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS);
   oop read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS);
   void copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized);
 
