@@ -47,7 +47,6 @@ import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.CapturedType;
-import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.Profile;
 import com.sun.tools.javac.jvm.Target;
