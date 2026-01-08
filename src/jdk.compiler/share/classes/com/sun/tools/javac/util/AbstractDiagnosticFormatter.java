@@ -47,6 +47,7 @@ import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.CapturedType;
+import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.Profile;
 import com.sun.tools.javac.jvm.Target;
@@ -200,7 +201,7 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
             return formatIterable(d, iterable, l);
         }
         else if (arg instanceof Type type) {
-            return printer.visit(type.stripMetadata(), l);
+            return printer.visit(type.dropMetadata(Annotations.class), l);
         }
         else if (arg instanceof JCDiagnostic.AnnotatedType type) {
             return printer.visit(type.type(), l);
