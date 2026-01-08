@@ -1779,12 +1779,15 @@ public class JavacParser implements Parser {
                                 args.append(typeArgument());
                             }
                             accept(GT);
+                            skipUnsupportedNullRestriction();
                             t = toP(F.at(pos1).TypeApply(t, args.toList()));
                             while (token.kind == DOT) {
                                 nextToken();
                                 selectTypeMode();
                                 t = toP(F.at(token.pos).Select(t, ident()));
+                                skipUnsupportedNullRestriction();
                                 t = typeArgumentsOpt(t);
+                                skipUnsupportedNullRestriction();
                             }
                             t = bracketsOpt(t);
                             if (token.kind != COLCOL) {
@@ -2042,7 +2045,7 @@ public class JavacParser implements Parser {
                 case DOT: case RBRACKET: case LBRACKET: case COMMA:
                 case BYTE: case SHORT: case INT: case LONG: case FLOAT:
                 case DOUBLE: case BOOLEAN: case CHAR:
-                case MONKEYS_AT:
+                case MONKEYS_AT: case BANG:
                     break;
 
                 case LPAREN:
@@ -2078,7 +2081,8 @@ public class JavacParser implements Parser {
                         return
                             nextKind == TokenKind.DOT ||
                             nextKind == TokenKind.LBRACKET ||
-                            nextKind == TokenKind.COLCOL;
+                            nextKind == TokenKind.COLCOL ||
+                            (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(nextKind));
                     }
                     break;
                 default:
@@ -2923,10 +2927,7 @@ public class JavacParser implements Parser {
         accept(LBRACKET);
         if (token.kind == RBRACKET) {
             accept(RBRACKET);
-            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                unsupportedNullRestriction();
-                nextToken();
-            }
+            skipUnsupportedNullRestriction();
             elemtype = bracketsOpt(elemtype, annos);
             if (token.kind == LBRACE) {
                 JCNewArray na = (JCNewArray)arrayInitializer(newpos, elemtype);
@@ -2956,10 +2957,7 @@ public class JavacParser implements Parser {
 
             dims.append(parseExpression());
             accept(RBRACKET);
-            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                checkNullRestrictionLocation();
-                nextToken();
-            }
+            skipUnsupportedNullRestriction();
             while (token.kind == LBRACKET
                     || token.kind == MONKEYS_AT) {
                 List<JCAnnotation> maybeDimAnnos = typeAnnotationsOpt();
@@ -2971,10 +2969,7 @@ public class JavacParser implements Parser {
                     dimAnnotations.append(maybeDimAnnos);
                     dims.append(parseExpression());
                     accept(RBRACKET);
-                    if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                        checkNullRestrictionLocation();
-                        nextToken();
-                    }
+                    skipUnsupportedNullRestriction();
                 }
             }
 

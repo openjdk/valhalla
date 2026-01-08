@@ -42,6 +42,21 @@ class NullRestrictionNegParserTest {
         a.b!.m(); // bad, bang before '.'
     }
 
+    void testNoBangInMrefQualifier() {
+        Runnable r = Foo!<String>::m;
+        Runnable r = Foo<String!>::m;
+        Runnable r = Foo<String>!::m;
+        Runnable r = Foo<String>![]::m;
+        Runnable r = Foo<String>![]!::m;
+        Runnable r = Foo<String>.Foo!<Integer>::m;
+        Runnable r = Foo<String>.Foo<Integer!>::m;
+        Runnable r = Foo<String>.Foo<Integer>!::m;
+        Runnable r = Foo<String>.Foo!<Integer>::m;
+        Runnable r = Foo<String>.Foo<Integer!>::m;
+        Runnable r = Foo<String>.Foo<Integer>![]::m;
+        Runnable r = Foo<String>.Foo<Integer>![]!::m;
+    }
+
     static class TestConstructor {
         TestConstructor!() { } // bad, no bang in constructor type
     }
