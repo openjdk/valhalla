@@ -78,7 +78,7 @@ public class FieldLayoutAnalyzer {
     }
   }
 
-  public static public enum LayoutKind {
+  public static enum LayoutKind {
     NON_FLAT(false),
     NULL_FREE_NON_ATOMIC_FLAT(false),
     NULL_FREE_ATOMIC_FLAT(false),
