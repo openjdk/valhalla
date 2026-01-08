@@ -2369,11 +2369,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public boolean isNullOrReference() {
             return true;
         }
-
-        @Override
-        public Type dropMetadata(Class<? extends TypeMetadata> metadataClass) {
-            return this;
-        }
     }
 
     public static class ErrorType extends ClassType

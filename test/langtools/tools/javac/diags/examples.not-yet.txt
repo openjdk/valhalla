@@ -231,3 +231,4 @@ compiler.misc.feature.null.restricted.types
 compiler.misc.attribute.must.be.unique                                   # bad class file
 compiler.misc.attribute.not.applicable.to.field.type                     # bad class file
 compiler.misc.attribute.only.applicable.to.fields                        # bad class file
+compiler.warn.suspicious.nullness.conversion
