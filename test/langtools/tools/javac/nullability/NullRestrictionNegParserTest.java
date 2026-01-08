@@ -28,11 +28,47 @@ class NullRestrictionNegParserTest {
         var x = new Bar!.Foo![2][1]![1][1]!; // bad, bang can't appear at the end, and bad qualifier
     }
 
+    void testNewArrayWithInit() {
+        var z = new Foo![] { null }; // ok
+        var y = new Foo![]! { null }; // bad, bang can't appear at the end
+        var x = new Foo![]![] { null }; // bad, bang can't appear in the middle
+        var x = new Foo![]![]! { null }; // bad, bang can't appear in the middle or at the end
+    }
+
     void testNoBangInQualifiedTypeNames() {
         a!.x x = ""; // bad, bang before '.'
         a!.b!.x x = ""; // bad, bang before '.'
         a!.m(); // bad, bang before '.'
         a.b!.m(); // bad, bang before '.'
+    }
+
+    void testNoBangInMrefQualifier() {
+        Runnable r = Foo!<String>::m;
+        Runnable r = Foo<String!>::m;
+        Runnable r = Foo<String>!::m;
+        Runnable r = Foo<String>![]::m;
+        Runnable r = Foo<String>![]!::m;
+        Runnable r = Foo<String>.Foo!<Integer>::m;
+        Runnable r = Foo<String>.Foo<Integer!>::m;
+        Runnable r = Foo<String>.Foo<Integer>!::m;
+        Runnable r = Foo<String>.Foo!<Integer>::m;
+        Runnable r = Foo<String>.Foo<Integer!>::m;
+        Runnable r = Foo<String>.Foo<Integer>![]::m;
+        Runnable r = Foo<String>.Foo<Integer>![]!::m;
+    }
+
+    void testInnerClassCreator() {
+        encl.new Foo!();
+        encl.new Foo<String!>();
+        encl.new Foo<String>!();
+    }
+
+    void testQualifiedType() {
+        A<String>!.B<Integer> a;
+        A!<String>.B<Integer> a;
+        A<String>.B!<Integer> a;
+        A<String>.B<Integer!> a;
+        A<String!>.B<Integer> a;
     }
 
     static class TestConstructor {
