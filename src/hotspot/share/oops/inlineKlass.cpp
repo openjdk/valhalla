@@ -197,7 +197,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-    if (is_payload_marked_as_null((address)src)) {
+      if (is_payload_marked_as_null((address)src)) {
         if (!contains_oops()) {
           mark_payload_as_null((address)dst);
           return;
@@ -210,7 +210,6 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
         }
       } else {
         // Copy has to be performed, even if this is an empty value, because of the null marker
-        mark_payload_as_non_null((address)src);
         if (dest_is_initialized) {
           HeapAccess<>::value_copy(src, dst, this, lk);
         } else {
@@ -263,7 +262,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
   }
 }
 
-void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
+void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
     if (!LayoutKindHelper::is_nullable_flat(lk)) {
@@ -287,7 +286,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
       mark_payload_as_non_null((address)src_addr);
     }
   }
-  copy_payload_to_addr(src_addr, dst, lk, dest_is_initialized);
+  copy_payload_to_addr(src_addr, dst, lk, true /* dest_is_initialized */);
 }
 
 // Arrays of...
