@@ -28,6 +28,13 @@ class NullRestrictionNegParserTest {
         var x = new Bar!.Foo![2][1]![1][1]!; // bad, bang can't appear at the end, and bad qualifier
     }
 
+    void testNewArrayWithInit() {
+        var z = new Foo![] { null }; // ok
+        var y = new Foo![]! { null }; // bad, bang can't appear at the end
+        var x = new Foo![]![] { null }; // bad, bang can't appear in the middle
+        var x = new Foo![]![]! { null }; // bad, bang can't appear in the middle or at the end
+    }
+
     void testNoBangInQualifiedTypeNames() {
         a!.x x = ""; // bad, bang before '.'
         a!.b!.x x = ""; // bad, bang before '.'

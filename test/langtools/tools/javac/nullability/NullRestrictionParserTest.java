@@ -75,8 +75,10 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
         NN_STRING_ARR_ARR("#{ANNO}String![]!", 1),
         NN_STRING_NN_ARR_ARR("#{ANNO}String![]![]", 2),
         NN_STRING_NN_ARR_NN_ARR("#{ANNO}String![]![]!", 2),
-        NN_LIST_STRING("#{ANNO}List<String>!", 0);
-        //NN_LIST_STRING_ARR("#{ANNO}List<String>[]!", 0); // this doesn't work because of an issue (see JDK-8374629)
+        NN_LIST_STRING("#{ANNO}List<String>!", 0),
+        NN_LIST_STRING_BAD_POS("#{ANNO}List!<#{ANNO}String>", 1),
+        LIST_NN_STRING("#{ANNO}List<#{ANNO}String!>", 1);
+        //NN_LIST_STRING_ARR("#{ANNO}List<#{ANNO}String>[]!", 0); // this doesn't work because of an issue (see JDK-8374629)
 
 
         final String typeTemplate;

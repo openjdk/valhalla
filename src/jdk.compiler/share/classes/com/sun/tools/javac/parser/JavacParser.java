@@ -326,6 +326,10 @@ public class JavacParser implements Parser {
         setMode((mode & ALLOW_BANGS) | (mode & NOLAMBDA) | TYPE);
     }
 
+    protected void selectTypeModeWithBangs() {
+        setMode(ALLOW_BANGS | (mode & NOLAMBDA) | TYPE);
+    }
+
     /** The current mode.
      */
     protected int mode = 0;
@@ -847,7 +851,9 @@ public class JavacParser implements Parser {
     public JCExpression qualident(boolean allowAnnos) {
         JCExpression t = toP(F.at(token.pos).Ident(ident()));
         if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-            checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT);
+            if (checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT)) {
+                setNullMarker(t);
+            }
             nextToken();
         }
         while (token.kind == DOT) {
@@ -862,7 +868,9 @@ public class JavacParser implements Parser {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
             }
             if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT);
+                if (checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT)) {
+                    setNullMarker(t);
+                }
                 nextToken();
             }
         }
@@ -2284,8 +2292,8 @@ public class JavacParser implements Parser {
     protected Predicate<TokenKind> LAX_IDENTIFIER = t -> t == IDENTIFIER || t == UNDERSCORE || t == ASSERT || t == ENUM;
     protected Predicate<TokenKind> EMOTIONAL_QUALIFIER = t -> t == BANG;
     protected Predicate<TokenKind> GENERIC_TYPE_END = t -> t == GT || t == GTGT || t == GTGTGT;
-    protected Predicate<TokenKind> BAD_BANG_LOCATION = t -> t == LBRACKET || t == MONKEYS_AT || t == DOT || t == LPAREN;
-    protected Predicate<TokenKind> BAD_BANG_LOCATION_QUALIDENT = t -> t == MONKEYS_AT || t == DOT || t == LPAREN;
+    protected Predicate<TokenKind> BAD_BANG_LOCATION = t -> t == LT || t == LBRACKET || t == MONKEYS_AT || t == DOT || t == LPAREN;
+    protected Predicate<TokenKind> BAD_BANG_LOCATION_QUALIDENT = t -> t == LT || t == MONKEYS_AT || t == DOT || t == LPAREN;
 
     enum ParensResult {
         CAST,
@@ -2800,16 +2808,18 @@ public class JavacParser implements Parser {
         JCExpression t = qualident(true, TYPE | ALLOW_BANGS);
 
         int prevmode = mode;
-        selectTypeMode();
+        selectTypeModeWithBangs();
         boolean diamondFound = false;
         int lastTypeargsPos = -1;
-        if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-            setNullMarker(t);
-            nextToken();
-        }
         if (token.kind == LT) {
             lastTypeargsPos = token.pos;
             t = typeArguments(t, true);
+            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                if (checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT)) {
+                    setNullMarker(t);
+                }
+                nextToken();
+            }
             diamondFound = isMode(DIAMOND);
         }
         while (token.kind == DOT) {
@@ -2827,14 +2837,21 @@ public class JavacParser implements Parser {
             }
 
             if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
-                checkNullRestrictonAllowed();
-                setNullMarker(t);
+                if (checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT)) {
+                    setNullMarker(t);
+                }
                 nextToken();
             }
 
             if (token.kind == LT) {
                 lastTypeargsPos = token.pos;
                 t = typeArguments(t, true);
+                if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                    if (checkNullRestrictionLocation(BAD_BANG_LOCATION_QUALIDENT)) {
+                        setNullMarker(t);
+                    }
+                    nextToken();
+                }
                 diamondFound = isMode(DIAMOND);
             }
         }
@@ -2906,6 +2923,10 @@ public class JavacParser implements Parser {
         accept(LBRACKET);
         if (token.kind == RBRACKET) {
             accept(RBRACKET);
+            if (allowNullRestrictedTypes && EMOTIONAL_QUALIFIER.test(token.kind)) {
+                unsupportedNullRestriction();
+                nextToken();
+            }
             elemtype = bracketsOpt(elemtype, annos);
             if (token.kind == LBRACE) {
                 JCNewArray na = (JCNewArray)arrayInitializer(newpos, elemtype);
