@@ -139,7 +139,7 @@ public class RuntimeNullChecks extends TestRunner {
                         Object o = (String!) s; // NPE, cast
                     }
                 }
-                """/*,
+                """,
                 """
                 class Test {
                     class Inner {
@@ -169,7 +169,7 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
-                """,*/
+                """
         }) {
             System.err.println("executing test " + i++);
             testHelper(base, code, true, NullPointerException.class);

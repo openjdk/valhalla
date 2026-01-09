@@ -1705,6 +1705,13 @@ public class JavaCompiler {
             if (shouldStop(CompileState.LOWER))
                 return;
 
+            if (shouldStop(CompileState.NULL_CHECKS_WRITER))
+                return;
+            for (JCTree def : cdefs) {
+                NullChecksWriter.instance(context).translateTopLevelClass(def, localMake);
+            }
+            compileStates.put(env, CompileState.NULL_CHECKS_WRITER);
+
             if (scanner.hasLambdas) {
                 if (shouldStop(CompileState.UNLAMBDA))
                     return;
