@@ -84,9 +84,6 @@ public class NullChecksWriter extends TreeTranslator {
      * Visitor methods
      *************************************************************************/
 
-    /** Visitor argument: proto-type.
-     */
-
     @Override
     public void visitVarDef(JCVariableDecl tree) {
         if (tree.init != null) {
