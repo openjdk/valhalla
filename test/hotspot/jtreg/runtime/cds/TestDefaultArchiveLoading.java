@@ -114,7 +114,7 @@ public class TestDefaultArchiveLoading {
         char coh, coops;
         String preview = System.getProperty("test.java.opts", "");
         if (preview.contains("--enable-preview")) {
-            archivePreviewSuffix = "_valhalla";
+            archivePreviewSuffix = "_preview";
         }
 
         switch (args[0]) {
