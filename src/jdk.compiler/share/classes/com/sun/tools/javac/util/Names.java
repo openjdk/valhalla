@@ -242,6 +242,7 @@ public class Names {
     public final Name newInstance;
     public final Name asNullRestrictedType;
     public final Name nullCheck;
+    public final Name copied;
 
     public final Name.Table table;
 
@@ -440,6 +441,7 @@ public class Names {
         newInstance = fromString("newInstance");
         asNullRestrictedType = fromString("asNullRestrictedType");
         nullCheck = fromString("nullCheck");
+        copied = fromString("copied");
     }
 
     protected Name.Table createTable(Options options) {

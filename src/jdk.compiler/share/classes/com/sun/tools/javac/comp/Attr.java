@@ -3548,6 +3548,9 @@ public class Attr extends JCTree.Visitor {
             attribExprs(tree.elems, localEnv, elemtype);
             owntype = new ArrayType(elemtype, syms.arrayClass);
         }
+        if (types.isNonNullable(elemtype)) {
+            tree.strict = true;
+        }
         if (!types.isReifiable(elemtype))
             log.error(tree.pos(), Errors.GenericArrayCreation);
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
