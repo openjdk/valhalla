@@ -26,7 +26,6 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.*;
@@ -35,7 +34,6 @@ import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ListBuffer;
-import com.sun.tools.javac.util.Names;
 
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
@@ -86,8 +84,8 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitVarDef(JCVariableDecl tree) {
+        super.visitVarDef(tree);
         if (tree.init != null) {
-            tree.init = translate(tree.init);
             if (types.isNonNullable(tree.sym.type)) {
                 tree.init = attr.makeNullCheck(tree.init, true);
             }
@@ -117,7 +115,6 @@ public class NullChecksWriter extends TreeTranslator {
         if (lhsSym != null &&
                 rhsSym != null &&
                 types.isNonNullable(lhsSym.type)) {
-            tree.rhs = translate(tree.rhs);
             tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
         result = tree;
