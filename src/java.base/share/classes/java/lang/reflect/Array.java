@@ -28,6 +28,7 @@ package java.lang.reflect;
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.javac.PreviewFeature.Feature;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.value.ValueClass;
 
 import java.util.Objects;
 
@@ -116,9 +117,14 @@ class Array {
         return multiNewArray(componentType, dimensions);
     }
 
+    private static final int NULL_CHECKED = 0x0200;
+
     /**
-     * Creates a new array with the specified component type, modifiers and
+     * Creates a new array with the specified component type, modifiers, and
      * length, whose elements are copied from the provided source array.
+     *
+     * <p>The number of dimensions of the new array must not
+     * exceed 255.
      *
      * @param  componentType the {@code Class} object representing the
      *         component type of the new array
@@ -128,27 +134,41 @@ class Array {
      * @param  sourceOffset the offset from which elements in the source array are copied
      * @return the new array
      * @throws NullPointerException if the specified
-     *         {@code componentType} parameter is null
+     *         {@code componentType} or {@code sourceArray} parameter is null,
+     *         or if the new array is null-checked and a component of
+     *         {@code sourceArray} cannot be stored into the new array because
+     *         it is null
      * @throws IllegalArgumentException if {@code componentType} is {@link Void#TYPE}
-     * @throws IndexOutOfBoundsException if {@code sourceOffset} is not a valid index in {@code sourceArray}
+     *         or if the number of dimensions of the requested array instance
+     *         exceed 255.
+     * @throws IndexOutOfBoundsException if {@code sourceOffset} or
+     *         {@code sourceOffset + length} is not a valid index in
+     *         {@code sourceArray}.
+     * @throws ArrayStoreException if a component of {@code sourceArray} cannot
+     *         be stored into the new array because of a type mismatch.
      * @throws NegativeArraySizeException if {@code length < 0}
      */
     @PreviewFeature(feature = Feature.VALUE_OBJECTS)
     public static Object newInstance(Class<?> componentType, int modifiers, int length,
                               Object sourceArray, int sourceOffset) {
-        // modifiers are ignored for now
+        // modifiers may be ignored for now
         if (length < 0) {
             throw new NegativeArraySizeException("length must be >= 0");
         }
         Objects.requireNonNull(componentType);
         Objects.requireNonNull(sourceArray);
         int sourceLength = getLength(sourceArray);
-        if (sourceLength > 0) {
-            Objects.checkIndex(sourceOffset, sourceLength);
-        } else if (sourceOffset != 0) {
-            throw new IndexOutOfBoundsException("sourceOffset=" + sourceOffset);
+        Objects.checkFromIndexSize(sourceOffset, length, sourceLength);
+        Object newArray;
+        if (modifiers & NULL_CHECKED) != 0 &&
+            length > 0 &&
+            componentType.isValue() &&
+            Modifier.isFinal(componentType.getModifiers()){
+            newArray = ValueClass.newNullRestrictedAtomicArray(
+                        componentType, length, get(sourceArray, 0));
+        } else {
+            newArray = newInstance(componentType, length);
         }
-        Object newArray = newInstance(componentType, length);
         System.arraycopy(sourceArray, sourceOffset, newArray, 0, length);
         return newArray;
     }
