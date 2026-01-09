@@ -58,7 +58,7 @@ public class ArrayCreation {
      * @throws IllegalArgumentException if componentType is {@link Void#TYPE}
      */
     public static Object enumerated(Class<?> componentType, int flags, Object v1) {
-        return copied(componentType, flags, 3, new Object[] { v1 });
+        return copied(componentType, flags, 1, new Object[] { v1 });
     }
 
     /**
@@ -71,7 +71,7 @@ public class ArrayCreation {
      * @throws IllegalArgumentException if componentType is {@link Void#TYPE}
      */
     public static Object enumerated(Class<?> componentType, int flags, Object v1, Object v2) {
-        return copied(componentType, flags, 3, new Object[] { v1, v2 });
+        return copied(componentType, flags, 2, new Object[] { v1, v2 });
     }
 
     /**
