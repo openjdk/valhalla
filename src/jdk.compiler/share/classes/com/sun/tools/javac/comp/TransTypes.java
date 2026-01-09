@@ -907,7 +907,6 @@ public class TransTypes extends TreeTranslator {
         tree.value = translate(tree.value, erasure(tree.value.type));
         tree.value.type = erasure(tree.value.type);
         tree.value = retype(tree.value, tree.value.type, pt);
-        //result = generateNullCheckIfNeeded((JCExpression)result);
         result = tree;
     }
 
