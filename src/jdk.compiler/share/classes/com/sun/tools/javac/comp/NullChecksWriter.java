@@ -192,11 +192,4 @@ public class NullChecksWriter extends TreeTranslator {
         }
         result = tree;
     }
-
-    @Override
-    public void visitLetExpr(LetExpr tree) {
-        tree.defs = translate(tree.defs);
-        tree.expr = translate(tree.expr);
-        result = tree;
-    }
 }
