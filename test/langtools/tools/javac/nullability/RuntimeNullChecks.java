@@ -90,9 +90,12 @@ public class RuntimeNullChecks extends TestRunner {
                 """,
                 /*"""
                 class Test {
+                    record R(String x) {}
+                    static void m(Object obj) {
+                        if (obj instanceof R(String! x)) {}  // should not match not throw NPE
+                    }
                     public static void main(String... args) {
-                        String arg = null;
-                        if (arg instanceof String! s) {}  // this example is not working, not sure we should allow this
+                        m(new R(null));
                     }
                 }
                 """,*/
@@ -195,7 +198,7 @@ public class RuntimeNullChecks extends TestRunner {
         }
 
         // enums are a bit special as the NPE happens inside a static initializer and ExceptionInInitializerError is thrown
-        /*testHelper(base,
+        testHelper(base,
                 """
                 class Test {
                     static Object s = null;
@@ -208,7 +211,7 @@ public class RuntimeNullChecks extends TestRunner {
                         Test.E a = E.A;
                     }
                 }
-                """, true, ExceptionInInitializerError.class);*/
+                """, true, ExceptionInInitializerError.class);
 
         // similar test cases as above but without null markers, should trivially pass
         i = 0;
