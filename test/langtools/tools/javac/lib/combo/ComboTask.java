@@ -208,7 +208,7 @@ public class ComboTask {
             try {
                 if (generationResult.hasErrors()) {
                     // we have nothing else to do
-                    return;
+                    throw new IllegalStateException("Cannot compile: " + generationResult.compilationInfo());
                 }
                 Iterable<? extends JavaFileObject> jfoIterable = generationResult.get();
                 java.util.List<URL> urlList = new ArrayList<>();
@@ -261,7 +261,7 @@ public class ComboTask {
         private String methodName = "main";
         private Class<?>[] parameterTypes = new Class<?>[]{String[].class};
         private Object[] args = new String[0];
-        private Consumer<Throwable> handler;
+        private Consumer<Throwable> handler = t -> { throw new AssertionError(t); };
         private Class<?> c;
 
         private ExecutionTask(ClassLoader classLoader) {
@@ -272,7 +272,7 @@ public class ComboTask {
          * Set the name of the class to be loaded.
          */
         public ExecutionTask withClass(String className) {
-            load(className);
+            this.c = load(className);
             return this;
         }
 

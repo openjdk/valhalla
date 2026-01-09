@@ -3548,6 +3548,23 @@ public class Attr extends JCTree.Visitor {
             attribExprs(tree.elems, localEnv, elemtype);
             owntype = new ArrayType(elemtype, syms.arrayClass);
         }
+
+        if (types.isNonNullable(elemtype) && tree.elems == null) {
+            tree.strict = true;
+            // Null-restricted array requires an initializer unless either
+            // (a) innermost dimension is missing, or (b) one of the provided dimensions
+            // is the constant value 0.
+            int dimsGiven = tree.dims.size();
+            int arrayRank = types.dimensions(owntype);
+            if (tree.dims.nonEmpty() && dimsGiven == arrayRank) {
+                boolean hasZeroDims = tree.dims.stream()
+                        .anyMatch(d -> d.type.constValue() instanceof Integer v && v == 0);
+                if (!hasZeroDims) {
+                    log.error(tree.pos(), Errors.RestrictedArrayMissingInit(elemtype));
+                }
+            }
+        }
+
         if (!types.isReifiable(elemtype))
             log.error(tree.pos(), Errors.GenericArrayCreation);
         result = check(tree, owntype, KindSelector.VAL, resultInfo);

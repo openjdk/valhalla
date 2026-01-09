@@ -2369,7 +2369,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public boolean isNullOrReference() {
             return true;
         }
-
     }
 
     public static class ErrorType extends ClassType

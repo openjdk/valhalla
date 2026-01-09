@@ -613,6 +613,14 @@ public class Types {
      * conversion to s?
      */
     public boolean isConvertible(Type t, Type s, Warner warn) {
+        boolean res = isConvertibleInternal(t, s, warn);
+        if (res && t.hasTag(BOT) && isNonNullable(s)) {
+            warn.warn(LintCategory.NULL);
+        }
+        return res;
+    }
+
+    private boolean isConvertibleInternal(Type t, Type s, Warner warn) {
         if (t.hasTag(ERROR)) {
             return true;
         }
@@ -1132,9 +1140,6 @@ public class Types {
                  case TYPEVAR:
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT: {
-                     if (isNonNullable(s)) {
-                         return false;
-                     }
                      return
                              s.hasTag(BOT) || s.hasTag(CLASS) ||
                              s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
@@ -1763,8 +1768,13 @@ public class Types {
                     return s.hasTag(BOOLEAN);
                 case VOID:
                     return false;
-                case BOT:
-                    return isSubtype(t, s);
+                case BOT: {
+                    boolean res = isSubtype(t, s);
+                    if (res && isNonNullable(s)) {
+                        warnStack.head.warn(LintCategory.NULL);
+                    }
+                    return res;
+                }
                 default:
                     throw new AssertionError();
                 }
@@ -1777,7 +1787,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT) && (!isNonNullable(t)))
+                if (s.hasTag(ERROR) || s.hasTag(BOT))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {

@@ -3,7 +3,7 @@
  * @enablePreview
  * @summary Smoke test for signature attribute parsing
  * @compile pkg/Foo.java
- * @compile/fail/ref=SeparateCompilationTest.out -XDrawDiagnostics SeparateCompilationTest.java
+ * @compile/fail/ref=SeparateCompilationTest.out -Werror -Xlint:null -XDrawDiagnostics SeparateCompilationTest.java
  */
 
 import pkg.Foo;
