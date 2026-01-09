@@ -4300,7 +4300,7 @@ public class Lower extends TreeTranslator {
             if (t.head != null) t.head = translate(t.head, syms.intType);
         }
         tree.elems = translate(tree.elems, types.elemtype(tree.type));
-        if (tree.strict && tree.elems != null) {
+        if (tree.strict) {
             Assert.check(types.dimensions(tree.type) == 1, "Unexpected multi-dimensional null-restricted array");
             // create a null restricted array, this will generate code as follows:
             // let $tmp = <old array creation> in ArrayCreation.copied(<array type>, 0, <array size>, $tmp);
