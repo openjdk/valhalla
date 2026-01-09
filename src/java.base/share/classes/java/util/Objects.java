@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,6 @@ public final class Objects {
      * @param b an object to be compared with {@code a} for equality
      * @see Object#equals(Object)
      */
-    @ForceInline
     public static boolean equals(Object a, Object b) {
         return (a == b) || (a != null && a.equals(b));
     }
