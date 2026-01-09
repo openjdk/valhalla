@@ -160,10 +160,10 @@ class Array {
         int sourceLength = getLength(sourceArray);
         Objects.checkFromIndexSize(sourceOffset, length, sourceLength);
         Object newArray;
-        if (modifiers & NULL_CHECKED) != 0 &&
+        if ((modifiers & NULL_CHECKED) != 0 &&
             length > 0 &&
             componentType.isValue() &&
-            Modifier.isFinal(componentType.getModifiers()){
+            Modifier.isFinal(componentType.getModifiers())) {
             newArray = ValueClass.newNullRestrictedAtomicArray(
                         componentType, length, get(sourceArray, 0));
         } else {

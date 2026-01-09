@@ -341,7 +341,7 @@ public class ArrayCreation {
             }
         } else {
             String initName = "initFilled";
-            if (componentType.baseClass().isPrimitive()) {
+            if (componentType.isPrimitive()) {
                 initName += "_" + componentType;
             }
             var init = LOOKUP.findStatic(ArrayCreation.class, initName, INIT_FILLED_TYPE);
@@ -381,7 +381,7 @@ public class ArrayCreation {
                                          MethodType type, Class<?> componentType,
                                          int modifiers, int length) throws Throwable {
         String initName = "initFilled";
-        if (componentType.baseClass().isPrimitive()) {
+        if (componentType.isPrimitive()) {
             initName += "_" + componentType;
         }
         var init = LOOKUP.findStatic(ArrayCreation.class, initName, INIT_FILLED_TYPE);
@@ -419,7 +419,7 @@ public class ArrayCreation {
                                     MethodType type, Class<?> componentType,
                                     int modifiers, int length) throws Throwable {
         String initName = "initComputed";
-        if (componentType.baseClass().isPrimitive()) {
+        if (componentType.isPrimitive()) {
             initName += "_" + componentType;
         }
         var init = LOOKUP.findStatic(ArrayCreation.class, initName, INIT_COMPUTED_TYPE);
@@ -514,7 +514,7 @@ public class ArrayCreation {
                                               MethodType type, Class<?> componentType,
                                               int modifiers, Object... values) throws Throwable {
         Object src = values;
-        if (componentType.baseClass().isPrimitive()) {
+        if (componentType.isPrimitive()) {
             // unbox values
             src = Array.newInstance(componentType, values.length);
             for (int i = 0; i < values.length; i++) {

@@ -299,7 +299,7 @@ public class ArrayCreationTest {
             if (!(o.getClass().isArray()) ||
                 !o.getClass().getComponentType().equals(comp) ||
                 // TODO: check modifiers once implemented
-                !arrayToList(o).equals(expected)) { 
+                !arrayToList(o).equals(expected)) {
                 throw new AssertionError("Unexpected result: %s, expected %s".formatted(
                                         arrayString(o), arrayString(comp, mods, expected)));
             }
