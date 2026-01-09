@@ -4521,6 +4521,9 @@ public class Attr extends JCTree.Visitor {
 
     public void visitTypeCast(final JCTypeCast tree) {
         Type clazztype = attribType(tree.clazz, env);
+        if (types.isNonNullable(clazztype)) {
+            tree.strict = true;
+        }
         chk.validate(tree.clazz, env, false);
         chk.checkRequiresIdentity(tree, env.info.lint);
         //a fresh environment is required for 292 inference to work properly ---

@@ -132,13 +132,13 @@ public class NullChecksWriter extends TreeTranslator {
         result = tree;
     }
 
-    /*public void visitTypeCast(JCTypeCast tree) {
-        if (types.isNonNullable(tree.clazz.type) && !types.isNonNullable(tree.expr.type)) {
-            tree.expr = translate(tree.expr, tree.type);
-            tree.expr = attr.makeNullCheck(tree.expr, true);
+    public void visitTypeCast(JCTypeCast tree) {
+        if (tree.strict) {
+            tree.expr = translate(tree.expr);
+            tree.expr = generateNullCheckIfNeeded(tree.expr, JCNullableTypeExpression.NullMarker.NOT_NULL);
         }
         result = tree;
-    }*/
+    }
 
     Type returnType = null;
 
@@ -150,11 +150,8 @@ public class NullChecksWriter extends TreeTranslator {
             ListBuffer<JCStatement> paramNullChecks = new ListBuffer<>();
             for (JCVariableDecl param : tree.params) {
                 if (types.isNonNullable(param.sym.type)) {
-                    paramNullChecks.add(
-                            make.at(tree.body.pos())
-                                    .Exec(generateNullCheckIfNeeded(make.at(tree.body.pos()).Ident(param),
-                                    JCNullableTypeExpression.NullMarker.NOT_NULL))
-                    );
+                    paramNullChecks.add(make.at(tree.body.pos())
+                            .Exec(attr.makeNullCheck(make.at(tree.body.pos()).Ident(param), true)));
                 }
             }
             if (!paramNullChecks.isEmpty()) {
@@ -169,7 +166,7 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitReturn(JCReturn tree) {
-        if (returnType != null && !returnType.hasTag(VOID)) {
+        if (tree.expr != null && returnType != null && !returnType.hasTag(VOID)) {
             Symbol sym = TreeInfo.symbolFor(tree.expr);
             if (sym != null && !types.isNonNullable(sym.type)) {
                 tree.expr = generateNullCheckIfNeeded(tree.expr, returnType.getNullMarker());

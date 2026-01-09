@@ -1037,9 +1037,6 @@ public class TransTypes extends TreeTranslator {
 
     public void visitTypeCast(JCTypeCast tree) {
         // the information in tree.clazz.type is lost, so probably we need to do this one here
-        if (types.isNonNullable(tree.clazz.type) && !types.isNonNullable(tree.expr.type)) {
-            tree.expr = attr.makeNullCheck(tree.expr, true);
-        }
         tree.clazz = translate(tree.clazz, null);
         Type originalTarget = tree.type;
         tree.type = erasure(tree.type);
