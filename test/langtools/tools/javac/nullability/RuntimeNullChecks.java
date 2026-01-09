@@ -78,6 +78,25 @@ public class RuntimeNullChecks extends TestRunner {
         for (String code: new String[] {
                 // local variables
                 """
+                import java.util.*;
+                class Test {
+                    public static void main(String... args) {
+                        List<String> list = new ArrayList<>();
+                        list.add(null);
+                        for (String! s : list) {
+                        }
+                    }
+                }
+                """,
+                /*"""
+                class Test {
+                    public static void main(String... args) {
+                        String arg = null;
+                        if (arg instanceof String! s) {}  // this example is not working, not sure we should allow this
+                    }
+                }
+                """,*/
+                """
                 class Test {
                     public static void main(String... args) {
                         String s = null;
@@ -139,7 +158,7 @@ public class RuntimeNullChecks extends TestRunner {
                         Object o = (String!) s; // NPE, cast
                     }
                 }
-                """/*,
+                """,
                 """
                 class Test {
                     class Inner {
@@ -169,7 +188,7 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
-                """,*/
+                """
         }) {
             System.err.println("executing test " + i++);
             testHelper(base, code, true, NullPointerException.class);
