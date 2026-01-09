@@ -29,7 +29,6 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeMaker;
@@ -37,7 +36,6 @@ import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
@@ -99,22 +97,11 @@ public class NullChecksWriter extends TreeTranslator {
 
     /** Visitor argument: proto-type.
      */
-    private Type pt;
-
-    public <T extends JCTree> T translate(T tree, Type pt) {
-        Type prevPt = this.pt;
-        try {
-            this.pt = pt;
-            return translate(tree);
-        } finally {
-            this.pt = prevPt;
-        }
-    }
 
     @Override
     public void visitVarDef(JCVariableDecl tree) {
         if (tree.init != null) {
-            tree.init = translate(tree.init, tree.sym.erasure(types));
+            tree.init = translate(tree.init);
             tree.init = generateNullCheckIfNeeded(tree.init, tree.sym.type.getNullMarker());
         }
         result = tree;
@@ -126,11 +113,9 @@ public class NullChecksWriter extends TreeTranslator {
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
         Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
         if (lhsSym != null &&
-            rhsSym != null &&
-            types.isNonNullable(lhsSym.type) &&
-            !types.isNonNullable(rhsSym.type)) {
-            tree.rhs = translate(tree.rhs, types.erasure(tree.lhs.type));
-            tree.rhs = attr.makeNullCheck(tree.rhs, true);
+                rhsSym != null) {
+            tree.rhs = translate(tree.rhs);
+            tree.rhs = generateNullCheckIfNeeded(tree.rhs, lhsSym.type.getNullMarker());
         }
         result = tree;
     }
@@ -140,11 +125,9 @@ public class NullChecksWriter extends TreeTranslator {
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
         Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
         if (lhsSym != null &&
-            rhsSym != null &&
-            types.isNonNullable(lhsSym.type) &&
-            !types.isNonNullable(rhsSym.type)) {
-            tree.rhs = translate(tree.rhs, types.erasure(tree.lhs.type));
-            tree.rhs = attr.makeNullCheck(tree.rhs, true);
+                rhsSym != null) {
+            tree.rhs = translate(tree.rhs);
+            tree.rhs = generateNullCheckIfNeeded(tree.rhs, lhsSym.type.getNullMarker());
         }
         result = tree;
     }
@@ -168,14 +151,16 @@ public class NullChecksWriter extends TreeTranslator {
             for (JCVariableDecl param : tree.params) {
                 if (types.isNonNullable(param.sym.type)) {
                     paramNullChecks.add(
-                            make.at(tree.body.pos()).Exec(attr.makeNullCheck(make.at(tree.body.pos()).Ident(param), true))
+                            make.at(tree.body.pos())
+                                    .Exec(generateNullCheckIfNeeded(make.at(tree.body.pos()).Ident(param),
+                                    JCNullableTypeExpression.NullMarker.NOT_NULL))
                     );
                 }
             }
             if (!paramNullChecks.isEmpty()) {
                 tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
             }
-            tree.body = translate(tree.body, tree.sym.erasure(types).getReturnType());
+            tree.body = translate(tree.body);
             result = tree;
         } finally {
             returnType = prevRetType;
@@ -185,10 +170,11 @@ public class NullChecksWriter extends TreeTranslator {
     @Override
     public void visitReturn(JCReturn tree) {
         if (returnType != null && !returnType.hasTag(VOID)) {
-            if (types.isNonNullable(returnType) && !types.isNonNullable(tree.expr.type)) {
-                tree.expr = attr.makeNullCheck(tree.expr, true);
+            Symbol sym = TreeInfo.symbolFor(tree.expr);
+            if (sym != null && !types.isNonNullable(sym.type)) {
+                tree.expr = generateNullCheckIfNeeded(tree.expr, returnType.getNullMarker());
             }
-            tree.expr = translate(tree.expr, returnType);
+            tree.expr = translate(tree.expr);
         }
         result = tree;
     }
