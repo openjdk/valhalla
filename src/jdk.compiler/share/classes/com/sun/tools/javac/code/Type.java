@@ -1382,6 +1382,16 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitIntersection(this, p);
         }
+
+        public NullMarker getNullMarker() {
+            for (Type component: getComponents()) {
+                TypeMetadata.NullMarker nm = component.getMetadata(TypeMetadata.NullMarker.class);
+                if (nm != null && !nm.equals(NullMarker.UNSPECIFIED)) {
+                    return nm.nullMarker();
+                }
+            }
+            return NullMarker.UNSPECIFIED;
+        }
     }
 
     public static class ArrayType extends Type

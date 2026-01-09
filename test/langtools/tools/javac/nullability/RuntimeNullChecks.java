@@ -164,6 +164,14 @@ public class RuntimeNullChecks extends TestRunner {
                 """,
                 """
                 class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object o = (String & Runnable!) s; // NPE, cast
+                    }
+                }
+                """,
+                """
+                class Test {
                     class Inner {
                         class MyPrivilegedAction<T> {
                             // as the outer is inserted after the fact, we are checking the outer class argument not `o`,
