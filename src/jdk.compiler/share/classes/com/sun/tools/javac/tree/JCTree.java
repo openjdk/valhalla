@@ -2263,6 +2263,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     public static class JCTypeCast extends JCExpression implements TypeCastTree {
         public JCTree clazz;
         public JCExpression expr;
+        public boolean strict = false;
         protected JCTypeCast(JCTree clazz, JCExpression expr) {
             this.clazz = clazz;
             this.expr = expr;

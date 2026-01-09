@@ -3783,7 +3783,7 @@ public class JavacParser implements Parser {
         if (token.kind == FINAL || token.kind == MONKEYS_AT) {
             return variableDeclarators(optFinal(0), parseType(true), stats, true).toList();
         } else {
-            JCExpression t = term(EXPR | TYPE);
+            JCExpression t = term(EXPR | TYPE | ALLOW_BANGS);
             if (wasTypeMode() && LAX_IDENTIFIER.test(token.kind)) {
                 return variableDeclarators(modifiersOpt(), t, stats, true).toList();
             } else if (wasTypeMode() && token.kind == COLON) {
@@ -4269,7 +4269,7 @@ public class JavacParser implements Parser {
             JCExpression t = parseType(true);
             return variableDeclaratorRest(token.pos, mods, t, identOrUnderscore(), true, null, true, false);
         }
-        JCExpression t = term(EXPR | TYPE);
+        JCExpression t = term(EXPR | TYPE | ALLOW_BANGS);
         if (wasTypeMode() && LAX_IDENTIFIER.test(token.kind)) {
             JCModifiers mods = F.Modifiers(0);
             return variableDeclaratorRest(token.pos, mods, t, identOrUnderscore(), true, null, true, false);

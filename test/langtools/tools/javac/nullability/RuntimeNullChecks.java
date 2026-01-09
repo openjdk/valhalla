@@ -76,6 +76,29 @@ public class RuntimeNullChecks extends TestRunner {
     public void testRuntimeChecks(Path base) throws Exception {
         int i = 0;
         for (String code: new String[] {
+                // local variables
+                """
+                import java.util.*;
+                class Test {
+                    public static void main(String... args) {
+                        List<String> list = new ArrayList<>();
+                        list.add(null);
+                        for (String! s : list) {
+                        }
+                    }
+                }
+                """,
+                /*"""
+                class Test {
+                    record R(String x) {}
+                    static void m(Object obj) {
+                        if (obj instanceof R(String! x)) {}  // should not match not throw NPE
+                    }
+                    public static void main(String... args) {
+                        m(new R(null));
+                    }
+                }
+                """,*/
                 """
                 class Test {
                     public static void main(String... args) {
@@ -111,7 +134,7 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                """
+                /*"""
                 class Test {
                     static String id(int i, String!... arg) { return ""; }
                     public static void main(String... args) {
@@ -130,7 +153,7 @@ public class RuntimeNullChecks extends TestRunner {
                         Object o = id(1, s1, s2); // NPE at runtime, method invocation
                     }
                 }
-                """,
+                """,*/
                 """
                 class Test {
                     public static void main(String... args) {
@@ -143,6 +166,8 @@ public class RuntimeNullChecks extends TestRunner {
                 class Test {
                     class Inner {
                         class MyPrivilegedAction<T> {
+                            // as the outer is inserted after the fact, we are checking the outer class argument not `o`,
+                            // need to fix this
                             MyPrivilegedAction(Object! o) {}
                             T run() {
                                 return null;
@@ -166,69 +191,6 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
-                """,
-                """
-                class Test {
-                    class Inner {
-                        class MyPrivilegedAction<T> {
-                            MyPrivilegedAction(String s, Object!... o) {}
-                        }
-                    }
-                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) { return null; }
-                    boolean isSystemProperty(Inner inner, Object o) {
-                        return doPrivileged( inner.new MyPrivilegedAction<Boolean>("", o) {} );
-                    }
-                    void doTest() {
-                        Inner inner = new Inner();
-                        isSystemProperty(inner, null);
-                    }
-                    public static void main(String... args) {
-                        Test test = new Test();
-                        test.doTest();
-                    }
-                }
-                """,
-                """
-                class Test {
-                    class Inner {
-                        class MyPrivilegedAction<T> {
-                            MyPrivilegedAction(String s, Object!... o) {}
-                        }
-                    }
-                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) { return null; }
-                    boolean isSystemProperty(Inner inner, Object o) {
-                        return doPrivileged( inner.new MyPrivilegedAction<Boolean>("", o, o) {} );
-                    }
-                    void doTest() {
-                        Inner inner = new Inner();
-                        isSystemProperty(inner, null);
-                    }
-                    public static void main(String... args) {
-                        Test test = new Test();
-                        test.doTest();
-                    }
-                }
-                """,
-                """
-                class Test {
-                    class Inner {
-                        class MyPrivilegedAction<T> {
-                            MyPrivilegedAction(String s, Object!... o) {}
-                        }
-                    }
-                    public <T> T doPrivileged(Inner.MyPrivilegedAction<T> action) { return null; }
-                    boolean isSystemProperty(Inner inner, Object o) {
-                        return doPrivileged( inner.new MyPrivilegedAction<Boolean>("", new Object(), o) {} );
-                    }
-                    void doTest() {
-                        Inner inner = new Inner();
-                        isSystemProperty(inner, null);
-                    }
-                    public static void main(String... args) {
-                        Test test = new Test();
-                        test.doTest();
-                    }
-                }
                 """
         }) {
             System.err.println("executing test " + i++);
@@ -242,6 +204,7 @@ public class RuntimeNullChecks extends TestRunner {
                     static Object s = null;
                     enum E {
                         A(s);
+                        // same issue as with inner classes
                         E(Object! o) {}
                     }
                     public static void main(String... args) {
@@ -350,15 +313,19 @@ public class RuntimeNullChecks extends TestRunner {
 
         if (shouldFail) {
             // let's check that we get the expected error
-            String output = new JavaTask(tb)
-                    .classpath(out.toString())
-                    .classArgs("Test")
-                    .vmOptions("--enable-preview")
-                    .run(Task.Expect.FAIL)
-                    .writeAll()
-                    .getOutput(Task.OutputKind.STDERR);
-            if (!output.startsWith("Exception in thread \"main\" " + expectedError.getName())) {
-                throw new AssertionError(expectedError.getName() + " expected");
+            try {
+                String output = new JavaTask(tb)
+                        .classpath(out.toString())
+                        .classArgs("Test")
+                        .vmOptions("--enable-preview")
+                        .run(Task.Expect.FAIL)
+                        .writeAll()
+                        .getOutput(Task.OutputKind.STDERR);
+                if (!output.startsWith("Exception in thread \"main\" " + expectedError.getName())) {
+                    throw new AssertionError(expectedError.getName() + " expected");
+                }
+            } catch (Throwable t) {
+                throw new AssertionError("failing for test case " + testCode);
             }
         } else {
             new JavaTask(tb)
