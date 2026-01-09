@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -198,10 +198,6 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   switch(lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)src)) {
-        if (!contains_oops()) {
-          mark_payload_as_null((address)dst);
-          return;
-        }
         // copy null_reset value to dest
         if (dest_is_initialized) {
           HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);

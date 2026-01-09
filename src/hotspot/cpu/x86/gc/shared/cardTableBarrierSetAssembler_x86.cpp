@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -180,14 +180,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
   if (needs_post_barrier) {
     // flatten object address if needed
     if (!precise || (dst.index() == noreg && dst.disp() == 0)) {
-      if (tmp3 != noreg) {
-        // Called by MacroAssembler::pack_inline_helper. We cannot corrupt the dst.base() register
-        __ movptr(tmp3, dst.base());
-        store_check(masm, tmp3, dst);
-      } else {
-        // It's OK to corrupt the dst.base() register.
-        store_check(masm, dst.base(), dst);
-      }
+      store_check(masm, dst.base(), dst);
     } else {
       __ lea(tmp1, dst);
       store_check(masm, tmp1, dst);
