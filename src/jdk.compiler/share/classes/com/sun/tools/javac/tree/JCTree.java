@@ -1978,6 +1978,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         // type annotations on dimensions
         public List<List<JCAnnotation>> dimAnnotations;
         public List<JCExpression> elems;
+        public boolean strict = false;
         protected JCNewArray(JCExpression elemtype,
                              List<JCExpression> dims,
                              List<JCExpression> elems)

@@ -4295,39 +4295,31 @@ public class Lower extends TreeTranslator {
 
     public void visitNewArray(JCNewArray tree) {
         // nullness info could be lost in the translation process, let's keep the original element type
-        JCExpression originalElemType = tree.elemtype;
         tree.elemtype = translate(tree.elemtype);
-        int noOfDims = 0;
         for (List<JCExpression> t = tree.dims; t.tail != null; t = t.tail) {
             if (t.head != null) t.head = translate(t.head, syms.intType);
-            noOfDims++;
         }
         tree.elems = translate(tree.elems, types.elemtype(tree.type));
-        if (!allowNullRestrictedTypes || tree.elemtype == null || !types.isNonNullable(originalElemType.type)) {
-            result = tree;
+        if (tree.strict) {
+            Assert.check(types.dimensions(tree.type) == 1, "Unexpected multi-dimensional null-restricted array");
+            // create a null restricted array, this will generate code as follows:
+            // let $tmp = <old array creation> in ArrayCreation.copied(<array type>, 0, <array size>, $tmp);
+            VarSymbol tmpArrayVar = new VarSymbol(0, names.fromString("$arr"), syms.objectType, currentMethodSym);
+            JCVariableDecl tmpArrayVarDecl = make.VarDef(tmpArrayVar, tree);
+            JCIdent tmpArrayVarRef = make.Ident(tmpArrayVar);
+            JCFieldAccess qualifier = make.Select(make.Type(syms.arrayCreationType), names.copied);
+            qualifier.sym = syms.arrayCreationCopied;
+            qualifier.type = syms.arrayCreationCopied.type;
+            JCMethodInvocation copiedCall = make.Apply(List.nil(), qualifier,
+                    List.of(
+                            classOfType(types.elemtype(tree.type), tree),
+                            makeLit(syms.intType, 0), // flag -- 0 for now
+                            makeLit(syms.intType, tree.elems.length()),
+                            tmpArrayVarRef)).setType(syms.objectType);
+            JCExpression cast = make.TypeCast(tree.type, copiedCall);
+            result = make.LetExpr(tmpArrayVarDecl, cast).setType(cast.type);
         } else {
-            Symbol elemClass = syms.getClassField(tree.elemtype.type, types);
-            JCFieldAccess elemClassExpr = make.Select(make.Ident(tree.elemtype.type.tsym).setType(tree.elemtype.type), elemClass);
-            MethodSymbol asNullRestrictedTypeMeth = lookupMethod(tree.pos(), names.asNullRestrictedType, syms.classType, List.nil());
-            JCExpression asNullRestrictedTypeCall = make.Apply(
-                        null,
-                        make.Select(elemClassExpr, asNullRestrictedTypeMeth).setType(syms.classType), List.nil()).setType(syms.classType);
-            List<JCExpression> dimsExp = tree.dims;
-            if (noOfDims > 1) {
-                JCNewArray dimsArr = make.NewArray(make.Type(syms.intType), List.nil(), tree.dims);
-                dimsArr.type = types.makeArrayType(syms.intType);
-                dimsExp = List.of(dimsArr);
-            }
-            MethodSymbol appyMeth = lookupMethod(tree.pos(), names.newInstance,
-                syms.reflectArrayType, List.of(syms.classType, noOfDims == 1 ? syms.intType : types.makeArrayType(syms.intType)));
-            JCExpression call =
-                    make.Apply(
-                            null,
-                            make.Select(make.Ident(syms.reflectArrayType.tsym).setType(syms.reflectArrayType), appyMeth).setType(syms.objectType),
-                            dimsExp.prepend(asNullRestrictedTypeCall))
-                            .setType(syms.objectType);
-            JCExpression cast = make.TypeCast(types.makeArrayType(tree.elemtype.type, noOfDims), call);
-            result = cast;
+            result = tree;
         }
     }
 

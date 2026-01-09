@@ -251,8 +251,9 @@ public class Symtab {
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
-    public final Type reflectArrayType;
     public final Type checksType;
+    public final Type arrayCreationType;
+    public final MethodSymbol arrayCreationCopied;
 
     /** The symbol representing the length field of an array.
      */
@@ -660,9 +661,14 @@ public class Symtab {
         synthesizeBoxTypeIfMissing(voidType);
 
         // for value objects
-        reflectArrayType = enterClass("java.lang.reflect.Array");
         numberType = enterClass("java.lang.Number");
         checksType = enterClass("java.lang.runtime.Checks");
+        arrayCreationType = enterClass("java.lang.runtime.ArrayCreation");
+        arrayCreationCopied = new MethodSymbol(PUBLIC | STATIC,
+                names.copied,
+                new MethodType(List.of(classType, intType, intType, objectType), objectType,
+                        List.nil(), methodClass),
+                arrayCreationType.tsym);
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a

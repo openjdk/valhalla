@@ -25,7 +25,11 @@
 
 package java.lang.reflect;
 
+import jdk.internal.javac.PreviewFeature;
+import jdk.internal.javac.PreviewFeature.Feature;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+
+import java.util.Objects;
 
 /**
  * The {@code Array} class provides static methods to dynamically create and
@@ -110,6 +114,43 @@ class Array {
     public static Object newInstance(Class<?> componentType, int... dimensions)
         throws IllegalArgumentException, NegativeArraySizeException {
         return multiNewArray(componentType, dimensions);
+    }
+
+    /**
+     * Creates a new array with the specified component type, modifiers and
+     * length, whose elements are copied from the provided source array.
+     *
+     * @param  componentType the {@code Class} object representing the
+     *         component type of the new array
+     * @param  modifiers the modifiers of the new array
+     * @param  length the length of the new array
+     * @param  sourceArray the source array from which the elements are copied
+     * @param  sourceOffset the offset from which elements in the source array are copied
+     * @return the new array
+     * @throws NullPointerException if the specified
+     *         {@code componentType} parameter is null
+     * @throws IllegalArgumentException if {@code componentType} is {@link Void#TYPE}
+     * @throws IndexOutOfBoundsException if {@code sourceOffset} is not a valid index in {@code sourceArray}
+     * @throws NegativeArraySizeException if {@code length < 0}
+     */
+    @PreviewFeature(feature = Feature.VALUE_OBJECTS)
+    public static Object newInstance(Class<?> componentType, int modifiers, int length,
+                              Object sourceArray, int sourceOffset) {
+        // modifiers are ignored for now
+        if (length < 0) {
+            throw new NegativeArraySizeException("length must be >= 0");
+        }
+        Objects.requireNonNull(componentType);
+        Objects.requireNonNull(sourceArray);
+        int sourceLength = getLength(sourceArray);
+        if (sourceLength > 0) {
+            Objects.checkIndex(sourceOffset, sourceLength);
+        } else if (sourceOffset != 0) {
+            throw new IndexOutOfBoundsException("sourceOffset=" + sourceOffset);
+        }
+        Object newArray = newInstance(componentType, length);
+        System.arraycopy(sourceArray, sourceOffset, newArray, 0, length);
+        return newArray;
     }
 
     /**

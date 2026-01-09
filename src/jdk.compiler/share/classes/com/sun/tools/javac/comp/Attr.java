@@ -3550,6 +3550,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (types.isNonNullable(elemtype) && tree.elems == null) {
+            tree.strict = true;
             // Null-restricted array requires an initializer unless either
             // (a) innermost dimension is missing, or (b) one of the provided dimensions
             // is the constant value 0.

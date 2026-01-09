@@ -597,6 +597,7 @@ public class SignatureParser {
             case 'S':
             case 'Z':
             case 'L':
+            case '!':
             case 'T':
             case '[': {
                 ts.add(parseTypeSignature());
