@@ -191,22 +191,22 @@ class InlineKlass: public InstanceKlass {
   }
 
   jbyte* null_marker_address(address payload) {
-    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
+    assert(supports_nullable_layouts(), " Must do");
     return (jbyte*)payload + null_marker_offset_in_payload();
   }
 
   bool is_payload_marked_as_null(address payload) {
-    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
+    assert(supports_nullable_layouts(), " Must do");
     return *null_marker_address(payload) == 0;
   }
 
   void mark_payload_as_non_null(address payload) {
-    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
+    assert(supports_nullable_layouts(), " Must do");
     *null_marker_address(payload) = 1;
   }
 
   void mark_payload_as_null(address payload) {
-    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
+    assert(supports_nullable_layouts(), " Must do");
     *null_marker_address(payload) = 0;
   }
 

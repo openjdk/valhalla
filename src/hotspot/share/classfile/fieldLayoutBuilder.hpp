@@ -328,7 +328,7 @@ class FieldLayoutBuilder : public ResourceObj {
   bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
   int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
   bool has_nullable_atomic_layout() const      { return _nullable_atomic_layout_size_in_bytes != -1; }
-  int  nullable_layout_size_in_bytes() const   { return _nullable_atomic_layout_size_in_bytes; }
+  int  nullable_atomic_layout_size_in_bytes() const { return _nullable_atomic_layout_size_in_bytes; }
   bool has_nullable_non_atomic_layout() const  { return _nullable_non_atomic_layout_size_in_bytes != -1; }
   int  nullable_non_atomic_layout_size_in_bytes() const { return _nullable_non_atomic_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }

@@ -1225,9 +1225,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         }
       }
     }
-    // If the inline class has an atomic or nullable (which is also atomic) layout,
+    // If the inline class has an atomic or nullable atomic layout,
     // we want the raw layout to have the same alignment as those atomic layouts so access codes
-    // could remain  simple (single instruction without intermediate copy). This might required
+    // could remain simple (single instruction without intermediate copy). This might required
     // to shift all fields in the raw layout, but this operation is possible only if the class
     // doesn't have inherited fields (offsets of inherited fields cannot be changed). If a
     // field shift is needed but not possible, all atomic layouts are disabled and only reference
@@ -1236,8 +1236,8 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (has_atomic_layout() && _payload_alignment < atomic_layout_size_in_bytes()) {
       required_alignment = atomic_layout_size_in_bytes();
     }
-    if (has_nullable_atomic_layout() && _payload_alignment < nullable_layout_size_in_bytes()) {
-      required_alignment = nullable_layout_size_in_bytes();
+    if (has_nullable_atomic_layout() && _payload_alignment < nullable_atomic_layout_size_in_bytes()) {
+      required_alignment = nullable_atomic_layout_size_in_bytes();
     }
     int shift = first_field->offset() % required_alignment;
     if (shift != 0) {
@@ -1265,8 +1265,8 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // If the inline class has a nullable layout, the layout used in heap allocated standalone
     // instances must also be the nullable layout, in order to be able to set the null marker to
     // non-null before copying the payload to other containers.
-    if (has_nullable_atomic_layout() && payload_layout_size_in_bytes() < nullable_layout_size_in_bytes()) {
-      _payload_size_in_bytes = nullable_layout_size_in_bytes();
+    if (has_nullable_atomic_layout() && payload_layout_size_in_bytes() < nullable_atomic_layout_size_in_bytes()) {
+      _payload_size_in_bytes = nullable_atomic_layout_size_in_bytes();
     }
   }
   // Warning:: InstanceMirrorKlass expects static oops to be allocated first
