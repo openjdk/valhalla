@@ -25,6 +25,7 @@
  * @test
  * @summary Smoke test for null restriction parsing
  * @library /tools/javac/lib
+ * @enablePreview
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.util
@@ -40,7 +41,6 @@ import combo.ComboTestHelper;
 
 import javax.lang.model.SourceVersion;
 import java.io.IOException;
-import java.lang.Runtime.Version;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -55,7 +55,7 @@ public class NullRestrictionReflectiveTest extends ComboInstance<NullRestriction
         NN_LIST_STRING("java.util.List<java.lang.String>!"),
         NN_TVAR("X!"),
         NN_TVAR_ARR("X[]!"),
-        NN_TVAR_ARR_ARR("T[][]!"),
+        NN_TVAR_ARR_ARR("X[][]!"),
         NN_LIST_TVAR("java.util.List<X>!");
 
         final String typeString;
@@ -83,7 +83,7 @@ public class NullRestrictionReflectiveTest extends ComboInstance<NullRestriction
 
             class Test<X> {
 
-                <Z> Z init() { return null; }
+                static <Z> Z init() { return null; }
 
                 #{TYPE} fld = init();
 
@@ -111,7 +111,7 @@ public class NullRestrictionReflectiveTest extends ComboInstance<NullRestriction
             checkType(testField.getGenericType());
 
             // check method arguments and return type
-            Method testMethod = testClass.getDeclaredMethod("meth");
+            Method testMethod = testClass.getDeclaredMethod("meth", testField.getType());
             checkType(testMethod.getGenericReturnType());
             checkType(testMethod.getGenericParameterTypes()[0]);
         } catch (ReflectiveOperationException e) {
