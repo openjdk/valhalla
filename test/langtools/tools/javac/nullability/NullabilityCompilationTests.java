@@ -54,6 +54,9 @@ import tools.javac.combo.CompilationTestCase;
 public class NullabilityCompilationTests extends CompilationTestCase {
     private static String[] PREVIEW_OPTIONS = {
             "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
+    private static String[] PREVIEW_PLUS_LINT_OPTIONS = {
+            "--enable-preview", "-source", Integer.toString(Runtime.version().feature()),
+            "-Xlint:null" };
 
     public NullabilityCompilationTests() {
         setDefaultFilename("Test.java");
@@ -61,6 +64,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
 
     enum TestResult {
         COMPILE_OK,
+        COMPILE_WITH_WARNING,
         ERROR
     }
 
@@ -77,7 +81,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         setCompileOptions(compilerOptions);
         try {
             if (testResult != TestResult.COMPILE_OK) {
-                assertFail(diagsMessage, code);
+                if (testResult == TestResult.COMPILE_WITH_WARNING) {
+                    assertOKWithWarning(diagsMessage, diagsCount, code);
+                } else {
+                    assertFail(diagsMessage, code);
+                }
             } else {
                 if (diagConsumer == null) {
                     assertOK(code);
@@ -93,6 +101,20 @@ public class NullabilityCompilationTests extends CompilationTestCase {
 
     void testList(List<DiagAndCode> testList) {
         for (DiagAndCode diagAndCode : testList) {
+            if (diagAndCode.result == Result.Clean) {
+                testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.code);
+            } else if (diagAndCode.result == Result.Warning) {
+                testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.COMPILE_WITH_WARNING, diagAndCode.code, null);
+                testHelper(PREVIEW_OPTIONS, diagAndCode.code,
+                        d -> {
+                            if (d.getKind() == Diagnostic.Kind.WARNING) {
+                                // shouldn't issue any warnings if the -Xlint:null option is not passed
+                                throw new AssertionError("unexpected warning for " + diagAndCode.code);
+                            }
+                        });
+            } else {
+                testHelper(PREVIEW_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.ERROR, diagAndCode.code, null);
+            }
             if (diagAndCode.result != Result.Error) {
                 testHelper(PREVIEW_OPTIONS, diagAndCode.code);
             } else {
@@ -101,54 +123,12 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         }
     }
 
-    enum Result { Error, Clean }
+    enum Result { Warning, Error, Clean}
 
     record DiagAndCode(String code, Result result, String diag, int diagsCount) {
         DiagAndCode(String code, Result result, String diag) {
             this(code, result, diag, 1);
         }
-    }
-
-    @Test
-    void testErrorNonNullableCantBeAssignedNull() {
-        testList(
-                List.of(
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class Foo {
-                                    Point! s = null;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.prob.found.req"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo! s = null;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.prob.found.req"),
-                        new DiagAndCode(
-                                """
-                                value class Point { }
-                                class Foo {
-                                    Point[]! s = null;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.prob.found.req"),
-                        new DiagAndCode(
-                                """
-                                class Foo {
-                                    Foo[]! s = null;
-                                }
-                                """,
-                                Result.Error,
-                                "compiler.err.prob.found.req")
-                )
-        );
     }
 
 
@@ -221,30 +201,99 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testUncheckedNullnessConversions () {
+    void testSuspiciousNullnessConversions () {
         testList(
                 List.of(
                         new DiagAndCode(
                                 """
                                 class Foo {
-                                    void m(Object! s1, String s3) {
-                                        s1 = s3;
+                                    void m() {
+                                        String! s = null;
                                     }
                                 }
                                 """,
-                                Result.Clean,
-                                ""),
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
                         new DiagAndCode(
                                 """
-                                value class Point { }
                                 class Foo {
-                                    void m(Point! s1, Point s3) {
-                                        s3 = s1;
+                                    void m() {
+                                        String[]! s = null;
                                     }
                                 }
                                 """,
-                                Result.Clean,
-                                "")
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    void m() {
+                                        String! s = (String!)null;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    void m() {
+                                        String[]! s = (String[]!)null;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    void m() {
+                                        g(null);
+                                    }
+                                    void g(String! s) { }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    void m() {
+                                        g(null);
+                                    }
+                                    void g(String[]! s) { }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    String! m() {
+                                        return null;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Foo {
+                                    String[]! m() {
+                                        return null;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.suspicious.nullness.conversion",
+                                1)
                 )
         );
     }
