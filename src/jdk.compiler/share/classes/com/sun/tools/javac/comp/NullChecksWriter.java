@@ -101,12 +101,12 @@ public class NullChecksWriter extends TreeTranslator {
     @Override
     public void visitAssign(JCAssign tree) {
         // could be null for indexed array accesses, we should deal with those later
+        super.visitAssign(tree);
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
         Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
         if (lhsSym != null &&
                 rhsSym != null &&
                 types.isNonNullable(lhsSym.type)) {
-            tree.rhs = translate(tree.rhs);
             tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
         result = tree;
@@ -114,6 +114,7 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitAssignop(JCAssignOp tree) {
+        super.visitAssignop(tree);
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
         Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
         if (lhsSym != null &&
@@ -126,8 +127,8 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     public void visitTypeCast(JCTypeCast tree) {
+        super.visitTypeCast(tree);
         if (tree.strict) {
-            tree.expr = translate(tree.expr);
             tree.expr = attr.makeNullCheck(tree.expr, true);
         }
         result = tree;
@@ -137,6 +138,7 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
+        super.visitMethodDef(tree);
         Type prevRetType = returnType;
         try {
             returnType = tree.sym.type.getReturnType();
@@ -150,7 +152,6 @@ public class NullChecksWriter extends TreeTranslator {
             if (!paramNullChecks.isEmpty()) {
                 tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
             }
-            tree.body = translate(tree.body);
             result = tree;
         } finally {
             returnType = prevRetType;
@@ -159,12 +160,12 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitReturn(JCReturn tree) {
+        super.visitReturn(tree);
         if (tree.expr != null && returnType != null && !returnType.hasTag(VOID)) {
             Symbol sym = TreeInfo.symbolFor(tree.expr);
             if (sym != null && types.isNonNullable(returnType)) {
                 tree.expr = attr.makeNullCheck(tree.expr, true);
             }
-            tree.expr = translate(tree.expr);
         }
         result = tree;
     }
