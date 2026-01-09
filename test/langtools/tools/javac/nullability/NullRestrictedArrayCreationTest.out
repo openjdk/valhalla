@@ -1,0 +1,7 @@
+NullRestrictedArrayCreationTest.java:10:18: compiler.err.restricted.array.missing.init: java.lang.String
+NullRestrictedArrayCreationTest.java:13:18: compiler.err.restricted.array.missing.init: java.lang.String
+NullRestrictedArrayCreationTest.java:17:18: compiler.err.restricted.array.missing.init: java.lang.String
+NullRestrictedArrayCreationTest.java:23:18: compiler.err.restricted.array.missing.init: java.lang.String
+- compiler.note.preview.filename: NullRestrictedArrayCreationTest.java, DEFAULT
+- compiler.note.preview.recompile
+4 errors

@@ -406,13 +406,13 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     void test1() {
                                         String[][] arr_local = null;
                                         arr_local = new String[3][4];
-                                        arr_local = new String![3][4];
+                                        arr_local = new String![][] { { "" } };
                                     }
 
                                     void test2() {
                                         String[][]! arr_local = new String[0][0];
                                         arr_local = new String[3][4];
-                                        arr_local = new String![3][4];
+                                        arr_local = new String![][] { { "" } };
                                     }
                                 }
                                 """,
