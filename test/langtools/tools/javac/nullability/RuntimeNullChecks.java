@@ -310,19 +310,15 @@ public class RuntimeNullChecks extends TestRunner {
 
         if (shouldFail) {
             // let's check that we get the expected error
-            try {
-                String output = new JavaTask(tb)
-                        .classpath(out.toString())
-                        .classArgs("Test")
-                        .vmOptions("--enable-preview")
-                        .run(Task.Expect.FAIL)
-                        .writeAll()
-                        .getOutput(Task.OutputKind.STDERR);
-                if (!output.startsWith("Exception in thread \"main\" " + expectedError.getName())) {
-                    throw new AssertionError(expectedError.getName() + " expected");
-                }
-            } catch (Throwable t) {
-                throw new AssertionError("failing for:\n" + testCode);
+            String output = new JavaTask(tb)
+                    .classpath(out.toString())
+                    .classArgs("Test")
+                    .vmOptions("--enable-preview")
+                    .run(Task.Expect.FAIL)
+                    .writeAll()
+                    .getOutput(Task.OutputKind.STDERR);
+            if (!output.startsWith("Exception in thread \"main\" " + expectedError.getName())) {
+                throw new AssertionError(expectedError.getName() + " expected");
             }
         } else {
             new JavaTask(tb)
