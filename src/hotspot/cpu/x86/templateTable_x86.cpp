@@ -2645,7 +2645,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   const Address field(obj, off, Address::times_1, 0*wordSize);
 
-  Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj, notInlineType;
+  Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj;
 
   // Make sure we don't need to mask edx after the above shift
   assert(btos == 0, "change code, btos != 0");
@@ -2665,8 +2665,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ bind(notByte);
   __ cmpl(tos_state, ztos);
   __ jcc(Assembler::notEqual, notBool);
-   if (!is_static) pop_and_check_object(obj);
+
   // ztos (same code as btos)
+  if (!is_static) pop_and_check_object(obj);
   __ access_load_at(T_BOOLEAN, IN_HEAP, rax, field, noreg);
   __ push(ztos);
   // Rewrite bytecode to be faster
@@ -2917,7 +2918,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   const Address field(obj, off, Address::times_1, 0*wordSize);
 
   Label notByte, notBool, notInt, notShort, notChar,
-        notLong, notFloat, notObj, notInlineType;
+        notLong, notFloat, notObj;
   Label Done;
 
   const Register bc    = c_rarg3;
@@ -3139,7 +3140,7 @@ void TemplateTable::jvmti_post_fast_field_mod() {
     // to do it for every data type, we use the saved values as the
     // jvalue object.
     switch (bytecode()) {          // load values into the jvalue object
-    case Bytecodes::_fast_vputfield: //fall through
+    case Bytecodes::_fast_vputfield: // fall through
     case Bytecodes::_fast_aputfield: __ push_ptr(rax); break;
     case Bytecodes::_fast_bputfield: // fall through
     case Bytecodes::_fast_zputfield: // fall through
