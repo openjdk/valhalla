@@ -36,3 +36,6 @@ java/util/Map/MapBinToFromTreeTest.java                            8373878 linux
 java/util/NavigableMap/LockStep.java                               8372824 generic-all
 java/util/Collections/CheckedSetBash.java                          8372824 generic-all
 com/sun/jdi/EATests.java#id0                                       8372831 generic-all
+jdk/jfr/event/oldobject/TestReferenceChainLimit.java               8374950 generic-all
+jdk/jfr/event/oldobject/TestLargeRootSet.java                      8374950 generic-all
+jdk/jfr/event/oldobject/TestHeapDeep.java                          8374950 generic-all
