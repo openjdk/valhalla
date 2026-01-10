@@ -4203,9 +4203,12 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
       assert(C->flat_accesses_share_alias(), "should be set at parse time");
       const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
       int            elemidx  = C->get_alias_index(telemref);
-      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
+      const TypePtr* alias_adr_type = C->get_adr_type(elemidx);
+      if (alias_adr_type->is_flat()) {
+        C->set_flat_accesses();
+      }
+      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, alias_adr_type)));
     } else if (oop_type->isa_instptr()) {
-      set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
         ciField* field = ik->nonstatic_field_at(i);
