@@ -67,7 +67,8 @@ InlineKlass::Members::Members()
     _non_atomic_size_in_bytes(-1),
     _non_atomic_alignment(-1),
     _atomic_size_in_bytes(-1),
-    _nullable_size_in_bytes(-1),
+    _nullable_atomic_size_in_bytes(-1),
+    _nullable_non_atomic_size_in_bytes(-1),
     _null_marker_offset(-1) {
 }
 
@@ -143,6 +144,10 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return nullable_non_atomic_size_in_bytes();
+      break;
     case LayoutKind::BUFFERED:
       return payload_size_in_bytes();
       break;
@@ -165,6 +170,10 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return non_atomic_alignment();
+    break;
     case LayoutKind::BUFFERED:
       return payload_alignment();
       break;
@@ -184,6 +193,9 @@ bool InlineKlass::is_layout_supported(LayoutKind lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return has_nullable_atomic_layout();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      return has_nullable_non_atomic_layout();
+      break;
     case LayoutKind::BUFFERED:
       return true;
       break;
@@ -196,6 +208,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(is_layout_supported(lk), "Unsupported layout");
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)src)) {
         // copy null_reset value to dest
@@ -234,6 +247,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
         return nullptr;

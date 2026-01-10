@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@
 FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
                 ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
+  assert(lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT, "Layout not supported by arrays yet (needs frozen arrays)");
   assert(LayoutKindHelper::is_flat(lk), "Must be a flat layout");
 
   set_element_klass(InlineKlass::cast(element_klass));
@@ -83,6 +84,8 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
       assert(!layout_helper_is_null_free(layout_helper()), "Must be");
       assert(!prototype_header().is_null_free_array(), "Must be");
     break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
     break;

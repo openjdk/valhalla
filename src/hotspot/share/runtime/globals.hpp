@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -836,6 +836,9 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, UseAtomicValueFlattening, true,                             \
           "Allow the JVM to flatten some atomic values")                    \
+                                                                            \
+  product(bool, UseNullableNonAtomicValueFlattening, false,                 \
+           "Allow the JVM to flatten some strict final non-static fields")  \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
