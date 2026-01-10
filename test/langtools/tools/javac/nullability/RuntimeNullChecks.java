@@ -109,6 +109,17 @@ public class RuntimeNullChecks extends TestRunner {
                 """,
                 """
                 class Test {
+                    void m(String someObject) {
+                        String! x = "foo";
+                        x = (String)someObject;
+                    }
+                    public static void main(String... args) {
+                        new Test().m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
                     public static void main(String... args) {
                         String s = null;
                         String! o;
