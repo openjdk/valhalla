@@ -95,9 +95,6 @@ compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
 compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
-compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
-compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
-compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
 compiler/valhalla/inlinetypes/TestTrivialMethods.java 8373692 generic-all
 compiler/c2/cmove/TestScalarConditionalMoveCmpObj.java    8374122 generic-all
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
