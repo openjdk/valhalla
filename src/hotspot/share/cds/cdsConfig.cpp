@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,7 +148,7 @@ const char* CDSConfig::default_archive_path() {
     }
 #endif
     if (Arguments::is_valhalla_enabled()) {
-      tmp.print_raw("_valhalla");
+      tmp.print_raw("_preview");
     }
     tmp.print_raw(".jsa");
     _default_archive_path = os::strdup(tmp.base());

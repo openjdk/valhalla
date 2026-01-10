@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -55,7 +55,7 @@
  * @requires vm.cds.default.archive.available
  * @requires vm.cds.write.archived.java.heap
  * @requires vm.bits == 64
- * @requires !vm.gc.Z
+ * @requires vm.gc != "Z"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -69,7 +69,7 @@
  * @requires vm.cds.default.archive.available
  * @requires vm.cds.write.archived.java.heap
  * @requires vm.bits == 64
- * @requires !vm.gc.Z
+ * @requires vm.gc != "Z"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -87,8 +87,10 @@ import jtreg.SkippedException;
 
 public class TestDefaultArchiveLoading {
 
+    static String archivePreviewSuffix = "";
+
     private static String archiveName(String archiveSuffix) {
-        return "classes" + archiveSuffix + ".jsa";
+        return "classes" + archiveSuffix + archivePreviewSuffix + ".jsa";
     }
 
     private static Path archivePath(String archiveSuffix) {
@@ -110,6 +112,10 @@ public class TestDefaultArchiveLoading {
 
         String archiveSuffix;
         char coh, coops;
+        String preview = System.getProperty("test.java.opts", "");
+        if (preview.contains("--enable-preview")) {
+            archivePreviewSuffix = "_preview";
+        }
 
         switch (args[0]) {
             case "nocoops_nocoh":
