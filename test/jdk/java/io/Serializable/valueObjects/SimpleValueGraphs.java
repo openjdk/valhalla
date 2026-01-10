@@ -235,9 +235,9 @@ public class SimpleValueGraphs implements Serializable {
             this.i = i;
         }
 
-        public boolean equals(Object obj) {
-            if (obj instanceof SimpleValue simpleValue) {
-                return (i == simpleValue.i && Objects.equals(this.obj, simpleValue.obj));
+        public boolean equals(Object other) {
+            if (other instanceof SimpleValue simpleValue) {
+                return (i == simpleValue.i && Objects.equals(obj, simpleValue.obj));
             }
             return false;
         }
