@@ -71,7 +71,8 @@ public class StableRefFinalTest {
 
     @Test
     @IR(counts = { IRNode.LOAD, ">0" })
-    @IR(failOn = { IRNode.MEMBAR })
+    @IR(applyIf = {"enable-valhalla", "false"}, failOn = { IRNode.MEMBAR })
+    @IR(applyIf = {"enable-valhalla", "true"}, counts = { IRNode.MEMBAR, ">0" })
     static int testNoFold() {
         // Access should not be folded.
         // No barriers expected for plain fields.

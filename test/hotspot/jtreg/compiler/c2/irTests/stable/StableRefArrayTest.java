@@ -112,10 +112,10 @@ public class StableRefArrayTest {
 
     @Test
     @IR(counts = { IRNode.LOAD, ">0" })
-    @IR(failOn = { IRNode.MEMBAR })
+    @IR(applyIf = {"enable-valhalla", "false"}, failOn = { IRNode.MEMBAR })
+    @IR(applyIf = {"enable-valhalla", "true"}, counts = { IRNode.MEMBAR, "> 0" })
     static int testPartialFold() {
         // Access should not be folded.
-        // No barriers expected for plain fields.
         Integer[] is = INIT_EMPTY_CARRIER.field;
         if (is != null) {
             Integer i = is[0];
