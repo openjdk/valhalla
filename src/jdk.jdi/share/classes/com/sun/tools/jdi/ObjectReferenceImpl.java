@@ -147,11 +147,22 @@ public class ObjectReferenceImpl extends ValueImpl
 
     public boolean equals(Object obj) {
         if (obj instanceof ObjectReferenceImpl other) {
-            return (ref() == other.ref()) &&
-                    super.equals(obj);
-        } else {
-            return false;
+            if (!super.equals(obj)) { // checks if the references belong to the same VM
+                return false;
+            }
+            if (ref() == other.ref()) {
+                return true;
+            }
+            // We can get equal value objects with different IDs.
+            if (((ReferenceTypeImpl)referenceType()).isInlined()) {
+                try {
+                    return JDWP.ObjectReference.IsSameObject.process(vm, this, other).isSameObject;
+                } catch (JDWPException exc) {
+                    throw exc.toJDIException();
+                }
+            }
         }
+        return false;
     }
 
     @Override
