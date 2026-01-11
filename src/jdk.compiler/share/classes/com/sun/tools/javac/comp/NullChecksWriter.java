@@ -163,4 +163,10 @@ public class NullChecksWriter extends TreeTranslator {
         }
         result = tree;
     }
+
+    @Override
+    public void visitLetExpr(LetExpr tree) {
+        // don't recurse inside let expressions, they are backend artifacts
+        result = tree;
+    }
 }
