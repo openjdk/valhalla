@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -35,3 +35,7 @@ java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java            8372745 gener
 java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64
 java/util/NavigableMap/LockStep.java                               8372824 generic-all
 java/util/Collections/CheckedSetBash.java                          8372824 generic-all
+com/sun/jdi/EATests.java#id0                                       8372831 generic-all
+jdk/jfr/event/oldobject/TestReferenceChainLimit.java               8374950 generic-all
+jdk/jfr/event/oldobject/TestLargeRootSet.java                      8374950 generic-all
+jdk/jfr/event/oldobject/TestHeapDeep.java                          8374950 generic-all
