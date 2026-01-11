@@ -25,7 +25,12 @@
 
 package java.lang.reflect;
 
+import jdk.internal.javac.PreviewFeature;
+import jdk.internal.javac.PreviewFeature.Feature;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.value.ValueClass;
+
+import java.util.Objects;
 
 /**
  * The {@code Array} class provides static methods to dynamically create and
@@ -110,6 +115,62 @@ class Array {
     public static Object newInstance(Class<?> componentType, int... dimensions)
         throws IllegalArgumentException, NegativeArraySizeException {
         return multiNewArray(componentType, dimensions);
+    }
+
+    private static final int NULL_CHECKED = 0x0200;
+
+    /**
+     * Creates a new array with the specified component type, modifiers, and
+     * length, whose elements are copied from the provided source array.
+     *
+     * <p>The number of dimensions of the new array must not
+     * exceed 255.
+     *
+     * @param  componentType the {@code Class} object representing the
+     *         component type of the new array
+     * @param  modifiers the modifiers of the new array
+     * @param  length the length of the new array
+     * @param  sourceArray the source array from which the elements are copied
+     * @param  sourceOffset the offset from which elements in the source array are copied
+     * @return the new array
+     * @throws NullPointerException if the specified
+     *         {@code componentType} or {@code sourceArray} parameter is null,
+     *         or if the new array is null-checked and a component of
+     *         {@code sourceArray} cannot be stored into the new array because
+     *         it is null
+     * @throws IllegalArgumentException if {@code componentType} is {@link Void#TYPE}
+     *         or if the number of dimensions of the requested array instance
+     *         exceed 255.
+     * @throws IndexOutOfBoundsException if {@code sourceOffset} or
+     *         {@code sourceOffset + length} is not a valid index in
+     *         {@code sourceArray}.
+     * @throws ArrayStoreException if a component of {@code sourceArray} cannot
+     *         be stored into the new array because of a type mismatch.
+     * @throws NegativeArraySizeException if {@code length < 0}
+     */
+    @PreviewFeature(feature = Feature.VALUE_OBJECTS)
+    public static Object newInstance(Class<?> componentType, int modifiers, int length,
+                              Object sourceArray, int sourceOffset) {
+        // modifiers may be ignored for now
+        if (length < 0) {
+            throw new NegativeArraySizeException("length must be >= 0");
+        }
+        Objects.requireNonNull(componentType);
+        Objects.requireNonNull(sourceArray);
+        int sourceLength = getLength(sourceArray);
+        Objects.checkFromIndexSize(sourceOffset, length, sourceLength);
+        Object newArray;
+        if ((modifiers & NULL_CHECKED) != 0 &&
+            length > 0 &&
+            componentType.isValue() &&
+            Modifier.isFinal(componentType.getModifiers())) {
+            newArray = ValueClass.newNullRestrictedAtomicArray(
+                        componentType, length, get(sourceArray, 0));
+        } else {
+            newArray = newInstance(componentType, length);
+        }
+        System.arraycopy(sourceArray, sourceOffset, newArray, 0, length);
+        return newArray;
     }
 
     /**
@@ -474,16 +535,6 @@ class Array {
      */
     public static native void setDouble(Object array, int index, double d)
         throws IllegalArgumentException, ArrayIndexOutOfBoundsException;
-
-    /**
-     * Get the {@code RuntimeType} enforced on components of an array.
-     *
-     * @param array the array
-     * @return the {@code RuntimeType} of the components of {@code array}
-     */
-    public static RuntimeType<?> componentType(Object array) {
-        return array.getClass().getComponentType();
-    }
 
     /*
      * Private

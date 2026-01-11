@@ -340,6 +340,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         /** unary operator for null reference checks, only used internally.
          */
         NULLCHK,
+        /** unary operator for null reference checks, only used internally
+         *  for null restricted types
+         */
+        NULLRESTRICTEDCHK,
 
         /** Binary operators, of type Binary.
          */
@@ -1974,6 +1978,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         // type annotations on dimensions
         public List<List<JCAnnotation>> dimAnnotations;
         public List<JCExpression> elems;
+        public boolean strict = false;
         protected JCNewArray(JCExpression elemtype,
                              List<JCExpression> dims,
                              List<JCExpression> elems)
@@ -2258,6 +2263,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     public static class JCTypeCast extends JCExpression implements TypeCastTree {
         public JCTree clazz;
         public JCExpression expr;
+        public boolean strict = false;
         protected JCTypeCast(JCTree clazz, JCExpression expr) {
             this.clazz = clazz;
             this.expr = expr;

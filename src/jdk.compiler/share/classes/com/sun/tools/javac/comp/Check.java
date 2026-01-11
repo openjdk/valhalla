@@ -267,6 +267,16 @@ public class Check {
         log.warning(pos, warnKey);
     }
 
+    /** Warn about operation with bang types.
+     *  @param pos        Position to be used for error reporting.
+     *  @param warnKey    A warning key.
+     */
+    public void warnNullableTypes(DiagnosticPosition pos, LintWarning warnKey) {
+        if (allowNullRestrictedTypes) {
+            log.warning(pos, warnKey);
+        }
+    }
+
     /** Report a failure to complete a class.
      *  @param pos        Position to be used for error reporting.
      *  @param ex         The failure to report.
@@ -4440,6 +4450,9 @@ public class Check {
                             !types.isReifiable(method.type.getParameterTypes().last())) {
                         log.warning(pos(), LintWarnings.VarargsUnsafeUseVarargsParam(method.params.last()));
                     }
+                    break;
+                case NULL:
+                    Check.this.warnNullableTypes(pos(), LintWarnings.SuspiciousNullnessConversion(expected, found));
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);

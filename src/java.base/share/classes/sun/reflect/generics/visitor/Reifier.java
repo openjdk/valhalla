@@ -79,6 +79,13 @@ public class Reifier implements TypeTreeVisitor<Type> {
      */
     public Type getResult() { assert resultType != null;return resultType;}
 
+    @Override
+    public void visitNullRestrictedTypeSignature(NullRestrictedTypeSignature nt) {
+        nt.getBaseType().accept(this);
+        Type baseType = resultType;
+        resultType = getFactory().makeNullRestrictedType(baseType);
+    }
+
     public void visitFormalTypeParameter(FormalTypeParameter ftp){
         resultType = getFactory().makeTypeVariable(ftp.getName(),
                                                    ftp.getBounds());

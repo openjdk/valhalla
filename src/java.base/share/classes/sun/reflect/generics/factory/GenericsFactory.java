@@ -25,6 +25,7 @@
 
 package sun.reflect.generics.factory;
 
+import java.lang.reflect.NullRestrictedType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -59,6 +60,14 @@ public interface GenericsFactory {
      */
     TypeVariable<?> makeTypeVariable(String name,
                                      FieldTypeSignature[] bounds);
+
+    /**
+     * {@return an instance of the {@code NullRestrictedType} interface
+     * that corresponds to a null restricted projection of a given base type}
+     * @param baseType the base type
+     */
+    NullRestrictedType makeNullRestrictedType(Type baseType);
+
     /**
      * Returns an instance of the {@code ParameterizedType} interface
      * that corresponds to a generic type instantiation of the

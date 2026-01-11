@@ -60,7 +60,7 @@
 class defValBadCP {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -262,7 +262,7 @@ class defValBadMajorVersion {
 class defValWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -363,7 +363,7 @@ class defValWrongCPType {
 class wthFldBadCP {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -454,7 +454,7 @@ class wthFldBadCP {
 class wthFldBadFldVal {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -544,7 +544,7 @@ class wthFldBadFldVal {
 class wthFldBadFldRef {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -736,7 +736,7 @@ class wthFldBadMajorVersion {
 class wthFldWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -827,7 +827,7 @@ class wthFldWrongCPType {
 class defValueObj {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #23; // #1     at 0x0A
@@ -1051,7 +1051,7 @@ class defValueObj {
 class withfieldL {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [28] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1233,7 +1233,7 @@ class withfieldL {
 class NoNullVT {
   0xCAFEBABE;
   0; // minor version
-  70; // version
+  71; // version
   [63] { // Constant Pool
     ; // first element is empty
     class #36; // #1     at 0x0A

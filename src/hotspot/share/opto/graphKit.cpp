@@ -25,6 +25,7 @@
 #include "asm/register.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciMethod.hpp"
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.hpp"
 #include "classfile/javaClasses.hpp"
@@ -43,6 +44,7 @@
 #include "opto/intrinsicnode.hpp"
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
+#include "opto/multnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
@@ -1877,32 +1879,37 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   return basic_plus_adr(ary, base, scale);
 }
 
-Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_free, bool is_not_null_free, bool is_atomic) {
-  assert(vk->maybe_flat_in_array(), "element of type %s cannot be flat in array", vk->name()->as_utf8());
-  if (!vk->has_nullable_atomic_layout()) {
+Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
+  assert(elem_vk->maybe_flat_in_array(), "no flat array for %s", elem_vk->name()->as_utf8());
+  if (!elem_vk->has_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
+    return cast_to_flat_array_exact(array, elem_vk, true, false);
+  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+    return cast_to_flat_array_exact(array, elem_vk, true, true);
+  } else if (!elem_vk->has_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+    return cast_to_flat_array_exact(array, elem_vk, false, true);
+  }
+
+  bool is_null_free = false;
+  if (!elem_vk->has_nullable_atomic_layout()) {
     // Element does not have a nullable flat layout, cannot be nullable
     is_null_free = true;
   }
-  if (!vk->has_atomic_layout() && !vk->has_non_atomic_layout()) {
-    // Element does not have a null-free flat layout, cannot be null-free
-    is_not_null_free = true;
-  }
-  if (is_null_free) {
-    // TODO 8350865 Impossible type
-    is_not_null_free = false;
-  }
 
-  bool is_exact = is_null_free || is_not_null_free;
-  ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
-  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
-  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
+  ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, false);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-  arytype = arytype->cast_to_exactness(is_exact);
-  arytype = arytype->cast_to_not_null_free(is_not_null_free);
+  arytype = arytype->cast_to_flat(true)->cast_to_null_free(is_null_free);
+  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+}
+
+Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic) {
+  assert(is_null_free || is_atomic, "nullable arrays must be atomic");
+  ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, true, is_null_free, is_atomic);
+  const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+  assert(arytype->klass_is_exact(), "inconsistency");
+  assert(arytype->is_flat(), "inconsistency");
   assert(arytype->is_null_free() == is_null_free, "inconsistency");
-  assert(arytype->is_not_null_free() == is_not_null_free, "inconsistency");
-  assert(arytype->is_atomic() == is_atomic, "inconsistency");
-  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+  assert(arytype->is_not_null_free() == !is_null_free, "inconsistency");
+  return _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
 }
 
 //-------------------------load_array_element-------------------------
@@ -2033,45 +2040,52 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       IdealKit ideal(this);
       IdealVariable res(ideal);
       ideal.declarations_done();
-      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
-        // Return value is null
-        ideal.set(res, makecon(TypePtr::NULL_PTR));
-      } ideal.else_(); {
-        // Return value is non-null
-        sync_kit(ideal);
+      // Change return type of call to scalarized return
+      const TypeFunc* tf = call->_tf;
+      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+      call->_tf = new_tf;
+      _gvn.set_type(call, call->Value(&_gvn));
+      _gvn.set_type(ret, ret->Value(&_gvn));
+      // Don't add store to buffer call if we are strength reducing
+      if (!C->strength_reduction()) {
+        ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+          // Return value is null
+          ideal.set(res, makecon(TypePtr::NULL_PTR));
+        } ideal.else_(); {
+          // Return value is non-null
+          sync_kit(ideal);
 
-        // Change return type of call to scalarized return
-        const TypeFunc* tf = call->_tf;
-        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
-        call->_tf = new_tf;
-        _gvn.set_type(call, call->Value(&_gvn));
-        _gvn.set_type(ret, ret->Value(&_gvn));
+          Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                      OptoRuntime::store_inline_type_fields_Type(),
+                                                      StubRoutines::store_inline_type_fields_to_buf(),
+                                                      nullptr, TypePtr::BOTTOM, ret);
 
-        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                                    OptoRuntime::store_inline_type_fields_Type(),
-                                                    StubRoutines::store_inline_type_fields_to_buf(),
-                                                    nullptr, TypePtr::BOTTOM, ret);
-
-        // We don't know how many values are returned. This assumes the
-        // worst case, that all available registers are used.
-        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-          if (domain->field_at(i) == Type::HALF) {
-            store_to_buf_call->init_req(i, top());
-            continue;
+          // We don't know how many values are returned. This assumes the
+          // worst case, that all available registers are used.
+          for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+            if (domain->field_at(i) == Type::HALF) {
+              store_to_buf_call->init_req(i, top());
+              continue;
+            }
+            Node* proj =_gvn.transform(new ProjNode(call, i));
+            store_to_buf_call->init_req(i, proj);
           }
+          make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+
+          Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+          const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+          buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
+
+          ideal.set(res, buf);
+          ideal.sync_kit(this);
+        } ideal.end_if();
+      } else {
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
           Node* proj =_gvn.transform(new ProjNode(call, i));
-          store_to_buf_call->init_req(i, proj);
         }
-        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
-
-        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
-        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
-        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
-
-        ideal.set(res, buf);
-        ideal.sync_kit(this);
-      } ideal.end_if();
+        ideal.set(res, ret);
+      }
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
     }
@@ -2212,9 +2226,19 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   if (callprojs->resproj[0] != nullptr && result != nullptr) {
     // If the inlined code is dead, the result projections for an inline type returned as
     // fields have not been replaced. They will go away once the call is replaced by TOP below.
-    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()),
+    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()) ||
+           (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()),
            "unexpected number of results");
-    C->gvn_replace_by(callprojs->resproj[0], result);
+    // If we are doing strength reduction and the return type is not loaded we
+    // need to rewire all projections since store_inline_type_fields_to_buf is already present
+    if (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()) {
+      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+      for (uint i = TypeFunc::Parms; i < domain->cnt(); i++) {
+        C->gvn_replace_by(callprojs->resproj[0], final_state->in(i));
+      }
+    } else {
+      C->gvn_replace_by(callprojs->resproj[0], result);
+    }
   }
 
   if (ejvms == nullptr) {
@@ -2737,7 +2761,8 @@ Node* GraphKit::make_runtime_call(int flags,
     uint num_bits = call_type->range_sig()->field_at(TypeFunc::Parms)->is_vect()->length_in_bytes() * BitsPerByte;
     call = new CallLeafVectorNode(call_type, call_addr, call_name, adr_type, num_bits);
   } else if (flags & RC_PURE) {
-    call = new CallLeafPureNode(call_type, call_addr, call_name, adr_type);
+    assert(adr_type == nullptr, "pure call does not touch memory");
+    call = new CallLeafPureNode(call_type, call_addr, call_name);
   } else {
     call = new CallLeafNode(call_type, call_addr, call_name, adr_type);
   }
@@ -4171,34 +4196,14 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     int klass_idx = C->get_alias_index(oop_type->add_offset(oopDesc::klass_offset_in_bytes()));
     set_memory(_gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(klass_idx))), klass_idx);
     if (oop_type->isa_aryptr()) {
-      const TypeAryPtr* arytype = oop_type->is_aryptr();
-      if (arytype->is_flat()) {
-        // Initially all flat array accesses share a single slice
-        // but that changes after parsing. Prepare the memory graph so
-        // it can optimize flat array accesses properly once they
-        // don't share a single slice.
-        assert(C->flat_accesses_share_alias(), "should be set at parse time");
-        C->set_flat_accesses_share_alias(false);
-        ciInlineKlass* vk = arytype->elem()->inline_klass();
-        for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
-          ciField* field = vk->nonstatic_field_at(i);
-          if (field->offset_in_bytes() >= TrackedInitializationLimit * HeapWordSize)
-            continue;  // do not bother to track really large numbers of fields
-          int off_in_vt = field->offset_in_bytes() - vk->payload_offset();
-          const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
-          int fieldidx = C->get_alias_index(adr_type, true);
-          // Pass nullptr for init_out. Having per flat array element field memory edges as uses of the Initialize node
-          // can result in per flat array field Phis to be created which confuses the logic of
-          // Compile::adjust_flat_array_access_aliases().
-          hook_memory_on_init(*this, fieldidx, minit_in, nullptr);
-        }
-        C->set_flat_accesses_share_alias(true);
-        hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::INLINES), minit_in, minit_out);
-      } else {
-        const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
-        int            elemidx  = C->get_alias_index(telemref);
-        hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
-      }
+      // Initially all flat array accesses share a single slice
+      // but that changes after parsing. Prepare the memory graph so
+      // it can optimize flat array accesses properly once they
+      // don't share a single slice.
+      assert(C->flat_accesses_share_alias(), "should be set at parse time");
+      const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
+      int            elemidx  = C->get_alias_index(telemref);
+      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
     } else if (oop_type->isa_instptr()) {
       set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
@@ -4680,7 +4685,7 @@ Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
                                                      false, nullptr, Type::Offset(0));
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
   const TypeAryPtr* value_type = TypeAryPtr::make(TypePtr::NotNull,
-                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, false, true, true),
+                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, false, true, true, true),
                                                   ciTypeArrayKlass::make(T_BYTE), true, Type::Offset(0));
   Node* p = basic_plus_adr(str, str, value_offset);
   Node* load = access_load_at(str, p, value_field_type, value_type, T_OBJECT,
@@ -4838,15 +4843,6 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
     return con;
   }
   return nullptr;
-}
-
-//---------------------------load_mirror_from_klass----------------------------
-// Given a klass oop, load its java mirror (a java.lang.Class oop).
-Node* GraphKit::load_mirror_from_klass(Node* klass) {
-  Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
-  Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
-  // mirror = ((OopHandle)mirror)->resolve();
-  return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
 }
 
 Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {

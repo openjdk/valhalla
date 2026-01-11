@@ -450,6 +450,7 @@ public class SignatureParser {
     /**
      * TypeSignature:
      *     FieldTypeSignature
+     *     NullRestrictedType
      *     BaseType
      */
     private TypeSignature parseTypeSignature() {
@@ -463,6 +464,9 @@ public class SignatureParser {
         case 'S':
         case 'Z':
             return parseBaseType();
+
+        case '!':
+            return parseNullRestrictedTypeSignature();
 
         default:
             return parseFieldTypeSignature();
@@ -501,6 +505,13 @@ public class SignatureParser {
         }
         }
     }
+
+    private NullRestrictedTypeSignature parseNullRestrictedTypeSignature() {
+        advance();
+        FieldTypeSignature restrictedType = parseFieldTypeSignature();
+        return NullRestrictedTypeSignature.make(restrictedType);
+    }
+
 
     /**
      * ClassBound:
@@ -586,6 +597,7 @@ public class SignatureParser {
             case 'S':
             case 'Z':
             case 'L':
+            case '!':
             case 'T':
             case '[': {
                 ts.add(parseTypeSignature());

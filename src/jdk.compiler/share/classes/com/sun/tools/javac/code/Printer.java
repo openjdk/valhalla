@@ -31,6 +31,7 @@ import com.sun.tools.javac.api.Messages;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 
@@ -237,17 +238,16 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
             buf.append('.');
             buf.append(printAnnotations(t));
             buf.append(className(t, false, locale));
-            buf.append(nullMarker(t));
         } else {
             buf.append(printAnnotations(t));
             buf.append(className(t, true, locale));
-            buf.append(nullMarker(t));
         }
         if (t.getTypeArguments().nonEmpty()) {
             buf.append('<');
             buf.append(visitTypes(t.getTypeArguments(), locale));
             buf.append('>');
         }
+        buf.append(nullMarker(t));
         return buf.toString();
     }
 

@@ -65,10 +65,10 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
  * @library /test/jdk/tools/lib
  *          /test/lib
  * @build tests.*
- * @run junit/othervm -esa -DDISABLE_PREVIEW_PATCHING=true ImageReaderTest
+ * @run junit/othervm -esa ImageReaderTest
  */
 
-/// Using PER_CLASS lifecycle means the (expensive) image file is only build once.
+/// Using PER_CLASS lifecycle means the (expensive) image file is only built once.
 /// There is no mutable test instance state to worry about.
 @TestInstance(PER_CLASS)
 public class ImageReaderTest {
