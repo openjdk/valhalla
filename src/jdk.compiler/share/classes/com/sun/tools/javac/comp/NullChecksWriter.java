@@ -98,22 +98,7 @@ public class NullChecksWriter extends TreeTranslator {
         // could be null for indexed array accesses, we should deal with those later
         super.visitAssign(tree);
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
-        Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
         if (lhsSym != null &&
-                rhsSym != null &&
-                types.isNonNullable(lhsSym.type)) {
-            tree.rhs = attr.makeNullCheck(tree.rhs, true);
-        }
-        result = tree;
-    }
-
-    @Override
-    public void visitAssignop(JCAssignOp tree) {
-        super.visitAssignop(tree);
-        Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
-        Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
-        if (lhsSym != null &&
-                rhsSym != null &&
                 types.isNonNullable(lhsSym.type)) {
             tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
