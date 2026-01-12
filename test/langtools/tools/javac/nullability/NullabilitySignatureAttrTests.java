@@ -80,91 +80,40 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     }
                     """,
                     "!Ljava/lang/String;"
-            )/*,
+            ),
+            new SignatureData( // case 1
+                    """
+                    import java.util.*;
+                    class Test {
+                        List<Test>! t = new ArrayList<>();
+                    }
+                    """,
+                    "!Ljava/util/List<LTest;>;"
+            ),
             new SignatureData( // case 2
-                    """
-                    import java.util.*;
-                    class Test {
-                        List<Test!> t;
-                    }
-                    """,
-                    "Ljava/util/List<LTest!;>;"
-            ),
-            new SignatureData( // case 3
-                    """
-                    import java.util.*;
-                    class Test {
-                        List<Test?> t;
-                    }
-                    """,
-                    "Ljava/util/List<LTest?;>;"
-            ),
-            new SignatureData( // case 4
-                    """
-                    import java.util.*;
-                    class Test {
-                        List!<Test!> t = new ArrayList<>();
-                    }
-                    """,
-                    "Ljava/util/List<LTest!;>!;"
-            ),
-            new SignatureData( // case 5
-                    """
-                    import java.util.*;
-                    class Test {
-                        List?<Test?> t;
-                    }
-                    """,
-                    "Ljava/util/List<LTest?;>?;"
-            ),
-            new SignatureData( // case 6
                     """
                     class Test<T> {
                         T! t = (T)new Object();
                     }
                     """,
-                    "TT!;"
+                    "!TT;"
             ),
-            new SignatureData( // case 7
-                    """
-                    class Test<T> {
-                        T? t;
-                    }
-                    """,
-                    "TT?;"
-            ),
-            new SignatureData( // case 8
-                    """
-                    class Test {
-                        String[]? t;
-                    }
-                    """,
-                    "[Ljava/lang/String;"
-            ),
-            new SignatureData( // case 9
+            new SignatureData( // case 3
                     """
                     class Test {
                         String[]! t = {""};
                     }
                     """,
-                    "[Ljava/lang/String;"
+                    "![Ljava/lang/String;"
             ),
-            new SignatureData( // case 10
+            new SignatureData( // case 4
                     """
                     class Test {
-                        String![]? t;
+                        String[][]! t = {{""}};
                     }
                     """,
-                    "[Ljava/lang/String!;"
-            ),
-            new SignatureData( // case 11
-                    """
-                    class Test {
-                        String?[]![]? t = {{""}};
-                    }
-                    """,
-                    "[[Ljava/lang/String?;"
-            )*/
+                    "![[Ljava/lang/String;"
+            )
     );
 
     @Test
@@ -182,45 +131,8 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
         }
     }
 
-    /*
     record SepCompilationData(String clientSrc, String serverSrc, List<String> sourceExpectedWarnings, List<String> sepCompExpectedWarnings) {}
     final List<SepCompilationData> sepCompilationDataList = List.of(
-            new SepCompilationData(  // case 0
-                    """
-                    class Client {
-                        static Integer! a = Server.b;
-                    }
-                    """,
-                    """
-                    class Server {
-                        public static Integer? b;
-                    }
-                    """,
-                    List.of("Client.java:2:31: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
-                    List.of("Client.java:2:31: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning")
-            ),
-            new SepCompilationData(  // case 1
-                    """
-                    class Client {
-                        static Integer! a = Server.b;
-                    }
-                    """,
-                    """
-                    class Server {
-                        public static Integer b;
-                    }
-                    """,
-                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile"),
-                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile")
-            ),
             new SepCompilationData(  // case 2
                     """
                     class Client {
@@ -236,7 +148,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                             "- compiler.note.preview.recompile"),
                     List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile")
-            ),
+            )/*,
             new SepCompilationData( // case 3
                     """
                     import java.util.*;
@@ -451,7 +363,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     """,
                     List.of(""),
                     List.of("")
-            )
+            )*/
     );
 
     @Test
@@ -494,5 +406,5 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             tb.deleteFiles(out.resolve("Client.class"));
             tb.deleteFiles(out.resolve("Server.class"));
         }
-    }*/
+    }
 }
