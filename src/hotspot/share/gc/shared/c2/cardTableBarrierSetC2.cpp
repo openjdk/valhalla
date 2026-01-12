@@ -65,10 +65,11 @@ Node* CardTableBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& 
   GraphKit* kit = parse_access.kit();
   if (vt != nullptr) {
     for (uint i = 0; i < vt->field_count(); ++i) {
-      ciType* type = vt->field_type(i);
+      ciField* field = vt->field(i);
+      ciType* type = field->type();
       if (!type->is_primitive_type()) {
         ciInlineKlass* vk = vt->bottom_type()->inline_klass();
-        int field_offset = vt->field_offset(i) - vk->payload_offset();
+        int field_offset = field->offset_in_bytes() - vk->payload_offset();
         Node* value = vt->field_value(i);
         Node* field_adr = kit->basic_plus_adr(access.base(), adr, field_offset);
         post_barrier(kit, access.base(), field_adr, value, use_precise);
