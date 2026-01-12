@@ -141,8 +141,7 @@ public class NullChecksWriter extends TreeTranslator {
     public void visitReturn(JCReturn tree) {
         super.visitReturn(tree);
         if (tree.expr != null && returnType != null && !returnType.hasTag(VOID)) {
-            Symbol sym = TreeInfo.symbolFor(tree.expr);
-            if (sym != null && types.isNonNullable(returnType)) {
+            if (types.isNonNullable(returnType)) {
                 tree.expr = attr.makeNullCheck(tree.expr, true);
             }
         }
