@@ -167,7 +167,11 @@ public class ObjectReferenceImpl extends ValueImpl
 
     @Override
     public int hashCode() {
-        return Long.hashCode(ref());
+        try {
+            return JDWP.ObjectReference.ObjectHashCode.process(vm, this).hashCode;
+        } catch (JDWPException exc) {
+            throw exc.toJDIException();
+        }
     }
 
     public Type type() {

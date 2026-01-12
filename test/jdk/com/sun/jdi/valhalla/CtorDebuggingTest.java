@@ -143,6 +143,13 @@ public class CtorDebuggingTest extends TestScaffold {
         if (!Objects.equals(obj1, obj2)) {
             throw new RuntimeException("Must be equal: " + obj1 + " and " + obj2);
         }
+        // Sanity check that equal objects has equal hashCode.
+        if (obj1 != null) {
+            if (obj1.hashCode() != obj2.hashCode()) {
+                throw new RuntimeException("Equal objects have different hashCode: "
+                                           + obj1.hashCode() + " and " + obj2.hashCode());
+            }
+        }
     }
 
     void assertNotEquals(Object obj1, Object obj2) {
