@@ -45,6 +45,7 @@ import com.sun.tools.javac.code.Directive.ExportsDirective;
 import com.sun.tools.javac.code.Directive.RequiresDirective;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
+import com.sun.tools.javac.comp.Infer.InferenceException;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -1187,6 +1188,9 @@ public class Check {
                     mask = VarFlags;
                 }
             }
+            if ((flags & WITNESS) != 0) {
+                implicit |= STATIC | FINAL;
+            }
             break;
         case MTH:
             if (sym.name == names.init) {
@@ -1218,6 +1222,10 @@ public class Check {
                 // value objects do not have an associated monitor/lock
                 mask = ((sym.owner.flags_field & VALUE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
+            }
+            if ((flags & WITNESS) != 0) {
+                implicit |= STATIC;
+                mask = AccessFlags | STATIC;
             }
             if ((flags & STRICTFP) != 0) {
                 log.warning(tree.pos(), LintWarnings.Strictfp);
@@ -2979,6 +2987,117 @@ public class Check {
             args2 = args2.tail;
         }
         return potentiallyAmbiguous;
+    }
+
+    boolean checkWitnessLookup(DiagnosticPosition pos, Type lookupType) {
+        Fragment fragment = checkWitnessTypeInternal(null, lookupType, List.nil());
+        if (fragment != null) {
+            log.error(pos, Errors.BadWitnessLookupType(lookupType, fragment));
+            return false;
+        }
+        return true;
+    }
+
+    void checkWitnessDeclaration(DiagnosticPosition pos, Type site, Symbol witness, List<Type> allowedTypeVars) {
+        Type witnessType = witnessType(witness);
+        Fragment fragment = checkWitnessTypeInternal(site, witnessType, allowedTypeVars);
+        if (fragment != null) {
+            log.error(pos, Errors.BadWitnessDecl(witnessType, fragment));
+            witness.flags_field |= CLASH;
+            return;
+        } else if (protection(witness.flags()) > protection(site.tsym.flags())) {
+            Fragment cause = (site.tsym.flags() & AccessFlags) == 0 ?
+                        Fragments.WitnessInaccessible("package") :
+                        Fragments.WitnessInaccessible(asFlagSet(site.tsym.flags() & AccessFlags));
+            log.error(pos, Errors.BadWitnessDecl(witnessType, cause));
+            witness.flags_field |= CLASH;
+            return;
+        }
+
+        Predicate<Symbol> witnessFilter = witnessFilter(witness);
+        for (Symbol other : witness.enclClass().members().getSymbols(witnessFilter)) {
+            List<Type> allAllowedTypeVars = other.type.hasTag(FORALL) ?
+                    allowedTypeVars.prependList(other.type.getTypeArguments()) :
+                    allowedTypeVars;
+            Type otherType = witnessType(other);
+            if (isSameTypeWitness(otherType, witnessType, allAllowedTypeVars)) {
+                // dominated
+                log.error(pos, Errors.WitnessClash(witness, other, Fragments.WitnessClashSameType(witnessType)));
+                witness.flags_field |= CLASH;
+                return;
+            }
+        }
+    }
+
+    // The two routines below are similar to equality and subtype checks, except they take free type-variables into account
+    // e.g. Foo<X> is a subtype of Bar<Integer> (for X = Integer, and Foo <: Bar). These checks ensure that a single
+    // class declaration can provide at most one witness for each lookup type.
+
+    private boolean isSameTypeWitness(Type t1, Type t2, List<Type> typevars) {
+        InferenceContext context = new InferenceContext(infer, typevars);
+        boolean res = types.isSameType(context.asUndetVar(t1), context.asUndetVar(t2));
+        try {
+            context.solve(types.noWarnings);
+        } catch (InferenceException ex) {
+            res = false;
+        }
+        return res;
+    }
+
+    private boolean isSubtypeWitness(Type t1, Type t2, List<Type> typevars) {
+        InferenceContext context = new InferenceContext(infer, typevars);
+        boolean res = types.isSubtype(context.asUndetVar(t1), context.asUndetVar(t2));
+        try {
+            context.solve(types.noWarnings);
+        } catch (InferenceException ex) {
+            res = false;
+        }
+        return res;
+    }
+
+    private Predicate<Symbol> witnessFilter(Symbol witness) {
+        return s ->
+                s != witness &&
+                (s.flags() & WITNESS) != 0 &&
+                (s.flags() & CLASH) == 0;
+    }
+
+
+    private Type witnessType(Symbol witness) {
+        return witness.kind == MTH ?
+                witness.type.getReturnType() :
+                witness.type;
+    }
+
+    private boolean isValidWitnessType(Type site, Type witnessType, List<Type> allowedTypeVars) {
+        return checkWitnessTypeInternal(site, witnessType, allowedTypeVars) == null;
+    }
+
+    private Fragment checkWitnessTypeInternal(Type site, Type witnessType, List<Type> allowedTypeVars) {
+        if (!witnessType.isErroneous()) {
+            JCDiagnostic.Fragment cause = null;
+            if (!types.typeVars(witnessType).diff(allowedTypeVars).isEmpty()) {
+                return Fragments.TypeVarInWitness;
+            } else if (!types.isSameType(witnessType, types.capture(witnessType))) {
+                // @@@: top-level wildcards unsupported
+                return Fragments.UnsupportedWildcards;
+            } else if (!witnessType.isInterface() || witnessType.getTypeArguments().isEmpty()) {
+                return Fragments.WitnessMustBeGenericInterface;
+            } else if (site != null && !containsReferenceTo(witnessType, site)) {
+                return Fragments.WitnessMustReferToSite(site);
+            }
+        }
+        return null;
+    }
+
+    private boolean containsReferenceTo(Type witnessType, Type site) {
+        return switch (witnessType.getTag()) {
+            case CLASS -> witnessType.tsym == site.tsym ||
+                    witnessType.getTypeArguments().stream().anyMatch(a -> containsReferenceTo(a, site)); // @@@: inner classes
+            case WILDCARD -> containsReferenceTo(((WildcardType)witnessType).type, site);
+            case ARRAY -> containsReferenceTo(types.elemtypeOrType(witnessType), site);
+            default -> false; // note: type variables are never deemed a "provable" reference to a type
+        };
     }
 
     // Apply special flag "-XDwarnOnAccessToMembers" which turns on just this particular warning for all types of access

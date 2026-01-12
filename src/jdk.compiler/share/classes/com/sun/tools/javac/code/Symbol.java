@@ -2528,6 +2528,15 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
     }
 
+    public static class WitnessSymbol extends VarSymbol {
+        public List<WitnessSymbol> params;
+
+        public WitnessSymbol(long flags, Name name, Type type, Symbol owner, List<WitnessSymbol> params) {
+            super(flags, name, type, owner);
+            this.params = params;
+        }
+    }
+
     /** A class for predefined operators.
      */
     public static class OperatorSymbol extends MethodSymbol {

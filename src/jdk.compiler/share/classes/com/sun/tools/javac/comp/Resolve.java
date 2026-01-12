@@ -57,6 +57,7 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -67,10 +68,12 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementVisitor;
+import javax.lang.model.type.TypeVisitor;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
@@ -2348,6 +2351,183 @@ public class Resolve {
 
     }
 
+    /*
+     * 1. find a graph of all generic types (edge is added between A and B if A<B>)
+     * 2. for all the nodes in the graph, run the witness lookup
+     * 3. if two results are found, say in A and B, and A dominates B in the graph, then prefer A.
+     * 4. otherwise, ambiguous`
+     */
+
+    static class WitnessGraph {
+
+        private final Map<Symbol, List<Symbol>> deps = new LinkedHashMap<>();
+
+        WitnessGraph(Type witnessType) {
+            witnessType.accept(BUILDER, this);
+        }
+
+        void addNode(Symbol node, List<Symbol> dominated) {
+            deps.putIfAbsent(node, List.nil());
+            for (Symbol d : dominated) {
+                deps.compute(d, (_, targets) -> targets.prepend(node));
+            }
+        }
+
+        boolean isDominatedBy(Symbol dominated, Symbol dominating) {
+            return deps.get(dominated).contains(dominating) &&
+                    !deps.get(dominating).contains(dominated);
+        }
+
+        boolean isDominatedBy(Symbol dominated, List<Symbol> dominating) {
+            return isDominatedBy(List.of(dominated), dominating);
+        }
+
+        boolean isDominatedBy(List<Symbol> dominated, Symbol dominating) {
+            return isDominatedBy(dominated, List.of(dominating));
+        }
+
+        boolean isDominatedBy(List<Symbol> dominated, List<Symbol> dominating) {
+            for (Symbol s : dominated) {
+                for (Symbol t : dominating) {
+                    if (!isDominatedBy(s, t)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        Collection<Symbol> nodes() {
+            return deps.keySet();
+        }
+
+        static final Type.Visitor<Void, WitnessGraph> BUILDER = new Types.SimpleVisitor<>() {
+
+            List<Symbol> stack = List.nil();
+
+            @Override
+            public Void visitType(Type t, WitnessGraph witnessGraph) {
+                return null;
+            }
+
+            @Override
+            public Void visitClassType(ClassType t, WitnessGraph witnessGraph) {
+                // @@@: inner classes
+                witnessGraph.addNode(t.tsym, stack);
+                try {
+                    stack = stack.prepend(t.tsym);
+                    for (Type arg : t.getTypeArguments()) {
+                        visit(arg, witnessGraph);
+                    }
+                    return null;
+                } finally {
+                    stack = stack.tail;
+                }
+            }
+
+            @Override
+            public Void visitArrayType(ArrayType t, WitnessGraph witnessGraph) {
+                return visit(t.elemtype, witnessGraph);
+            }
+
+            @Override
+            public Void visitWildcardType(WildcardType t, WitnessGraph witnessGraph) {
+                return visit(t.type, witnessGraph);
+            }
+        };
+
+    }
+
+    Symbol findWitness(Env<AttrContext> env, Type target) {
+        WitnessGraph witnessGraph = new WitnessGraph(target);
+        Symbol bestSoFar = new WitnessNotFoundError(target);
+        for (Symbol ts : witnessGraph.nodes()) {
+            bestSoFar = selectBestWitness(
+                    bestSoFar,
+                    lookupWitness(env, ts.type, target),
+                    witnessGraph);
+        }
+        return bestSoFar;
+    }
+
+    // Assumption: each class can have at most one matching witness
+    private Symbol lookupWitness(Env<AttrContext> env, Type site, Type target) {
+        for (Symbol witness : site.tsym.members().getSymbols(s -> (s.flags() & WITNESS) != 0 && !s.type.isErroneous())) {
+            if (witness.kind == VAR && types.isSameType(witness.type, target)) {
+                return witnessResult(env, site, witness, target, List.nil());
+            } else if (witness.kind == MTH) {
+                Type witnessType = witness.type;
+                if (witnessType.hasTag(FORALL)) {
+                    try {
+                        // first, infer a concrete method type using the target
+                        witnessType = infer.instantiateWitnessMethod((ForAll) witnessType, target);
+                    } catch (Infer.InferenceException ex) {
+                        continue;
+                    }
+                }
+                ListBuffer<WitnessSymbol> params = new ListBuffer<>();
+                // check if the witness method return is the same as the target type
+                if (witnessType.hasTag(METHOD) &&
+                        types.isSameType(witnessType.getReturnType(), target)) {
+                    boolean mismatch = false;
+                    for (Type p : witnessType.getParameterTypes()) {
+                        Symbol witnessParam = findWitness(env, p);
+                        if (witnessParam.exists()) {
+                            params.add((WitnessSymbol)witnessParam);
+                        } else {
+                            mismatch = true;
+                            break;
+                        }
+                    }
+                    // make it look like a variable access
+                    if (!mismatch) {
+                        return witnessResult(env, site, witness, target, params.toList());
+                    }
+                }
+            }
+        }
+        return new WitnessNotFoundError(target);
+    }
+
+    private Symbol witnessResult(Env<AttrContext> env, Type site, Symbol witness, Type target, List<WitnessSymbol> params) {
+        Symbol result = new WitnessSymbol(witness.flags(), witness.name, target, witness.owner, params) {
+            @Override
+            public Symbol baseSymbol() {
+                return witness;
+            }
+        };
+        if (!isAccessible(env, site, witness)) {
+            Assert.error("Unexpected inaccessible witness: " + witness);
+        }
+        return result;
+    }
+
+    private Symbol selectBestWitness(Symbol bestSoFar, Symbol witness, WitnessGraph witnessGraph) {
+        if (witness.exists() && bestSoFar.exists()) {
+            List<Symbol> currentOwners = (bestSoFar.kind == AMBIGUOUS) ?
+                    ambiguousWitnessOwners(bestSoFar) :
+                    List.of(bestSoFar.owner);
+            if (witnessGraph.isDominatedBy(currentOwners, witness.owner)) {
+                return witness;
+            } else if (witnessGraph.isDominatedBy(witness.owner, currentOwners)) {
+                return bestSoFar;
+            } else {
+                // no domination, ambiguity
+                return new AmbiguityError(bestSoFar, witness);
+            }
+        } else if (witness.exists()) {
+            return witness;
+        } else {
+            return bestSoFar;
+        }
+    }
+
+    List<Symbol> ambiguousWitnessOwners(Symbol ambiguousSym) {
+        Set<Symbol> owners = ((AmbiguityError)ambiguousSym).ambiguousSyms.stream()
+                .map(s -> s.owner).collect(Collectors.toSet());
+        return List.from(owners);
+    }
+
     /** Find a global type in given scope and load corresponding class.
      *  @param env       The current environment.
      *  @param scope     The scope in which to look for the type.
@@ -4181,6 +4361,20 @@ public class Resolve {
                                       site,
                                       null));
             }
+        }
+    }
+
+    class WitnessNotFoundError extends ResolveError {
+        final Type type;
+
+        WitnessNotFoundError(Type type) {
+            super(Kind.ABSENT_WITNESS, "witness not found");
+            this.type = type;
+        }
+
+        @Override
+        JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+            return diags.create(dkind, log.currentSource(), pos, "cant.resolve.witness", type);
         }
     }
 

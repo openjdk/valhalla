@@ -352,6 +352,12 @@ public class Flags {
     public static final long THROWS = 1L<<47;
 
     /**
+     * Flag that indicates that a var symbol represent a type class witness.
+     */
+    @Use({FlagTarget.VARIABLE})
+    public static final long WITNESS = 1L<<47;
+
+    /**
      * Flag to indicate sealed class/interface declaration.
      */
     @Use({FlagTarget.CLASS})

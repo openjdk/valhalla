@@ -237,6 +237,9 @@ public class Names {
     // special annotation names
     public final Name requiresIdentityInternal;
 
+    // type classes
+    public final Name witness;
+
     public final Name.Table table;
 
     @SuppressWarnings("this-escape")
@@ -428,6 +431,9 @@ public class Names {
 
         // special annotations:
         requiresIdentityInternal = fromString("jdk.internal.RequiresIdentity+Annotation");
+
+        // type classes
+        witness = fromString("__witness");
     }
 
     protected Name.Table createTable(Options options) {

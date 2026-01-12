@@ -1699,8 +1699,11 @@ public class JavacParser implements Parser {
                         }
                         break loop;
                     case LT:
-                        if (!isMode(TYPE) && isParameterizedTypePrefix()) {
-                            //this is either an unbound method reference whose qualifier
+                        TypeExprQualifier typeExprQualifier = classifyTypeExprQualifier();
+                        if (typeExprQualifier == TypeExprQualifier.UNBOUNDED_MEMBER_REF ||
+                                (typeExprQualifier == TypeExprQualifier.TYPE_OR_UNBOUNDED_MEMBER_REF && !isMode(TYPE)) ||
+                                typeExprQualifier == TypeExprQualifier.WITNESS_LOOKUP) {
+                            //this is an unbound method reference whose qualifier
                             //is a generic type i.e. A<S>::m
                             int pos1 = token.pos;
                             accept(LT);
@@ -1714,6 +1717,12 @@ public class JavacParser implements Parser {
                             t = toP(F.at(pos1).TypeApply(t, args.toList()));
                             while (token.kind == DOT) {
                                 nextToken();
+                                if (token.kind == IDENTIFIER && token.name() == names.witness) {
+                                    // witness selector!
+                                    t = toP(F.at(token.pos).Select(t, ident()));
+                                    selectExprMode();
+                                    return term3Rest(t, typeArgs);
+                                }
                                 selectTypeMode();
                                 t = toP(F.at(token.pos).Select(t, ident()));
                                 t = typeArgumentsOpt(t);
@@ -1939,13 +1948,21 @@ public class JavacParser implements Parser {
         return toP(t);
     }
 
+    enum TypeExprQualifier {
+        UNBOUNDED_MEMBER_REF,
+        WITNESS_LOOKUP,
+        TYPE_OR_UNBOUNDED_MEMBER_REF,
+        EXPRESSION,
+        NONE
+    }
+
     /**
      * If we see an identifier followed by a '&lt;' it could be an unbound
-     * method reference or a binary expression. To disambiguate, look for a
+     * method reference, a witness lookup, or a binary expression. To disambiguate, look for a
      * matching '&gt;' and see if the subsequent terminal is either '.' or '::'.
      */
     @SuppressWarnings("fallthrough")
-    boolean isParameterizedTypePrefix() {
+    TypeExprQualifier classifyTypeExprQualifier() {
         int pos = 0, depth = 0;
         outer: for (Token t = S.token(pos) ; ; t = S.token(++pos)) {
             switch (t.kind) {
@@ -1963,7 +1980,7 @@ public class JavacParser implements Parser {
                         TokenKind tk2 = S.token(pos).kind;
                         switch (tk2) {
                             case EOF:
-                                return false;
+                                return TypeExprQualifier.NONE;
                             case LPAREN:
                                 nesting++;
                                 break;
@@ -1986,14 +2003,22 @@ public class JavacParser implements Parser {
                     depth--;
                     if (depth == 0) {
                         TokenKind nextKind = S.token(pos + 1).kind;
-                        return
-                            nextKind == TokenKind.DOT ||
-                            nextKind == TokenKind.LBRACKET ||
-                            nextKind == TokenKind.COLCOL;
+                        if (nextKind == TokenKind.DOT) {
+                            Token afterDot = S.token(pos + 2);
+                            return (afterDot.kind == IDENTIFIER && afterDot.name() == names.witness) ?
+                                    TypeExprQualifier.WITNESS_LOOKUP :
+                                    TypeExprQualifier.TYPE_OR_UNBOUNDED_MEMBER_REF;
+                        } else if (nextKind == TokenKind.LBRACKET) {
+                            return TypeExprQualifier.TYPE_OR_UNBOUNDED_MEMBER_REF;
+                        } else if (nextKind == TokenKind.COLCOL) {
+                            return TypeExprQualifier.UNBOUNDED_MEMBER_REF;
+                        } else {
+                            return TypeExprQualifier.EXPRESSION;
+                        }
                     }
                     break;
                 default:
-                    return false;
+                    return TypeExprQualifier.EXPRESSION;
             }
         }
     }
@@ -3656,6 +3681,10 @@ public class JavacParser implements Parser {
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
+		 if (token.name() == names.witness) {
+                    flag = Flags.WITNESS;
+                    break;
+                }
                 break loop;
             }
             default: break loop;
@@ -3679,6 +3708,13 @@ public class JavacParser implements Parser {
         case ENUM: flags |= Flags.ENUM; break;
         case INTERFACE: flags |= Flags.INTERFACE; break;
         default: break;
+        }
+
+        if ((flags & Flags.WITNESS) != 0) {
+            // a witness symbol is implicitly static
+            // we need to set static here, otherwise codegen will misbehave
+            // as that looks at the AST modifiers, not at the symbol flags (!!)
+            flags |= Flags.STATIC;
         }
 
         /* A modifiers tree with no modifier tokens or annotations
