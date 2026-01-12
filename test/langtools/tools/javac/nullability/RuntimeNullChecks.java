@@ -109,6 +109,17 @@ public class RuntimeNullChecks extends TestRunner {
                 """,
                 """
                 class Test {
+                    void m(String someObject) {
+                        String! x = "foo";
+                        x = (String)someObject;
+                    }
+                    public static void main(String... args) {
+                        new Test().m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
                     public static void main(String... args) {
                         String s = null;
                         String! o;
@@ -189,6 +200,26 @@ public class RuntimeNullChecks extends TestRunner {
                     public static void main(String... args) {
                         Test test = new Test();
                         test.isSystemProperty("1", "2", "3", null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    String! m(String someObject) {
+                        return (String)someObject;
+                    }
+                    public static void main(String... args) {
+                        new Test().m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    String! m(String someObject) {
+                        return someObject;
+                    }
+                    public static void main(String... args) {
+                        new Test().m(null);
                     }
                 }
                 """
