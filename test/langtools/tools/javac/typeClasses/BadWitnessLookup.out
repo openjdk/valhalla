@@ -1,0 +1,7 @@
+BadWitnessLookup.java:19:53: compiler.err.bad.witness.lookup.type: BadWitnessLookup.Foo<compiler.misc.type.captureof: 1, ? extends BadWitnessLookup.Bar>, (compiler.misc.type.var.in.witness)
+BadWitnessLookup.java:20:16: compiler.err.already.defined: kindname.variable, fwb, kindname.method, <Z>test()
+BadWitnessLookup.java:20:29: compiler.err.bad.witness.lookup.type: BadWitnessLookup.Foo<Z>, (compiler.misc.type.var.in.witness)
+BadWitnessLookup.java:21:38: compiler.err.cant.resolve.witness: BadWitnessLookup.Foo<java.lang.String>
+BadWitnessLookup.java:22:32: compiler.err.bad.witness.lookup.type: BadWitnessLookup.Baz<BadWitnessLookup.Bar>, (compiler.misc.witness.must.be.generic.interface)
+BadWitnessLookup.java:23:22: compiler.err.bad.witness.lookup.type: BadWitnessLookup.Barf, (compiler.misc.witness.must.be.generic.interface)
+6 errors

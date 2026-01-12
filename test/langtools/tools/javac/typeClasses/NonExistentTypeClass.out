@@ -1,0 +1,7 @@
+NonExistentTypeClass.java:10:19: compiler.err.cant.resolve.location: kindname.class, NonExistent, , , (compiler.misc.location: kindname.interface, NonExistentTypeClass.TC_f<X>, null)
+NonExistentTypeClass.java:13:19: compiler.err.cant.resolve.location: kindname.class, NonExistent, , , (compiler.misc.location: kindname.interface, NonExistentTypeClass.TC_m<X>, null)
+NonExistentTypeClass.java:19:23: compiler.err.cant.resolve.location: kindname.class, NonExistent, , , (compiler.misc.location: kindname.interface, NonExistentTypeClass.TC_gm<X>, null)
+NonExistentTypeClass.java:25:34: compiler.err.cant.resolve.witness: NonExistentTypeClass.TC_f<java.lang.String>
+NonExistentTypeClass.java:26:34: compiler.err.cant.resolve.witness: NonExistentTypeClass.TC_m<java.lang.String>
+NonExistentTypeClass.java:27:35: compiler.err.cant.resolve.witness: NonExistentTypeClass.TC_gm<java.lang.String>
+6 errors

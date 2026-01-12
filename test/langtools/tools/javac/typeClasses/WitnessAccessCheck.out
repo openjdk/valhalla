@@ -1,0 +1,7 @@
+WitnessAccessCheck.java:14:36: compiler.err.bad.witness.decl: WitnessAccessCheck.U<WitnessAccessCheck.A_pub>, (compiler.misc.witness.inaccessible: public)
+WitnessAccessCheck.java:15:38: compiler.err.bad.witness.decl: WitnessAccessCheck.W<WitnessAccessCheck.A_pub>, (compiler.misc.witness.inaccessible: public)
+WitnessAccessCheck.java:17:28: compiler.err.bad.witness.decl: WitnessAccessCheck.Z<WitnessAccessCheck.A_pub>, (compiler.misc.witness.inaccessible: public)
+WitnessAccessCheck.java:28:37: compiler.err.bad.witness.decl: WitnessAccessCheck.U<WitnessAccessCheck.A_prot>, (compiler.misc.witness.inaccessible: protected)
+WitnessAccessCheck.java:31:29: compiler.err.bad.witness.decl: WitnessAccessCheck.Z<WitnessAccessCheck.A_prot>, (compiler.misc.witness.inaccessible: protected)
+WitnessAccessCheck.java:35:36: compiler.err.bad.witness.decl: WitnessAccessCheck.U<WitnessAccessCheck.A_pkg>, (compiler.misc.witness.inaccessible: package)
+6 errors

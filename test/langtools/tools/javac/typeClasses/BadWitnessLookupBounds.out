@@ -1,0 +1,4 @@
+BadWitnessLookupBounds.java:26:38: compiler.err.cant.resolve.witness: BadWitnessLookupBounds.Comparator<java.lang.Runnable>
+BadWitnessLookupBounds.java:32:47: compiler.err.cant.resolve.witness: BadWitnessLookupBounds.Convertible<java.lang.Integer,java.lang.String>
+BadWitnessLookupBounds.java:35:47: compiler.err.cant.resolve.witness: BadWitnessLookupBounds.Convertible<java.lang.String,java.lang.Integer>
+3 errors

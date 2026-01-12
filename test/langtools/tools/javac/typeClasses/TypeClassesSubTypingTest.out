@@ -1,0 +1,4 @@
+TypeClassesSubTypingTest.java:25:24: compiler.err.cant.resolve.witness: TypeClassesSubTypingTest.A<TypeClassesSubTypingTest.E>
+TypeClassesSubTypingTest.java:27:24: compiler.err.cant.resolve.witness: TypeClassesSubTypingTest.C<TypeClassesSubTypingTest.E>
+TypeClassesSubTypingTest.java:28:24: compiler.err.cant.resolve.witness: TypeClassesSubTypingTest.D<TypeClassesSubTypingTest.E>
+3 errors
