@@ -307,7 +307,7 @@ public class ClassReader {
     private void enterMember(ClassSymbol c, Symbol sym) {
         // Synthetic members are not entered -- reason lost to history (optimization?).
         // Lambda methods must be entered because they may have inner classes (which reference them)
-        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda))
+        if ((sym.flags_field & (SYNTHETIC|BRIDGE|WITNESS)) != SYNTHETIC || sym.name.startsWith(names.lambda))
             c.members_field.enter(sym);
     }
 
@@ -1552,6 +1552,10 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.requiresIdentityInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == VAR);
                 sym.flags_field |= REQUIRES_IDENTITY;
+            } else if (proxy.type.tsym.flatName() == syms.witnessType.tsym.flatName()) {
+                // @@@: replace with proper attribute
+                Assert.check((sym.kind == VAR || sym.kind == MTH) && sym.owner.kind == TYP);
+                sym.flags_field |= WITNESS;
             } else {
                 if (proxy.type.tsym == syms.annotationTargetType.tsym) {
                     target = proxy;

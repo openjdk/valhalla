@@ -53,8 +53,8 @@ public class WildcardTypeImpl extends LazyReflectiveObjectGenerator
     private volatile Object[] lowerBounds;
 
     // constructor is private to enforce access through static factory
-    private WildcardTypeImpl(FieldTypeSignature[] ubs,
-                             FieldTypeSignature[] lbs,
+    private WildcardTypeImpl(Object[] ubs,
+                             Object[] lbs,
                              GenericsFactory f) {
         super(f);
         upperBounds = ubs;
@@ -75,6 +75,17 @@ public class WildcardTypeImpl extends LazyReflectiveObjectGenerator
                                         FieldTypeSignature[] lbs,
                                         GenericsFactory f) {
         return new WildcardTypeImpl(ubs, lbs, f);
+    }
+
+    /**
+     * Eager factory method.
+     * @param ubs - an array of types representing the upper bounds
+     * @param lbs - an array of types representing the lower bounds
+     * @return a wild card type with the requested bounds
+     */
+    public static WildcardTypeImpl make(Type[] ubs,
+                                        Type[] lbs) {
+        return new WildcardTypeImpl(ubs, lbs, null);
     }
 
     /**

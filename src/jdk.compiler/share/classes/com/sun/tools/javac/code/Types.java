@@ -422,7 +422,7 @@ public class Types {
     }
 
     /**
-     * Computes the set of captured variables mentioned in a given type. See {@link CaptureScanner}.
+     * Computes the set of captured variables mentioned in a given type. See {@link TypeVarScanner}.
      * This routine is typically used to computed the input set of variables to be used during
      * an upwards projection (see {@link Types#upward(Type, List)}).
      *
@@ -430,16 +430,28 @@ public class Types {
      * @return the set of captured variables found in t
      */
     public List<Type> captures(Type t) {
-        CaptureScanner cs = new CaptureScanner();
-        Set<Type> captures = new HashSet<>();
-        cs.visit(t, captures);
-        return List.from(captures);
+        return typeVars(t).stream()
+                .filter(tv -> tv instanceof CapturedType || (tv.tsym.flags() & Flags.SYNTHETIC) != 0)
+                .collect(List.collector());
     }
 
     /**
-     * This visitor scans a type recursively looking for occurrences of captured type variables.
+     * Computes the set of type variables mentioned in a given type. See {@link TypeVarScanner}.
+     *
+     * @param t the type where occurrences of captured variables have to be found
+     * @return the set of type variables found in t
      */
-    class CaptureScanner extends SimpleVisitor<Void, Set<Type>> {
+    public List<Type> typeVars(Type t) {
+        TypeVarScanner cs = new TypeVarScanner();
+        Set<Type> typeVars = new HashSet<>();
+        cs.visit(t, typeVars);
+        return List.from(typeVars);
+    }
+
+    /**
+     * This visitor scans a type recursively looking for occurrences of type variables.
+     */
+    class TypeVarScanner extends SimpleVisitor<Void, Set<Type>> {
 
         @Override
         public Void visitType(Type t, Set<Type> types) {
@@ -469,7 +481,7 @@ public class Types {
 
         @Override
         public Void visitTypeVar(TypeVar t, Set<Type> seen) {
-            if ((t.tsym.flags() & Flags.SYNTHETIC) != 0 && seen.add(t)) {
+            if (seen.add(t)) {
                 visit(t.getUpperBound(), seen);
             }
             return null;

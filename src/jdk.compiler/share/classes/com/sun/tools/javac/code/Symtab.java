@@ -244,6 +244,9 @@ public class Symtab {
     public final Type objectInputType;
     public final Type objectOutputType;
 
+    // For type classes
+    public final Type witnessType;
+
     /** The symbol representing the length field of an array.
      */
     public final VarSymbol lengthVar;
@@ -640,6 +643,9 @@ public class Symtab {
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);
+
+        // For type classes
+        witnessType = enterClass("java.lang.runtime.Witness");
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a

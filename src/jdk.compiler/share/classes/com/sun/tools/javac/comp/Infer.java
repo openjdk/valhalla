@@ -782,6 +782,28 @@ public class Infer {
 
         return freshVars.toList();
     }
+
+    /*
+     * Instantiate a witness method type using target type constraint.
+     */
+    public Type instantiateWitnessMethod(ForAll witnessMethodType, Type target) {
+        InferenceContext context = new InferenceContext(this, witnessMethodType.tvars);
+        Type freeRet = context.asUndetVar(witnessMethodType.getReturnType());
+        if (!types.isSubtype(freeRet, target)) {
+            return Type.noType;
+        }
+        // propagate
+        doIncorporation(context, types.noWarnings);
+        // make sure each under variable has some equality bound
+        for (Type v : context.undetVars()) {
+            if (v instanceof UndetVar uv && uv.getBounds(InferenceBound.EQ).isEmpty()) {
+                return null;
+            }
+        }
+        // ok, let's infer using only eq bounds
+        context.solveBasic(context.inferenceVars(), EnumSet.of(InferenceStep.EQ));
+        return context.asInstType(witnessMethodType.qtype);
+    }
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Incorporation">

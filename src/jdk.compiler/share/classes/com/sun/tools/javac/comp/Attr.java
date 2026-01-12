@@ -1232,6 +1232,10 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
 
+                if ((m.flags() & WITNESS) != 0) {
+                    chk.checkWitnessDeclaration(tree, m.enclClass().type, m, m.type.getTypeArguments());
+                }
+
                 // Attribute all type annotations in the body
                 annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m);
                 annotate.flush();
@@ -1329,6 +1333,9 @@ public class Attr extends JCTree.Visitor {
                 }
             }
             chk.checkRequiresIdentity(tree, env.info.lint);
+            if ((v.flags() & WITNESS) != 0) {
+                chk.checkWitnessDeclaration(tree, v.enclClass().type, v, List.nil());
+            }
         }
         finally {
             chk.setLint(prevLint);
@@ -4392,7 +4399,7 @@ public class Attr extends JCTree.Visitor {
         // Determine the expected kind of the qualifier expression.
         KindSelector skind = KindSelector.NIL;
         if (tree.name == names._this || tree.name == names._super ||
-                tree.name == names._class)
+                tree.name == names._class || tree.name == names.witness)
         {
             skind = KindSelector.TYP;
         } else {
@@ -4549,6 +4556,14 @@ public class Attr extends JCTree.Visitor {
                         pos, env, location, site, name, resultInfo.pt.getParameterTypes(), resultInfo.pt.getTypeArguments());
                 } else if (name == names._this || name == names._super) {
                     return rs.resolveSelf(pos, env, site.tsym, tree);
+                } else if (name == names.witness) {
+                    if (!chk.checkWitnessLookup(pos, site)) {
+                        return syms.errSymbol;
+                    }
+                    // In this case, we have already made sure in
+                    // visitSelect that qualifier expression is a type.
+                    Symbol sym = rs.findWitness(env, site);
+                    return rs.accessBase(sym, pos, location, site, name, true);
                 } else if (name == names._class) {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.

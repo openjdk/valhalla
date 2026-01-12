@@ -75,7 +75,8 @@ public class Kinds {
         WRONG_MTHS(Category.RESOLUTION_TARGET, KindName.METHOD),       // overloaded       target
         WRONG_MTH(Category.RESOLUTION_TARGET, KindName.METHOD),        // not overloaded   target
         ABSENT_MTH(Category.RESOLUTION_TARGET, KindName.METHOD),       // not overloaded   non-target
-        ABSENT_TYP(Category.RESOLUTION_TARGET, KindName.CLASS);        // not overloaded   non-target
+        ABSENT_TYP(Category.RESOLUTION_TARGET, KindName.CLASS),        // not overloaded   non-target
+        ABSENT_WITNESS(Category.RESOLUTION_TARGET);                    // not overloaded   non-target
 
         // There are essentially two "levels" to the Kind datatype.
         // The first is a totally-ordered set of categories of
@@ -230,6 +231,7 @@ public class Kinds {
         VAR("kindname.variable"),
         VAL("kindname.value"),
         METHOD("kindname.method"),
+        WITNESS("kindname.witness"),
         CLASS("kindname.class"),
         STATIC_INIT("kindname.static.init"),
         INSTANCE_INIT("kindname.instance.init"),
@@ -298,13 +300,23 @@ public class Kinds {
             return KindName.VAR;
 
         case FIELD:
-            return ((sym.flags_field & RECORD) != 0) ? KindName.RECORD_COMPONENT : KindName.VAR;
+            if ((sym.flags_field & RECORD) != 0) {
+                return KindName.RECORD_COMPONENT;
+            } else if ((sym.flags_field & WITNESS) != 0) {
+                return KindName.WITNESS;
+            } else {
+                return KindName.VAR;
+            }
 
         case CONSTRUCTOR:
             return KindName.CONSTRUCTOR;
 
         case METHOD:
-            return KindName.METHOD;
+            if ((sym.flags_field & WITNESS) != 0) {
+                return KindName.WITNESS;
+            } else {
+                return KindName.METHOD;
+            }
         case STATIC_INIT:
             return KindName.STATIC_INIT;
         case INSTANCE_INIT:
