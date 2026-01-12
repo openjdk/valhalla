@@ -32,8 +32,8 @@
 
 class Klass;
 
-// An refArrayOop is an array containing references (oops).
-// Evaluating "String arg[10]" will create an refArrayOop.
+// A refArrayOop is an array containing references (oops).
+// Evaluating "String arg[10]" will create a refArrayOop.
 
 class refArrayOopDesc : public objArrayOopDesc {
   friend class ArchiveHeapWriter;
