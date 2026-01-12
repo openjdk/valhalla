@@ -133,7 +133,7 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
 
     record SepCompilationData(String clientSrc, String serverSrc, List<String> sourceExpectedWarnings, List<String> sepCompExpectedWarnings) {}
     final List<SepCompilationData> sepCompilationDataList = List.of(
-            new SepCompilationData(  // case 2
+            new SepCompilationData(  // case 0
                     """
                     class Client {
                         static Integer! a = Server.b;
@@ -148,18 +148,18 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                             "- compiler.note.preview.recompile"),
                     List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile")
-            )/*,
-            new SepCompilationData( // case 3
+            ),
+            new SepCompilationData( // case 1
                     """
                     import java.util.*;
                     class Client {
-                        static List!<String> a = Server.b;
+                        static List<String>! a = Server.b;
                     }
                     """,
                     """
                     import java.util.*;
                     class Server {
-                        public static List!<String> b = new ArrayList<>();
+                        public static List<String>! b = new ArrayList<>();
                     }
                     """,
                     List.of("- compiler.note.preview.plural: DEFAULT",
@@ -167,33 +167,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile")
             ),
-            new SepCompilationData( // case 4
+            new SepCompilationData( // case 2
                     """
                     import java.util.*;
                     class Client {
-                        static List!<String> a = Server.b;
-                    }
-                    """,
-                    """
-                    import java.util.*;
-                    class Server {
-                        public static List?<String> b = new ArrayList<>();
-                    }
-                    """,
-                    List.of("Client.java:3:36: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
-                    List.of("Client.java:3:36: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning")
-            ),
-            new SepCompilationData( // case 5
-                    """
-                    import java.util.*;
-                    class Client {
-                        static List!<String> a = Server.b;
+                        static List<String>! a = Server.b;
                     }
                     """,
                     """
@@ -207,163 +185,57 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile")
             ),
-            new SepCompilationData( // case 6
+            new SepCompilationData( // case 3
                     """
                     class Client {
-                        static Server!.Inner! a = Server.b;
+                        static Server.Inner! a = Server.b;
                     }
                     """,
                     """
                     class Server {
                         static class Inner {}
-                        public static Server?.Inner? b = new Server.Inner();
+                        public static Server.Inner b = new Server.Inner();
                     }
                     """,
-                    List.of("Client.java:2:37: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
-                    List.of("Client.java:2:37: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning")
-            ),
-            new SepCompilationData( // case 7
-                    """
-                    class Client {
-                        static String?[]![]? a = Server.b;
-                    }
-                    """,
-                    """
-                    class Server {
-                        public static String?[]?[]? b;
-                    }
-                    """,
-                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
-                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",  // some information is lost
-                            "- compiler.note.preview.recompile")
-            ),
-            new SepCompilationData( // case 8
-                    """
-                    class Client {
-                        static String![]?[]? a = Server.b;
-                    }
-                    """,
-                    """
-                    class Server {
-                        public static String?[]?[]? b;
-                    }
-                    """,
-                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
-                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning")
-            ),
-            new SepCompilationData( // case 9
-                    """
-                    class Client {
-                        static String?[]?[]! a = Server.b;
-                    }
-                    """,
-                    """
-                    class Server {
-                        public static String?[]?[]? b;
-                    }
-                    """,
-                    List.of("Client.java:2:36: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
                     List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile")
-            ),
-            new SepCompilationData( // case 10
-                    """
-                    class Client {
-                        static String?[]?[]? a = Server.b;
-                    }
-                    """,
-                    """
-                    class Server {
-                        public static String?[]?[]? b;
-                    }
-                    """,
-                    List.of("- compiler.note.preview.plural: DEFAULT",
                             "- compiler.note.preview.recompile"),
                     List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
                             "- compiler.note.preview.recompile")
             ),
-            new SepCompilationData( // case 11
+            new SepCompilationData( // case 4
+                    """
+                    class Client {
+                        static String[][]! a = Server.b;
+                    }
+                    """,
+                    """
+                    class Server {
+                        public static String[][] b;
+                    }
+                    """,
+                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile"),
+                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile")
+            ),
+            new SepCompilationData( // case 5
                     """
                     import java.util.List;
                     class Client {
-                        static List<? extends String!> a = Server.b;
+                        static List<? extends String>! a = Server.b;
                     }
                     """,
                     """
                     import java.util.List;
                     class Server {
-                        public static List<? extends String?> b;
+                        public static List<? extends String> b;
                     }
                     """,
-                    List.of("Client.java:3:46: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.plural: DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning"),
-                    List.of("Client.java:3:46: compiler.warn.unchecked.nullness.conversion",
-                            "- compiler.note.preview.filename: Client.java, DEFAULT",
-                            "- compiler.note.preview.recompile",
-                            "1 warning")
-            ),
-            new SepCompilationData( // case 12
-                    """
-                    import java.util.function.*;
-                    class Client extends Vector<Byte>{
-                        void foo(Server s, Unary op) {
-                            int opc = 1;
-                            s.unaryOp(getClass(), null, byte.class, this, null, UN_IMPL.find(op, opc, Client::unaryOperations));
-                        }
-                        interface Operator {}
-                        interface Unary extends Operator {}
-                        static class ImplCache<OP extends Operator,T> {
-                            public ImplCache(Class<OP> whatKind, Class<? extends Vector<?>> whatVec) {}
-                            public T find(OP op, int opc, IntFunction<T> supplier) {
-                                return null;
-                            }
-                        }
-                        static ImplCache<Unary, Server.UnaryOperation<Client, VectorMask<Byte>>>
-                            UN_IMPL = new ImplCache<>(Unary.class, Client.class);
-                        static Server.UnaryOperation<Client, VectorMask<Byte>> unaryOperations(int opc_) { return null; }
-                    }
-                    """,
-                    """
-                    class Server {
-                        <V extends Vector<E>,
-                         M extends VectorMask<E>,
-                         E>
-                        V unaryOp(Class<? extends V> vClass, Class<? extends M> mClass, Class<E> eClass,
-                                  V v, M m,
-                                  UnaryOperation<V, M> defaultImpl) {
-                            return null;
-                        }
-                        public interface UnaryOperation<V extends Vector<?>,
-                                                        M extends VectorMask<?>> {
-                            V apply(V v, M m);
-                        }
-                    }
-                    class Vector<V> {}
-                    class VectorMask<VM> {}
-                    """,
-                    List.of(""),
-                    List.of("")
-            )*/
+                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile"),
+                    List.of("- compiler.note.preview.filename: Client.java, DEFAULT",
+                            "- compiler.note.preview.recompile")
+            )
     );
 
     @Test
