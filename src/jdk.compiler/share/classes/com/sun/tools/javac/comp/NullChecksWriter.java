@@ -117,7 +117,6 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
-        super.visitMethodDef(tree);
         Type prevRetType = returnType;
         try {
             returnType = tree.sym.type.getReturnType();
@@ -131,6 +130,7 @@ public class NullChecksWriter extends TreeTranslator {
             if (!paramNullChecks.isEmpty()) {
                 tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
             }
+            super.visitMethodDef(tree);
             result = tree;
         } finally {
             returnType = prevRetType;
