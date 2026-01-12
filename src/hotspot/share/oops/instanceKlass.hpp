@@ -270,7 +270,7 @@ class InstanceKlass: public Klass {
   volatile ClassState _init_state;          // state of class
 
   u1              _reference_type;          // reference type
-  int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
+  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for values classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
                                             // the InlineKlass::Members that only exist for InlineKlass.
 
@@ -645,6 +645,10 @@ public:
 
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
+
+  bool has_acmp_maps_offset() const {
+    return _acmp_maps_offset != 0;
+  }
 
   int acmp_maps_offset() const {
     assert(_acmp_maps_offset != 0, "Not initialized");
