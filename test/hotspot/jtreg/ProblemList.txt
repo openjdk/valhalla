@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -150,9 +150,6 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 # Valhalla
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
-
-runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774           generic-all
-runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
 
 #############################################################################
 
