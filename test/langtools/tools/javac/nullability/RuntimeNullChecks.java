@@ -202,6 +202,26 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
+                """,
+                """
+                class Test {
+                    String! m(String someObject) {
+                        return (String)someObject;
+                    }
+                    public static void main(String... args) {
+                        new Test().m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    String! m(String someObject) {
+                        return someObject;
+                    }
+                    public static void main(String... args) {
+                        new Test().m(null);
+                    }
+                }
                 """
         }) {
             System.err.println("executing test " + i++);
