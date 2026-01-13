@@ -150,7 +150,11 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitLetExpr(LetExpr tree) {
-        // don't recurse inside let expressions, they are backend artifacts
+        // only recurse in certain cases
+        if (tree.needsNullChecks) {
+            // and recurse on the expression part only
+            tree.expr = translate(tree.expr);
+        }
         result = tree;
     }
 }

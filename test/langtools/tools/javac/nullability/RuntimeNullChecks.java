@@ -145,26 +145,6 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                /*"""
-                class Test {
-                    static String id(int i, String!... arg) { return ""; }
-                    public static void main(String... args) {
-                        String s1 = null;
-                        String s2 = "";
-                        Object o = id(1, s1, s2); // NPE at runtime, method invocation
-                    }
-                }
-                """,
-                """
-                class Test {
-                    static String id(int i, String!... arg) { return ""; }
-                    public static void main(String... args) {
-                        String s1 = "";
-                        String s2 = null;
-                        Object o = id(1, s1, s2); // NPE at runtime, method invocation
-                    }
-                }
-                """,*/
                 """
                 class Test {
                     public static void main(String... args) {
@@ -228,6 +208,19 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                     public static void main(String... args) {
                         new Test().m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    public static void main(String... args) {
+                        int i = switch (new Object()) {
+                            default -> {
+                                Object obj = null;
+                                Object! nonNull = obj;
+                                yield 0;
+                            }
+                        };
                     }
                 }
                 """

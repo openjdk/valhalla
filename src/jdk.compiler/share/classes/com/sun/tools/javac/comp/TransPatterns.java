@@ -672,6 +672,7 @@ public class TransPatterns extends TreeTranslator {
                                           .setType(tree.type);
 
                 r.needsCond = true;
+                r.needsNullChecks = true;
                 result = r;
             }
             return ;
