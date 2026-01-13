@@ -224,3 +224,16 @@ compiler.misc.feature.value.classes
 # Pending removal
 compiler.note.implicit.annotation.processing
 compiler.warn.proc.use.proc.or.implicit
+
+# type classes (experimental)
+compiler.err.cant.resolve.witness
+compiler.misc.kindname.witness
+compiler.err.bad.witness.decl
+compiler.err.bad.witness.lookup.type
+compiler.misc.unsupported.wildcards
+compiler.misc.witness.must.refer.to.site
+compiler.misc.witness.must.be.generic.interface
+compiler.misc.type.var.in.witness
+compiler.err.witness.clash
+compiler.misc.witness.clash.same.type
+compiler.misc.witness.inaccessible

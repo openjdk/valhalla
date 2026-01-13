@@ -1,0 +1,5 @@
+BadWitnessDecls.java:11:32: compiler.err.bad.witness.decl: java.util.List<java.lang.String>, (compiler.misc.witness.must.refer.to.site: BadWitnessDecls.Foo<X>)
+BadWitnessDecls.java:12:41: compiler.err.bad.witness.decl: BadWitnessDecls.Foo<? extends java.lang.String>, (compiler.misc.unsupported.wildcards)
+BadWitnessDecls.java:16:31: compiler.err.bad.witness.decl: BadWitnessDecls.Bar<java.lang.String>, (compiler.misc.witness.must.be.generic.interface)
+BadWitnessDecls.java:20:24: compiler.err.bad.witness.decl: BadWitnessDecls.Barf, (compiler.misc.witness.must.be.generic.interface)
+4 errors

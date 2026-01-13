@@ -1,0 +1,3 @@
+InnerClassLookup.java:8:19: compiler.err.cant.resolve.location: kindname.class, U, , , (compiler.misc.location: kindname.class, InnerClassLookup.Outer, null)
+InnerClassLookup.java:13:21: compiler.err.cant.resolve.location: kindname.class, U, , , (compiler.misc.location: kindname.class, InnerClassLookup.Outer, null)
+2 errors

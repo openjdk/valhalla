@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -350,6 +350,12 @@ public class Flags {
      */
     @Use({FlagTarget.TYPE_VAR})
     public static final long THROWS = 1L<<47;
+
+    /**
+     * Flag that indicates that a var symbol represent a type class witness.
+     */
+    @Use({FlagTarget.VARIABLE})
+    public static final long WITNESS = 1L<<47;
 
     /**
      * Flag to indicate sealed class/interface declaration.

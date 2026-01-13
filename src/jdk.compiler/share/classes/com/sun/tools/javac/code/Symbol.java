@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2525,6 +2525,15 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         @Override
         public boolean isHandle() {
             return true;
+        }
+    }
+
+    public static class WitnessSymbol extends VarSymbol {
+        public List<WitnessSymbol> params;
+
+        public WitnessSymbol(long flags, Name name, Type type, Symbol owner, List<WitnessSymbol> params) {
+            super(flags, name, type, owner);
+            this.params = params;
         }
     }
 

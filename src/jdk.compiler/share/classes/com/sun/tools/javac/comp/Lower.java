@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute.Compound;
 import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.jvm.*;
@@ -1889,7 +1890,31 @@ public class Lower extends TreeTranslator {
         }
     }
 
-/* ************************************************************************
+    /** The tree simulating a T.witness expression.
+     *  @param witness      The witness symbol.
+     */
+    private DynamicVarSymbol witnessOf(WitnessSymbol witness) {
+        MethodSymbol msym = rs.resolveInternalMethod(null, attrEnv, syms.constantBootstrapsType, names.invoke,
+                List.of(syms.methodHandleLookupType, syms.stringType, syms.classType, syms.methodHandleType, types.makeArrayType(syms.objectType)), List.nil());
+
+        ListBuffer<LoadableConstant> staticArgs = new ListBuffer<>();
+
+        LoadableConstant witnessHandle = switch (witness.baseSymbol()) {
+            case VarSymbol v -> v.asMethodHandle(true);
+            case MethodSymbol m -> m.asHandle();
+            default -> throw Assert.error("Cannot get here");
+        };
+        staticArgs.add(witnessHandle);
+
+        for (WitnessSymbol param : witness.params) {
+            staticArgs.add(witnessOf(param));
+        }
+
+        return new DynamicVarSymbol(names.witness, currentClass, msym.asHandle(), witness.type,
+                staticArgs.toArray(LoadableConstant[]::new));
+    }
+
+/* *************************************************************************
  * Code for enabling/disabling assertions.
  *************************************************************************/
 
@@ -2760,6 +2785,9 @@ public class Lower extends TreeTranslator {
 
             outerThisStack = prevOuterThisStack;
         } else {
+            if ((tree.sym.flags() & WITNESS) != 0) {
+                tree.sym.appendAttributes(List.of(new Compound(syms.witnessType, List.nil())));
+            }
             super.visitMethodDef(tree);
         }
         if (tree.name == names.init && ((tree.sym.flags_field & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
@@ -3756,6 +3784,9 @@ public class Lower extends TreeTranslator {
         }
         try {
             if (tree.init != null) tree.init = translate(tree.init, tree.type);
+            if ((tree.sym.flags() & WITNESS) != 0) {
+                tree.sym.appendAttributes(List.of(new Compound(syms.witnessType, List.nil())));
+            }
             result = tree;
         } finally {
             currentMethodSym = oldMethodSym;
@@ -4309,6 +4340,9 @@ public class Lower extends TreeTranslator {
         tree.selected = translate(tree.selected);
         if (tree.name == names._class && tree.selected.type.isPrimitiveOrVoid()) {
             result = classOf(tree.selected);
+        } else if (tree.name == names.witness) {
+            VarSymbol witnessAccess = witnessOf((WitnessSymbol)tree.sym);
+            result = make.Ident(witnessAccess);
         }
         else if (tree.name == names._super &&
                 types.isDirectSuperInterface(tree.selected.type.tsym, currentClass)) {

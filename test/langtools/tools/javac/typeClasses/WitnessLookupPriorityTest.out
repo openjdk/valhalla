@@ -1,0 +1,7 @@
+WitnessLookupPriorityTest.java:39:37: compiler.err.ref.ambiguous: W1, kindname.witness, W1, WitnessLookupPriorityTest.A, kindname.witness, W1, WitnessLookupPriorityTest.B
+WitnessLookupPriorityTest.java:40:37: compiler.err.ref.ambiguous: W2, kindname.witness, W2, WitnessLookupPriorityTest.A, kindname.witness, W2, WitnessLookupPriorityTest.C
+WitnessLookupPriorityTest.java:41:37: compiler.err.ref.ambiguous: W3, kindname.witness, W3, WitnessLookupPriorityTest.B, kindname.witness, W3, WitnessLookupPriorityTest.A
+WitnessLookupPriorityTest.java:42:37: compiler.err.ref.ambiguous: W4, kindname.witness, W4, WitnessLookupPriorityTest.B, kindname.witness, W4, WitnessLookupPriorityTest.C
+WitnessLookupPriorityTest.java:43:37: compiler.err.ref.ambiguous: W5, kindname.witness, W5, WitnessLookupPriorityTest.C, kindname.witness, W5, WitnessLookupPriorityTest.A
+WitnessLookupPriorityTest.java:44:37: compiler.err.ref.ambiguous: W6, kindname.witness, W6, WitnessLookupPriorityTest.C, kindname.witness, W6, WitnessLookupPriorityTest.B
+6 errors

@@ -1,0 +1,5 @@
+WitnessClash.java:19:24: compiler.err.witness.clash: A1, A2, (compiler.misc.witness.clash.same.type: WitnessClash.T<WitnessClash.A>)
+WitnessClash.java:25:24: compiler.err.witness.clash: B1(), B2(), (compiler.misc.witness.clash.same.type: WitnessClash.T<WitnessClash.B>)
+WitnessClash.java:31:24: compiler.err.witness.clash: C1, C2(), (compiler.misc.witness.clash.same.type: WitnessClash.T<WitnessClash.C>)
+WitnessClash.java:37:33: compiler.err.witness.clash: D1, <Z>D2(), (compiler.misc.witness.clash.same.type: WitnessClash.T<WitnessClash.D<java.lang.Integer>>)
+4 errors

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -781,6 +781,28 @@ public class Infer {
         replaceTypeVarsInBounds(todo.toList(), c);
 
         return freshVars.toList();
+    }
+
+    /*
+     * Instantiate a witness method type using target type constraint.
+     */
+    public Type instantiateWitnessMethod(ForAll witnessMethodType, Type target) {
+        InferenceContext context = new InferenceContext(this, witnessMethodType.tvars);
+        Type freeRet = context.asUndetVar(witnessMethodType.getReturnType());
+        if (!types.isSubtype(freeRet, target)) {
+            return Type.noType;
+        }
+        // propagate
+        doIncorporation(context, types.noWarnings);
+        // make sure each under variable has some equality bound
+        for (Type v : context.undetVars()) {
+            if (v instanceof UndetVar uv && uv.getBounds(InferenceBound.EQ).isEmpty()) {
+                return null;
+            }
+        }
+        // ok, let's infer using only eq bounds
+        context.solveBasic(context.inferenceVars(), EnumSet.of(InferenceStep.EQ));
+        return context.asInstType(witnessMethodType.qtype);
     }
     // </editor-fold>
 

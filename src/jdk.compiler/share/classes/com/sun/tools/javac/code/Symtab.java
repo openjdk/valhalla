@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -251,6 +251,9 @@ public class Symtab {
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
+
+    // For type classes
+    public final Type witnessType;
 
     /** The symbol representing the length field of an array.
      */
@@ -658,6 +661,10 @@ public class Symtab {
         synthesizeBoxTypeIfMissing(voidType);
 
         numberType = enterClass("java.lang.Number");
+
+        // For type classes
+        witnessType = enterClass("java.lang.runtime.Witness");
+
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
