@@ -819,14 +819,15 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
   Klass* k = java_lang_Class::as_Klass(orig_mirror);
   if (k != nullptr && k->is_inline_klass()) {
     InlineKlass* ik = InlineKlass::cast(k);
-    if (ik->has_acmp_maps_offset()) {
+    if (!ik->is_identity_class()) {
       int maps_offset = ik->acmp_maps_offset();
       oop maps = orig_mirror->obj_field(maps_offset);
       scratch_m->obj_field_put(maps_offset, maps);
-    }
-    if (!ik->is_abstract() && ik->has_nullable_atomic_layout() && ik->is_initialized()) {
-      // Only concrete value classes need the null_reset field
-      scratch_m->obj_field_put(ik->null_reset_value_offset(), ik->null_reset_value());
+
+      if (!ik->is_abstract() && ik->has_nullable_atomic_layout() && ik->is_initialized()) {
+        // Only concrete value classes need the null_reset field
+        scratch_m->obj_field_put(ik->null_reset_value_offset(), ik->null_reset_value());
+      }
     }
   }
 
