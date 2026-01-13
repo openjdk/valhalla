@@ -64,9 +64,9 @@ InlineKlass::Members::Members()
     _payload_offset(-1),
     _payload_size_in_bytes(-1),
     _payload_alignment(-1),
-    _non_atomic_size_in_bytes(-1),
-    _non_atomic_alignment(-1),
-    _atomic_size_in_bytes(-1),
+    _null_free_non_atomic_size_in_bytes(-1),
+    _null_free_non_atomic_alignment(-1),
+    _null_free_atomic_size_in_bytes(-1),
     _nullable_atomic_size_in_bytes(-1),
     _nullable_non_atomic_size_in_bytes(-1),
     _null_marker_offset(-1) {
@@ -133,12 +133,12 @@ int InlineKlass::nonstatic_oop_count() {
 int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
   switch(kind) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      assert(has_non_atomic_layout(), "Layout not available");
-      return non_atomic_size_in_bytes();
+      assert(has_null_free_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_size_in_bytes();
       break;
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      assert(has_atomic_layout(), "Layout not available");
-      return atomic_size_in_bytes();
+      assert(has_null_free_atomic_layout(), "Layout not available");
+      return null_free_atomic_size_in_bytes();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_atomic_layout(), "Layout not available");
@@ -159,12 +159,12 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
 int InlineKlass::layout_alignment(LayoutKind kind) const {
   switch(kind) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      assert(has_non_atomic_layout(), "Layout not available");
-      return non_atomic_alignment();
+      assert(has_null_free_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_alignment();
       break;
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      assert(has_atomic_layout(), "Layout not available");
-      return atomic_size_in_bytes();
+      assert(has_null_free_atomic_layout(), "Layout not available");
+      return null_free_atomic_size_in_bytes();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_atomic_layout(), "Layout not available");
@@ -172,7 +172,7 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       break;
     case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
       assert(has_nullable_non_atomic_layout(), "Layout not available");
-      return non_atomic_alignment();
+      return null_free_non_atomic_alignment();
     break;
     case LayoutKind::BUFFERED:
       return payload_alignment();
@@ -185,10 +185,10 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
 bool InlineKlass::is_layout_supported(LayoutKind lk) {
   switch(lk) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      return has_non_atomic_layout();
+      return has_null_free_non_atomic_layout();
       break;
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      return has_atomic_layout();
+      return has_null_free_atomic_layout();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return has_nullable_atomic_layout();
@@ -314,7 +314,7 @@ bool InlineKlass::maybe_flat_in_array() {
     return false;
   }
   // No flat layout?
-  if (!has_nullable_atomic_layout() && !has_atomic_layout() && !has_non_atomic_layout()) {
+  if (!has_nullable_atomic_layout() && !has_null_free_atomic_layout() && !has_null_free_non_atomic_layout()) {
     return false;
   }
   return true;
@@ -331,7 +331,7 @@ bool InlineKlass::is_always_flat_in_array() {
 
   // An instance is always flat in an array if we have all layouts. Note that this could change in the future when the
   // flattening policies are updated or if new APIs are added that allow the creation of reference arrays directly.
-  return has_nullable_atomic_layout() && has_atomic_layout() && has_non_atomic_layout();
+  return has_nullable_atomic_layout() && has_null_free_atomic_layout() && has_null_free_non_atomic_layout();
 }
 
 // Inline type arguments are not passed by reference, instead each

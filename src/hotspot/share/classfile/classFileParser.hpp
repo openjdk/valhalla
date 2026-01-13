@@ -80,9 +80,9 @@ class FieldLayoutInfo : public ResourceObj {
   int _payload_alignment;
   int _payload_offset;
   int _payload_size_in_bytes;
-  int _non_atomic_size_in_bytes;
-  int _non_atomic_alignment;
-  int _atomic_layout_size_in_bytes;
+  int _null_free_non_atomic_size_in_bytes;
+  int _null_free_non_atomic_alignment;
+  int _null_free_atomic_layout_size_in_bytes;
   int _nullable_atomic_layout_size_in_bytes;
   int _nullable_non_atomic_layout_size_in_bytes;
   int _null_marker_offset;
@@ -96,8 +96,8 @@ class FieldLayoutInfo : public ResourceObj {
   FieldLayoutInfo() : oop_map_blocks(nullptr), _nonoop_acmp_map(nullptr), _oop_acmp_map(nullptr),
                       _instance_size(-1), _nonstatic_field_size(-1), _static_field_size(-1),
                       _payload_alignment(-1), _payload_offset(-1), _payload_size_in_bytes(-1),
-                      _non_atomic_size_in_bytes(-1), _non_atomic_alignment(-1),
-                      _atomic_layout_size_in_bytes(-1), _nullable_atomic_layout_size_in_bytes(-1),
+                      _null_free_non_atomic_size_in_bytes(-1), _null_free_non_atomic_alignment(-1),
+                      _null_free_atomic_layout_size_in_bytes(-1), _nullable_atomic_layout_size_in_bytes(-1),
                       _nullable_non_atomic_layout_size_in_bytes(-1),
                       _null_marker_offset(-1), _null_reset_value_offset(-1), _acmp_maps_offset(-1),
                       _has_nonstatic_fields(false), _is_naturally_atomic(false), _must_be_atomic(false),
