@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,31 +62,78 @@ public class ImageStringsReader implements ImageStrings {
         throw new InternalError("Can not add strings at runtime");
     }
 
-    public static int hashCode(String s) {
-        return hashCode(s, HASH_MULTIPLIER);
+    /**
+     * {@return the lookup hash code for a string, starting at the given index,
+     * with the default seed value}
+     */
+    public static int defaultHashCode(String s, int index) {
+        return seededHashCode(s, index, HASH_MULTIPLIER);
     }
 
-    public static int hashCode(String s, int seed) {
-        return unmaskedHashCode(s, seed) & POSITIVE_MASK;
+    /**
+     * {@return the lookup hash code for a string, starting at the given index,
+     * with a specified seed value}
+     */
+    public static int seededHashCode(String s, int index, int seed) {
+        return unmaskedHashCode(s, index, seed) & POSITIVE_MASK;
     }
 
-    public static int hashCode(String module, String name) {
-        return hashCode(module, name, HASH_MULTIPLIER);
+    /**
+     * {@return the lookup hash code for the path in the given module with the
+     * default seed value}
+     *
+     * This method behaves exactly like:
+     * <pre>{@code
+     *   defaultHashCode("/" + module + "/" + path, 0);
+     * }</pre>
+     */
+    public static int defaultHashCode(String module, String name) {
+        return seededHashCode(module, name, HASH_MULTIPLIER);
     }
 
-    public static int hashCode(String module, String name, int seed) {
+    /**
+     * {@return the lookup hash code for the path in the given module with a
+     * specified seed value}
+     *
+     * This method behaves exactly like:
+     * <pre>{@code
+     *   seededHashCode("/" + module + "/" + path, 0, seed);
+     * }</pre>
+     */
+    public static int seededHashCode(String module, String path, int seed) {
         seed = (seed * HASH_MULTIPLIER) ^ ('/');
-        seed = unmaskedHashCode(module, seed);
+        seed = unmaskedHashCode(module, 0, seed);
         seed = (seed * HASH_MULTIPLIER) ^ ('/');
-        seed = unmaskedHashCode(name, seed);
+        seed = unmaskedHashCode(path, 0, seed);
         return seed & POSITIVE_MASK;
     }
 
+    /**
+     * {@return the raw 32-bit hash code of the given string, suitable for using
+     * as a seed to another hashing call}
+     *
+     * This is useful when constructing compound hash values, since:
+     * <pre>{@code
+     *   int seed = unmaskedHashCode("hello ", startingSeed);
+     *   int hash = unmaskedHashCode("world!", seed) & POSITIVE_MASK;
+     * }</pre>
+     *
+     * Is the same as:
+     * <pre>{@code
+     *   int hash = seededHashCode("hello world!", 0, startingSeed);
+     * }</pre>
+     *
+     * but returned values should not be used directly for location entry lookup.
+     */
     public static int unmaskedHashCode(String s, int seed) {
+        return unmaskedHashCode(s, 0, seed);
+    }
+
+    private static int unmaskedHashCode(String s, int startIndex, int seed) {
         int slen = s.length();
         byte[] buffer = null;
 
-        for (int i = 0; i < slen; i++) {
+        for (int i = startIndex; i < slen; i++) {
             int uch = s.charAt(i);
 
             if ((uch & ~0x7F) != 0) {

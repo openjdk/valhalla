@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -541,21 +541,21 @@ public final class ImageReader implements AutoCloseable {
             if (isPreviewName(name)) {
                 return null;
             }
-            // Returns null for non-directory resources, since the jimage name does not
-            // start with "/modules" (e.g. "/java.base/java/lang/Object.class").
-            ImageLocation loc = findLocation(name);
+            // Look for non-directory resources first as they are much more common.
+            ImageLocation loc = findLocation(name, MODULES_PREFIX.length());
+            // Check for false positives (e.g. names like "/modules/modules/xxx")
+            // which would otherwise return a location for a directory entry.
+            if (loc != null && loc.getType() == RESOURCE) {
+                return ensureCached(newResource(name, loc));
+            }
+            // Now check the full path for directory entries.
+            loc = findLocation(name);
             if (loc != null) {
                 assert name.equals(loc.getFullName()) : "Mismatched location for directory: " + name;
                 assert loc.getType() == MODULES_DIR : "Invalid modules directory: " + name;
                 return ensureCached(completeModuleDirectory(newDirectory(name), loc));
             }
-            // Now try the non-prefixed resource name, but be careful to avoid false
-            // positives for names like "/modules/modules/xxx" which could return a
-            // location of a directory entry.
-            loc = findLocation(name.substring(MODULES_PREFIX.length()));
-            return loc != null && loc.getType() == RESOURCE
-                    ? ensureCached(newResource(name, loc))
-                    : null;
+            return null;
         }
 
         /**
