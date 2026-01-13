@@ -905,7 +905,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+        assertFail("compiler.err.non.nullable.should.be.initialized",
                 """
                 value class Test {
                     int f;
@@ -1061,7 +1061,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             );
-            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+            assertFail("compiler.err.non.nullable.should.be.initialized",
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {

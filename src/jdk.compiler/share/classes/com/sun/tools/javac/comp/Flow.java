@@ -1848,7 +1848,9 @@ public class Flow {
         /** Check that trackable variable is initialized.
          */
         void checkInit(DiagnosticPosition pos, VarSymbol sym) {
-            checkInit(pos, sym, Errors.VarMightNotHaveBeenInitialized(sym));
+            checkInit(pos, sym, types.isNonNullable(sym.type) ?
+                    Errors.NonNullableShouldBeInitialized :
+                    Errors.VarMightNotHaveBeenInitialized(sym));
         }
 
         void checkInit(DiagnosticPosition pos, VarSymbol sym, Error errkey) {
@@ -1856,13 +1858,7 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                if (isUninitializedNonNullableField(sym)) {
-                    if (types.isNonNullable(sym.type)) {
-                        log.error(pos, Errors.NonNullableShouldBeInitialized);
-                    }
-                } else {
-                    log.error(pos, errkey);
-                }
+                log.error(pos, errkey);
                 inits.incl(sym.adr);
             }
         }
@@ -2611,7 +2607,8 @@ public class Flow {
 
             // Handle superclass constructor invocations
             if (isConstructor) {
-
+                boolean isSynthesized = (currentMethod.sym.flags() &
+                        GENERATEDCONSTR) != 0;
                 // If super(): at this point all initialization blocks will execute
 
                 if (name == names._super) {
@@ -2623,7 +2620,12 @@ public class Flow {
                                 (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
                                 var.owner.kind == TYP;
                         if (allowValueClasses && (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField)) {
-                            checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
+                            if (isSynthesized) {
+                                checkInit(TreeInfo.diagnosticPositionFor(var, vardecl),
+                                        var, Errors.NonNullableShouldBeInitialized);
+                            } else {
+                                checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
+                            }
                         }
                     }
                     forEachInitializer(classDef, false, def -> {
