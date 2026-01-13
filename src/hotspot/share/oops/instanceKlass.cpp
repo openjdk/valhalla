@@ -2205,9 +2205,6 @@ void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
-      if (fs.name()->equals(".null_reset")) {
-        tty->print_cr("Here!");
-      }
       cl->do_field(&fd);
     }
   }

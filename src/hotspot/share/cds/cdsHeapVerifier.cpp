@@ -293,6 +293,13 @@ public:
         }
       }
 
+      if (fd->name()->equals(".null_reset")) {
+        // Any concrete value class will have a field ".null_reset" which is safe to ignore.
+        // This field holds an all-zero instance of the value class so it will not change between
+        // dump time and runtime.
+        return;
+      }
+
       if (fd->is_final() && java_lang_String::is_instance(static_obj_field) && fd->has_initial_value()) {
         // This field looks like like this in the Java source:
         //    static final SOME_STRING = "a string literal";
@@ -395,12 +402,6 @@ inline bool CDSHeapVerifier::do_entry(OopHandle& orig_obj_handle, HeapShared::Ca
     ResourceMark rm;
     char* class_name = info->_holder->name()->as_C_string();
     char* field_name = info->_name->as_C_string();
-
-    if (info->_holder->is_inline_klass() && info->_name->equals(".null_reset")) {
-      // Any concrete value class will have a field ".null_reset" which is safe to ignore
-      return true;
-    }
-
     LogStream ls(Log(aot, heap)::warning());
     ls.print_cr("Archive heap points to a static field that may hold a different value at runtime:");
     ls.print_cr("Field: %s::%s", class_name, field_name);

@@ -1995,6 +1995,16 @@ void HeapShared::check_special_subgraph_classes() {
     for (int i = 0; i < num; i++) {
       Klass* subgraph_k = klasses->at(i);
       Symbol* name = subgraph_k->name();
+
+      // Concrete value classes hold an all-zero instance which will be of the same
+      // type as the klass itself
+      if (subgraph_k->is_inline_klass()) {
+        InlineKlass* ik = InlineKlass::cast(subgraph_k);
+        if (ik->is_initialized() && ik->has_nullable_atomic_layout() && !ik->is_abstract()) {
+          continue;
+        }
+      }
+
       if (subgraph_k->is_instance_klass() &&
           name != vmSymbols::java_lang_Class() &&
           name != vmSymbols::java_lang_String() &&
