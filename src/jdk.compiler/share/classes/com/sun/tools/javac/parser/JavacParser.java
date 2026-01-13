@@ -3681,7 +3681,7 @@ public class JavacParser implements Parser {
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
-		 if (token.name() == names.witness) {
+                if (token.name() == names.witness) {
                     flag = Flags.WITNESS;
                     break;
                 }

@@ -29,9 +29,9 @@ public class WitnessTypeTraversalTest {
     interface Mono<X> {
         int id();
     }
-    
+
     interface Box<X> { }
-    
+
     interface Provider {
         __witness Mono<Provider> W1 = () -> 1;
         __witness Mono<Box<Provider>> W2 = () -> 2;
