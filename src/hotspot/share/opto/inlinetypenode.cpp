@@ -229,7 +229,7 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
 
   // Flat inline type field
   InlineTypeNode* vt = value->as_InlineType();
-  assert(field->is_flat(), "must be an inline type");
+  assert(field->is_flat(), "must be flat");
   if (offset == field->null_marker_offset()) {
     return vt->get_null_marker();
   } else {
@@ -259,39 +259,6 @@ ciField* InlineTypeNode::field(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return inline_klass()->declared_nonstatic_field_at(index);
 }
-
-#if 0
-ciType* InlineTypeNode::field_type(uint index) const {
-  return declared_nonstatic_field_at(index)->type();
-}
-
-int InlineTypeNode::field_offset(uint index) const {
-  return declared_nonstatic_field_at(index)->offset_in_bytes();
-}
-
-bool InlineTypeNode::field_is_flat(uint index) const {
-  ciField* field = declared_nonstatic_field_at(index);
-  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_flat();
-}
-
-bool InlineTypeNode::field_is_null_free(uint index) const {
-  ciField* field = declared_nonstatic_field_at(index);
-  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_null_free();
-}
-
-bool InlineTypeNode::field_is_volatile(uint index) const {
-  ciField* field = declared_nonstatic_field_at(index);
-  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_volatile();
-}
-int InlineTypeNode::field_null_marker_offset(uint index) const {
-  ciField* field = declared_nonstatic_field_at(index);
-  assert(field->is_flat(), "must be an inline type");
-  return field->null_marker_offset();
-}
-#endif
 
 uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) {
   uint cnt = 0;
@@ -732,7 +699,6 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
     } else {
       // 'other' is an oop, compute address of the field
       other_field = igvn->register_new_node_with_optimizer(new AddPNode(base, other, igvn->MakeConX(field_off)));
-      assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
       if (field->is_flat()) {
         // Flat field, load is handled recursively below
         assert(this_field->is_InlineType(), "inconsistent field value");
