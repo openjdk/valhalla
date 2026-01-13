@@ -109,7 +109,6 @@ public class Lower extends TreeTranslator {
     private final HashMap<TypePairs, String> typePairToName;
     private final boolean allowValueClasses;
     private int variableIndex = 0;
-    private final boolean allowNullRestrictedTypes;
 
     @SuppressWarnings("this-escape")
     protected Lower(Context context) {
@@ -146,8 +145,6 @@ public class Lower extends TreeTranslator {
         typePairToName = TypePairs.initialize(syms);
         this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
                 Feature.VALUE_CLASSES.allowedInSource(source);
-        this.allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
-                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
     }
 
     /** The currently enclosing class.
@@ -4313,7 +4310,7 @@ public class Lower extends TreeTranslator {
             JCMethodInvocation copiedCall = make.Apply(List.nil(), qualifier,
                     List.of(
                             classOfType(types.elemtype(tree.type), tree),
-                            makeLit(syms.intType, 0), // flag -- 0 for now
+                            makeLit(syms.intType, 0x200), // flag -- NULL_CHECKED for now
                             makeLit(syms.intType, tree.elems.length()),
                             tmpArrayVarRef)).setType(syms.objectType);
             JCExpression cast = make.TypeCast(tree.type, copiedCall);
