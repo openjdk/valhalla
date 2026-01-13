@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,7 +142,6 @@ public class TestBasicFunctionality {
     public static void main(String[] args) {
         InlineTypes.getFramework()
                    .addScenarios(InlineTypes.DEFAULT_SCENARIOS[Integer.parseInt(args[0])])
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
