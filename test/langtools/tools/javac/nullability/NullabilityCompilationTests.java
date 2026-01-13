@@ -462,7 +462,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.strict.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 class Test {
