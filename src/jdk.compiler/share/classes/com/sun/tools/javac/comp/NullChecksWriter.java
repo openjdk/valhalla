@@ -98,22 +98,7 @@ public class NullChecksWriter extends TreeTranslator {
         // could be null for indexed array accesses, we should deal with those later
         super.visitAssign(tree);
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
-        Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
         if (lhsSym != null &&
-                rhsSym != null &&
-                types.isNonNullable(lhsSym.type)) {
-            tree.rhs = attr.makeNullCheck(tree.rhs, true);
-        }
-        result = tree;
-    }
-
-    @Override
-    public void visitAssignop(JCAssignOp tree) {
-        super.visitAssignop(tree);
-        Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
-        Symbol rhsSym = TreeInfo.symbolFor(tree.rhs);
-        if (lhsSym != null &&
-                rhsSym != null &&
                 types.isNonNullable(lhsSym.type)) {
             tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
@@ -132,7 +117,6 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
-        super.visitMethodDef(tree);
         Type prevRetType = returnType;
         try {
             returnType = tree.sym.type.getReturnType();
@@ -146,6 +130,7 @@ public class NullChecksWriter extends TreeTranslator {
             if (!paramNullChecks.isEmpty()) {
                 tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
             }
+            super.visitMethodDef(tree);
             result = tree;
         } finally {
             returnType = prevRetType;
@@ -156,8 +141,7 @@ public class NullChecksWriter extends TreeTranslator {
     public void visitReturn(JCReturn tree) {
         super.visitReturn(tree);
         if (tree.expr != null && returnType != null && !returnType.hasTag(VOID)) {
-            Symbol sym = TreeInfo.symbolFor(tree.expr);
-            if (sym != null && types.isNonNullable(returnType)) {
+            if (types.isNonNullable(returnType)) {
                 tree.expr = attr.makeNullCheck(tree.expr, true);
             }
         }

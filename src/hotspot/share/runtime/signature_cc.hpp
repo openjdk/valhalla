@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,12 +35,12 @@ class ScalarizedInlineArgsStream : public StackObj {
   int _regs_count;
   int _regs_idx;
   int _depth;
-  int _step;
+  const int _step;
   DEBUG_ONLY(bool _finished);
 
 public:
-  ScalarizedInlineArgsStream(const GrowableArray<SigEntry>* sig, int sig_idx, VMRegPair* regs, int regs_count, int regs_idx, int step = 1)
-    : _sig(sig), _sig_idx(sig_idx), _regs(regs), _regs_count(regs_count), _regs_idx(regs_idx), _step(step) {
+  ScalarizedInlineArgsStream(const GrowableArray<SigEntry>* sig, int sig_idx, VMRegPair* regs, int regs_count, int regs_idx, bool reverse = false)
+    : _sig(sig), _sig_idx(sig_idx), _regs(regs), _regs_count(regs_count), _regs_idx(regs_idx), _step(reverse ? -1 : 1) {
     reset(sig_idx, regs_idx);
   }
 
