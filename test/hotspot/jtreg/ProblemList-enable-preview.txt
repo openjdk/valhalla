@@ -28,7 +28,6 @@
 #############################################################################
 
 # Compiler (all Valhalla):
-compiler/c2/TestVerifyGraphEdges.java                                                            8372723 linux-x64
 compiler/c2/irTests/stable/StableRefArrayTest.java                                               8372700 generic-all
 compiler/c2/irTests/stable/StableRefFinalTest.java                                               8372700 generic-all
 compiler/c2/irTests/stable/StableRefPlainTest.java                                               8372700 generic-all
