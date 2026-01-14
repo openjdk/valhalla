@@ -3695,7 +3695,16 @@ public class JavacParser implements Parser {
                     }
                     break;
                 case BANG:
-                    if (allowNullRestrictedTypes && !peekToken(lookahead, LPAREN)) break;
+                    if (allowNullRestrictedTypes && !peekToken(lookahead, LPAREN)) {
+                        if (typeDepth == 0 && peekToken(lookahead, LAX_IDENTIFIER)) {
+                            if (parenDepth == 0) {
+                                return PatternResult.PATTERN;
+                            } else {
+                                pendingResult = PatternResult.PATTERN;
+                            }
+                        }
+                    }
+                    break;
                 case DOT, QUES, EXTENDS, SUPER, COMMA: break;
                 case LT: typeDepth++; break;
                 case GTGTGT: typeDepth--;

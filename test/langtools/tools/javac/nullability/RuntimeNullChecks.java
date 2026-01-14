@@ -374,4 +374,66 @@ public class RuntimeNullChecks extends TestRunner {
                     .run(Task.Expect.SUCCESS);
         }
     }
+
+    @Test
+    public void testPatternMatching(Path base) throws Exception {
+        Path src = base.resolve("src");
+        Path classes = base.resolve("classes");
+        tb.writeJavaFiles(src,
+                          """
+                          public class Test {
+                              public static void main(String... args) {
+                                  Box box = new Box(null);
+
+                                  if (!(box instanceof Box(String s1))) {
+                                      throw new AssertionError();
+                                  }
+
+                                  if (box instanceof Box(String! s2)) {
+                                      throw new AssertionError();
+                                  }
+
+                                  switch (box) {
+                                      case Box(String s3) -> {} //OK
+                                      default -> throw new AssertionError();
+                                  }
+
+                                  switch (box) {
+                                      case Box(String! s4) ->
+                                          throw new AssertionError();
+                                      default -> {}
+                                  }
+
+                                  System.out.println("pass");
+                              }
+                              record Box(String str) {}
+                          }
+                          """);
+
+        Files.createDirectories(classes);
+
+        new JavacTask(tb)
+            .options(PREVIEW_OPTIONS)
+            .outdir(classes)
+            .files(tb.findJavaFiles(src))
+            .run(Task.Expect.SUCCESS)
+            .writeAll();
+
+        var out = new JavaTask(tb)
+                .vmOptions("--enable-preview")
+                .classpath(classes.toString())
+                .className("Test")
+                .run()
+                .writeAll()
+                .getOutputLines(Task.OutputKind.STDOUT);
+
+        var expectedOut = List.of("pass");
+
+        if (!Objects.equals(expectedOut, out)) {
+            throw new AssertionError("Incorrect Output, expected: " + expectedOut +
+                                      ", actual: " + out);
+
+        }
+    }
+
 }

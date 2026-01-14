@@ -358,7 +358,8 @@ public class TransPatterns extends TreeTranslator {
             }
             else {
                 nestedBinding = (JCBindingPattern) nestedPattern;
-                allowNull = types.isSubtype(componentType,
+                allowNull = !types.isNonNullable(nestedBinding.type) &&
+                        types.isSubtype(componentType,
                                             types.boxedTypeOrType(types.erasure(nestedBinding.type)));
             }
             JCMethodInvocation componentAccessor =
