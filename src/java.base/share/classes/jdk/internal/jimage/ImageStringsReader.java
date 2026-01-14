@@ -110,7 +110,7 @@ public class ImageStringsReader implements ImageStrings {
 
     /**
      * {@return the raw 32-bit hash code of the given string, suitable for using
-     * as a seed to another hashing call}
+     * as a seed to another unmaskedHashCode() call}
      *
      * This is useful when constructing compound hash values, since:
      * <pre>{@code
@@ -124,41 +124,46 @@ public class ImageStringsReader implements ImageStrings {
      * }</pre>
      *
      * but returned values should not be used directly for location entry lookup.
+     *
+     * @param s the string to process
+     * @param seed the hash seed (possibly returned from a previous call to
+     *             {@code unmaskedHashCode()}).
      */
     public static int unmaskedHashCode(String s, int seed) {
         return unmaskedHashCode(s, 0, seed);
     }
 
+    /**
+     * This algorithm hashes each byte of the modified UTF-8 representation of
+     * the string, starting at 'startIndex'.
+     *
+     * <p>It is equivalent to:
+     * <pre>{@code
+     *   for (byte b : mutf8FromString(s.substring(startIndex))) {
+     *       seed = (seed * HASH_MULTIPLIER) ^ (b & 0xFF);
+     *   }
+     *   return seed;
+     * }</pre>
+     * but avoids any allocations.
+     */
     private static int unmaskedHashCode(String s, int startIndex, int seed) {
         int slen = s.length();
-        byte[] buffer = null;
-
         for (int i = startIndex; i < slen; i++) {
+            // Upper 16-bits MUST be zero.
             int uch = s.charAt(i);
-
-            if ((uch & ~0x7F) != 0) {
-                if (buffer == null) {
-                    buffer = new byte[8];
-                }
-                int mask = ~0x3F;
-                int n = 0;
-
-                do {
-                    buffer[n++] = (byte)(0x80 | (uch & 0x3F));
-                    uch >>= 6;
-                    mask >>= 1;
-                } while ((uch & mask) != 0);
-
-                buffer[n] = (byte)((mask << 1) | uch);
-
-                do {
-                    seed = (seed * HASH_MULTIPLIER) ^ (buffer[n--] & 0xFF);
-                } while (0 <= n);
-            } else if (uch == 0) {
-                seed = (seed * HASH_MULTIPLIER) ^ (0xC0);
-                seed = (seed * HASH_MULTIPLIER) ^ (0x80);
-            } else {
+            // Copied and adapted from jdk/internal/util/ModifiedUtf.java
+            if (uch != 0 && uch < 0x80) {
+                // 7-bits (ASCII) not including nul.
                 seed = (seed * HASH_MULTIPLIER) ^ (uch);
+            } else if (uch >= 0x800) {
+                // 12-16 bits, three bytes.
+                seed = (seed * HASH_MULTIPLIER) ^ (0xE0 | uch >> 12 & 0x0F);
+                seed = (seed * HASH_MULTIPLIER) ^ (0x80 | uch >> 6 & 0x3F);
+                seed = (seed * HASH_MULTIPLIER) ^ (0x80 | uch & 0x3F);
+            } else {
+                // 7-11 bits, two bytes (or variant nul encoding).
+                seed = (seed * HASH_MULTIPLIER) ^ (0xC0 | uch >> 6 & 0x1F);
+                seed = (seed * HASH_MULTIPLIER) ^ (0x80 | uch & 0x3F);
             }
         }
         return seed;

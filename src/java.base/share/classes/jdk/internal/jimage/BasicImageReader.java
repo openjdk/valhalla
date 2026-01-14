@@ -24,9 +24,7 @@
  */
 package jdk.internal.jimage;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -39,10 +37,10 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Random;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import jdk.internal.jimage.ImageLocation.LocationType;
 import jdk.internal.jimage.decompressor.Decompressor;
 
 /**
@@ -256,24 +254,21 @@ public class BasicImageReader implements AutoCloseable {
     }
 
     /**
-     * Finds the location with a given path in the specified module. The returned
-     * location may represent a resource or a directory.
+     * Finds the resource location with a given path in the specified module.
      *
      * <p>This is equivalent to, but more efficient than:
      * <pre>{@code
      *     findLocation("/" + module + "/" + path)
      * }</pre>
-     *
-     * <p>Important: While this method is intended to support finding resource
-     * entries, if the given module name is "modules" or "packages", then the
-     * returned location can represent a directory, and it is up to the caller
-     * to filter out these cases if unwanted.
+     * but returns {@code null} if the effective name would identify a directory
+     * entry (this is to avoid issues if {@code module} were either {@code
+     * "modules"} or {@code "packages"}).
      *
      * @param module the name of the module name in which to look.
      * @param path the resource path string (NOT starting with '/').
-     * @return the verified jimage location (or {@code null} if not found).
+     * @return the verified jimage resource location (or {@code null} if not found).
      */
-    public ImageLocation findLocation(String module, String path) {
+    public ImageLocation findResourceLocation(String module, String path) {
         int locIndex = getLocationIndex(module, path);
         if (locIndex < 0) {
             return null;
@@ -282,7 +277,8 @@ public class BasicImageReader implements AutoCloseable {
         if (!ImageLocation.verify(module, path, attributes, stringsReader)) {
             return null;
         }
-        return new ImageLocation(attributes, stringsReader);
+        ImageLocation loc = new ImageLocation(attributes, stringsReader);
+        return loc.getType() == LocationType.RESOURCE ? loc : null;
     }
 
     /**

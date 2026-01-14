@@ -488,8 +488,8 @@ public final class ImageReader implements AutoCloseable {
             synchronized (this) {
                 Node node = nodes.get(nodeName);
                 if (node == null) {
-                    ImageLocation loc = findLocation(moduleName, resourcePath);
-                    if (loc != null && loc.getType() == RESOURCE) {
+                    ImageLocation loc = findResourceLocation(moduleName, resourcePath);
+                    if (loc != null) {
                         node = newResource(nodeName, loc);
                         nodes.put(node.getName(), node);
                     }
@@ -526,8 +526,7 @@ public final class ImageReader implements AutoCloseable {
                     }
                 }
             }
-            ImageLocation loc = findLocation(moduleName, resourcePath);
-            return loc != null && loc.getType() == RESOURCE;
+            return findResourceLocation(moduleName, resourcePath) != null;
         }
 
         /**
