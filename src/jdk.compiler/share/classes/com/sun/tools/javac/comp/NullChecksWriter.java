@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Preview;
+import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
@@ -33,7 +35,9 @@ import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
@@ -59,6 +63,10 @@ public class NullChecksWriter extends TreeTranslator {
     private final Types types;
     private TreeMaker make;
     private final Attr attr;
+    /** are null restricted types allowed?
+      */
+    private final boolean allowNullRestrictedTypes;
+    private final boolean useSiteNullChecks;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -66,16 +74,24 @@ public class NullChecksWriter extends TreeTranslator {
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         attr = Attr.instance(context);
+        Preview preview = Preview.instance(context);
+        Source source = Source.instance(context);
+        allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        useSiteNullChecks = Options.instance(context).isSet("useSiteNullChecks");
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
-        try {
-            this.make = make;
-            return translate(cdef);
-        } finally {
-            // note that recursive invocations of this method fail hard
-            this.make = null;
+        if (allowNullRestrictedTypes) {
+            try {
+                this.make = make;
+                return translate(cdef);
+            } finally {
+                // note that recursive invocations of this method fail hard
+                this.make = null;
+            }
         }
+        return cdef;
     }
 
     /* ************************************************************************
@@ -146,5 +162,56 @@ public class NullChecksWriter extends TreeTranslator {
             }
         }
         result = tree;
+    }
+
+    @Override
+    public void visitApply(JCMethodInvocation tree) {
+        if (useSiteNullChecks) {
+            Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
+            tree.args = newArgs(msym, tree.args);
+            super.visitApply(tree);
+            result = tree;
+            if (types.isNonNullable(msym.type.asMethodType().restype)) {
+                result = attr.makeNullCheck(tree, true);
+            }
+        } else {
+            super.visitApply(tree);
+            result = tree;
+        }
+    }
+
+    @Override
+    public void visitNewClass(JCNewClass tree) {
+        if (useSiteNullChecks) {
+            tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
+        }
+        super.visitNewClass(tree);
+        result = tree;
+    }
+
+    private List<JCExpression> newArgs(Symbol.MethodSymbol msym, List<JCExpression> actualArgs) {
+        List<Type> declaredArgTypes = msym.type.asMethodType().argtypes;
+        int externalArgsLength = msym.externalType(types).getParameterTypes().size() - declaredArgTypes.size();
+        Type varArgsArg = msym.isVarArgs() ? declaredArgTypes.last() : null;
+        ListBuffer<JCExpression> newArgs = new ListBuffer<>();
+        for (JCExpression arg : actualArgs) {
+            if (externalArgsLength > 0) {
+                newArgs.add(arg);
+                externalArgsLength--;
+                continue;
+            }
+            Type formalArgType = declaredArgTypes.head;
+            if (msym.isVarArgs() && formalArgType == varArgsArg) {
+                newArgs.add(arg);
+                continue;
+            }
+            if (types.isNonNullable(formalArgType)) {
+                newArgs.add(attr.makeNullCheck(arg, true));
+            } else {
+                newArgs.add(arg);
+            }
+            declaredArgTypes = declaredArgTypes.tail;
+        }
+        return newArgs.toList();
     }
 }
