@@ -29,6 +29,7 @@
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
@@ -74,14 +75,12 @@ ciType* ciArrayKlass::element_type() {
 ciType* ciArrayKlass::base_element_type() {
   if (is_type_array_klass()) {
     return ciType::make(as_type_array_klass()->element_type());
-  } else if (is_obj_array_klass()) {
+  } else {
     ciKlass* ek = as_obj_array_klass()->base_element_klass();
     if (ek->is_type_array_klass()) {
       return ciType::make(ek->as_type_array_klass()->element_type());
     }
     return ek;
-  } else {
-    return as_flat_array_klass()->base_element_klass();
   }
 }
 
@@ -121,14 +120,15 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 }
 
 bool ciArrayKlass::is_elem_null_free() const {
-  GUARDED_VM_ENTRY(return is_loaded() && get_Klass()->is_null_free_array_klass();)
+  ArrayKlass::ArrayProperties props = properties();
+  assert(props != ArrayKlass::INVALID, "meaningless");
+  return ArrayKlass::is_null_restricted(props);
 }
 
-bool ciArrayKlass::is_elem_atomic() {
-  ciKlass* elem = element_klass();
-  GUARDED_VM_ENTRY(return elem != nullptr && elem->is_inlinetype() &&
-                          (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
-                          (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
+bool ciArrayKlass::is_elem_atomic() const {
+  ArrayKlass::ArrayProperties props = properties();
+  assert(props != ArrayKlass::INVALID, "meaningless");
+  return !ArrayKlass::is_non_atomic(props);
 }
 
 ArrayKlass::ArrayProperties ciArrayKlass::properties() const {

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@ compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java 8190680 generic-all
 
 compiler/runtime/Test8168712.java#with-dtrace 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
 compiler/runtime/Test8168712.java#without-dtrace 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
+compiler/runtime/Test7196199.java 8365196 windows-x64
 
 compiler/c2/Test8004741.java 8235801 generic-all
 compiler/c2/irTests/TestDuplicateBackedge.java 8318904 generic-all
@@ -94,10 +95,8 @@ compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
 compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
-compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
-compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
-compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
 compiler/valhalla/inlinetypes/TestTrivialMethods.java 8373692 generic-all
+compiler/c2/cmove/TestScalarConditionalMoveCmpObj.java    8374122 generic-all
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
@@ -122,7 +121,6 @@ gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
 gc/shenandoah/TestRetainObjects.java#no-tlab 8361099 generic-all
 gc/shenandoah/TestSieveObjects.java#no-tlab 8361099 generic-all
 gc/shenandoah/TestSieveObjects.java#no-tlab-genshen 8361099 generic-all
-gc/cslocker/TestCSLocker.java 8373025 generic-all
 
 #############################################################################
 
@@ -153,15 +151,6 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
 
-runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774           generic-all
-runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
-
-# Valhalla + AOT
-runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
-runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
-runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
-runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java             8372265 generic-all
-runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java                  8372265 generic-all
 #############################################################################
 
 # :hotspot_serviceability
@@ -182,9 +171,6 @@ serviceability/sa/ClhsdbPmap.java#core            8318754 macosx-aarch64
 serviceability/sa/ClhsdbPstack.java#core          8318754 macosx-aarch64
 serviceability/sa/TestJmapCore.java               8318754 macosx-aarch64
 serviceability/sa/TestJmapCoreMetaspace.java      8318754 macosx-aarch64
-
-serviceability/sa/ClhsdbScanOops.java#parallel    8373022 generic-all
-serviceability/sa/ClhsdbScanOops.java#serial      8373022 generic-all
 
 serviceability/sa/ClhsdbThreadContext.java        8356704 windows-x64
 
@@ -290,8 +276,6 @@ vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-al
 
 vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/TestDescription.java 8310144 macosx-aarch64
 
-vmTestbase/nsk/monitoring/MemoryPoolMBean/isUsageThresholdExceeded/isexceeded001/TestDescription.java 8373022 generic-all
-vmTestbase/nsk/monitoring/MemoryPoolMBean/isUsageThresholdExceeded/isexceeded002/TestDescription.java 8373022 generic-all
-vmTestbase/nsk/monitoring/MemoryPoolMBean/isUsageThresholdExceeded/isexceeded003/TestDescription.java 8373022 generic-all
-vmTestbase/nsk/monitoring/MemoryPoolMBean/isUsageThresholdExceeded/isexceeded004/TestDescription.java 8373022 generic-all
-vmTestbase/nsk/monitoring/MemoryPoolMBean/isUsageThresholdExceeded/isexceeded005/TestDescription.java 8373022 generic-all
+vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
+vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
+vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64

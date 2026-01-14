@@ -260,7 +260,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDes
   InstanceKlass* holder = entry->field_holder();
   InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
   InlineKlass* vk = li->klass();
-  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), true, CHECK);
+  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -802,8 +802,10 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
-  entry->set_flags(info.access_flags().is_final(), info.access_flags().is_volatile(),
-                   info.is_flat(), info.is_null_free_inline_type(),
+  entry->set_flags(info.access_flags().is_volatile(),
+                   info.access_flags().is_final(),
+                   info.is_flat(),
+                   info.is_null_free_inline_type(),
                    info.has_null_marker());
 
   entry->fill_in(info.field_holder(), info.offset(),
