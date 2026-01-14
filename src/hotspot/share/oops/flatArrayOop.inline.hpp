@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,21 @@ inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   ptrdiff_t offset = val - this_oop;
   oop res = vk->read_payload_from_addr((oopDesc*)this, offset, faklass->layout_kind(), CHECK_NULL);
   return res;
+}
+
+inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
+  EXCEPTION_MARK;
+  return null_marker_of_obj_at(index, THREAD);
+}
+
+inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index, TRAPS) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
+  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
+  char* this_oop = (char*) (oopDesc*) this;
+  char* val = (char*) value_at_addr(index, faklass->layout_helper());
+  ptrdiff_t offset = val - this_oop + (ptrdiff_t)vk->null_marker_offset_in_payload();
+  return bool_field(offset);
 }
 
 inline void flatArrayOopDesc::obj_at_put(int index, oop value) {

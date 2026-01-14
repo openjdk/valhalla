@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -2230,7 +2230,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       ciObject* aobj = ary->const_oop();
       if (aobj != nullptr && off_beyond_header && adr->is_AddP() && off != Type::OffsetBot) {
         int stable_dimension = (ary->stable_dimension() > 0 ? ary->stable_dimension() - 1 : 0);
-        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off,
+        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off, ary->field_offset().get(),
                                                                       stable_dimension,
                                                                       value_basic_type(), is_unsigned());
         if (con_type != nullptr) {
