@@ -3669,7 +3669,8 @@ public class JavacParser implements Parser {
                     } else if (typeDepth == 0 && allowNullRestrictedTypes &&
                             ((peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COMMA) ||
                             peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, ARROW) ||
-                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COLON))) ) {
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, COLON) ||
+                            peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER, RPAREN))) ) {
                         // this is a type test pattern
                         return PatternResult.PATTERN;
                     } else if ( allowNullRestrictedTypes &&
@@ -3694,18 +3695,7 @@ public class JavacParser implements Parser {
                         }
                     }
                     break;
-                case BANG:
-                    if (allowNullRestrictedTypes && !peekToken(lookahead, LPAREN)) {
-                        if (typeDepth == 0 && peekToken(lookahead, LAX_IDENTIFIER)) {
-                            if (parenDepth == 0) {
-                                return PatternResult.PATTERN;
-                            } else {
-                                pendingResult = PatternResult.PATTERN;
-                            }
-                        }
-                    }
-                    break;
-                case DOT, QUES, EXTENDS, SUPER, COMMA: break;
+                case BANG, DOT, QUES, EXTENDS, SUPER, COMMA: break;
                 case LT: typeDepth++; break;
                 case GTGTGT: typeDepth--;
                 case GTGT: typeDepth--;

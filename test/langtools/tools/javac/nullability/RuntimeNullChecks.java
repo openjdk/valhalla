@@ -40,16 +40,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.stream.IntStream;
 
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.util.Assert;
 import toolbox.TestRunner;
 import toolbox.ToolBox;
 import toolbox.JavaTask;
 import toolbox.JavacTask;
 import toolbox.Task;
-import toolbox.Task.OutputKind;
 
 public class RuntimeNullChecks extends TestRunner {
     ToolBox tb;
@@ -88,17 +84,6 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                /*"""
-                class Test {
-                    record R(String x) {}
-                    static void m(Object obj) {
-                        if (obj instanceof R(String! x)) {}  // should not match not throw NPE
-                    }
-                    public static void main(String... args) {
-                        m(new R(null));
-                    }
-                }
-                """,*/
                 """
                 class Test {
                     public static void main(String... args) {
