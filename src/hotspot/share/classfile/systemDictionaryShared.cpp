@@ -380,7 +380,15 @@ bool SystemDictionaryShared::is_early_klass(InstanceKlass* ik) {
 bool SystemDictionaryShared::check_self_exclusion(InstanceKlass* k) {
   bool log_warning = false;
   const char* error = check_self_exclusion_helper(k, log_warning);
-  if (error != nullptr) {
+  if (k->is_inline_klass() && CDSConfig::is_dumping_dynamic_archive()) {
+    // The dynamic archive does not archive the heap, which is necesary for the
+    // substitutability test used in inline klasses. The field "acmp_maps" is
+    // generated in the classFileParser and regenerating this field at runtime
+    // with an archived klass is difficult. For now, exclude inline klasses from
+    // the dynamic archive.
+    return true;
+  }
+  if (error != nullptr || (k->is_inline_klass() && CDSConfig::is_dumping_dynamic_archive())) {
     log_exclusion(k, error, log_warning);
     return true; // Should be excluded
   } else {

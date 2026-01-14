@@ -127,6 +127,7 @@ gc/shenandoah/TestSieveObjects.java#no-tlab-genshen 8361099 generic-all
 # :hotspot_runtime
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
+runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java       8374729 generic-all
 runtime/jni/terminatedThread/TestTerminatedThread.java 8317789 aix-ppc64
 runtime/Monitor/SyncOnValueBasedClassTest.java 8340995 linux-s390x
 runtime/os/TestTracePageSizes.java#no-options 8267460 linux-aarch64
