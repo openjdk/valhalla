@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -701,6 +701,7 @@ com/sun/jdi/cds/CDSFieldWatchpoints.java                        8304168 generic-
 
 # jdk_util
 java/util/zip/CloseInflaterDeflaterTest.java  8339216 linux-s390x
+java/util/Collection/MOAT.java 8375086 generic-all
 
 ############################################################################
 

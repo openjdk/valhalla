@@ -97,7 +97,7 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   } else if(is_null_free_array()) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
-  vk->write_value_to_addr(value, value_at_addr(index, faklass->layout_helper()), faklass->layout_kind(), true, CHECK);
+  vk->write_value_to_addr(value, value_at_addr(index, faklass->layout_helper()), faklass->layout_kind(), CHECK);
 }
 
 #endif // SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
