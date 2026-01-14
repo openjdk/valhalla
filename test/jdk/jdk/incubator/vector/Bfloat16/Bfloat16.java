@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -857,7 +857,7 @@ public final class Bfloat16
          * Powers of 10 which can be represented exactly in {@code
          * Bfloat16}.
          */
-        private static final Bfloat16[] FLOAT16_10_POW = {
+        private static final Bfloat16[] BFLOAT16_10_POW = {
             Bfloat16.ONE,
             Bfloat16.valueOf(10),
             Bfloat16.valueOf(100),
@@ -880,11 +880,11 @@ public final class Bfloat16
                  * Long.MAX_VALUE is not an issue.
                  */
                 if (v.longValue() == intCompact) {
-                    if (0 < scale && scale < FLOAT16_10_POW.length) {
-                        return Bfloat16.divide(v, FLOAT16_10_POW[scale]);
+                    if (0 < scale && scale < BFLOAT16_10_POW.length) {
+                        return Bfloat16.divide(v, BFLOAT16_10_POW[scale]);
                     }
-                    if (0 > scale && scale > -FLOAT16_10_POW.length) {
-                        return Bfloat16.multiply(v, FLOAT16_10_POW[-scale]);
+                    if (0 > scale && scale > -BFLOAT16_10_POW.length) {
+                        return Bfloat16.multiply(v, BFLOAT16_10_POW[-scale]);
                     }
                 }
             }
@@ -928,13 +928,11 @@ public final class Bfloat16
             BigInteger[] qr = m.divideAndRemainder(n);
             /*
              * We have
-             *      2^12 = 2^{P+1} <= i < 2^{P+5} = 2^16
-             * Contrary to the double and float cases, where we use long and int, resp.,
-             * here we cannot simply declare i as short, because P + 5 < Short.SIZE
-             * fails to hold.
-             * Using int is safe, though.
+             *      2^9 = 2^{P+1} <= i < 2^{P+5} = 2^13
+             * Because P + 5 < Short.SIZE we could use short arithmetic, but
+             * it is doubtful that this would lead to more performance.
              *
-             * Further, as Math.scalb(Bfloat16) does not exists, we fall back to
+             * Further, as Math.scalb(Bfloat16) does not exist, we fall back to
              * Math.scalb(double).
              */
             int i = qr[0].intValue();
@@ -1892,20 +1890,20 @@ public final class Bfloat16
         static final int Q_MAX = (1 << (W - 1)) - P;
 
         /* 10^(E_MIN - 1) <= MIN_VALUE < 10^E_MIN */
-        static final int E_MIN = -7;
+        static final int E_MIN = -40;
 
         /* 10^(E_MAX - 1) <= MAX_VALUE < 10^E_MAX */
-        static final int E_MAX = 5;
+        static final int E_MAX = 38;
 
         /* Threshold to detect tiny values, as in section 8.2.1 of [1] */
         static final int C_TINY = 2;
 
         /* The minimum and maximum k, as in section 8 of [1] */
-        static final int K_MIN = -8;
-        static final int K_MAX = 1;
+        static final int K_MIN = -41;
+        static final int K_MAX = 36;
 
         /* H is as in section 8.1 of [1] */
-        static final int H = 5;
+        static final int H = 4;
 
         /* Minimum value of the significand of a normal value: 2^(P-1) */
         private static final int C_MIN = 1 << (P - 1);
@@ -1920,7 +1918,7 @@ public final class Bfloat16
         private static final long MASK_32 = (1L << 32) - 1;
 
         /* Used for left-to-tight digit extraction */
-        private static final int MASK_15 = (1 << 15) - 1;
+        private static final int MASK_11 = (1 << 11) - 1;
 
         private static final int NON_SPECIAL    = 0;
         private static final int PLUS_ZERO      = 1;
@@ -1931,13 +1929,13 @@ public final class Bfloat16
 
         /*
          * Room for the longer of the forms
-         *     -ddd.dd      H + 2 characters
-         *     -ddddd.0     H + 3 characters
-         *     -0.00ddddd   H + 5 characters
-         *     -d.ddddE-e   H + 5 characters
+         *     -dd.dd       H + 2 characters
+         *     -dddd.0      H + 3 characters
+         *     -0.00dddd    H + 5 characters
+         *     -d.dddE-ee   H + 6 characters
          * where there are H digits d
          */
-        public static final int MAX_CHARS = H + 5;
+        public static final int MAX_CHARS = H + 6;
 
         private final byte[] bytes = new byte[MAX_CHARS];
 
@@ -2191,17 +2189,17 @@ public final class Bfloat16
             /*
              * The toChars?() methods perform left-to-right digits extraction
              * using ints, provided that the arguments are limited to 8 digits.
-             * Therefore, split the H = 9 digits of f into:
+             * Therefore, split the H = 4 digits of f into:
              *     h = the most significant digit of f
-             *     l = the last 4, least significant digits of f
+             *     l = the last 3, least significant digits of f
              *
-             * For n = 5, m = 4 the discussion in section 10 of [1] shows
-             *     floor(f / 10^4) = floor(107_375L f / 2^30)
+             * For n = 4, m = 3 the discussion in section 10 of [1] shows
+             *     floor(f / 10^3) = floor(16_778L f / 2^24 = floor(8_389L f / 2^23))
              */
-            int h = (int) (f * 107_375L >>> 30);
-            int l = f - 10_000 * h;
+            int h = (int) (f * 8_389L >>> 23);
+            int l = f - 1_000 * h;
 
-            if (0 < e && e <= 7) {
+            if (0 < e && e <= 2) {
                 return toChars1(h, l, e);
             }
             if (-3 < e && e <= 0) {
@@ -2212,9 +2210,9 @@ public final class Bfloat16
 
         private int toChars1(int h, int l, int e) {
             /*
-             * 0 < e <= 7: plain format without leading zeroes.
+             * 0 < e <= 2: plain format without leading zeroes.
              * Left-to-right digits extraction:
-             * algorithm 1 in [3], with b = 10, k = 4, n = 15.
+             * algorithm 1 in [3], with b = 10, k = 3, n = 11.
              */
             appendDigit(h);
             int y = y(l);
@@ -2222,22 +2220,15 @@ public final class Bfloat16
             int i = 1;
             for (; i < e; ++i) {
                 t = 10 * y;
-                appendDigit(t >>> 15);
-                y = t & MASK_15;
+                appendDigit(t >>> 11);
+                y = t & MASK_11;
             }
             append('.');
-            for (; i <= 4; ++i) {
+            for (; i <= 3; ++i) {
                 t = 10 * y;
-                appendDigit(t >>> 15);
-                y = t & MASK_15;
+                appendDigit(t >>> 11);
+                y = t & MASK_11;
             }
-            /*
-             * As H = 5 < 7, where 7 is the threshold for plain format without
-             * leading zeros, it can happen that the 2nd loop above is not executed.
-             * The following line ensures the presence of a digit to the right
-             * of the decimal point.
-             */
-            appendDigit(0);
             removeTrailingZeroes();
             return NON_SPECIAL;
         }
@@ -2250,31 +2241,31 @@ public final class Bfloat16
                 appendDigit(0);
             }
             appendDigit(h);
-            append4Digits(l);
+            append3Digits(l);
             removeTrailingZeroes();
             return NON_SPECIAL;
         }
 
         private int toChars3(int h, int l, int e) {
-            /* -3 >= e | e > 7: computerized scientific notation */
+            /* -3 >= e | e > 2: computerized scientific notation */
             appendDigit(h);
             append('.');
-            append4Digits(l);
+            append3Digits(l);
             removeTrailingZeroes();
             exponent(e - 1);
             return NON_SPECIAL;
         }
 
-        private void append4Digits(int m) {
+        private void append3Digits(int m) {
             /*
              * Left-to-right digits extraction:
-             * algorithm 1 in [3], with b = 10, k = 4, n = 15.
+             * algorithm 1 in [3], with b = 10, k = 3, n = 11.
              */
             int y = y(m);
-            for (int i = 0; i < 4; ++i) {
+            for (int i = 0; i < 3; ++i) {
                 int t = 10 * y;
-                appendDigit(t >>> 15);
-                y = t & MASK_15;
+                appendDigit(t >>> 11);
+                y = t & MASK_11;
             }
         }
 
@@ -2292,12 +2283,12 @@ public final class Bfloat16
             /*
              * Algorithm 1 in [3] needs computation of
              *     floor((a + 1) 2^n / b^k) - 1
-             * with a < 10^4, b = 10, k = 4, n = 15.
+             * with a < 10^3, b = 10, k = 3, n = 11.
              * Noting that
-             *     (a + 1) 2^n <= 10^4 2^15 < 10^9
-             * For n = 9, m = 4 the discussion in section 10 of [1] leads to:
+             *     (a + 1) 2^n <= 10^3 2^11 < 10^7
+             * For n = 7, m = 3 the discussion in section 10 of [1] leads to:
              */
-            return (int) (((a + 1) << 15) * 1_759_218_605L >>> 44) - 1;
+            return (int) (((a + 1) << 11) * 8_589_935L >>> 33) - 1;
         }
 
         private void exponent(int e) {
@@ -2306,7 +2297,13 @@ public final class Bfloat16
                 append('-');
                 e = -e;
             }
-            appendDigit(e);
+            if (e < 10) {
+                appendDigit(e);
+                return;
+            }
+            int d = e * 103 >>> 10;
+            appendDigit(d);
+            appendDigit(e - 10 * d);
         }
 
         private void append(int c) {
@@ -2345,11 +2342,11 @@ public final class Bfloat16
          * K_MIN must be DoubleToDecimal.K_MIN or less.
          * K_MAX must be DoubleToDecimal.K_MAX or more.
          */
-        static final int K_MIN = -8;
-        static final int K_MAX = 1;
+        static final int K_MIN = -41;
+        static final int K_MAX = 36;
 
         /* Must be DoubleToDecimal.H or more */
-        static final int H = 17;
+        static final int H = 4;
 
         /* C_10 = floor(log10(2) * 2^Q_10), A_10 = floor(log10(3/4) * 2^Q_10) */
         private static final int Q_10 = 41;
@@ -2370,20 +2367,6 @@ public final class Bfloat16
                 10L,
                 100L,
                 1_000L,
-                10_000L,
-                100_000L,
-                1_000_000L,
-                10_000_000L,
-                100_000_000L,
-                1_000_000_000L,
-                10_000_000_000L,
-                100_000_000_000L,
-                1_000_000_000_000L,
-                10_000_000_000_000L,
-                100_000_000_000_000L,
-                1_000_000_000_000_000L,
-                10_000_000_000_000_000L,
-                100_000_000_000_000_000L,
         };
 
         /**
@@ -2493,17 +2476,86 @@ public final class Bfloat16
          * The last entry must be for an exponent of K_MAX or more.
          */
         private static final long[] g = {
-                0x5F5E_1000_0000_0000L, 0x0000_0000_0000_0001L, //   -8
-                0x4C4B_4000_0000_0000L, 0x0000_0000_0000_0001L, //   -7
-                0x7A12_0000_0000_0000L, 0x0000_0000_0000_0001L, //   -6
-                0x61A8_0000_0000_0000L, 0x0000_0000_0000_0001L, //   -5
-                0x4E20_0000_0000_0000L, 0x0000_0000_0000_0001L, //   -4
-                0x7D00_0000_0000_0000L, 0x0000_0000_0000_0001L, //   -3
-                0x6400_0000_0000_0000L, 0x0000_0000_0000_0001L, //   -2
-                0x5000_0000_0000_0000L, 0x0000_0000_0000_0001L, //   -1
-                0x4000_0000_0000_0000L, 0x0000_0000_0000_0001L, //    0
-                0x6666_6666_6666_6666L, 0x3333_3333_3333_3334L, //    1
+                0x4977_E8DC_6867_9BDFL, 0x16A8_72B9_4000_0001L, // -41
+                0x758C_A7C7_0D72_92FEL, 0x5773_EAC2_0000_0001L, // -40
+                0x5E0A_1FD2_7128_7598L, 0x45F6_5568_0000_0001L, // -39
+                0x4B3B_4CA8_5A86_C47AL, 0x04C5_1120_0000_0001L, // -38
+                0x785E_E10D_5DA4_6D90L, 0x07A1_B500_0000_0001L, // -37
+                0x604B_E73D_E483_8AD9L, 0x52E7_C400_0000_0001L, // -36
+                0x4D09_85CB_1D36_08AEL, 0x0F1F_D000_0000_0001L, // -35
+                0x7B42_6FAB_61F0_0DE3L, 0x31CC_8000_0000_0001L, // -34
+                0x629B_8C89_1B26_7182L, 0x5B0A_0000_0000_0001L, // -33
+                0x4EE2_D6D4_15B8_5ACEL, 0x7C08_0000_0000_0001L, // -32
+                0x7E37_BE20_22C0_914BL, 0x1340_0000_0000_0001L, // -31
+                0x64F9_64E6_8233_A76FL, 0x2900_0000_0000_0001L, // -30
+                0x50C7_83EB_9B5C_85F2L, 0x5400_0000_0000_0001L, // -29
+                0x409F_9CBC_7C4A_04C2L, 0x1000_0000_0000_0001L, // -28
+                0x6765_C793_FA10_079DL, 0x0000_0000_0000_0001L, // -27
+                0x52B7_D2DC_C80C_D2E4L, 0x0000_0000_0000_0001L, // -26
+                0x422C_A8B0_A00A_4250L, 0x0000_0000_0000_0001L, // -25
+                0x69E1_0DE7_6676_D080L, 0x0000_0000_0000_0001L, // -24
+                0x54B4_0B1F_852B_DA00L, 0x0000_0000_0000_0001L, // -23
+                0x43C3_3C19_3756_4800L, 0x0000_0000_0000_0001L, // -22
+                0x6C6B_935B_8BBD_4000L, 0x0000_0000_0000_0001L, // -21
+                0x56BC_75E2_D631_0000L, 0x0000_0000_0000_0001L, // -20
+                0x4563_9182_44F4_0000L, 0x0000_0000_0000_0001L, // -19
+                0x6F05_B59D_3B20_0000L, 0x0000_0000_0000_0001L, // -18
+                0x58D1_5E17_6280_0000L, 0x0000_0000_0000_0001L, // -17
+                0x470D_E4DF_8200_0000L, 0x0000_0000_0000_0001L, // -16
+                0x71AF_D498_D000_0000L, 0x0000_0000_0000_0001L, // -15
+                0x5AF3_107A_4000_0000L, 0x0000_0000_0000_0001L, // -14
+                0x48C2_7395_0000_0000L, 0x0000_0000_0000_0001L, // -13
+                0x746A_5288_0000_0000L, 0x0000_0000_0000_0001L, // -12
+                0x5D21_DBA0_0000_0000L, 0x0000_0000_0000_0001L, // -11
+                0x4A81_7C80_0000_0000L, 0x0000_0000_0000_0001L, // -10
+                0x7735_9400_0000_0000L, 0x0000_0000_0000_0001L, //  -9
+                0x5F5E_1000_0000_0000L, 0x0000_0000_0000_0001L, //  -8
+                0x4C4B_4000_0000_0000L, 0x0000_0000_0000_0001L, //  -7
+                0x7A12_0000_0000_0000L, 0x0000_0000_0000_0001L, //  -6
+                0x61A8_0000_0000_0000L, 0x0000_0000_0000_0001L, //  -5
+                0x4E20_0000_0000_0000L, 0x0000_0000_0000_0001L, //  -4
+                0x7D00_0000_0000_0000L, 0x0000_0000_0000_0001L, //  -3
+                0x6400_0000_0000_0000L, 0x0000_0000_0000_0001L, //  -2
+                0x5000_0000_0000_0000L, 0x0000_0000_0000_0001L, //  -1
+                0x4000_0000_0000_0000L, 0x0000_0000_0000_0001L, //   0
+                0x6666_6666_6666_6666L, 0x3333_3333_3333_3334L, //   1
+                0x51EB_851E_B851_EB85L, 0x0F5C_28F5_C28F_5C29L, //   2
+                0x4189_374B_C6A7_EF9DL, 0x5916_872B_020C_49BBL, //   3
+                0x68DB_8BAC_710C_B295L, 0x74F0_D844_D013_A92BL, //   4
+                0x53E2_D623_8DA3_C211L, 0x43F3_E037_0CDC_8755L, //   5
+                0x431B_DE82_D7B6_34DAL, 0x698F_E692_70B0_6C44L, //   6
+                0x6B5F_CA6A_F2BD_215EL, 0x0F4C_A41D_811A_46D4L, //   7
+                0x55E6_3B88_C230_E77EL, 0x3F70_834A_CDAE_9F10L, //   8
+                0x44B8_2FA0_9B5A_52CBL, 0x4C5A_02A2_3E25_4C0DL, //   9
+                0x6DF3_7F67_5EF6_EADFL, 0x2D5C_D103_96A2_1347L, //  10
+                0x57F5_FF85_E592_557FL, 0x3DE3_DA69_454E_75D3L, //  11
+                0x465E_6604_B7A8_4465L, 0x7E4F_E1ED_D10B_9175L, //  12
+                0x7097_09A1_25DA_0709L, 0x4A19_697C_81AC_1BEFL, //  13
+                0x5A12_6E1A_84AE_6C07L, 0x54E1_2130_67BC_E326L, //  14
+                0x480E_BE7B_9D58_566CL, 0x43E7_4DC0_52FD_8285L, //  15
+                0x734A_CA5F_6226_F0ADL, 0x530B_AF9A_1E62_6A6DL, //  16
+                0x5C3B_D519_1B52_5A24L, 0x426F_BFAE_7EB5_21F1L, //  17
+                0x49C9_7747_490E_AE83L, 0x4EBF_CC8B_9890_E7F4L, //  18
+                0x760F_253E_DB4A_B0D2L, 0x4ACC_7A78_F41B_0CBAL, //  19
+                0x5E72_8432_4908_8D75L, 0x223D_2EC7_29AF_3D62L, //  20
+                0x4B8E_D028_3A6D_3DF7L, 0x34FD_BF05_BAF2_9781L, //  21
+                0x78E4_8040_5D7B_9658L, 0x54C9_31A2_C4B7_58CFL, //  22
+                0x60B6_CD00_4AC9_4513L, 0x5D6D_C14F_03C5_E0A5L, //  23
+                0x4D5F_0A66_A23A_9DA9L, 0x3124_9AA5_9C9E_4D51L, //  24
+                0x7BCB_43D7_69F7_62A8L, 0x4EA0_F76F_60FD_4882L, //  25
+                0x6309_0312_BB2C_4EEDL, 0x254D_92BF_80CA_A068L, //  26
+                0x4F3A_68DB_C8F0_3F24L, 0x1DD7_A899_33D5_4D20L, //  27
+                0x7EC3_DAF9_4180_6506L, 0x62F2_A75B_8622_1500L, //  28
+                0x6569_7BFA_9ACD_1D9FL, 0x025B_B916_04E8_10CDL, //  29
+                0x5121_2FFB_AF0A_7E18L, 0x6849_60DE_6A53_40A4L, //  30
+                0x40E7_5996_25A1_FE7AL, 0x203A_B3E5_21DC_33B6L, //  31
+                0x67D8_8F56_A29C_CA5DL, 0x19F7_863B_6960_52BDL, //  32
+                0x5313_A5DE_E87D_6EB0L, 0x7B2C_6B62_BAB3_7564L, //  33
+                0x4276_1E4B_ED31_255AL, 0x2F56_BC4E_FBC2_C450L, //  34
+                0x6A56_96DF_E1E8_3BC3L, 0x6557_93B1_92D1_3A1AL, //  35
+                0x5512_124C_B4B9_C969L, 0x3779_42F4_7574_2E7BL, //  36
         };
 
     }
+
 }
