@@ -4943,9 +4943,14 @@ public class Check {
             if (!types.isUnconditionallyExactTypeBased(currentPatternType, existingPatternType)) {
                 return false;
             }
-            if (currentPattern instanceof JCBindingPattern ||
-                currentPattern instanceof JCAnyPattern) {
-                return existingPattern instanceof JCBindingPattern ||
+            if (currentPattern instanceof JCBindingPattern currentBinding) {
+                return (existingPattern instanceof JCBindingPattern existingBinding &&
+                        (types.isNullUnspecified(existingBinding.type) ||
+                         types.isNonNullable(currentBinding.type))) ||
+                       existingPattern instanceof JCAnyPattern;
+            } else if (currentPattern instanceof JCAnyPattern) {
+                return (existingPattern instanceof JCBindingPattern existingBinding &&
+                        types.isNullUnspecified(existingBinding.type)) ||
                        existingPattern instanceof JCAnyPattern;
             } else if (currentPattern instanceof JCRecordPattern currentRecordPattern) {
                 if (existingPattern instanceof JCBindingPattern ||

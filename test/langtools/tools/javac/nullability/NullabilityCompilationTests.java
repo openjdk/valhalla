@@ -442,6 +442,48 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(String! nonNull) -> {}
+                                            case Box(String isNull) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(String! nonNull) -> {}
+                                            case Box(var v) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(String! nonNull) -> {}
+                                            case Box(_) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Clean,
                                 "")
                 )
         );
@@ -557,5 +599,76 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 }
             }
         }
+    }
+
+    @Test
+    void testPatternDominance() {
+        testList(
+                List.of(
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(String nullAllowed) -> {}
+                                            case Box(String! notNull) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.pattern.dominated"),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(var v) -> {}
+                                            case Box(String! notNull) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.pattern.dominated"),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(_) -> {}
+                                            case Box(String! notNull) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Error,
+                                "compiler.err.pattern.dominated")
+                )
+        );
+    }
+
+    @Test
+    void testPatternExhaustiveness() {
+        testList(
+                List.of(
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void test(Box b) {
+                                        switch (b) {
+                                            case Box(String! notNull) -> {}
+                                        }
+                                    }
+                                    record Box(String str) {}
+                                }
+                                """,
+                                Result.Clean,
+                                "") //is exhaustive
+                )
+        );
     }
 }
