@@ -392,7 +392,7 @@ address StubGenerator::generate_call_stub(address& return_address) {
     __ jcc(Assembler::zero, is_long);
     // Load pack handler address
     __ andptr(rax, -2);
-    __ movptr(rax, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    __ movptr(rax, Address(rax, InlineKlass::adr_members_offset()));
     __ movptr(rbx, Address(rax, InlineKlass::pack_handler_jobject_offset()));
     // Call pack handler to initialize the buffer
     __ call(rbx);

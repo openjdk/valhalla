@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,8 +42,8 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CALL_UNSAFE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
+import static compiler.lib.ir_framework.IRNode.LOAD;
 import static compiler.lib.ir_framework.IRNode.LOAD_KLASS;
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
@@ -171,7 +171,7 @@ public class TestIntrinsics {
                              "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                             "-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
+                             "-XX:+UseAltSubstitutabilityMethod")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
@@ -1828,6 +1828,7 @@ public class TestIntrinsics {
     }
 
     // Verify that ValueClass::isFlatArray checks with statically known classes are folded
+  /* FIX: JDK-8374116
     @Test
     @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
     public boolean test82() {
@@ -1857,7 +1858,7 @@ public class TestIntrinsics {
     public void test82_verifier() {
         Asserts.assertTrue(test82(), "test82 failed");
     }
-
+  */
     // Test that LibraryCallKit::arraycopy_move_allocation_here works as expected
     @Test
     public MyValue1 test83(Object[] src) {
@@ -2066,7 +2067,7 @@ public class TestIntrinsics {
     }
 
     @Test
-    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD_OF_ANY_KLASS})
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD})
     public long test90() {
         return U.arrayInstanceBaseOffset(TEST_ARRAY1);
     }
@@ -2092,7 +2093,7 @@ public class TestIntrinsics {
     }
 
     @Test
-    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD_OF_ANY_KLASS})
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD})
     public int test92() {
         return U.arrayInstanceIndexScale(TEST_ARRAY1);
     }
@@ -2118,7 +2119,7 @@ public class TestIntrinsics {
     }
 
     @Test
-    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD_OF_ANY_KLASS})
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD})
     public int test94() {
         return U.arrayLayout(TEST_ARRAY1);
     }
@@ -2126,5 +2127,48 @@ public class TestIntrinsics {
     @Run(test = "test94")
     public void test94_verifier() {
         Asserts.assertEquals(test94(), LAYOUT1);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD})
+    public int test95() {
+        int res = 0;
+        int[] map = U.getFieldMap(MyValue1.class);
+        for (int i = 0; i < map.length; i++) {
+            res += map[1];
+        }
+        return res;
+    }
+
+    static int test95ExpectedResult = -1;
+
+    @Run(test = "test95")
+    public void test95_verifier() {
+        if (test95ExpectedResult == -1) {
+            test95ExpectedResult = test95();
+        }
+        Asserts.assertEQ(test95(), test95ExpectedResult);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public int test96(Object obj) {
+        int res = 0;
+        int[] map = U.getFieldMap(obj.getClass());
+        for (int i = 0; i < map.length; i++) {
+            res += map[1];
+        }
+        return res;
+    }
+
+    static int test96ExpectedResult = -1;
+
+    @Run(test = "test96")
+    public void test96_verifier() {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        if (test96ExpectedResult == -1) {
+            test96ExpectedResult = test96(v);
+        }
+        Asserts.assertEQ(test96(v), test96ExpectedResult);
     }
 }

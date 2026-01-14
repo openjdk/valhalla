@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -208,7 +208,6 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
   // will allow deoptimization at this safepoint to find all possible
   // debug-info recordings, as well as let GC find all oops.
 
-  OopMapSet *oop_maps = new OopMapSet();
   OopMap* oop_map = new OopMap(frame_size_in_slots, 0);
 
   for (int i = 0; i < Register::number_of_registers; i++) {
@@ -566,7 +565,10 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
     }
     assert_different_registers(to.base(), val, tmp1, tmp2, tmp3);
     if (is_oop) {
+      // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep it valid.
+      __ push(to.base(), sp);
       __ store_heap_oop(to, val, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      __ pop(to.base(), sp);
     } else {
       __ store_sized_value(to, val, size_in_bytes);
     }
@@ -620,17 +622,24 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  // TODO 8366717 Is the comment about r13 correct? Isn't that r19_sender_sp?
   // Name some registers to be used in the following code. We can use
   // anything except r0-r7 which are arguments in the Java calling
-  // convention, rmethod (r12), and r13 which holds the outgoing sender
+  // convention, rmethod (r12), and r19 which holds the outgoing sender
   // SP for the interpreter.
-  // TODO 8366717 We need to make sure that buf_array, buf_oop (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register buf_array = r10;   // Array of buffered inline types
   Register buf_oop = r11;     // Buffered inline type oop
   Register tmp1 = r15;
   Register tmp2 = r16;
   Register tmp3 = r17;
+
+#ifndef ASSERT
+  RegSet clobbered_gp_regs = MacroAssembler::call_clobbered_gp_registers();
+  assert(clobbered_gp_regs.contains(buf_array), "buf_array must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(buf_oop), "buf_oop must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp1), "tmp1 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp2), "tmp2 must be saved explicitly if it's not a clobber");
+  assert(clobbered_gp_regs.contains(tmp3), "tmp3 must be saved explicitly if it's not a clobber");
+#endif
 
   if (InlineTypePassFieldsAsArgs) {
     // Is there an inline type argument?
@@ -642,7 +651,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types
       // Allocate the buffers here with a runtime call.
-      // TODO 8366717 Do we need to save vectors here? They could be used as arg registers, right? Same on x64.
       RegisterSaver reg_save(true /* save_vectors */);
       OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
@@ -3036,7 +3044,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       Register val = r_1->as_Register();
       assert_different_registers(to.base(), val, r15, r16, r17);
       if (is_reference_type(bt)) {
-        __ store_heap_oop(to, val, r15, r16, r17, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep r0 valid.
+        __ mov(r17, r0);
+        Address to_with_r17(r17, off);
+        __ store_heap_oop(to_with_r17, val, r15, r16, r17, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
       }

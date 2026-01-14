@@ -45,9 +45,9 @@ typedef class   instanceOopDesc*            instanceOop;
 typedef class     stackChunkOopDesc*          stackChunkOop;
 typedef class   arrayOopDesc*               arrayOop;
 typedef class     objArrayOopDesc*            objArrayOop;
+typedef class       flatArrayOopDesc*           flatArrayOop;
+typedef class       refArrayOopDesc*            refArrayOop;
 typedef class     typeArrayOopDesc*           typeArrayOop;
-typedef class     flatArrayOopDesc*           flatArrayOop;
-typedef class     refArrayOopDesc*            refArrayOop;
 
 #else
 
@@ -194,7 +194,8 @@ class     InstanceRefKlass;
 class     InstanceStackChunkKlass;
 class   ArrayKlass;
 class     ObjArrayKlass;
+class       FlatArrayKlass;
+class       RefArrayKlass;
 class     TypeArrayKlass;
-class     FlatArrayKlass;
 
 #endif // SHARE_OOPS_OOPSHIERARCHY_HPP
