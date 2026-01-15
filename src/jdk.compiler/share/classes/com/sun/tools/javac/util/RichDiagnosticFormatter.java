@@ -47,6 +47,7 @@ import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
+import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 import static com.sun.tools.javac.util.LayoutCharacters.*;
 import static com.sun.tools.javac.util.RichDiagnosticFormatter.RichConfiguration.*;
 
@@ -255,11 +256,9 @@ public class RichDiagnosticFormatter extends
     private int indexOf(Type type, WhereClauseKind kind) {
         int index = 1;
         for (Type t : whereClauses.get(kind).keySet()) {
-            if (t.tsym == type.tsym) {
+            if (kind.sameWhereClause(t, type, types)) {
                 return index;
-            }
-            if (kind != WhereClauseKind.TYPEVAR ||
-                    t.toString().equals(type.toString())) {
+            } else if (kind.sameWhereClauseKeyName(t, type)) {
                 index++;
             }
         }
@@ -267,11 +266,9 @@ public class RichDiagnosticFormatter extends
     }
 
     private boolean unique(TypeVar typevar) {
-        typevar = (TypeVar) typevar.stripMetadata();
-
         int found = 0;
         for (Type t : whereClauses.get(WhereClauseKind.TYPEVAR).keySet()) {
-            if (t.stripMetadata().toString().equals(typevar.toString())) {
+            if (WhereClauseKind.TYPEVAR.sameWhereClauseKeyName(t, typevar)) {
                 found++;
             }
         }
@@ -302,6 +299,24 @@ public class RichDiagnosticFormatter extends
 
         String key() {
             return key;
+        }
+
+        /*
+         * Check if two types map to the very same where clause
+         */
+        boolean sameWhereClause(Type t, Type s, Types types) {
+            return switch (this) {
+                case TYPEVAR, CAPTURED -> t.tsym == s.tsym;
+                default -> types.isSameType(t, s);
+            };
+        }
+
+        /*
+         * Check if two types are associated with similarly named where clause keys
+         */
+        boolean sameWhereClauseKeyName(Type t, Type s) {
+            return this != TYPEVAR ||
+                t.tsym.name.equals(s.tsym.name);
         }
     }
 
