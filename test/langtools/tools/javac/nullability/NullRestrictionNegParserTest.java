@@ -74,4 +74,9 @@ class NullRestrictionNegParserTest {
     static class TestConstructor {
         TestConstructor!() { } // bad, no bang in constructor type
     }
+
+    void testVarargs(Foo!... args) { // bad, bangs and varargs
+        Foo foo = (A a, B!... bs) -> { }; // bad, bangs and varargs
+        record R(A a, B!... bs) { } // bad, bangs and varargs
+    }
 }

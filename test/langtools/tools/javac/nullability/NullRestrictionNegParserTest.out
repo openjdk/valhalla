@@ -46,4 +46,7 @@ NullRestrictionNegParserTest.java:69:20: compiler.err.unsupported.null.restricti
 NullRestrictionNegParserTest.java:70:28: compiler.err.unsupported.null.restriction
 NullRestrictionNegParserTest.java:71:17: compiler.err.unsupported.null.restriction
 NullRestrictionNegParserTest.java:75:24: compiler.err.unsupported.null.restriction
-48 errors
+NullRestrictionNegParserTest.java:78:26: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:79:27: compiler.err.unsupported.null.restriction
+NullRestrictionNegParserTest.java:80:25: compiler.err.unsupported.null.restriction
+51 errors
