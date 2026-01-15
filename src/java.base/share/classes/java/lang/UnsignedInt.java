@@ -26,15 +26,16 @@
 package java.lang;
 
 /**
- * Unsigned 32-bit integers.
+ * Unsigned 32-bit two's complement integers.
  *
  * @see Integer
  */
 @jdk.internal.ValueBased
-public final class /*value record*/ UnsignedInt implements Comparable<UnsignedInt> {
-    // in the future, implements Integral<UnsignedInt> or similar
-    // *not* extending java.lang.Number, and, for now, *not*
-    // implementing Serializable, .
+public final class /*value record*/ UnsignedInt  {
+    // In the future, expect to add "implements Integral<UnsignedInt>"
+    // (or similar).
+    // Currently *not* extending java.lang.Number, and, for now, *not*
+    // implementing Serializable. Might implement Comparable<UnsignedInt>.
 
     /**
      * The bits of the unsigned value.
@@ -49,7 +50,7 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return an uusigned integer with the bits of the argument}
+     * {@return an unsigned integer with the bits of the argument}
      *
      * @param x the argument
      */
@@ -58,7 +59,7 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return an uusigned integer with the bits of the argument if
+     * {@return an unsigned integer with the bits of the argument if
      * the argument is zero or positive}
      *
      * @param x the argument
@@ -72,23 +73,32 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return the result of parsing the string as an unsigned
+     * integer} Base 10 is used as the implicit radix.
+     *
+     * @implSpec
+     * The same grammar of strings is recognized by this method as by
+     * {@link Integer#parseUnsignedInt(String)}.
      *
      * @param s the argument
+     * @throws    NumberFormatException  if the string does not contain a
+     *            parsable unsigned integer.
      * @see Integer#parseUnsignedInt(String)
      */
-    public static UnsignedInt valueOf(String s) {
+    public static UnsignedInt valueOf(String s) throws NumberFormatException {
         return new UnsignedInt(Integer.parseUnsignedInt(s));
     }
 
     /**
-     * Return lorem ipsum
+     * {@return the result of parsing the string as an unsigned
+     * integer in the specified radix}
+     *
+     * @implSpec
+     * The same grammar of strings is recognized by this method as by
+     * {@link Integer#parseUnsignedInt(String, int)}.
      *
      * @param      s   the string to be parsed.
      * @param      radix the radix to be used in interpreting {@code s}
-     * @return     an {@code UnsignedInt} holding the value
-     *             represented by the string argument in the specified
-     *             radix.
      * @throws    NumberFormatException if the {@code String}
      *            does not contain a parsable unsigned integer.
      * @see Integer#parseUnsignedInt(String, int)
@@ -98,7 +108,7 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return a string representing the unsigned value}
      */
     @Override
     public String toString() {
@@ -106,9 +116,13 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return a string representing the unsigned argument}
      *
-     * @param x lorem ipsum
+     * @implSpec
+     * The method behaves as if the argument were passed to {@link
+     * Integer#toUnsignedString(int)}.
+     *
+     * @param x the unsigned integer to be represented
      * @see Integer#toUnsignedString(int)
      */
     public static String toString(UnsignedInt x) {
@@ -116,10 +130,15 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return a string representing the unsigned argument in the
+     * specified radix}
      *
-     * @param x lorem ipsum
-     * @param radix lorem ipsum
+     * @implSpec
+     * The method behaves as if the arguments were passed to {@link
+     * Integer#toUnsignedString(int, int)}.
+     *
+     * @param x the unsigned integer to be represented
+     * @param radix the radix to use in the string representation
      * @see Integer#toUnsignedString(int, int)
      */
     public static String toString(UnsignedInt x, int radix) {
@@ -127,16 +146,19 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * Returns the value of this {@code Integer} as a {@code long}
-     * after a widening primitive conversion.
+     * {@return the bits of this unsigned integer as an {@code int}}
+     */
+    public int intValue() {
+        return this.value;
+    }
+
+    /**
+     * {@return the value of this unsigned integer as a {@code long}}
      *
-     * @param  x the value to convert to an unsigned {@code long}
-     * @return the argument converted to {@code long} by an unsigned
-     *         conversion
      * @see Integer#toUnsignedLong(int)
      */
-    public static long longValue(UnsignedInt x) {
-        return Integer.toUnsignedLong(x.value);
+    public long longValue() {
+        return Integer.toUnsignedLong(this.value);
     }
 
     // Arithmetic operators
@@ -182,7 +204,7 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
      * Division operation, "{@code /}".
      *
      * @param dividend the value to be divided
-     * @param divisor the value doing the dividing
+     * @param divisor the value being divided by
      * @return the unsigned quotient of the first argument divided by
      * the second argument
      * @throws ArithmeticException if the divisor is zero
@@ -196,8 +218,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     /**
      * Remainder operation, "{@code %}".
      *
-     * @param dividend the value to be divided
-     * @param divisor the value doing the dividing
+     * @param dividend the value to be divided to compute the remainder
+     * @param divisor the value being divided by
      * @return the unsigned remainder of the first argument divided by
      * the second argument
      * @throws ArithmeticException if the divisor is zero
@@ -208,6 +230,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
         return valueOf((Integer.remainderUnsigned(dividend.value, divisor.value)));
     }
 
+    // TODO: API decision, is this method needed?
+
     /**
      * Unary plus operation, "{@code +}".
      *
@@ -217,6 +241,14 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     public static UnsignedInt plus(UnsignedInt operand) {
         return operand;
     }
+
+    // TODO: API discussion, is this method needed?
+    //
+    // If there is a single interface defining the operations over
+    // integral types, negation should be defined over unsigned
+    // values. If there are separate interfaces for signed and
+    // unsigned integral types, the negate method can be elided on
+    // unsigned types.
 
     /**
      * Negation operation, unary "{@code -}".
@@ -239,28 +271,31 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * Compares two unsigned int values numerically. 
      *
      * @param x the first argument
      * @param y the second argument
+     * @return the value {@code 0} if {@code x == y};
+     *         a value less than {@code 0} if {@code x < y}; and
+     *         a value greater than {@code 0} if {@code x > y}
      * @see Integer#compareUnsigned(int, int)
      */
     public static int compare(UnsignedInt x, UnsignedInt y) {
         return Integer.compareUnsigned(x.value, y.value);
     }
 
-    /**
-     * {@return lorem ipsum}
-     *
-     * @param y the argument to compare to
-     * @see Integer#compareUnsigned(int, int)
-     */
-    @Override
-    public int compareTo(UnsignedInt y) {
-        return compare(this, y);
-    }
+//     /**
+//      * {@return lorem ipsum}
+//      *
+//      * @param y the argument to compare to
+//      * @see Integer#compareUnsigned(int, int)
+//      */
+//     @Override
+//     public int compareTo(UnsignedInt y) {
+//         return compare(this, y);
+//     }
 
-    // TODO: replace ordered comparison implementions with better code
+    // TODO: replace ordered comparison implementations with better code
     // from "Hackers Delight" or similar.
 
     // Integral-specific operations
@@ -275,6 +310,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
      * {@return {@code true} if the first argument is less than the
      * second argument and {@code false} otherwise}
      *
+     * The method corresponds to the less than operator, "{@code <}".
+     *
      * @param x the first argument
      * @param y the second argument
      */
@@ -285,6 +322,9 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     /**
      * {@return {@code true} if the first argument is less than or
      * equal to the second argument and {@code false} otherwise}
+     *
+     * The method corresponds to the less than or equal to operator,
+     * "{@code <=}".
      *
      * @param x the first argument
      * @param y the second argument
@@ -297,6 +337,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
      * {@return {@code true} if the first argument is greater than the
      * second argument and {@code false} otherwise}
      *
+     * The method corresponds to the less than operator, "{@code >}".
+     *
      * @param x the first argument
      * @param y the second argument
      */
@@ -307,6 +349,9 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     /**
      * {@return {@code true} if the first argument is greater than or
      * equal to the second argument and {@code false} otherwise}
+     *
+     * The method corresponds to the greater than or equal to operator,
+     * "{@code >=}".
      *
      * @param x the first argument
      * @param y the second argument
@@ -342,6 +387,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     /**
      * {@return the bit-wise AND of the arguments}
      *
+     * The method corresponds to the AND operator, "{@code &}".
+     *
      * @param x the first argument
      * @param y the second argument
      */
@@ -351,6 +398,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
 
     /**
      * {@return the bit-wise OR of the arguments}
+     *
+     * The method corresponds to the OR operator, "{@code |}".
      *
      * @param x the first argument
      * @param y the second argument
@@ -362,6 +411,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     /**
      * {@return the bit-wise XOR of the arguments}
      *
+     * The method corresponds to the XOR operator, "{@code ^}".
+     *
      * @param x the first argument
      * @param y the second argument
      */
@@ -371,6 +422,8 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
 
     /**
      * {@return the bit-wise complement of the argument}
+     *
+     * The method corresponds to the complement operator, "{@code ~}".
      *
      * @param x the argument
      */
@@ -385,9 +438,16 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     // distance always non-negative.
 
     /**
-     * {@return lorem ipsum}
+     * {@return the first operand left shifted by the distance
+     * indicated by the second operand, operator "{@code <<"}}
      *
-     * @param x lorem ipsum
+     * Only the value of the five low-order bits of the shift distance
+     * argument are taken into account in determining the shift
+     * distance.
+     *
+     * The method corresponds to the shift left operator, "{@code <<}".
+     *
+     * @param x the value to be shifted
      * @param shiftDistance number of bits to shift
      * @jls 15.19 Shift Operators 
      */
@@ -396,9 +456,19 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return the first operand right shifted by the distance
+     * indicated by the second operand}
      *
-     * @param x lorem ipsum
+     * This method corresponds to the shift right operator, "{@code >>}".
+     *
+     * Note: since this the is unsigned, semantically a (signed) right
+     * shift is equivalent to an <em>unsigned</em> right shift.
+     *
+     * <p>Only the value of the five low-order bits of the shift distance
+     * argument are taken into account in determining the shift
+     * distance.
+     *
+     * @param x the value to be shifted
      * @param shiftDistance number of bits to shift
      * @jls 15.19 Shift Operators 
      */
@@ -408,9 +478,16 @@ public final class /*value record*/ UnsignedInt implements Comparable<UnsignedIn
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return the first operand right shifted (unsigned) by the distance
+     * indicated by the second operand}
      *
-     * @param x lorem ipsum
+     * This method corresponds to the shift right unsigned operator, "{@code >>>}".
+     *
+     * <p>Only the value of the five low-order bits of the shift distance
+     * argument are taken into account in determining the shift
+     * distance.
+     *
+     * @param x the value to be shifted
      * @param shiftDistance  number of bits to shift
      * @jls 15.19 Shift Operators 
      */
