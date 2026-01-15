@@ -5544,18 +5544,30 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     // per oop field, containing the offset of the field.
     int nonoop_acmp_map_size = _layout_info->_nonoop_acmp_map->length() * 2;
     int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
-    typeArrayOop map = oopFactory::new_intArray(nonoop_acmp_map_size + oop_acmp_map_size + 1, CHECK);
+    int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
+
+    Array<int>* const acmp_maps = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
+    _acmp_maps_array = acmp_maps;
+    typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
     typeArrayHandle map_h(THREAD, map);
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
+    acmp_maps->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
       map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
       map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+
+      acmp_maps->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
+      acmp_maps->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
     }
     int oop_map_start = nonoop_acmp_map_size + 1;
     for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
       map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+      acmp_maps->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
     }
+    assert(_acmp_maps_array->length() == map->length(), "sanity");
     ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
+    ik->set_acmp_maps_array(_acmp_maps_array);
+    _acmp_maps_array = nullptr;
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
@@ -5639,6 +5651,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _nest_host(0),
   _permitted_subclasses(nullptr),
   _loadable_descriptors(nullptr),
+  _acmp_maps_array(nullptr),
   _record_components(nullptr),
   _local_interfaces(nullptr),
   _local_interface_indexes(nullptr),
@@ -5776,6 +5789,10 @@ ClassFileParser::~ClassFileParser() {
 
   if (_loadable_descriptors != nullptr && _loadable_descriptors != Universe::the_empty_short_array()) {
     MetadataFactory::free_array<u2>(_loader_data, _loadable_descriptors);
+  }
+
+  if (_acmp_maps_array != nullptr) {
+    MetadataFactory::free_array<int>(_loader_data, _acmp_maps_array);
   }
 
   // Free interfaces
