@@ -66,7 +66,7 @@ public class NullChecksWriter extends TreeTranslator {
     /** are null restricted types allowed?
       */
     private final boolean allowNullRestrictedTypes;
-    private final boolean useSiteNullChecks;
+    private final boolean noUseSiteNullChecks;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -78,7 +78,7 @@ public class NullChecksWriter extends TreeTranslator {
         Source source = Source.instance(context);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
-        useSiteNullChecks = Options.instance(context).isSet("useSiteNullChecks");
+        noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
@@ -166,7 +166,10 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitApply(JCMethodInvocation tree) {
-        if (useSiteNullChecks) {
+        if (noUseSiteNullChecks) {
+            super.visitApply(tree);
+            result = tree;
+        } else {
             Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
             tree.args = newArgs(msym, tree.args);
             super.visitApply(tree);
@@ -174,15 +177,12 @@ public class NullChecksWriter extends TreeTranslator {
             if (types.isNonNullable(msym.type.asMethodType().restype)) {
                 result = attr.makeNullCheck(tree, true);
             }
-        } else {
-            super.visitApply(tree);
-            result = tree;
         }
     }
 
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (useSiteNullChecks) {
+        if (!noUseSiteNullChecks) {
             tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
         }
         super.visitNewClass(tree);

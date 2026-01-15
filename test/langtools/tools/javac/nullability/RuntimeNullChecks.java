@@ -215,6 +215,37 @@ public class RuntimeNullChecks extends TestRunner {
                         new Test().m(null);
                     }
                 }
+                """,
+                // use site null checks negative examples
+                """
+                class Test {
+                    class Inner {
+                        Object m(Object! arg) { return null; }
+                    }
+                    class Inner2 extends Inner {
+                        @Override
+                        String m(Object arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner2();
+                        inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        Object! m(Object arg) { return null; }
+                    }
+                    class Inner2 extends Inner {
+                        @Override
+                        String m(Object arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner2();
+                        inner.m(null);
+                    }
+                }
                 """
         }) {
             System.err.println("executing test " + i++);
@@ -310,30 +341,13 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
-                """,
-                """
-                class Test {
-                    class Inner {
-                        Object m(Object! arg) { return null; }
-                    }
-                    class Inner2 extends Inner {
-                        @Override
-                        String m(Object arg) { return null; }
-                    }
-                    public static void main(String... args) {
-                        Inner inner = new Test().new Inner2();
-                        // the overriden method doesn't have null restricted args so no runtime error expected
-                        // as the example is not compiled with use site null checks
-                        inner.m(null);
-                    }
-                }
                 """
         }) {
             System.err.println("executing test " + i++);
             testHelper(base, code, false, null);
         }
 
-        // use site null checks example
+        // use site null checks positive examples
         testHelper(base,
                 """
                 class Test {
@@ -346,13 +360,11 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                     public static void main(String... args) {
                         Inner inner = new Test().new Inner2();
-                        // the overriden method doesn't have null restricted args but the example is
-                        // compiled with use site null checks, so a runtime error is expected
                         inner.m(null);
                     }
                 }
                 """,
-                true, NullPointerException.class, PREVIEW_PLUS_USE_SITE_OPTIONS);
+                false, null, PREVIEW_PLUS_NO_USE_SITE_OPTIONS);
         // similar to the above but now checking the return type
         testHelper(base,
                 """
@@ -370,7 +382,7 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                true, NullPointerException.class, PREVIEW_PLUS_USE_SITE_OPTIONS);
+                false, null, PREVIEW_PLUS_NO_USE_SITE_OPTIONS);
     }
 
     private static String[] PREVIEW_OPTIONS = {
@@ -378,10 +390,10 @@ public class RuntimeNullChecks extends TestRunner {
             "-source", Integer.toString(Runtime.version().feature())
     };
 
-    private static String[] PREVIEW_PLUS_USE_SITE_OPTIONS = {
+    private static String[] PREVIEW_PLUS_NO_USE_SITE_OPTIONS = {
             "--enable-preview",
             "-source", Integer.toString(Runtime.version().feature()),
-            "-XDuseSiteNullChecks"
+            "-XDnoUseSiteNullChecks"
     };
 
     private void testHelper(Path base, String testCode, boolean shouldFail, Class<?> expectedError) throws Exception {
