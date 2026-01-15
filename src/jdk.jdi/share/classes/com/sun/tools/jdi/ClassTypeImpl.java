@@ -131,6 +131,13 @@ public final class ClassTypeImpl extends InvokableTypeImpl
         return false;
     }
 
+    public boolean isValueClass() {
+        if (modifiers == -1) {
+            getModifiers();
+        }
+        return (modifiers & VMModifiers.IDENTITY) == 0;
+    }
+
     public void setValue(Field field, Value value)
         throws InvalidTypeException, ClassNotLoadedException {
 

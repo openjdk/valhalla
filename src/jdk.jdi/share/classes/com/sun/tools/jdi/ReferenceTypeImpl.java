@@ -330,17 +330,6 @@ public abstract class ReferenceTypeImpl extends TypeImpl implements ReferenceTyp
         return (status & JDWP.ClassStatus.ERROR) != 0;
     }
 
-    // Inline type is a concrete value class.
-    boolean isInlined() {
-        if (modifiers == -1) {
-            getModifiers();
-        }
-
-        return ((modifiers & VMModifiers.IDENTITY) == 0)
-            && ((modifiers & VMModifiers.INTERFACE) == 0)
-            && ((modifiers & VMModifiers.ABSTRACT) == 0);
-    }
-
     public List<Field> fields() {
         List<Field> fields = (fieldsRef == null) ? null : fieldsRef.get();
         if (fields == null) {
