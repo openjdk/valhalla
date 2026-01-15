@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
@@ -190,27 +191,35 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     private List<JCExpression> newArgs(Symbol.MethodSymbol msym, List<JCExpression> actualArgs) {
-        List<Type> declaredArgTypes = msym.type.asMethodType().argtypes;
-        int externalArgsLength = msym.externalType(types).getParameterTypes().size() - declaredArgTypes.size();
-        Type varArgsArg = msym.isVarArgs() ? declaredArgTypes.last() : null;
+        // skip signature polymorphic methods they won't have null restricted fields arguments
+        if ((msym.flags_field & Flags.SIGNATURE_POLYMORPHIC) != 0) {
+            return actualArgs;
+        }
         ListBuffer<JCExpression> newArgs = new ListBuffer<>();
-        for (JCExpression arg : actualArgs) {
-            if (externalArgsLength > 0) {
-                newArgs.add(arg);
-                externalArgsLength--;
-                continue;
-            }
+        List<Type> declaredArgTypes = msym.type.asMethodType().argtypes;
+        /* there can be prefix arguments added by Lower, for example captured variables, etc
+         * nothing to check for them
+         */
+        int prefixArgsLength = msym.externalType(types).getParameterTypes().size() - declaredArgTypes.size();
+        List<JCExpression> actualArgsTmp = actualArgs;
+        while (prefixArgsLength-- > 0) {
+            newArgs.add(actualArgsTmp.head);
+            actualArgsTmp = actualArgsTmp.tail;
+        }
+        int declaredArgSize = declaredArgTypes.size();
+        int argsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
+        while (argsToCheck-- > 0) {
             Type formalArgType = declaredArgTypes.head;
-            if (msym.isVarArgs() && formalArgType == varArgsArg) {
-                newArgs.add(arg);
-                continue;
-            }
             if (types.isNonNullable(formalArgType)) {
-                newArgs.add(attr.makeNullCheck(arg, true));
+                newArgs.add(attr.makeNullCheck(actualArgsTmp.head, true));
             } else {
-                newArgs.add(arg);
+                newArgs.add(actualArgsTmp.head);
             }
-            declaredArgTypes = declaredArgTypes.tail;
+            actualArgsTmp = actualArgsTmp.tail;
+        }
+        // now add the last vararg argument if applicable
+        if (msym.isVarArgs()) {
+            newArgs.add(actualArgsTmp.head);
         }
         return newArgs.toList();
     }
