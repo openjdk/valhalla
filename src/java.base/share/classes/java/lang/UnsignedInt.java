@@ -271,7 +271,7 @@ public final class /*value record*/ UnsignedInt  {
     }
 
     /**
-     * Compares two unsigned int values numerically. 
+     * Compares two unsigned int values numerically.
      *
      * @param x the first argument
      * @param y the second argument
@@ -449,7 +449,7 @@ public final class /*value record*/ UnsignedInt  {
      *
      * @param x the value to be shifted
      * @param shiftDistance number of bits to shift
-     * @jls 15.19 Shift Operators 
+     * @jls 15.19 Shift Operators
      */
     public static UnsignedInt shiftLeft(UnsignedInt x, int shiftDistance) {
         return valueOf(x.value << shiftDistance);
@@ -470,7 +470,7 @@ public final class /*value record*/ UnsignedInt  {
      *
      * @param x the value to be shifted
      * @param shiftDistance number of bits to shift
-     * @jls 15.19 Shift Operators 
+     * @jls 15.19 Shift Operators
      */
     public static UnsignedInt shiftRight(UnsignedInt x, int shiftDistance) {
         // Shifts of an unsigned value are always unsigned; use >>> *not* >>.
@@ -489,7 +489,7 @@ public final class /*value record*/ UnsignedInt  {
      *
      * @param x the value to be shifted
      * @param shiftDistance  number of bits to shift
-     * @jls 15.19 Shift Operators 
+     * @jls 15.19 Shift Operators
      */
     public static UnsignedInt shiftRightUnsigned(UnsignedInt x, int shiftDistance) {
         // Shifts of an unsigned value are always unsigned; use >>> *not* >>.
