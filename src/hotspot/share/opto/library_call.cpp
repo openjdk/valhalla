@@ -4931,6 +4931,9 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
               }
             }
             // TODO 8350865 Should we add a check of the init_val type (maybe in debug only + halt)?
+            // If we insert a checkcast here, we can be sure that init_val is an InlineTypeNode, so
+            // when we folded a field load from an allocation (e.g. during escape analysis), we can
+            // remove the check init_val->is_InlineType().
           }
           Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, init_val);
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
