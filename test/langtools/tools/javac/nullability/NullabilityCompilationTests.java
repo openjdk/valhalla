@@ -484,6 +484,24 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                String! str = "";
+                                void main() {
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                String! test() {
+                                    return "";
+                                }
+                                void main() {
+                                }
+                                """,
+                                Result.Clean,
                                 "")
                 )
         );
