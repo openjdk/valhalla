@@ -245,6 +245,18 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
       Handle obj_h(THREAD, src);
       oop res = allocate_instance(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk, false);
+
+      // After copying, re-check if the payload is now marked as null. Another
+      // thread could have marked the src object as null after the initial check
+      // but before the copy operation, causing the null-marker to be marked in
+      // the destination. In this case, discard the allocated object and
+      // return nullptr.
+      if (LayoutKindHelper::is_nullable_flat(lk)) {
+        if (is_payload_marked_as_null(payload_addr(res))) {
+          return nullptr;
+        }
+      }
+
       return res;
     }
     break;
