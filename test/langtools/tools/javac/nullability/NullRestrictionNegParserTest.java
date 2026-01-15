@@ -77,5 +77,6 @@ class NullRestrictionNegParserTest {
 
     void testVarargs(Foo!... args) { // bad, bangs and varargs
         Foo foo = (A a, B!... bs) -> { }; // bad, bangs and varargs
+        record R(A a, B!... bs) { } // bad, bangs and varargs
     }
 }

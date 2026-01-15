@@ -121,6 +121,10 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
 
                 #{TYPE} field;
 
+                void testRecord() {
+                    record R(#{TYPE} c) { }
+                }
+
                 void testLocal() {
                     #{TYPE} local;
                     final #{TYPE} local;
