@@ -5727,6 +5727,11 @@ public class JavacParser implements Parser {
         this.permitTypeAnnotationsPushBack = false;
 
         if (token.kind == ELLIPSIS) {
+            if (type instanceof JCNullableTypeExpression nullableTypeExpression &&
+                    nullableTypeExpression.getNullMarker() != NullMarker.UNSPECIFIED) {
+                // can't mix bangs and varargs
+                unsupportedNullRestriction(); // @@@: we could probably improve the position here
+            }
             List<JCAnnotation> varargsAnnos = typeAnnotationsPushedBack;
             typeAnnotationsPushedBack = List.nil();
             mods.flags |= Flags.VARARGS;

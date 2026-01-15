@@ -118,7 +118,6 @@ public class NullRestrictionParserTest extends ComboInstance<NullRestrictionPars
                 #{TYPE} restype() { throw new AssertionError(); }
                 void argtype(#{TYPE} arg) { throw new AssertionError(); }
                 void final_argtype(final #{TYPE} arg) { throw new AssertionError(); }
-                void varargtype(#{TYPE}... args) { throw new AssertionError(); }
 
                 #{TYPE} field;
 
