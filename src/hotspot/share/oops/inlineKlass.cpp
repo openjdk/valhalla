@@ -235,7 +235,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-      if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
+      if (is_payload_marked_as_null(cast_from_oop<address>(src) + offset)) {
         return nullptr;
       }
     } // Fallthrough
@@ -244,12 +244,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
       oop res = allocate_instance(CHECK_NULL);
-      copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
-      if (LayoutKindHelper::is_nullable_flat(lk)) {
-        if(is_payload_marked_as_null(payload_addr(res))) {
-          return nullptr;
-        }
-      }
+      copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk, false);
       return res;
     }
     break;
