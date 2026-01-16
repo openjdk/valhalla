@@ -25,10 +25,13 @@
 
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.OperatorSymbol;
+import com.sun.tools.javac.code.Symbol.TypeClassOperatorSymbol;
+import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.code.Types;
@@ -48,7 +51,6 @@ import com.sun.tools.javac.util.Names;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -72,6 +74,7 @@ public class Operators {
     private final Log log;
     private final Symtab syms;
     private final Types types;
+    private final Resolve resolve;
 
     /** Unary operators map. */
     private Map<Name, List<UnaryOperatorHelper>> unaryOperators = new HashMap<>(Tag.getNumberOfOperators());
@@ -96,6 +99,7 @@ public class Operators {
         names = Names.instance(context);
         log = Log.instance(context);
         types = Types.instance(context);
+        resolve = Resolve.instance(context);
         noOpSymbol = new OperatorSymbol(names.empty, Type.noType, -1, syms.noSymbol);
         initOperatorNames();
         initUnaryOperators();
@@ -147,22 +151,22 @@ public class Operators {
     /**
      * Entry point for resolving a unary operator given an operator tag and an argument type.
      */
-    OperatorSymbol resolveUnary(DiagnosticPosition pos, JCTree.Tag tag, Type op) {
+    OperatorSymbol resolveUnary(DiagnosticPosition pos, Env<AttrContext> env, JCTree.Tag tag, Type op) {
         return resolve(tag,
                 unaryOperators,
-                unop -> unop.test(op),
-                unop -> unop.resolve(op),
+                unop -> unop.test(env, op),
+                unop -> unop.resolve(env, op),
                 () -> reportErrorIfNeeded(pos, tag, op));
     }
 
     /**
      * Entry point for resolving a binary operator given an operator tag and a pair of argument types.
      */
-    OperatorSymbol resolveBinary(DiagnosticPosition pos, JCTree.Tag tag, Type op1, Type op2) {
+    OperatorSymbol resolveBinary(DiagnosticPosition pos, Env<AttrContext> env, JCTree.Tag tag, Type op1, Type op2) {
         return resolve(tag,
                 binaryOperators,
-                binop -> binop.test(op1, op2),
-                binop -> binop.resolve(op1, op2),
+                binop -> binop.test(env, op1, op2),
+                binop -> binop.resolve(env, op1, op2),
                 () -> reportErrorIfNeeded(pos, tag, op1, op2));
     }
 
@@ -307,7 +311,7 @@ public class Operators {
     /**
      * Common superclass for all unary operator helpers.
      */
-    abstract class UnaryOperatorHelper extends OperatorHelper implements Predicate<Type> {
+    abstract class UnaryOperatorHelper extends OperatorHelper {
 
         UnaryOperatorHelper(Tag tag) {
             super(tag);
@@ -338,13 +342,19 @@ public class Operators {
         }
 
         /**
+         * This method will be overridden by unary operator helpers to provide custom operator
+         * applicability logic.
+         */
+        abstract boolean test(Env<AttrContext> env, Type arg);
+
+        /**
          * This method will be overridden by unary operator helpers to provide custom resolution
          * logic.
          */
-        abstract OperatorSymbol resolve(Type t);
+        abstract OperatorSymbol resolve(Env<AttrContext> env, Type t);
     }
 
-    abstract class BinaryOperatorHelper extends OperatorHelper implements BiPredicate<Type, Type> {
+    abstract class BinaryOperatorHelper extends OperatorHelper {
 
         BinaryOperatorHelper(Tag tag) {
             super(tag);
@@ -377,10 +387,16 @@ public class Operators {
         }
 
         /**
+         * This method will be overridden by binary operator helpers to provide custom operator
+         * applicability logic.
+         */
+        abstract boolean test(Env<AttrContext> env, Type arg1, Type arg2);
+
+        /**
          * This method will be overridden by binary operator helpers to provide custom resolution
          * logic.
          */
-        abstract OperatorSymbol resolve(Type t1, Type t2);
+        abstract OperatorSymbol resolve(Env<AttrContext> env, Type t1, Type t2);
     }
 
     /**
@@ -393,12 +409,12 @@ public class Operators {
         }
 
         @Override
-        public boolean test(Type type) {
+        public boolean test(Env<AttrContext> env, Type type) {
             return type.isNullOrReference();
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg) {
             return doLookup(syms.objectType);
         }
     }
@@ -421,13 +437,45 @@ public class Operators {
         }
 
         @Override
-        public boolean test(Type type) {
+        public boolean test(Env<AttrContext> env, Type type) {
             return numericTest.test(unaryPromotion(type));
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg) {
             return doLookup(unaryPromotion(arg));
+        }
+    }
+
+    /**
+     * Class representing type classes-mediated unary operator helpers.
+     */
+    class UnaryTypeClassOperator extends UnaryOperatorHelper {
+
+        final Supplier<MethodSymbol> opMethodSupplier;
+
+        UnaryTypeClassOperator(Tag tag, Supplier<MethodSymbol> opMethodSupplier) {
+            super(tag);
+            this.opMethodSupplier = opMethodSupplier;
+        }
+
+        @Override
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg) {
+            // return new "virtual" op symbol
+            return new TypeClassOperatorSymbol(name,
+                    new MethodType(List.of(arg), arg, List.nil(), syms.methodClass),
+                    type_classes_unop, syms.noSymbol, opMethodSupplier.get());
+        }
+
+        @Override
+        public boolean test(Env<AttrContext> env, Type arg) {
+            if (types.unboxedTypeOrType(arg).isPrimitive() ||
+                    types.isSameType(arg, syms.stringType)) {
+                return false;
+            }
+            // witness test
+            ClassType monoidWitness = new ClassType(Type.noType, List.of(arg), (TypeSymbol) opMethodSupplier.get().owner);
+            return resolve.findWitness(env, monoidWitness).exists();
         }
     }
 
@@ -442,12 +490,12 @@ public class Operators {
         }
 
         @Override
-        public boolean test(Type type) {
+        public boolean test(Env<AttrContext> env, Type type) {
             return types.unboxedTypeOrType(type).hasTag(TypeTag.BOOLEAN);
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg) {
             return doLookup(syms.booleanType);
         }
     }
@@ -463,7 +511,7 @@ public class Operators {
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg) {
             return doLookup(types.unboxedTypeOrType(arg));
         }
     }
@@ -486,15 +534,49 @@ public class Operators {
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg1, Type arg2) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg1, Type arg2) {
             Type t = binaryPromotion(arg1, arg2);
             return doLookup(t, t);
         }
 
         @Override
-        public boolean test(Type arg1, Type arg2) {
+        public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
             return numericTest.test(unaryPromotion(arg1)) &&
                     numericTest.test(unaryPromotion(arg2));
+        }
+    }
+
+    /**
+     * Class representing type classes-mediated binary operator helpers.
+     */
+    class BinaryTypeClassOperator extends BinaryOperatorHelper {
+
+        final Supplier<MethodSymbol> opMethodSupplier;
+
+        BinaryTypeClassOperator(Tag tag, Supplier<MethodSymbol> opMethodSupplier) {
+            super(tag);
+            this.opMethodSupplier = opMethodSupplier;
+        }
+
+        @Override
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg1, Type arg2) {
+            // return new "virtual" op symbol
+            return new TypeClassOperatorSymbol(name,
+                    new MethodType(List.of(arg1, arg2), arg1, List.nil(), syms.methodClass),
+                    type_classes_binop, syms.noSymbol, opMethodSupplier.get());
+        }
+
+        @Override
+        public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
+            if (types.unboxedTypeOrType(arg1).isPrimitive() ||
+                    types.unboxedTypeOrType(arg2).isPrimitive() ||
+                    !types.isSameType(arg1, arg2) ||
+                    types.isSameType(arg1, syms.stringType)) {
+                return false;
+            }
+            // witness test
+            ClassType monoidWitness = new ClassType(Type.noType, List.of(arg1), (TypeSymbol) opMethodSupplier.get().owner);
+            return resolve.findWitness(env, monoidWitness).exists();
         }
     }
 
@@ -509,12 +591,12 @@ public class Operators {
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg1, Type arg2) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg1, Type arg2) {
             return doLookup(syms.booleanType, syms.booleanType);
         }
 
         @Override
-        public boolean test(Type arg1, Type arg2) {
+        public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
             return types.unboxedTypeOrType(arg1).hasTag(TypeTag.BOOLEAN) &&
                     types.unboxedTypeOrType(arg2).hasTag(TypeTag.BOOLEAN);
         }
@@ -532,12 +614,12 @@ public class Operators {
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg1, Type arg2) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg1, Type arg2) {
             return doLookup(stringPromotion(arg1), stringPromotion(arg2));
         }
 
         @Override
-        public boolean test(Type arg1, Type arg2) {
+        public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
             boolean hasStringOp = types.isSameType(arg1, syms.stringType) ||
                     types.isSameType(arg2, syms.stringType);
             boolean hasVoidOp = arg1.hasTag(TypeTag.VOID) || arg2.hasTag(TypeTag.VOID);
@@ -575,12 +657,12 @@ public class Operators {
         }
 
         @Override
-        public OperatorSymbol resolve(Type arg1, Type arg2) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type arg1, Type arg2) {
             return doLookup(unaryPromotion(arg1), unaryPromotion(arg2));
         }
 
         @Override
-        public boolean test(Type arg1, Type arg2) {
+        public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
             TypeTag op1 = unaryPromotion(arg1).getTag();
             TypeTag op2 = unaryPromotion(arg2).getTag();
             return (op1 == TypeTag.LONG || op1 == TypeTag.INT) &&
@@ -613,12 +695,12 @@ public class Operators {
         }
 
         @Override
-        public boolean test(Type arg1, Type arg2) {
+        public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
             return getKind(arg1, arg2) != ComparisonKind.INVALID;
         }
 
         @Override
-        public OperatorSymbol resolve(Type t1, Type t2) {
+        public OperatorSymbol resolve(Env<AttrContext> env, Type t1, Type t2) {
             ComparisonKind kind = getKind(t1, t2);
             Type t = (kind == ComparisonKind.NUMERIC_OR_BOOLEAN) ?
                     binaryPromotion(t1, t2) :
@@ -662,6 +744,7 @@ public class Operators {
                         .addUnaryOperator(FLOAT, FLOAT, fneg)
                         .addUnaryOperator(LONG, LONG, lneg)
                         .addUnaryOperator(INT, INT, ineg),
+                new UnaryTypeClassOperator(Tag.NEG, syms::unop_neg),
                 new UnaryNumericOperator(Tag.COMPL, Type::isIntegral)
                         .addUnaryOperator(LONG, LONG, lxor)
                         .addUnaryOperator(INT, INT, ixor),
@@ -713,6 +796,7 @@ public class Operators {
                     .addBinaryOperator(FLOAT, FLOAT, FLOAT, fadd)
                     .addBinaryOperator(LONG, LONG, LONG, ladd)
                     .addBinaryOperator(INT, INT, INT, iadd),
+            new BinaryTypeClassOperator(Tag.PLUS, syms::binop_add),
             new BinaryNumericOperator(Tag.MINUS)
                     .addBinaryOperator(DOUBLE, DOUBLE, DOUBLE, dsub)
                     .addBinaryOperator(FLOAT, FLOAT, FLOAT, fsub)

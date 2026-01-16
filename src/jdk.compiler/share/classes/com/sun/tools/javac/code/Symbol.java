@@ -2628,6 +2628,19 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
     }
 
+    /**
+     * Special operator symbol for type classes-mediated unary/binary operator.
+     * Holds a reference to the method that should be used to perform the operation.
+     */
+    public static class TypeClassOperatorSymbol extends OperatorSymbol {
+        final MethodSymbol opMethod;
+
+        public TypeClassOperatorSymbol(Name name, Type type, int opcode, Symbol owner, MethodSymbol opMethod) {
+            super(name, type, opcode, owner);
+            this.opMethod = opMethod;
+        }
+    }
+
     /** Symbol completer interface.
      */
     public static interface Completer {

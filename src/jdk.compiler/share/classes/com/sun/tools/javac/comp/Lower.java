@@ -570,7 +570,7 @@ public class Lower extends TreeTranslator {
      */
     JCUnary makeUnary(JCTree.Tag optag, JCExpression arg) {
         JCUnary tree = make.Unary(optag, arg);
-        tree.operator = operators.resolveUnary(tree, optag, arg.type);
+        tree.operator = operators.resolveUnary(tree, attrEnv, optag, arg.type);
         tree.type = tree.operator.type.getReturnType();
         return tree;
     }
@@ -582,7 +582,7 @@ public class Lower extends TreeTranslator {
      */
     JCBinary makeBinary(JCTree.Tag optag, JCExpression lhs, JCExpression rhs) {
         JCBinary tree = make.Binary(optag, lhs, rhs);
-        tree.operator = operators.resolveBinary(tree, optag, lhs.type, rhs.type);
+        tree.operator = operators.resolveBinary(tree, attrEnv, optag, lhs.type, rhs.type);
         tree.type = tree.operator.type.getReturnType();
         return tree;
     }
@@ -594,7 +594,7 @@ public class Lower extends TreeTranslator {
      */
     JCAssignOp makeAssignop(JCTree.Tag optag, JCTree lhs, JCTree rhs) {
         JCAssignOp tree = make.Assignop(optag, lhs, rhs);
-        tree.operator = operators.resolveBinary(tree, tree.getTag().noAssignOp(), lhs.type, rhs.type);
+        tree.operator = operators.resolveBinary(tree, attrEnv, tree.getTag().noAssignOp(), lhs.type, rhs.type);
         tree.type = lhs.type;
         return tree;
     }
@@ -3416,11 +3416,12 @@ public class Lower extends TreeTranslator {
     public void visitAssignop(final JCAssignOp tree) {
         final boolean boxingReq = !tree.lhs.type.isPrimitive() &&
             tree.operator.type.getReturnType().isPrimitive();
+        final boolean typeClassReq = tree.operator.opcode == type_classes_binop;
 
         AssignopDependencyScanner depScanner = new AssignopDependencyScanner(tree);
         depScanner.scan(tree.rhs);
 
-        if (boxingReq || depScanner.dependencyFound) {
+        if (boxingReq || typeClassReq || depScanner.dependencyFound) {
             // boxing required; need to rewrite as x = (unbox typeof x)(x op y);
             // or if x == (typeof x)z then z = (unbox typeof x)((typeof x)z op y)
             // (but without recomputing x)
@@ -3431,9 +3432,9 @@ public class Lower extends TreeTranslator {
                 // unerased type of tree.lhs as it is stored
                 // in tree.type in Attr.
                 OperatorSymbol newOperator = operators.resolveBinary(tree,
-                                                              newTag,
-                                                              tree.type,
-                                                              tree.rhs.type);
+                                                              attrEnv, newTag,
+                                                              typeClassReq ? tree.operator.type.getParameterTypes().head : tree.type,
+                                                              typeClassReq ? tree.operator.type.getParameterTypes().tail.head : tree.rhs.type);
                 //Need to use the "lhs" at two places, once on the future left hand side
                 //and once in the future binary operator. But further processing may change
                 //the components of the tree in place (see visitSelect for e.g. <Class>.super.<ident>),
@@ -3561,17 +3562,27 @@ public class Lower extends TreeTranslator {
 
         tree.arg = boxIfNeeded(translate(tree.arg, tree), tree.type);
 
-        if (tree.hasTag(NOT) && tree.arg.type.constValue() != null) {
-            tree.type = cfolder.fold1(bool_not, tree.arg.type);
-        }
-
-        // If translated left hand side is an Apply, we are
-        // seeing an access method invocation. In this case, return
-        // that access method invocation as result.
-        if (isUpdateOperator && tree.arg.hasTag(APPLY)) {
-            result = tree.arg;
+        if (tree.operator.opcode == type_classes_unop) {
+            // type classes add!
+            Type opType = tree.operator.type.getParameterTypes().head;
+            ClassType monoidWitness = new ClassType(Type.noType, List.of(opType), syms.monoidType.tsym);
+            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, monoidWitness)));
+            Symbol addSym = lookupMethod(tree, names.fromString("neg") , monoidWitness, List.of(tree.arg.type));
+            JCExpression addMeth = make.Select(witnessRcvr, addSym);
+            result = make.App(addMeth, List.of(tree.arg)).setType(opType);
         } else {
-            result = tree;
+            if (tree.hasTag(NOT) && tree.arg.type.constValue() != null) {
+                tree.type = cfolder.fold1(bool_not, tree.arg.type);
+            }
+
+            // If translated left hand side is an Apply, we are
+            // seeing an access method invocation. In this case, return
+            // that access method invocation as result.
+            if (isUpdateOperator && tree.arg.hasTag(APPLY)) {
+                result = tree.arg;
+            } else {
+                result = tree;
+            }
         }
     }
 
@@ -3601,7 +3612,17 @@ public class Lower extends TreeTranslator {
             break;
         }
         tree.rhs = translate(tree.rhs, formals.tail.head);
-        result = tree;
+        if (tree.operator.opcode == type_classes_binop) {
+            // type classes add!
+            Type opType = tree.operator.type.getParameterTypes().head;
+            ClassType monoidWitness = new ClassType(Type.noType, List.of(opType), syms.monoidType.tsym);
+            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, monoidWitness)));
+            Symbol addSym = lookupMethod(tree, names.add , monoidWitness, List.of(tree.lhs.type, tree.rhs.type));
+            JCExpression addMeth = make.Select(witnessRcvr, addSym);
+            result = make.App(addMeth, List.of(tree.lhs, tree.rhs)).setType(opType);
+        } else {
+            result = tree;
+        }
     }
 
     public void visitIdent(JCIdent tree) {

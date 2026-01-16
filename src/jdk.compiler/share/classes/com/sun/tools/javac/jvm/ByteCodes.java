@@ -265,9 +265,17 @@ public interface ByteCodes {
     int nullchk         = 276;  // return operand if non-null,
                                 // otherwise throw NullPointerException.
 
+    /** Virtual opcode for type class overload binary operators
+     */
+    int type_classes_binop           = 277;
+
+    /** Virtual opcode for type class overload unary operators
+     */
+    int type_classes_unop           = 278;
+
     /** Virtual opcode for disallowed operations.
      */
-    int error           = 277;
+    int error           = 279;
 
     /** All conditional jumps come in pairs. To streamline the
      *  treatment of jumps, we also introduce a negation of an
