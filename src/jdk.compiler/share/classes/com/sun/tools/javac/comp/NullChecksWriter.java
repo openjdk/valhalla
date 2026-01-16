@@ -43,6 +43,7 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
 
+import static com.sun.tools.javac.code.Kinds.Kind.PCK;
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
@@ -147,7 +148,20 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     boolean isInThisSameCompUnit(Symbol sym) {
-        return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
+        return env.toplevel.getTypeDecls().stream().anyMatch(
+                tree -> {
+                    Symbol csym = TreeInfo.symbolFor(tree);
+                    return csym.kind == TYP && csym instanceof Symbol.ClassSymbol && csym == outermostType(sym);
+                });
+    }
+
+    private Symbol outermostType(Symbol sym) {
+        Symbol prev = null;
+        while (sym.kind != PCK) {
+            prev = sym;
+            sym = sym.owner;
+        }
+        return prev;
     }
 
     @Override
