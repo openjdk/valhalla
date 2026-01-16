@@ -25,7 +25,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
 
@@ -73,23 +72,19 @@ public class FlattenableSemanticTest {
 
     static Point nfsp;
     @Strict
-    @NullRestricted
-    static Point fsp = new Point();
+    static Point! fsp = new Point();
 
     Point nfip;
     @Strict
-    @NullRestricted
-    Point fip;
+    Point! fip;
 
     static JumboInline nfsj;
     @Strict
-    @NullRestricted
-    static JumboInline fsj = new JumboInline();
+    static JumboInline! fsj = new JumboInline();
 
     JumboInline nfij;
     @Strict
-    @NullRestricted
-    JumboInline fij;
+    JumboInline! fij;
 
     static Object getNull() {
         return null;

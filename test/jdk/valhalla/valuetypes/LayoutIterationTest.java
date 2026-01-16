@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 
 import jdk.internal.value.LayoutIteration;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -59,8 +58,7 @@ class LayoutIterationTest {
 
     @LooselyConsistentValue
     static value class Two {
-        @NullRestricted
-        One one = new One(5, (short) 3);
+        One! one = new One(5, (short) 3);
         One anotherOne = new One(4, (short) 2);
         long l = 5L;
     }
