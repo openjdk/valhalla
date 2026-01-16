@@ -104,7 +104,15 @@ public interface Numerical<NT> {
     /**
      * Division operation, binary operator "{@code /}".
      *
-     * @throws ArithmeticException if the divisor is zero
+     * @apiNote
+     * Numerical types can have different policies regarding how
+     * divisors equal to zero are handled. Many types will throw an
+     * {@code ArithmeticException} in those cases. However, other
+     * types like {@linkplain StandardFloatingPoint floating-point
+     * types} can return a special value like NaN (not-a-number).
+     *
+     * @throws ArithmeticException if the divisor is zero and zero
+     * divisors are not allowed
      * @throws UnsupportedOperationException if division is not supported
      * @param dividend the first operand
      * @param divisor the second operand
@@ -115,7 +123,15 @@ public interface Numerical<NT> {
     /**
      * Remainder operation, binary operator "{@code %}".
      *
-     * @throws ArithmeticException if the divisor is zero
+     * @apiNote
+     * Numerical types can have different policies regarding how
+     * divisors equal to zero are handled. Many types will throw an
+     * {@code ArithmeticException} in those cases. However, other
+     * types like {@linkplain StandardFloatingPoint floating-point
+     * types} can return a special value like NaN (not-a-number).
+     *
+     * @throws ArithmeticException if the divisor is zero and zero
+     * divisors are not allowed
      * @throws UnsupportedOperationException if remainder is not supported
      * @param dividend the first operand
      * @param divisor the second operand

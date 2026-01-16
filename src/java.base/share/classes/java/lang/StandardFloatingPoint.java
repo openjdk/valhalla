@@ -29,6 +29,9 @@ package java.lang;
  * Indicate a floating-point type in the style of an IEEE 754 standard
  * floating-point type.
  *
+ * <p>TODO: write-up about what being an IEEE 754 standard
+ * floating-point type means and implies.
+ *
  * @apiNote
  * Possible future work: separate subinterface for decimal IEEE 754
  * types.
@@ -37,6 +40,34 @@ package java.lang;
  */
 public interface StandardFloatingPoint<SFP>
     extends Numerical<SFP>, Orderable<SFP> {
+
+    /**
+     * {@inheritDoc Numerical}
+     *
+     * @apiNote
+     * Explain returning NaN on a zero divisor, etc.
+     *
+     * @param dividend {@inheritDoc Numerical}
+     * @param divisor {@inheritDoc Numerical}
+     * @return {@inheritDoc Numerical}
+     */
+    // Note: NOT inheritDoc'ing ArithmeticException on a zero divisor
+    @Override
+    SFP divide(SFP dividend, SFP divisor);
+
+    /**
+     * {@inheritDoc Numerical}
+     *
+     * @apiNote
+     * Explain behavior on a zero divisor, rounding policy, etc.
+     *
+     * @param dividend {@inheritDoc Numerical}
+     * @param divisor {@inheritDoc Numerical}
+     * @return {@inheritDoc Numerical}
+     */
+    // Note: NOT inheritDoc'ing ArithmeticException on a zero divisor
+    @Override
+    SFP remainder(SFP dividend, SFP divisor);
 
     /**
      * {@inheritDoc Orderable}
