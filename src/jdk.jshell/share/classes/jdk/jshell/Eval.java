@@ -77,6 +77,8 @@ import jdk.jshell.spi.ExecutionControl.UserException;
 import static java.util.stream.Collectors.toSet;
 import static java.util.Collections.singletonList;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_GEN;
 import static jdk.jshell.Snippet.Status.RECOVERABLE_DEFINED;
 import static jdk.jshell.Snippet.Status.VALID;
@@ -329,6 +331,7 @@ class Eval {
             String fullTypeName;
             String displayType;
             boolean hasEnhancedType = false;
+            boolean nonNull = false;
             TreeDependencyScanner tds = new TreeDependencyScanner();
             Wrap typeWrap;
             Wrap anonDeclareWrap = null;
@@ -340,6 +343,10 @@ class Eval {
             if (baseType != null) {
                 tds.scan(baseType); // Not dependent on initializer
                 fullTypeName = displayType = typeName = EvalPretty.prettyExpr((JCTree) vt.getType(), false);
+                if (baseType instanceof JCNullableTypeExpression nullable &&
+                    nullable.getNullMarker() == NullMarker.NOT_NULL) {
+                    nonNull = true;
+                }
                 while (baseType instanceof ArrayTypeTree) {
                     //TODO handle annotations too
                     baseType = ((ArrayTypeTree) baseType).getType();
@@ -425,10 +432,11 @@ class Eval {
                 }
             }
             Wrap guts = Wrap.varWrap(compileSource, typeWrap, sbBrackets.toString(), wname,
-                                     winit, enhancedDesugaring, anonDeclareWrap);
+                                     winit, nonNull, enhancedDesugaring, anonDeclareWrap);
             DiagList modDiag = modifierDiagnostics(vt.getModifiers(), dis, true);
             Snippet snip = new VarSnippet(state.keyMap.keyForVariable(name), userSource, guts,
-                    name, fieldName, subkind, displayType, hasEnhancedType ? fullTypeName : null, anonymousClasses,
+                    name, fieldName, subkind, displayType, hasEnhancedType ? fullTypeName : null,
+                    nonNull, anonymousClasses,
                     tds.declareReferences(), modDiag);
             snippets.add(snip);
         }
@@ -688,7 +696,7 @@ class Eval {
                 }
                 Collection<String> declareReferences = null; //TODO
                 snip = new VarSnippet(state.keyMap.keyForVariable(name), userSource, guts,
-                        name, name, SubKind.TEMP_VAR_EXPRESSION_SUBKIND, displayTypeName, fullTypeName, anonymousClasses, declareReferences, null);
+                        name, name, SubKind.TEMP_VAR_EXPRESSION_SUBKIND, displayTypeName, fullTypeName, false, anonymousClasses, declareReferences, null);
             } else {
                 guts = Wrap.methodReturnWrap(compileSource);
                 snip = new ExpressionSnippet(state.keyMap.keyForExpression(name, typeName), userSource, guts,
