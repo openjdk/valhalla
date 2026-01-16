@@ -218,8 +218,8 @@ public class NullChecksWriter extends TreeTranslator {
         }
         /* now add the last vararg argument if applicable, no checks are needed here as varargs can't be
          * null restricted. Also note that at this point the vararg arguments have already been translated
-         * by Lower into an array. This is not true for signature polymorphic methods but we have filtered
-         * them out
+         * by Lower into an array. This is not true for signature polymorphic methods but we have already
+         * filtered them out
          */
         if (msym.isVarArgs()) {
             newArgs.add(actualArgsTmp.head);
