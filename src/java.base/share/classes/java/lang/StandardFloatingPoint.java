@@ -42,7 +42,6 @@ public interface StandardFloatingPoint<SFP>
      * {@inheritDoc Orderable}
      * TODO: Need to replace Orderable interface spec with IEEE 754
      * aware one.
-     * 
      *
      * @param op1 {@inheritDoc Orderable}
      * @param op2 {@inheritDoc Orderable}
