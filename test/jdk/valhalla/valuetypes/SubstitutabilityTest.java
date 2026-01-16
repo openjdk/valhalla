@@ -28,7 +28,7 @@
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @run junit/othervm SubstitutabilityTest
- * @run junit/othervm -Xshare:off -XX:+UseAltSubstitutabilityMethod SubstitutabilityTest
+ * @run junit/othervm -Xshare:off SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
