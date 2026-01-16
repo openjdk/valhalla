@@ -90,7 +90,6 @@ public class NullChecksWriter extends TreeTranslator {
         noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
     }
 
-    Symbol.ClassSymbol currentClass;
     Env<AttrContext> env;
 
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
@@ -98,12 +97,10 @@ public class NullChecksWriter extends TreeTranslator {
             try {
                 this.make = make;
                 this.env = env;
-                currentClass = (Symbol.ClassSymbol) TreeInfo.symbolFor(cdef);
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
                 this.make = null;
-                this.currentClass = null;
                 this.env = null;
             }
         }
