@@ -191,7 +191,7 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     private List<JCExpression> newArgs(Symbol.MethodSymbol msym, List<JCExpression> actualArgs) {
-        // skip signature polymorphic methods they won't have null restricted fields arguments
+        // skip signature polymorphic methods they won't have null restricted arguments
         if ((msym.flags_field & Flags.SIGNATURE_POLYMORPHIC) != 0) {
             return actualArgs;
         }
@@ -200,15 +200,15 @@ public class NullChecksWriter extends TreeTranslator {
         /* there can be prefix arguments added by Lower, for example captured variables, etc
          * nothing to check for them
          */
-        int prefixArgsLength = msym.externalType(types).getParameterTypes().size() - declaredArgTypes.size();
+        int declaredArgSize = declaredArgTypes.size();
+        int prefixArgsLength = msym.externalType(types).getParameterTypes().size() - declaredArgSize;
         List<JCExpression> actualArgsTmp = actualArgs;
         while (prefixArgsLength-- > 0) {
             newArgs.add(actualArgsTmp.head);
             actualArgsTmp = actualArgsTmp.tail;
         }
-        int declaredArgSize = declaredArgTypes.size();
-        int argsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
-        while (argsToCheck-- > 0) {
+        int noOfArgsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
+        while (noOfArgsToCheck-- > 0) {
             Type formalArgType = declaredArgTypes.head;
             if (types.isNonNullable(formalArgType)) {
                 newArgs.add(attr.makeNullCheck(actualArgsTmp.head, true));
