@@ -22,7 +22,7 @@
  */
 
 /**
- * @test id=xcomp-core
+ * @test
  * @summary Test value class constructor debugging
  * @library ..
  * @enablePreview
@@ -66,6 +66,23 @@ import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 
+/*
+The test reproduces scenarios when ObjectReference for value object is fetched during the object construction
+and the object content is changed later. When "this" ObjectReference for value object is requested,
+JDI returns existing reference if there are other references to the equal value object or create a new one otherwise.
+The test debugs "new Value(3,6)" statement by setting breakpoints in Value class constructor at locations
+when the object being constructed is (0,0), (3,0) and (3,6).
+
+Test scenarios are defined by test arguments; TestScaffold passes them creating debuggee process (TargetApp class).
+Debugsee initializes static fields with value objects (0,0), (3,0), (3,6) depending on the passed arguments.
+Debugger gets ObjectReferences for the fields before testing.
+
+Tested scenarios:
+- no existing references;
+- all 3 references exists;
+- there are references for 1 and 3 breakpoints.
+
+*/
 public class CtorDebuggingTest extends TestScaffold {
 
     static value class Value {
@@ -125,8 +142,7 @@ public class CtorDebuggingTest extends TestScaffold {
         try {
             return bkptEvent.thread().frame(0).thisObject();
         } catch (IncompatibleThreadStateException ex) {
-            System.out.println("ERROR: cannot get 'this' object: " + ex);
-            return null;
+            throw new RuntimeException("Cannot get 'this' object", ex);
         }
     }
 
@@ -158,8 +174,8 @@ public class CtorDebuggingTest extends TestScaffold {
         }
     }
 
-    // Sanoty testing ReferenceTypeImpl.isInlined() logic.
-    void verifyClassIsInlined(ClassType theClass, boolean expected) {
+    // Sanity testing for value object detection logic.
+    void verifyClassIsValueClass(ClassType theClass, boolean expected) {
         // VM constants
         final int IDENTITY = 0x0020;
         final int INTERFACE = 0x00000200;
@@ -169,11 +185,11 @@ public class CtorDebuggingTest extends TestScaffold {
         boolean isIdentity = (modifiers & IDENTITY) != 0;
         boolean isInterface = (modifiers & INTERFACE) != 0;
         boolean isAbstract = (modifiers & ABSTRACT) != 0;
-        boolean isInlined = !isIdentity && !isInterface && !isAbstract;
-        System.out.println("Class " + theClass + " is inlined: " + (isInlined ? "YES" : "NO"));
-        if (isInlined != expected) {
-            throw new RuntimeException("IsInlined verification failed: "
-                                     + " " + isInlined + ", expected: " + expected
+        boolean isValueClass = !isIdentity && !isInterface && !isAbstract;
+        System.out.println("Class " + theClass + " is value class: " + (isValueClass ? "YES" : "NO"));
+        if (isValueClass != expected) {
+            throw new RuntimeException("IsValueClass verification failed: "
+                                     + " " + isValueClass + ", expected: " + expected
                                      + " (isIdentity: " + isIdentity
                                      + " (isInterface: " + isInterface
                                      + " (isAbstract: " + isAbstract + ")");
@@ -215,7 +231,7 @@ public class CtorDebuggingTest extends TestScaffold {
     }
 
     // TestScaffold is not very good in handling multiple breakpoints.
-    // This halper class is a listener which resumes debuggee after breakpoints.
+    // This helper class is a listener which resumes debuggee after breakpoints.
     class MultiBreakpointHandler extends TargetAdapter {
         boolean needToResume = false;
         // the map stores "this" in all breakpoints
@@ -259,7 +275,7 @@ public class CtorDebuggingTest extends TestScaffold {
             return request;
         }
 
-        // Resumes the debuggee and go through all breackpoints until the location specified is reached.
+        // Resumes the debuggee and goes through all breackpoints until the location specified is reached.
         void resumeTo(Location loc) {
             final BreakpointRequest request = eventRequestManager().createBreakpointRequest(loc);
             request.enable();
@@ -341,37 +357,43 @@ public class CtorDebuggingTest extends TestScaffold {
         xField = valueClass.fieldByName("x");
         yField = valueClass.fieldByName("y");
 
-        verifyClassIsInlined(valueClass, true);
-        verifyClassIsInlined(targetClass, false);
+        verifyClassIsValueClass(valueClass, true);
+        verifyClassIsValueClass(targetClass, false);
 
+        // Get references for pre-created objects created by debuggee.
         ObjectReference v1 = getStaticFieldObject(targetClass, "v1");
         ObjectReference v2 = getStaticFieldObject(targetClass, "v2");
         ObjectReference v3 = getStaticFieldObject(targetClass, "v3");
 
         MultiBreakpointHandler breakpointHandler = new MultiBreakpointHandler();
 
+        // Breakpoints for location when "this" is (0,0).
         Location loc1 = findLocation(valueClass, breakpoints.get("1"));
         BreakpointRequest bkpt1 = breakpointHandler.addBreakpoint(loc1, null);
         BreakpointRequest bkpt1_v1 = v1 == null ? null : breakpointHandler.addBreakpoint(loc1, v1);
         BreakpointRequest bkpt1_v2 = v2 == null ? null : breakpointHandler.addBreakpoint(loc1, v2);
         BreakpointRequest bkpt1_v3 = v3 == null ? null : breakpointHandler.addBreakpoint(loc1, v3);
 
+        // Breakpoints for location when "this" is (3,0).
         Location loc2 = findLocation(valueClass, breakpoints.get("2"));
         BreakpointRequest bkpt2 = breakpointHandler.addBreakpoint(loc2, null);
         BreakpointRequest bkpt2_v1 = v1 == null ? null : breakpointHandler.addBreakpoint(loc2, v1);
         BreakpointRequest bkpt2_v2 = v2 == null ? null : breakpointHandler.addBreakpoint(loc2, v2);
         BreakpointRequest bkpt2_v3 = v3 == null ? null : breakpointHandler.addBreakpoint(loc2, v3);
 
+        // Breakpoints for location when "this" is (3,6).
         Location loc3 = findLocation(valueClass, breakpoints.get("3"));
         BreakpointRequest bkpt3 = breakpointHandler.addBreakpoint(loc3, null);
         BreakpointRequest bkpt3_v1 = v1 == null ? null : breakpointHandler.addBreakpoint(loc3, v1);
         BreakpointRequest bkpt3_v2 = v2 == null ? null : breakpointHandler.addBreakpoint(loc3, v2);
         BreakpointRequest bkpt3_v3 = v3 == null ? null : breakpointHandler.addBreakpoint(loc3, v3);
 
+        // Go through all breakpoints.
         breakpointHandler.resumeTo(locDone);
 
         System.out.println("DONE");
 
+        // Analyze gathered data depending on the testcase.
         if (v1 == null && v2 == null && v3 == null) {
             // No other references.
             // ObjectID is generated at the 1st breakpoint (reference to heap object being constructed),
