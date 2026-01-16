@@ -28,15 +28,6 @@
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @run junit/othervm SubstitutabilityTest
- */
-
-/*
- * @test
- * @modules java.base/java.lang.runtime:open
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @enablePreview
- * @requires !vm.cds
  * @run junit/othervm -Xshare:off SubstitutabilityTest
  */
 
