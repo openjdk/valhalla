@@ -71,7 +71,8 @@ public interface StandardFloatingPoint<SFP>
 
     /**
      * {@inheritDoc Orderable}
-     * TODO: Need to replace Orderable interface spec with IEEE 754
+     *
+     * <p>TODO: Need to augment Orderable interface spec with IEEE 754
      * aware one.
      *
      * @param op1 {@inheritDoc Orderable}
@@ -82,51 +83,86 @@ public interface StandardFloatingPoint<SFP>
 
     /**
      * {@inheritDoc Orderable}
-     * TODO: Need to replace Orderable interface spec with IEEE 754
+     *
+     * <p>TODO: Need to augment Orderable interface spec with IEEE 754
      * aware one.
      *
      * @apiNote
      * Explain all the IEEE 754-isms.
+     *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code Orderable.super.lessThanEqual(op1, op2)}.
      *
      * @param op1 the {@inheritDoc Orderable}
      * @param op2 the {@inheritDoc Orderable}
      */
      @Override
-     boolean lessThanEqual(SFP op1, SFP op2);
+     default boolean lessThanEqual(SFP op1, SFP op2) {
+         return Orderable.super.lessThanEqual(op1, op2);
+     }
 
     /**
      * {@inheritDoc Orderable}
-     * TODO: Need to replace Orderable interface spec with IEEE 754
+     *
+     * <p>TODO: Need to augment Orderable interface spec with IEEE 754
      * aware one.
      *
      * @apiNote
      * Explain all the IEEE 754-isms.
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code !lessThanEqual(op1, op2) && !isUnordered(op1, op2)}.
+     *
      * @param op1 {@inheritDoc Orderable}
      * @param op2 {@inheritDoc Orderable}
      */
-     @Override
-     boolean greaterThan(SFP op1, SFP op2);
+    @Override
+    default boolean greaterThan(SFP op1, SFP op2) {
+        return !lessThanEqual(op1, op2) && !isUnordered(op1, op2);
+    }
 
     /**
      * {@inheritDoc Orderable}
-     * TODO: Need to replace Orderable interface spec with IEEE 754
+     *
+     * <p>TODO: Need to augment Orderable interface spec with IEEE 754
      * aware one.
      *
      * @apiNote
      * Explain all the IEEE 754-isms.
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code !lessThan(op1, op2) && !isUnordered(op1, op2)}.
+     *
      * @param op1 {@inheritDoc Orderable}
      * @param op2 {@inheritDoc Orderable}
      */
      @Override
-     boolean greaterThanEqual(SFP op1, SFP op2);
+     default boolean greaterThanEqual(SFP op1, SFP op2)  {
+        return !lessThan(op1, op2) && !isUnordered(op1, op2);
+     }
+
+    /**
+     * {@return {@code true} if the operands are unordered and {@code false} otherwise}
+     *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code isNaN(op1) || isNaN(op2)}.
+     *
+     * @param op1 the first operand
+     * @param op2 the second operand
+     */
+    default boolean isUnordered(SFP op1, SFP op2) {
+        return isNaN(op1) || isNaN(op2);
+    }
 
     /**
      * {@inheritDoc Orderable}
      *
      * @apiNote
-     * TODO: Explain all the IEEE 754-isms.
+     * TODO: Explain all the IEEE 754-isms, write default method.
      *
      * @param op1 {@inheritDoc Orderable}
      * @param op2 {@inheritDoc Orderable}
@@ -138,7 +174,7 @@ public interface StandardFloatingPoint<SFP>
      * {@inheritDoc Orderable}
      *
      * @apiNote
-     * TODO: Explain all the IEEE 754-isms.
+     * TODO: Explain all the IEEE 754-isms, write default method.
      *
      * @param op1 {@inheritDoc Orderable}
      * @param op2 {@inheritDoc Orderable}
@@ -215,11 +251,17 @@ public interface StandardFloatingPoint<SFP>
      * This method corresponds to the isFinite operation defined in
      * IEEE 754.
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code !isInfinite(operand) && !isNaN(operand)}.
+     *
      * @param operand the {@code SFP} value to be tested
      * @return {@code true} if the argument is a finite
      * floating-point value, {@code false} otherwise.
      */
-    boolean isFinite(SFP operand);
+    default boolean isFinite(SFP operand) {
+        return !isInfinite(operand) && !isNaN(operand);
+    }
 
     /**
      * Returns the size of an ulp of the argument.
