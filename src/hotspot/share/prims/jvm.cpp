@@ -59,6 +59,7 @@
 #include "oops/constantPool.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.hpp"
@@ -454,18 +455,20 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
   }
   if (org->is_flatArray()) {
-    FlatArrayKlass* fak = FlatArrayKlass::cast(org->klass());
-    LayoutKind lk = fak->layout_kind();
-    ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
-    array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
-    arrayHandle ah(THREAD, (arrayOop)array);
+    FlatArrayKlass* const fak = FlatArrayKlass::cast(org->klass());
+    const jint layout_helper = fak->layout_helper();
+    const LayoutKind lk = FlatArrayKlass::cast(org->klass())->layout_kind();
+    const ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
+    flatArrayOop dst = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
+    InlineKlassPayload src_payload(flatArrayOop(oh()), fak);
+    InlineKlassPayload dst_payload(dst, fak);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
-      void* src = ((flatArrayOop)oh())->value_at_addr(i, fak->layout_helper());
-      void* dst = ((flatArrayOop)ah())->value_at_addr(i - from, fak->layout_helper());
-      vk->copy_payload_to_addr(src, dst, lk);
+      src_payload.set_index(i, layout_helper);
+      dst_payload.set_index(i - from, layout_helper);
+      src_payload.copy_to(dst_payload);
     }
-    array = ah();
+    array = dst_payload.get_holder();
   } else {
     ArrayKlass::ArrayProperties props = org->is_null_free_array() ? ArrayKlass::ArrayProperties::NULL_RESTRICTED : ArrayKlass::ArrayProperties::DEFAULT;
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);

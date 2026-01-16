@@ -287,27 +287,29 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
           }
         }
       } else {
-        flatArrayHandle hd(THREAD, da);
-        flatArrayHandle hs(THREAD, sa);
-        // source and destination layouts mismatch, simpler solution is to copy through an intermediate buffer (heap instance)
-        bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
-        oop buffer = vk->allocate_instance(CHECK);
-        address dst = (address) hd->value_at_addr(dst_pos, fdk->layout_helper());
-        address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());
+        InlineKlassPayloadHandle src_payload(sa, fsk);
+        InlineKlassPayloadHandle dst_payload(da, fdk);
+        const jint src_layout_helper = fsk->layout_helper();
+        const jint dst_layout_helper = fdk->layout_helper();
+        const bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
+        instanceOop buffer = vk->allocate_instance(CHECK);
+        InlineKlassPayload buf_payload(buffer);
         for (int i = 0; i < length; i++) {
-          if (need_null_check) {
-            if (vk->is_payload_marked_as_null(src)) {
+          src_payload.set_index(src_pos + i, src_layout_helper);
+          dst_payload.set_index(dst_pos + i, dst_layout_helper);
+          if (need_null_check && src_payload.is_marked_as_null()) {
               THROW(vmSymbols::java_lang_NullPointerException());
-            }
           }
-          vk->copy_payload_to_addr(src, vk->payload_addr(buffer), fsk->layout_kind());
-          if (vk->has_nullable_atomic_layout()) {
+          src_payload.copy_to(buf_payload);
+          // TODO: We have a race here where we may copy a null value and then
+          //       mark it as none null.
+          if (buf_payload.has_null_marker()) {
+            // TODO: Move this into copy. With a compatible copy layout and mark
+            // as none null before and after depending on buffered.
             // Setting null marker to not zero for non-nullable source layouts
-            vk->mark_payload_as_non_null(vk->payload_addr(buffer));
+            buf_payload.mark_as_non_null();
           }
-          vk->copy_payload_to_addr(vk->payload_addr(buffer), dst, fdk->layout_kind());
-          dst += dst_incr;
-          src += src_incr;
+          dst_payload.copy_from(buf_payload);
         }
       }
     } else { // flatArray-to-objArray

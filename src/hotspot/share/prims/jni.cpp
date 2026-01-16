@@ -52,6 +52,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceOop.hpp"
@@ -1822,16 +1823,12 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (!jfieldIDWorkaround::is_flat_jfieldID(fieldID)) {
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
   } else {
-    assert(k->is_instance_klass(), "Only instance can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     bool found = ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     assert(found, "Field not found");
-    InstanceKlass* holder = fd.field_holder();
-    assert(holder->field_is_flat(fd.index()), "Must be");
-    InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
-    InlineKlass* field_vklass = li->klass();
-    res = field_vklass->read_payload_from_addr(o, ik->field_offset(fd.index()), li->kind(), CHECK_NULL);
+    InlineKlassPayload payload(instanceOop(o), &fd);
+    res = payload.read(CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
@@ -1965,11 +1962,8 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
-    InstanceKlass* holder = fd.field_holder();
-    InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
-    InlineKlass* vklass = li->klass();
-    oop v = JNIHandles::resolve(value);
-    vklass->write_value_to_addr(v, ((char*)(oopDesc*)o) + offset, li->kind(), CHECK);
+    InlineKlassPayload payload(instanceOop(o), &fd);
+    payload.write(instanceOop(JNIHandles::resolve(value)), CHECK);
   }
   log_debug_if_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();

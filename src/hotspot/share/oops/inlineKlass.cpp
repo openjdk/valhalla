@@ -40,9 +40,11 @@
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -98,7 +100,11 @@ address InlineKlass::calculate_members_address() const {
   return end_of_instance_klass();
 }
 
-oop InlineKlass::null_reset_value() {
+InlineKlassPayload InlineKlass::null_payload() const {
+  return InlineKlassPayload(instanceOop(null_reset_value()), const_cast<InlineKlass*>(this));
+}
+
+oop InlineKlass::null_reset_value() const {
   assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
   assert(val != nullptr, "Sanity check");
@@ -183,7 +189,7 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
   }
 }
 
-bool InlineKlass::is_layout_supported(LayoutKind lk) {
+bool InlineKlass::is_layout_supported(LayoutKind lk) const {
   switch(lk) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
       return has_null_free_non_atomic_layout();
@@ -203,97 +209,6 @@ bool InlineKlass::is_layout_supported(LayoutKind lk) {
     default:
       ShouldNotReachHere();
   }
-}
-
-void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk) {
-  assert(is_layout_supported(lk), "Unsupported layout");
-  assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
-  switch(lk) {
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-      if (is_payload_marked_as_null((address)src)) {
-        // copy null_reset value to dest
-        HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
-      } else {
-        // Copy has to be performed, even if this is an empty value, because of the null marker
-        HeapAccess<>::value_copy(src, dst, this, lk);
-      }
-    }
-    break;
-    case LayoutKind::BUFFERED:
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
-      if (is_empty_inline_type()) return; // nothing to do
-      HeapAccess<>::value_copy(src, dst, this, lk);
-    }
-    break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS) {
-  assert(src != nullptr, "Must be");
-  assert(is_layout_supported(lk), "Unsupported layout");
-  switch(lk) {
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-      if (is_payload_marked_as_null(cast_from_oop<address>(src) + offset)) {
-        return nullptr;
-      }
-    } // Fallthrough
-    case LayoutKind::BUFFERED:
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
-      Handle obj_h(THREAD, src);
-      ZERO_ONLY(ThreadInVMfromJava tivmj(THREAD);) // Zero enters here from C++ intepreter
-      oop res = allocate_instance(CHECK_NULL);
-      copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk);
-
-      // After copying, re-check if the payload is now marked as null. Another
-      // thread could have marked the src object as null after the initial check
-      // but before the copy operation, causing the null-marker to be marked in
-      // the destination. In this case, discard the allocated object and
-      // return nullptr.
-      if (LayoutKindHelper::is_nullable_flat(lk)) {
-        if (is_payload_marked_as_null(payload_addr(res))) {
-          return nullptr;
-        }
-      }
-
-      return res;
-    }
-    break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) {
-  void* src_addr = nullptr;
-  if (src == nullptr) {
-    if (!LayoutKindHelper::is_nullable_flat(lk)) {
-      THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
-    }
-    // Writing null to a nullable flat field/element is usually done by writing
-    // the whole pre-allocated null_reset_value at the payload address to ensure
-    // that the null marker and all potential oops are reset to "zeros".
-    // However, the null_reset_value is allocated during class initialization.
-    // If the current value of the field is null, it is possible that the class
-    // of the field has not been initialized yet and thus the null_reset_value
-    // might not be available yet.
-    // Writing null over an already null value should not trigger class initialization.
-    // The solution is to detect null being written over null cases and return immediately
-    // (writing null over null is a no-op from a field modification point of view)
-    if (is_payload_marked_as_null((address)dst)) return;
-    src_addr = payload_addr(null_reset_value());
-  } else {
-    src_addr = payload_addr(src);
-    if (LayoutKindHelper::is_nullable_flat(lk)) {
-      mark_payload_as_non_null((address)src_addr);
-    }
-  }
-  copy_payload_to_addr(src_addr, dst, lk);
 }
 
 // Arrays of...
