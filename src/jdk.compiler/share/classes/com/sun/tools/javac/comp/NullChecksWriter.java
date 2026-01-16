@@ -113,8 +113,10 @@ public class NullChecksWriter extends TreeTranslator {
                 tree.init = attr.makeNullCheck(tree.init, true);
             }
         }
-        // temporary hack, this is only to test null restriction in the VM for fields of value classes
-        if (tree.sym.owner.kind == TYP && tree.sym.type.isValueClass() && types.isNonNullable(tree.sym.type)) {
+        // temporary hack, this is only to test null restriction in the VM for fields of a value class type
+        if (tree.sym.owner.kind == TYP &&
+                tree.sym.type.isValueClass() &&
+                types.isNonNullable(tree.sym.type)) {
             List<Attribute.Compound> rawAttrs = tree.sym.getRawAttributes();
             if (rawAttrs.isEmpty() || !rawAttrs.stream().anyMatch(ac -> ac.type.tsym == syms.nullRestrictedType.tsym)) {
                 Attribute.Compound ac = new Attribute.Compound(syms.nullRestrictedType, List.nil());
