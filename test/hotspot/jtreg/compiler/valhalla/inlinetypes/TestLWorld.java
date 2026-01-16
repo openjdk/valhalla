@@ -3711,7 +3711,7 @@ public class TestLWorld {
     // acmp doesn't need substitutability test when one input is known
     // not to be a value type
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test124(NonValueClass o1, Object o2) {
         return o1 == o2;
     }
@@ -3725,7 +3725,7 @@ public class TestLWorld {
 
     // acmp doesn't need substitutability test when one input is null
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test125(Object o1) {
         Object o2 = null;
         return o1 == o2;
@@ -4020,7 +4020,7 @@ public class TestLWorld {
 
     // Test that acmp of different inline objects with same content is removed
     @Test
-    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test137(int i) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4034,7 +4034,7 @@ public class TestLWorld {
 
     // Same as test137 but with null
     @Test
-    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test138(int i, boolean b) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4910,7 +4910,7 @@ public class TestLWorld {
 
     // Verify that the substitutability runtime call is removed if (at least) one of the arguments has a known type
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 2"}) // Need to load from non-flat 'integerValue' fields
     public boolean test174(AllPrimitives x, AllPrimitives y) {
@@ -4934,7 +4934,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test175(AllPrimitives x, Integer y) {
         return getter(x) == getter(y);
     }
@@ -4950,7 +4950,7 @@ public class TestLWorld {
 
     // Same as test174 but only one operand has a known type
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 15"}) // Need to load the fields from 'y'
     public boolean test176(AllPrimitives x, Object y) {
@@ -4976,7 +4976,7 @@ public class TestLWorld {
 
     // Same as above but type of 'y' is only known after loop opts
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 14"}) // Need to load the fields from 'x'
     public boolean test177(Object x, AllPrimitives y) {
@@ -5106,7 +5106,7 @@ public class TestLWorld {
 
     // Test acmp with deep nesting of flat fields
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test178(Value178 x, Value178 y) {
         return getter(x) == getter(y);
     }
@@ -5138,7 +5138,7 @@ public class TestLWorld {
 
     // Same as test178 but with object argument
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test179(Value178 x, Object y) {
         return getter(x) == getter(y);
     }
@@ -5175,7 +5175,7 @@ public class TestLWorld {
 
     // Test constant folding
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD, STORE, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test180() {
         Object val1 = null;
         Object val2 = null;
@@ -5210,7 +5210,7 @@ public class TestLWorld {
 
     // Non-optimizable case because the object field would require another substitutability check
     @Test
-    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test181(Value181 val1, Value181 val2) {
         return val1 == val2;
     }
@@ -5238,7 +5238,7 @@ public class TestLWorld {
 
     // Same as test181 but the Object field "hides" one level deeper
     @Test
-    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test182(Value182 val1, Value182 val2) {
         return val1 == val2;
     }
