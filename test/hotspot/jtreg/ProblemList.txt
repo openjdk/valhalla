@@ -77,9 +77,6 @@ compiler/interpreter/Test6833129.java 8335266 generic-i586
 
 compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 
-compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessProviderTest.java 8350208 generic-all
-compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
-
 serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150 generic-all
 
 # Valhalla
@@ -275,3 +272,7 @@ vmTestbase/nsk/monitoring/ThreadMXBean/ThreadInfo/Multi/Multi005/TestDescription
 vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
 
 vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/TestDescription.java 8310144 macosx-aarch64
+
+vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
+vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
+vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64
