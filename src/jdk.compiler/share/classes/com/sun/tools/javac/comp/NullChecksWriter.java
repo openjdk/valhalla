@@ -25,7 +25,10 @@
 
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.SymbolMetadata;
+import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.*;
@@ -33,6 +36,7 @@ import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 
 import static com.sun.tools.javac.code.TypeTag.VOID;
@@ -59,6 +63,7 @@ public class NullChecksWriter extends TreeTranslator {
     private final Types types;
     private TreeMaker make;
     private final Attr attr;
+    private final Symtab syms;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -66,6 +71,7 @@ public class NullChecksWriter extends TreeTranslator {
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         attr = Attr.instance(context);
+        syms = Symtab.instance(context);
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
@@ -88,6 +94,14 @@ public class NullChecksWriter extends TreeTranslator {
         if (tree.init != null) {
             if (types.isNonNullable(tree.sym.type)) {
                 tree.init = attr.makeNullCheck(tree.init, true);
+            }
+        }
+        // temporary hack, this is only to test null restriction in the VM for fields of value classes
+        if (tree.sym.type.isValueClass() && types.isNonNullable(tree.sym.type)) {
+            List<Attribute.Compound> rawAttrs = tree.sym.getRawAttributes();
+            if (rawAttrs.isEmpty() || !rawAttrs.stream().anyMatch(ac -> ac.type.tsym == syms.nullRestrictedType.tsym)) {
+                Attribute.Compound ac = new Attribute.Compound(syms.nullRestrictedType, List.nil());
+                tree.sym.appendAttributes(List.of(ac));
             }
         }
         result = tree;

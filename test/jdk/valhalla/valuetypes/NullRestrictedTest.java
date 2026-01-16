@@ -36,7 +36,6 @@ import java.lang.reflect.Field;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
@@ -54,8 +53,8 @@ public class NullRestrictedTest {
 
     static value class Value {
         Object o;
-        @NullRestricted  @Strict
-        EmptyValue empty;
+        @Strict
+        EmptyValue! empty;
         Value() {
             this.o = null;
             this.empty = new EmptyValue();
@@ -68,10 +67,16 @@ public class NullRestrictedTest {
 
     static class Mutable {
         EmptyValue o;
-        @NullRestricted  @Strict
-        EmptyValue empty = new EmptyValue();
-        @NullRestricted  @Strict
-        volatile EmptyValue vempty = new EmptyValue();
+        @Strict
+        EmptyValue! empty;
+        @Strict
+        volatile EmptyValue! vempty;
+
+        Mutable() {
+            empty = new EmptyValue();
+            vempty = new EmptyValue();
+            super();
+        }
     }
 
     @Test
