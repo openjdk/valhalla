@@ -88,48 +88,60 @@ abstract class Wrap implements GeneralWrap {
      *         an initialization method
      */
     public static Wrap varWrap(String source, Wrap wtype, String brackets,
-                               Wrap wname, Wrap winit, boolean enhanced,
+                               Wrap wname, Wrap winit, boolean nonNull, boolean enhanced,
                                Wrap anonDeclareWrap) {
         List<Object> components = new ArrayList<>();
-        components.add(new VarDeclareWrap(wtype, brackets, wname));
+
         Wrap wmeth;
 
-        if (winit == null) {
-            wmeth = new CompoundWrap(new NoWrap(" "), "   return null;\n");
+        if (nonNull) {
+            components.add(
+                    new CompoundWrap("    public static class Holder {\n    ",
+                                     new VarDeclareWrap(wtype, brackets, wname, winit),
+                                     "    }\n"));
+            wmeth = new CompoundWrap(
+                    "        return ", "Holder.", wname, ";\n"
+            );
         } else {
-            // int x = y
-            if (enhanced) {
-                // private static <Z> Z do_itAux() {
-                //     wtype x_ = y;
-                //     @SuppressWarnings("unchecked")
-                //     Z x__ = (Z) x_;
-                //     return x__;
-                // }
-                // in do_it method:
-                //return do_itAux();
-                //find an unused name:
-                String scratchName = "$";
-                while (winit.wrapped().contains(scratchName)) {
-                    scratchName += "$";
-                }
-                Wrap waux = new CompoundWrap(
-                        "    private static <" + scratchName + "> " + scratchName +" ", DOIT_METHOD_NAME + "Aux", "() throws java.lang.Throwable {\n",
-                        wtype, brackets + " ", scratchName, "_ =\n        ", winit, semi(winit),
-                        "        @java.lang.SuppressWarnings(\"unchecked\") ", scratchName, " ", scratchName, "__ = (", scratchName, ")", scratchName, "_;\n",
-                        "        return ", scratchName, "__;\n",
-                        "}"
-                );
-                components.add(waux);
-                wmeth = new CompoundWrap(
-                        "        return ", wname, " = ", DOIT_METHOD_NAME + "Aux", "();\n"
-                );
+            components.add(new VarDeclareWrap(wtype, brackets, wname));
+
+            if (winit == null) {
+                wmeth = new CompoundWrap(new NoWrap(" "), "   return null;\n");
             } else {
-                // int x_ = y; return x = x_;
-                // decl + "_ = " + init ; + "return " + name + "= " + name + "_ ;"
-                wmeth = new CompoundWrap(
-                        wtype, brackets + " ", wname, "_ =\n        ", winit, semi(winit),
-                        "        return ", wname, " = ", wname, "_;\n"
-                );
+                // int x = y
+                if (enhanced) {
+                    // private static <Z> Z do_itAux() {
+                    //     wtype x_ = y;
+                    //     @SuppressWarnings("unchecked")
+                    //     Z x__ = (Z) x_;
+                    //     return x__;
+                    // }
+                    // in do_it method:
+                    //return do_itAux();
+                    //find an unused name:
+                    String scratchName = "$";
+                    while (winit.wrapped().contains(scratchName)) {
+                        scratchName += "$";
+                    }
+                    Wrap waux = new CompoundWrap(
+                            "    private static <" + scratchName + "> " + scratchName +" ", DOIT_METHOD_NAME + "Aux", "() throws java.lang.Throwable {\n",
+                            wtype, brackets + " ", scratchName, "_ =\n        ", winit, semi(winit),
+                            "        @java.lang.SuppressWarnings(\"unchecked\") ", scratchName, " ", scratchName, "__ = (", scratchName, ")", scratchName, "_;\n",
+                            "        return ", scratchName, "__;\n",
+                            "}"
+                    );
+                    components.add(waux);
+                    wmeth = new CompoundWrap(
+                            "        return ", wname, " = ", DOIT_METHOD_NAME + "Aux", "();\n"
+                    );
+                } else {
+                    // int x_ = y; return x = x_;
+                    // decl + "_ = " + init ; + "return " + name + "= " + name + "_ ;"
+                    wmeth = new CompoundWrap(
+                            wtype, brackets + " ", wname, "_ =\n        ", winit, semi(winit),
+                            "        return ", wname, " = ", wname, "_;\n"
+                    );
+                }
             }
         }
         components.add(new DoitMethodWrap(wmeth));
@@ -560,6 +572,9 @@ abstract class Wrap implements GeneralWrap {
 
         VarDeclareWrap(Wrap wtype, String brackets, Wrap wname) {
             super("    public static ", wtype, brackets + " ", wname, semi(wname));
+        }
+        VarDeclareWrap(Wrap wtype, String brackets, Wrap wname, Wrap init) {
+            super("    public static ", wtype, brackets + " ", wname, " = ", init, ";\n");
         }
     }
 

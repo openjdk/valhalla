@@ -46,6 +46,7 @@ import jdk.jshell.Snippet.SubKind;
 import jdk.jshell.SnippetEvent;
 
 import static java.util.stream.Collectors.toList;
+import jdk.jshell.JShell;
 import static jdk.jshell.Snippet.Status.*;
 import static jdk.jshell.Snippet.SubKind.VAR_DECLARATION_SUBKIND;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,6 +54,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 public class VariablesTest extends KullaTesting {
 
@@ -590,8 +592,7 @@ public class VariablesTest extends KullaTesting {
     }
 
     @BeforeEach
-    @Override
-    public void setUp() {
+    public void setUp(TestInfo info) {
         Path path = Paths.get("cp");
         Compiler compiler = new Compiler();
         compiler.compile(path,
@@ -641,9 +642,19 @@ public class VariablesTest extends KullaTesting {
                 "public class List {\n" +
                 "}\n");
         String tpath = compiler.getPath(path).toString();
-        setUp(b -> b
+        setUp(b -> addExtraOptions(b, info)
                 .remoteVMOptions("--class-path", tpath)
                 .compilerOptions("--class-path", tpath));
+    }
+
+    protected JShell.Builder addExtraOptions(JShell.Builder b, TestInfo testInfo) {
+        return switch (testInfo.getTestMethod().orElseThrow().getName()) {
+            case "nonNullVariables" ->
+                b.compilerOptions("--source", System.getProperty("java.specification.version"),
+                                  "--enable-preview")
+                 .remoteVMOptions("--enable-preview");
+            default -> b;
+        };
     }
 
     @Test
@@ -677,4 +688,17 @@ public class VariablesTest extends KullaTesting {
         assertEval("shapes.forEach(printShape);");
     }
 
+    @Test
+    public void nonNullVariables() {
+        assertEval("String! str1 = \"\";", "\"\"");
+        assertEval("str1 = \"\";", "\"\"");
+        assertEvalException("str1 = null;");
+        assertEvalException("String! str2 = null;");
+        assertEval("int[] count = new int[1];");
+        assertEval("String! str3 = String.valueOf(count[0]++);");
+        assertEval("count[0]", "1");
+        assertEval("String! fail() { throw new RuntimeException(); }");
+        assertEvalException("String! str4 = fail();");
+        assertEval("String[]! arr1 = new String[0];", "String[0] {  }");
+    }
 }
