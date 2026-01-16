@@ -5546,27 +5546,28 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
     int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
 
-    Array<int>* const acmp_maps = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
-    _acmp_maps_array = acmp_maps;
+    _acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
     typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
     typeArrayHandle map_h(THREAD, map);
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
-    acmp_maps->at_put(0, _layout_info->_nonoop_acmp_map->length());
+    _acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
       map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
       map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
 
-      acmp_maps->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
-      acmp_maps->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+      _acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
+      _acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
     }
     int oop_map_start = nonoop_acmp_map_size + 1;
     for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
       map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
-      acmp_maps->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+      _acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
     }
     assert(_acmp_maps_array->length() == map->length(), "sanity");
     ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
     ik->set_acmp_maps_array(_acmp_maps_array);
+
+    // Clear out this field so it doesn't get deallocated by the destructor
     _acmp_maps_array = nullptr;
   }
 

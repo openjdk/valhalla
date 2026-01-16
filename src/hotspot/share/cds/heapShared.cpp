@@ -828,7 +828,7 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
       }
     }
 
-    if (Arguments::is_valhalla_enabled() && ik->has_acmp_maps_offset()) {
+    if (ik->has_acmp_maps_offset()) {
       int maps_offset = ik->acmp_maps_offset();
       oop maps = orig_mirror->obj_field(maps_offset);
       scratch_m->obj_field_put(maps_offset, maps);
