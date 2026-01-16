@@ -239,6 +239,8 @@ public class Names {
 
     // type classes
     public final Name witness;
+    public final Name lookupWitness;
+    public final Name add;
 
     public final Name.Table table;
 
@@ -434,6 +436,8 @@ public class Names {
 
         // type classes
         witness = fromString("__witness");
+        lookupWitness = fromString("lookupWitness");
+        add = fromString("add");
     }
 
     protected Name.Table createTable(Options options) {
