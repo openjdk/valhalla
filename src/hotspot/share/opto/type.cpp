@@ -403,7 +403,7 @@ static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int
   // Decode the results of GraphKit::array_element_address.
   ciConstant element_value = array->field_value_by_offset(off + field_offset);
   if (element_value.basic_type() == T_ILLEGAL) {
-    return nullptr; // wrong offset
+    return nullptr; // wrong offset, or the array element at offset off is null.
   }
   ciConstant con = check_mismatched_access(element_value, loadbt, is_unsigned_load);
 

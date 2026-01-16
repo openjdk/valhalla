@@ -133,23 +133,33 @@ ciConstant ciFlatArray::field_value_by_offset(intptr_t field_offset) {
 }
 
 ciConstant ciFlatArray::field_value(int index, ciField* field) {
+  auto get_field_from_object_constant = [field](const ciConstant& v) -> ciConstant {
+    ciObject* obj = v.as_object();
+    if (obj->is_null_object()) {
+      return ciConstant();
+    }
+    // obj cannot be an ciArray since it is an element of a flat array, so it must be a value class, which arrays are not.
+    ciInstance* inst = obj->as_instance();
+    if (field == nullptr) {
+      return inst->null_marker_value();
+    }
+    return inst->field_value(field);
+  };
+
   BasicType elembt = element_basic_type();
   ciConstant value = check_constant_value_cache(index, elembt);
   if (value.is_valid()) {
-    if (field == nullptr) {
-      return value.as_object()->as_instance()->null_marker_value();
-    }
-    return value.as_object()->as_instance()->field_value(field);
+    return get_field_from_object_constant(value);
   }
   GUARDED_VM_ENTRY(
     value = element_value_impl(T_OBJECT, get_arrayOop(), index);
   )
 
-  add_to_constant_value_cache(index, value);
-
-  if (field == nullptr) {
-    return value.as_object()->as_instance()->null_marker_value();
+  if (!value.is_valid()) {
+    return ciConstant();
   }
-  return value.as_object()->as_instance()->field_value(field);
+
+  add_to_constant_value_cache(index, value);
+  return get_field_from_object_constant(value);
 }
 
