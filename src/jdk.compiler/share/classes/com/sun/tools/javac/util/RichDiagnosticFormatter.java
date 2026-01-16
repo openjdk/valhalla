@@ -26,12 +26,14 @@
 package com.sun.tools.javac.util;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
 
 import com.sun.tools.javac.code.Printer;
@@ -42,6 +44,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.util.RichDiagnosticFormatter.WhereClauses.Kind;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.TypeTag.*;
@@ -85,19 +88,103 @@ public class RichDiagnosticFormatter extends
     /* type/symbol printer used by this formatter */
     private RichPrinter printer;
 
-    private static class WhereClauses {
-        private final Map<WhereClauseKind, Map<Type, JCDiagnostic>> whereClauses;
+    /**
+     * This class models the "where clauses" associated to a javac rich diagnostic.
+     * There are several kinds of where clauses, based on the type they refer to:
+     * <ul>
+     *     <li>type-variable where clauses;</li>
+     *     <li>captured type-variable where clauses; and</li>
+     *     <li>intersection type where clauses.</li>
+     * </ul>
+     * This class ensures that the correct amount of where clauses is added for all the
+     * types mentioned in a javac diagnostic. Note that where clauses must differentiate
+     * between type-variables with same name, but different symbols.
+     */
+    class WhereClauses {
+        private final Map<Kind, Map<Type, JCDiagnostic>> whereClausesByKind;
+        private final Map<Name, List<Type>> typeVarsByName;
 
         WhereClauses() {
-            Map<WhereClauseKind, Map<Type, JCDiagnostic>> whereClauses = new EnumMap<>(WhereClauseKind.class);
-            for (WhereClauseKind kind : WhereClauseKind.values()) {
-                whereClauses.put(kind, new LinkedHashMap<>());
+            Map<Kind, Map<Type, JCDiagnostic>> whereClausesByType = new EnumMap<>(Kind.class);
+            for (Kind kind : Kind.values()) {
+                whereClausesByType.put(kind, new LinkedHashMap<>());
             }
-            this.whereClauses = whereClauses;
+            this.whereClausesByKind = whereClausesByType;
+            this.typeVarsByName = new LinkedHashMap<>();
         }
 
-        public Map<Type, JCDiagnostic> get(WhereClauseKind kind) {
-            return whereClauses.get(kind);
+        int indexOf(Type type, Kind kind) {
+            Collection<Type> typesToSearch = kind == Kind.TYPEVAR ?
+                    typeVarsByName.getOrDefault(type.tsym.name, List.nil()) :
+                    whereClausesByKind.get(kind).keySet();
+            int index = 1;
+            for (Type t : typesToSearch) {
+                if (sameWhereClause(t, type)) {
+                    return index;
+                }
+                index++;
+            }
+            return -1;
+        }
+
+        private boolean sameWhereClause(Type t, Type s) {
+            return t.hasTag(TYPEVAR) ?
+                    t.tsym == s.tsym :
+                    types.isSameType(t, s);
+        }
+
+        boolean isUniqueTypeVar(TypeVar typevar) {
+            int found = typeVarsByName
+                    .getOrDefault(typevar.tsym.name, List.nil())
+                    .length();
+            if (found < 1)
+                throw new AssertionError("Missing type variable in where clause: " + typevar);
+            return found == 1;
+        }
+
+        void put(Type type, Kind kind, JCDiagnostic diagnostic) {
+            whereClausesByKind.get(kind).put(type, diagnostic);
+            if (kind == Kind.TYPEVAR) {
+                List<Type> tvars = typeVarsByName.getOrDefault(type.tsym.name, List.nil());
+                typeVarsByName.put(type.tsym.name, tvars.append(type));
+            }
+        }
+
+        Map<Type, JCDiagnostic> map(Kind kind) {
+            return whereClausesByKind.get(kind);
+        }
+
+        /**
+         * This enum defines all possible kinds of where clauses that can be
+         * attached by a rich diagnostic formatter to a given diagnostic
+         */
+        enum Kind {
+
+            /**
+             * where clause regarding a type variable
+             */
+            TYPEVAR("where.description.typevar"),
+            /**
+             * where clause regarding a captured type
+             */
+            CAPTURED("where.description.captured"),
+            /**
+             * where clause regarding an intersection type
+             */
+            INTERSECTION("where.description.intersection");
+
+            /**
+             * resource key for this where clause kind
+             */
+            private final String key;
+
+            Kind(String key) {
+                this.key = key;
+            }
+
+            String key() {
+                return key;
+            }
         }
     }
 
@@ -236,88 +323,21 @@ public class RichDiagnosticFormatter extends
      */
     protected List<JCDiagnostic> getWhereClauses() {
         List<JCDiagnostic> clauses = List.nil();
-        for (WhereClauseKind kind : WhereClauseKind.values()) {
+        for (Kind kind : Kind.values()) {
             List<JCDiagnostic> lines = List.nil();
-            for (Map.Entry<Type, JCDiagnostic> entry : whereClauses.get(kind).entrySet()) {
+            for (Map.Entry<Type, JCDiagnostic> entry : whereClauses.map(kind).entrySet()) {
                 lines = lines.prepend(entry.getValue());
             }
             if (!lines.isEmpty()) {
                 String key = kind.key();
                 if (lines.size() > 1)
                     key += ".1";
-                JCDiagnostic d = diags.fragment(key, whereClauses.get(kind).keySet());
+                JCDiagnostic d = diags.fragment(key, whereClauses.map(kind).keySet());
                 d = new JCDiagnostic.MultilineDiagnostic(d, lines.reverse());
                 clauses = clauses.prepend(d);
             }
         }
         return clauses.reverse();
-    }
-
-    private int indexOf(Type type, WhereClauseKind kind) {
-        int index = 1;
-        for (Type t : whereClauses.get(kind).keySet()) {
-            if (kind.sameWhereClause(t, type, types)) {
-                return index;
-            } else if (kind.sameWhereClauseKeyName(t, type)) {
-                index++;
-            }
-        }
-        return -1;
-    }
-
-    private boolean unique(TypeVar typevar) {
-        int found = 0;
-        for (Type t : whereClauses.get(WhereClauseKind.TYPEVAR).keySet()) {
-            if (WhereClauseKind.TYPEVAR.sameWhereClauseKeyName(t, typevar)) {
-                found++;
-            }
-        }
-        if (found < 1)
-            throw new AssertionError("Missing type variable in where clause: " + typevar);
-        return found == 1;
-    }
-    //where
-    /**
-     * This enum defines all possible kinds of where clauses that can be
-     * attached by a rich diagnostic formatter to a given diagnostic
-     */
-    enum WhereClauseKind {
-
-        /** where clause regarding a type variable */
-        TYPEVAR("where.description.typevar"),
-        /** where clause regarding a captured type */
-        CAPTURED("where.description.captured"),
-        /** where clause regarding an intersection type */
-        INTERSECTION("where.description.intersection");
-
-        /** resource key for this where clause kind */
-        private final String key;
-
-        WhereClauseKind(String key) {
-            this.key = key;
-        }
-
-        String key() {
-            return key;
-        }
-
-        /*
-         * Check if two types map to the very same where clause
-         */
-        boolean sameWhereClause(Type t, Type s, Types types) {
-            return switch (this) {
-                case TYPEVAR, CAPTURED -> t.tsym == s.tsym;
-                default -> types.isSameType(t, s);
-            };
-        }
-
-        /*
-         * Check if two types are associated with similarly named where clause keys
-         */
-        boolean sameWhereClauseKeyName(Type t, Type s) {
-            return this != TYPEVAR ||
-                t.tsym.name.equals(s.tsym.name);
-        }
     }
 
     // <editor-fold defaultstate="collapsed" desc="name simplifier">
@@ -393,7 +413,7 @@ public class RichDiagnosticFormatter extends
 
         @Override
         public String capturedVarId(CapturedType t, Locale locale) {
-            return indexOf(t, WhereClauseKind.CAPTURED) + "";
+            return whereClauses.indexOf(t, Kind.CAPTURED) + "";
         }
 
         @Override
@@ -409,7 +429,7 @@ public class RichDiagnosticFormatter extends
             if (getConfiguration().isEnabled(RichFormatterFeature.WHERE_CLAUSES)) {
                 return localize(locale,
                     "compiler.misc.captured.type",
-                    indexOf(t, WhereClauseKind.CAPTURED));
+                    whereClauses.indexOf(t, Kind.CAPTURED));
             }
             else
                 return super.visitCapturedType(t, locale);
@@ -421,7 +441,7 @@ public class RichDiagnosticFormatter extends
                     getConfiguration().isEnabled(RichFormatterFeature.WHERE_CLAUSES)) {
                 return localize(locale,
                         "compiler.misc.intersection.type",
-                        indexOf(t, WhereClauseKind.INTERSECTION));
+                        whereClauses.indexOf(t, Kind.INTERSECTION));
             }
             else
                 return super.visitClassType(t, locale);
@@ -442,14 +462,14 @@ public class RichDiagnosticFormatter extends
 
         @Override
         public String visitTypeVar(TypeVar t, Locale locale) {
-            if (unique(t) ||
+            if (whereClauses.isUniqueTypeVar(t) ||
                     !getConfiguration().isEnabled(RichFormatterFeature.UNIQUE_TYPEVAR_NAMES)) {
                 return t.toString();
             }
             else {
                 return localize(locale,
                         "compiler.misc.type.var",
-                        t.toString(), indexOf(t, WhereClauseKind.TYPEVAR));
+                        t.toString(), whereClauses.indexOf(t, Kind.TYPEVAR));
             }
         }
 
@@ -550,10 +570,10 @@ public class RichDiagnosticFormatter extends
 
         @Override
         public Void visitCapturedType(CapturedType t, Void ignored) {
-            if (indexOf(t, WhereClauseKind.CAPTURED) == -1) {
+            if (whereClauses.indexOf(t, Kind.CAPTURED) == -1) {
                 String suffix = t.lower == syms.botType ? ".1" : "";
                 JCDiagnostic d = diags.fragment("where.captured"+ suffix, t, t.getUpperBound(), t.lower, t.wildcard);
-                whereClauses.get(WhereClauseKind.CAPTURED).put(t, d);
+                whereClauses.put(t, Kind.CAPTURED, d);
                 visit(t.wildcard);
                 visit(t.lower);
                 visit(t.getUpperBound());
@@ -564,11 +584,11 @@ public class RichDiagnosticFormatter extends
         @Override
         public Void visitClassType(ClassType t, Void ignored) {
             if (t.isCompound()) {
-                if (indexOf(t, WhereClauseKind.INTERSECTION) == -1) {
+                if (whereClauses.indexOf(t, Kind.INTERSECTION) == -1) {
                     Type supertype = types.supertype(t);
                     List<Type> interfaces = types.interfaces(t);
                     JCDiagnostic d = diags.fragment(Fragments.WhereIntersection(t, interfaces.prepend(supertype)));
-                    whereClauses.get(WhereClauseKind.INTERSECTION).put(t, d);
+                    whereClauses.put(t, Kind.INTERSECTION, d);
                     visit(supertype);
                     visit(interfaces);
                 }
@@ -599,7 +619,7 @@ public class RichDiagnosticFormatter extends
         @Override
         public Void visitTypeVar(TypeVar t, Void ignored) {
             t = (TypeVar)t.stripMetadata();
-            if (indexOf(t, WhereClauseKind.TYPEVAR) == -1) {
+            if (whereClauses.indexOf(t, Kind.TYPEVAR) == -1) {
                 //access the bound type and skip error types
                 Type bound = t.getUpperBound();
                 while ((bound instanceof ErrorType errorType))
@@ -622,14 +642,14 @@ public class RichDiagnosticFormatter extends
                     JCDiagnostic d = diags.fragment("where.typevar" +
                         (boundErroneous ? ".1" : ""), t, bounds,
                         kindName(t.tsym.location()), t.tsym.location());
-                    whereClauses.get(WhereClauseKind.TYPEVAR).put(t, d);
+                    whereClauses.put(t, Kind.TYPEVAR, d);
                     symbolPreprocessor.visit(t.tsym.location(), null);
                     visit(bounds);
                 } else {
                     Assert.check(!boundErroneous);
                     //this is a fresh (synthetic) tvar
                     JCDiagnostic d = diags.fragment(Fragments.WhereFreshTypevar(t, bounds));
-                    whereClauses.get(WhereClauseKind.TYPEVAR).put(t, d);
+                    whereClauses.put(t, Kind.TYPEVAR, d);
                     visit(bounds);
                 }
 
