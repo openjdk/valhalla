@@ -321,6 +321,7 @@ void AOTConstantPoolResolver::maybe_resolve_fmi_ref(InstanceKlass* ik, Method* m
     InterpreterRuntime::resolve_get_put(bc, raw_index, mh, cp, ClassInitMode::dont_init, CHECK);
     is_static = " *** static";
     break;
+
   case Bytecodes::_getfield:
   case Bytecodes::_putfield:
     InterpreterRuntime::resolve_get_put(bc, raw_index, mh, cp, ClassInitMode::dont_init, CHECK);

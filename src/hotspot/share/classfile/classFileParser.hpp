@@ -156,7 +156,6 @@ class ClassFileParser {
   u2 _nest_host;
   Array<u2>* _permitted_subclasses;
   Array<u2>* _loadable_descriptors;
-  Array<int>* _acmp_maps_array;
   Array<RecordComponent*>* _record_components;
   Array<InstanceKlass*>* _local_interfaces;
   GrowableArray<u2>* _local_interface_indexes;

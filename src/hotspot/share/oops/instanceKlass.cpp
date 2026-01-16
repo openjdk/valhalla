@@ -3139,7 +3139,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   // restore constant pool resolved references
   constants()->restore_unshareable_info(CHECK);
 
-  // restore acmp_maps java array from the version stored in metadata
+  // Restore acmp_maps java array from the version stored in metadata.
   // if it cannot be found in the archive
   if (Arguments::is_valhalla_enabled() && has_acmp_maps_offset() && java_mirror()->obj_field(_acmp_maps_offset) == nullptr) {
     int acmp_maps_size = _acmp_maps_array->length();
