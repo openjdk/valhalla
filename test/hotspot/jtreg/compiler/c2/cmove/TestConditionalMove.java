@@ -23,7 +23,7 @@
  * questions.
  */
 
-package compiler.c2.irTests;
+package compiler.c2.cmove;
 
 import compiler.lib.ir_framework.*;
 import java.util.Random;
