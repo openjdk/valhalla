@@ -147,23 +147,6 @@ public class NullChecksWriter extends TreeTranslator {
         result = tree;
     }
 
-    boolean isInThisSameCompUnit(Symbol sym) {
-        return env.toplevel.getTypeDecls().stream().anyMatch(
-                tree -> {
-                    Symbol csym = TreeInfo.symbolFor(tree);
-                    return csym.kind == TYP && csym instanceof Symbol.ClassSymbol && csym == outermostType(sym);
-                });
-    }
-
-    private Symbol outermostType(Symbol sym) {
-        Symbol prev = null;
-        while (sym.kind != PCK) {
-            prev = sym;
-            sym = sym.owner;
-        }
-        return prev;
-    }
-
     @Override
     public void visitIdent(JCIdent tree) {
         super.visitIdent(tree);
@@ -176,19 +159,33 @@ public class NullChecksWriter extends TreeTranslator {
         identSelectVisitHelper(tree);
     }
 
-    private void identSelectVisitHelper(JCTree tree) {
-        Symbol sym = TreeInfo.symbolFor(tree);
-        if (!noUseSiteNullChecks &&
-                sym.owner.kind == TYP &&
-                sym.kind == VAR &&
-                !isInThisSameCompUnit(sym) &&
-                types.isNonNullable(sym.type)) {
-            /* we are accessing a non-nullable field declared in another
-             * compilation unit
-             */
-            result = attr.makeNullCheck((JCExpression) tree, true);
+    // where
+        private void identSelectVisitHelper(JCTree tree) {
+            Symbol sym = TreeInfo.symbolFor(tree);
+            if (!noUseSiteNullChecks &&
+                    sym.owner.kind == TYP &&
+                    sym.kind == VAR &&
+                    !isInThisSameCompUnit(sym) &&
+                    types.isNonNullable(sym.type)) {
+                /* we are accessing a non-nullable field declared in another
+                 * compilation unit
+                 */
+                result = attr.makeNullCheck((JCExpression) tree, true);
+            }
         }
-    }
+
+        private boolean isInThisSameCompUnit(Symbol sym) {
+            return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == outermostType(sym));
+        }
+
+        private Symbol outermostType(Symbol sym) {
+            Symbol prev = null;
+            while (sym.kind != PCK) {
+                prev = sym;
+                sym = sym.owner;
+            }
+            return prev;
+        }
 
     public void visitTypeCast(JCTypeCast tree) {
         super.visitTypeCast(tree);
