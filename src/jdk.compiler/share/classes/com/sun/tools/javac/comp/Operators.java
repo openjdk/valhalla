@@ -763,12 +763,6 @@ public class Operators {
      * Remainder (%)                Numerical::remainder
      * Unary plus (+)               Numerical::plus
      * Unary minus (-)              Numerical::negate
-     * Less than (<)                Orderable::lessThan
-     * Less than or equal (<=)      Orderable::lessThanEqual
-     * Greater than (>)             Orderable::greaterThan
-     * Greater than or equal (>=)   Orderable::greaterThanEqual
-     * Minimum                      Orderable::min
-     * Maximum                      Orderable::max
      * Bitwise AND (&)              Integral::and
      * Bitwise OR (|)               Integral::or
      * Bitwise XOR (^)              Integral::xor
@@ -776,13 +770,10 @@ public class Operators {
      * Left shift (<<)              Integral::shiftLeft
      * Right shift (>>)             Integral::shiftRight
      * Unsigned right shift (>>>)   Integral::shiftRightUnsigned
-     * Square root                  StandardFloatingPoint::sqrt
-     * Fused multiply-add           StandardFloatingPoint::fma
-     * Is NaN                       StandardFloatingPoint::isNaN
-     * Is Infinite                  StandardFloatingPoint::isInfinite
-     * Is Finite                    StandardFloatingPoint::isFinite
-     * ULP (unit in last place)     StandardFloatingPoint::ulp
-     * Hex string representation    StandardFloatingPoint::toHexString
+     * Less than (<)                Orderable::lessThan
+     * Less than or equal (<=)      Orderable::lessThanEqual
+     * Greater than (>)             Orderable::greaterThan
+     * Greater than or equal (>=)   Orderable::greaterThanEqual
      */
 
     final Function<Symtab, Type> orderable = symtab -> symtab.orderableType;
