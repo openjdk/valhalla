@@ -434,7 +434,7 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
-    public void testClientSideChecks(Path base) throws Exception {
+    public void testUseSideChecksForMethods(Path base) throws Exception {
         String[] testCases = new String[] {
                 """
                 class Test {
@@ -504,7 +504,7 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
-    public void testClientSideChecksSepCompilation(Path base) throws Exception {
+    public void testUseSideChecksForMethodsSepCompilation(Path base) throws Exception {
         testSeparateCompilationHelper(base,
                 """
                 package pkg;

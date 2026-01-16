@@ -44,6 +44,7 @@ import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
+import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
 /** This pass generates null checks for the compiler to check for assertions on
@@ -88,14 +89,21 @@ public class NullChecksWriter extends TreeTranslator {
         noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
     }
 
-    public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
+    Symbol.ClassSymbol currentClass;
+    Env<AttrContext> env;
+
+    public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         if (allowNullRestrictedTypes) {
             try {
                 this.make = make;
+                this.env = env;
+                currentClass = (Symbol.ClassSymbol) TreeInfo.symbolFor(cdef);
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
                 this.make = null;
+                this.currentClass = null;
+                this.env = null;
             }
         }
         return cdef;
@@ -136,6 +144,37 @@ public class NullChecksWriter extends TreeTranslator {
             tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
         result = tree;
+    }
+
+    boolean isInThisSameCompUnit(Symbol sym) {
+        return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
+    }
+
+    @Override
+    public void visitIdent(JCIdent tree) {
+        super.visitIdent(tree);
+        identSelectVisitHelper(tree);
+    }
+
+    @Override
+    public void visitSelect(JCFieldAccess tree) {
+        super.visitSelect(tree);
+        identSelectVisitHelper(tree);
+    }
+
+    private void identSelectVisitHelper(JCTree tree) {
+        Symbol sym = TreeInfo.symbolFor(tree);
+        if (!noUseSiteNullChecks &&
+                !isInThisSameCompUnit(sym) &&
+                sym.owner.kind == TYP &&
+                sym.kind == VAR &&
+                sym.owner != currentClass &&
+                types.isNonNullable(sym.type)) {
+            /* we are accessing a field declared as non-nullable in another class
+             * which doesn't belong to this compilation unit
+             */
+            result = attr.makeNullCheck((JCExpression) tree, true);
+        }
     }
 
     public void visitTypeCast(JCTypeCast tree) {
