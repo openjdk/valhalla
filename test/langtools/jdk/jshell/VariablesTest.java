@@ -694,6 +694,11 @@ public class VariablesTest extends KullaTesting {
         assertEval("str1 = \"\";", "\"\"");
         assertEvalException("str1 = null;");
         assertEvalException("String! str2 = null;");
-        //TODO: brackets(!!!)
+        assertEval("int[] count = new int[1];");
+        assertEval("String! str3 = String.valueOf(count[0]++);");
+        assertEval("count[0]", "1");
+        assertEval("String! fail() { throw new RuntimeException(); }");
+        assertEvalException("String! str4 = fail();");
+        assertEval("String[]! arr1 = new String[0];", "String[0] {  }");
     }
 }
