@@ -1150,10 +1150,6 @@ public class JavacParser implements Parser {
         return t;
     }
 
-    public JCExpression unannotatedType(boolean allowVar) {
-        return unannotatedType(allowVar, TYPE);
-    }
-
     public JCExpression unannotatedType(boolean allowVar, int newmode) {
         JCExpression result = term(newmode);
         Name restrictedTypeName = restrictedTypeName(result, !allowVar);
@@ -5188,7 +5184,7 @@ public class JavacParser implements Parser {
             type = to(F.at(pos).TypeIdent(TypeTag.VOID));
             nextToken();
         } else {
-            type = unannotatedType(false);
+            type = unannotatedType(false, TYPE | ALLOW_BANGS);
         }
 
         if (token.kind == IDENTIFIER) {
