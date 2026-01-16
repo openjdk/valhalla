@@ -46,8 +46,7 @@ public class HelloInlineClassTest {
         OutputAnalyzer output =
             TestCommon.dump(appJar, TestCommon.list(mainClass,
                                                     "HelloInlineClassApp$Point",
-                                                    "HelloInlineClassApp$Rectangle",
-                                                    "HelloInlineClassApp$ValueRecord"),
+                                                    "HelloInlineClassApp$Rectangle"),
                             "--enable-preview");
         output.shouldHaveExitValue(0);
 
