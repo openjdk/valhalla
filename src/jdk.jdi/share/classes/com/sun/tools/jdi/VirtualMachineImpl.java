@@ -836,7 +836,7 @@ class VirtualMachineImpl extends MirrorImpl
     }
 
     public boolean canUseIsSameObject() {
-        return versionInfo().jdwpMajor >=27;
+        return versionInfo().jdwpMajor >= 27;
     }
 
     public void setDebugTraceMode(int traceFlags) {
