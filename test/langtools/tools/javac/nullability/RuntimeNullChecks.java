@@ -435,7 +435,7 @@ public class RuntimeNullChecks extends TestRunner {
 
     @Test
     public void testClientSideChecks(Path base) throws Exception {
-        String[] negativeCompilationTestCases = new String[] {
+        String[] testCases = new String[] {
                 """
                 class Test {
                     class Inner {
@@ -497,7 +497,7 @@ public class RuntimeNullChecks extends TestRunner {
                 }
                 """
         };
-        for (String code : negativeCompilationTestCases) {
+        for (String code : testCases) {
             testHelper(base, code, true, NullPointerException.class);
             testHelper(base, code, false, null, PREVIEW_PLUS_NO_USE_SITE_OPTIONS);
         }
