@@ -67,6 +67,9 @@ public @interface PreviewFeature {
         @JEP(number=401, title="Value Classes and Objects", status = "Preview")
         VALUE_OBJECTS,
 
+        @JEP(number=8303099, title="Null-Restricted and Nullable Types", status = "Preview")
+        NULL_RESTRICTION,
+
         // The JDK build process involves creating an interim javac which is then
         // used to compile the rest of the JDK. The jdk.internal.javac.PreviewFeature
         // annotation from the current sources is used when compiling interim javac.

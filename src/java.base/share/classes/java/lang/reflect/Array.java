@@ -147,8 +147,9 @@ class Array {
      * @throws ArrayStoreException if a component of {@code sourceArray} cannot
      *         be stored into the new array because of a type mismatch.
      * @throws NegativeArraySizeException if {@code length < 0}
+     * @since Valhalla
      */
-    @PreviewFeature(feature = Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = Feature.NULL_RESTRICTION)
     public static Object newInstance(Class<?> componentType, int modifiers, int length,
                               Object sourceArray, int sourceOffset) {
         // modifiers may be ignored for now
@@ -162,8 +163,7 @@ class Array {
         Object newArray;
         if ((modifiers & NULL_CHECKED) != 0 &&
             length > 0 &&
-            componentType.isValue() &&
-            Modifier.isFinal(componentType.getModifiers())) {
+            ValueClass.isConcreteValueClass(componentType)) {
             newArray = ValueClass.newNullRestrictedAtomicArray(
                         componentType, length, get(sourceArray, 0));
         } else {
