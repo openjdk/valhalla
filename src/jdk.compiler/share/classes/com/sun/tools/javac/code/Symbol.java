@@ -2633,7 +2633,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
      * Holds a reference to the method that should be used to perform the operation.
      */
     public static class TypeClassOperatorSymbol extends OperatorSymbol {
-        final MethodSymbol opMethod;
+        public final MethodSymbol opMethod;
 
         public TypeClassOperatorSymbol(Name name, Type type, int opcode, Symbol owner, MethodSymbol opMethod) {
             super(name, type, opcode, owner);

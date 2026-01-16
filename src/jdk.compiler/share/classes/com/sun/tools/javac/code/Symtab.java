@@ -254,7 +254,10 @@ public class Symtab {
 
     // For type classes
     public final Type witnessType;
-    public final Type monoidType;
+    public final Type numericalType;
+    public final Type orderableType;
+    public final Type integralType;
+    public final Type standardFloatingPointType;
 
     /** The symbol representing the length field of an array.
      */
@@ -665,8 +668,14 @@ public class Symtab {
 
         // For type classes
         witnessType = enterClass("java.lang.runtime.Witness");
-        monoidType = enterClass("java.lang.runtime.Monoid");
-        synthesizeEmptyInterfaceIfMissing(monoidType);
+        numericalType = enterClass("java.lang.Numerical");
+        orderableType = enterClass("java.lang.Orderable");
+        integralType = enterClass("java.lang.Integral");
+        standardFloatingPointType = enterClass("java.lang.StandardFloatingPoint");
+        synthesizeEmptyInterfaceIfMissing(numericalType);
+        synthesizeEmptyInterfaceIfMissing(orderableType);
+        synthesizeEmptyInterfaceIfMissing(integralType);
+        synthesizeEmptyInterfaceIfMissing(standardFloatingPointType);
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
@@ -948,29 +957,4 @@ public class Symtab {
         return packages.getOrDefault(candidate, Collections.emptyMap()).values();
     }
 
-    public MethodSymbol binop_add() {
-        return binopMethod(monoidType, "add");
-    }
-
-    public MethodSymbol unop_neg() {
-        return unopMethod(monoidType, "neg");
-    }
-
-    private MethodSymbol binopMethod(Type ownerType, String name) {
-        Type argtype = ownerType.getTypeArguments().head;
-        return new MethodSymbol(PUBLIC,
-                names.fromString(name),
-                new MethodType(List.nil(), argtype,
-                        List.of(argtype, argtype), methodClass),
-                ownerType.tsym);
-    }
-
-    private MethodSymbol unopMethod(Type ownerType, String name) {
-        Type argtype = ownerType.getTypeArguments().head;
-        return new MethodSymbol(PUBLIC,
-                names.fromString(name),
-                new MethodType(List.nil(), argtype,
-                        List.of(argtype, argtype), methodClass),
-                ownerType.tsym);
-    }
 }

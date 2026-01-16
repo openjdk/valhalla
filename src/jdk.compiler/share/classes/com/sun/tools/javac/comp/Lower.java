@@ -3563,13 +3563,13 @@ public class Lower extends TreeTranslator {
         tree.arg = boxIfNeeded(translate(tree.arg, tree), tree.type);
 
         if (tree.operator.opcode == type_classes_unop) {
-            // type classes add!
+            // type classes unary operation
+            TypeClassOperatorSymbol tcOp = (TypeClassOperatorSymbol)tree.operator;
             Type opType = tree.operator.type.getParameterTypes().head;
-            ClassType monoidWitness = new ClassType(Type.noType, List.of(opType), syms.monoidType.tsym);
-            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, monoidWitness)));
-            Symbol addSym = lookupMethod(tree, names.fromString("neg") , monoidWitness, List.of(tree.arg.type));
-            JCExpression addMeth = make.Select(witnessRcvr, addSym);
-            result = make.App(addMeth, List.of(tree.arg)).setType(opType);
+            ClassType witness = new ClassType(Type.noType, List.of(opType), (TypeSymbol) tcOp.opMethod.owner);
+            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, witness)));
+            JCExpression witnessMeth = make.Select(witnessRcvr, tcOp.opMethod);
+            result = make.App(witnessMeth, List.of(tree.arg)).setType(tree.type);
         } else {
             if (tree.hasTag(NOT) && tree.arg.type.constValue() != null) {
                 tree.type = cfolder.fold1(bool_not, tree.arg.type);
@@ -3613,13 +3613,13 @@ public class Lower extends TreeTranslator {
         }
         tree.rhs = translate(tree.rhs, formals.tail.head);
         if (tree.operator.opcode == type_classes_binop) {
-            // type classes add!
+            // type classes unary operation
+            TypeClassOperatorSymbol tcOp = (TypeClassOperatorSymbol)tree.operator;
             Type opType = tree.operator.type.getParameterTypes().head;
-            ClassType monoidWitness = new ClassType(Type.noType, List.of(opType), syms.monoidType.tsym);
-            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, monoidWitness)));
-            Symbol addSym = lookupMethod(tree, names.add , monoidWitness, List.of(tree.lhs.type, tree.rhs.type));
-            JCExpression addMeth = make.Select(witnessRcvr, addSym);
-            result = make.App(addMeth, List.of(tree.lhs, tree.rhs)).setType(opType);
+            ClassType witness = new ClassType(Type.noType, List.of(opType), (TypeSymbol) tcOp.opMethod.owner);
+            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, witness)));
+            JCExpression witnessMeth = make.Select(witnessRcvr, tcOp.opMethod);
+            result = make.App(witnessMeth, List.of(tree.lhs, tree.rhs)).setType(tree.type);
         } else {
             result = tree;
         }
