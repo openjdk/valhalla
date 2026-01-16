@@ -167,14 +167,13 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitApply(JCMethodInvocation tree) {
-        if (noUseSiteNullChecks) {
-            super.visitApply(tree);
-            result = tree;
-        } else {
-            Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
+        Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
+        if (!noUseSiteNullChecks) {
             tree.args = newArgs(msym, tree.args);
-            super.visitApply(tree);
-            result = tree;
+        }
+        super.visitApply(tree);
+        result = tree;
+        if (!noUseSiteNullChecks) {
             if (types.isNonNullable(msym.type.asMethodType().restype)) {
                 result = attr.makeNullCheck(tree, true);
             }
