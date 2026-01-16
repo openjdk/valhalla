@@ -26,6 +26,9 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Preview;
+import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.SymbolMetadata;
 import com.sun.tools.javac.code.Symtab;
@@ -38,7 +41,9 @@ import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Options;
 
+import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
 /** This pass generates null checks for the compiler to check for assertions on
@@ -64,6 +69,10 @@ public class NullChecksWriter extends TreeTranslator {
     private TreeMaker make;
     private final Attr attr;
     private final Symtab syms;
+    /** are null restricted types allowed?
+      */
+    private final boolean allowNullRestrictedTypes;
+    private final boolean noUseSiteNullChecks;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -72,16 +81,24 @@ public class NullChecksWriter extends TreeTranslator {
         types = Types.instance(context);
         attr = Attr.instance(context);
         syms = Symtab.instance(context);
+        Preview preview = Preview.instance(context);
+        Source source = Source.instance(context);
+        allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
+                Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
-        try {
-            this.make = make;
-            return translate(cdef);
-        } finally {
-            // note that recursive invocations of this method fail hard
-            this.make = null;
+        if (allowNullRestrictedTypes) {
+            try {
+                this.make = make;
+                return translate(cdef);
+            } finally {
+                // note that recursive invocations of this method fail hard
+                this.make = null;
+            }
         }
+        return cdef;
     }
 
     /* ************************************************************************
@@ -96,8 +113,10 @@ public class NullChecksWriter extends TreeTranslator {
                 tree.init = attr.makeNullCheck(tree.init, true);
             }
         }
-        // temporary hack, this is only to test null restriction in the VM for fields of value classes
-        if (tree.sym.type.isValueClass() && types.isNonNullable(tree.sym.type)) {
+        // temporary hack, this is only to test null restriction in the VM for fields of a value class type
+        if (tree.sym.owner.kind == TYP &&
+                tree.sym.type.isValueClass() &&
+                types.isNonNullable(tree.sym.type)) {
             List<Attribute.Compound> rawAttrs = tree.sym.getRawAttributes();
             if (rawAttrs.isEmpty() || !rawAttrs.stream().anyMatch(ac -> ac.type.tsym == syms.nullRestrictedType.tsym)) {
                 Attribute.Compound ac = new Attribute.Compound(syms.nullRestrictedType, List.nil());
@@ -160,5 +179,67 @@ public class NullChecksWriter extends TreeTranslator {
             }
         }
         result = tree;
+    }
+
+    @Override
+    public void visitApply(JCMethodInvocation tree) {
+        Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
+        if (!noUseSiteNullChecks) {
+            tree.args = newArgs(msym, tree.args);
+        }
+        super.visitApply(tree);
+        result = tree;
+        if (!noUseSiteNullChecks) {
+            if (types.isNonNullable(msym.type.asMethodType().restype)) {
+                result = attr.makeNullCheck(tree, true);
+            }
+        }
+    }
+
+    @Override
+    public void visitNewClass(JCNewClass tree) {
+        if (!noUseSiteNullChecks) {
+            tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
+        }
+        super.visitNewClass(tree);
+        result = tree;
+    }
+
+    private List<JCExpression> newArgs(Symbol.MethodSymbol msym, List<JCExpression> actualArgs) {
+        // skip signature polymorphic methods they won't have null restricted arguments
+        if ((msym.flags_field & Flags.SIGNATURE_POLYMORPHIC) != 0) {
+            return actualArgs;
+        }
+        ListBuffer<JCExpression> newArgs = new ListBuffer<>();
+        List<Type> declaredArgTypes = msym.type.asMethodType().argtypes;
+        /* there can be prefix arguments added by Lower, for example captured variables, etc
+         * nothing to check for them
+         */
+        int declaredArgSize = declaredArgTypes.size();
+        int prefixArgsLength = msym.externalType(types).getParameterTypes().size() - declaredArgSize;
+        List<JCExpression> actualArgsTmp = actualArgs;
+        while (prefixArgsLength-- > 0) {
+            newArgs.add(actualArgsTmp.head);
+            actualArgsTmp = actualArgsTmp.tail;
+        }
+        int noOfArgsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
+        while (noOfArgsToCheck-- > 0) {
+            Type formalArgType = declaredArgTypes.head;
+            if (types.isNonNullable(formalArgType)) {
+                newArgs.add(attr.makeNullCheck(actualArgsTmp.head, true));
+            } else {
+                newArgs.add(actualArgsTmp.head);
+            }
+            actualArgsTmp = actualArgsTmp.tail;
+        }
+        /* now add the last vararg argument if applicable, no checks are needed here as varargs can't be
+         * null restricted. Also note that at this point the vararg arguments have already been translated
+         * by Lower into an array. This is not true for signature polymorphic methods, but we have already
+         * filtered them out
+         */
+        if (msym.isVarArgs()) {
+            newArgs.add(actualArgsTmp.head);
+        }
+        return newArgs.toList();
     }
 }

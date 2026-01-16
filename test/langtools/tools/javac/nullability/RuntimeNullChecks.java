@@ -318,9 +318,21 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     private static String[] PREVIEW_OPTIONS = {
-            "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature())
+    };
+
+    private static String[] PREVIEW_PLUS_NO_USE_SITE_OPTIONS = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "-XDnoUseSiteNullChecks"
+    };
 
     private void testHelper(Path base, String testCode, boolean shouldFail, Class<?> expectedError) throws Exception {
+        testHelper(base, testCode, shouldFail, expectedError, PREVIEW_OPTIONS);
+    }
+
+    private void testHelper(Path base, String testCode, boolean shouldFail, Class<?> expectedError, String[] compilerOptions) throws Exception {
         Path src = base.resolve("src");
         Path testSrc = src.resolve("Test");
 
@@ -331,7 +343,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
-                .options(PREVIEW_OPTIONS)
+                .options(compilerOptions)
                 .files(findJavaFiles(src))
                 .run();
 
@@ -421,4 +433,221 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
+    @Test
+    public void testClientSideChecks(Path base) throws Exception {
+        String[] testCases = new String[] {
+                """
+                class Test {
+                    class Inner {
+                        Object m(Object! arg) { return null; }
+                    }
+                    class Inner2 extends Inner {
+                        @Override
+                        String m(Object arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner2();
+                        inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        Object! m(Object arg) { return ""; }
+                    }
+                    class Inner2 extends Inner {
+                        @Override
+                        String m(Object arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner2();
+                        inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        Object m(Object! arg, Object... args) { return null; }
+                    }
+                    class Inner2 extends Inner {
+                        @Override
+                        String m(Object arg, Object... args) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner2();
+                        inner.m(null, null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        Object! m(Object arg, Object... args) { return ""; }
+                    }
+                    class Inner2 extends Inner {
+                        @Override
+                        String m(Object arg, Object... args) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner2();
+                        inner.m(null, null);
+                    }
+                }
+                """
+        };
+        for (String code : testCases) {
+            testHelper(base, code, true, NullPointerException.class);
+            testHelper(base, code, false, null, PREVIEW_PLUS_NO_USE_SITE_OPTIONS);
+        }
+    }
+
+    @Test
+    public void testClientSideChecksSepCompilation(Path base) throws Exception {
+        testSeparateCompilationHelper(base,
+                """
+                package pkg;
+                class Super {
+                    Super(Object! arg) {}
+                }
+                """,
+                """
+                package pkg;
+                class Super {
+                    Super(Object arg) {}
+                }
+                """,
+                """
+                package pkg;
+                class Client {
+                    public static void main(String... args) {
+                        Super sup = new Super(null);
+                    }
+                }
+                """);
+        testSeparateCompilationHelper(base,
+                """
+                package pkg;
+                class Super {
+                    Super(Object! arg, Object... args) {}
+                }
+                """,
+                """
+                package pkg;
+                class Super {
+                    Super(Object arg, Object... args) {}
+                }
+                """,
+                """
+                package pkg;
+                class Client {
+                    public static void main(String... args) {
+                        Super sup = new Super(null, null);
+                    }
+                }
+                """);
+        testSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class Super {
+                    public class Inner extends Super {
+                        public Inner(Object! arg) {}
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class Super {
+                    public class Inner extends Super {
+                        public Inner(Object arg) {}
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Client {
+                    public static void main(String... args) {
+                        Super.Inner inner = new Super().new Inner(null);
+                    }
+                }
+                """);
+        testSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class Super {
+                    public class Inner extends Super {
+                        public Inner(Object! arg, Object... args) {}
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class Super {
+                    public class Inner extends Super {
+                        public Inner(Object arg, Object... args) {}
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Client {
+                    public static void main(String... args) {
+                        Super.Inner inner = new Super().new Inner(null, null);
+                    }
+                }
+                """);
+    }
+
+    private void testSeparateCompilationHelper(
+            Path base,
+            String code1,
+            String code2,
+            String clientCode) throws Exception {
+        Path src = base.resolve("src");
+        Path pkg = src.resolve("pkg");
+        Path ASrc = pkg.resolve("A");
+        Path client = pkg.resolve("Client");
+
+        tb.writeJavaFiles(ASrc, code1);
+        tb.writeJavaFiles(client, clientCode);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .options(PREVIEW_OPTIONS)
+                .files(findJavaFiles(pkg))
+                .run();
+
+        // let's execute to check that it's producing the NPE
+        System.err.println("running, this test should fail");
+        String output = new JavaTask(tb)
+                .classpath(out.toString())
+                .classArgs("pkg.Client")
+                .vmOptions("--enable-preview")
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutput(Task.OutputKind.STDERR);
+        if (!output.startsWith("Exception in thread \"main\" java.lang.NullPointerException")) {
+            throw new AssertionError("java.lang.NullPointerException expected");
+        }
+
+        // now lets change the code
+        tb.writeJavaFiles(ASrc, code2);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .options(PREVIEW_PLUS_NO_USE_SITE_OPTIONS)
+                .files(findJavaFiles(pkg))
+                .run();
+
+        System.err.println("running, this test should pass");
+        new JavaTask(tb)
+                .classpath(out.toString())
+                .classArgs("pkg.Client")
+                .vmOptions("--enable-preview")
+                .run(Task.Expect.SUCCESS);
+    }
 }
