@@ -28,7 +28,6 @@ import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
 import java.lang.invoke.MethodHandle;
@@ -3239,8 +3238,7 @@ public class TestArrays {
     }
 
     @Strict
-    @NullRestricted
-    static final MyValueEmpty empty = new MyValueEmpty();
+    static final MyValueEmpty! empty = new MyValueEmpty();
 
     // Empty value class array access
     @Test
@@ -3262,8 +3260,7 @@ public class TestArrays {
     @LooselyConsistentValue
     static value class EmptyContainer {
         @Strict
-        @NullRestricted
-        MyValueEmpty empty = new MyValueEmpty();
+        MyValueEmpty! empty = new MyValueEmpty();
     }
 
     // Empty value class container array access
@@ -3789,8 +3786,7 @@ public class TestArrays {
         double d = rD;
 
         @Strict
-        @NullRestricted
-        MyValue152Inline val = new MyValue152Inline(); // Not flat
+        MyValue152Inline! val = new MyValue152Inline(); // Not flat
     }
 
     // Test that EA works for null-free arrays
@@ -3811,8 +3807,7 @@ public class TestArrays {
     @LooselyConsistentValue
     static value class MyValue153 {
         @Strict
-        @NullRestricted
-        MyValue152Inline val = new MyValue152Inline(); // Not flat
+        MyValue152Inline! val = new MyValue152Inline(); // Not flat
     }
 
     // Same as test152 but triggers a slightly different asserts

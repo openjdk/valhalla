@@ -248,6 +248,7 @@ public class Symtab {
     public final Type migratedValueClassType;
     public final Type migratedValueClassInternalType;
     public final Type strictType;
+    public final Type nullRestrictedType;
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
@@ -635,6 +636,7 @@ public class Symtab {
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
         strictType = enterClass("jdk.internal.vm.annotation.Strict");
+        nullRestrictedType = enterClass("jdk.internal.vm.annotation.NullRestricted");
         migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");
