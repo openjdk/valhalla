@@ -165,13 +165,12 @@ public class NullChecksWriter extends TreeTranslator {
     private void identSelectVisitHelper(JCTree tree) {
         Symbol sym = TreeInfo.symbolFor(tree);
         if (!noUseSiteNullChecks &&
-                !isInThisSameCompUnit(sym) &&
                 sym.owner.kind == TYP &&
                 sym.kind == VAR &&
-                sym.owner != currentClass &&
+                !isInThisSameCompUnit(sym) &&
                 types.isNonNullable(sym.type)) {
-            /* we are accessing a field declared as non-nullable in another class
-             * which doesn't belong to this compilation unit
+            /* we are accessing a non-nullable field declared in another
+             * compilation unit
              */
             result = attr.makeNullCheck((JCExpression) tree, true);
         }
