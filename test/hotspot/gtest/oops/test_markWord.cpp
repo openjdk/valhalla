@@ -118,7 +118,6 @@ static void assert_unlocked_state(markWord mark) {
   EXPECT_FALSE(mark.has_displaced_mark_helper());
   EXPECT_FALSE(mark.is_fast_locked());
   EXPECT_FALSE(mark.has_monitor());
-  EXPECT_FALSE(mark.is_being_inflated());
   EXPECT_FALSE(mark.is_locked());
   EXPECT_TRUE(mark.is_unlocked());
 }
