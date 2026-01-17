@@ -1392,6 +1392,14 @@ public class Attr extends JCTree.Visitor {
                         if (TreeInfo.isSuperOrSelectorDotSuper(subtree)) {
                             reportPrologueError(tree, sym);
                             return;
+                        } else if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR &&
+                                TreeInfo.isThisOrSelectorDotThis(subtree) &&
+                                TreeInfo.isExplicitThisReference(
+                                        types,
+                                        (ClassType)localEnv.enclClass.sym.type,
+                                        subtree)) {
+                            reportPrologueError(tree, sym);
+                            return;
                         }
                     }
                 }
