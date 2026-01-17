@@ -466,7 +466,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * Determines if this method is {@link java.lang.Object#Object()}.
      */
     default boolean isJavaLangObjectInit() {
-        return getDeclaringClass().isJavaLangObject() && (getName().equals("<init>") || getName().equals("<vnew>"));
+        return getDeclaringClass().isJavaLangObject() && getName().equals("<init>");
     }
 
     /**
