@@ -68,7 +68,7 @@ public class RuntimeNullChecks extends TestRunner {
         return tb.findJavaFiles(paths);
     }
 
-    //@Test
+    @Test
     public void testRuntimeChecks(Path base) throws Exception {
         int i = 0;
         for (String code: new String[] {
@@ -372,7 +372,7 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
-    //@Test
+    @Test
     public void testPatternMatching(Path base) throws Exception {
         Path src = base.resolve("src");
         Path classes = base.resolve("classes");
@@ -433,7 +433,7 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
-    //@Test
+    @Test
     public void testUseSideChecksForMethods(Path base) throws Exception {
         String[] testCases = new String[] {
                 """
@@ -503,7 +503,7 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
-    //@Test
+    @Test
     public void testUseSideChecksForMethodsSepCompilation(Path base) throws Exception {
         testUseSiteForMethodsSeparateCompilationHelper(base,
                 """
