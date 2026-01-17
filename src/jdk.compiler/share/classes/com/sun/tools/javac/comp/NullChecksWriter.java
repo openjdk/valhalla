@@ -43,7 +43,9 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
 
+import static com.sun.tools.javac.code.Kinds.Kind.PCK;
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
+import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
 /** This pass generates null checks for the compiler to check for assertions on
@@ -88,14 +90,18 @@ public class NullChecksWriter extends TreeTranslator {
         noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
     }
 
-    public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
+    Env<AttrContext> env;
+
+    public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         if (allowNullRestrictedTypes) {
             try {
                 this.make = make;
+                this.env = env;
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
                 this.make = null;
+                this.env = null;
             }
         }
         return cdef;
@@ -137,6 +143,46 @@ public class NullChecksWriter extends TreeTranslator {
         }
         result = tree;
     }
+
+    @Override
+    public void visitIdent(JCIdent tree) {
+        super.visitIdent(tree);
+        identSelectVisitHelper(tree);
+    }
+
+    @Override
+    public void visitSelect(JCFieldAccess tree) {
+        super.visitSelect(tree);
+        identSelectVisitHelper(tree);
+    }
+
+    // where
+        private void identSelectVisitHelper(JCTree tree) {
+            Symbol sym = TreeInfo.symbolFor(tree);
+            if (!noUseSiteNullChecks &&
+                    sym.owner.kind == TYP &&
+                    sym.kind == VAR &&
+                    !isInThisSameCompUnit(sym) &&
+                    types.isNonNullable(sym.type)) {
+                /* we are accessing a non-nullable field declared in another
+                 * compilation unit
+                 */
+                result = attr.makeNullCheck((JCExpression) tree, true);
+            }
+        }
+
+        private boolean isInThisSameCompUnit(Symbol sym) {
+            return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == outermostType(sym));
+        }
+
+        private Symbol outermostType(Symbol sym) {
+            Symbol prev = null;
+            while (sym.kind != PCK) {
+                prev = sym;
+                sym = sym.owner;
+            }
+            return prev;
+        }
 
     public void visitTypeCast(JCTypeCast tree) {
         super.visitTypeCast(tree);
