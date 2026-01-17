@@ -91,7 +91,7 @@ public class JImageReadTest {
         BasicImageReader reader = BasicImageReader.open(imageFile);
         Assert.assertTrue(reader != null, "JIMAGE_Open failed: " + imageFile);
 
-        ImageLocation location = reader.findLocation(moduleName, className);
+        ImageLocation location = reader.findResourceLocation(moduleName, className);
 
         if (location != null && !location.verify("/" + moduleName + "/" + className)) {
             location = null;
