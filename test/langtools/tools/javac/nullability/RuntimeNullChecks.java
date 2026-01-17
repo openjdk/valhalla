@@ -738,8 +738,11 @@ public class RuntimeNullChecks extends TestRunner {
                 .run(Task.Expect.FAIL)
                 .writeAll()
                 .getOutput(Task.OutputKind.STDERR);
-        if (!output.startsWith("Exception in thread \"main\" java.lang.NullPointerException")) {
-            throw new AssertionError("NPE error expected");
+
+        // we need to check that the NPE is due to an invocation to j.l.r.Checks::nullCheck
+        if (!output.contains("java.lang.NullPointerException") &&
+                !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
+            throw new AssertionError("unexpected output: " + output);
         }
     }
 }
