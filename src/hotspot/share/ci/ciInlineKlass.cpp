@@ -95,12 +95,12 @@ InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
 
-bool ciInlineKlass::has_non_atomic_layout() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->has_non_atomic_layout();)
+bool ciInlineKlass::has_null_free_non_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_null_free_non_atomic_layout();)
 }
 
-bool ciInlineKlass::has_atomic_layout() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->has_atomic_layout();)
+bool ciInlineKlass::has_null_free_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_null_free_atomic_layout();)
 }
 
 bool ciInlineKlass::has_nullable_atomic_layout() const {
@@ -115,9 +115,9 @@ int ciInlineKlass::null_marker_offset_in_payload() const {
 BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   VM_ENTRY_MARK
   InlineKlass* vk = get_InlineKlass();
-  assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
+  assert(!null_free || vk->has_null_free_atomic_layout(), "No null-free atomic layout available");
   assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
-  int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
+  int size = null_free ? vk->null_free_atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
   BasicType bt = T_ILLEGAL;
   if (size == sizeof(jlong)) {
     bt = T_LONG;

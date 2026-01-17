@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,21 +31,21 @@
 // LayoutKind is an enum used to indicate which layout has been used for a given value field.
 // Each layout has its own properties and its own access protocol that is detailed below.
 //
-// REFERENCE : this layout uses a pointer to a heap allocated instance (no flattening).
+// REFERENCE : This layout uses a pointer to a heap allocated instance (no flattening).
 //             When used, field_flags().is_flat() is false . The field can be nullable or
 //             null-restricted, in the later case, field_flags().is_null_free_inline_type() is true.
 //             In case of a null-restricted field, putfield  and putstatic  must perform a null-check
 //             before writing a new value. Still for null-restricted fields, if getfield reads a null pointer
 //             from the receiver, it means that the field was not initialized yet, and getfield must substitute
 //             the null reference with the default value of the field's class.
-// NULL_FREE_NON_ATOMIC_FLAT : this layout is the simplest form of flattening. Any field embedded inside the flat field
+// NULL_FREE_NON_ATOMIC_FLAT : This layout is the simplest form of flattening. Any field embedded inside the flat field
 //             can be accessed independently. The field is null-restricted, meaning putfield must perform a
 //             null-check before performing a field update.
-// NULL_FREE_ATOMIC_FLAT : this flat layout is designed for atomic updates, with size and alignment that make use of
+// NULL_FREE_ATOMIC_FLAT : This flat layout is designed for atomic updates, with size and alignment that make use of
 //             atomic instructions possible. All accesses, reads and writes, must be performed atomically.
 //             The field is null-restricted, meaning putfield must perform a null-check before performing a
 //             field update.
-// NULLABLE_ATOMIC_FLAT : this is the flat layout designed for JEP 401. It is designed for atomic updates,
+// NULLABLE_ATOMIC_FLAT : This is the flat layout designed for JEP 401. It is designed for atomic updates,
 //             with size and alignment that make use of atomic instructions possible. All accesses, reads and
 //             writes, must be performed atomically. The layout includes a null marker which indicates if the
 //             field's value must be considered as null or not. The null marker is a byte, with the value zero
@@ -66,6 +66,17 @@
 //             null marker). The reset value instance is needed because the VM needs an instance guaranteed to
 //             always be filled with zeros, and the default value could have its null marker set to non-zero if
 //             it is used as a source to update a NULLABLE_ATOMIC_FLAT field.
+// NULLABLE_NON_ATOMIC_FLAT: This is a special layout, only used for strict final non-static fields. Because strict
+//             final non-static fields cannot be updated after the call to the super constructor, there's no
+//             concurrency issue on those fields, so they can be flattened even if they are nullable. During the
+//             construction of the instance, the uninitializedThis reference cannot escape before the call to
+//             the super's constructor, so no concurrent reads are possible when the field is initialized. After
+//             the call to the super's constructor, no update is possible because the field is strict and final,
+//             so no write possible during a read. This field has a null marker similar to the one of the
+//             NULLABLE_ATOMIC_FLAT layout. However, there's no requirement to read the null marker and the
+//             rest of the value atomically. If the null marker indicates a non-null value, the fields of the
+//             field's value can be read independently. Same rules for a putfield, no atomicity requirement,
+//             as long as all fields and the null marker are up to date at the end of the putfield.
 // BUFFERED:   This layout is only used in heap buffered instances of a value class. It is computed to be compatible
 //             in size and alignment with all other flat layouts supported by the value class.
 //
@@ -79,20 +90,22 @@ enum class LayoutKind : uint32_t {
   NULL_FREE_NON_ATOMIC_FLAT = 2,    // flat, null-free (no null marker), no guarantee of atomic updates
   NULL_FREE_ATOMIC_FLAT     = 3,    // flat, null-free, size compatible with atomic updates, alignment requirement is equal to the size
   NULLABLE_ATOMIC_FLAT      = 4,    // flat, include a null marker, plus same size/alignment properties as ATOMIC layout
-  UNKNOWN                   = 5     // used for uninitialized fields of type LayoutKind
+  NULLABLE_NON_ATOMIC_FLAT  = 5,    // flat, include a null marker, non-atomic, only used for strict final non-static fields
+  UNKNOWN                   = 6     // used for uninitialized fields of type LayoutKind
 };
 
 class LayoutKindHelper : AllStatic {
  public:
   static bool is_flat(LayoutKind lk) {
     return lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT
-                 || lk == LayoutKind::NULL_FREE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+                 || lk == LayoutKind::NULL_FREE_ATOMIC_FLAT
+                 || lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
   static bool is_atomic_flat(LayoutKind lk) {
     return lk == LayoutKind::NULL_FREE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
   static bool is_nullable_flat(LayoutKind lk) {
-    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
   static const char* layout_kind_as_string(LayoutKind lk);
 };

@@ -190,18 +190,18 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
   if (is_null_restricted(properties)) {
     if (is_non_atomic(properties)) {
       // Null-restricted + non-atomic
-      if (vk->has_non_atomic_layout()) {
+      if (vk->has_null_free_non_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
-      } else if (vk->has_atomic_layout()) {
+      } else if (vk->has_null_free_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_ATOMIC_FLAT);
       } else {
         return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
       }
     } else {
       // Null-restricted + atomic
-      if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
+      if (vk->is_naturally_atomic() && vk->has_null_free_non_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
-      } else if (vk->has_atomic_layout()) {
+      } else if (vk->has_null_free_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULL_FREE_ATOMIC_FLAT);
       } else {
         return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
