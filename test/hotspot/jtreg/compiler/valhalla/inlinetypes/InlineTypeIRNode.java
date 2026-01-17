@@ -69,11 +69,6 @@ public class InlineTypeIRNode {
         IRNode.callLeafNoFpOfMethodNodes(JLONG_ARRAYCOPY, InlineTypeRegexes.JLONG_DISJOINT_ARRAYCOPY);
     }
 
-    public static final String SUBSTITUTABILITY_TEST = PREFIX + "SUBSTITUTABILITY_TEST" + POSTFIX;
-    static {
-        IRNode.staticCallOfMethodNodes(SUBSTITUTABILITY_TEST, InlineTypeRegexes.VALUE_OBJECT_METHODS_IS_SUBSTITUTABLE);
-    }
-
     public static final String ALLOC_OF_MYVALUE_KLASS = PREFIX + "ALLOC_OF_MYVALUE_KLASS" + POSTFIX;
     static {
         IRNode.allocateOfNodes(ALLOC_OF_MYVALUE_KLASS, InlineTypeRegexes.MYVALUE_KLASS);

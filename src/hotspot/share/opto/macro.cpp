@@ -23,6 +23,7 @@
  */
 
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -384,20 +385,13 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
         // hit a sentinel, return appropriate value
-        Node* init_value = alloc->in(AllocateNode::InitValue);
-        if (init_value != nullptr) {
-          if (val == start_mem) {
-            // TODO 8350865 Scalar replacement does not work well for flat arrays.
-            // Somehow we ended up with root mem and therefore walked past the alloc. Fix this. Triggered by TestGenerated::test15
-            // Don't we need field_value_by_offset?
-            return nullptr;
-          }
-          values.at_put(j, init_value);
+        Node* init_value = value_from_alloc(ft, adr_t, alloc);
+        if (init_value == nullptr) {
+          return nullptr;
         } else {
-          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-          values.at_put(j, _igvn.zerocon(ft));
+          values.at_put(j, init_value);
+          continue;
         }
-        continue;
       }
       if (val->is_Initialize()) {
         val = val->as_Initialize()->find_captured_store(offset, type2aelembytes(ft), &_igvn);
@@ -416,14 +410,11 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
         }
         values.at_put(j, n);
       } else if (val->is_Proj() && val->in(0) == alloc) {
-        Node* init_value = alloc->in(AllocateNode::InitValue);
-        if (init_value != nullptr) {
-          // TODO 8350865 Scalar replacement does not work well for flat arrays.
-          // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
-          values.at_put(j, init_value);
+        Node* init_value = value_from_alloc(ft, adr_t, alloc);
+        if (init_value == nullptr) {
+          return nullptr;
         } else {
-          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-          values.at_put(j, _igvn.zerocon(ft));
+          values.at_put(j, init_value);
         }
       } else if (val->is_Phi()) {
         val = value_from_mem_phi(val, ft, phi_type, adr_t, alloc, value_phis, level-1);
@@ -463,6 +454,62 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     }
   }
   return phi;
+}
+
+// Extract the initial value of a field in an allocation
+Node* PhaseMacroExpand::value_from_alloc(BasicType ft, const TypeOopPtr* adr_t, AllocateNode* alloc) {
+  Node* init_value = alloc->in(AllocateNode::InitValue);
+  if (init_value == nullptr) {
+    assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "conflicting InitValue and RawInitValue");
+    return _igvn.zerocon(ft);
+  }
+
+  const TypeAryPtr* ary_t = adr_t->isa_aryptr();
+  assert(ary_t != nullptr, "must be a pointer into an array");
+
+  // If this is not a flat array, then it must be an oop array with elements being init_value
+  if (ary_t->is_not_flat()) {
+#ifdef ASSERT
+    BasicType init_bt = init_value->bottom_type()->basic_type();
+    assert(ft == init_bt ||
+           (!is_java_primitive(ft) && !is_java_primitive(init_bt) && type2aelembytes(ft, true) == type2aelembytes(init_bt, true)) ||
+           (is_subword_type(ft) && init_bt == T_INT),
+           "invalid init_value of type %s for field of type %s", type2name(init_bt), type2name(ft));
+#endif // ASSERT
+    return init_value;
+  }
+
+  assert(ary_t->klass_is_exact() && ary_t->is_flat(), "must be an exact flat array");
+  assert(ary_t->field_offset().get() != Type::OffsetBot, "unknown offset");
+  if (init_value->is_EncodeP()) {
+    init_value = init_value->in(1);
+  }
+  // Cannot look through init_value if it is an oop
+  if (!init_value->is_InlineType()) {
+    return nullptr;
+  }
+
+  ciInlineKlass* vk = init_value->bottom_type()->inline_klass();
+  if (ary_t->field_offset().get() == vk->null_marker_offset_in_payload()) {
+    init_value = init_value->as_InlineType()->get_null_marker();
+  } else {
+    init_value = init_value->as_InlineType()->field_value_by_offset(ary_t->field_offset().get() + vk->payload_offset(), true);
+  }
+
+  if (ft == T_NARROWOOP) {
+    assert(init_value->bottom_type()->isa_ptr(), "must be a pointer");
+    init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_narrowoop()));
+  }
+
+#ifdef ASSERT
+  BasicType init_bt = init_value->bottom_type()->basic_type();
+  assert(ft == init_bt ||
+         (!is_java_primitive(ft) && !is_java_primitive(init_bt) && type2aelembytes(ft, true) == type2aelembytes(init_bt, true)) ||
+         (is_subword_type(ft) && init_bt == T_INT),
+         "invalid init_value of type %s for field of type %s", type2name(init_bt), type2name(ft));
+#endif // ASSERT
+
+  return init_value;
 }
 
 // Search the last value stored into the object's field.
@@ -538,23 +585,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   if (mem != nullptr) {
     if (mem == start_mem || mem == alloc_mem) {
       // hit a sentinel, return appropriate value
-      Node* init_value = alloc->in(AllocateNode::InitValue);
-      if (init_value != nullptr) {
-        if (adr_t->is_flat()) {
-          if (init_value->is_EncodeP()) {
-            init_value = init_value->in(1);
-          }
-          assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
-          offset = adr_t->is_aryptr()->field_offset().get() + init_value->bottom_type()->inline_klass()->payload_offset();
-          init_value = init_value->as_InlineType()->field_value_by_offset(offset, true);
-          if (ft == T_NARROWOOP) {
-            init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
-          }
-        }
-        return init_value;
-      }
-      assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-      return _igvn.zerocon(ft);
+      return value_from_alloc(ft, adr_t, alloc);
     } else if (mem->is_Store()) {
       Node* n = mem->in(MemNode::ValueIn);
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -2741,8 +2772,8 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
         fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
       }
     }
-    Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* members  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
                                         nullptr,
                                         "pack handler",
@@ -2897,8 +2928,8 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
       continue;
     }
 
-    Node* iftrue = iff->as_If()->proj_out(1);
-    Node* iffalse = iff->as_If()->proj_out(0);
+    IfTrueNode* iftrue = iff->as_If()->true_proj();
+    IfFalseNode* iffalse = iff->as_If()->false_proj();
     Node* ctrl = iff->in(0);
 
     Node* subklass = nullptr;
@@ -3315,8 +3346,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       case Op_ModD:
       case Op_ModF: {
         CallNode* mod_macro = n->as_Call();
-        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(),
-                                              mod_macro->_name, TypeRawPtr::BOTTOM);
+        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(), mod_macro->_name);
         call->init_req(TypeFunc::Control, mod_macro->in(TypeFunc::Control));
         call->init_req(TypeFunc::I_O, C->top());
         call->init_req(TypeFunc::Memory, C->top());

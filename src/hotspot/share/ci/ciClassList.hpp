@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,7 @@ class     ciMethodType;
 class     ciArray;
 class       ciObjArray;
 class       ciTypeArray;
+class       ciFlatArray;
 class   ciSymbol;
 class   ciMetadata;
 class   ciMethod;
@@ -65,8 +66,9 @@ class    ciKlass;
 class     ciInstanceKlass;
 class       ciInlineKlass;
 class     ciArrayKlass;
-class       ciFlatArrayKlass;
 class       ciObjArrayKlass;
+class         ciFlatArrayKlass;
+class         ciRefArrayKlass;
 class       ciTypeArrayKlass;
 
 // Simulate Java Language style package-private access with
@@ -108,6 +110,7 @@ friend class ciTypeEntries;            \
 friend class ciSpeculativeTrapData;    \
 friend class ciSymbol;                 \
 friend class ciArray;                  \
+friend class ciFlatArray;              \
 friend class ciObjArray;               \
 friend class ciMetadata;               \
 friend class ciReplay;                 \

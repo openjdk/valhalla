@@ -333,12 +333,11 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
       ss.print("Nest host resolution of %s with host %s failed: ",
                this->external_name(), target_host_class);
       java_lang_Throwable::print(PENDING_EXCEPTION, &ss);
-      const char* msg = ss.as_string(true /* on C-heap */);
       constantPoolHandle cph(THREAD, constants());
-      SystemDictionary::add_nest_host_error(cph, _nest_host_index, msg);
+      SystemDictionary::add_nest_host_error(cph, _nest_host_index, ss);
       CLEAR_PENDING_EXCEPTION;
 
-      log_trace(class, nestmates)("%s", msg);
+      log_trace(class, nestmates)("%s", ss.base());
     } else {
       // A valid nest-host is an instance class in the current package that lists this
       // class as a nest member. If any of these conditions are not met the class is
@@ -377,10 +376,9 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
                  k->external_name(),
                  k->class_loader_data()->loader_name_and_id(),
                  error);
-        const char* msg = ss.as_string(true /* on C-heap */);
         constantPoolHandle cph(THREAD, constants());
-        SystemDictionary::add_nest_host_error(cph, _nest_host_index, msg);
-        log_trace(class, nestmates)("%s", msg);
+        SystemDictionary::add_nest_host_error(cph, _nest_host_index, ss);
+        log_trace(class, nestmates)("%s", ss.base());
       }
     }
   } else {
@@ -597,7 +595,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
-  _adr_inlineklass_fixed_block(nullptr)
+  _adr_inline_klass_members(nullptr)
 {
   set_vtable_length(parser.vtable_size());
   set_access_flags(parser.access_flags());
@@ -611,6 +609,17 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   assert(nullptr == _methods, "underlying memory not zeroed?");
   assert(is_instance_klass(), "is layout incorrect?");
   assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
+}
+
+void InstanceKlass::set_is_cloneable() {
+  if (name() == vmSymbols::java_lang_invoke_MemberName()) {
+    assert(is_final(), "no subclasses allowed");
+    // MemberName cloning should not be intrinsified and always happen in JVM_Clone.
+  } else if (reference_type() != REF_NONE) {
+    // Reference cloning should not be intrinsified and always happen in JVM_Clone.
+  } else {
+    set_is_cloneable_fast();
+  }
 }
 
 void InstanceKlass::deallocate_methods(ClassLoaderData* loader_data,
@@ -837,6 +846,28 @@ bool InstanceKlass::is_enum_subclass() const {
 
 bool InstanceKlass::should_be_initialized() const {
   return !is_initialized();
+}
+
+// Static size helper
+int InstanceKlass::size(int vtable_length,
+                        int itable_length,
+                        int nonstatic_oop_map_size,
+                        bool is_interface,
+                        bool is_inline_type) {
+  return align_metadata_size(header_size() +
+         vtable_length +
+         itable_length +
+         nonstatic_oop_map_size +
+         (is_interface ? (int)sizeof(Klass*) / wordSize : 0) +
+         (is_inline_type ? (int)sizeof(InlineKlass::Members) / wordSize : 0));
+}
+
+int InstanceKlass::size() const {
+  return size(vtable_length(),
+              itable_length(),
+              nonstatic_oop_map_size(),
+              is_interface(),
+              is_inline_klass());
 }
 
 klassItable InstanceKlass::itable() const {
@@ -1099,7 +1130,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     interk->link_class_impl(CHECK_false);
   }
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     // Aggressively preloading all classes from the LoadableDescriptors attribute
     // so inline classes can be scalarized in the calling conventions computed below
     load_classes_from_loadable_descriptors_attribute(this, THREAD);
@@ -3126,7 +3157,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 }
 
 bool InstanceKlass::can_be_verified_at_dumptime() const {
-  if (AOTMetaspace::in_aot_cache(this)) {
+  if (CDSConfig::is_dumping_dynamic_archive() && AOTMetaspace::in_aot_cache(this)) {
     // This is a class that was dumped into the base archive, so we know
     // it was verified at dump time.
     return true;

@@ -25,17 +25,17 @@
 #ifndef SHARE_OOPS_REFARRAYOOP_HPP
 #define SHARE_OOPS_REFARRAYOOP_HPP
 
-#include "oops/arrayOop.hpp"
+#include "oops/objArrayOop.hpp"
 #include "utilities/align.hpp"
 
 #include <type_traits>
 
 class Klass;
 
-// An refArrayOop is an array containing references (oops).
-// Evaluating "String arg[10]" will create an refArrayOop.
+// A refArrayOop is an array containing references (oops).
+// Evaluating "String arg[10]" will create a refArrayOop.
 
-class refArrayOopDesc : public arrayOopDesc {
+class refArrayOopDesc : public objArrayOopDesc {
   friend class ArchiveHeapWriter;
   friend class RefArrayKlass;
   friend class Runtime1;
@@ -44,6 +44,7 @@ class refArrayOopDesc : public arrayOopDesc {
   friend class Continuation;
   template <typename T>
   friend class RawOopWriter;
+  friend class AOTMapLogger;
 
   template <class T> T* obj_at_addr(int index) const;
 

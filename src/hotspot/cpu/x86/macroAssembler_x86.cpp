@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
@@ -3647,7 +3648,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 
     // initialize object header only.
     bind(initialize_header);
-    if (UseCompactObjectHeaders || EnableValhalla) {
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       pop(klass);
       Register mark_word = t2;
       movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
@@ -5523,7 +5524,7 @@ void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Regi
 }
 
 void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
-  movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  movptr(offset, Address(inline_klass, InlineKlass::adr_members_offset()));
   movl(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
@@ -5912,77 +5913,6 @@ void MacroAssembler::reinit_heapbase() {
   }
 }
 
-#if COMPILER2_OR_JVMCI
-
-// clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
-void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
-  // cnt - number of qwords (8-byte words).
-  // base - start address, qword aligned.
-  Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
-  bool use64byteVector = (MaxVectorSize == 64) && (VM_Version::avx3_threshold() == 0);
-  if (use64byteVector) {
-    evpbroadcastq(xtmp, val, AVX_512bit);
-  } else if (MaxVectorSize >= 32) {
-    movdq(xtmp, val);
-    punpcklqdq(xtmp, xtmp);
-    vinserti128_high(xtmp, xtmp);
-  } else {
-    movdq(xtmp, val);
-    punpcklqdq(xtmp, xtmp);
-  }
-  jmp(L_zero_64_bytes);
-
-  BIND(L_loop);
-  if (MaxVectorSize >= 32) {
-    fill64(base, 0, xtmp, use64byteVector);
-  } else {
-    movdqu(Address(base,  0), xtmp);
-    movdqu(Address(base, 16), xtmp);
-    movdqu(Address(base, 32), xtmp);
-    movdqu(Address(base, 48), xtmp);
-  }
-  addptr(base, 64);
-
-  BIND(L_zero_64_bytes);
-  subptr(cnt, 8);
-  jccb(Assembler::greaterEqual, L_loop);
-
-  // Copy trailing 64 bytes
-  if (use64byteVector) {
-    addptr(cnt, 8);
-    jccb(Assembler::equal, L_end);
-    fill64_masked(3, base, 0, xtmp, mask, cnt, val, true);
-    jmp(L_end);
-  } else {
-    addptr(cnt, 4);
-    jccb(Assembler::less, L_tail);
-    if (MaxVectorSize >= 32) {
-      vmovdqu(Address(base, 0), xtmp);
-    } else {
-      movdqu(Address(base,  0), xtmp);
-      movdqu(Address(base, 16), xtmp);
-    }
-  }
-  addptr(base, 32);
-  subptr(cnt, 4);
-
-  BIND(L_tail);
-  addptr(cnt, 4);
-  jccb(Assembler::lessEqual, L_end);
-  if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
-    fill32_masked(3, base, 0, xtmp, mask, cnt, val);
-  } else {
-    decrement(cnt);
-
-    BIND(L_sloop);
-    movq(Address(base, 0), xtmp);
-    addptr(base, 8);
-    decrement(cnt);
-    jccb(Assembler::greaterEqual, L_sloop);
-  }
-  BIND(L_end);
-}
-
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
   assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   // An inline type might be returned. If fields are in registers we
@@ -6047,7 +5977,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(klass, InlineKlass::adr_members_offset()));
       movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       call(rbx);
     }
@@ -6135,7 +6065,11 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 }
 
 // Calculate the extra stack space required for packing or unpacking inline
-// args and adjust the stack pointer
+// args and adjust the stack pointer.
+//
+// This extra stack space take into account the copy #2 of the return address,
+// but NOT the saved RBP or the normal size of the frame (see MacroAssembler::remove_frame
+// for notations).
 int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
   // Two additional slots to account for return address
   int sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
@@ -6146,7 +6080,13 @@ int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
   assert(sp_inc > 0, "sanity");
   pop(r13);
   subptr(rsp, sp_inc);
+#ifdef ASSERT
+  movl(Address(rsp, -VMRegImpl::stack_slot_size), badRegWordVal);
+  movl(Address(rsp, -2 * VMRegImpl::stack_slot_size), badRegWordVal);
+  subptr(rsp, 2 * VMRegImpl::stack_slot_size);
+#else
   push(r13);
+#endif
   return sp_inc;
 }
 
@@ -6166,7 +6106,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
   Register tmp1 = r10;
   Register tmp2 = r13;
   Register fromReg = noreg;
-  ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
+  ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, true);
   bool done = true;
   bool mark_done = true;
   VMReg toReg;
@@ -6353,7 +6293,10 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       }
       assert_different_registers(dst.base(), src, tmp1, tmp2, tmp3, val_array);
       if (is_reference_type(bt)) {
-        store_heap_oop(dst, src, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep val_obj valid.
+        mov(tmp3, val_obj);
+        Address dst_with_tmp3(tmp3, off);
+        store_heap_oop(dst_with_tmp3, src, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         store_sized_value(dst, src, size_in_bytes);
       }
@@ -6381,7 +6324,60 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
-    // TODO 8284443 Add a comment drawing the frame like in Aarch64's version of MacroAssembler::remove_frame
+    // The method has a scalarized entry point (where fields of value object arguments
+    // are passed through registers and stack), and a non-scalarized entry point (where
+    // value object arguments are given as oops). The non-scalarized entry point will
+    // first load each field of value object arguments and store them in registers and on
+    // the stack in a way compatible with the scalarized entry point. To do so, some extra
+    // stack space might be reserved (if argument registers are not enough). On leaving the
+    // method, this space must be freed.
+    //
+    // In case we used the non-scalarized entry point the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP
+    // | Return address #1         |
+    // |---------------------------|
+    // | Extension space for       |
+    // |   inline arg (un)packing  |
+    // |---------------------------|
+    // | Return address #2         |
+    // | Saved RBP                 |
+    // |---------------------------|  <-- start of this method's frame
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
+    //
+    // There is two copies of the return address on the stack. They will be identical at
+    // first, but that can change.
+    // If the caller has been deoptimized, the copy #1 will be patched to point at the
+    // deopt blob, and the copy #2 will still point into the old method. In short
+    // the copy #2 is not reliable and should not be used. It is mostly needed to
+    // add space between the extension space and the locals, as there would be between
+    // the real arguments and the locals if we don't need to do unpacking (from the
+    // scalarized entry point).
+    //
+    // When leaving, one must use the copy #1 of the return address, while keeping in mind
+    // that from the scalarized entry point, there will be only one copy. Indeed, in the
+    // case we used the scalarized calling convention, the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP
+    // | Return address            |
+    // | Saved RBP                 |
+    // |---------------------------|  <-- start of this method's frame
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
+    //
+    // The sp_inc stack slot holds the total size of the frame, including the extension
+    // space the possible copy #2 of the return address and the saved RBP (but never the
+    // copy #1 of the return address). That is how to find the copy #1 of the return address.
+    // This size is expressed in bytes. Be careful when using it from C++ in pointer arithmetic;
+    // you might need to divide it by wordSize.
+    //
+    // One can find sp_inc since the start the method's frame is SP + initial_framesize.
+
     movq(rbp, Address(rsp, initial_framesize));
     // The stack increment resides just below the saved rbp
     addq(rsp, Address(rsp, initial_framesize - wordSize));
@@ -6391,6 +6387,77 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     }
     pop(rbp);
   }
+}
+
+#if COMPILER2_OR_JVMCI
+
+// clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
+void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
+  // cnt - number of qwords (8-byte words).
+  // base - start address, qword aligned.
+  Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
+  bool use64byteVector = (MaxVectorSize == 64) && (VM_Version::avx3_threshold() == 0);
+  if (use64byteVector) {
+    evpbroadcastq(xtmp, val, AVX_512bit);
+  } else if (MaxVectorSize >= 32) {
+    movdq(xtmp, val);
+    punpcklqdq(xtmp, xtmp);
+    vinserti128_high(xtmp, xtmp);
+  } else {
+    movdq(xtmp, val);
+    punpcklqdq(xtmp, xtmp);
+  }
+  jmp(L_zero_64_bytes);
+
+  BIND(L_loop);
+  if (MaxVectorSize >= 32) {
+    fill64(base, 0, xtmp, use64byteVector);
+  } else {
+    movdqu(Address(base,  0), xtmp);
+    movdqu(Address(base, 16), xtmp);
+    movdqu(Address(base, 32), xtmp);
+    movdqu(Address(base, 48), xtmp);
+  }
+  addptr(base, 64);
+
+  BIND(L_zero_64_bytes);
+  subptr(cnt, 8);
+  jccb(Assembler::greaterEqual, L_loop);
+
+  // Copy trailing 64 bytes
+  if (use64byteVector) {
+    addptr(cnt, 8);
+    jccb(Assembler::equal, L_end);
+    fill64_masked(3, base, 0, xtmp, mask, cnt, val, true);
+    jmp(L_end);
+  } else {
+    addptr(cnt, 4);
+    jccb(Assembler::less, L_tail);
+    if (MaxVectorSize >= 32) {
+      vmovdqu(Address(base, 0), xtmp);
+    } else {
+      movdqu(Address(base,  0), xtmp);
+      movdqu(Address(base, 16), xtmp);
+    }
+  }
+  addptr(base, 32);
+  subptr(cnt, 4);
+
+  BIND(L_tail);
+  addptr(cnt, 4);
+  jccb(Assembler::lessEqual, L_end);
+  if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
+    fill32_masked(3, base, 0, xtmp, mask, cnt, val);
+  } else {
+    decrement(cnt);
+
+    BIND(L_sloop);
+    movq(Address(base, 0), xtmp);
+    addptr(base, 8);
+    decrement(cnt);
+    jccb(Assembler::greaterEqual, L_sloop);
+  }
+  BIND(L_end);
 }
 
 // Clearing constant sized memory using YMM/ZMM registers.
@@ -9635,9 +9702,9 @@ void MacroAssembler::evpmins(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpminsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9654,9 +9721,9 @@ void MacroAssembler::evpmaxs(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpmaxsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9673,9 +9740,9 @@ void MacroAssembler::evpmins(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpminsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_2_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9692,9 +9759,9 @@ void MacroAssembler::evpmaxs(BasicType type, XMMRegister dst, KRegister mask, XM
     case T_LONG:
       evpmaxsq(dst, mask, nds, src, merge, vector_len); break;
     case T_FLOAT:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     case T_DOUBLE:
-      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+      evminmaxps(dst, mask, nds, src, merge, AVX10_2_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }

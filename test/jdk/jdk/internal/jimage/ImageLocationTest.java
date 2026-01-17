@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @test
  * @summary Tests for ImageLocation.
  * @modules java.base/jdk.internal.jimage
- * @run junit/othervm -esa -DDISABLE_PREVIEW_PATCHING=true ImageLocationTest
+ * @run junit/othervm -esa ImageLocationTest
  */
 public class ImageLocationTest {
 

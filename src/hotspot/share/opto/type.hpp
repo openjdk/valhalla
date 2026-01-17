@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -509,6 +509,7 @@ public:
 
   static const Type* make_constant_from_array_element(ciArray* array,
                                                       int off,
+                                                      int field_offset,
                                                       int stable_dimension,
                                                       BasicType loadbt,
                                                       bool is_unsigned_load);
@@ -825,6 +826,7 @@ public:
   // must always specify w
   static const TypeInt* make(jint lo, jint hi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jint, juint>& t, int widen);
+  static const TypeInt* make(const TypeIntPrototype<jint, juint>& t, int widen) { return make_or_top(t, widen)->is_int(); }
 
   // Check for single integer
   bool is_con() const { return _lo == _hi; }
@@ -906,6 +908,7 @@ public:
   // must always specify w
   static const TypeLong* make(jlong lo, jlong hi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jlong, julong>& t, int widen);
+  static const TypeLong* make(const TypeIntPrototype<jlong, julong>& t, int widen) { return make_or_top(t, widen)->is_long(); }
 
   // Check for single integer
   bool is_con() const { return _lo == _hi; }
@@ -1031,8 +1034,8 @@ private:
   friend class TypeAryPtr;
 
 public:
-  static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false,
-                             bool flat = false, bool not_flat = false, bool not_null_free = false, bool atomic = false);
+  static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable,
+                             bool flat, bool not_flat, bool not_null_free, bool atomic);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -1178,6 +1181,25 @@ protected:
 
 public:
   enum PTR { TopPTR, AnyNull, Constant, Null, NotNull, BotPTR, lastPTR };
+
+  // Only applies to TypeInstPtr and TypeInstKlassPtr. Since the common super class is TypePtr, it is defined here.
+  //
+  // FlatInArray defines the following Boolean Lattice structure
+  //
+  //     TopFlat
+  //    /      \
+  //  Flat   NotFlat
+  //    \      /
+  //   MaybeFlat
+  //
+  // with meet (see TypePtr::meet_flat_in_array()) and join (implemented over dual, see TypePtr::flat_in_array_dual)
+  enum FlatInArray {
+    TopFlat,        // Dedicated top element and dual of MaybeFlat. Result when joining Flat and NotFlat.
+    Flat,           // An instance is always flat in an array.
+    NotFlat,        // An instance is never flat in an array.
+    MaybeFlat,      // We don't know whether an instance is flat in an array.
+    Uninitialized   // Used when the flat in array property was not computed, yet - should never actually end up in a type.
+  };
 protected:
   TypePtr(TYPES t, PTR ptr, Offset offset,
           const TypePtr* speculative = nullptr,
@@ -1187,6 +1209,9 @@ protected:
   static const PTR ptr_meet[lastPTR][lastPTR];
   static const PTR ptr_dual[lastPTR];
   static const char * const ptr_msg[lastPTR];
+
+  static const FlatInArray flat_in_array_dual[Uninitialized];
+  static const char* const flat_in_array_msg[Uninitialized];
 
   enum {
     InlineDepthBottom = INT_MAX,
@@ -1211,15 +1236,15 @@ protected:
   int hash_speculative() const;
   const TypePtr* add_offset_speculative(intptr_t offset) const;
   const TypePtr* with_offset_speculative(intptr_t offset) const;
-#ifndef PRODUCT
-  void dump_speculative(outputStream *st) const;
-#endif
 
   // utility methods to work on the inline depth of the type
   int dual_inline_depth() const;
   int meet_inline_depth(int depth) const;
+
 #ifndef PRODUCT
-  void dump_inline_depth(outputStream *st) const;
+  void dump_speculative(outputStream* st) const;
+  void dump_inline_depth(outputStream* st) const;
+  void dump_offset(outputStream* st) const;
 #endif
 
   // TypeInstPtr (TypeAryPtr resp.) and TypeInstKlassPtr (TypeAryKlassPtr resp.) implement very similar meet logic.
@@ -1235,10 +1260,9 @@ protected:
     LCA
   };
   template<class T> static TypePtr::MeetResult meet_instptr(PTR& ptr, const TypeInterfaces*& interfaces, const T* this_type,
-                                                            const T* other_type, ciKlass*& res_klass, bool& res_xk, bool& res_flat_array);
- private:
-  template<class T> static bool is_meet_subtype_of(const T* sub_type, const T* super_type);
+                                                            const T* other_type, ciKlass*& res_klass, bool& res_xk);
  protected:
+  static FlatInArray meet_flat_in_array(FlatInArray left, FlatInArray other);
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
                                                   ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free, bool &res_atomic);
@@ -1307,9 +1331,16 @@ public:
 
   virtual bool maybe_null() const { return meet_ptr(Null) == ptr(); }
 
+  NOT_PRODUCT(static void dump_flat_in_array(FlatInArray flat_in_array, outputStream* st);)
+
+  static FlatInArray compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact);
+  FlatInArray compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
+                                               FlatInArray old_flat_in_array) const;
+
   virtual bool can_be_inline_type() const { return false; }
-  virtual bool flat_in_array()      const { return false; }
-  virtual bool not_flat_in_array()  const { return true; }
+  virtual bool is_flat_in_array()     const { return flat_in_array() == Flat; }
+  virtual bool is_not_flat_in_array() const { return flat_in_array() == NotFlat; }
+  virtual FlatInArray flat_in_array() const { return NotFlat; }
   virtual bool is_flat()            const { return false; }
   virtual bool is_not_flat()        const { return false; }
   virtual bool is_null_free()       const { return false; }
@@ -1412,6 +1443,10 @@ protected:
 
   virtual ciKlass* exact_klass_helper() const { return nullptr; }
   virtual ciKlass* klass() const { return _klass; }
+
+#ifndef PRODUCT
+  void dump_instance_id(outputStream* st) const;
+#endif // PRODUCT
 
 public:
 
@@ -1544,12 +1579,14 @@ private:
 // Class of Java object pointers, pointing either to non-array Java instances
 // or to a Klass* (including array klasses).
 class TypeInstPtr : public TypeOopPtr {
+  // Can this instance be in a flat array?
+  FlatInArray _flat_in_array;
+
   TypeInstPtr(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, bool xk, ciObject* o, Offset offset,
-              bool flat_in_array, int instance_id, const TypePtr* speculative,
+              FlatInArray flat_in_array, int instance_id, const TypePtr* speculative,
               int inline_depth);
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
-  bool _flat_in_array; // Type is flat in arrays
   ciKlass* exact_klass_helper() const;
 
 public:
@@ -1597,14 +1634,15 @@ public:
 
   // Make a pointer to an oop.
   static const TypeInstPtr* make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, bool xk, ciObject* o, Offset offset,
-                                 bool flat_in_array = false,
+                                 FlatInArray flat_in_array = Uninitialized,
                                  int instance_id = InstanceBot,
                                  const TypePtr* speculative = nullptr,
                                  int inline_depth = InlineDepthBottom);
 
-  static const TypeInstPtr *make(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, int instance_id = InstanceBot) {
+  static const TypeInstPtr *make(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, int instance_id = InstanceBot,
+                                 FlatInArray flat_in_array = Uninitialized) {
     const TypeInterfaces* interfaces = TypePtr::interfaces(k, true, false, false, ignore_interfaces);
-    return make(ptr, k, interfaces, xk, o, offset, false, instance_id);
+    return make(ptr, k, interfaces, xk, o, offset, flat_in_array, instance_id);
   }
 
   /** Create constant type for a constant boxed value */
@@ -1621,6 +1659,7 @@ public:
 
   virtual const TypeInstPtr* cast_to_instance_id(int instance_id) const;
 
+  virtual bool empty() const;
   virtual const TypePtr* add_offset(intptr_t offset) const;
   virtual const TypeInstPtr* with_offset(intptr_t offset) const;
 
@@ -1631,8 +1670,12 @@ public:
   virtual const TypePtr* with_instance_id(int instance_id) const;
 
   virtual const TypeInstPtr* cast_to_flat_in_array() const;
-  virtual bool flat_in_array() const { return _flat_in_array; }
-  virtual bool not_flat_in_array() const { return !can_be_inline_type() || (_klass->is_inlinetype() && !flat_in_array()); }
+  virtual const TypeInstPtr* cast_to_maybe_flat_in_array() const;
+  virtual FlatInArray flat_in_array() const { return _flat_in_array; }
+
+  FlatInArray dual_flat_in_array() const {
+    return flat_in_array_dual[_flat_in_array];
+  }
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -1773,7 +1816,9 @@ public:
   virtual const Type *xdual() const;    // Compute dual right now.
 
   // Inline type array properties
+  const TypeAryPtr* cast_to_flat(bool flat) const;
   const TypeAryPtr* cast_to_not_flat(bool not_flat = true) const;
+  const TypeAryPtr* cast_to_null_free(bool null_free) const;
   const TypeAryPtr* cast_to_not_null_free(bool not_null_free = true) const;
   const TypeAryPtr* update_properties(const TypeAryPtr* new_type) const;
   jint flat_layout_helper() const;
@@ -1910,7 +1955,6 @@ public:
   virtual bool klass_is_exact()    const { return _ptr == Constant; }
 
   static const TypeKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling = ignore_interfaces);
-  static const TypeKlassPtr *make(PTR ptr, ciKlass* klass, Offset offset, InterfaceHandling interface_handling = ignore_interfaces);
 
   virtual bool  is_loaded() const { return _klass->is_loaded(); }
 
@@ -1931,15 +1975,8 @@ public:
 
   virtual bool can_be_inline_array() const { ShouldNotReachHere(); return false; }
 
-  virtual bool not_flat_in_array_inexact() const {
-    return true;
-  }
-
   virtual const TypeKlassPtr* try_improve() const { return this; }
 
-#ifndef PRODUCT
-  virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping
-#endif
 private:
   virtual bool is_meet_subtype_of(const TypePtr* other) const {
     return is_meet_subtype_of_helper(other->is_klassptr(), klass_is_exact(), other->is_klassptr()->klass_is_exact());
@@ -1968,15 +2005,16 @@ private:
 
 // Instance klass pointer, mirrors TypeInstPtr
 class TypeInstKlassPtr : public TypeKlassPtr {
+  // Can an instance of this class be in a flat array?
+  const FlatInArray _flat_in_array;
 
-  TypeInstKlassPtr(PTR ptr, ciKlass* klass, const TypeInterfaces* interfaces, Offset offset, bool flat_in_array)
+  TypeInstKlassPtr(PTR ptr, ciKlass* klass, const TypeInterfaces* interfaces, Offset offset, FlatInArray flat_in_array)
     : TypeKlassPtr(InstKlassPtr, ptr, klass, interfaces, offset), _flat_in_array(flat_in_array) {
+    assert(flat_in_array != Uninitialized, "must be set now");
     assert(klass->is_instance_klass() && (!klass->is_loaded() || !klass->is_interface()), "");
   }
 
   virtual bool must_be_exact() const;
-
-  const bool _flat_in_array; // Type is flat in arrays
 
 public:
   // Instance klass ignoring any interface
@@ -1997,11 +2035,13 @@ public:
     const TypeInterfaces* interfaces = TypePtr::interfaces(k, true, true, false, interface_handling);
     return make(TypePtr::Constant, k, interfaces, Offset(0));
   }
-  static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset, bool flat_in_array = false);
 
-  static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, Offset offset) {
+  static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset,
+                                      FlatInArray flat_in_array = Uninitialized);
+
+  static const TypeInstKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, FlatInArray flat_in_array = Uninitialized) {
     const TypeInterfaces* interfaces = TypePtr::interfaces(k, true, false, false, ignore_interfaces);
-    return make(ptr, k, interfaces, offset);
+    return make(ptr, k, interfaces, offset, flat_in_array);
   }
 
   virtual const TypeInstKlassPtr* cast_to_ptr_type(PTR ptr) const;
@@ -2013,6 +2053,8 @@ public:
   virtual uint hash() const;
   virtual bool eq(const Type *t) const;
 
+
+  virtual bool empty() const;
   virtual const TypePtr *add_offset( intptr_t offset ) const;
   virtual const Type    *xmeet( const Type *t ) const;
   virtual const Type    *xdual() const;
@@ -2020,23 +2062,10 @@ public:
 
   virtual const TypeKlassPtr* try_improve() const;
 
-  virtual bool flat_in_array() const { return _flat_in_array; }
+  virtual FlatInArray flat_in_array() const { return _flat_in_array; }
 
-  // Checks if this klass pointer is not flat in array by also considering exactness information.
-  virtual bool not_flat_in_array() const {
-    return !_klass->can_be_inline_klass(klass_is_exact()) || (_klass->is_inlinetype() && !flat_in_array());
-  }
-
-  // not_flat_in_array() version that assumes that the klass is inexact. This is used for sub type checks where the
-  // super klass is always an exact klass constant (and thus possibly known to be not flat in array), while a sub
-  // klass could very well be flat in array:
-  //
-  //           MyValue       <:       Object
-  //        flat in array       not flat in array
-  //
-  // Thus, this version checks if we know that the klass is not flat in array even if it's not exact.
-  virtual bool not_flat_in_array_inexact() const {
-    return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array());
+  FlatInArray dual_flat_in_array() const {
+    return flat_in_array_dual[_flat_in_array];
   }
 
   virtual bool can_be_inline_array() const;
@@ -2044,6 +2073,11 @@ public:
   // Convenience common pre-built types.
   static const TypeInstKlassPtr* OBJECT; // Not-null object klass or below
   static const TypeInstKlassPtr* OBJECT_OR_NULL; // Maybe-null version of same
+
+#ifndef PRODUCT
+  virtual void dump2(Dict& d, uint depth, outputStream* st) const;
+#endif // PRODUCT
+
 private:
   virtual bool is_meet_subtype_of_helper(const TypeKlassPtr* other, bool this_xk, bool other_xk) const;
 };
@@ -2103,7 +2137,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type);
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -2111,10 +2145,10 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type = false);
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type = false);
-  static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling, bool refined_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type);
+  static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
+  const TypeAryKlassPtr* cast_to_non_refined() const;
   const TypeAryKlassPtr* cast_to_refined_array_klass_ptr(bool refined = true) const;
 
   const Type *elem() const { return _elem; }

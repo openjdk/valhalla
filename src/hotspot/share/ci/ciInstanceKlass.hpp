@@ -162,6 +162,10 @@ public:
     assert(is_loaded(), "must be loaded");
     return _flags;
   }
+
+  // Fetch Klass::access_flags.
+  jint                   access_flags() { return flags().as_int(); }
+
   bool                   has_finalizer()  {
     assert(is_loaded(), "must be loaded");
     return _has_finalizer; }
@@ -287,6 +291,7 @@ public:
 
   ciInstanceKlass* unique_implementor() {
     assert(is_loaded(), "must be loaded");
+    assert(is_interface(), "must be");
     ciInstanceKlass* impl = implementor();
     return (impl != this ? impl : nullptr);
   }

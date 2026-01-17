@@ -101,7 +101,6 @@ public:
 };
 
 #define CDS_MUST_MATCH_FLAGS_DO(f) \
-  f(EnableValhalla) \
   f(UseArrayFlattening) \
   f(UseFieldFlattening) \
   f(InlineTypePassFieldsAsArgs) \
@@ -173,7 +172,7 @@ private:
                                         // some expensive operations.
   bool   _has_aot_linked_classes;       // Was the CDS archive created with -XX:+AOTClassLinking
   bool   _has_full_module_graph;        // Does this CDS archive contain the full archived module graph?
-  bool   _has_valhalla_patched_classes; // Is this archived dumped with --enable-preview -XX:+EnableValhalla?
+  bool   _has_valhalla_patched_classes; // Is this archived dumped with --enable-preview?
   CDSMustMatchFlags _must_match;        // These flags must be the same between dumptime and runtime
   size_t _rw_ptrmap_start_pos;          // The first bit in the ptrmap corresponds to this position in the rw region
   size_t _ro_ptrmap_start_pos;          // The first bit in the ptrmap corresponds to this position in the ro region
@@ -328,7 +327,7 @@ public:
 
   void log_paths(const char* msg, int start_idx, int end_idx);
 
-  FileMapInfo(const char* full_apth, bool is_static);
+  FileMapInfo(const char* full_path, bool is_static);
   ~FileMapInfo();
   static void free_current_info();
 
@@ -403,6 +402,7 @@ public:
   // File manipulation.
   bool  open_as_input() NOT_CDS_RETURN_(false);
   void  open_as_output();
+  void  prepare_for_writing();
   void  write_header();
   void  write_region(int region, char* base, size_t size,
                      bool read_only, bool allow_exec);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@ class flatArrayOopDesc : public objArrayOopDesc {
 
   inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;
+  inline jboolean null_marker_of_obj_at(int index) const;
+  inline jboolean null_marker_of_obj_at(int index, TRAPS) const;
   inline void obj_at_put(int index, oop value);
   inline void obj_at_put(int index, oop value, TRAPS);
 

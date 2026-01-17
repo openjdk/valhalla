@@ -38,6 +38,7 @@
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -686,7 +687,7 @@ bool ciInstanceKlass::is_leaf_type() {
   if (is_shared()) {
     return is_final();  // approximately correct
   } else {
-    return !has_subklass() && (nof_implementors() == 0);
+    return !has_subklass() && (!is_interface() || nof_implementors() == 0);
   }
 }
 
@@ -700,6 +701,7 @@ bool ciInstanceKlass::is_leaf_type() {
 // This is OK, since any dependencies we decide to assert
 // will be checked later under the Compile_lock.
 ciInstanceKlass* ciInstanceKlass::implementor() {
+  assert(is_interface(), "required");
   ciInstanceKlass* impl = _implementor;
   if (impl == nullptr) {
     if (is_shared()) {
@@ -725,7 +727,7 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
 }
 
 bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
-  if (!EnableValhalla) {
+  if (!Arguments::is_valhalla_enabled()) {
     return false;
   }
   if (!is_loaded() || is_inlinetype()) {
@@ -734,8 +736,9 @@ bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
   }
   if (!is_exact) {
     // Not exact, check if this is a valid super for an inline klass
-    VM_ENTRY_MARK;
-    return !get_instanceKlass()->access_flags().is_identity_class() || is_java_lang_Object() ;
+    GUARDED_VM_ENTRY(
+      return !get_instanceKlass()->access_flags().is_identity_class() || is_java_lang_Object();
+    )
   }
   return false;
 }

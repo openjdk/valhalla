@@ -337,6 +337,7 @@ class Compile : public Phase {
   bool                  _major_progress;
   bool                  _inlining_progress;     // progress doing incremental inlining?
   bool                  _inlining_incrementally;// Are we doing incremental inlining (post parse)
+  bool                  _strength_reduction;    // Are we doing strength reduction to direct call
   bool                  _do_cleanup;            // Cleanup is needed before proceeding with incremental inlining
   bool                  _has_loops;             // True if the method _may_ have some loops
   bool                  _has_split_ifs;         // True if the method _may_ have some split-if
@@ -487,7 +488,9 @@ private:
   GrowableArray<CallGenerator*> _vector_reboxing_late_inlines; // same but for vector reboxing operations
 
   int                           _late_inlines_pos;    // Where in the queue should the next late inlining candidate go (emulate depth first inlining)
-  uint                          _number_of_mh_late_inlines; // number of method handle late inlining still pending
+  bool                          _has_mh_late_inlines; // Can there still be a method handle late inlining pending?
+                                                      // false: there can't be one
+                                                      // true: we've enqueued one at some point so there may still be one
 
   // "MemLimit" directive was specified and the memory limit was hit during compilation
   bool                          _oom;
@@ -605,6 +608,8 @@ public:
   int               inlining_progress() const   { return _inlining_progress; }
   void          set_inlining_incrementally(bool z) { _inlining_incrementally = z; }
   int               inlining_incrementally() const { return _inlining_incrementally; }
+  void          set_strength_reduction(bool z)  { _strength_reduction = z; }
+  bool              strength_reduction() const  { return _strength_reduction; }
   void          set_do_cleanup(bool z)          { _do_cleanup = z; }
   int               do_cleanup() const          { return _do_cleanup; }
   bool              major_progress() const      { return _major_progress; }
@@ -1021,7 +1026,8 @@ public:
                                    JVMState* jvms, bool allow_inline, float profile_factor, ciKlass* speculative_receiver_type = nullptr,
                                    bool allow_intrinsics = true);
   bool should_delay_inlining(ciMethod* call_method, JVMState* jvms) {
-    return should_delay_string_inlining(call_method, jvms) ||
+    return C->directive()->should_delay_inline(call_method) ||
+           should_delay_string_inlining(call_method, jvms) ||
            should_delay_boxing_inlining(call_method, jvms) ||
            should_delay_vector_inlining(call_method, jvms);
   }
@@ -1135,9 +1141,8 @@ public:
     }
   }
 
-  void inc_number_of_mh_late_inlines() { _number_of_mh_late_inlines++; }
-  void dec_number_of_mh_late_inlines() { assert(_number_of_mh_late_inlines > 0, "_number_of_mh_late_inlines < 0 !"); _number_of_mh_late_inlines--; }
-  bool has_mh_late_inlines() const     { return _number_of_mh_late_inlines > 0; }
+  void mark_has_mh_late_inlines() { _has_mh_late_inlines = true; }
+  bool has_mh_late_inlines() const { return _has_mh_late_inlines; }
 
   bool inline_incrementally_one();
   void inline_incrementally_cleanup(PhaseIterGVN& igvn);
@@ -1338,8 +1343,6 @@ public:
 
   // Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
   static Node* constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl, bool carry_dependency = false);
-
-  Node* optimize_acmp(PhaseGVN* phase, Node* a, Node* b);
 
   // Auxiliary method for randomized fuzzing/stressing
   int random();

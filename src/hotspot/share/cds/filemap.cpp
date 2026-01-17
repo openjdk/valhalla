@@ -281,12 +281,14 @@ void FileMapHeader::populate(FileMapInfo *info, size_t core_region_alignment,
   _obj_alignment = ObjectAlignmentInBytes;
   _compact_strings = CompactStrings;
   _compact_headers = UseCompactObjectHeaders;
+#if INCLUDE_CDS_JAVA_HEAP
   if (CDSConfig::is_dumping_heap()) {
     _object_streaming_mode = HeapShared::is_writing_streaming_mode();
-    _narrow_oop_mode = CompressedOops::mode();
-    _narrow_oop_base = CompressedOops::base();
-    _narrow_oop_shift = CompressedOops::shift();
+    _narrow_oop_mode = AOTMappedHeapWriter::narrow_oop_mode();
+    _narrow_oop_base = AOTMappedHeapWriter::narrow_oop_base();
+    _narrow_oop_shift = AOTMappedHeapWriter::narrow_oop_shift();
   }
+#endif
   _compressed_oops = UseCompressedOops;
   _compressed_class_ptrs = UseCompressedClassPointers;
   if (UseCompressedClassPointers) {
@@ -311,7 +313,7 @@ void FileMapHeader::populate(FileMapInfo *info, size_t core_region_alignment,
   _use_optimized_module_handling = CDSConfig::is_using_optimized_module_handling();
   _has_aot_linked_classes = CDSConfig::is_dumping_aot_linked_classes();
   _has_full_module_graph = CDSConfig::is_dumping_full_module_graph();
-  _has_valhalla_patched_classes = CDSConfig::is_valhalla_preview();
+  _has_valhalla_patched_classes = Arguments::is_valhalla_enabled();
 
   // The following fields are for sanity checks for whether this archive
   // will function correctly with this JVM and the bootclasspath it's
@@ -850,7 +852,9 @@ void FileMapInfo::open_as_output() {
   }
   _fd = fd;
   _file_open = true;
+}
 
+void FileMapInfo::prepare_for_writing() {
   // Seek past the header. We will write the header after all regions are written
   // and their CRCs computed.
   size_t header_bytes = header()->header_size();
@@ -984,7 +988,7 @@ void FileMapInfo::write_region(int region, char* base, size_t size,
     if (HeapShared::is_writing_mapping_mode()) {
       requested_base = (char*)AOTMappedHeapWriter::requested_address();
       if (UseCompressedOops) {
-        mapping_offset = (size_t)((address)requested_base - CompressedOops::base());
+        mapping_offset = (size_t)((address)requested_base - AOTMappedHeapWriter::narrow_oop_base());
         assert((mapping_offset >> CompressedOops::shift()) << CompressedOops::shift() == mapping_offset, "must be");
       }
     } else {
@@ -1989,7 +1993,7 @@ bool FileMapHeader::validate() {
 
   if (is_static()) {
     const char* err = nullptr;
-    if (CDSConfig::is_valhalla_preview()) {
+    if (Arguments::is_valhalla_enabled()) {
       if (!_has_valhalla_patched_classes) {
         err = "not created";
       }
@@ -1999,7 +2003,7 @@ bool FileMapHeader::validate() {
       }
     }
     if (err != nullptr) {
-      log_warning(cds)("This archive was %s with --enable-preview -XX:+EnableValhalla. It is "
+      log_warning(cds)("This archive was %s with --enable-preview. It is "
                          "incompatible with the current JVM setting", err);
       return false;
     }
