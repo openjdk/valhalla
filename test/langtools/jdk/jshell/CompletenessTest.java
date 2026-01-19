@@ -421,11 +421,17 @@ public class CompletenessTest extends KullaTesting {
         assertStatus("Boolean! b = !true", COMPLETE_WITH_SEMI, "Boolean! b = !true");
         assertStatus("String! s = \"\";", COMPLETE, "String! s = \"\";");
         assertStatus("Boolean! b = !true;", COMPLETE, "Boolean! b = !true;");
+
         //these are ultimately broken, but OK to consider them complete snippets?
         assertStatus("String! s", COMPLETE_WITH_SEMI, "String! s");
         assertStatus("Boolean! b", COMPLETE_WITH_SEMI, "Boolean! b");
         assertStatus("String! s;", COMPLETE, "String! s;");
         assertStatus("Boolean! b;", COMPLETE, "Boolean! b;");
+
+        //incomplete:
+        assertStatus("Boolean! b =", DEFINITELY_INCOMPLETE, "Boolean! b =");
+        assertStatus("Boolean! test()", DEFINITELY_INCOMPLETE, "Boolean! test()");
+        assertStatus("Boolean! test() {", DEFINITELY_INCOMPLETE, "Boolean! test() {");
     }
 
     @BeforeEach
