@@ -2187,7 +2187,7 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     if (meth == nullptr) {
       const char* name = call->as_CallStaticJava()->_name;
       assert(call->as_CallStaticJava()->is_call_to_multianewarray_stub() ||
-             strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+             strncmp(name, "load_unknown_inline", 19) == 0 ||
              strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "TODO: add failed case check");
       // Returns a newly allocated non-escaped object.
       add_java_object(call, PointsToNode::NoEscape);
@@ -2913,7 +2913,7 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == nullptr) {
     const char* name = alloc->as_CallStaticJava()->_name;
     assert(alloc->as_CallStaticJava()->is_call_to_multianewarray_stub() ||
-           strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+           strncmp(name, "load_unknown_inline", 19) == 0 ||
            strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "sanity");
   }
 #endif
