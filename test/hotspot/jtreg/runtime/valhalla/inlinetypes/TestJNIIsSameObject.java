@@ -37,6 +37,16 @@ import jdk.test.lib.Asserts;
  * @run main/othervm/native runtime.valhalla.inlinetypes.TestJNIIsSameObject
  */
 
+/*
+ * @test
+ * @summary Test JNI IsSameObject semantic with inline types
+ * @library /testlibrary /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile TestJNIIsSameObject.java
+ * @run main/othervm/native -XX:+UseAltSubstitutabilityMethod runtime.valhalla.inlinetypes.TestJNIIsSameObject
+ */
+
 public class TestJNIIsSameObject {
   @LooselyConsistentValue
   static value class Value {
