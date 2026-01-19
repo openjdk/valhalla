@@ -60,8 +60,8 @@ public class SimpleCDSAppTester {
     private String[] vmArgs = new String[] {};
     private Tester tester;
 
-    @SuppressWarnings("initialization")
     private SimpleCDSAppTester(String name) {
+        super();
         this.name = name;
         this.tester = new Tester(name);
     }
