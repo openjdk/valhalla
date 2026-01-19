@@ -91,17 +91,20 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     Env<AttrContext> env;
+    Symbol.ClassSymbol currentClass;
 
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         if (allowNullRestrictedTypes) {
             try {
                 this.make = make;
                 this.env = env;
+                this.currentClass = (Symbol.ClassSymbol) TreeInfo.symbolFor(cdef);
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
                 this.make = null;
                 this.env = null;
+                this.currentClass = null;
             }
         }
         return cdef;
@@ -162,9 +165,10 @@ public class NullChecksWriter extends TreeTranslator {
             if (!noUseSiteNullChecks &&
                     sym.owner.kind == TYP &&
                     sym.kind == VAR &&
-                    types.isNonNullable(sym.type)) {
+                    types.isNonNullable(sym.type) &&
+                    sym.owner != currentClass) {
                 /* we are accessing a non-nullable field declared in another
-                 * compilation unit
+                 * class
                  */
                 result = attr.makeNullCheck((JCExpression) tree, true);
             }
