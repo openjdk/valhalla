@@ -162,17 +162,12 @@ public class NullChecksWriter extends TreeTranslator {
             if (!noUseSiteNullChecks &&
                     sym.owner.kind == TYP &&
                     sym.kind == VAR &&
-                    types.isNonNullable(sym.type) &&
-                    !isInThisSameCompUnit(sym)) {
+                    types.isNonNullable(sym.type)) {
                 /* we are accessing a non-nullable field declared in another
                  * compilation unit
                  */
                 result = attr.makeNullCheck((JCExpression) tree, true);
             }
-        }
-
-        private boolean isInThisSameCompUnit(Symbol sym) {
-            return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
         }
 
     public void visitTypeCast(JCTypeCast tree) {
