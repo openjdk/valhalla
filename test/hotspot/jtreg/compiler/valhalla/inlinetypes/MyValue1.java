@@ -186,8 +186,18 @@ public value class MyValue1 extends MyAbstract {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof MyValue1 v)) {
+            return false;
+        }
+
+        return this.x == v.x && this.y == v.y && this.z == v.z && this.o == v.o && Arrays.equals(this.oa, v.oa) &&
+                this.v1 == v.v1 && this.v2 == v.v2 && this.v4 == v.v4 && this.v5 == v.v5 && this.c == v.c;
+    }
+
+    @Override
     public String toString() {
-        return "MyValue1[s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + o + ", oa=" + Arrays.toString(oa) +
-                ", v1=" + v1 + ", v2=" + v2 + ", v4=" + v4 + ", c=" + c + "]";
+        return "MyValue1[x=" + x + ", y=" + y + ", z=" + z + ", o=" + o + ", oa=" + Arrays.toString(oa) +
+                ", v1=" + v1 + ", v2=" + v2 + ", v4=" + v4 + ", v5=" + v5 + ", c=" + c + "]";
     }
 }

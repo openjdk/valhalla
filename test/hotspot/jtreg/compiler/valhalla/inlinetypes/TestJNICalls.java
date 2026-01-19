@@ -147,9 +147,9 @@ public class TestJNICalls {
     public void test1_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 result = test1(vt, false);
-        Asserts.assertEQ(result.hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
         result = test1(vt, true);
-        Asserts.assertEQ(result.hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
     }
 
     // Pass a value object to a native method that calls the hash method and returns the result
