@@ -556,6 +556,10 @@ class CompileReplay : public StackObj {
       } else {
         k = SystemDictionary::resolve_or_fail(klass_name, _loader, true, THREAD);
       }
+      if (Arguments::is_valhalla_enabled() && k->is_objArray_klass()) {
+        // Create ref or flat array klass.
+        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      }
       if (HAS_PENDING_EXCEPTION) {
         oop throwable = PENDING_EXCEPTION;
         java_lang_Throwable::print(throwable, tty);
