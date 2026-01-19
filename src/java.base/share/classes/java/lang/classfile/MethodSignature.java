@@ -138,9 +138,13 @@ public sealed interface MethodSignature
                                      List<Signature.ThrowableSig> exceptions,
                                      Signature result,
                                      Signature... arguments) {
+        var sanitizedExceptions = List.copyOf(requireNonNull(exceptions));
+        for (var each : sanitizedExceptions) {
+            SignaturesImpl.validateUnmarked((Signature.RefTypeSig) each);
+        }
         return new SignaturesImpl.MethodSignatureImpl(
                 List.copyOf(requireNonNull(typeParameters)),
-                List.copyOf(requireNonNull(exceptions)),
+                sanitizedExceptions,
                 requireNonNull(result),
                 SignaturesImpl.validateArgumentList(arguments));
     }

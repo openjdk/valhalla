@@ -142,6 +142,59 @@ public sealed interface Signature {
     public sealed interface RefTypeSig
             extends Signature
             permits ArrayTypeSig, ClassTypeSig, TypeVarSig {
+
+        /**
+         * The null marker on a reference type signature. A null marker is
+         * a prefix to reference type signatures.
+         *
+         * @since Valhalla
+         */
+        // TODO preview under NR
+        enum NullMarker {
+            /**
+             * No null marker on a reference type.  This indicates no null
+             * restriction, or when null restriction is insignificant.
+             */
+            UNMARKED,
+            /**
+             * A null-checked marker on a reference type, {@code !}.  This
+             * indicates null restriction for the values accepted by this type.
+             */
+            CHECKED,
+            ;
+        }
+
+        /**
+         * {@return the null marker on this reference type signature}
+         *
+         * @since Valhalla
+         */
+        NullMarker nullMarker();
+
+        /**
+         * {@return a reference type signature with updated null marker,
+         * otherwise equivalent to this signature}
+         *
+         * @param marker the updated marker
+         * @since Valhalla
+         */
+        RefTypeSig nullMarker(NullMarker marker);
+
+        /**
+         * {@return a reference type signature with no null marker, otherwise
+         * equivalent to this signature}
+         *
+         * @since Valhalla
+         */
+        RefTypeSig nullUnmarked();
+
+        /**
+         * {@return a reference type signature with null check, otherwise
+         * equivalent to this signature}
+         *
+         * @since Valhalla
+         */
+        RefTypeSig nullChecked();
     }
 
     /**
@@ -216,6 +269,19 @@ public sealed interface Signature {
          */
         List<TypeArg> typeArgs();
 
+        @Override
+        ClassTypeSig nullMarker(NullMarker marker);
+
+        @Override
+        default ClassTypeSig nullUnmarked() {
+            return nullMarker(NullMarker.UNMARKED);
+        }
+
+        @Override
+        default ClassTypeSig nullChecked() {
+            return nullMarker(NullMarker.CHECKED);
+        }
+
         /**
          * {@return a class or interface signature without an outer type}
          *
@@ -275,11 +341,12 @@ public sealed interface Signature {
          */
         public static ClassTypeSig of(ClassTypeSig outerType, String className, TypeArg... typeArgs) {
             if (outerType != null) {
+                SignaturesImpl.validateUnmarked(outerType);
                 SignaturesImpl.validateIdentifier(className);
             } else {
                 SignaturesImpl.validatePackageSpecifierPlusIdentifier(className);
             }
-            return new SignaturesImpl.ClassTypeSigImpl(Optional.ofNullable(outerType), className, List.of(typeArgs));
+            return new SignaturesImpl.ClassTypeSigImpl(NullMarker.UNMARKED, Optional.ofNullable(outerType), className, List.of(typeArgs));
         }
     }
 
@@ -431,6 +498,19 @@ public sealed interface Signature {
         /** {@return the name of the type variable} */
         String identifier();
 
+        @Override
+        TypeVarSig nullMarker(NullMarker marker);
+
+        @Override
+        default TypeVarSig nullUnmarked() {
+            return nullMarker(NullMarker.UNMARKED);
+        }
+
+        @Override
+        default TypeVarSig nullChecked() {
+            return nullMarker(NullMarker.CHECKED);
+        }
+
         /**
          * {@return a signature for a type variable}
          *
@@ -439,7 +519,7 @@ public sealed interface Signature {
          *         Signature##identifier denoted}
          */
         public static TypeVarSig of(String identifier) {
-            return new SignaturesImpl.TypeVarSigImpl(SignaturesImpl.validateIdentifier(identifier));
+            return new SignaturesImpl.TypeVarSigImpl(NullMarker.UNMARKED, SignaturesImpl.validateIdentifier(identifier));
         }
     }
 
@@ -459,10 +539,24 @@ public sealed interface Signature {
         /** {@return the signature of the component type} */
         Signature componentSignature();
 
+        @Override
+        ArrayTypeSig nullMarker(NullMarker marker);
+
+        @Override
+        default ArrayTypeSig nullUnmarked() {
+            return nullMarker(NullMarker.UNMARKED);
+        }
+
+        @Override
+        default ArrayTypeSig nullChecked() {
+            return nullMarker(NullMarker.CHECKED);
+        }
+
         /**
          * {@return an array type with the given component type}
          * @param componentSignature the component type
-         * @throws IllegalArgumentException if the component type is void
+         * @throws IllegalArgumentException if the component type is void or
+         *         null-checked
          */
         public static ArrayTypeSig of(Signature componentSignature) {
             return of(1, SignaturesImpl.validateNonVoid(componentSignature));
@@ -474,18 +568,21 @@ public sealed interface Signature {
          * @param componentSignature the component type
          * @throws IllegalArgumentException if {@code dims < 1} or the
          *         resulting array type exceeds 255 dimensions or the component
-         *         type is void
+         *         type is void or the component type is null-checked
          */
         public static ArrayTypeSig of(int dims, Signature componentSignature) {
             SignaturesImpl.validateNonVoid(componentSignature);
+            if (componentSignature instanceof RefTypeSig ref) {
+                SignaturesImpl.validateUnmarked(ref);
+            }
             if (componentSignature instanceof SignaturesImpl.ArrayTypeSigImpl arr) {
                 if (dims < 1 || dims > 255 - arr.arrayDepth())
                     throw new IllegalArgumentException("illegal array depth value");
-                return new SignaturesImpl.ArrayTypeSigImpl(dims + arr.arrayDepth(), arr.elemType());
+                return new SignaturesImpl.ArrayTypeSigImpl(NullMarker.UNMARKED, dims + arr.arrayDepth(), arr.elemType());
             }
             if (dims < 1 || dims > 255)
                 throw new IllegalArgumentException("illegal array depth value");
-            return new SignaturesImpl.ArrayTypeSigImpl(dims, componentSignature);
+            return new SignaturesImpl.ArrayTypeSigImpl(NullMarker.UNMARKED, dims, componentSignature);
         }
     }
 
