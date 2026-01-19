@@ -162,8 +162,8 @@ public class NullChecksWriter extends TreeTranslator {
             if (!noUseSiteNullChecks &&
                     sym.owner.kind == TYP &&
                     sym.kind == VAR &&
-                    !isInThisSameCompUnit(sym) &&
-                    types.isNonNullable(sym.type)) {
+                    types.isNonNullable(sym.type) &&
+                    !isInThisSameCompUnit(sym)) {
                 /* we are accessing a non-nullable field declared in another
                  * compilation unit
                  */
@@ -172,16 +172,7 @@ public class NullChecksWriter extends TreeTranslator {
         }
 
         private boolean isInThisSameCompUnit(Symbol sym) {
-            return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == outermostType(sym));
-        }
-
-        private Symbol outermostType(Symbol sym) {
-            Symbol prev = null;
-            while (sym.kind != PCK) {
-                prev = sym;
-                sym = sym.owner;
-            }
-            return prev;
+            return env.toplevel.getTypeDecls().stream().anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
         }
 
     public void visitTypeCast(JCTypeCast tree) {
