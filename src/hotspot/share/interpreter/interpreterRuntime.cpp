@@ -230,25 +230,36 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result_oop(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
-  Handle obj_h(THREAD, obj);
 
   InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
   assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
 
   InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
-  InlineKlass* field_vklass = layout_info->klass();
+  InlineKlass* field_klass = layout_info->klass();
+  const LayoutKind lk = layout_info->kind();
+  const int offset = entry->field_offset();
+
+  // If the field is nullable and is marked null, return early.
+  if (LayoutKindHelper::is_nullable_flat(lk) &&
+      field_klass->is_payload_marked_as_null(cast_from_oop<address>(obj) + offset)) {
+    current->set_vm_result_oop(nullptr);
+    return;
+  }
 
 #ifdef ASSERT
   fieldDescriptor fd;
-  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  bool found = holder->find_field_from_offset(offset, false, &fd);
   assert(found, "Field not found");
   assert(fd.is_flat(), "Field must be flat");
 #endif // ASSERT
 
-  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
-  current->set_vm_result_oop(res);
+  JRT_BLOCK
+    Handle obj_h(THREAD, obj);
+    oop res = field_klass->read_payload_from_addr(obj_h(), (size_t)offset, lk, CHECK);
+    current->set_vm_result_oop(res);
+  JRT_BLOCK_END
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
