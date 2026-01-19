@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,9 @@ import jdk.jshell.JShell;
 import jdk.jshell.SourceCodeAnalysis.Completeness;
 
 import static jdk.jshell.SourceCodeAnalysis.Completeness.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 public class CompletenessTest extends KullaTesting {
 
@@ -409,5 +411,35 @@ public class CompletenessTest extends KullaTesting {
     public void testInstanceOf() {
         assertStatus("i instanceof Integer", COMPLETE, "i instanceof Integer");
         assertStatus("i instanceof int", COMPLETE, "i instanceof int");
+    }
+
+    @Test
+    public void testPreview() {
+        //this should be merged into the testcases above,
+        //but currently needs preview enabled:
+        assertStatus("String! s = \"\"", COMPLETE_WITH_SEMI, "String! s = \"\"");
+        assertStatus("Boolean! b = !true", COMPLETE_WITH_SEMI, "Boolean! b = !true");
+        assertStatus("String! s = \"\";", COMPLETE, "String! s = \"\";");
+        assertStatus("Boolean! b = !true;", COMPLETE, "Boolean! b = !true;");
+        //these are ultimately broken, but OK to consider them complete snippets?
+        assertStatus("String! s", COMPLETE_WITH_SEMI, "String! s");
+        assertStatus("Boolean! b", COMPLETE_WITH_SEMI, "Boolean! b");
+        assertStatus("String! s;", COMPLETE, "String! s;");
+        assertStatus("Boolean! b;", COMPLETE, "Boolean! b;");
+    }
+
+    @BeforeEach
+    public void setUp(TestInfo info) {
+        setUp(b -> addExtraOptions(b, info));
+    }
+
+    protected JShell.Builder addExtraOptions(JShell.Builder b, TestInfo testInfo) {
+        return switch (testInfo.getTestMethod().orElseThrow().getName()) {
+            case "testPreview" ->
+                b.compilerOptions("--source", System.getProperty("java.specification.version"),
+                                  "--enable-preview")
+                 .remoteVMOptions("--enable-preview");
+            default -> b;
+        };
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -398,6 +398,10 @@ class Eval {
                 Range rinit = dis.treeToRange(it);
                 winit = winit == null ? Wrap.rangeWrap(compileSource, rinit) : winit;
                 nameMax = rinit.begin - 1;
+            } else if (nonNull) {
+                //do not add the "zero" initializer for the null restricted variable without initializer:
+                winit = null;
+                subkind = SubKind.VAR_DECLARATION_SUBKIND;
             } else {
                 String sinit = switch (typeName) {
                     case "byte",
