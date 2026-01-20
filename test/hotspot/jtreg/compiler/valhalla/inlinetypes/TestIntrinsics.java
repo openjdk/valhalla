@@ -326,7 +326,7 @@ public class TestIntrinsics {
     public void test10_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test10(MyValue1.class, vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
     }
 
     @Test
@@ -353,7 +353,7 @@ public class TestIntrinsics {
     public void test12_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test12(vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
     }
 
     @Test
@@ -517,7 +517,7 @@ public class TestIntrinsics {
     public void test22_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         test22(v.setX(v, 0));
-        Asserts.assertEQ(test22_vt.hash(), v.hash());
+        Asserts.assertEQ(v, test22_vt);
     }
 
     @Test
@@ -613,10 +613,10 @@ public class TestIntrinsics {
     public void test27_verifier() {
         test27_vt = null;
         MyValue1 res = test27();
-        Asserts.assertEQ(res, null);
+        Asserts.assertEQ(null, res);
         test27_vt = MyValue1.createWithFieldsInline(rI, rL);
         res = test27();
-        Asserts.assertEQ(res.hash(), test24_vt.hash());
+        Asserts.assertEQ(test27_vt, res);
     }
 
     // Mismatched type
@@ -682,7 +682,7 @@ public class TestIntrinsics {
     public void test30_verifier(RunInfo info) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2 res = test30(v);
-        Asserts.assertEQ(res.hash(), v.v1.hash());
+        Asserts.assertEQ(v.v1, res);
     }
 
     MyValue1 test31_vt;
@@ -714,7 +714,7 @@ public class TestIntrinsics {
     public void test31_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test31();
-        Asserts.assertEQ(res.hash(), test31_vt.hash());
+        Asserts.assertEQ(test31_vt, res);
     }
 
     // putValue to set flattened field in object
@@ -733,7 +733,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test32(vt);
-        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+        Asserts.assertEQ(vt, test31_vt);
     }
 
     private static final long TEST33_BASE_OFFSET;
@@ -767,7 +767,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         TEST33_ARRAY[1] = vt;
         MyValue1 res = test33();
-        Asserts.assertEQ(res.hash(), vt.hash());
+        Asserts.assertEQ(vt, res);
     }
 
     // putValue to set flattened field in array
@@ -785,7 +785,7 @@ public class TestIntrinsics {
     public void test34_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test34(vt);
-        Asserts.assertEQ(TEST33_ARRAY[1].hash(), vt.hash());
+        Asserts.assertEQ(vt, TEST33_ARRAY[1]);
     }
 
     // getValue to retrieve flattened field from object with unknown
@@ -803,7 +803,7 @@ public class TestIntrinsics {
     public void test35_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test35(this);
-        Asserts.assertEQ(res.hash(), test31_vt.hash());
+        Asserts.assertEQ(test31_vt, res);
     }
 
     // getValue to retrieve flattened field from object at unknown
@@ -821,7 +821,7 @@ public class TestIntrinsics {
     public void test36_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test36(TEST31_VT_OFFSET);
-        Asserts.assertEQ(res.hash(), test31_vt.hash());
+        Asserts.assertEQ(test31_vt, res);
     }
 
     // putValue to set flattened field in object with unknown
@@ -841,7 +841,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test37(this, vt);
-        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+        Asserts.assertEQ(vt, test31_vt);
     }
 
     // putValue to set flattened field in object, non inline argument
@@ -861,7 +861,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test38(vt);
-        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+        Asserts.assertEQ(vt, test31_vt);
     }
 
     @Test
@@ -877,7 +877,7 @@ public class TestIntrinsics {
     public void test39_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test39(v.setX(v, 0));
-        Asserts.assertEQ(res.hash(), v.hash());
+        Asserts.assertEQ(v, res);
     }
 
     // Test value class array creation via reflection
@@ -983,9 +983,9 @@ public class TestIntrinsics {
     public void test45_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test45(vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
         result = test45(null);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(null, result);
     }
 
     @Test
@@ -1014,9 +1014,9 @@ public class TestIntrinsics {
     public void test47_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test47(vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
         result = test47(null);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(null, result);
     }
 
     @Test
@@ -1028,9 +1028,9 @@ public class TestIntrinsics {
     public void test48_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test48(MyValue1.class, vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
         result = test48(MyValue1.class, null);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(null, result);
     }
 
     @Test
@@ -1042,7 +1042,7 @@ public class TestIntrinsics {
     public void test49_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test49(vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
     }
 
     @Test
@@ -1056,19 +1056,19 @@ public class TestIntrinsics {
         MyValue1[] va  = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         MyValue1[] vba = new MyValue1[42];
         Object result = test50(MyValue1.class, vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
         result = test50(MyValue1.class, vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(vt, result);
         result = test50(MyValue1[].class, va);
-        Asserts.assertEQ(result, va);
+        Asserts.assertEQ(va, result);
         result = test50(MyValue1[].class, vba);
-        Asserts.assertEQ(result, vba);
+        Asserts.assertEQ(vba, result);
         result = test50(MyValue1[].class, va);
-        Asserts.assertEQ(result, va);
+        Asserts.assertEQ(va, result);
         result = test50(MyValue1.class, null);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(null, result);
         result = test50(va.getClass(), vba);
-        Asserts.assertEQ(result, vba);
+        Asserts.assertEQ(vba, result);
     }
 
     // Value class array creation via reflection
@@ -1178,7 +1178,7 @@ public class TestIntrinsics {
     @Run(test = "test55")
     public void test55_verifier() {
         MyValue2 res = test55();
-        Asserts.assertEQ(res.hash(), test55_vt.v1.hash());
+        Asserts.assertEQ(test55_vt.v1, res);
     }
 
     // Test OptimizePtrCompare part of Escape Analysis
