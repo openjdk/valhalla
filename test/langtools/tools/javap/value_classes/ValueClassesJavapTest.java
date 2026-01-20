@@ -68,14 +68,14 @@ public class ValueClassesJavapTest extends TestRunner {
     );
     private static final List<String> expectedIdentityClassOutput = """
             Compiled from "ValueClassesJavapTest.java"
-            identity class ValueClassesJavapTest$IdentityClass {
+            class ValueClassesJavapTest$IdentityClass {
               ValueClassesJavapTest$ValueClass val;
               ValueClassesJavapTest$IdentityClass(ValueClassesJavapTest);
             }
             """.lines().toList();
     private static final List<String> expectedIdentityClass2Output = """
             Compiled from "ValueClassesJavapTest.java"
-            identity class ValueClassesJavapTest$IdentityClass2 {
+            class ValueClassesJavapTest$IdentityClass2 {
               ValueClassesJavapTest$IdentityClass2(ValueClassesJavapTest);
               void m(ValueClassesJavapTest$ValueClass);
             }

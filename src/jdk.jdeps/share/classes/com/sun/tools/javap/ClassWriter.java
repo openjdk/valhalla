@@ -821,8 +821,9 @@ public class ClassWriter extends BasicWriter {
             flagSet.remove(AccessFlag.ABSTRACT);
         } else if (Source.isSupported(Source.Feature.VALUE_CLASSES, majorVersion) && previewClassFile) {
             Set<String> classModifers = getModifiers(flagSet);
-            // ACC_IDENTITY is not a source modifier
-            classModifers.add(flagSet.contains(AccessFlag.IDENTITY) ? "identity" : "value");
+            if (!flagSet.contains(AccessFlag.IDENTITY)) {
+                classModifers.add("value");
+            }
             return classModifers;
         }
         return getModifiers(flagSet);
