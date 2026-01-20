@@ -1941,14 +1941,24 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   uint nargs = domain->cnt();
   int arg_num = 0;
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
-    Node* arg = argument(i-TypeFunc::Parms);
+    uint arg_idx = i - TypeFunc::Parms;
+    Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
     // TODO 8284443 A static call to a mismatched method should still be scalarized
     if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
-        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        // There are 2 cases in which the argument has not been scalarized
+        if (_gvn.type(arg)->is_zero_type()) {
+          arg = InlineTypeNode::make_null(_gvn, t->inline_klass());
+        } else {
+          // During parsing, a method is called with an abstract (or j.l.Object) receiver, the
+          // receiver is a non-scalarized oop. Later on, IGVN reveals that the receiver must be a
+          // value object. The method is devirtualized, and replaced with a direct call with a
+          // scalarized receiver instead.
+          assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
+          arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        }
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
