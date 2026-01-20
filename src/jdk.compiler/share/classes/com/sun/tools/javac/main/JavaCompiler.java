@@ -1708,7 +1708,7 @@ public class JavaCompiler {
             if (shouldStop(CompileState.NULL_CHECKS_WRITER))
                 return;
             for (JCTree def : cdefs) {
-                NullChecksWriter.instance(context).translateTopLevelClass(def, localMake);
+                NullChecksWriter.instance(context).translateTopLevelClass(env, def, localMake);
             }
             compileStates.put(env, CompileState.NULL_CHECKS_WRITER);
 

@@ -434,7 +434,7 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
-    public void testClientSideChecks(Path base) throws Exception {
+    public void testUseSideChecksForMethods(Path base) throws Exception {
         String[] testCases = new String[] {
                 """
                 class Test {
@@ -504,8 +504,8 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
-    public void testClientSideChecksSepCompilation(Path base) throws Exception {
-        testSeparateCompilationHelper(base,
+    public void testUseSideChecksForMethodsSepCompilation(Path base) throws Exception {
+        testUseSiteForMethodsSeparateCompilationHelper(base,
                 """
                 package pkg;
                 class Super {
@@ -526,7 +526,7 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """);
-        testSeparateCompilationHelper(base,
+        testUseSiteForMethodsSeparateCompilationHelper(base,
                 """
                 package pkg;
                 class Super {
@@ -547,7 +547,7 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """);
-        testSeparateCompilationHelper(base,
+        testUseSiteForMethodsSeparateCompilationHelper(base,
                 """
                 package pkg;
                 public class Super {
@@ -572,7 +572,7 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """);
-        testSeparateCompilationHelper(base,
+        testUseSiteForMethodsSeparateCompilationHelper(base,
                 """
                 package pkg;
                 public class Super {
@@ -599,7 +599,7 @@ public class RuntimeNullChecks extends TestRunner {
                 """);
     }
 
-    private void testSeparateCompilationHelper(
+    private void testUseSiteForMethodsSeparateCompilationHelper(
             Path base,
             String code1,
             String code2,
@@ -649,5 +649,100 @@ public class RuntimeNullChecks extends TestRunner {
                 .classArgs("pkg.Client")
                 .vmOptions("--enable-preview")
                 .run(Task.Expect.SUCCESS);
+    }
+
+    @Test
+    public void testUseSideChecksForFieldsSepCompilation(Path base) throws Exception {
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! a;
+                    public A() {
+                        this.a = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String a;
+                    public A() {
+                        this.a = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        System.out.println(a.a.toString());
+                    }
+                }
+                """);
+    }
+
+    private void testUseSiteForFieldsSeparateCompilationHelper(
+            Path base,
+            String code1,
+            String code2,
+            String testCode) throws Exception {
+        Path src = base.resolve("src");
+        Path pkg = src.resolve("pkg");
+        Path ASrc = pkg.resolve("A");
+        Path test = pkg.resolve("Test");
+
+        tb.writeJavaFiles(ASrc, code1);
+        tb.writeJavaFiles(test, testCode);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        // this compilation will generate null checks in Test before accessing field A.a
+        new JavacTask(tb)
+                .outdir(out)
+                .options(PREVIEW_OPTIONS)
+                .files(findJavaFiles(pkg))
+                .run();
+
+        // let's execute to check that it's producing the NPE
+        System.err.println("running, this test should pass");
+        String output = new JavaTask(tb)
+                .classpath(out.toString())
+                .classArgs("pkg.Test")
+                .vmOptions("--enable-preview")
+                .run()
+                .writeAll()
+                .getOutput(Task.OutputKind.STDOUT);
+        if (!output.startsWith("test")) {
+            throw new AssertionError("unexpected output: " + output);
+        }
+
+        // now lets change the code
+        tb.writeJavaFiles(ASrc, code2);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .options(PREVIEW_OPTIONS)
+                .files(findJavaFiles(ASrc))
+                .run();
+
+        System.err.println("running, this test should fail");
+        output = new JavaTask(tb)
+                .classpath(out.toString())
+                .classArgs("pkg.Test")
+                .vmOptions("--enable-preview")
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutput(Task.OutputKind.STDERR);
+
+        // we need to check that the NPE is due to an invocation to j.l.r.Checks::nullCheck
+        if (!output.contains("java.lang.NullPointerException") &&
+                !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
+            throw new AssertionError("unexpected output: " + output);
+        }
     }
 }
