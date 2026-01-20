@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -821,7 +821,8 @@ public class ClassWriter extends BasicWriter {
             flagSet.remove(AccessFlag.ABSTRACT);
         } else if (Source.isSupported(Source.Feature.VALUE_CLASSES, majorVersion) && previewClassFile) {
             Set<String> classModifers = getModifiers(flagSet);
-            classModifers.add("value");
+            // ACC_IDENTITY is not a source modifier
+            classModifers.add(flagSet.contains(AccessFlag.IDENTITY) ? "identity" : "value");
             return classModifers;
         }
         return getModifiers(flagSet);
