@@ -28,7 +28,6 @@ package java.lang.runtime;
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.javac.PreviewFeature.Feature;
 import java.lang.reflect.Array;
-import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Collections;
@@ -40,9 +39,11 @@ import static java.lang.invoke.MethodHandles.*;
 
 /**
  * Factory and bootstrap methods for strictly-initialized array creation.
+ *
+ * @since Valhalla
  */
-@PreviewFeature(reflective = true, feature = Feature.VALUE_OBJECTS)
-public class ArrayCreation {
+@PreviewFeature(reflective = true, feature = Feature.NULL_RESTRICTION)
+public final class ArrayCreation {
 
     private ArrayCreation() {}
 

@@ -35,8 +35,10 @@ import jdk.internal.javac.PreviewFeature.Feature;
  * <p>Instances of classes that implement this interface must implement
  * an equals() method that equates any two null restricted type instances that
  * share the same base type.
+ *
+ * @since Valhalla
  */
-@PreviewFeature(feature = Feature.VALUE_OBJECTS, reflective = true)
+@PreviewFeature(feature = Feature.NULL_RESTRICTION, reflective = true)
 public interface NullRestrictedType extends Type {
     /**
      * {@return the {@code Type} object representing the type to which the null-restriction has

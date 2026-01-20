@@ -30,7 +30,7 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.SymbolMetadata;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
@@ -44,6 +44,7 @@ import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
+import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
 /** This pass generates null checks for the compiler to check for assertions on
@@ -88,14 +89,21 @@ public class NullChecksWriter extends TreeTranslator {
         noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
     }
 
-    public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
+    Env<AttrContext> env;
+    ClassSymbol currentClass;
+
+    public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         if (allowNullRestrictedTypes) {
             try {
                 this.make = make;
+                this.env = env;
+                this.currentClass = (ClassSymbol) TreeInfo.symbolFor(cdef);
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
                 this.make = null;
+                this.env = null;
+                this.currentClass = null;
             }
         }
         return cdef;
@@ -137,6 +145,33 @@ public class NullChecksWriter extends TreeTranslator {
         }
         result = tree;
     }
+
+    @Override
+    public void visitIdent(JCIdent tree) {
+        super.visitIdent(tree);
+        identSelectVisitHelper(tree);
+    }
+
+    @Override
+    public void visitSelect(JCFieldAccess tree) {
+        super.visitSelect(tree);
+        identSelectVisitHelper(tree);
+    }
+
+    // where
+        private void identSelectVisitHelper(JCTree tree) {
+            Symbol sym = TreeInfo.symbolFor(tree);
+            if (!noUseSiteNullChecks &&
+                    sym.owner.kind == TYP &&
+                    sym.kind == VAR &&
+                    types.isNonNullable(sym.type) &&
+                    sym.owner != currentClass) {
+                /* we are accessing a non-nullable field declared in another
+                 * class
+                 */
+                result = attr.makeNullCheck((JCExpression) tree, true);
+            }
+        }
 
     public void visitTypeCast(JCTypeCast tree) {
         super.visitTypeCast(tree);
