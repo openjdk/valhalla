@@ -30,7 +30,7 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.SymbolMetadata;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
@@ -43,7 +43,6 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
 
-import static com.sun.tools.javac.code.Kinds.Kind.PCK;
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
@@ -91,14 +90,14 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     Env<AttrContext> env;
-    Symbol.ClassSymbol currentClass;
+    ClassSymbol currentClass;
 
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         if (allowNullRestrictedTypes) {
             try {
                 this.make = make;
                 this.env = env;
-                this.currentClass = (Symbol.ClassSymbol) TreeInfo.symbolFor(cdef);
+                this.currentClass = (ClassSymbol) TreeInfo.symbolFor(cdef);
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
