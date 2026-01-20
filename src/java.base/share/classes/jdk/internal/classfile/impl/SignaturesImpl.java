@@ -209,7 +209,7 @@ public final class SignaturesImpl {
 
             boolean end = match(';');
             if (end || match('.')) {
-                t = new ClassTypeSigImpl(RefTypeSig.NullMarker.UNMARKED, Optional.ofNullable(t), className, null2Empty(argTypes));
+                t = new ClassTypeSigImpl(RefTypeSig.NullMarker.UNSPECIFIED, Optional.ofNullable(t), className, null2Empty(argTypes));
                 if (end)
                     return t;
             } else {
@@ -313,7 +313,7 @@ public final class SignaturesImpl {
     /// Validates the signature to have no null marker.
     public static <T extends RefTypeSig> T validateUnmarked(T incoming) {
         // implicit null check
-        if (incoming.nullMarker() != RefTypeSig.NullMarker.UNMARKED) {
+        if (incoming.nullMarker() != RefTypeSig.NullMarker.UNSPECIFIED) {
             throw new IllegalArgumentException("Must not have null marker: " + incoming);
         }
         return incoming;
@@ -344,8 +344,8 @@ public final class SignaturesImpl {
 
     public static String marker(RefTypeSig.NullMarker marker) {
         return switch (marker) {
-            case UNMARKED -> "";
-            case CHECKED -> "!";
+            case UNSPECIFIED -> "";
+            case NOT_NULL -> "!";
         };
     }
 
@@ -377,7 +377,7 @@ public final class SignaturesImpl {
 
         @Override
         public Signature componentSignature() {
-            return arrayDepth > 1 ? new ArrayTypeSigImpl(NullMarker.UNMARKED, arrayDepth - 1, elemType) : elemType;
+            return arrayDepth > 1 ? new ArrayTypeSigImpl(NullMarker.UNSPECIFIED, arrayDepth - 1, elemType) : elemType;
         }
 
         @Override

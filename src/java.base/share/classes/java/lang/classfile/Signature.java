@@ -38,6 +38,7 @@ import java.util.Optional;
 
 import jdk.internal.classfile.impl.SignaturesImpl;
 import jdk.internal.classfile.impl.Util;
+import jdk.internal.javac.PreviewFeature;
 
 import static java.util.Objects.requireNonNull;
 
@@ -149,18 +150,19 @@ public sealed interface Signature {
          *
          * @since Valhalla
          */
-        // TODO preview under NR
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         enum NullMarker {
+            // See JCNullableTypeExpression.NullMaker
             /**
              * No null marker on a reference type.  This indicates no null
              * restriction, or when null restriction is insignificant.
              */
-            UNMARKED,
+            UNSPECIFIED,
             /**
-             * A null-checked marker on a reference type, {@code !}.  This
+             * A not-null marker on a reference type, {@code !}.  This
              * indicates null restriction for the values accepted by this type.
              */
-            CHECKED,
+            NOT_NULL,
             ;
         }
 
@@ -169,6 +171,7 @@ public sealed interface Signature {
          *
          * @since Valhalla
          */
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         NullMarker nullMarker();
 
         /**
@@ -178,6 +181,7 @@ public sealed interface Signature {
          * @param marker the updated marker
          * @since Valhalla
          */
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         RefTypeSig nullMarker(NullMarker marker);
 
         /**
@@ -186,7 +190,8 @@ public sealed interface Signature {
          *
          * @since Valhalla
          */
-        RefTypeSig nullUnmarked();
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
+        RefTypeSig nullUnspecified();
 
         /**
          * {@return a reference type signature with null check, otherwise
@@ -194,6 +199,7 @@ public sealed interface Signature {
          *
          * @since Valhalla
          */
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         RefTypeSig nullChecked();
     }
 
@@ -269,17 +275,20 @@ public sealed interface Signature {
          */
         List<TypeArg> typeArgs();
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
         ClassTypeSig nullMarker(NullMarker marker);
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
-        default ClassTypeSig nullUnmarked() {
-            return nullMarker(NullMarker.UNMARKED);
+        default ClassTypeSig nullUnspecified() {
+            return nullMarker(NullMarker.UNSPECIFIED);
         }
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
         default ClassTypeSig nullChecked() {
-            return nullMarker(NullMarker.CHECKED);
+            return nullMarker(NullMarker.NOT_NULL);
         }
 
         /**
@@ -303,7 +312,8 @@ public sealed interface Signature {
          * @param typeArgs the type arguments
          * @throws IllegalArgumentException if {@code className} does not
          *         represent a class or interface, or if it cannot be
-         *         {@linkplain Signature##identifier denoted}
+         *         {@linkplain Signature##identifier denoted}, or if
+         *         {@code outerType} has null marker
          * @deprecated
          * The resulting signature does not denote the class represented by
          * {@code className} when {@code outerType} is not null.  Use {@link
@@ -337,7 +347,8 @@ public sealed interface Signature {
          *                  {@code /} to separate if outer type is absent
          * @param typeArgs the type arguments
          * @throws IllegalArgumentException if {@code className} cannot be
-         *         {@linkplain Signature##identifier denoted}
+         *         {@linkplain Signature##identifier denoted}, or if
+         *         {@code outerType} has null marker
          */
         public static ClassTypeSig of(ClassTypeSig outerType, String className, TypeArg... typeArgs) {
             if (outerType != null) {
@@ -346,7 +357,7 @@ public sealed interface Signature {
             } else {
                 SignaturesImpl.validatePackageSpecifierPlusIdentifier(className);
             }
-            return new SignaturesImpl.ClassTypeSigImpl(NullMarker.UNMARKED, Optional.ofNullable(outerType), className, List.of(typeArgs));
+            return new SignaturesImpl.ClassTypeSigImpl(NullMarker.UNSPECIFIED, Optional.ofNullable(outerType), className, List.of(typeArgs));
         }
     }
 
@@ -432,6 +443,7 @@ public sealed interface Signature {
          * {@return a type argument of a reference type}
          *
          * @param boundType the reference type
+         * @throws IllegalArgumentException if {@code boundType} has null marker
          * @see Bounded.WildcardIndicator#NONE
          */
         public static TypeArg.Bounded of(RefTypeSig boundType) {
@@ -450,6 +462,7 @@ public sealed interface Signature {
          * {@return an upper-bounded wildcard type argument}
          *
          * @param boundType the upper bound
+         * @throws IllegalArgumentException if {@code boundType} has null marker
          * @see Bounded.WildcardIndicator#EXTENDS
          */
         public static TypeArg.Bounded extendsOf(RefTypeSig boundType) {
@@ -461,6 +474,7 @@ public sealed interface Signature {
          * {@return a lower-bounded wildcard type argument}
          *
          * @param boundType the lower bound
+         * @throws IllegalArgumentException if {@code boundType} has null marker
          * @see Bounded.WildcardIndicator#SUPER
          */
         public static TypeArg.Bounded superOf(RefTypeSig boundType) {
@@ -473,6 +487,7 @@ public sealed interface Signature {
          *
          * @param wildcard the wildcard indicator
          * @param boundType the bound type
+         * @throws IllegalArgumentException if {@code boundType} has null marker
          */
         public static TypeArg.Bounded bounded(Bounded.WildcardIndicator wildcard, RefTypeSig boundType) {
             requireNonNull(wildcard);
@@ -498,17 +513,20 @@ public sealed interface Signature {
         /** {@return the name of the type variable} */
         String identifier();
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
         TypeVarSig nullMarker(NullMarker marker);
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
-        default TypeVarSig nullUnmarked() {
-            return nullMarker(NullMarker.UNMARKED);
+        default TypeVarSig nullUnspecified() {
+            return nullMarker(NullMarker.UNSPECIFIED);
         }
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
         default TypeVarSig nullChecked() {
-            return nullMarker(NullMarker.CHECKED);
+            return nullMarker(NullMarker.NOT_NULL);
         }
 
         /**
@@ -519,7 +537,7 @@ public sealed interface Signature {
          *         Signature##identifier denoted}
          */
         public static TypeVarSig of(String identifier) {
-            return new SignaturesImpl.TypeVarSigImpl(NullMarker.UNMARKED, SignaturesImpl.validateIdentifier(identifier));
+            return new SignaturesImpl.TypeVarSigImpl(NullMarker.UNSPECIFIED, SignaturesImpl.validateIdentifier(identifier));
         }
     }
 
@@ -539,24 +557,27 @@ public sealed interface Signature {
         /** {@return the signature of the component type} */
         Signature componentSignature();
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
         ArrayTypeSig nullMarker(NullMarker marker);
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
-        default ArrayTypeSig nullUnmarked() {
-            return nullMarker(NullMarker.UNMARKED);
+        default ArrayTypeSig nullUnspecified() {
+            return nullMarker(NullMarker.UNSPECIFIED);
         }
 
+        @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
         @Override
         default ArrayTypeSig nullChecked() {
-            return nullMarker(NullMarker.CHECKED);
+            return nullMarker(NullMarker.NOT_NULL);
         }
 
         /**
          * {@return an array type with the given component type}
          * @param componentSignature the component type
          * @throws IllegalArgumentException if the component type is void or
-         *         null-checked
+         *         has null marker
          */
         public static ArrayTypeSig of(Signature componentSignature) {
             return of(1, SignaturesImpl.validateNonVoid(componentSignature));
@@ -568,7 +589,7 @@ public sealed interface Signature {
          * @param componentSignature the component type
          * @throws IllegalArgumentException if {@code dims < 1} or the
          *         resulting array type exceeds 255 dimensions or the component
-         *         type is void or the component type is null-checked
+         *         type is void or the component type has null marker
          */
         public static ArrayTypeSig of(int dims, Signature componentSignature) {
             SignaturesImpl.validateNonVoid(componentSignature);
@@ -578,11 +599,11 @@ public sealed interface Signature {
             if (componentSignature instanceof SignaturesImpl.ArrayTypeSigImpl arr) {
                 if (dims < 1 || dims > 255 - arr.arrayDepth())
                     throw new IllegalArgumentException("illegal array depth value");
-                return new SignaturesImpl.ArrayTypeSigImpl(NullMarker.UNMARKED, dims + arr.arrayDepth(), arr.elemType());
+                return new SignaturesImpl.ArrayTypeSigImpl(NullMarker.UNSPECIFIED, dims + arr.arrayDepth(), arr.elemType());
             }
             if (dims < 1 || dims > 255)
                 throw new IllegalArgumentException("illegal array depth value");
-            return new SignaturesImpl.ArrayTypeSigImpl(NullMarker.UNMARKED, dims, componentSignature);
+            return new SignaturesImpl.ArrayTypeSigImpl(NullMarker.UNSPECIFIED, dims, componentSignature);
         }
     }
 
@@ -623,7 +644,8 @@ public sealed interface Signature {
          * @param classBound the class bound of the type parameter, may be {@code null}
          * @param interfaceBounds the interface bounds of the type parameter
          * @throws IllegalArgumentException if the name cannot be {@linkplain
-         *         Signature##identifier denoted}
+         *         Signature##identifier denoted}, or any of the bounds has
+         *         null marker
          */
         public static TypeParam of(String identifier, RefTypeSig classBound, RefTypeSig... interfaceBounds) {
             return new SignaturesImpl.TypeParamImpl(
@@ -639,7 +661,8 @@ public sealed interface Signature {
          * @param classBound the optional class bound of the type parameter
          * @param interfaceBounds the interface bounds of the type parameter
          * @throws IllegalArgumentException if the name cannot be {@linkplain
-         *         Signature##identifier denoted}
+         *         Signature##identifier denoted}, or any of the bounds has
+         *         null marker
          */
         public static TypeParam of(String identifier, Optional<RefTypeSig> classBound, RefTypeSig... interfaceBounds) {
             return new SignaturesImpl.TypeParamImpl(
