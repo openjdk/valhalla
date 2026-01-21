@@ -823,7 +823,7 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
     if (ik->is_inline_klass() && ik->is_initialized()) {
       // Only concrete value classes need the null_reset field
       InlineKlass* ilk = InlineKlass::cast(k);
-      if (ilk->has_nullable_atomic_layout()) {
+      if (ilk->supports_nullable_layouts()) {
         scratch_m->obj_field_put(ilk->null_reset_value_offset(), ilk->null_reset_value());
       }
     }
