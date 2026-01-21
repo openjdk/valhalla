@@ -2864,29 +2864,28 @@ public final class Unsafe {
 
     @ForceInline
     private boolean compareAndSetFlatValueAsBytes(Object[] array, Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
-        // We turn the payload of an atomic value into a numeric value (of suitable type)
-        // by storing the value into an array element (of matching layout) and by reading
-        // back the array element as an integral value. After which we can implement the CAS
-        // as a plain numeric CAS. Note: this only works if the payload contains no oops
-        // (see VarHandles::isAtomicFlat).
+        // We can convert between a value object and a binary value (of suitable size) using array elements.
+        // This only works if the payload contains no oops (see VarHandles::isAtomicFlat).
+        // Thus, we can implement the CAS with a plain numeric CAS.
 
-        // array 0: witness (to translate to object), 1: x (to translate to raw)
-        // caller pass the array so it can capture the witness if needed
-        // we must witness the raw value instead of the value object, otherwise
-        // garbage value can cause failure
+        // array[0]: witness (put as binary, get as object), at base
+        // array[1]: x (put as object, get as binary), at base + scale
+        // When witness == expected, the witness binary may be different from the expected binary.
+        // This happens when compiler does not zero unused positions in the witness.
+        // So we must obtain the witness binary and use it as expected binary for the numeric CAS.
         long base = arrayInstanceBaseOffset(array);
         int scale = arrayInstanceIndexScale(array);
-        putFlatValue(array, base + scale, layout, valueType, x); // translate x to raw bytes
+        putFlatValue(array, base + scale, layout, valueType, x); // put x as object
         switch (scale) {
             case 1: {
                 do {
                     byte witnessByte = getByteVolatile(o, offset);
-                    putByte(array, base, witnessByte); // translate witness to value object
-                    Object witness = getFlatValue(array, base, layout, valueType);
+                    putByte(array, base, witnessByte); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType); // get witness as object
                     if (witness != expected) {
                         return false;
                     }
-                    byte xByte = getByte(array, base + scale);
+                    byte xByte = getByte(array, base + scale); // get x as binary
                     if (compareAndSetByte(o, offset, witnessByte, xByte)) {
                         return true;
                     }
@@ -2895,12 +2894,12 @@ public final class Unsafe {
             case 2: {
                 do {
                     short witnessShort = getShortVolatile(o, offset);
-                    putShort(array, base, witnessShort); // translate witness to value object
-                    Object witness = getFlatValue(array, base, layout, valueType);
+                    putShort(array, base, witnessShort); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType); // get witness as object
                     if (witness != expected) {
                         return false;
                     }
-                    short xShort = getShort(array, base + scale);
+                    short xShort = getShort(array, base + scale); // get x as binary
                     if (compareAndSetShort(o, offset, witnessShort, xShort)) {
                         return true;
                     }
@@ -2909,12 +2908,12 @@ public final class Unsafe {
             case 4: {
                 do {
                     int witnessInt = getIntVolatile(o, offset);
-                    putInt(array, base, witnessInt); // translate witness to value object
-                    Object witness = getFlatValue(array, base, layout, valueType);
+                    putInt(array, base, witnessInt); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType); // get witness as object
                     if (witness != expected) {
                         return false;
                     }
-                    int xInt = getInt(array, base + scale);
+                    int xInt = getInt(array, base + scale); // get x as binary
                     if (compareAndSetInt(o, offset, witnessInt, xInt)) {
                         return true;
                     }
@@ -2923,12 +2922,12 @@ public final class Unsafe {
             case 8: {
                 do {
                     long witnessLong = getLongVolatile(o, offset);
-                    putLong(array, base, witnessLong); // translate witness to value object
+                    putLong(array, base, witnessLong); // put witness as binary
                     Object witness = getFlatValue(array, base, layout, valueType);
                     if (witness != expected) {
                         return false;
                     }
-                    long xLong = getLong(array, base + scale);
+                    long xLong = getLong(array, base + scale); // get x as binary
                     if (compareAndSetLong(o, offset, witnessLong, xLong)) {
                         return true;
                     }
