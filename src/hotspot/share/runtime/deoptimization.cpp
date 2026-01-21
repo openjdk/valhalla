@@ -309,10 +309,10 @@ static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, Obj
     if (nm->is_compiled_by_c2()) {
       assert(sv->has_properties(), "Property information is missing");
       ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint());
-      k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
+      k = ObjArrayKlass::cast(k)->klass_with_properties(props, false, THREAD);
     } else {
       // TODO Graal needs to be fixed. Just go with the default properties for now
-      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, false, THREAD);
     }
   }
   return k;

@@ -475,7 +475,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
       if (i < ((objArrayOop)oh())->length()) {
-        ((objArrayOop)array)->obj_at_put(i - from, ((objArrayOop)oh())->obj_at(i));
+        oop val = ((objArrayOop)oh())->obj_at(i, CHECK_NULL);
+        ((objArrayOop)array)->obj_at_put(i - from, val);
       } else {
         assert(!ak->is_null_free_array_klass(), "Must be a nullable array");
         ((objArrayOop)array)->obj_at_put(i - from, nullptr);
@@ -1466,7 +1467,10 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (members != length) {
     // Return array of right length
-    objArrayOop res = oopFactory::new_objArray(vmClasses::Class_klass(), members, CHECK_NULL);
+    refArrayOop res = oopFactory::new_refArray(vmClasses::Class_klass(),
+                                               members,
+                                               ArrayKlass::ArrayProperties::DEFAULT,
+                                               CHECK_NULL);
     for(int i = 0; i < members; i++) {
       res->obj_at_put(i, result->obj_at(i));
     }
@@ -1938,9 +1942,11 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
     log_trace(class, nestmates)(" - host has %d listed nest members", length);
 
     // nest host is first in the array so make it one bigger
-    objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                             length + 1, CHECK_NULL);
-    objArrayHandle result(THREAD, r);
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(),
+                                             length + 1,
+                                             ArrayKlass::ArrayProperties::DEFAULT,
+                                             CHECK_NULL);
+    refArrayHandle result(THREAD, r);
     result->obj_at_put(0, host->java_mirror());
     if (length != 0) {
       int count = 0;
@@ -2015,9 +2021,11 @@ JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
 
     log_trace(class, sealed)(" - sealed class has %d permitted subclasses", length);
 
-    objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                             length, CHECK_NULL);
-    objArrayHandle result(THREAD, r);
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(),
+                                             length,
+                                             ArrayKlass::ArrayProperties::DEFAULT,
+                                             CHECK_NULL);
+    refArrayHandle result(THREAD, r);
     int count = 0;
     for (int i = 0; i < length; i++) {
       int cp_index = subclasses->at(i);
@@ -3710,8 +3718,9 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
     THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
 
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(threads));
-  objArrayHandle ah(THREAD, a);
+  oop ao = JNIHandles::resolve_non_null(threads);
+  assert(ao->is_refArray(), "invariant");
+  refArrayHandle ah(THREAD, ao);
   int num_threads = ah->length();
   // check if threads is non-empty array
   if (num_threads == 0) {
@@ -3723,13 +3732,12 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
   if (k != vmClasses::Thread_klass()) {
     THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
-  refArrayHandle rah(THREAD, (refArrayOop)ah()); // j.l.Thread is an identity class, arrays are always reference arrays
 
   ResourceMark rm(THREAD);
 
   GrowableArray<instanceHandle>* thread_handle_array = new GrowableArray<instanceHandle>(num_threads);
   for (int i = 0; i < num_threads; i++) {
-    oop thread_obj = rah->obj_at(i);
+    oop thread_obj = ah->obj_at(i);
     instanceHandle h(THREAD, (instanceOop) thread_obj);
     thread_handle_array->append(h);
   }

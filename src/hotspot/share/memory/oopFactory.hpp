@@ -58,8 +58,8 @@ class oopFactory: AllStatic {
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
   static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
-  // Allocate refArray instance given a refArrayKlass.
-  static objArrayOop     new_refArray(Klass* array_klass, int length, TRAPS);
+  // Factory forcing the creation of a reference array
+  static refArrayOop     new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Value arrays...
   // LWorld:

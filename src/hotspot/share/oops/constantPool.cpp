@@ -168,13 +168,13 @@ void ConstantPool::metaspace_pointers_do(MetaspaceClosure* it) {
   }
 }
 
-objArrayOop ConstantPool::resolved_references() const {
+refArrayOop ConstantPool::resolved_references() const {
   return _cache->resolved_references();
 }
 
 // Called from outside constant pool resolution where a resolved_reference array
 // may not be present.
-objArrayOop ConstantPool::resolved_references_or_null() const {
+refArrayOop ConstantPool::resolved_references_or_null() const {
   if (_cache == nullptr) {
     return nullptr;
   } else {
@@ -222,14 +222,14 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
 
     // Create Java array for holding resolved strings, methodHandles,
     // methodTypes, invokedynamic and invokehandle appendix objects, etc.
-    objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
+    refArrayOop stom = oopFactory::new_refArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
     HandleMark hm(THREAD);
     Handle refs_handle (THREAD, stom);  // must handleize.
     set_resolved_references(loader_data->add_handle(refs_handle));
 
     // Create a "scratch" copy of the resolved references array to archive
     if (CDSConfig::is_dumping_heap()) {
-      objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
+      refArrayOop scratch_references = oopFactory::new_refArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
       HeapShared::add_scratch_resolved_references(this, scratch_references);
     }
   }
@@ -325,7 +325,7 @@ void ConstantPool::iterate_archivable_resolved_references(Function function) {
 
 // Returns the _resolved_reference array after removing unarchivable items from it.
 // Returns null if this class is not supported, or _resolved_reference doesn't exist.
-objArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
+refArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
   if (_cache == nullptr) {
     return nullptr; // nothing to do
   }
@@ -337,7 +337,7 @@ objArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
     return nullptr;
   }
 
-  objArrayOop rr = resolved_references();
+  refArrayOop rr = resolved_references();
   if (rr != nullptr) {
     ResourceMark rm;
     int rr_len = rr->length();
@@ -347,7 +347,7 @@ objArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
       keep_resolved_refs.at_put(rr_index, true);
     });
 
-    objArrayOop scratch_rr = HeapShared::scratch_resolved_references(this);
+    refArrayOop scratch_rr = HeapShared::scratch_resolved_references(this);
     Array<u2>* ref_map = reference_map();
     int ref_map_len = ref_map == nullptr ? 0 : ref_map->length();
     for (int i = 0; i < rr_len; i++) {

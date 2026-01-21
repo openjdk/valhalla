@@ -80,7 +80,7 @@ int StringTable::_shared_strings_array_root_index;
 
 inline oop StringTable::read_string_from_compact_hashtable(address base_address, u4 index) {
   assert(AOTMappedHeapLoader::is_in_use(), "sanity");
-  objArrayOop array = (objArrayOop)(_shared_strings_array.resolve());
+  refArrayOop array = refArrayOopDesc::cast(_shared_strings_array.resolve());
   oop s;
 
   if (!_is_two_dimensional_shared_strings_array) {
@@ -88,7 +88,7 @@ inline oop StringTable::read_string_from_compact_hashtable(address base_address,
   } else {
     int primary_index = index >> _secondary_array_index_bits;
     int secondary_index = index & _secondary_array_index_mask;
-    objArrayOop secondary = (objArrayOop)array->obj_at(primary_index);
+    refArrayOop secondary = refArrayOopDesc::cast(array->obj_at(primary_index));
     s = secondary->obj_at(secondary_index);
   }
 
@@ -987,7 +987,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
 
   if (!HeapShared::is_too_large_to_archive(single_array_size)) {
     // The entire table can fit in a single array
-    objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), total, CHECK);
+    refArrayOop array = oopFactory::new_refArray(vmClasses::Object_klass(), total, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
     _shared_strings_array = OopHandle(Universe::vm_global(), array);
     log_info(aot)("string table array (single level) length = %d", total);
   } else {
@@ -1004,7 +1004,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
       AOTMetaspace::unrecoverable_writing_error();
     }
 
-    objArrayOop primary = oopFactory::new_objArray(vmClasses::Object_klass(), primary_array_length, CHECK);
+    refArrayOop primary = oopFactory::new_refArray(vmClasses::Object_klass(), primary_array_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
     objArrayHandle primaryHandle(THREAD, primary);
     _shared_strings_array = OopHandle(Universe::vm_global(), primary);
 
@@ -1018,7 +1018,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
       }
       total -= len;
 
-      objArrayOop secondary = oopFactory::new_objArray(vmClasses::Object_klass(), len, CHECK);
+      refArrayOop secondary = oopFactory::new_refArray(vmClasses::Object_klass(), len, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
       primaryHandle()->obj_at_put(i, secondary);
 
       log_info(aot)("string table array (secondary)[%d] length = %d", i, len);
@@ -1060,7 +1060,7 @@ void StringTable::verify_secondary_array_index_bits() {
 oop StringTable::init_shared_strings_array() {
   assert(CDSConfig::is_dumping_heap(), "must be");
   assert(HeapShared::is_writing_mapping_mode(), "should not reach here");
-  objArrayOop array = (objArrayOop)(_shared_strings_array.resolve());
+  refArrayOop array = refArrayOopDesc::cast(_shared_strings_array.resolve());
 
   verify_secondary_array_index_bits();
 
@@ -1082,9 +1082,9 @@ oop StringTable::init_shared_strings_array() {
         int secondary_index = index & _secondary_array_index_mask;
 
         assert(primary_index < array->length(), "no strings should have been added");
-        objArrayOop secondary = (objArrayOop)array->obj_at(primary_index);
+        refArrayOop secondary = refArrayOopDesc::cast(array->obj_at(primary_index));
 
-        assert(secondary != nullptr && secondary->is_objArray(), "must be");
+        assert(secondary != nullptr && secondary->is_refArray(), "must be");
         assert(secondary_index < secondary->length(), "no strings should have been added");
         secondary->obj_at_put(secondary_index, string);
       }

@@ -54,7 +54,7 @@ class ObjArrayKlass : public ArrayKlass {
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
-  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
+  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties, bool force_refarray);
   ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
@@ -73,7 +73,7 @@ class ObjArrayKlass : public ArrayKlass {
   inline ObjArrayKlass* next_refined_array_klass_acquire() const;
   void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
   inline void release_set_next_refined_klass(ObjArrayKlass* ak);
-  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
+  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, bool force_refarray, TRAPS);
   static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
 
   // Compiler/Interpreter offset

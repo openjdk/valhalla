@@ -112,9 +112,9 @@ static void handle_pending_exception(outputStream* output, bool startup, oop thr
 }
 
 static void print_message(outputStream* output, oop content, TRAPS) {
-  objArrayOop lines = objArrayOop(content);
-  assert(lines != nullptr, "invariant");
-  assert(lines->is_array(), "must be array");
+  assert(content != nullptr, "invariant");
+  assert(content->is_refArray(), "invariant");
+  refArrayOop lines = refArrayOop(content);
   const int length = lines->length();
   for (int i = 0; i < length; ++i) {
     const char* text = JfrJavaSupport::c_str(lines->obj_at(i), THREAD);
@@ -128,9 +128,9 @@ static void print_message(outputStream* output, oop content, TRAPS) {
 
 static void log(oop content, TRAPS) {
   LogMessage(jfr,startup) msg;
-  objArrayOop lines = objArrayOop(content);
-  assert(lines != nullptr, "invariant");
-  assert(lines->is_array(), "must be array");
+  assert(content != nullptr, "invariant");
+  assert(content->is_refArray(), "invariant");
+  refArrayOop lines = refArrayOop(content);
   const int length = lines->length();
   for (int i = 0; i < length; ++i) {
     const char* text = JfrJavaSupport::c_str(lines->obj_at(i), THREAD);
@@ -352,9 +352,10 @@ GrowableArray<DCmdArgumentInfo*>* JfrDCmd::argument_info_array() const {
     assert(array->length() == _num_arguments, "invariant");
     return array;
   }
-  objArrayOop arguments = objArrayOop(result.get_oop());
-  assert(arguments != nullptr, "invariant");
-  assert(arguments->is_array(), "must be array");
+  oop oop_args = result.get_oop();
+  assert(oop_args != nullptr, "invariant");
+  assert(oop_args->is_refArray(), "must be a reference array");
+  objArrayOop arguments = objArrayOop(oop_args);
   const int num_arguments = arguments->length();
   assert(num_arguments == _num_arguments, "invariant");
   prepare_dcmd_string_arena(thread);

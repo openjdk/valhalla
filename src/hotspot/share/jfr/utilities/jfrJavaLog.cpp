@@ -130,9 +130,10 @@ void JfrJavaLog::log_event(JNIEnv* env, jint level, jobjectArray lines, bool sys
     return;
   }
 
-  objArrayOop the_lines = objArrayOop(JfrJavaSupport::resolve_non_null(lines));
-  assert(the_lines != nullptr, "invariant");
-  assert(the_lines->is_array(), "must be array");
+  oop oop_lines = JfrJavaSupport::resolve_non_null(lines);
+  assert(oop_lines != nullptr, "invariant");
+  assert(oop_lines->is_refArray(), "must be reference array");
+  objArrayOop the_lines = objArrayOop(oop_lines);
   const int length = the_lines->length();
 
   ResourceMark rm(THREAD);
