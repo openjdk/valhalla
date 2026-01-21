@@ -90,7 +90,7 @@ public final class StrictProcessor {
         }
     }
 
-    static byte[] fixSuperAndPatchStrictInit(byte[] rawBytes) {
+    public static byte[] fixSuperAndPatchStrictInit(byte[] rawBytes) {
         var cm = ClassFile.of().parse(rawBytes);
         record FieldKey(Utf8Entry name, Utf8Entry type) {}
         Set<FieldKey> strictInstances = new HashSet<>();
@@ -180,7 +180,7 @@ public final class StrictProcessor {
         return patchStrictInit(rewritten);
     }
 
-    static byte[] patchStrictInit(byte[] rawBytes) {
+    public static byte[] patchStrictInit(byte[] rawBytes) {
         var cm = ClassFile.of().parse(rawBytes);
 
         var classTransform = ClassTransform.transformingFields(FieldTransform.ofStateful(() -> new FieldTransform() {
