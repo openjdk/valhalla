@@ -89,7 +89,6 @@ public class NullChecksWriter extends TreeTranslator {
         Source source = Source.instance(context);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
-        String opt = Options.instance(context).get("useSiteNullChecks");
         useSiteNullChecks = UseSiteNullChecks.of(Options.instance(context).get("useSiteNullChecks"));
     }
 
