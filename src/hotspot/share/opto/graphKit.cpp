@@ -1958,6 +1958,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
           // scalarized receiver instead.
           assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
           assert(C->inlining_incrementally() || C->strength_reduction(), "must be during devirtualization of calls");
+          assert(!is_Parse(), "must be during devirtualization of calls");
           arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
         }
       }
