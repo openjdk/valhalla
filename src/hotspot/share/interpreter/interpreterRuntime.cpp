@@ -256,8 +256,7 @@ JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, o
 #endif // ASSERT
 
   JRT_BLOCK
-    Handle obj_h(THREAD, obj);
-    oop res = field_klass->read_payload_from_addr(obj_h(), (size_t)offset, lk, CHECK);
+    oop res = field_klass->read_payload_from_addr(obj, (size_t)offset, lk, CHECK);
     current->set_vm_result_oop(res);
   JRT_BLOCK_END
 JRT_END
