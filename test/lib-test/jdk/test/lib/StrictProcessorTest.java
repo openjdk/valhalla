@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,32 @@
 
 /* @test
  * @bug 8351362
- * @summary Unit Test for StrictCompiler
+ * @summary Unit Test for StrictProcessor
  * @enablePreview
  * @library /test/lib
- * @modules java.base/jdk.internal.vm.annotation
- * @run main/othervm jdk.test.lib.value.StrictCompiler StrictCompilerTest.java
- * @run junit StrictCompilerTest
+ * @build StrictProcessorTest
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictProcessorTest$StrictTarget
+ * @run junit StrictProcessorTest
  */
 
-import jdk.internal.vm.annotation.Strict;
+import jdk.test.lib.helpers.StrictInit;
 import org.junit.jupiter.api.Test;
 
-import static java.lang.classfile.ClassFile.ACC_FINAL;
-import static java.lang.classfile.ClassFile.ACC_STRICT;
+import static java.lang.classfile.ClassFile.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class StrictCompilerTest {
+class StrictProcessorTest {
     @Test
     void testReflectMyself() throws Throwable {
         for (var field : StrictTarget.class.getDeclaredFields()) {
-            assertEquals(ACC_STRICT | ACC_FINAL, field.getModifiers(), () -> field.getName());
+            assertEquals(ACC_STRICT_INIT | ACC_FINAL, field.getModifiers(), () -> field.getName());
         }
     }
 
     static final class StrictTarget {
-        @Strict
+        @StrictInit
         final int a;
-        @Strict
+        @StrictInit
         final Object b;
 
         StrictTarget() {

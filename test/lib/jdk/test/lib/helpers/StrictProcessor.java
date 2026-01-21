@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,15 @@
  * questions.
  */
 
-package jdk.test.lib.value;
+package jdk.test.lib.helpers;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.classfile.*;
+import java.lang.classfile.attribute.InnerClassInfo;
+import java.lang.classfile.attribute.InnerClassesAttribute;
+import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.classfile.instruction.FieldInstruction;
@@ -32,92 +37,71 @@ import java.lang.classfile.instruction.InvokeInstruction;
 import java.lang.classfile.instruction.ReturnInstruction;
 import java.lang.constant.ClassDesc;
 import java.lang.reflect.AccessFlag;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-
-import jdk.test.lib.compiler.InMemoryJavaCompiler;
 
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
 
 /**
- * Compile a java file with InMemoryJavaCompiler, and then modify the resulting
- * class file to include strict modifier and null restriction attributes.
+ * Modify a class file to include strict init field access flag.
  */
-public final class StrictCompiler {
-    public static final String TEST_SRC = System.getProperty("test.src", "").trim();
+public final class StrictProcessor {
     public static final String TEST_CLASSES = System.getProperty("test.classes", "").trim();
-    private static final ClassDesc CD_Strict = ClassDesc.of("jdk.internal.vm.annotation.Strict");
+    private static final ClassDesc CD_StrictInit = ClassDesc.of("jdk.test.lib.helpers.StrictInit");
     // NR will stay in jdk.internal for now until we expose as a more formal feature
     private static final ClassDesc CD_NullRestricted = ClassDesc.of("jdk.internal.vm.annotation.NullRestricted");
 
-    /**
-     * @param args source and destination
-     * @throws IOException if an I/O error occurs
-     */
-    public static void main(String[] args) throws IOException {
-        Map<String, String> ins = new HashMap<>();
-        List<String> javacOpts = new ArrayList<>();
-        boolean encounteredSeparator = false;
+    public static void main(String[] args) throws Exception {
         boolean deferSuperCall = false;
-        for (var a : args) {
-            if (encounteredSeparator) {
-                javacOpts.add(a);
-                continue;
+        int i;
+        for (i = 0; i < args.length; i++) {
+            String opt = args[i];
+            if (!opt.startsWith("--")) {
+                break;
             }
-            if (a.endsWith(".java")) {
-                String className = a.substring(0, a.length() - 5);
-                Path src = Path.of(TEST_SRC, a);
-                ins.put(className, Files.readString(src));
-                continue;
-            }
-            switch (a) {
-                case "--" -> encounteredSeparator = true;
+            switch (opt) {
                 case "--deferSuperCall" -> deferSuperCall = true;
-                default -> throw new IllegalArgumentException("Unknown option " + a);
+                default -> throw new IllegalArgumentException("Unknown option %s".formatted(opt));
             }
         }
-        if (!javacOpts.contains("--source")) {
-            javacOpts.add("--source");
-            javacOpts.add(String.valueOf(Runtime.version().feature()));
-        }
-        if (!javacOpts.contains("--enable-preview")) {
-            javacOpts.add("--enable-preview");
-        }
-        if (!javacOpts.contains("java.base/jdk.internal.vm.annotation=ALL-UNNAMED")) {
-            javacOpts.add("--add-exports");
-            javacOpts.add("java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
-        }
-        System.out.println(javacOpts);
-        var classes = InMemoryJavaCompiler.compile(ins, javacOpts.toArray(String[]::new));
-        Files.createDirectories(Path.of(TEST_CLASSES));
-        for (var entry : classes.entrySet()) {
-            if (deferSuperCall) {
-                fixSuperAndDumpClass(entry.getKey(), entry.getValue());
-            } else {
-                dumpClass(entry.getKey(), entry.getValue());
-            }
+
+        for (; i < args.length; i++) {
+            String name = args[i];
+            byte[] bytes = findClassBytes(name);
+            bytes = deferSuperCall ? fixSuperAndPatchStrictInit(bytes) : patchStrictInit(bytes);
+            ClassFileInstaller.writeClassToDisk(name, bytes, TEST_CLASSES);
         }
     }
 
-    private static void fixSuperAndDumpClass(String name, byte[] rawBytes) throws IOException {
+    static byte[] findClassBytes(String className) {
+        ClassLoader cl = StrictProcessor.class.getClassLoader();
+
+        String pathName = className.replace('.', '/').concat(".class");
+
+        try (InputStream is = cl.getResourceAsStream(pathName)) {
+            if (is == null) {
+                throw new RuntimeException("Failed to find " + pathName);
+            }
+            return is.readAllBytes();
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
+
+    static byte[] fixSuperAndPatchStrictInit(byte[] rawBytes) {
         var cm = ClassFile.of().parse(rawBytes);
         record FieldKey(Utf8Entry name, Utf8Entry type) {}
         Set<FieldKey> strictInstances = new HashSet<>();
         for (var f : cm.fields()) {
             if (f.flags().has(AccessFlag.STATIC))
                 continue;
-            var rvaa = f.findAttribute(Attributes.runtimeVisibleAnnotations());
-            if (rvaa.isPresent()) {
-                for (var anno : rvaa.get().annotations()) {
+            var riaa = f.findAttribute(Attributes.runtimeInvisibleAnnotations());
+            if (riaa.isPresent()) {
+                for (var anno : riaa.get().annotations()) {
                     var descString = anno.className();
-                    if (descString.equalsString(CD_Strict.descriptorString())) {
+                    if (descString.equalsString(CD_StrictInit.descriptorString())) {
                         strictInstances.add(new FieldKey(f.fieldName(), f.fieldType()));
                     }
                 }
@@ -193,15 +177,16 @@ public final class StrictCompiler {
             clb.with(cle);
         });
 
-        dumpClass(name, rewritten);
+        return patchStrictInit(rewritten);
     }
 
-    private static void dumpClass(String name, byte[] rawBytes) throws IOException {
+    static byte[] patchStrictInit(byte[] rawBytes) {
         var cm = ClassFile.of().parse(rawBytes);
-        var transformed = ClassFile.of().transformClass(cm, ClassTransform.transformingFields(FieldTransform.ofStateful(() -> new FieldTransform() {
+
+        var classTransform = ClassTransform.transformingFields(FieldTransform.ofStateful(() -> new FieldTransform() {
             int oldAccessFlags;
             boolean nullRestricted;
-            boolean strict;
+            boolean strictInit;
 
             @Override
             public void accept(FieldBuilder builder, FieldElement element) {
@@ -210,32 +195,52 @@ public final class StrictCompiler {
                     return;
                 }
                 builder.with(element);
-                if (element instanceof RuntimeVisibleAnnotationsAttribute rvaa) {
-                    for (var anno : rvaa.annotations()) {
-                        var descString = anno.className();
-                        if (descString.equalsString(CD_Strict.descriptorString())) {
-                            strict = true;
-                        } else if (descString.equalsString(CD_NullRestricted.descriptorString())) {
-                            nullRestricted = true;
+                switch (element) {
+                    case RuntimeInvisibleAnnotationsAttribute riaa -> {
+                        for (var anno : riaa.annotations()) {
+                            var descString = anno.className();
+                            if (descString.equalsString(CD_StrictInit.descriptorString())) {
+                                strictInit = true;
+                            }
                         }
                     }
+                    case RuntimeVisibleAnnotationsAttribute rvaa -> {
+                        for (var anno : rvaa.annotations()) {
+                            var descString = anno.className();
+                            if (descString.equalsString(CD_NullRestricted.descriptorString())) {
+                                nullRestricted = true;
+                            }
+                        }
+                    }
+                    default -> {}
                 }
             }
 
             @Override
             public void atEnd(FieldBuilder builder) {
-                if (strict) {
-                    oldAccessFlags |= ACC_STRICT;
+                if (strictInit) {
+                    oldAccessFlags |= ACC_STRICT_INIT;
                 }
                 builder.withFlags(oldAccessFlags);
-                assert !nullRestricted || strict : name;
+                assert !nullRestricted || strictInit : cm.thisClass().asInternalName();
             }
-        })));
+        }));
 
-        // Force preview
-        transformed[4] = (byte) 0xFF;
-        transformed[5] = (byte) 0xFF;
-        Path dst = Path.of(TEST_CLASSES, name + ".class");
-        Files.write(dst, transformed);
+        if (cm.minorVersion() != PREVIEW_MINOR_VERSION) {
+            // We need to patch minor version and InnerClasses
+            classTransform = classTransform.andThen((clb, cle) -> {
+                if (cle instanceof InnerClassesAttribute ica) {
+                    // VM needs identity bit fixed
+                    var fixedInfos = ica.classes().stream().map(info -> InnerClassInfo.of(info.innerClass(), info.outerClass(), info.innerName(), info.flagsMask() | ACC_IDENTITY)).toList();
+                    clb.with(InnerClassesAttribute.of(fixedInfos));
+                } else if (cle instanceof ClassFileVersion cfv) {
+                    clb.withVersion(cfv.majorVersion(), PREVIEW_MINOR_VERSION);
+                } else {
+                    clb.with(cle);
+                }
+            });
+        }
+
+        return ClassFile.of().transformClass(cm, classTransform);
     }
 }

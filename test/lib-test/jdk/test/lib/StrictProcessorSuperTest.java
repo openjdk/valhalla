@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,14 @@
 
 /* @test
  * @bug 8351362
- * @summary Unit Test for StrictCompiler super rewrite
+ * @summary Unit Test for StrictProcessor super rewrite
  * @enablePreview
  * @library /test/lib
- * @modules java.base/jdk.internal.vm.annotation
- * @run main/othervm jdk.test.lib.value.StrictCompiler --deferSuperCall StrictCompilerSuperTest.java
- * @run junit StrictCompilerSuperTest
+ * @compile StrictProcessorSuperTest.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor --deferSuperCall
+ *             StrictProcessorSuperTest$Rec StrictProcessorSuperTest$Exp
+ *             StrictProcessorSuperTest$Inner
+ * @run junit StrictProcessorSuperTest
  */
 
 import java.io.IOException;
@@ -36,6 +38,7 @@ import java.io.UncheckedIOException;
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
+import java.lang.classfile.CompoundElement;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.reflect.AccessFlag;
@@ -43,23 +46,22 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.stream.Stream;
 
-import jdk.internal.vm.annotation.Strict;
+import jdk.test.lib.helpers.StrictInit;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
-class StrictCompilerSuperTest {
+class StrictProcessorSuperTest {
     static Stream<Class<?>> testClasses() {
         return Stream.of(Rec.class, Exp.class, Inner.class);
     }
 
     static Stream<ClassModel> testClassModels() {
         return testClasses().map(cls -> {
-            try (var in = StrictCompilerSuperTest.class.getResourceAsStream("/" + cls.getName() + ".class")) {
+            try (var in = StrictProcessorSuperTest.class.getResourceAsStream("/" + cls.getName() + ".class")) {
                 return ClassFile.of().parse(in.readAllBytes());
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
@@ -73,7 +75,7 @@ class StrictCompilerSuperTest {
         for (var field : cls.getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic())
                 continue;
-            assertEquals(ACC_PRIVATE | ACC_STRICT | ACC_FINAL, field.getModifiers(), () -> "For field: " + field.getName());
+            assertEquals(ACC_PRIVATE | ACC_STRICT_INIT | ACC_FINAL, field.getModifiers(), () -> "For field: " + field.getName());
         }
     }
 
@@ -83,7 +85,7 @@ class StrictCompilerSuperTest {
         for (var f : cm.fields()) {
             if (f.flags().has(AccessFlag.STATIC) || f.flags().has(AccessFlag.SYNTHETIC))
                 continue;
-            assertEquals(ACC_PRIVATE | ACC_STRICT | ACC_FINAL, f.flags().flagsMask(), () -> "Field " + f);
+            assertEquals(ACC_PRIVATE | ACC_STRICT_INIT | ACC_FINAL, f.flags().flagsMask(), () -> "Field " + f);
         }
     }
 
@@ -101,13 +103,13 @@ class StrictCompilerSuperTest {
         assertSame(Opcode.INVOKESPECIAL, insts.get(insts.size() - 2).opcode());
     }
 
-    record Rec(@Strict int a, @Strict long b) {
+    record Rec(@StrictInit int a, @StrictInit long b) {
         static final String NOISE = "noise";
     }
 
     static class Exp {
-        private @Strict final int a;
-        private @Strict final long b;
+        private @StrictInit final int a;
+        private @StrictInit final long b;
 
         Exp(int a, long b) {
             this.a = a;
@@ -116,8 +118,8 @@ class StrictCompilerSuperTest {
     }
 
     class Inner {
-        private @Strict final int a;
-        private @Strict final long b;
+        private @StrictInit final int a;
+        private @StrictInit final long b;
 
         Inner(int a, long b) {
             this.a = a;
@@ -126,7 +128,7 @@ class StrictCompilerSuperTest {
 
         @Override
         public String toString() {
-            return a + " " + StrictCompilerSuperTest.this + " " + b;
+            return a + " " + StrictProcessorSuperTest.this + " " + b;
         }
     }
 }
