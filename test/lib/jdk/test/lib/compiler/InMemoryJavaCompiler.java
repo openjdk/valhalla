@@ -109,10 +109,10 @@ public class InMemoryJavaCompiler {
         @Override
         public JavaFileObject getJavaFileForOutput(Location location, String className,
                                                    Kind kind, FileObject sibling)
-                throws IOException {
+            throws IOException {
             if (!srcFile.getClassName().equals(className)) {
                 throw new IOException("Expected class with name " + srcFile.getClassName() +
-                        ", but got " + className);
+                                      ", but got " + className);
             }
             clsFile = new ClassFile(className);
             return clsFile;
