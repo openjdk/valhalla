@@ -478,7 +478,7 @@ class Arguments : AllStatic {
   static void set_ext_dirs(char *value);
 
   // Set up the underlying pieces of the boot class path
-  static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
+  static void add_patch_mod_prefix(const char *module_name, const char *path);
   static int finalize_patch_module();
 
   static void set_boot_class_path(const char *value, bool has_jimage) {

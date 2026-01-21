@@ -58,9 +58,6 @@ bool CDSConfig::_new_aot_flags_used = false;
 bool CDSConfig::_disable_heap_dumping = false;
 bool CDSConfig::_is_at_aot_safepoint = false;
 
-bool CDSConfig::_module_patching_disables_cds = false;
-bool CDSConfig::_java_base_module_patching_disables_cds = false;
-
 const char* CDSConfig::_default_archive_path = nullptr;
 const char* CDSConfig::_input_static_archive_path = nullptr;
 const char* CDSConfig::_input_dynamic_archive_path = nullptr;
@@ -365,12 +362,6 @@ void CDSConfig::check_unsupported_dumping_module_options() {
   if (option != nullptr) {
     vm_exit_during_initialization("Cannot use the following option when dumping the shared archive", option);
   }
-
-  if (module_patching_disables_cds()) {
-    vm_exit_during_initialization(
-            "Cannot use the following option when dumping the shared archive", "--patch-module");
-  }
-
   // Check for an exploded module build in use with -Xshare:dump.
   if (!Arguments::has_jimage()) {
     vm_exit_during_initialization("Dumping the shared archive is not supported with an exploded module build");
@@ -399,16 +390,6 @@ bool CDSConfig::has_unsupported_runtime_module_options() {
     }
     return true;
   }
-
-  if (module_patching_disables_cds()) {
-    if (RequireSharedSpaces) {
-      warning("CDS is disabled when the %s option is specified.", "--patch-module");
-    } else {
-      log_info(cds)("CDS is disabled when the %s option is specified.", "--patch-module");
-    }
-    return true;
-  }
-
   return false;
 }
 
@@ -643,7 +624,7 @@ void CDSConfig::ergo_init_aot_paths() {
   }
 }
 
-bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
+bool CDSConfig::check_vm_args_consistency(bool patch_mod_javabase, bool mode_flag_cmd_line) {
   assert(!_cds_ergo_initialize_started, "This is called earlier than CDSConfig::ergo_initialize()");
 
   check_aot_flags();
@@ -718,7 +699,7 @@ bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
     }
   }
 
-  if (is_using_archive() && java_base_module_patching_disables_cds() && module_patching_disables_cds()) {
+  if (is_using_archive() && patch_mod_javabase) {
     Arguments::no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
   }
   if (is_using_archive() && has_unsupported_runtime_module_options()) {

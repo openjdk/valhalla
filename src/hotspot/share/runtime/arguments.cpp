@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1797,6 +1797,7 @@ bool Arguments::executing_unit_tests() {
 static unsigned int addreads_count = 0;
 static unsigned int addexports_count = 0;
 static unsigned int addopens_count = 0;
+static unsigned int patch_mod_count = 0;
 static unsigned int enable_native_access_count = 0;
 static unsigned int enable_final_field_mutation = 0;
 static bool patch_mod_javabase = false;
@@ -1804,7 +1805,7 @@ static bool patch_mod_javabase = false;
 // Check the consistency of vm_init_args
 bool Arguments::check_vm_args_consistency() {
   // This may modify compiler flags. Must be called before CompilerConfig::check_args_consistency()
-  if (!CDSConfig::check_vm_args_consistency(mode_flag_cmd_line)) {
+  if (!CDSConfig::check_vm_args_consistency(patch_mod_javabase, mode_flag_cmd_line)) {
     return false;
   }
 
@@ -2053,34 +2054,14 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
       memcpy(module_name, patch_mod_tail, module_len);
       *(module_name + module_len) = '\0';
       // The path piece begins one past the module_equal sign
-      add_patch_mod_prefix(module_name, module_equal + 1, false /* no append */, false /* no cds */);
+      add_patch_mod_prefix(module_name, module_equal + 1);
       FREE_C_HEAP_ARRAY(char, module_name);
+      if (!create_numbered_module_property("jdk.module.patch", patch_mod_tail, patch_mod_count++)) {
+        return JNI_ENOMEM;
+      }
     } else {
       return JNI_ENOMEM;
     }
-  }
-  return JNI_OK;
-}
-
-// Finalize --patch-module args and --enable-preview related to value class module patches.
-// Create all numbered properties passing module patches.
-int Arguments::finalize_patch_module() {
-  // Create numbered properties for each module that has been patched by --patch-module.
-  // Format is "jdk.module.patch.<n>=<module_name>=<path>"
-  if (_patch_mod_prefix != nullptr) {
-    char * prop_value = AllocateHeap(JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, mtArguments);
-    unsigned int patch_mod_count = 0;
-
-    for (GrowableArrayIterator<ModulePatchPath *> it = _patch_mod_prefix->begin();
-            it != _patch_mod_prefix->end(); ++it) {
-      jio_snprintf(prop_value, JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, "%s=%s",
-                   (*it)->module_name(), (*it)->path_string());
-      if (!create_numbered_module_property("jdk.module.patch", prop_value, patch_mod_count++)) {
-        FreeHeap(prop_value);
-        return JNI_ENOMEM;
-      }
-    }
-    FreeHeap(prop_value);
   }
   return JNI_OK;
 }
@@ -2876,11 +2857,16 @@ void Arguments::set_ext_dirs(char *value) {
   _ext_dirs = os::strdup_check_oom(value);
 }
 
-void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append, bool allow_cds) {
-  if (!allow_cds) {
-    CDSConfig::set_module_patching_disables_cds();
-    if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
-      CDSConfig::set_java_base_module_patching_disables_cds();
+void Arguments::add_patch_mod_prefix(const char* module_name, const char* path) {
+  // For java.base check for duplicate --patch-module options being specified on the command line.
+  // This check is only required for java.base, all other duplicate module specifications
+  // will be checked during module system initialization.  The module system initialization
+  // will throw an ExceptionInInitializerError if this situation occurs.
+  if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
+    if (patch_mod_javabase) {
+      vm_exit_during_initialization("Cannot specify " JAVA_BASE_NAME " more than once to --patch-module");
+    } else {
+      patch_mod_javabase = true;
     }
   }
 
@@ -2889,24 +2875,7 @@ void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, 
     _patch_mod_prefix = new (mtArguments) GrowableArray<ModulePatchPath*>(10, mtArguments);
   }
 
-  // Scan patches for matching module
-  int i = _patch_mod_prefix->find_if([&](ModulePatchPath* patch) {
-    return (strcmp(module_name, patch->module_name()) == 0);
-  });
-  if (i == -1) {
-    _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
-  } else {
-    if (allow_append) {
-      // append path to existing module entry
-      _patch_mod_prefix->at(i)->append_path(path);
-    } else {
-      if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
-        vm_exit_during_initialization("Cannot specify " JAVA_BASE_NAME " more than once to --patch-module");
-      } else {
-        vm_exit_during_initialization("Cannot specify a module more than once to --patch-module", module_name);
-      }
-    }
-  }
+  _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
 }
 
 // Remove all empty paths from the app classpath (if IgnoreEmptyClassPaths is enabled)
@@ -3020,11 +2989,6 @@ jint Arguments::finalize_vm_init_args() {
   }
 
   ClassLoader::set_preview_mode(is_valhalla_enabled());
-
-  // finalize --module-patch.
-  if (finalize_patch_module() != JNI_OK) {
-    return JNI_ERR;
-  }
 
   if (!check_vm_args_consistency()) {
     return JNI_ERR;
