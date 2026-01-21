@@ -317,22 +317,41 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
-    private static String[] PREVIEW_OPTIONS = {
+    private static String[] PREVIEW = {
             "--enable-preview",
             "-source", Integer.toString(Runtime.version().feature())
     };
 
-    private static String[] PREVIEW_PLUS_NO_USE_SITE_OPTIONS = {
+    private static String[] NO_USE_SITE_CHECKS = {
             "--enable-preview",
             "-source", Integer.toString(Runtime.version().feature()),
-            "-XDnoUseSiteNullChecks"
+            "-XDuseSiteNullChecks=none"
     };
 
-    private void testHelper(Path base, String testCode, boolean shouldFail, Class<?> expectedError) throws Exception {
-        testHelper(base, testCode, shouldFail, expectedError, PREVIEW_OPTIONS);
+    private static String[] USE_SITE_CHECKS_FOR_METHODS_ONLY = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "-XDuseSiteNullChecks=methods"
+    };
+
+    private static String[] USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "-XDuseSiteNullChecks=methods+fields"
+    };
+
+    private void testHelper(Path base,
+                            String testCode,
+                            boolean shouldFail,
+                            Class<?> expectedError) throws Exception {
+        testHelper(base, testCode, shouldFail, expectedError, PREVIEW);
     }
 
-    private void testHelper(Path base, String testCode, boolean shouldFail, Class<?> expectedError, String[] compilerOptions) throws Exception {
+    private void testHelper(Path base,
+                            String testCode,
+                            boolean shouldFail,
+                            Class<?> expectedError,
+                            String[] compilerOptions) throws Exception {
         Path src = base.resolve("src");
         Path testSrc = src.resolve("Test");
 
@@ -410,7 +429,7 @@ public class RuntimeNullChecks extends TestRunner {
         Files.createDirectories(classes);
 
         new JavacTask(tb)
-            .options(PREVIEW_OPTIONS)
+            .options(PREVIEW)
             .outdir(classes)
             .files(tb.findJavaFiles(src))
             .run(Task.Expect.SUCCESS)
@@ -499,7 +518,9 @@ public class RuntimeNullChecks extends TestRunner {
         };
         for (String code : testCases) {
             testHelper(base, code, true, NullPointerException.class);
-            testHelper(base, code, false, null, PREVIEW_PLUS_NO_USE_SITE_OPTIONS);
+            testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_ONLY);
+            testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
+            testHelper(base, code, false, null, NO_USE_SITE_CHECKS);
         }
     }
 
@@ -617,7 +638,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
-                .options(PREVIEW_OPTIONS)
+                .options(PREVIEW)
                 .files(findJavaFiles(pkg))
                 .run();
 
@@ -639,7 +660,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
-                .options(PREVIEW_PLUS_NO_USE_SITE_OPTIONS)
+                .options(NO_USE_SITE_CHECKS)
                 .files(findJavaFiles(pkg))
                 .run();
 
@@ -704,7 +725,7 @@ public class RuntimeNullChecks extends TestRunner {
         // this compilation will generate null checks in Test before accessing field A.a
         new JavacTask(tb)
                 .outdir(out)
-                .options(PREVIEW_OPTIONS)
+                .options(USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS) // equivalent to just using PREVIEW options
                 .files(findJavaFiles(pkg))
                 .run();
 
@@ -726,7 +747,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
-                .options(PREVIEW_OPTIONS)
+                .options(USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS) // equivalent to just using PREVIEW options
                 .files(findJavaFiles(ASrc))
                 .run();
 

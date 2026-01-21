@@ -38,10 +38,13 @@ import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
+import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
+
+import java.util.Locale;
 
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
@@ -73,7 +76,7 @@ public class NullChecksWriter extends TreeTranslator {
     /** are null restricted types allowed?
       */
     private final boolean allowNullRestrictedTypes;
-    private final boolean noUseSiteNullChecks;
+    private final UseSiteNullChecks useSiteNullChecks;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -86,7 +89,42 @@ public class NullChecksWriter extends TreeTranslator {
         Source source = Source.instance(context);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
-        noUseSiteNullChecks = Options.instance(context).isSet("noUseSiteNullChecks");
+        useSiteNullChecks = UseSiteNullChecks.of(Options.instance(context).get("useSiteNullChecks"));
+    }
+
+    private enum UseSiteNullChecks {
+        NONE(false, false),
+        METHODS(true, false),
+        METHODS_AND_FIELDS(true, true, "methods+fields");
+
+        final boolean generateChecksForMethods;
+        final boolean generateChecksForFields;
+        final String compilerOpt;
+
+        UseSiteNullChecks(boolean generateChecksForMethods, boolean generateChecksForFields) {
+            this.generateChecksForMethods = generateChecksForMethods;
+            this.generateChecksForFields = generateChecksForFields;
+            this.compilerOpt = name().toLowerCase(Locale.ROOT);
+        }
+
+        UseSiteNullChecks(boolean generateChecksForMethods, boolean generateChecksForFields, String compilerOpt) {
+            this.generateChecksForMethods = generateChecksForMethods;
+            this.generateChecksForFields = generateChecksForFields;
+            this.compilerOpt = compilerOpt;
+        }
+
+        static UseSiteNullChecks of(String compilerOpt) {
+            if (compilerOpt == null) {
+                return METHODS_AND_FIELDS;
+            }
+            for (UseSiteNullChecks useSiteNullChecks: UseSiteNullChecks.values()) {
+                if (useSiteNullChecks.compilerOpt.equals(compilerOpt)) {
+                    return useSiteNullChecks;
+                }
+            }
+            Assert.error("Unknown useSiteNullChecks: " + compilerOpt);
+            throw new IllegalStateException("Unknown useSiteNullChecks: " + compilerOpt);
+        }
     }
 
     Env<AttrContext> env;
@@ -161,7 +199,7 @@ public class NullChecksWriter extends TreeTranslator {
     // where
         private void identSelectVisitHelper(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
-            if (!noUseSiteNullChecks &&
+            if (useSiteNullChecks.generateChecksForFields &&
                     sym.owner.kind == TYP &&
                     sym.kind == VAR &&
                     types.isNonNullable(sym.type) &&
@@ -219,12 +257,12 @@ public class NullChecksWriter extends TreeTranslator {
     @Override
     public void visitApply(JCMethodInvocation tree) {
         Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
-        if (!noUseSiteNullChecks) {
+        if (useSiteNullChecks.generateChecksForMethods) {
             tree.args = newArgs(msym, tree.args);
         }
         super.visitApply(tree);
         result = tree;
-        if (!noUseSiteNullChecks) {
+        if (useSiteNullChecks.generateChecksForMethods) {
             if (types.isNonNullable(msym.type.asMethodType().restype)) {
                 result = attr.makeNullCheck(tree, true);
             }
@@ -233,7 +271,7 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (!noUseSiteNullChecks) {
+        if (useSiteNullChecks.generateChecksForMethods) {
             tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
         }
         super.visitNewClass(tree);
