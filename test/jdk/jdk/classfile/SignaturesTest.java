@@ -135,6 +135,17 @@ class SignaturesTest {
                         BaseTypeSig.of('V')),
                 MethodSignature.parseFrom("<A:Lone/Two;B:LOuter.Inner;C:[ID:LGeneric<*>;E:TA;F:G:>()V")
         );
+
+        assertEqualsDeep(
+                MethodSignature.of(
+                        List.of(),
+                        List.of(),
+                        BaseTypeSig.of('V'),
+                        TypeVarSig.of("E").nullChecked(),
+                        ArrayTypeSig.of(BaseTypeSig.of('I')).nullChecked(),
+                        ClassTypeSig.of("Generic", TypeArg.unbounded()).nullChecked()),
+                MethodSignature.parseFrom("(!TE;![I!LGeneric<*>;)V")
+        );
     }
 
     @Test
@@ -151,6 +162,30 @@ class SignaturesTest {
         Assertions.assertThrows(IllegalArgumentException.class, () -> ArrayTypeSig.of(255, voidSig));
         Assertions.assertThrows(IllegalArgumentException.class, () -> MethodSignature.of(voidSig, voidSig));
         Assertions.assertThrows(IllegalArgumentException.class, () -> MethodSignature.of(List.of(), List.of(), voidSig, voidSig));
+    }
+
+    @Test
+    void testBangRestrictions() {
+        var plainClass = ClassTypeSig.of(CD_Class);
+        var bangClass = plainClass.nullChecked();
+        // class superclass
+        assertThrows(IllegalArgumentException.class, () -> ClassSignature.of(bangClass));
+        // class interfaces
+        assertThrows(IllegalArgumentException.class, () -> ClassSignature.of(plainClass, bangClass));
+        // method throws
+        assertThrows(IllegalArgumentException.class, () -> MethodSignature.of(List.of(), List.of(bangClass), BaseTypeSig.of('V')));
+        // type arg bounds
+        assertThrows(IllegalArgumentException.class, () -> TypeArg.of(bangClass));
+        assertThrows(IllegalArgumentException.class, () -> TypeArg.superOf(bangClass));
+        assertThrows(IllegalArgumentException.class, () -> TypeArg.extendsOf(bangClass));
+        // type param superclass
+        assertThrows(IllegalArgumentException.class, () -> TypeParam.of("T", bangClass));
+        // type param interfaces
+        assertThrows(IllegalArgumentException.class, () -> TypeParam.of("T", Optional.empty(), bangClass));
+        // array component
+        assertThrows(IllegalArgumentException.class, () -> ArrayTypeSig.of(bangClass));
+        // outer class/enclosing instance
+        assertThrows(IllegalArgumentException.class, () -> ClassTypeSig.of(bangClass, "Nested"));
     }
 
     static Stream<String> goodIdentifiers() {
@@ -310,6 +345,12 @@ class SignaturesTest {
                 Lcom/example/Outer<Ljava/lang/String;>.
                 Lcom/example/Outer<Ljava/lang/String;>.Inner<[I>
                 [V
+                !I
+                [!Ljava/lang/Class;
+                ![!Ljava/lang/Class;
+                !Ljava/util/Optional<!Ljava/lang/Integer;>;
+                Ljava/util/Optional<+!Ljava/lang/Integer;>;
+                Ljava/util/Optional<-!Ljava/lang/Integer;>;
                 """.lines();
     }
 
@@ -326,6 +367,11 @@ class SignaturesTest {
                 LSample;
                 LOuter<[JTT;>.Inner;
                 LOuter.Inner;
+                ![B
+                ![[I
+                !Ljava/lang/Class<*>;
+                !Ljava/lang/String;
+                !TT;
                 """.lines();
     }
 
@@ -360,6 +406,9 @@ class SignaturesTest {
                 <K;Q:Ljava/lang/Object;>Ljava/lang/Object;
                 <:Ljava/lang/Object;>Ljava/lang/Object;
                 <>Ljava/lang/Object;
+                !Ljava/lang/Object;
+                Ljava/lang/Object;!Ljava/lang/Runnable;
+                <T:!Ljava/lang/Number;>Ljava/lang/Object;
                 """.lines();
     }
 
@@ -392,6 +441,10 @@ class SignaturesTest {
                 <T::LA>()V
                 (TT;I)VI
                 (V)V
+                ()!I
+                ()[!Ljava/lang/Object;
+                ()V^!Ljava/lang/Throwable;
+                <T::!Ljava/lang/Runnable;>()V
                 """.lines();
     }
 
