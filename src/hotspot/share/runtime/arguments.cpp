@@ -2057,7 +2057,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
       memcpy(module_name, patch_mod_tail, module_len);
       *(module_name + module_len) = '\0';
       // The path piece begins one past the module_equal sign
-      add_patch_mod_prefix(module_name, module_equal + 1, false /* no append */, false /* no cds */);
+      add_patch_mod_prefix(module_name, module_equal + 1);
       FREE_C_HEAP_ARRAY(char, module_name);
     } else {
       return JNI_ENOMEM;
@@ -2880,12 +2880,10 @@ void Arguments::set_ext_dirs(char *value) {
   _ext_dirs = os::strdup_check_oom(value);
 }
 
-void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append, bool allow_cds) {
-  if (!allow_cds) {
-    CDSConfig::set_module_patching_disables_cds();
-    if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
-      CDSConfig::set_java_base_module_patching_disables_cds();
-    }
+void Arguments::add_patch_mod_prefix(const char* module_name, const char* path) {
+  CDSConfig::set_module_patching_disables_cds();
+  if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
+    CDSConfig::set_java_base_module_patching_disables_cds();
   }
 
   // Create GrowableArray lazily, only if --patch-module has been specified
@@ -2900,15 +2898,10 @@ void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, 
   if (i == -1) {
     _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
   } else {
-    if (allow_append) {
-      // append path to existing module entry
-      _patch_mod_prefix->at(i)->append_path(path);
+    if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
+      vm_exit_during_initialization("Cannot specify " JAVA_BASE_NAME " more than once to --patch-module");
     } else {
-      if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
-        vm_exit_during_initialization("Cannot specify " JAVA_BASE_NAME " more than once to --patch-module");
-      } else {
-        vm_exit_during_initialization("Cannot specify a module more than once to --patch-module", module_name);
-      }
+      vm_exit_during_initialization("Cannot specify a module more than once to --patch-module", module_name);
     }
   }
 }
