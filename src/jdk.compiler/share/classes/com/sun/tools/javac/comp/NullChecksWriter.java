@@ -44,6 +44,8 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
 
+import java.util.Locale;
+
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
@@ -88,32 +90,41 @@ public class NullChecksWriter extends TreeTranslator {
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
                 Source.Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
         String opt = Options.instance(context).get("useSiteNullChecks");
-        if (opt == null) {
-            useSiteNullChecks = UseSiteNullChecks.METHODS_AND_FIELDS;
-        } else {
-            useSiteNullChecks = switch (opt) {
-                case "none" -> UseSiteNullChecks.NONE;
-                case "methods" -> UseSiteNullChecks.METHODS;
-                case "methods+fields" -> UseSiteNullChecks.METHODS_AND_FIELDS;
-                default -> {
-                    Assert.error("Unknown useSiteNullChecks: " + opt);
-                    throw new IllegalStateException("Unknown useSiteNullChecks: " + opt);
-                }
-            };
-        }
+        useSiteNullChecks = UseSiteNullChecks.of(Options.instance(context).get("useSiteNullChecks"));
     }
 
     private enum UseSiteNullChecks {
         NONE(false, false),
         METHODS(true, false),
-        METHODS_AND_FIELDS(true, true);
+        METHODS_AND_FIELDS(true, true, "methods+fields");
 
         final boolean generateChecksForMethods;
         final boolean generateChecksForFields;
+        final String compilerOpt;
 
         UseSiteNullChecks(boolean generateChecksForMethods, boolean generateChecksForFields) {
             this.generateChecksForMethods = generateChecksForMethods;
             this.generateChecksForFields = generateChecksForFields;
+            this.compilerOpt = name().toLowerCase(Locale.ROOT);
+        }
+
+        UseSiteNullChecks(boolean generateChecksForMethods, boolean generateChecksForFields, String compilerOpt) {
+            this.generateChecksForMethods = generateChecksForMethods;
+            this.generateChecksForFields = generateChecksForFields;
+            this.compilerOpt = compilerOpt;
+        }
+
+        static UseSiteNullChecks of(String compilerOpt) {
+            if (compilerOpt == null) {
+                return METHODS_AND_FIELDS;
+            }
+            for (UseSiteNullChecks useSiteNullChecks: UseSiteNullChecks.values()) {
+                if (useSiteNullChecks.compilerOpt.equals(compilerOpt)) {
+                    return useSiteNullChecks;
+                }
+            }
+            Assert.error("Unknown useSiteNullChecks: " + compilerOpt);
+            throw new IllegalStateException("Unknown useSiteNullChecks: " + compilerOpt);
         }
     }
 
