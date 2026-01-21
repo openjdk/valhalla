@@ -355,6 +355,10 @@ public class FieldLayoutAnalyzer {
         } else {
           cl.nullMarkerOffset = -1;
         }
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("Non-oop acmp map"), lo.getCurrentLine());
+        lo.moveToNextLine();
+        Asserts.assertTrue(lo.getCurrentLine().startsWith("oop acmp map"), lo.getCurrentLine());
+        lo.moveToNextLine();
       } else {
         cl.isValue = false;
       }
