@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3951,6 +3951,7 @@ Node* GraphKit::insert_mem_bar(int opcode, Node* precedent) {
   mb->init_req(TypeFunc::Control, control());
   mb->init_req(TypeFunc::Memory,  reset_memory());
   Node* membar = _gvn.transform(mb);
+  record_for_igvn(membar);
   set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
   set_all_memory_call(membar);
   return membar;
@@ -3980,6 +3981,7 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
     mb->set_req(TypeFunc::Memory, memory(alias_idx));
   }
   Node* membar = _gvn.transform(mb);
+  record_for_igvn(membar);
   set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
   if (alias_idx == Compile::AliasIdxBot) {
     merged_memory()->set_base_memory(_gvn.transform(new ProjNode(membar, TypeFunc::Memory)));
@@ -4203,9 +4205,12 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
       assert(C->flat_accesses_share_alias(), "should be set at parse time");
       const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
       int            elemidx  = C->get_alias_index(telemref);
-      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
+      const TypePtr* alias_adr_type = C->get_adr_type(elemidx);
+      if (alias_adr_type->is_flat()) {
+        C->set_flat_accesses();
+      }
+      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, alias_adr_type)));
     } else if (oop_type->isa_instptr()) {
-      set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
         ciField* field = ik->nonstatic_field_at(i);

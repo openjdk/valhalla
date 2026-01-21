@@ -1328,8 +1328,11 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
       call = call->in(0);
     } else if (call->Opcode() == Op_CallStaticJava && !call->in(0)->is_top() &&
                call->as_Call()->entry_point() == OptoRuntime::load_unknown_inline_Java()) {
-      assert(call->in(0)->is_Proj() && call->in(0)->in(0)->is_MemBar(), "missing membar");
-      membar = call->in(0)->in(0)->as_MemBar();
+      // If there is no explicit flat array accesses in the compilation unit, there would be no
+      // membar here
+      if (call->in(0)->is_Proj() && call->in(0)->in(0)->is_MemBar()) {
+        membar = call->in(0)->in(0)->as_MemBar();
+      }
       break;
     } else {
       return false;
@@ -1386,7 +1389,9 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
   }
 
   // Remove membar preceding the call
-  membar->remove(igvn);
+  if (membar != nullptr) {
+    membar->remove(igvn);
+  }
 
   address call_addr = OptoRuntime::uncommon_trap_blob()->entry_point();
   CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap", nullptr);

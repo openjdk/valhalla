@@ -809,6 +809,7 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   develop(uintx, PreallocatedOutOfMemoryErrorCount, 4,                      \
           "Number of OutOfMemoryErrors preallocated with backtrace")        \
+          range(0, 1024)                                                    \
                                                                             \
   product(bool, UseXMMForArrayCopy, false,                                  \
           "Use SSE2 MOVQ instruction for Arraycopy")                        \
@@ -2055,7 +2056,7 @@ const int ObjectAlignmentInBytes = 8;
           "Minimal number of elements in a sorted collection to prefer"     \
           "binary search over simple linear search." )                      \
                                                                             \
-  product(bool, UseAltSubstitutabilityMethod, false,                        \
+  product(bool, UseAltSubstitutabilityMethod, true,                         \
           "Use alternate version of the isSubstitutable method to "         \
           "compare value class instances")                                  \
 

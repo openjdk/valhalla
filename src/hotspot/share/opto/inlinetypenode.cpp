@@ -110,8 +110,8 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 #ifdef ASSERT
   if (result) {
     // Check all field value inputs for consistency
-    for (uint i = Values; i < field_count(); ++i) {
-      Node* n = in(i);
+    for (uint i = 0; i < field_count(); ++i) {
+      Node* n = field_value(i);
       if (n->is_InlineType()) {
         assert(n->as_InlineType()->has_phi_inputs(region), "inconsistent phi inputs");
       } else {
