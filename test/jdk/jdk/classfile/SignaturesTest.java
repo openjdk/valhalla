@@ -408,7 +408,7 @@ class SignaturesTest {
                 <>Ljava/lang/Object;
                 !Ljava/lang/Object;
                 Ljava/lang/Object;!Ljava/lang/Runnable;
-                <>Ljava/lang/Object;
+                <T:!Ljava/lang/Number;>Ljava/lang/Object;
                 """.lines();
     }
 

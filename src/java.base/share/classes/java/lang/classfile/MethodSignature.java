@@ -133,7 +133,7 @@ public sealed interface MethodSignature
      * @param result signature for the return type
      * @param arguments signatures for the method parameters
      * @throws IllegalArgumentException if any of {@code arguments} is void or
-     *         any of the exceptions signatures has null marker
+     *         any of the exceptions signatures has null markers
      */
     public static MethodSignature of(List<Signature.TypeParam> typeParameters,
                                      List<Signature.ThrowableSig> exceptions,

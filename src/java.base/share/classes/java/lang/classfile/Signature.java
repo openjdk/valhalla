@@ -29,6 +29,7 @@ import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.constant.ClassDesc;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.GenericDeclaration;
+import java.lang.reflect.NullRestrictedType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -161,6 +162,8 @@ public sealed interface Signature {
             /**
              * A not-null marker on a reference type, {@code !}.  This
              * indicates null restriction for the values accepted by this type.
+             *
+             * @see NullRestrictedType
              */
             NOT_NULL,
             ;
@@ -293,6 +296,7 @@ public sealed interface Signature {
 
         /**
          * {@return a class or interface signature without an outer type}
+         * The returned signature has no null marker.
          *
          * @param className the name of the class or interface
          * @param typeArgs the type arguments
@@ -306,6 +310,7 @@ public sealed interface Signature {
 
         /**
          * {@return a class or interface signature}
+         * The returned signature has no null marker.
          *
          * @param outerType signature of the outer type, may be {@code null}
          * @param className the name of this class or interface
@@ -313,7 +318,7 @@ public sealed interface Signature {
          * @throws IllegalArgumentException if {@code className} does not
          *         represent a class or interface, or if it cannot be
          *         {@linkplain Signature##identifier denoted}, or if
-         *         {@code outerType} has null marker
+         *         {@code outerType} has null markers
          * @deprecated
          * The resulting signature does not denote the class represented by
          * {@code className} when {@code outerType} is not null.  Use {@link
@@ -328,6 +333,7 @@ public sealed interface Signature {
 
         /**
          * {@return a class or interface signature without an outer type}
+         * The returned signature has no null marker.
          *
          * @param className the name of the class or interface, may use
          *                  {@code /} to separate
@@ -341,6 +347,7 @@ public sealed interface Signature {
 
         /**
          * {@return a class type signature}
+         * The returned signature has no null marker.
          *
          * @param outerType signature of the outer type, may be {@code null}
          * @param className the name of this class or interface, may use
@@ -348,7 +355,7 @@ public sealed interface Signature {
          * @param typeArgs the type arguments
          * @throws IllegalArgumentException if {@code className} cannot be
          *         {@linkplain Signature##identifier denoted}, or if
-         *         {@code outerType} has null marker
+         *         {@code outerType} has null markers
          */
         public static ClassTypeSig of(ClassTypeSig outerType, String className, TypeArg... typeArgs) {
             if (outerType != null) {
@@ -443,7 +450,7 @@ public sealed interface Signature {
          * {@return a type argument of a reference type}
          *
          * @param boundType the reference type
-         * @throws IllegalArgumentException if {@code boundType} has null marker
+         * @throws IllegalArgumentException if {@code boundType} has null markers
          * @see Bounded.WildcardIndicator#NONE
          */
         public static TypeArg.Bounded of(RefTypeSig boundType) {
@@ -462,7 +469,7 @@ public sealed interface Signature {
          * {@return an upper-bounded wildcard type argument}
          *
          * @param boundType the upper bound
-         * @throws IllegalArgumentException if {@code boundType} has null marker
+         * @throws IllegalArgumentException if {@code boundType} has null markers
          * @see Bounded.WildcardIndicator#EXTENDS
          */
         public static TypeArg.Bounded extendsOf(RefTypeSig boundType) {
@@ -474,7 +481,7 @@ public sealed interface Signature {
          * {@return a lower-bounded wildcard type argument}
          *
          * @param boundType the lower bound
-         * @throws IllegalArgumentException if {@code boundType} has null marker
+         * @throws IllegalArgumentException if {@code boundType} has null markers
          * @see Bounded.WildcardIndicator#SUPER
          */
         public static TypeArg.Bounded superOf(RefTypeSig boundType) {
@@ -487,7 +494,7 @@ public sealed interface Signature {
          *
          * @param wildcard the wildcard indicator
          * @param boundType the bound type
-         * @throws IllegalArgumentException if {@code boundType} has null marker
+         * @throws IllegalArgumentException if {@code boundType} has null markers
          */
         public static TypeArg.Bounded bounded(Bounded.WildcardIndicator wildcard, RefTypeSig boundType) {
             requireNonNull(wildcard);
@@ -531,6 +538,7 @@ public sealed interface Signature {
 
         /**
          * {@return a signature for a type variable}
+         * The returned signature has no null marker.
          *
          * @param identifier the name of the type variable
          * @throws IllegalArgumentException if the name cannot be {@linkplain
@@ -575,9 +583,11 @@ public sealed interface Signature {
 
         /**
          * {@return an array type with the given component type}
+         * The returned signature has no null marker.
+         *
          * @param componentSignature the component type
          * @throws IllegalArgumentException if the component type is void or
-         *         has null marker
+         *         has null markers
          */
         public static ArrayTypeSig of(Signature componentSignature) {
             return of(1, SignaturesImpl.validateNonVoid(componentSignature));
@@ -585,11 +595,13 @@ public sealed interface Signature {
 
         /**
          * {@return a signature for an array type}
+         * The returned signature has no null marker.
+         *
          * @param dims the dimension of the array
          * @param componentSignature the component type
          * @throws IllegalArgumentException if {@code dims < 1} or the
          *         resulting array type exceeds 255 dimensions or the component
-         *         type is void or the component type has null marker
+         *         type is void or the component type has null markers
          */
         public static ArrayTypeSig of(int dims, Signature componentSignature) {
             SignaturesImpl.validateNonVoid(componentSignature);
@@ -645,7 +657,7 @@ public sealed interface Signature {
          * @param interfaceBounds the interface bounds of the type parameter
          * @throws IllegalArgumentException if the name cannot be {@linkplain
          *         Signature##identifier denoted}, or any of the bounds has
-         *         null marker
+         *         null markers
          */
         public static TypeParam of(String identifier, RefTypeSig classBound, RefTypeSig... interfaceBounds) {
             return new SignaturesImpl.TypeParamImpl(
@@ -662,7 +674,7 @@ public sealed interface Signature {
          * @param interfaceBounds the interface bounds of the type parameter
          * @throws IllegalArgumentException if the name cannot be {@linkplain
          *         Signature##identifier denoted}, or any of the bounds has
-         *         null marker
+         *         null markers
          */
         public static TypeParam of(String identifier, Optional<RefTypeSig> classBound, RefTypeSig... interfaceBounds) {
             return new SignaturesImpl.TypeParamImpl(
