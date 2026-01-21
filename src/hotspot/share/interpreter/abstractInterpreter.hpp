@@ -65,6 +65,7 @@ class AbstractInterpreter: AllStatic {
     getter,                                                     // getter method
     setter,                                                     // setter method
     abstract,                                                   // abstract method (throws an AbstractMethodException)
+    object_init,                                                // special barrier on entry
     method_handle_invoke_FIRST,                                 // java.lang.invoke.MethodHandles::invokeExact, etc.
     method_handle_invoke_LAST                                   = (method_handle_invoke_FIRST
                                                                    + (static_cast<int>(vmIntrinsics::LAST_MH_SIG_POLY)
@@ -255,7 +256,7 @@ class AbstractInterpreter: AllStatic {
     return stackElementWords * i;
   }
 
-#if !defined(ZERO) && (defined(IA32) || defined(AMD64))
+#if !defined(ZERO) && defined(AMD64)
   static Address::ScaleFactor stackElementScale() {
     return NOT_LP64(Address::times_4) LP64_ONLY(Address::times_8);
   }

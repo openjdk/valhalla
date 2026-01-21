@@ -111,6 +111,7 @@ public final class EventClassBuilder {
         }));
     }
 
+    @SuppressWarnings("preview")
     private void buildClassInfo(ClassBuilder builder) {
         builder.withSuperclass(Bytecode.classDesc(Event.class));
         builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, (PreviewFeatures.isEnabled() ? AccessFlag.IDENTITY : AccessFlag.SUPER));

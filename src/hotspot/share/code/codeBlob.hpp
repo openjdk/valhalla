@@ -328,7 +328,6 @@ public:
 // RuntimeBlob: used for non-compiled method code (adapters, stubs, blobs)
 
 class RuntimeBlob : public CodeBlob {
-  friend class VMStructs;
  public:
 
   // Creation
@@ -376,9 +375,9 @@ class BufferBlob: public RuntimeBlob {
 
  private:
   // Creation support
-  BufferBlob(const char* name, CodeBlobKind kind, int size);
-  BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, int header_size);
-  BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
+  BufferBlob(const char* name, CodeBlobKind kind, int size, uint16_t header_size = sizeof(BufferBlob));
+  BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, uint16_t header_size = sizeof(BufferBlob));
+  BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, uint16_t header_size, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
   void* operator new(size_t s, unsigned size) throw();
 
@@ -409,18 +408,45 @@ class BufferBlob: public RuntimeBlob {
 // AdapterBlob: used to hold C2I/I2C adapters
 
 class AdapterBlob: public BufferBlob {
+public:
+  enum Entry {
+    I2C,
+    C2I,
+    C2I_Inline,
+    C2I_Inline_RO,
+    C2I_Unverified,
+    C2I_Unverified_Inline,
+    C2I_No_Clinit_Check,
+    ENTRY_COUNT
+  };
 private:
-  AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
+  AdapterBlob(int size, CodeBuffer* cb, int entry_offset[ENTRY_COUNT], int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
+  // _i2c_offset is always 0 so no need to store it
+  int _c2i_offset;
+  int _c2i_inline_offset;
+  int _c2i_inline_ro_offset;
+  int _c2i_unverified_offset;
+  int _c2i_unverified_inline_offset;
+  int _c2i_no_clinit_check_offset;
 public:
   // Creation
   static AdapterBlob* create(CodeBuffer* cb,
+                             int entry_offset[ENTRY_COUNT],
                              int frame_complete,
                              int frame_size,
                              OopMapSet* oop_maps,
                              bool caller_must_gc_arguments = false);
 
   bool caller_must_gc_arguments(JavaThread* thread) const { return true; }
+  static AdapterBlob* create(CodeBuffer* cb, int entry_offset[ENTRY_COUNT]);
+  address i2c_entry() { return code_begin(); }
+  address c2i_entry() { return i2c_entry() + _c2i_offset; }
+  address c2i_inline_entry() { return i2c_entry() + _c2i_inline_offset; }
+  address c2i_inline_ro_entry() { return i2c_entry() + _c2i_inline_ro_offset; }
+  address c2i_unverified_entry() { return i2c_entry() + _c2i_unverified_offset; }
+  address c2i_unverified_inline_entry() { return i2c_entry() + _c2i_unverified_inline_offset; }
+  address c2i_no_clinit_check_entry() { return _c2i_no_clinit_check_offset == -1 ? nullptr : i2c_entry() + _c2i_no_clinit_check_offset; }
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -649,7 +675,6 @@ class DeoptimizationBlob: public SingletonBlob {
 #ifdef COMPILER2
 
 class UncommonTrapBlob: public SingletonBlob {
-  friend class VMStructs;
  private:
   // Creation support
   UncommonTrapBlob(
@@ -673,7 +698,6 @@ class UncommonTrapBlob: public SingletonBlob {
 // ExceptionBlob: used for exception unwinding in compiled code (currently only used by Compiler 2)
 
 class ExceptionBlob: public SingletonBlob {
-  friend class VMStructs;
  private:
   // Creation support
   ExceptionBlob(
@@ -710,7 +734,6 @@ class ExceptionBlob: public SingletonBlob {
 // SafepointBlob: handles illegal_instruction exceptions during a safepoint
 
 class SafepointBlob: public SingletonBlob {
-  friend class VMStructs;
  private:
   // Creation support
   SafepointBlob(

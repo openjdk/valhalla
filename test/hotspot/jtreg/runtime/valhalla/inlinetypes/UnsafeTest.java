@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,13 +36,14 @@ package runtime.valhalla.inlinetypes;
  * @enablePreview
  * @requires vm.flagless
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -Xint -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions
+                     -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening
+                     -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 // TODO 8350865 Implement unsafe intrinsics for nullable flat fields/arrays in C2
 
 import jdk.internal.misc.Unsafe;
-import jdk.internal.misc.VM;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -101,8 +102,10 @@ public class UnsafeTest {
         long off_v = U.objectFieldOffset(Value3.class, "v");
         long off_i = U.objectFieldOffset(Value2.class, "i");
         long off_v2 = U.objectFieldOffset(Value2.class, "v");
+        int layout_v2 = U.fieldLayout(Value2.class.getDeclaredField("v"));
 
         long off_point = U.objectFieldOffset(Value1.class, "point");
+        int layout_point = U.fieldLayout(Value1.class.getDeclaredField("point"));
 
         List<String> list = List.of("Value1", "Value2", "Value3");
         Value3 v = v3;
@@ -113,8 +116,8 @@ public class UnsafeTest {
             // patch v3.v.i;
             U.putInt(v, off_v + off_i - U.valueHeaderSize(Value2.class), 999);
             // patch v3.v.v.point
-            U.putValue(v, off_v + off_v2 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
-                       Point.class, new Point(100, 100));
+            U.putFlatValue(v, off_v + off_v2 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
+                           layout_point, Point.class, new Point(100, 100));
         } finally {
             v = U.finishPrivateBuffer(v);
         }
@@ -131,7 +134,7 @@ public class UnsafeTest {
         try {
             v = U.makePrivateBuffer(v);
             // patch v3.v
-            U.putValue(v, off_v2, Value2.class, nv2);
+            U.putFlatValue(v, off_v2, layout_v2, Value2.class, nv2);
         } finally {
             v = U.finishPrivateBuffer(v);
         }
@@ -206,52 +209,8 @@ public class UnsafeTest {
         TestValue1 value;
     }
 
-    // Testing of nullable flat field supports in Unsafe.getFlatValue()/Unsafe.putValue()
+    // Testing of nullable flat field supports in Unsafe.getFlatValue()/Unsafe.putFlatValue()
     public static void testNullableFlatFields() throws Throwable {
-        Container1 c = new Container1();
-        Class<?> cc = Container1.class;
-        Field field = cc.getDeclaredField("value");
-        Class<?> fc = TestValue1.class;
-        long offset = U.objectFieldOffset(field);
-        if (!U.isFlatField(field)) return; // Field not flattened (due to VM flags?), test doesn't apply
-        // Initial value of the field must be null
-        Asserts.assertNull(U.getValue(c, offset, fc));
-        // Writing all zero value to the field, field must become non-null
-        TestValue1 val0 = new TestValue1((short)0, (short)0);
-        U.putValue(c, offset, fc, val0);
-        TestValue1 rval = U.getValue(c, offset, fc);
-        Asserts.assertNotNull(rval);
-        Asserts.assertEQ((short)0, rval.s0);
-        Asserts.assertEQ((short)0, rval.s1);
-        Asserts.assertEQ((short)0, c.value.s0);
-        Asserts.assertEQ((short)0, c.value.s1);
-        // Writing null to the field, field must become null again
-        U.putValue(c, offset, fc, null);
-        Asserts.assertNull(U.getValue(c, offset, fc));
-        Asserts.assertNull(c.value);
-        // Writing non zero value to the field
-        TestValue1 val1 = new TestValue1((short)-1, (short)-2);
-        U.putValue(c, offset, fc, val1);
-        rval = U.getValue(c, offset, fc);
-        Asserts.assertNotNull(rval);
-        Asserts.assertNotNull(c.value);
-        Asserts.assertEQ((short)-1, rval.s0);
-        Asserts.assertEQ((short)-2, rval.s1);
-        Asserts.assertEQ((short)-1, c.value.s0);
-        Asserts.assertEQ((short)-2, c.value.s1);
-        // Writing a different non zero value
-        TestValue1 val2 = new TestValue1((short)Short.MAX_VALUE, (short)3);
-        U.putValue(c, offset, fc, val2);
-        rval = U.getValue(c, offset, fc);
-        Asserts.assertNotNull(rval);
-        Asserts.assertNotNull(c.value);
-        Asserts.assertEQ(Short.MAX_VALUE, c.value.s0);
-        Asserts.assertEQ((short)3, rval.s1);
-        Asserts.assertEQ(Short.MAX_VALUE, c.value.s0);
-        Asserts.assertEQ((short)3, rval.s1);
-    }
-
-    public static void testNullableFlatFields2() throws Throwable {
         Container1 c = new Container1();
         Class<?> cc = Container1.class;
         Field field = cc.getDeclaredField("value");
@@ -296,68 +255,12 @@ public class UnsafeTest {
         Asserts.assertEQ((short)3, rval.s1);
     }
 
-    // Testing of nullable flat arrays supports in Unsafe.getValue()/Unsafe.putValue()
+    // Testing of nullable flat arrays supports in Unsafe.getFlatValue()/Unsafe.putFlatValue()
     public static void testNullableFlatArrays() throws Throwable {
         final int ARRAY_LENGTH = 10;
         TestValue1[] array = (TestValue1[])ValueClass.newNullableAtomicArray(TestValue1.class, ARRAY_LENGTH);
-        Asserts.assertTrue(ValueClass.isFlatArray(array));
-        long baseOffset = U.arrayBaseOffset(array);
-        int scaleIndex = U.arrayIndexScale(array);
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            Asserts.assertNull(U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class));
-        }
-        TestValue1 val = new TestValue1((short)0, (short)0);
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            if (i % 2 == 0) {
-                U.putValue(array, baseOffset + i * scaleIndex, TestValue1.class, val );
-            }
-        }
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            if (i % 2 == 0) {
-                Asserts.assertNotNull(U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class));
-                Asserts.assertNotNull(array[i]);
-            } else {
-                Asserts.assertNull(U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class));
-                Asserts.assertNull(array[i]);
-            }
-        }
-        TestValue1 val2 = new TestValue1((short)Short.MAX_VALUE, (short)Short.MIN_VALUE);
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            if (i % 2 != 0) {
-                U.putValue(array, baseOffset + i * scaleIndex, TestValue1.class, val2 );
-            } else {
-                U.putValue(array, baseOffset + i * scaleIndex, TestValue1.class, null );
-            }
-        }
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            if (i % 2 != 0) {
-                TestValue1 rval = U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class);
-                Asserts.assertNotNull(rval);
-                Asserts.assertEQ(val2.s0, rval.s0);
-                Asserts.assertEQ(val2.s1, rval.s1);
-                Asserts.assertNotNull(array[i]);
-                Asserts.assertEQ(val2.s0, array[i].s0);
-                Asserts.assertEQ(val2.s1, array[i].s1);
-            } else {
-                Asserts.assertNull(U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class));
-                Asserts.assertNull(array[i]);
-            }
-        }
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            U.putValue(array, baseOffset + i * scaleIndex, TestValue1.class, null );
-        }
-        for (int i = 0; i < ARRAY_LENGTH; i++) {
-            Asserts.assertNull(U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class));
-            Asserts.assertNull(array[i]);
-        }
-    }
-
-    // Testing of nullable flat arrays supports in Unsafe.getFlatValue()/Unsafe.putFlatValue()
-    public static void testNullableFlatArrays2() throws Throwable {
-        final int ARRAY_LENGTH = 10;
-        TestValue1[] array = (TestValue1[])ValueClass.newNullableAtomicArray(TestValue1.class, ARRAY_LENGTH);
-        long baseOffset = U.arrayBaseOffset(array);
-        int scaleIndex = U.arrayIndexScale(array);
+        long baseOffset = U.arrayInstanceBaseOffset(array);
+        int scaleIndex = U.arrayInstanceIndexScale(array);
         int layoutKind = U.arrayLayout(array);
         for (int i = 0; i < ARRAY_LENGTH; i++) {
             Asserts.assertNull(U.getFlatValue(array, baseOffset + i * scaleIndex, layoutKind, TestValue1.class));
@@ -412,9 +315,7 @@ public class UnsafeTest {
         test0();
         test1();
         testNullableFlatFields();
-        testNullableFlatFields2();
         testNullableFlatArrays();
-        testNullableFlatArrays2();
     }
 
 }

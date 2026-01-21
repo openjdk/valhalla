@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,13 +33,28 @@ class ZBarrierSet : public BarrierSet {
 private:
   static zpointer store_good(oop obj);
 
+  static void load_barrier_all(oop src, size_t size);
+  static void color_store_good_all(oop dst, size_t size);
+
+  static zaddress load_barrier_on_oop_field_preloaded(volatile zpointer* p, zpointer o);
+  static zaddress no_keep_alive_load_barrier_on_weak_oop_field_preloaded(volatile zpointer* p, zpointer o);
+  static zaddress no_keep_alive_load_barrier_on_phantom_oop_field_preloaded(volatile zpointer* p, zpointer o);
+  static zaddress load_barrier_on_weak_oop_field_preloaded(volatile zpointer* p, zpointer o);
+  static zaddress load_barrier_on_phantom_oop_field_preloaded(volatile zpointer* p, zpointer o);
+
+  static void store_barrier_on_heap_oop_field(volatile zpointer* p, bool heal);
+  static void no_keep_alive_store_barrier_on_heap_oop_field(volatile zpointer* p);
+  static void store_barrier_on_native_oop_field(volatile zpointer* p, bool heal);
+
+  static zaddress load_barrier_on_oop_field(volatile zpointer* p);
+
+  static void clone_obj_array(objArrayOop src, objArrayOop dst);
+
 public:
   ZBarrierSet();
 
   static ZBarrierSetAssembler* assembler();
   static bool barrier_needed(DecoratorSet decorators, BasicType type);
-
-  static void clone_obj_array(objArrayOop src, objArrayOop dst);
 
   virtual void on_thread_create(Thread* thread);
   virtual void on_thread_destroy(Thread* thread);
@@ -49,12 +64,6 @@ public:
   virtual void on_slowpath_allocation_exit(JavaThread* thread, oop new_obj);
 
   virtual void print_on(outputStream* st) const;
-
-  enum OopCopyCheckStatus {
-    oop_copy_check_ok = 0,         // oop array copy sucessful
-    oop_copy_check_class_cast = 1, // oop array copy failed subtype check (ARRAYCOPY_CHECKCAST)
-    oop_copy_check_null = 2        // oop array copy failed null check (ARRAYCOPY_NOTNULL)
-  };
 
   template <DecoratorSet decorators, typename BarrierSetT = ZBarrierSet>
   class AccessBarrier : public BarrierSet::AccessBarrier<decorators, BarrierSetT> {
@@ -79,6 +88,7 @@ public:
     static void store_barrier_native_with_healing(zpointer* p);
     static void store_barrier_native_without_healing(zpointer* p);
 
+    [[noreturn]]
     static void unsupported();
     static zaddress load_barrier(narrowOop* p, zpointer o) { unsupported(); return zaddress::null; }
     static zaddress load_barrier_on_unknown_oop_ref(oop base, ptrdiff_t offset, narrowOop* p, zpointer o) { unsupported(); return zaddress::null; }
@@ -89,11 +99,11 @@ public:
     static void store_barrier_native_without_healing(narrowOop* p)  { unsupported(); }
 
     static zaddress oop_copy_one_barriers(zpointer* dst, zpointer* src);
-    static OopCopyCheckStatus oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass);
-    static OopCopyCheckStatus oop_copy_one(zpointer* dst, zpointer* src);
+    static OopCopyResult oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass);
+    static OopCopyResult oop_copy_one(zpointer* dst, zpointer* src);
 
-    static OopCopyCheckStatus oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass);
-    static OopCopyCheckStatus oop_arraycopy_in_heap_no_check_cast(zpointer* dst, zpointer* src, size_t length);
+    static OopCopyResult oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass);
+    static OopCopyResult oop_arraycopy_in_heap_no_check_cast(zpointer* dst, zpointer* src, size_t length);
 
   public:
     //
@@ -125,19 +135,19 @@ public:
     static oop oop_atomic_xchg_in_heap(narrowOop* p, oop new_value) { unsupported(); return nullptr; }
     static oop oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value);
 
-    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, zpointer* src_raw,
-                                      arrayOop dst_obj, size_t dst_offset_in_bytes, zpointer* dst_raw,
-                                      size_t length);
-    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, oop* src_raw,
-                                      arrayOop dst_obj, size_t dst_offset_in_bytes, oop* dst_raw,
-                                      size_t length) {
-      oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, (zpointer*)src_raw,
-                            dst_obj, dst_offset_in_bytes, (zpointer*)dst_raw,
-                            length);
+    static OopCopyResult oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, zpointer* src_raw,
+                                               arrayOop dst_obj, size_t dst_offset_in_bytes, zpointer* dst_raw,
+                                               size_t length);
+    static OopCopyResult oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, oop* src_raw,
+                                               arrayOop dst_obj, size_t dst_offset_in_bytes, oop* dst_raw,
+                                               size_t length) {
+      return oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, (zpointer*)src_raw,
+                                   dst_obj, dst_offset_in_bytes, (zpointer*)dst_raw,
+                                   length);
     }
-    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, narrowOop* src_raw,
-                                      arrayOop dst_obj, size_t dst_offset_in_bytes, narrowOop* dst_raw,
-                                      size_t length) { unsupported(); }
+    static OopCopyResult oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, narrowOop* src_raw,
+                                               arrayOop dst_obj, size_t dst_offset_in_bytes, narrowOop* dst_raw,
+                                               size_t length) { unsupported(); }
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 

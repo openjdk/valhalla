@@ -26,7 +26,7 @@
 #include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
@@ -49,13 +49,7 @@ static void assert_test_pattern(Printable object, const char* pattern) {
 
 template<typename Printable>
 static void assert_mark_word_print_pattern(Printable object, const char* pattern) {
-  if (LockingMode == LM_MONITOR) {
-    // With heavy monitors, we do not use the mark word. Printing the oop only shows "monitor" regardless of the
-    // locking state.
-    assert_test_pattern(object, "monitor");
-  } else {
-    assert_test_pattern(object, pattern);
-  }
+  assert_test_pattern(object, pattern);
 }
 
 class LockerThread : public JavaTestThread {
@@ -114,7 +108,7 @@ TEST_VM(markWord, printing) {
     st = new LockerThread(&done, h_obj());
     st->doit();
 
-    ol.wait(THREAD);
+    ol.wait_uninterruptibly(THREAD);
     assert_test_pattern(h_obj, "monitor");
     done.wait_with_safepoint_check(THREAD);  // wait till the thread is done.
   }
@@ -122,13 +116,8 @@ TEST_VM(markWord, printing) {
 
 static void assert_unlocked_state(markWord mark) {
   EXPECT_FALSE(mark.has_displaced_mark_helper());
-  if (LockingMode == LM_LEGACY) {
-    EXPECT_FALSE(mark.has_locker());
-  } else if (LockingMode == LM_LIGHTWEIGHT) {
-    EXPECT_FALSE(mark.is_fast_locked());
-  }
+  EXPECT_FALSE(mark.is_fast_locked());
   EXPECT_FALSE(mark.has_monitor());
-  EXPECT_FALSE(mark.is_being_inflated());
   EXPECT_FALSE(mark.is_locked());
   EXPECT_TRUE(mark.is_unlocked());
 }
@@ -157,7 +146,6 @@ TEST_VM(markWord, prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_type(mark);
@@ -180,7 +168,6 @@ TEST_VM(markWord, inline_type_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   markWord larval = mark.enter_larval_state();
   EXPECT_TRUE(larval.is_larval_state());
@@ -193,7 +180,6 @@ TEST_VM(markWord, inline_type_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 }
 
 #if _LP64
@@ -205,7 +191,7 @@ static void assert_flat_array_type(markWord mark) {
 }
 
 TEST_VM(markWord, null_free_flat_array_prototype) {
-  markWord mark = markWord::flat_array_prototype(LayoutKind::NON_ATOMIC_FLAT);
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
   assert_unlocked_state(mark);
   EXPECT_TRUE(mark.is_neutral());
 
@@ -214,7 +200,6 @@ TEST_VM(markWord, null_free_flat_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
@@ -233,7 +218,6 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
@@ -258,7 +242,6 @@ TEST_VM(markWord, null_free_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_null_free_array_type(mark);

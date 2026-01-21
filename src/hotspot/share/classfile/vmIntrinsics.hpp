@@ -333,6 +333,12 @@ class methodHandle;
    do_name(     newNullableAtomicArray_name,                      "newNullableAtomicArray")                             \
    do_signature(newArray_signature2,                              "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
    do_signature(newArray_signature3,                              "(Ljava/lang/Class;ILjava/lang/Object;)[Ljava/lang/Object;") \
+  do_intrinsic(_isFlatArray, jdk_internal_value_ValueClass, isFlatArray_name, object_boolean_signature, F_SN)           \
+   do_name(     isFlatArray_name,                                 "isFlatArray")                                        \
+  do_intrinsic(_isNullRestrictedArray, jdk_internal_value_ValueClass, isNullRestrictedArray_name, object_boolean_signature, F_SN) \
+   do_name(     isNullRestrictedArray_name,                       "isNullRestrictedArray")                              \
+  do_intrinsic(_isAtomicArray, jdk_internal_value_ValueClass, isAtomicArray_name, object_boolean_signature, F_SN)       \
+   do_name(     isAtomicArray_name,                               "isAtomicArray")                                      \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \
@@ -423,18 +429,18 @@ class methodHandle;
                                                                                                                         \
   do_class(java_lang_StringCoding,        "java/lang/StringCoding")                                                     \
   do_intrinsic(_countPositives,     java_lang_StringCoding, countPositives_name, countPositives_signature, F_S)         \
-   do_name(     countPositives_name,                       "countPositives")                                            \
+   do_name(     countPositives_name,                       "countPositives0")                                           \
    do_signature(countPositives_signature,                  "([BII)I")                                                   \
                                                                                                                         \
   do_class(sun_nio_cs_iso8859_1_Encoder,  "sun/nio/cs/ISO_8859_1$Encoder")                                              \
   do_intrinsic(_encodeISOArray,     sun_nio_cs_iso8859_1_Encoder, encodeISOArray_name, encodeISOArray_signature, F_S)   \
-   do_name(     encodeISOArray_name,                             "implEncodeISOArray")                                  \
+   do_name(     encodeISOArray_name,                             "encodeISOArray0")                                     \
    do_signature(encodeISOArray_signature,                        "([CI[BII)I")                                          \
                                                                                                                         \
   do_intrinsic(_encodeByteISOArray,     java_lang_StringCoding, encodeISOArray_name, indexOfI_signature,         F_S)   \
                                                                                                                         \
   do_intrinsic(_encodeAsciiArray,       java_lang_StringCoding, encodeAsciiArray_name, encodeISOArray_signature, F_S)   \
-   do_name(     encodeAsciiArray_name,                           "implEncodeAsciiArray")                                \
+   do_name(     encodeAsciiArray_name,                           "encodeAsciiArray0")                                   \
                                                                                                                         \
   do_class(java_math_BigInteger,                      "java/math/BigInteger")                                           \
   do_intrinsic(_multiplyToLen,      java_math_BigInteger, multiplyToLen_name, multiplyToLen_signature, F_S)             \
@@ -475,8 +481,8 @@ class methodHandle;
   do_intrinsic(_Reference_clear0,           java_lang_ref_Reference, clear0_name,    void_method_signature, F_RN)       \
   do_intrinsic(_PhantomReference_clear0,    java_lang_ref_PhantomReference, clear0_name, void_method_signature, F_RN)   \
                                                                                                                         \
-  /* support for com.sun.crypto.provider.AESCrypt and some of its callers */                                            \
-  do_class(com_sun_crypto_provider_aescrypt,      "com/sun/crypto/provider/AESCrypt")                                   \
+  /* support for com.sun.crypto.provider.AES_Crypt and some of its callers */                                            \
+  do_class(com_sun_crypto_provider_aescrypt,      "com/sun/crypto/provider/AES_Crypt")                                   \
   do_intrinsic(_aescrypt_encryptBlock, com_sun_crypto_provider_aescrypt, encryptBlock_name, byteArray_int_byteArray_int_signature, F_R)   \
   do_intrinsic(_aescrypt_decryptBlock, com_sun_crypto_provider_aescrypt, decryptBlock_name, byteArray_int_byteArray_int_signature, F_R)   \
    do_name(     encryptBlock_name,                                 "implEncryptBlock")                                  \
@@ -657,10 +663,10 @@ class methodHandle;
   do_intrinsic(_Continuation_unpin,        jdk_internal_vm_Continuation, unpin_name, void_method_signature, F_SN)       \
                                                                                                                         \
   /* java/lang/VirtualThread */                                                                                         \
-  do_intrinsic(_notifyJvmtiVThreadStart, java_lang_VirtualThread, notifyJvmtiStart_name, void_method_signature, F_RN)   \
-  do_intrinsic(_notifyJvmtiVThreadEnd, java_lang_VirtualThread, notifyJvmtiEnd_name, void_method_signature, F_RN)       \
-  do_intrinsic(_notifyJvmtiVThreadMount, java_lang_VirtualThread, notifyJvmtiMount_name, bool_void_signature, F_RN)     \
-  do_intrinsic(_notifyJvmtiVThreadUnmount, java_lang_VirtualThread, notifyJvmtiUnmount_name, bool_void_signature, F_RN) \
+  do_intrinsic(_vthreadEndFirstTransition, java_lang_VirtualThread, endFirstTransition_name, void_method_signature, F_RN) \
+  do_intrinsic(_vthreadStartFinalTransition, java_lang_VirtualThread, startFinalTransition_name, void_method_signature, F_RN) \
+  do_intrinsic(_vthreadStartTransition, java_lang_VirtualThread, startTransition_name, bool_void_signature, F_RN)       \
+  do_intrinsic(_vthreadEndTransition, java_lang_VirtualThread, endTransition_name, bool_void_signature, F_RN)           \
   do_intrinsic(_notifyJvmtiVThreadDisableSuspend, java_lang_VirtualThread, notifyJvmtiDisableSuspend_name, bool_void_signature, F_SN) \
                                                                                                                         \
   /* support for UnsafeConstants */                                                                                     \
@@ -700,6 +706,16 @@ class methodHandle;
   do_intrinsic(_fullFence,                jdk_internal_misc_Unsafe,     fullFence_name, fullFence_signature,           F_RN)     \
    do_name(     fullFence_name,                                         "fullFence")                                             \
    do_alias(    fullFence_signature,                                    void_method_signature)                                   \
+  do_intrinsic(_arrayInstanceBaseOffset,  jdk_internal_misc_Unsafe,     arrayInstanceBaseOffset_name, arrayProperties_signature, F_RN) \
+   do_name(     arrayInstanceBaseOffset_name,                           "arrayInstanceBaseOffset0")                              \
+   do_signature(arrayProperties_signature,                              "([Ljava/lang/Object;)I")                                \
+  do_intrinsic(_arrayInstanceIndexScale,  jdk_internal_misc_Unsafe,     arrayInstanceIndexScale_name, arrayProperties_signature, F_RN) \
+   do_name(     arrayInstanceIndexScale_name,                           "arrayInstanceIndexScale0")                              \
+  do_intrinsic(_arrayLayout,              jdk_internal_misc_Unsafe,     arrayLayout_name, arrayProperties_signature, F_RN)       \
+   do_name(     arrayLayout_name,                                       "arrayLayout0")                                          \
+  do_intrinsic(_getFieldMap,              jdk_internal_misc_Unsafe,     getFieldMap_name, getFieldMap_signature, F_RN)           \
+   do_name(     getFieldMap_name,                                       "getFieldMap0")                                          \
+   do_signature(getFieldMap_signature,                                  "(Ljava/lang/Class;)[I")                                 \
                                                                                                                         \
   /* Custom branch frequencies profiling support for JSR292 */                                                          \
   do_class(java_lang_invoke_MethodHandleImpl,               "java/lang/invoke/MethodHandleImpl")                        \
@@ -736,8 +752,6 @@ class methodHandle;
   do_signature(putFloat_signature,        "(Ljava/lang/Object;JF)V")                                                    \
   do_signature(getDouble_signature,       "(Ljava/lang/Object;J)D")                                                     \
   do_signature(putDouble_signature,       "(Ljava/lang/Object;JD)V")                                                    \
-  do_signature(getValue_signature,        "(Ljava/lang/Object;JLjava/lang/Class;)Ljava/lang/Object;")                   \
-  do_signature(putValue_signature,        "(Ljava/lang/Object;JLjava/lang/Class;Ljava/lang/Object;)V")                  \
   do_signature(getFlatValue_signature,    "(Ljava/lang/Object;JILjava/lang/Class;)Ljava/lang/Object;")                  \
   do_signature(putFlatValue_signature,    "(Ljava/lang/Object;JILjava/lang/Class;Ljava/lang/Object;)V")                 \
                                                                                                                         \
@@ -764,7 +778,6 @@ class methodHandle;
   do_intrinsic(_getLong,            jdk_internal_misc_Unsafe,     getLong_name, getLong_signature,               F_RN)  \
   do_intrinsic(_getFloat,           jdk_internal_misc_Unsafe,     getFloat_name, getFloat_signature,             F_RN)  \
   do_intrinsic(_getDouble,          jdk_internal_misc_Unsafe,     getDouble_name, getDouble_signature,           F_RN)  \
-  do_intrinsic(_getValue,           jdk_internal_misc_Unsafe,     getValue_name, getValue_signature,             F_RN)  \
   do_intrinsic(_getFlatValue,       jdk_internal_misc_Unsafe,     getFlatValue_name, getFlatValue_signature,     F_RN)  \
   do_intrinsic(_putReference,       jdk_internal_misc_Unsafe,     putReference_name, putReference_signature,     F_RN)  \
   do_intrinsic(_putBoolean,         jdk_internal_misc_Unsafe,     putBoolean_name, putBoolean_signature,         F_RN)  \
@@ -775,7 +788,6 @@ class methodHandle;
   do_intrinsic(_putLong,            jdk_internal_misc_Unsafe,     putLong_name, putLong_signature,               F_RN)  \
   do_intrinsic(_putFloat,           jdk_internal_misc_Unsafe,     putFloat_name, putFloat_signature,             F_RN)  \
   do_intrinsic(_putDouble,          jdk_internal_misc_Unsafe,     putDouble_name, putDouble_signature,           F_RN)  \
-  do_intrinsic(_putValue,           jdk_internal_misc_Unsafe,     putValue_name, putValue_signature,             F_RN)  \
   do_intrinsic(_putFlatValue,       jdk_internal_misc_Unsafe,     putFlatValue_name, putFlatValue_signature,     F_RN)  \
                                                                                                                         \
   do_intrinsic(_makePrivateBuffer,  jdk_internal_misc_Unsafe,     makePrivateBuffer_name, object_object_signature, F_RN)   \

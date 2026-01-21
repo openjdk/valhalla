@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,11 +33,6 @@
 
 inline oop CollectedHeap::obj_allocate(Klass* klass, size_t size, TRAPS) {
   ObjAllocator allocator(klass, size, THREAD);
-  return allocator.allocate();
-}
-
-inline oop CollectedHeap::obj_buffer_allocate(Klass* klass, size_t size, TRAPS) {
-  ObjBufferAllocator allocator(klass, size, THREAD);
   return allocator.allocate();
 }
 

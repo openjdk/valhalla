@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,8 +66,79 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
  * @enablePreview
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrays
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @run main compiler.valhalla.inlinetypes.TestArrays 6
  */
 
 @ForceCompileClassInitializer
@@ -81,7 +152,7 @@ public class TestArrays {
         scenarios[5].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class, MyValue2.class, MyValue2Inline.class)
                    .start();
     }
@@ -339,7 +410,7 @@ public class TestArrays {
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 3; j++) {
                 for (int k = 0; k < 4; k++) {
-                    Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i , rL + j + k).hash());
+                    Asserts.assertEQ(MyValue1.createWithFieldsDontInline(rI + i , rL + j + k), arr[i][j][k]);
                 }
             }
         }
@@ -538,7 +609,7 @@ public class TestArrays {
         }
         MyValue1[] result = test18(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(result[i].hash(), va[i].hash());
+            Asserts.assertEQ(va[i], result[i]);
         }
     }
 
@@ -560,7 +631,7 @@ public class TestArrays {
     public void test19_verifier() {
         MyValue1[] result = test19();
         for (int i = 0; i < test19_orig.length; ++i) {
-            Asserts.assertEQ(result[i].hash(), test19_orig[i].hash());
+            Asserts.assertEQ(test19_orig[i], result[i]);
         }
     }
 
@@ -580,7 +651,7 @@ public class TestArrays {
         }
         test20(src, dst);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -600,7 +671,7 @@ public class TestArrays {
         }
         test21(src, dst);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -622,7 +693,7 @@ public class TestArrays {
         }
         MyValue1[] dst = test22(src);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -644,7 +715,7 @@ public class TestArrays {
         }
         MyValue1[] dst = test23(src);
         for (int i = 5; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -665,11 +736,11 @@ public class TestArrays {
         }
         test24(src, dst1);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(dst1[i], src[i]);
         }
         test24(src, dst2);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), ((MyValue1)dst2[i]).hash());
+            Asserts.assertEQ(dst2[i], src[i]);
         }
     }
 
@@ -688,7 +759,7 @@ public class TestArrays {
         }
         test25(src, dst);
         for (int i = 0; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -707,7 +778,7 @@ public class TestArrays {
         }
         test26(src, dst);
         for (int i = 0; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -726,7 +797,7 @@ public class TestArrays {
         }
         test27(src, dst);
         for (int i = 2; i < 8; ++i) {
-            Asserts.assertEQ(src[i-1].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i - 1]);
         }
     }
 
@@ -746,11 +817,11 @@ public class TestArrays {
     public void test28_verifier() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 result = test28();
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // non escaping allocations
-    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
+    // TODO 8350865: Support flat arrays in System.arraycopy
     // @Test(failOn = ALLOC_OF_MYVALUE_KLASS, + ALLOC_ARRAY_OF_MYVALUE_KLASS + LOOP + LOAD_OF_ANY_KLASS + STORE_OF_ANY_KLASS + UNSTABLE_IF_TRAP, PREDICATE_TRAP)
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
@@ -770,7 +841,7 @@ public class TestArrays {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2 v = test29(src);
-        Asserts.assertEQ(src[0].hash(), v.hash());
+        Asserts.assertEQ(src[0], v);
     }
 
     // non escaping allocation with uncommon trap that needs
@@ -791,7 +862,7 @@ public class TestArrays {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2 v = test30(src, !info.isWarmUp());
-        Asserts.assertEQ(src[0].hash(), v.hash());
+        Asserts.assertEQ(src[0], v);
     }
 
 
@@ -838,7 +909,7 @@ public class TestArrays {
         }
         MyValue1[] result = (MyValue1[])test32(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            Asserts.assertEQ(va[i], result[i]);
         }
     }
 
@@ -856,7 +927,7 @@ public class TestArrays {
         }
         Object[] result = test33(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            Asserts.assertEQ(va[i], result[i]);
             // Check that array has correct properties (null-ok)
             result[i] = null;
         }
@@ -1711,9 +1782,9 @@ public class TestArrays {
         } catch (ArrayStoreException e) {
             // expected
         }
-        Asserts.assertEQ(arr[0].hash(), v0.hash());
-        Asserts.assertEQ(arr[1].hash(), v1.hash());
-        Asserts.assertEQ(arr[2].hash(), v1.hash());
+        Asserts.assertEQ(v0, arr[0]);
+        Asserts.assertEQ(v1, arr[1]);
+        Asserts.assertEQ(v1, arr[2]);
     }
 
     public static void test74Callee(MyValue1[] va) { }
@@ -2838,8 +2909,7 @@ public class TestArrays {
     }
 
     @Test
-    // TODO 8366668
-    // @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -2880,7 +2950,7 @@ public class TestArrays {
 
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"})
-    // TODO JDK-8329224
+    // TODO 8251971
     // failOn = INTRINSIC_SLOW_PATH)
     public Object[] test118(Object[] src) {
         return Arrays.copyOf(src, 8, val_src.getClass());
@@ -2911,7 +2981,7 @@ public class TestArrays {
 
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"})
-    // TODO JDK-8329224
+    // TODO 8251971
     // failOn = INTRINSIC_SLOW_PATH)
     public Object[] test120(Object[] src) {
         return Arrays.copyOf(src, 8, NonValueClass[].class);
@@ -3253,8 +3323,8 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    // TODO 8366668
-    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = empty;
@@ -3280,8 +3350,8 @@ public class TestArrays {
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         synchronized (array1) {
             Object res = test135(array1, array1[1]);
-            Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
-            Asserts.assertEquals(array1[0].hash(), array1[1].hash());
+            Asserts.assertEquals(array1[1], res);
+            Asserts.assertEquals(array1[0], array1[1]);
         }
         NonValueClass[] array2 = new NonValueClass[2];
         array2[1] = new NonValueClass(rI);
@@ -3308,8 +3378,8 @@ public class TestArrays {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         Object res = test136(array1, array1[1]);
-        Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
-        Asserts.assertEquals(array1[0].hash(), array1[1].hash());
+        Asserts.assertEquals(array1[1], res);
+        Asserts.assertEquals(array1[0], array1[1]);
         NonValueClass[] array2 = new NonValueClass[2];
         array2[1] = new NonValueClass(rI);
         res = test136(array2, array2[1]);
@@ -3772,5 +3842,20 @@ public class TestArrays {
     @Run(test = "test154")
     public void test154_verifier() {
         Asserts.assertEquals(test154(), rD);
+    }
+
+    // When accessing into an array, we can speculate on the exact type of the array. If the
+    // speculative assumption holds, we can elide all checks on properties of the array (flatness,
+    // atomicity, nullability).
+    @Test
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {IRNode.MEMBAR}, counts = {IRNode.IF, "3"}) // null check, class check, range check
+    static int test155(Test151Value[] a) {
+        return a[0].b;
+    }
+
+    @Run(test = "test155")
+    public void test155_verifier() {
+        test155((Test151Value[])ValueClass.newNullRestrictedNonAtomicArray(Test151Value.class, 1, Test151Value.DEFAULT));
     }
 }

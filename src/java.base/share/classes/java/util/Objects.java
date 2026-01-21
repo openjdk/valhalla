@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.util;
 
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
@@ -61,12 +60,7 @@ public final class Objects {
      * @see Object#equals(Object)
      */
     public static boolean equals(Object a, Object b) {
-        if (PreviewFeatures.isEnabled()) {
-            // With --enable-preview avoid acmp
-            return (a == null) ? b == null : a.equals(b);
-        } else {
-            return (a == b) || (a != null && a.equals(b));
-        }
+        return (a == b) || (a != null && a.equals(b));
     }
 
    /**

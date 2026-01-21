@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
 import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
 
 /**
- * @test InlineTypesTest
+ * @test id=default
  * @summary Test data movement with inline types
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/java/lang/invoke/common
@@ -62,6 +62,16 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
+ */
+
+/**
+ * @test id=force-non-tearable
+ * @summary Test data movement with inline types
+ * @modules java.base/jdk.internal.value
+ * @library /test/lib /test/jdk/java/lang/invoke/common
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile InlineTypesTest.java
  * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:ForceNonTearable=*

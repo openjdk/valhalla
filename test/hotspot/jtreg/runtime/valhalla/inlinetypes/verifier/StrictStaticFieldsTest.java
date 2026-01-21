@@ -32,8 +32,10 @@
  *          Creflbefore_BAD.jasm
  *          WriteAfterReadRefl.jasm
  * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED StrictStaticFieldsTest.java
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions StrictStaticFieldsTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
  */
+
+package runtime.valhalla.inlinetypes.verifier;
 
 import java.lang.reflect.*;
 import jdk.internal.vm.annotation.Strict;

@@ -23,6 +23,7 @@
  */
 
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -46,6 +47,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
@@ -141,7 +143,7 @@ void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
   bs->eliminate_gc_barrier(&_igvn, p2x);
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
-    Atomic::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
+    AtomicAccess::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
   }
 #endif
 }
@@ -180,6 +182,8 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
             return ac;
           }
         }
+        mem = in->in(TypeFunc::Memory);
+      } else if (in->is_LoadFlat() || in->is_StoreFlat()) {
         mem = in->in(TypeFunc::Memory);
       } else {
 #ifdef ASSERT
@@ -381,20 +385,13 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
         // hit a sentinel, return appropriate value
-        Node* init_value = alloc->in(AllocateNode::InitValue);
-        if (init_value != nullptr) {
-          if (val == start_mem) {
-            // TODO 8350865 Scalar replacement does not work well for flat arrays.
-            // Somehow we ended up with root mem and therefore walked past the alloc. Fix this. Triggered by TestGenerated::test15
-            // Don't we need field_value_by_offset?
-            return nullptr;
-          }
-          values.at_put(j, init_value);
+        Node* init_value = value_from_alloc(ft, adr_t, alloc);
+        if (init_value == nullptr) {
+          return nullptr;
         } else {
-          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-          values.at_put(j, _igvn.zerocon(ft));
+          values.at_put(j, init_value);
+          continue;
         }
-        continue;
       }
       if (val->is_Initialize()) {
         val = val->as_Initialize()->find_captured_store(offset, type2aelembytes(ft), &_igvn);
@@ -413,14 +410,11 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
         }
         values.at_put(j, n);
       } else if (val->is_Proj() && val->in(0) == alloc) {
-        Node* init_value = alloc->in(AllocateNode::InitValue);
-        if (init_value != nullptr) {
-          // TODO 8350865 Scalar replacement does not work well for flat arrays.
-          // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
-          values.at_put(j, init_value);
+        Node* init_value = value_from_alloc(ft, adr_t, alloc);
+        if (init_value == nullptr) {
+          return nullptr;
         } else {
-          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-          values.at_put(j, _igvn.zerocon(ft));
+          values.at_put(j, init_value);
         }
       } else if (val->is_Phi()) {
         val = value_from_mem_phi(val, ft, phi_type, adr_t, alloc, value_phis, level-1);
@@ -460,6 +454,62 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     }
   }
   return phi;
+}
+
+// Extract the initial value of a field in an allocation
+Node* PhaseMacroExpand::value_from_alloc(BasicType ft, const TypeOopPtr* adr_t, AllocateNode* alloc) {
+  Node* init_value = alloc->in(AllocateNode::InitValue);
+  if (init_value == nullptr) {
+    assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "conflicting InitValue and RawInitValue");
+    return _igvn.zerocon(ft);
+  }
+
+  const TypeAryPtr* ary_t = adr_t->isa_aryptr();
+  assert(ary_t != nullptr, "must be a pointer into an array");
+
+  // If this is not a flat array, then it must be an oop array with elements being init_value
+  if (ary_t->is_not_flat()) {
+#ifdef ASSERT
+    BasicType init_bt = init_value->bottom_type()->basic_type();
+    assert(ft == init_bt ||
+           (!is_java_primitive(ft) && !is_java_primitive(init_bt) && type2aelembytes(ft, true) == type2aelembytes(init_bt, true)) ||
+           (is_subword_type(ft) && init_bt == T_INT),
+           "invalid init_value of type %s for field of type %s", type2name(init_bt), type2name(ft));
+#endif // ASSERT
+    return init_value;
+  }
+
+  assert(ary_t->klass_is_exact() && ary_t->is_flat(), "must be an exact flat array");
+  assert(ary_t->field_offset().get() != Type::OffsetBot, "unknown offset");
+  if (init_value->is_EncodeP()) {
+    init_value = init_value->in(1);
+  }
+  // Cannot look through init_value if it is an oop
+  if (!init_value->is_InlineType()) {
+    return nullptr;
+  }
+
+  ciInlineKlass* vk = init_value->bottom_type()->inline_klass();
+  if (ary_t->field_offset().get() == vk->null_marker_offset_in_payload()) {
+    init_value = init_value->as_InlineType()->get_null_marker();
+  } else {
+    init_value = init_value->as_InlineType()->field_value_by_offset(ary_t->field_offset().get() + vk->payload_offset(), true);
+  }
+
+  if (ft == T_NARROWOOP) {
+    assert(init_value->bottom_type()->isa_ptr(), "must be a pointer");
+    init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_narrowoop()));
+  }
+
+#ifdef ASSERT
+  BasicType init_bt = init_value->bottom_type()->basic_type();
+  assert(ft == init_bt ||
+         (!is_java_primitive(ft) && !is_java_primitive(init_bt) && type2aelembytes(ft, true) == type2aelembytes(init_bt, true)) ||
+         (is_subword_type(ft) && init_bt == T_INT),
+         "invalid init_value of type %s for field of type %s", type2name(init_bt), type2name(ft));
+#endif // ASSERT
+
+  return init_value;
 }
 
 // Search the last value stored into the object's field.
@@ -522,6 +572,11 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       }
     } else if (mem->is_ArrayCopy()) {
       done = true;
+    } else if (mem->is_top()) {
+      // The slice is on a dead path. Returning nullptr would lead to elimination
+      // bailout, but we want to prevent that. Just forwarding the top is also legal,
+      // and IGVN can just clean things up, and remove whatever receives top.
+      return mem;
     } else {
       DEBUG_ONLY( mem->dump(); )
       assert(false, "unexpected node");
@@ -530,23 +585,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   if (mem != nullptr) {
     if (mem == start_mem || mem == alloc_mem) {
       // hit a sentinel, return appropriate value
-      Node* init_value = alloc->in(AllocateNode::InitValue);
-      if (init_value != nullptr) {
-        if (adr_t->is_flat()) {
-          if (init_value->is_EncodeP()) {
-            init_value = init_value->in(1);
-          }
-          assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
-          offset = adr_t->is_aryptr()->field_offset().get() + init_value->bottom_type()->inline_klass()->payload_offset();
-          init_value = init_value->as_InlineType()->field_value_by_offset(offset, true);
-          if (ft == T_NARROWOOP) {
-            init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
-          }
-        }
-        return init_value;
-      }
-      assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-      return _igvn.zerocon(ft);
+      return value_from_alloc(ft, adr_t, alloc);
     } else if (mem->is_Store()) {
       Node* n = mem->in(MemNode::ValueIn);
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -703,6 +742,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax);
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
+          if ((n->is_Mem() && n->as_Mem()->is_mismatched_access()) || n->is_LoadFlat() || n->is_StoreFlat()) {
+            DEBUG_ONLY(disq_node = n);
+            NOT_PRODUCT(fail_eliminate = "Mismatched access");
+            can_eliminate = false;
+          }
           if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n) && !reduce_merge_precheck) {
             DEBUG_ONLY(disq_node = n;)
             if (n->is_Load() || n->is_LoadStore()) {
@@ -867,6 +911,41 @@ void PhaseMacroExpand::undo_previous_scalarizations(GrowableArray <SafePointNode
   }
 }
 
+#ifdef ASSERT
+  // Verify if a value can be written into a field.
+  void verify_type_compatability(const Type* value_type, const Type* field_type) {
+    BasicType value_bt = value_type->basic_type();
+    BasicType field_bt = field_type->basic_type();
+
+    // Primitive types must match.
+    if (is_java_primitive(value_bt) && value_bt == field_bt) { return; }
+
+    // I have been struggling to make a similar assert for non-primitive
+    // types. I we can add one in the future. For now, I just let them
+    // pass without checks.
+    // In particular, I was struggling with a value that came from a call,
+    // and had only a non-null check CastPP. There was also a checkcast
+    // in the graph to verify the interface, but the corresponding
+    // CheckCastPP result was not updated in the stack slot, and so
+    // we ended up using the CastPP. That means that the field knows
+    // that it should get an oop from an interface, but the value lost
+    // that information, and so it is not a subtype.
+    // There may be other issues, feel free to investigate further!
+    if (!is_java_primitive(value_bt)) { return; }
+
+    tty->print_cr("value not compatible for field: %s vs %s",
+                  type2name(value_bt),
+                  type2name(field_bt));
+    tty->print("value_type: ");
+    value_type->dump();
+    tty->cr();
+    tty->print("field_type: ");
+    field_type->dump();
+    tty->cr();
+    assert(false, "value_type does not fit field_type");
+  }
+#endif
+
 void PhaseMacroExpand::process_field_value_at_safepoint(const Type* field_type, Node* field_val, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
   if (UseCompressedOops && field_type->isa_narrowoop()) {
     // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
@@ -890,6 +969,7 @@ void PhaseMacroExpand::process_field_value_at_safepoint(const Type* field_type, 
       value_worklist->push(field_val);
     }
   }
+  DEBUG_ONLY(verify_type_compatability(field_val->bottom_type(), field_type);)
   sfpt->add_req(field_val);
 }
 
@@ -1207,13 +1287,14 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
         use->as_InlineType()->set_oop(_igvn, _igvn.zerocon(T_OBJECT));
+        use->as_InlineType()->set_is_buffered(_igvn, false);
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
         // Process users
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
           Node* u = use->fast_out(k);
-          if (!u->is_InlineType()) {
+          if (!u->is_InlineType() && !u->is_StoreFlat()) {
             worklist.push(u);
           }
         }
@@ -1255,7 +1336,6 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
       if (use->is_Initialize()) {
         // Eliminate Initialize node.
         InitializeNode *init = use->as_Initialize();
-        assert(init->outcnt() <= 2, "only a control and memory projection expected");
         Node *ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
         if (ctrl_proj != nullptr) {
           _igvn.replace_node(ctrl_proj, init->in(TypeFunc::Control));
@@ -1265,18 +1345,18 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           assert(tmp == nullptr || tmp == _callprojs->fallthrough_catchproj, "allocation control projection");
 #endif
         }
-        Node *mem_proj = init->proj_out_or_null(TypeFunc::Memory);
-        if (mem_proj != nullptr) {
-          Node *mem = init->in(TypeFunc::Memory);
+        Node* mem = init->in(TypeFunc::Memory);
 #ifdef ASSERT
+        if (init->number_of_projs(TypeFunc::Memory) > 0) {
           if (mem->is_MergeMem()) {
-            assert(mem->in(TypeFunc::Memory) == _callprojs->fallthrough_memproj, "allocation memory projection");
+            assert(mem->as_MergeMem()->memory_at(Compile::AliasIdxRaw) == _callprojs->fallthrough_memproj, "allocation memory projection");
           } else {
             assert(mem == _callprojs->fallthrough_memproj, "allocation memory projection");
           }
-#endif
-          _igvn.replace_node(mem_proj, mem);
         }
+#endif
+        init->replace_mem_projs_by(mem, &_igvn);
+        assert(init->outcnt() == 0, "should only have had a control and some memory projections, and we removed them");
       } else if (use->Opcode() == Op_MemBarStoreStore) {
         // Inline type buffer allocations are followed by a membar
         assert(inline_alloc, "Unexpected MemBarStoreStore");
@@ -1883,7 +1963,16 @@ void PhaseMacroExpand::expand_initialize_membar(AllocateNode* alloc, InitializeN
       // No InitializeNode or no stores captured by zeroing
       // elimination. Simply add the MemBarStoreStore after object
       // initialization.
-      MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxBot);
+      // What we want is to prevent the compiler and the CPU from re-ordering the stores that initialize this object
+      // with subsequent stores to any slice. As a consequence, this MemBar should capture the entire memory state at
+      // this point in the IR and produce a new memory state that should cover all slices. However, the Initialize node
+      // only captures/produces a partial memory state making it complicated to insert such a MemBar. Because
+      // re-ordering by the compiler can't happen by construction (a later Store that publishes the just allocated
+      // object reference is indirectly control dependent on the Initialize node), preventing reordering by the CPU is
+      // sufficient. For that a MemBar on the raw memory slice is good enough.
+      // If init is null, this allocation does have an InitializeNode but this logic can't locate it (see comment in
+      // PhaseMacroExpand::initialize_object()).
+      MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxRaw);
       transform_later(mb);
 
       mb->init_req(TypeFunc::Memory, fast_oop_rawmem);
@@ -1899,24 +1988,33 @@ void PhaseMacroExpand::expand_initialize_membar(AllocateNode* alloc, InitializeN
       // barrier.
 
       Node* init_ctrl = init->proj_out_or_null(TypeFunc::Control);
-      Node* init_mem = init->proj_out_or_null(TypeFunc::Memory);
 
-      MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxBot);
+      // See comment above that explains why a raw memory MemBar is good enough.
+      MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxRaw);
       transform_later(mb);
 
       Node* ctrl = new ProjNode(init, TypeFunc::Control);
       transform_later(ctrl);
-      Node* mem = new ProjNode(init, TypeFunc::Memory);
-      transform_later(mem);
+      Node* old_raw_mem_proj = nullptr;
+      auto find_raw_mem = [&](ProjNode* proj) {
+        if (C->get_alias_index(proj->adr_type()) == Compile::AliasIdxRaw) {
+          assert(old_raw_mem_proj == nullptr, "only one expected");
+          old_raw_mem_proj = proj;
+        }
+      };
+      init->for_each_proj(find_raw_mem, TypeFunc::Memory);
+      assert(old_raw_mem_proj != nullptr, "should have found raw mem Proj");
+      Node* raw_mem_proj = new ProjNode(init, TypeFunc::Memory);
+      transform_later(raw_mem_proj);
 
       // The MemBarStoreStore depends on control and memory coming
       // from the InitializeNode
-      mb->init_req(TypeFunc::Memory, mem);
+      mb->init_req(TypeFunc::Memory, raw_mem_proj);
       mb->init_req(TypeFunc::Control, ctrl);
 
       ctrl = new ProjNode(mb, TypeFunc::Control);
       transform_later(ctrl);
-      mem = new ProjNode(mb, TypeFunc::Memory);
+      Node* mem = new ProjNode(mb, TypeFunc::Memory);
       transform_later(mem);
 
       // All nodes that depended on the InitializeNode for control
@@ -1925,9 +2023,7 @@ void PhaseMacroExpand::expand_initialize_membar(AllocateNode* alloc, InitializeN
       if (init_ctrl != nullptr) {
         _igvn.replace_node(init_ctrl, ctrl);
       }
-      if (init_mem != nullptr) {
-        _igvn.replace_node(init_mem, mem);
-      }
+      _igvn.replace_node(old_raw_mem_proj, mem);
     }
   }
 }
@@ -2196,12 +2292,8 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
   Node* init_value = alloc->in(AllocateNode::InitValue);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
-  // TODO 8366668 Compute the VM type, is this even needed now that we set it earlier? Should we assert instead?
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
-    ary_klass_t = ary_klass_t->get_vm_type();
-    klass_node = makecon(ary_klass_t);
-    _igvn.replace_input_of(alloc, AllocateNode::KlassNode, klass_node);
-  }
+  assert(!ary_klass_t || !ary_klass_t->klass_is_exact() || !ary_klass_t->exact_klass()->is_obj_array_klass() ||
+         ary_klass_t->is_refined_type(), "Must be a refined array klass");
   const TypeFunc* slow_call_type;
   address slow_call_address;  // Address of slow call
   if (init != nullptr && init->is_complete_with_arraycopy() &&
@@ -2680,8 +2772,8 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
         fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
       }
     }
-    Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* members  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
                                         nullptr,
                                         "pack handler",
@@ -2836,8 +2928,8 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
       continue;
     }
 
-    Node* iftrue = iff->as_If()->proj_out(1);
-    Node* iffalse = iff->as_If()->proj_out(0);
+    IfTrueNode* iftrue = iff->as_If()->true_proj();
+    IfFalseNode* iffalse = iff->as_If()->false_proj();
     Node* ctrl = iff->in(0);
 
     Node* subklass = nullptr;
@@ -2953,7 +3045,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
     Node* m2b = transform_later(new Conv2BNode(masked));
-    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // The matcher expects the input to If/CMove nodes to be produced by a Bool(CmpI..)
     // pattern, but the input to other potential users (e.g. Phi) to be some
     // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
@@ -2962,7 +3054,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       for (uint j = 0; j < user->req(); j++) {
         Node* n = user->in(j);
         if (n == old_bol) {
-          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+          _igvn.replace_input_of(user, j, (user->is_If() || user->is_CMove()) ? bol : m2b);
         }
       }
     }
@@ -3034,7 +3126,7 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
         success = eliminate_allocate_node(n->as_Allocate());
 #ifndef PRODUCT
         if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_objs_scalar_replaced_counter);
+          AtomicAccess::inc(&PhaseMacroExpand::_objs_scalar_replaced_counter);
         }
 #endif
         break;
@@ -3051,7 +3143,7 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
           success = eliminate_locking_node(n->as_AbstractLock());
 #ifndef PRODUCT
           if (success && PrintOptoStatistics) {
-            Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+            AtomicAccess::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
           }
 #endif
         }
@@ -3103,7 +3195,7 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
     int membar_after = count_MemBar(C);
-    Atomic::add(&PhaseMacroExpand::_memory_barriers_removed_counter, membar_before - membar_after);
+    AtomicAccess::add(&PhaseMacroExpand::_memory_barriers_removed_counter, membar_before - membar_after);
   }
 #endif
 }
@@ -3254,8 +3346,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       case Op_ModD:
       case Op_ModF: {
         CallNode* mod_macro = n->as_Call();
-        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(),
-                                              mod_macro->_name, TypeRawPtr::BOTTOM);
+        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(), mod_macro->_name);
         call->init_req(TypeFunc::Control, mod_macro->in(TypeFunc::Control));
         call->init_req(TypeFunc::I_O, C->top());
         call->init_req(TypeFunc::Memory, C->top());
@@ -3338,10 +3429,10 @@ int PhaseMacroExpand::_GC_barriers_removed_counter = 0;
 int PhaseMacroExpand::_memory_barriers_removed_counter = 0;
 
 void PhaseMacroExpand::print_statistics() {
-  tty->print("Objects scalar replaced = %d, ", Atomic::load(&_objs_scalar_replaced_counter));
-  tty->print("Monitor objects removed = %d, ", Atomic::load(&_monitor_objects_removed_counter));
-  tty->print("GC barriers removed = %d, ", Atomic::load(&_GC_barriers_removed_counter));
-  tty->print_cr("Memory barriers removed = %d", Atomic::load(&_memory_barriers_removed_counter));
+  tty->print("Objects scalar replaced = %d, ", AtomicAccess::load(&_objs_scalar_replaced_counter));
+  tty->print("Monitor objects removed = %d, ", AtomicAccess::load(&_monitor_objects_removed_counter));
+  tty->print("GC barriers removed = %d, ", AtomicAccess::load(&_GC_barriers_removed_counter));
+  tty->print_cr("Memory barriers removed = %d", AtomicAccess::load(&_memory_barriers_removed_counter));
 }
 
 int PhaseMacroExpand::count_MemBar(Compile *C) {

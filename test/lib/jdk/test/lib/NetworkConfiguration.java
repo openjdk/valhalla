@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@ public class NetworkConfiguration {
     private boolean has_linklocaladdress = false;
     private boolean has_globaladdress = false;
 
+    @SuppressWarnings("initialization")
     private NetworkConfiguration(
             Map<NetworkInterface,List<Inet4Address>> ip4Interfaces,
             Map<NetworkInterface,List<Inet6Address>> ip6Interfaces) {

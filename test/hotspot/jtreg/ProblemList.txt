@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java 8190680 generic-all
 
 compiler/runtime/Test8168712.java#with-dtrace 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
 compiler/runtime/Test8168712.java#without-dtrace 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
-compiler/loopopts/TestUnreachableInnerLoop.java 8288981 linux-s390x
+compiler/runtime/Test7196199.java 8365196 windows-x64
 
 compiler/c2/Test8004741.java 8235801 generic-all
 compiler/c2/irTests/TestDuplicateBackedge.java 8318904 generic-all
@@ -75,21 +75,32 @@ compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 
 compiler/interpreter/Test6833129.java 8335266 generic-i586
 
-compiler/ciReplay/TestInliningProtectionDomain.java 8349191 generic-all
-compiler/ciReplay/TestIncrementalInlining.java 8349191 generic-all
-
-compiler/c2/TestVerifyConstraintCasts.java 8355574 generic-all
-
 compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 
-compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessProviderTest.java 8350208 generic-all
-compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
+serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150 generic-all
 
 # Valhalla
-compiler/gcbarriers/TestImplicitNullChecks.java 8367338 generic-all
-compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
-compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
-compiler/types/correctness/OffTest.java 8365895 windows-x64
+compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
+compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
+compiler/valhalla/inlinetypes/TestTrivialMethods.java 8373692 generic-all
+compiler/c2/cmove/TestScalarConditionalMoveCmpObj.java    8374122 generic-all
+compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
+compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
+compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
 #############################################################################
 
@@ -104,6 +115,9 @@ gc/TestAllocHumongousFragment.java#g1 8298781 generic-all
 gc/TestAllocHumongousFragment.java#static 8298781 generic-all
 gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
 gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
+gc/shenandoah/TestRetainObjects.java#no-tlab 8361099 generic-all
+gc/shenandoah/TestSieveObjects.java#no-tlab 8361099 generic-all
+gc/shenandoah/TestSieveObjects.java#no-tlab-genshen 8361099 generic-all
 
 #############################################################################
 
@@ -131,21 +145,15 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 
 
 # Valhalla
-runtime/valhalla/inlinetypes/classloading/ConcurrentClassLoadingTest.java 8367412 linux-aarch64
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
-
-runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774           generic-all
-runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
-
-# Valhalla + AOT
-runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
 
 #############################################################################
 
 # :hotspot_serviceability
 
-serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 macosx-x64,macosx-aarch64
+# 8239062 and 8270326 only affects macosx-x64,macosx-aarch64
+serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 generic-all
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 
 serviceability/jvmti/vthread/GetThreadStateMountedTest/GetThreadStateMountedTest.java 8318090,8318729 generic-all
@@ -165,14 +173,8 @@ serviceability/sa/ClhsdbThreadContext.java        8356704 windows-x64
 
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java 8315980 linux-all,windows-x64
 
-serviceability/sa/JhsdbThreadInfoTest.java              8344261 generic-all
-serviceability/sa/TestJhsdbJstackLock.java              8344261 generic-all
-serviceability/sa/sadebugd/DebugdConnectTest.java       8344261 generic-all
-serviceability/attach/RemovingUnixDomainSocketTest.java 8344261 generic-all
 
 # Valhalla TODO:
-serviceability/jvmti/valhalla/HeapDump/HeapDump.java 8317416 generic-all
-
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
@@ -200,8 +202,6 @@ serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
 
-compiler/stringopts/TestStackedConcatsAppendUncommonTrap.java 8367405 generic-all
-
 # Array Changes TODO
 serviceability/sa/CDSJMapClstats.java 8365722 generic-all
 serviceability/sa/ClhsdbClasses.java 8365722 generic-all
@@ -212,21 +212,22 @@ serviceability/sa/sadebugd/DebugdConnectTest.java 8365722 generic-all
 serviceability/sa/ClhsdbJhisto.java 8365722 generic-all
 serviceability/sa/ClhsdbJstack.java#id1 8365722 generic-all
 serviceability/sa/ClhsdbJstackWithConcurrentLock.java 8365722 generic-all
+serviceability/sa/TestJhsdbJstackWithVirtualThread.java 8365722 generic-all
 serviceability/sa/ClhsdbJstackXcompStress.java 8365722 generic-all
 serviceability/sa/ClhsdbPstack.java#process 8365722 generic-all
 serviceability/sa/ClhsdbPstack.java#core 8365722 generic-all
 serviceability/sa/ClhsdbScanOops.java#id0 8365722 generic-all
 serviceability/sa/ClhsdbScanOops.java#id1 8365722 generic-all
+serviceability/sa/ClhsdbScanOops.java#serial 8365722 generic-all
+serviceability/sa/ClhsdbScanOops.java#parallel 8365722 generic-all
 serviceability/sa/DeadlockDetectionTest.java 8365722 generic-all
 serviceability/sa/ClhsdbJstack.java#id0 8365722 generic-all
 serviceability/sa/TestInstanceKlassSize.java 8365722 generic-all
 serviceability/sa/TestSysProps.java 8365722 generic-all
 serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
 resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
-serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
 resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8190936 generic-all
-serviceability/jvmti/valhalla/GetSetLocal/ValueGetSetLocal.java 8367590 generic-all
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 
 #############################################################################
@@ -251,6 +252,7 @@ vmTestbase/metaspace/gc/firstGC_99m/TestDescription.java 8208250 generic-all
 vmTestbase/metaspace/gc/firstGC_default/TestDescription.java 8208250 generic-all
 
 vmTestbase/nsk/jvmti/scenarios/capability/CM03/cm03t001/TestDescription.java 8073470 linux-all
+vmTestbase/nsk/jvmti/scenarios/events/EM02/em02t006/TestDescription.java 8372206 generic-all
 vmTestbase/nsk/jvmti/InterruptThread/intrpthrd003/TestDescription.java 8288911 macosx-all
 
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening001.java 8148743 generic-all
@@ -270,3 +272,7 @@ vmTestbase/nsk/monitoring/ThreadMXBean/ThreadInfo/Multi/Multi005/TestDescription
 vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
 
 vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/TestDescription.java 8310144 macosx-aarch64
+
+vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
+vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
+vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64

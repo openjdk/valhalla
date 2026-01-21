@@ -22,26 +22,26 @@
  *
  */
 
-#include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
-#include "cds/metaspaceShared.hpp"
+#include "cds/aotMetaspace.hpp"
 #include "compiler/disassembler.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeStream.hpp"
+#include "interpreter/interp_masm.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
-#include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
-#include "oops/methodData.hpp"
 #include "oops/method.inline.hpp"
+#include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -154,7 +154,13 @@ AbstractInterpreter::MethodKind AbstractInterpreter::method_kind(const methodHan
         if (m->code_size() == 1) {
           // We need to execute the special return bytecode to check for
           // finalizer registration so create a normal frame.
+          // No need to use the method kind with a memory barrier on entry
+          // because the method is empty and already has a memory barrier on return
           return zerolocals;
+        } else if (Arguments::is_valhalla_enabled()) {
+          // For non-empty Object constructors, we need a memory barrier
+          // when entering the method to ensure correctness of strict fields
+          return object_init;
         }
         break;
       default: break;
@@ -259,7 +265,8 @@ bool AbstractInterpreter::is_not_reached(const methodHandle& method, int bci) {
       case Bytecodes::_invokedynamic: {
         assert(invoke_bc.has_index_u4(code), "sanity");
         int method_index = invoke_bc.get_index_u4(code);
-        return cpool->resolved_indy_entry_at(method_index)->is_resolved();
+        bool is_resolved = cpool->resolved_indy_entry_at(method_index)->is_resolved();
+        return !is_resolved;
       }
       case Bytecodes::_invokevirtual:   // fall-through
       case Bytecodes::_invokeinterface: // fall-through
@@ -303,6 +310,7 @@ void AbstractInterpreter::print_method_kind(MethodKind kind) {
     case getter                 : tty->print("getter"                 ); break;
     case setter                 : tty->print("setter"                 ); break;
     case abstract               : tty->print("abstract"               ); break;
+    case object_init            : tty->print("object_init"            ); break;
     case java_lang_math_sin     : tty->print("java_lang_math_sin"     ); break;
     case java_lang_math_cos     : tty->print("java_lang_math_cos"     ); break;
     case java_lang_math_tan     : tty->print("java_lang_math_tan"     ); break;

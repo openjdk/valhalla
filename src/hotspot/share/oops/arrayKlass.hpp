@@ -26,6 +26,7 @@
 #define SHARE_OOPS_ARRAYKLASS_HPP
 
 #include "oops/klass.hpp"
+#include "oops/layoutKind.hpp"
 
 class fieldDescriptor;
 class klassVtable;
@@ -38,7 +39,7 @@ class ArrayKlass: public Klass {
 
  public:
   enum ArrayProperties : uint32_t {
-    DEFAULT         = 0,
+    DEFAULT         = 0,          // NULLABLE and ATOMIC
     NULL_RESTRICTED = 1 << 0,
     NON_ATOMIC      = 1 << 1,
     // FINAL           = 1 << 2,
@@ -49,6 +50,9 @@ class ArrayKlass: public Klass {
 
   static bool is_null_restricted(ArrayProperties props) { return (props & NULL_RESTRICTED) != 0; }
   static bool is_non_atomic(ArrayProperties props) { return (props & NON_ATOMIC) != 0; }
+
+  static ArrayProperties array_properties_from_layout(LayoutKind lk);
+  static const char* array_properties_as_string(ArrayProperties props);
 
  private:
   // If you add a new field that points to any metaspace object, you
@@ -68,20 +72,18 @@ class ArrayKlass: public Klass {
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
-
  public:
 
   // Testing operation
-  DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
+  DEBUG_ONLY(bool is_array_klass_slow() const override { return true; })
 
   // Returns the ObjArrayKlass for n'th dimension.
-  ArrayKlass* array_klass(int n, TRAPS);
-  ArrayKlass* array_klass_or_null(int n);
+  ArrayKlass* array_klass(int n, TRAPS) override;
+  ArrayKlass* array_klass_or_null(int n) override;
 
   // Returns the array class with this class as element type.
-  ArrayKlass* array_klass(TRAPS);
-  ArrayKlass* array_klass_or_null();
+  ArrayKlass* array_klass(TRAPS) override;
+  ArrayKlass* array_klass_or_null() override;
 
   // Instance variables
   int dimension() const                 { return _dimension;      }
@@ -105,7 +107,7 @@ class ArrayKlass: public Klass {
   // type of elements (T_OBJECT for both oop arrays and array-arrays)
   BasicType element_type() const        { return layout_helper_element_type(layout_helper()); }
 
-  virtual InstanceKlass* java_super() const;
+  InstanceKlass* java_super() const override;
 
   // Allocation
   // Sizes points to the first dimension of the array, subsequent dimensions
@@ -113,13 +115,13 @@ class ArrayKlass: public Klass {
   virtual oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // find field according to JVM spec 5.4.3.2, returns the klass in which the field is defined
-  Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
+  Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const override;
 
   // Lookup operations
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
                                  OverpassLookupMode overpass_mode,
-                                 PrivateLookupMode private_mode = PrivateLookupMode::find) const;
+                                 PrivateLookupMode private_mode = PrivateLookupMode::find) const override;
 
   static ArrayKlass* cast(Klass* k) {
     return const_cast<ArrayKlass*>(cast(const_cast<const Klass*>(k)));
@@ -131,48 +133,58 @@ class ArrayKlass: public Klass {
   }
 
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<InstanceKlass*>* transitive_interfaces);
+                                                  Array<InstanceKlass*>* transitive_interfaces) override;
 
   oop component_mirror() const;
 
   // Sizing
   static int static_size(int header_size);
 
-  virtual void metaspace_pointers_do(MetaspaceClosure* iter);
+  void metaspace_pointers_do(MetaspaceClosure* iter) override;
 
   // Return a handle.
   static void     complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module, TRAPS);
 
   // JVMTI support
-  jint jvmti_class_status() const;
+  jint jvmti_class_status() const override;
 
 #if INCLUDE_CDS
   // CDS support - remove and restore oops from metadata. Oops are not shared.
-  virtual void remove_unshareable_info();
-  virtual void remove_java_mirror();
+  void remove_unshareable_info() override;
+  void remove_java_mirror() override;
   void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
   void cds_print_value_on(outputStream* st) const;
 #endif
 
   void log_array_class_load(Klass* k);
   // Printing
-  void print_on(outputStream* st) const;
-  void print_value_on(outputStream* st) const;
+  void print_on(outputStream* st) const override;
+  void print_value_on(outputStream* st) const override;
 
-  void oop_print_on(oop obj, outputStream* st);
+  void oop_print_on(oop obj, outputStream* st) override;
 
   // Verification
-  void verify_on(outputStream* st);
+  void verify_on(outputStream* st) override;
 
-  void oop_verify_on(oop obj, outputStream* st);
+  void oop_verify_on(oop obj, outputStream* st) override;
 };
 
 class ArrayDescription : public StackObj {
-  public:
-   Klass::KlassKind _kind;
-   ArrayKlass::ArrayProperties _properties;
-   LayoutKind _layout_kind;
-   ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) { _kind = k; _properties = p; _layout_kind = lk; }
+public:
+  Klass::KlassKind _kind;
+  ArrayKlass::ArrayProperties _properties;
+  LayoutKind _layout_kind;
+  ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) {
+    _kind = k;
+    _layout_kind = lk;
+
+    if (lk == LayoutKind::REFERENCE || LayoutKindHelper::is_atomic_flat(lk)) {
+      p = (ArrayKlass::ArrayProperties) (p &~ ArrayKlass::NON_ATOMIC);
+    } else {
+      p = (ArrayKlass::ArrayProperties) (p | ArrayKlass::NON_ATOMIC);
+    }
+    _properties = p;
+  }
  };
 
 #endif // SHARE_OOPS_ARRAYKLASS_HPP

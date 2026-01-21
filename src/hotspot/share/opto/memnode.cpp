@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -24,6 +24,7 @@
  */
 
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
@@ -32,9 +33,11 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
+#include "opto/callnode.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/connode.hpp"
@@ -53,8 +56,10 @@
 #include "opto/rootnode.hpp"
 #include "opto/traceMergeStoresTag.hpp"
 #include "opto/vectornode.hpp"
+#include "runtime/arguments.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/vmError.hpp"
@@ -94,7 +99,7 @@ void MemNode::dump_spec(outputStream *st) const {
   if (in(Address) != nullptr)
     _adr_type = in(Address)->bottom_type()->isa_ptr();
 #endif
-  dump_adr_type(this, _adr_type, st);
+  dump_adr_type(_adr_type, st);
 
   Compile* C = Compile::current();
   if (C->alias_type(_adr_type)->is_volatile()) {
@@ -111,7 +116,7 @@ void MemNode::dump_spec(outputStream *st) const {
   }
 }
 
-void MemNode::dump_adr_type(const Node* mem, const TypePtr* adr_type, outputStream *st) {
+void MemNode::dump_adr_type(const TypePtr* adr_type, outputStream* st) {
   st->print(" @");
   if (adr_type == nullptr) {
     st->print("null");
@@ -213,37 +218,33 @@ static bool call_can_modify_local_object(ciField* field, CallNode* call) {
 
 Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oop, Node* load, PhaseGVN* phase) {
   assert(t_oop != nullptr, "sanity");
-  bool is_instance = t_oop->is_known_instance_field();
-
-  ciField* field = phase->C->alias_type(t_oop)->field();
+  bool is_known_instance = t_oop->is_known_instance_field();
   bool is_strict_final_load = false;
 
   // After macro expansion, an allocation may become a call, changing the memory input to the
   // memory output of that call would be illegal. As a result, disallow this transformation after
   // macro expansion.
   if (phase->is_IterGVN() && phase->C->allow_macro_nodes() && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
-    if (EnableValhalla) {
-      if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
-        is_strict_final_load = true;
-      }
+    is_strict_final_load = t_oop->is_ptr_to_strict_final_field();
 #ifdef ASSERT
-      if (t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) {
-        assert(is_strict_final_load, "sanity check for basic cases");
-      }
-#endif
-    } else {
-      is_strict_final_load = field != nullptr && t_oop->is_ptr_to_boxed_value();
+    if ((t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) || t_oop->is_ptr_to_boxed_value()) {
+      assert(is_strict_final_load, "sanity check for basic cases");
     }
+#endif // ASSERT
   }
 
-  if (!is_instance && !is_strict_final_load) {
+  if (!is_known_instance && !is_strict_final_load) {
     return mchain;
   }
 
   Node* result = mchain;
   ProjNode* base_local = nullptr;
 
+  ciField* field = nullptr;
   if (is_strict_final_load) {
+    field = phase->C->alias_type(t_oop)->field();
+    assert(field != nullptr, "must point to a field");
+
     Node* adr = load->in(MemNode::Address);
     assert(phase->type(adr) == t_oop, "inconsistent type");
     Node* tmp = try_optimize_strict_final_load_memory(phase, adr, base_local);
@@ -276,6 +277,9 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         } else if (is_strict_final_load && base_local != nullptr && !call_can_modify_local_object(field, call)) {
           result = call->in(TypeFunc::Memory);
         }
+      } else if (proj_in->Opcode() == Op_Tuple) {
+        // The call will be folded, skip over it.
+        break;
       } else if (proj_in->is_Initialize()) {
         AllocateNode* alloc = proj_in->as_Initialize()->allocation();
         // Stop if this is the initialization for the object instance which
@@ -283,7 +287,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         if ((alloc == nullptr) || (alloc->_idx == instance_id)) {
           break;
         }
-        if (is_instance) {
+        if (is_known_instance) {
           result = proj_in->in(TypeFunc::Memory);
         } else if (is_strict_final_load) {
           Node* klass = alloc->in(AllocateNode::KlassNode);
@@ -302,13 +306,18 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
           break;
         }
         result = proj_in->in(TypeFunc::Memory);
+      } else if (proj_in->is_LoadFlat() || proj_in->is_StoreFlat()) {
+        if (is_strict_final_load) {
+          // LoadFlat and StoreFlat cannot happen to strict final fields
+          result = proj_in->in(TypeFunc::Memory);
+        }
       } else if (proj_in->is_top()) {
         break; // dead code
       } else {
-        assert(false, "unexpected projection");
+        assert(false, "unexpected projection of %s", proj_in->Name());
       }
     } else if (result->is_ClearArray()) {
-      if (!is_instance || !ClearArrayNode::step_through(&result, instance_id, phase)) {
+      if (!is_known_instance || !ClearArrayNode::step_through(&result, instance_id, phase)) {
         // Can not bypass initialization of the instance
         // we are looking for.
         break;
@@ -1086,6 +1095,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
   case T_FLOAT:   load = new LoadFNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency); break;
   case T_DOUBLE:  load = new LoadDNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency, require_atomic_access); break;
   case T_ADDRESS: load = new LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr(),  mo, control_dependency); break;
+  case T_ARRAY:
   case T_OBJECT:
   case T_NARROWOOP:
 #ifdef _LP64
@@ -1099,7 +1109,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
     }
     break;
   default:
-    ShouldNotReachHere();
+    assert(false, "unexpected basic type %s", type2name(bt));
     break;
   }
   assert(load != nullptr, "LoadNode should have been created");
@@ -1232,6 +1242,7 @@ static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, No
 // same time (uses the Oracle model of aliasing), then some
 // LoadXNode::Identity will fold things back to the equivalence-class model
 // of aliasing.
+// This method may find an unencoded node instead of the corresponding encoded one.
 Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
@@ -1348,9 +1359,31 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // virtually pre-existing constants.)
       Node* init_value = ld_alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO 8350865 Scalar replacement does not work well for flat arrays.
-        // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
-        return init_value;
+        const TypeAryPtr* ld_adr_type = phase->type(ld_adr)->isa_aryptr();
+        if (ld_adr_type == nullptr) {
+          return nullptr;
+        }
+
+        // We know that this is not a flat array, the load should return the whole oop
+        if (ld_adr_type->is_not_flat()) {
+          return init_value;
+        }
+
+        // If this is a flat array, try to see through init_value
+        if (init_value->is_EncodeP()) {
+          init_value = init_value->in(1);
+        }
+        if (!init_value->is_InlineType() || ld_adr_type->field_offset() == Type::Offset::bottom) {
+          return nullptr;
+        }
+
+        ciInlineKlass* vk = phase->type(init_value)->inline_klass();
+        int field_offset_in_payload = ld_adr_type->field_offset().get();
+        if (field_offset_in_payload == vk->null_marker_offset_in_payload()) {
+          return init_value->as_InlineType()->get_null_marker();
+        } else {
+          return init_value->as_InlineType()->field_value_by_offset(field_offset_in_payload + vk->payload_offset(), true);
+        }
       }
       assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
       if (value_basic_type() != T_VOID) {
@@ -1405,9 +1438,9 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
   if( in(Memory)->is_Phi() && in(Memory)->in(0) == ctrl &&
       in(Address)->is_AddP() ) {
     const TypeOopPtr* t_oop = in(Address)->bottom_type()->isa_oopptr();
-    // Only instances and boxed values.
+    // Only known instances and immutable fields
     if( t_oop != nullptr &&
-        (t_oop->is_ptr_to_boxed_value() ||
+        (t_oop->is_ptr_to_strict_final_field() ||
          t_oop->is_known_instance_field()) &&
         t_oop->offset() != Type::OffsetBot &&
         t_oop->offset() != Type::OffsetTop) {
@@ -1435,6 +1468,10 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
       if (!phase->type(value)->higher_equal(phase->type(this)))
         return this;
     }
+
+    if (phase->type(value)->isa_ptr() && phase->type(this)->isa_narrowoop()) {
+      return this;
+    }
     // (This works even when value is a Con, but LoadNode::Value
     // usually runs first, producing the singleton type of the Con.)
     if (!has_pinned_control_dependency() || value->is_Con()) {
@@ -1456,8 +1493,8 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
     int this_offset = addr_t->offset();
     int this_iid    = addr_t->instance_id();
     if (!addr_t->is_known_instance() &&
-         addr_t->is_ptr_to_boxed_value()) {
-      // Use _idx of address base (could be Phi node) for boxed values.
+         addr_t->is_ptr_to_strict_final_field()) {
+      // Use _idx of address base (could be Phi node) for immutable fields in unknown instances
       intptr_t   ignore = 0;
       Node*      base = AddPNode::Ideal_base_and_offset(in(Address), phase, ignore);
       if (base == nullptr) {
@@ -2013,6 +2050,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       && phase->C->get_alias_index(phase->type(address)->is_ptr()) != Compile::AliasIdxRaw) {
     // Check for useless control edge in some common special cases
     if (in(MemNode::Control) != nullptr
+        // TODO 8350865 Can we re-enable this?
         && !(phase->type(address)->is_inlinetypeptr() && is_mismatched_access())
         && can_remove_control()
         && phase->type(base)->higher_equal(TypePtr::NOTNULL)
@@ -2127,10 +2165,12 @@ LoadNode::load_array_final_field(const TypeKlassPtr *tkls,
                                  ciKlass* klass) const {
   assert(!UseCompactObjectHeaders || tkls->offset() != in_bytes(Klass::prototype_header_offset()),
          "must not happen");
-  if (tkls->offset() == in_bytes(Klass::access_flags_offset())) {
-    // The field is Klass::_access_flags.  Return its (constant) value.
+
+  if (tkls->isa_instklassptr() && tkls->offset() == in_bytes(InstanceKlass::access_flags_offset())) {
+    // The field is InstanceKlass::_access_flags.  Return its (constant) value.
     assert(Opcode() == Op_LoadUS, "must load an unsigned short from _access_flags");
-    return TypeInt::make(klass->access_flags());
+    ciInstanceKlass* iklass = tkls->is_instklassptr()->instance_klass();
+    return TypeInt::make(iklass->access_flags());
   }
   if (tkls->offset() == in_bytes(Klass::misc_flags_offset())) {
     // The field is Klass::_misc_flags.  Return its (constant) value.
@@ -2160,17 +2200,16 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   assert(off != Type::OffsetTop, "case covered by TypePtr::empty");
   Compile* C = phase->C;
 
-  // If we are loading from a freshly-allocated object, produce a zero,
-  // if the load is provably beyond the header of the object.
-  // (Also allow a variable load from a fresh array to produce zero.)
-  const TypeOopPtr* tinst = tp->isa_oopptr();
-  bool is_instance = (tinst != nullptr) && tinst->is_known_instance_field();
+  // If load can see a previous constant store, use that.
   Node* value = can_see_stored_value(mem, phase);
   if (value != nullptr && value->is_Con()) {
-    assert(value->bottom_type()->higher_equal(_type), "sanity");
-    return value->bottom_type();
+    if (phase->type(value)->isa_ptr() && _type->isa_narrowoop()) {
+      return phase->type(value)->make_narrowoop();
+    } else {
+      assert(value->bottom_type()->higher_equal(_type), "sanity");
+      return phase->type(value);
+    }
   }
-
   // Try to guess loaded type from pointer type
   if (tp->isa_aryptr()) {
     const TypeAryPtr* ary = tp->is_aryptr();
@@ -2191,7 +2230,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       ciObject* aobj = ary->const_oop();
       if (aobj != nullptr && off_beyond_header && adr->is_AddP() && off != Type::OffsetBot) {
         int stable_dimension = (ary->stable_dimension() > 0 ? ary->stable_dimension() - 1 : 0);
-        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off,
+        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off, ary->field_offset().get(),
                                                                       stable_dimension,
                                                                       value_basic_type(), is_unsigned());
         if (con_type != nullptr) {
@@ -2263,6 +2302,20 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = value_basic_type();
 
+    // Fold loads of the field map
+    if (UseAltSubstitutabilityMethod && tinst != nullptr) {
+      ciInstanceKlass* ik = tinst->instance_klass();
+      int offset = tinst->offset();
+      if (ik == phase->C->env()->Class_klass()) {
+        ciType* t = tinst->java_mirror_type();
+        if (t != nullptr && t->is_inlinetype() && offset == t->as_inline_klass()->field_map_offset()) {
+          ciConstant map = t->as_inline_klass()->get_field_map();
+          bool is_narrow_oop = (bt == T_NARROWOOP);
+          return Type::make_from_constant(map, true, 1, is_narrow_oop);
+        }
+      }
+    }
+
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
@@ -2313,12 +2366,25 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
-      if (UseCompactObjectHeaders) { // TODO: Should EnableValhalla also take this path ?
-        if (tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
-          // The field is Klass::_prototype_header. Return its (constant) value.
-          assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
-          return TypeX::make(klass->prototype_header());
-        }
+      if (klass->is_inlinetype() && tkls->offset() == in_bytes(InstanceKlass::acmp_maps_offset_offset())) {
+        return TypeInt::make(klass->as_inline_klass()->field_map_offset());
+      }
+      if (klass->is_obj_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset())) {
+        // Fold loads from LibraryCallKit::load_default_refined_array_klass
+        return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr();
+      }
+      if (klass->is_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::properties_offset())) {
+        assert(klass->is_type_array_klass() || tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
+        return TypeInt::make(klass->as_array_klass()->properties());
+      }
+      if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
+        assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
+        return TypeInt::make(static_cast<jint>(klass->as_flat_array_klass()->layout_kind()));
+      }
+      if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
+        // The field is Klass::_prototype_header. Return its (constant) value.
+        assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
+        return TypeX::make(klass->prototype_header());
       }
       // Compute index into primary_supers array
       juint depth = (tkls->offset() - in_bytes(Klass::primary_supers_offset())) / sizeof(Klass*);
@@ -2380,13 +2446,16 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     }
   }
 
-  bool is_vect = (_type->isa_vect() != nullptr);
-  if (is_instance && !is_vect) {
-    // If we have an instance type and our memory input is the
-    // programs's initial memory state, there is no matching store,
-    // so just return a zero of the appropriate type -
-    // except if it is vectorized - then we have no zero constant.
-    Node *mem = in(MemNode::Memory);
+  // If we are loading from a freshly-allocated object/array, produce a zero.
+  // Things to check:
+  //   1. Load is beyond the header: headers are not guaranteed to be zero
+  //   2. Load is not vectorized: vectors have no zero constant
+  //   3. Load has no matching store, i.e. the input is the initial memory state
+  const TypeOopPtr* tinst = tp->isa_oopptr();
+  bool is_not_header = (tinst != nullptr) && tinst->is_known_instance_field();
+  bool is_not_vect = (_type->isa_vect() == nullptr);
+  if (is_not_header && is_not_vect) {
+    Node* mem = in(MemNode::Memory);
     if (mem->is_Parm() && mem->in(0)->is_Start()) {
       assert(mem->as_Parm()->_con == TypeFunc::Memory, "must be memory Parm");
       // TODO 8350865 Scalar replacement does not work well for flat arrays.
@@ -2407,7 +2476,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   if (!UseCompactObjectHeaders) {
     Node* alloc = is_new_object_mark_load();
     if (alloc != nullptr) {
-      if (EnableValhalla) {
+      if (Arguments::is_valhalla_enabled()) {
         // The mark word may contain property bits (inline, flat, null-free)
         Node* klass_node = alloc->in(AllocateNode::KlassNode);
         const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();
@@ -2575,6 +2644,13 @@ Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     return new EncodePNode(value, type());
   }
 
+  // Can see the corresponding value, may need to add an EncodeP
+  value = can_see_stored_value(in(Memory), phase);
+  if (value != nullptr && phase->type(value)->isa_ptr() && type()->isa_narrowoop()) {
+    return new EncodePNode(value, type());
+  }
+
+  // Identity call will handle the case where EncodeP is unnecessary
   return LoadNode::Ideal(phase, can_reshape);
 }
 
@@ -2654,7 +2730,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   const TypeAryPtr* tary = tp->isa_aryptr();
   if (tary != nullptr &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
-    return tary->as_klass_type(true);
+    return tary->as_klass_type(true)->is_aryklassptr();
   }
 
   // Check for loading klass from an array klass
@@ -2671,6 +2747,13 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
       return tkls->is_aryklassptr()->elem()->isa_klassptr()->cast_to_exactness(tkls->klass_is_exact());
+    }
+    if (tkls->isa_aryklassptr() != nullptr && tkls->klass_is_exact() &&
+        !tkls->exact_klass()->is_type_array_klass() &&
+        tkls->offset() == in_bytes(Klass::super_offset())) {
+      // We are loading the super klass of a refined array klass, return the non-refined klass pointer
+      assert(tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
+      return tkls->is_aryklassptr()->with_offset(0)->cast_to_non_refined();
     }
     if (tkls->isa_instklassptr() != nullptr && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -2734,6 +2817,10 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // mirror go completely dead.  (Current exception:  Class
   // mirrors may appear in debug info, but we could clean them out by
   // introducing a new debug info operator for Klass.java_mirror).
+  //
+  // This optimization does not apply to arrays because if k is not a
+  // constant, it was obtained via load_klass which returns the VM type
+  // and '.java_mirror.as_klass' should return the Java type instead.
 
   if (toop->isa_instptr() && toop->is_instptr()->instance_klass() == phase->C->env()->Class_klass()
       && offset == java_lang_Class::klass_offset()) {
@@ -2742,11 +2829,9 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
       if (base2->is_Load()) { /* direct load of a load which is the OopHandle */
         Node* adr2 = base2->in(MemNode::Address);
         const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
-        // TODO 8366668 Re-enable this for arrays
         if (tkls != nullptr && !tkls->empty()
-            && ((tkls->isa_instklassptr() && !tkls->is_instklassptr()->might_be_an_array()) || (tkls->isa_aryklassptr() && false))
-            && adr2->is_AddP()
-           ) {
+            && ((tkls->isa_instklassptr() && !tkls->is_instklassptr()->might_be_an_array()))
+            && adr2->is_AddP()) {
           int mirror_field = in_bytes(Klass::java_mirror_offset());
           if (tkls->offset() == mirror_field) {
             return adr2->in(AddPNode::Base);
@@ -2891,6 +2976,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
   case T_METADATA:
   case T_ADDRESS:
   case T_OBJECT:
+  case T_ARRAY:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
       val = gvn.transform(new EncodePNode(val, val->bottom_type()->make_narrowoop()));
@@ -2906,7 +2992,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
       return new StorePNode(ctl, mem, adr, adr_type, val, mo);
     }
   default:
-    ShouldNotReachHere();
+    assert(false, "unexpected basic type %s", type2name(bt));
     return (StoreNode*)nullptr;
   }
 }
@@ -3289,7 +3375,7 @@ MergePrimitiveStores::CFGStatus MergePrimitiveStores::cfg_status_for_pair(const 
       ctrl_use->in(0)->outcnt() != 2) {
     return CFGStatus::Failure; // Not RangeCheck.
   }
-  ProjNode* other_proj = ctrl_use->as_IfProj()->other_if_proj();
+  IfProjNode* other_proj = ctrl_use->as_IfProj()->other_if_proj();
   Node* trap = other_proj->is_uncommon_trap_proj(Deoptimization::Reason_range_check);
   if (trap != merge_mem->unique_out() ||
       ctrl_use->in(0)->in(0) != ctrl_def) {
@@ -4438,10 +4524,7 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
 }
 
 void MemBarNode::remove(PhaseIterGVN *igvn) {
-  if (outcnt() != 2) {
-    assert(Opcode() == Op_Initialize, "Only seen when there are no use of init memory");
-    assert(outcnt() == 1, "Only control then");
-  }
+  assert(outcnt() > 0 && (outcnt() <= 2 || Opcode() == Op_Initialize), "Only one or two out edges allowed");
   if (trailing_store() || trailing_load_store()) {
     MemBarNode* leading = leading_membar();
     if (leading != nullptr) {
@@ -4449,11 +4532,15 @@ void MemBarNode::remove(PhaseIterGVN *igvn) {
       leading->remove(igvn);
     }
   }
-  if (proj_out_or_null(TypeFunc::Memory) != nullptr) {
-    igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
-  }
   if (proj_out_or_null(TypeFunc::Control) != nullptr) {
     igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+  }
+  if (is_Initialize()) {
+    as_Initialize()->replace_mem_projs_by(in(TypeFunc::Memory), igvn);
+  } else {
+    if (proj_out_or_null(TypeFunc::Memory) != nullptr) {
+      igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
+    }
   }
 }
 
@@ -4537,7 +4624,7 @@ Node *MemBarNode::match(const ProjNode *proj, const Matcher *m, const RegMask* m
   switch (proj->_con) {
   case TypeFunc::Control:
   case TypeFunc::Memory:
-    return new MachProjNode(this,proj->_con,RegMask::Empty,MachProjNode::unmatched_proj);
+    return new MachProjNode(this, proj->_con, RegMask::EMPTY, MachProjNode::unmatched_proj);
   }
   ShouldNotReachHere();
   return nullptr;
@@ -4784,7 +4871,7 @@ const RegMask &InitializeNode::in_RegMask(uint idx) const {
   // This edge should be set to top, by the set_complete.  But be conservative.
   if (idx == InitializeNode::RawAddress)
     return *(Compile::current()->matcher()->idealreg2spillmask[in(idx)->ideal_reg()]);
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 Node* InitializeNode::memory(uint alias_idx) {
@@ -5669,6 +5756,48 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
   return rawmem;
 }
 
+void InitializeNode::replace_mem_projs_by(Node* mem, Compile* C) {
+  auto replace_proj = [&](ProjNode* proj) {
+    C->gvn_replace_by(proj, mem);
+    return CONTINUE;
+  };
+  apply_to_projs(replace_proj, TypeFunc::Memory);
+}
+
+void InitializeNode::replace_mem_projs_by(Node* mem, PhaseIterGVN* igvn) {
+  DUIterator_Fast imax, i = fast_outs(imax);
+  auto replace_proj = [&](ProjNode* proj) {
+    igvn->replace_node(proj, mem);
+    --i; --imax;
+    return CONTINUE;
+  };
+  apply_to_projs(imax, i, replace_proj, TypeFunc::Memory);
+}
+
+bool InitializeNode::already_has_narrow_mem_proj_with_adr_type(const TypePtr* adr_type) const {
+  auto find_proj = [&](ProjNode* proj) {
+    if (proj->adr_type() == adr_type) {
+      return BREAK_AND_RETURN_CURRENT_PROJ;
+    }
+    return CONTINUE;
+  };
+  DUIterator_Fast imax, i = fast_outs(imax);
+  return apply_to_narrow_mem_projs_any_iterator(UsesIteratorFast(imax, i, this), find_proj) != nullptr;
+}
+
+MachProjNode* InitializeNode::mem_mach_proj() const {
+  auto find_proj = [](ProjNode* proj) {
+    if (proj->is_MachProj()) {
+      return BREAK_AND_RETURN_CURRENT_PROJ;
+    }
+    return CONTINUE;
+  };
+  ProjNode* proj = apply_to_projs(find_proj, TypeFunc::Memory);
+  if (proj == nullptr) {
+    return nullptr;
+  }
+  return proj->as_MachProj();
+}
 
 #ifdef ASSERT
 bool InitializeNode::stores_are_sane(PhaseValues* phase) {
@@ -6008,7 +6137,7 @@ void MergeMemNode::set_base_memory(Node *new_base) {
 
 //------------------------------out_RegMask------------------------------------
 const RegMask &MergeMemNode::out_RegMask() const {
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 //------------------------------dump_spec--------------------------------------
@@ -6091,6 +6220,7 @@ Node* MergeMemNode::memory_at(uint alias_idx) const {
            || n->adr_type() == nullptr // address is TOP
            || n->adr_type() == TypePtr::BOTTOM
            || n->adr_type() == TypeRawPtr::BOTTOM
+           || n->is_NarrowMemProj()
            || !Compile::current()->do_aliasing(),
            "must be a wide memory");
     // do_aliasing == false if we are organizing the memory states manually.

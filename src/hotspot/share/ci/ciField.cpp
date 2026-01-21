@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,7 +238,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
 
   _signature = subfield->_signature;
   _type = subfield->_type;
-  _is_constant = declared_field->is_strict() && declared_field->is_final();
+  _is_constant = (declared_field->is_strict() && declared_field->is_final()) || declared_field->is_constant();
   _known_to_link_with_put = subfield->_known_to_link_with_put;
   _known_to_link_with_get = subfield->_known_to_link_with_get;
   _constant_value = ciConstant();
@@ -265,7 +265,7 @@ ciField::ciField(ciField* declared_field) {
   _signature = ciSymbols::bool_signature();
   _type = ciType::make(T_BOOLEAN);
 
-  _is_constant = declared_field->is_strict() && declared_field->is_final();
+  _is_constant = (declared_field->is_strict() && declared_field->is_final()) || declared_field->is_constant();
   _known_to_link_with_put = nullptr;
   _known_to_link_with_get = nullptr;
   _constant_value = ciConstant();
@@ -278,9 +278,6 @@ ciField::ciField(ciField* declared_field) {
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   if (holder == nullptr)
-    return false;
-  if (holder->name() == ciSymbols::java_lang_System())
-    // Never trust strangely unstable finals:  System.out, etc.
     return false;
   // Even if general trusting is disabled, trust system-built closures in these packages.
   if (holder->is_in_package("java/lang/invoke") || holder->is_in_package("sun/invoke") ||
@@ -296,14 +293,8 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   // Trust final fields in inline type buffers
   if (holder->is_inlinetype())
     return true;
-  // Trust final fields in all boxed classes
-  if (holder->is_box_klass())
-    return true;
   // Trust final fields in records
   if (holder->is_record())
-    return true;
-  // Trust final fields in String
-  if (holder->name() == ciSymbols::java_lang_String())
     return true;
   // Trust Atomic*FieldUpdaters: they are very important for performance, and make up one
   // more reason not to use Unsafe, if their final fields are trusted. See more in JDK-8140483.
@@ -342,17 +333,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
       // not be constant is when the field is a *special* static & final field
       // whose value may change.  The three examples are java.lang.System.in,
       // java.lang.System.out, and java.lang.System.err.
-      assert(vmClasses::System_klass() != nullptr, "Check once per vm");
-      if (k == vmClasses::System_klass()) {
-        // Check offsets for case 2: System.in, System.out, or System.err
-        if (_offset == java_lang_System::in_offset()  ||
-            _offset == java_lang_System::out_offset() ||
-            _offset == java_lang_System::err_offset()) {
-          _is_constant = false;
-          return;
-        }
-      }
-      _is_constant = true;
+      _is_constant = !fd->is_mutable_static_final();
     } else {
       // An instance field can be constant if it's a final static field or if
       // it's a final non-static field of a trusted class (classes in
@@ -477,7 +458,7 @@ bool ciField::will_link(ciMethod* accessing_method,
                      _name->get_symbol(), _signature->get_symbol(),
                      methodHandle(THREAD, accessing_method->get_Method()));
   fieldDescriptor result;
-  LinkResolver::resolve_field(result, link_info, bc, false, CHECK_AND_CLEAR_(false));
+  LinkResolver::resolve_field(result, link_info, bc, ClassInitMode::dont_init, CHECK_AND_CLEAR_(false));
 
   // Strict statics may require tracking if their class is not fully initialized.
   // For now we can bail out of the compiler and let the interpreter handle it.
@@ -523,7 +504,7 @@ bool ciField::is_autobox_cache() {
 
 // ------------------------------------------------------------------
 // ciField::print
-void ciField::print() {
+void ciField::print() const {
   tty->print("<ciField name=");
   _holder->print_name();
   tty->print(".");

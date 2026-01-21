@@ -142,14 +142,15 @@ public class ValueArrayReferenceTest extends TestScaffold {
     }
 
     void verifyArraysEqual(List<ArrayReference> arrays) throws Exception {
-        for (ArrayReference arr1: arrays) {
-            for (ArrayReference arr2: arrays) {
-                if (!arraysEquals(arr1, arr2)) {
-                    System.out.println("Arrays are different (1):"
-                                     + "\n    - " + arrayToString(arr1)
-                                     + "\n    - " + arrayToString(arr2));
-                    throw new RuntimeException("Arrays are different");
-                }
+        // Compare 1st and 2nd, 2nd and 3rd, etc.
+        for (int i = 1; i < arrays.size(); i++) { // start from 1
+            ArrayReference arr1 = arrays.get(i - 1);
+            ArrayReference arr2 = arrays.get(i);
+            if (!arraysEquals(arr1, arr2)) {
+                System.out.println("Arrays are different (" + (i - 1) + " and " + i + "):"
+                                 + "\n    - " + arrayToString(arr1)
+                                 + "\n    - " + arrayToString(arr2));
+                throw new RuntimeException("Arrays are different");
             }
         }
     }

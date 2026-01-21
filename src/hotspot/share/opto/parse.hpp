@@ -41,8 +41,6 @@ class SwitchRange;
 
 //------------------------------InlineTree-------------------------------------
 class InlineTree : public AnyObj {
-  friend class VMStructs;
-
   Compile*    C;                  // cache
   JVMState*   _caller_jvms;       // state of caller
   ciMethod*   _method;            // method being called by the caller_jvms
@@ -445,7 +443,7 @@ class Parse : public GraphKit {
 
   // OSR helpers
   Node* fetch_interpreter_state(int index, const Type* type, Node* local_addrs, Node* local_addrs_base);
-  Node* check_interpreter_type(Node* l, const Type* type, SafePointNode* &bad_type_exit, bool is_larval);
+  Node* check_interpreter_type(Node* l, const Type* type, const TypeKlassPtr* klass_type, SafePointNode* &bad_type_exit, bool is_larval);
   void  load_interpreter_state(Node* osr_buf);
 
   // Functions for managing basic blocks:
@@ -574,7 +572,7 @@ class Parse : public GraphKit {
   bool    path_is_suitable_for_uncommon_trap(float prob) const;
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
-  void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr);
+  void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr, Node** stress_count_mem = nullptr);
   void    do_acmp(BoolTest::mask btest, Node* left, Node* right);
   void    acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region);
   void    acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region);

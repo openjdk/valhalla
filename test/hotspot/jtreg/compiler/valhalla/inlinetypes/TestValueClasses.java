@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,79 @@ import jdk.internal.vm.annotation.Strict;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 6
  */
 
 @ForceCompileClassInitializer
@@ -62,7 +134,7 @@ public class TestValueClasses {
         scenarios[4].addFlags("-XX:-UseTLAB", "-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValueClass1.class,
                                      MyValueClass2.class,
                                      MyValueClass2Inline.class)
@@ -584,12 +656,12 @@ public class TestValueClasses {
 
     @Run(test = "test16")
     public void test16_verifier() {
-        Asserts.assertEQ(test16(0, false), null);
-        Asserts.assertEQ(test16(1, false).hash(), MyValueClass2.createWithFieldsInline(rI, rD).hash());
-        Asserts.assertEQ(test16(1, true), null);
-        Asserts.assertEQ(test16(2, false), null);
-        Asserts.assertEQ(test16(3, false).hash(), MyValueClass2.createWithFieldsInline(rI, rD).hash());
-        Asserts.assertEQ(test16(3, true), null);
+        Asserts.assertEQ(null, test16(0, false));
+        Asserts.assertEQ(MyValueClass2.createWithFieldsInline(rI, rD), test16(1, false));
+        Asserts.assertEQ(null, test16(1, true));
+        Asserts.assertEQ(null, test16(2, false));
+        Asserts.assertEQ(MyValueClass2.createWithFieldsInline(rI, rD), test16(3, false));
+        Asserts.assertEQ(null, test16(3, true));
     }
 
     @LooselyConsistentValue

@@ -43,7 +43,7 @@ import java.util.List;
 import static jdk.test.lib.Asserts.*;
 
 /*
- * @test FlatArraysTest
+ * @test id=default
  * @summary Plain array test for Inline Types
  * @requires vm.flagless
  * @modules java.base/jdk.internal.value
@@ -51,8 +51,20 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
- * @compile --source 26 FlatArraysTest.java
+ * @compile --source 27 FlatArraysTest.java
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ */
+
+/*
+ * @test id=no-array-flattening
+ * @summary Plain array test for Inline Types
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.misc
+ * @library /test/lib
+ * @enablePreview
+ * @compile --source 27 FlatArraysTest.java
  * @run main/othervm -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 

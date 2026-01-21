@@ -245,6 +245,7 @@ public final class Unsafe {
         return arrayLayout0(array);
     }
 
+    @IntrinsicCandidate
     private native int arrayLayout0(Object[] array);
 
 
@@ -298,25 +299,9 @@ public final class Unsafe {
      * {@code o} object at the given offset, or (if {@code o} is null)
      * from the memory address whose numerical value is the given offset.
      *
-     * @param o Java heap object in which the variable resides, if any, else
-     *        null
-     * @param offset indication of where the variable resides in a Java heap
-     *        object, if any, else a memory address locating the variable
-     *        statically
-     * @param valueType value type
-     * @param <V> the type of a value
-     * @return the value fetched from the indicated Java variable
-     * @throws RuntimeException No defined exceptions are thrown, not even
-     *         {@link NullPointerException}
-     */
-    @IntrinsicCandidate
-    public native <V> V getValue(Object o, long offset, Class<?> valueType);
-
-    /**
-     * Fetches a value of type {@code <V>} from a given Java variable.
-     * More specifically, fetches a field or array element within the given
-     * {@code o} object at the given offset, or (if {@code o} is null)
-     * from the memory address whose numerical value is the given offset.
+     * @apiNote
+     * The returned object is newly allocated into the heap, because flat
+     * values lack object headers and thus can't be used as objects directly.
      *
      * @param o Java heap object in which the variable resides, if any, else
      *        null
@@ -334,27 +319,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> V getFlatValue(Object o, long offset, int layoutKind, Class<?> valueType);
-
-
-    /**
-     * Stores the given value into a given Java variable.
-     *
-     * Unless the reference {@code o} being stored is either null
-     * or matches the field type, the results are undefined.
-     *
-     * @param o Java heap object in which the variable resides, if any, else
-     *        null
-     * @param offset indication of where the variable resides in a Java heap
-     *        object, if any, else a memory address locating the variable
-     *        statically
-     * @param valueType value type
-     * @param v the value to store into the indicated Java variable
-     * @param <V> the type of a value
-     * @throws RuntimeException No defined exceptions are thrown, not even
-     *         {@link NullPointerException}
-     */
-    @IntrinsicCandidate
-    public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
 
     /**
      * Stores the given value into a given Java variable.
@@ -1270,6 +1234,9 @@ public final class Unsafe {
      * the field locations in a form usable by {@link #getInt(Object,long)}.
      * Therefore, code which will be ported to such JVMs on 64-bit platforms
      * must preserve all bits of static field offsets.
+     *
+     * @throws NullPointerException if the field is {@code null}
+     * @throws IllegalArgumentException if the field is static
      * @see #getInt(Object, long)
      */
     public long objectFieldOffset(Field f) {
@@ -1281,13 +1248,17 @@ public final class Unsafe {
     }
 
     /**
-     * Reports the location of the field with a given name in the storage
-     * allocation of its class.
+     * (For compile-time known instance fields in JDK code only) Reports the
+     * location of the field with a given name in the storage allocation of its
+     * class.
+     * <p>
+     * This API is used to avoid creating reflective Objects in Java code at
+     * startup.  This should not be used to find fields in non-trusted code.
+     * Use the {@link #objectFieldOffset(Field) Field}-accepting version for
+     * arbitrary fields instead.
      *
      * @throws NullPointerException if any parameter is {@code null}.
-     * @throws InternalError if there is no field named {@code name} declared
-     *         in class {@code c}, i.e., if {@code c.getDeclaredField(name)}
-     *         would throw {@code java.lang.NoSuchFieldException}.
+     * @throws InternalError if the presumably known field couldn't be found
      *
      * @see #objectFieldOffset(Field)
      */
@@ -1296,7 +1267,16 @@ public final class Unsafe {
             throw new NullPointerException();
         }
 
-        return objectFieldOffset1(c, name);
+        long result = knownObjectFieldOffset0(c, name);
+        if (result < 0) {
+            String type = switch ((int) result) {
+                case -2 -> "a static field";
+                case -1 -> "not found";
+                default -> "unknown";
+            };
+            throw new InternalError("Field %s.%s %s".formatted(c.getTypeName(), name, type));
+        }
+        return result;
     }
 
     /**
@@ -1314,6 +1294,9 @@ public final class Unsafe {
      * a few bits to encode an offset within a non-array object,
      * However, for consistency with other methods in this class,
      * this method reports its result as a long value.
+     *
+     * @throws NullPointerException if the field is {@code null}
+     * @throws IllegalArgumentException if the field is not static
      * @see #getInt(Object, long)
      */
     public long staticFieldOffset(Field f) {
@@ -1333,6 +1316,9 @@ public final class Unsafe {
      * which is a "cookie", not guaranteed to be a real Object, and it should
      * not be used in any way except as argument to the get and put routines in
      * this class.
+     *
+     * @throws NullPointerException if the field is {@code null}
+     * @throws IllegalArgumentException if the field is not static
      */
     public Object staticFieldBase(Field f) {
         if (f == null) {
@@ -1399,6 +1385,11 @@ public final class Unsafe {
      * The return value is in the range of a {@code int}.  The return type is
      * {@code long} to emphasize that long arithmetic should always be used
      * for offset calculations to avoid overflows.
+     * <p>
+     * This method doesn't support arrays with an element type that is
+     * a value class, because this type of array can have multiple layouts.
+     * For these arrays, {@code arrayInstanceBaseOffset(Object[] array)}
+     * must be used instead.
      *
      * @see #getInt(Object, long)
      * @see #putInt(Object, long, int)
@@ -1411,12 +1402,12 @@ public final class Unsafe {
         return arrayBaseOffset0(arrayClass);
     }
 
-    public long arrayBaseOffset(Object[] array) {
+    public long arrayInstanceBaseOffset(Object[] array) {
         if (array == null) {
             throw new NullPointerException();
         }
 
-        return arrayBaseOffset1(array);
+        return arrayInstanceBaseOffset0(array);
     }
 
     /** The value of {@code arrayBaseOffset(boolean[].class)} */
@@ -1464,6 +1455,11 @@ public final class Unsafe {
      * <p>
      * The computation of the actual memory offset should always use {@code
      * long} arithmetic to avoid overflows.
+     * <p>
+     * This method doesn't support arrays with an element type that is
+     * a value class, because this type of array can have multiple layouts.
+     * For these arrays, {@code arrayInstanceIndexScale(Object[] array)}
+     * must be used instead.
      *
      * @see #arrayBaseOffset
      * @see #getInt(Object, long)
@@ -1477,12 +1473,19 @@ public final class Unsafe {
         return arrayIndexScale0(arrayClass);
     }
 
-    public int arrayIndexScale(Object[] array) {
+    public int arrayInstanceIndexScale(Object[] array) {
         if (array == null) {
             throw new NullPointerException();
         }
 
-        return arrayIndexScale1(array);
+        return arrayInstanceIndexScale0(array);
+    }
+
+    public int[] getFieldMap(Class<? extends Object> c) {
+      if (c == null) {
+        throw new NullPointerException();
+      }
+      return getFieldMap0(c);
     }
 
     /**
@@ -2882,8 +2885,8 @@ public final class Unsafe {
         // (see VarHandles::isAtomicFlat).
         Object[] expectedArray = newSpecialArray(valueType, 1, layout);
         Object xArray = newSpecialArray(valueType, 1, layout);
-        long base = arrayBaseOffset(expectedArray);
-        int scale = arrayIndexScale(expectedArray);
+        long base = arrayInstanceBaseOffset(expectedArray);
+        int scale = arrayInstanceIndexScale(expectedArray);
         putFlatValue(expectedArray, base, layout, valueType, expected);
         putFlatValue(xArray, base, layout, valueType, x);
         switch (scale) {
@@ -4404,19 +4407,23 @@ public final class Unsafe {
     @IntrinsicCandidate
     private native void copyMemory0(Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes);
     private native void copySwapMemory0(Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes, long elemSize);
-    private native long objectFieldOffset0(Field f);
-    private native long objectFieldOffset1(Class<?> c, String name);
-    private native long staticFieldOffset0(Field f);
-    private native Object staticFieldBase0(Field f);
+    private native long objectFieldOffset0(Field f); // throws IAE
+    private native long knownObjectFieldOffset0(Class<?> c, String name); // error code: -1 not found, -2 static
+    private native long staticFieldOffset0(Field f); // throws IAE
+    private native Object staticFieldBase0(Field f); // throws IAE
     private native boolean shouldBeInitialized0(Class<?> c);
     private native void ensureClassInitialized0(Class<?> c);
     private native void notifyStrictStaticAccess0(Class<?> c, long staticFieldOffset, boolean writing);
     private native int arrayBaseOffset0(Class<?> arrayClass); // public version returns long to promote correct arithmetic
-    private native int arrayBaseOffset1(Object[] array);
+    @IntrinsicCandidate
+    private native int arrayInstanceBaseOffset0(Object[] array);
     private native int arrayIndexScale0(Class<?> arrayClass);
-    private native int arrayIndexScale1(Object[] array);
+    @IntrinsicCandidate
+    private native int arrayInstanceIndexScale0(Object[] array);
     private native long getObjectSize0(Object o);
     private native int getLoadAverage0(double[] loadavg, int nelems);
+    @IntrinsicCandidate
+    private native int[] getFieldMap0(Class <?> c);
 
 
     /**

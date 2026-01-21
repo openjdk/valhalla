@@ -35,16 +35,46 @@ import java.util.List;
 import static jdk.test.lib.Asserts.*;
 
 /*
- * @test InlineTypeArray
+ * @test id=default
  * @summary Plain array test for Inline Types
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 26 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
+ */
+
+/*
+ * @test id=no-array-flattening
+ * @summary Plain array test for Inline Types
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @library /test/lib
+ * @enablePreview
+ * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
+ */
+
+/*
+ * @test id=no-tearable
+ * @summary Plain array test for Inline Types
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @library /test/lib
+ * @enablePreview
+ * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ */
+
+/*
+ * @test id=nullable-value-flattening
+ * @summary Plain array test for Inline Types
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @library /test/lib
+ * @enablePreview
+ * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {

@@ -51,7 +51,6 @@ import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Directive.*;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symtab;
@@ -145,9 +144,6 @@ public class ClassReader {
 
     /** The symbol table. */
     Symtab syms;
-
-    /** The root Lint config. */
-    Lint lint;
 
     Types types;
 
@@ -311,8 +307,6 @@ public class ClassReader {
         profile = Profile.instance(context);
 
         typevars = WriteableScope.create(syms.noSymbol);
-
-        lint = Lint.instance(context);
 
         initAttributeReaders();
     }
@@ -865,8 +859,7 @@ public class ClassReader {
                 if (!warnedAttrs.contains(name)) {
                     JavaFileObject prev = log.useSource(currentClassFile);
                     try {
-                        lint.logIfEnabled(
-                                    LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
+                        log.warning(LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
                     } finally {
                         log.useSource(prev);
                     }
@@ -1564,13 +1557,6 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
-            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
-                Assert.check(sym.kind == TYP);
-                sym.flags_field |= MIGRATED_VALUE_CLASS;
-                if (needsValueFlag(sym, sym.flags_field)) {
-                    sym.flags_field |= VALUE_CLASS;
-                    sym.flags_field &= ~IDENTITY_TYPE;
-                }
             } else if (proxy.type.tsym.flatName() == syms.restrictedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
@@ -1590,13 +1576,7 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
-                }  else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
-                    sym.flags_field |= MIGRATED_VALUE_CLASS;
-                    if (needsValueFlag(sym, sym.flags_field)) {
-                        sym.flags_field |= VALUE_CLASS;
-                        sym.flags_field &= ~IDENTITY_TYPE;
-                    }
-                }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
+                } else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
                 }  else if (proxy.type.tsym == syms.requiresIdentityType.tsym) {
@@ -1633,7 +1613,7 @@ public class ClassReader {
         } else if (parameterAnnotations.length != numParameters) {
             //the RuntimeVisibleParameterAnnotations and RuntimeInvisibleParameterAnnotations
             //provide annotations for a different number of parameters, ignore:
-            lint.logIfEnabled(LintWarnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
+            log.warning(LintWarnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
             for (int pnum = 0; pnum < numParameters; pnum++) {
                 readAnnotations();
             }
@@ -2099,9 +2079,9 @@ public class ClassReader {
             JavaFileObject prevSource = log.useSource(requestingOwner.classfile);
             try {
                 if (failure == null) {
-                    lint.logIfEnabled(LintWarnings.AnnotationMethodNotFound(container, name));
+                    log.warning(LintWarnings.AnnotationMethodNotFound(container, name));
                 } else {
-                    lint.logIfEnabled(LintWarnings.AnnotationMethodNotFoundReason(container,
+                    log.warning(LintWarnings.AnnotationMethodNotFoundReason(container,
                                                                             name,
                                                                             failure.getDetailValue()));//diagnostic, if present
                 }
@@ -2978,7 +2958,7 @@ public class ClassReader {
 
     private void dropParameterAnnotations() {
         parameterAnnotations = null;
-        lint.logIfEnabled(LintWarnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
+        log.warning(LintWarnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
     }
     /**
      * Creates the parameter at the position {@code mpIndex} in the parameter list of the owning method.
@@ -3183,14 +3163,18 @@ public class ClassReader {
                 if (name == names.empty)
                     name = names.one;
                 ClassSymbol member = enterClass(name, outer);
-                if ((flags & STATIC) == 0) {
-                    ((ClassType)member.type).setEnclosingType(outer.type);
-                    if (member.erasure_field != null)
-                        ((ClassType)member.erasure_field).setEnclosingType(types.erasure(outer.type));
-                }
-                if (c == outer && member.owner == c) {
-                    member.flags_field = flags;
-                    enterMember(c, member);
+                if ((member.flags_field & FROM_SOURCE) == 0) {
+                    if ((flags & STATIC) == 0) {
+                        ((ClassType)member.type).setEnclosingType(outer.type);
+                        if (member.erasure_field != null)
+                            ((ClassType)member.erasure_field).setEnclosingType(types.erasure(outer.type));
+                    }
+                    if (c == outer && member.owner == c) {
+                        member.flags_field = flags;
+                        enterMember(c, member);
+                    }
+                } else if ((flags & STATIC) != (member.flags_field & STATIC)) {
+                    log.warning(LintWarnings.InconsistentInnerClasses(member, currentClassFile));
                 }
             }
         }

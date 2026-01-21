@@ -114,8 +114,6 @@ inline void frame::init(intptr_t* sp, intptr_t* fp, address pc) {
 }
 
 inline void frame::setup(address pc) {
-  adjust_unextended_sp();
-
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
     _pc = original_pc;
@@ -212,7 +210,6 @@ inline frame::frame(intptr_t* sp, intptr_t* fp) {
   // assert(_pc != nullptr, "no pc?");
 
   _cb = CodeCache::find_blob(_pc);
-  adjust_unextended_sp();
 
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
@@ -429,36 +426,7 @@ inline frame frame::sender_raw(RegisterMap* map) const {
 
 inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   assert(map != nullptr, "map must be set");
-
-  // frame owned by optimizing compiler
-  assert(_cb->frame_size() > 0, "must have non-zero frame size");
-  intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
-  assert(sender_sp == real_fp(), "");
-
-#ifdef ASSERT
-  address sender_pc_copy = (address) *(sender_sp-1);
-#endif
-
-  // This is the saved value of EBP which may or may not really be an FP.
-  // It is only an FP if the sender is an interpreter frame (or C1?).
-  // saved_fp_addr should be correct even for a bottom thawed frame (with a return barrier)
-  intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
-
-  // Repair the sender sp if the frame has been extended
-  sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
-
-  // On Intel the return_address is always the word on the stack
-  address sender_pc = (address) *(sender_sp-1);
-
-#ifdef ASSERT
-  if (sender_pc != sender_pc_copy) {
-    // When extending the stack in the callee method entry to make room for unpacking of value
-    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
-    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
-    nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
-  }
-#endif
+  CompiledFramePointers cfp = compiled_frame_details();
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -497,21 +465,21 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // Since the prolog does the save and restore of EBP there is no oopmap
     // for it so we must fill in its location as if there was an oopmap entry
     // since if our caller was compiled code there could be live jvm state in it.
-    update_map_with_saved_link(map, saved_fp_addr);
+    update_map_with_saved_link(map, cfp.saved_fp_addr);
   }
 
-  assert(sender_sp != sp(), "must have changed");
+  assert(cfp.sender_sp != sp(), "must have changed");
 
-  if (Continuation::is_return_barrier_entry(sender_pc)) {
+  if (Continuation::is_return_barrier_entry(*cfp.sender_pc_addr)) {
     if (map->walk_cont()) { // about to walk into an h-stack
       return Continuation::top_frame(*this, map);
     } else {
-      return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp);
+      return Continuation::continuation_bottom_sender(map->thread(), *this, cfp.sender_sp);
     }
   }
 
-  intptr_t* unextended_sp = sender_sp;
-  return frame(sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
+  intptr_t* unextended_sp = cfp.sender_sp;
+  return frame(cfp.sender_sp, unextended_sp, *cfp.saved_fp_addr, *cfp.sender_pc_addr);
 }
 
 template <typename RegisterMapT>
@@ -525,7 +493,6 @@ void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) 
   // we don't have to always save EBP/RBP on entry and exit to c2 compiled
   // code, on entry will be enough.
   map->set_location(rbp->as_VMReg(), (address) link_addr);
-#ifdef AMD64
   // this is weird "H" ought to be at a higher address however the
   // oopMaps seems to have the "H" regs at the same address and the
   // vanilla register.
@@ -533,6 +500,5 @@ void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) 
   if (true) {
     map->set_location(rbp->as_VMReg()->next(), (address) link_addr);
   }
-#endif // AMD64
 }
 #endif // CPU_X86_FRAME_X86_INLINE_HPP

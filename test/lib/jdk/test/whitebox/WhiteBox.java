@@ -66,7 +66,7 @@ public class WhiteBox {
 
   // Memory
   private native long getObjectAddress0(Object o);
-  public           long getObjectAddress(Object o) {
+  public         long getObjectAddress(Object o) {
     Objects.requireNonNull(o);
     return getObjectAddress0(o);
   }
@@ -77,6 +77,14 @@ public class WhiteBox {
   public native long getVMLargePageSize();
   public native long getHeapSpaceAlignment();
   public native long getHeapAlignment();
+  public native long getMinimumJavaStackSize();
+
+  public native boolean  shipsFullDebugInfo();
+  public native boolean  shipsPublicDebugInfo();
+
+  public        boolean  shipsDebugInfo() {
+    return shipsFullDebugInfo() || shipsPublicDebugInfo();
+  }
 
   private native boolean isObjectInOldGen0(Object o);
   public         boolean isObjectInOldGen(Object o) {
@@ -122,7 +130,7 @@ public class WhiteBox {
 
   public native int getLockStackCapacity();
 
-  public native boolean supportsRecursiveLightweightLocking();
+  public native boolean supportsRecursiveFastLocking();
 
   public native void forceSafepoint();
 
@@ -504,6 +512,12 @@ public class WhiteBox {
     Objects.requireNonNull(method);
     return getNMethod0(method, isOsr);
   }
+  private native void     relocateNMethodFromMethod0(Executable method, int type);
+  public         void     relocateNMethodFromMethod(Executable method, int type) {
+    Objects.requireNonNull(method);
+    relocateNMethodFromMethod0(method, type);
+  }
+  public native void    relocateNMethodFromAddr(long address, int type);
   public native long    allocateCodeBlob(int size, int type);
   public        long    allocateCodeBlob(long size, int type) {
       int intSize = (int) size;
@@ -737,10 +751,13 @@ public class WhiteBox {
   public native Long    getSizeTVMFlag(String name);
   public native String  getStringVMFlag(String name);
   public native Double  getDoubleVMFlag(String name);
-  private final List<Function<String,Object>> flagsGetters = Arrays.asList(
-    this::getBooleanVMFlag, this::getIntVMFlag, this::getUintVMFlag,
-    this::getIntxVMFlag, this::getUintxVMFlag, this::getUint64VMFlag,
-    this::getSizeTVMFlag, this::getStringVMFlag, this::getDoubleVMFlag);
+  private final List<Function<String,Object>> flagsGetters;
+  {
+      flagsGetters = Arrays.asList(
+          this::getBooleanVMFlag, this::getIntVMFlag, this::getUintVMFlag,
+          this::getIntxVMFlag, this::getUintxVMFlag, this::getUint64VMFlag,
+          this::getSizeTVMFlag, this::getStringVMFlag, this::getDoubleVMFlag);
+  }
 
   public Object getVMFlag(String name) {
     return flagsGetters.stream()
@@ -779,6 +796,7 @@ public class WhiteBox {
   public native Long    getMethodUintxOption(Executable method, String name);
   public native Double  getMethodDoubleOption(Executable method, String name);
   public native String  getMethodStringOption(Executable method, String name);
+  @SuppressWarnings("initialization")
   private final List<BiFunction<Executable,String,Object>> methodOptionGetters
       = Arrays.asList(this::getMethodBooleanOption, this::getMethodIntxOption,
           this::getMethodUintxOption, this::getMethodDoubleOption,
@@ -805,6 +823,8 @@ public class WhiteBox {
   public native boolean isJFRIncluded();
   public native boolean isDTraceIncluded();
   public native boolean canWriteJavaHeapArchive();
+  public native boolean canWriteMappedJavaHeapArchive();
+  public native boolean canWriteStreamedJavaHeapArchive();
   public native void    linkClass(Class<?> c);
   public native boolean areOpenArchiveHeapObjectsMapped();
 
@@ -854,6 +874,12 @@ public class WhiteBox {
   public native boolean isJVMTIIncluded();
 
   public native void waitUnsafe(int time_ms);
+
+  public native void busyWaitCPUTime(int cpuTimeMs);
+
+
+  // returns true if supported, false if not
+  public native boolean cpuSamplerSetOutOfStackWalking(boolean enable);
 
   public native void pinObject(Object o);
 

@@ -22,13 +22,13 @@
  *
  */
 
-#include "jvm.h"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
+#include "jvm.h"
 #include "oops/inlineKlass.inline.hpp"
-#include "runtime/signature_cc.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/signature_cc.hpp"
 #ifdef COMPILER2
 #include "opto/compile.hpp"
 #include "opto/node.hpp"

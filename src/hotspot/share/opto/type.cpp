@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,11 @@
  */
 
 #include "ci/ciField.hpp"
+#include "ci/ciFlatArray.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethodData.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeFlow.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
@@ -46,9 +48,12 @@
 #include "opto/rangeinference.hpp"
 #include "opto/runtime.hpp"
 #include "opto/type.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
 
@@ -373,8 +378,7 @@ static ciConstant check_mismatched_access(ciConstant con, BasicType loadbt, bool
   return ciConstant(); // T_ILLEGAL
 }
 
-// Try to constant-fold a stable array element.
-const Type* Type::make_constant_from_array_element(ciArray* array, int off, int stable_dimension,
+static const Type* make_constant_from_non_flat_array_element(ciArray* array, int off, int stable_dimension,
                                                    BasicType loadbt, bool is_unsigned_load) {
   // Decode the results of GraphKit::array_element_address.
   ciConstant element_value = array->element_value_by_offset(off);
@@ -392,6 +396,35 @@ const Type* Type::make_constant_from_array_element(ciArray* array, int off, int 
     return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
   }
   return nullptr;
+}
+
+static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int off, int field_offset, int stable_dimension,
+                                                         BasicType loadbt, bool is_unsigned_load) {
+  // Decode the results of GraphKit::array_element_address.
+  ciConstant element_value = array->field_value_by_offset(off + field_offset);
+  if (element_value.basic_type() == T_ILLEGAL) {
+    return nullptr; // wrong offset
+  }
+  ciConstant con = check_mismatched_access(element_value, loadbt, is_unsigned_load);
+
+  assert(con.basic_type() != T_ILLEGAL, "elembt=%s; loadbt=%s; unsigned=%d",
+         type2name(element_value.basic_type()), type2name(loadbt), is_unsigned_load);
+
+  if (con.is_valid() &&          // not a mismatched access
+      !con.is_null_or_zero()) {  // not a default value
+    bool is_narrow_oop = (loadbt == T_NARROWOOP);
+    return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
+  }
+  return nullptr;
+}
+
+// Try to constant-fold a stable array element.
+const Type* Type::make_constant_from_array_element(ciArray* array, int off, int field_offset, int stable_dimension,
+                                                   BasicType loadbt, bool is_unsigned_load) {
+  if (array->is_flat()) {
+    return make_constant_from_flat_array_element(array->as_flat_array(), off, field_offset, stable_dimension, loadbt, is_unsigned_load);
+  }
+  return make_constant_from_non_flat_array_element(array, off, stable_dimension, loadbt, is_unsigned_load);
 }
 
 const Type* Type::make_constant_from_field(ciInstance* holder, int off, bool is_unsigned_load, BasicType loadbt) {
@@ -653,10 +686,10 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::_array_interfaces = TypeInterfaces::make(&array_interfaces);
   TypeAryKlassPtr::_array_interfaces = TypeAryPtr::_array_interfaces;
 
-  TypeAryPtr::BOTTOM = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::BOTTOM, TypeInt::POS), nullptr, false, Offset::bottom);
-  TypeAryPtr::RANGE   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::BOTTOM,TypeInt::POS), nullptr /* current->env()->Object_klass() */, false, Offset(arrayOopDesc::length_offset_in_bytes()));
+  TypeAryPtr::BOTTOM = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::BOTTOM, TypeInt::POS, false, false, false, false, false), nullptr, false, Offset::bottom);
+  TypeAryPtr::RANGE   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::BOTTOM,TypeInt::POS, false, false, false, false, false), nullptr /* current->env()->Object_klass() */, false, Offset(arrayOopDesc::length_offset_in_bytes()));
 
-  TypeAryPtr::NARROWOOPS = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeNarrowOop::BOTTOM, TypeInt::POS), nullptr /*ciArrayKlass::make(o)*/,  false,  Offset::bottom);
+  TypeAryPtr::NARROWOOPS = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeNarrowOop::BOTTOM, TypeInt::POS, false, false, false, false, false), nullptr /*ciArrayKlass::make(o)*/,  false,  Offset::bottom);
 
 #ifdef _LP64
   if (UseCompressedOops) {
@@ -666,16 +699,16 @@ void Type::Initialize_shared(Compile* current) {
 #endif
   {
     // There is no shared klass for Object[].  See note in TypeAryPtr::klass().
-    TypeAryPtr::OOPS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInstPtr::BOTTOM,TypeInt::POS), nullptr /*ciArrayKlass::make(o)*/,  false,  Offset::bottom);
+    TypeAryPtr::OOPS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInstPtr::BOTTOM,TypeInt::POS, false, false, false, false, false), nullptr /*ciArrayKlass::make(o)*/,  false,  Offset::bottom);
   }
-  TypeAryPtr::BYTES   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::BYTE      ,TypeInt::POS), ciTypeArrayKlass::make(T_BYTE),   true,  Offset::bottom);
-  TypeAryPtr::SHORTS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::SHORT     ,TypeInt::POS), ciTypeArrayKlass::make(T_SHORT),  true,  Offset::bottom);
-  TypeAryPtr::CHARS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::CHAR      ,TypeInt::POS), ciTypeArrayKlass::make(T_CHAR),   true,  Offset::bottom);
-  TypeAryPtr::INTS    = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::INT       ,TypeInt::POS), ciTypeArrayKlass::make(T_INT),    true,  Offset::bottom);
-  TypeAryPtr::LONGS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeLong::LONG     ,TypeInt::POS), ciTypeArrayKlass::make(T_LONG),   true,  Offset::bottom);
-  TypeAryPtr::FLOATS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::FLOAT        ,TypeInt::POS), ciTypeArrayKlass::make(T_FLOAT),  true,  Offset::bottom);
-  TypeAryPtr::DOUBLES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::DOUBLE       ,TypeInt::POS), ciTypeArrayKlass::make(T_DOUBLE), true,  Offset::bottom);
-  TypeAryPtr::INLINES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInstPtr::BOTTOM,TypeInt::POS, /* stable= */ false, /* flat= */ true), nullptr, false, Offset::bottom);
+  TypeAryPtr::BYTES   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::BYTE      ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_BYTE),   true,  Offset::bottom);
+  TypeAryPtr::SHORTS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::SHORT     ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_SHORT),  true,  Offset::bottom);
+  TypeAryPtr::CHARS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::CHAR      ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_CHAR),   true,  Offset::bottom);
+  TypeAryPtr::INTS    = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInt::INT       ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_INT),    true,  Offset::bottom);
+  TypeAryPtr::LONGS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeLong::LONG     ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_LONG),   true,  Offset::bottom);
+  TypeAryPtr::FLOATS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::FLOAT        ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_FLOAT),  true,  Offset::bottom);
+  TypeAryPtr::DOUBLES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::DOUBLE       ,TypeInt::POS, false, false, true, true, true), ciTypeArrayKlass::make(T_DOUBLE), true,  Offset::bottom);
+  TypeAryPtr::INLINES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInstPtr::BOTTOM,TypeInt::POS, /* stable= */ false, /* flat= */ true, false, false, false), nullptr, false, Offset::bottom);
 
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use null as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = nullptr;
@@ -1065,6 +1098,15 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
     tty->print("mt_dual meet t_dual=    "); t2t           ->dump(); tty->cr();
     // 2)
     tty->print("mt_dual meet this_dual= "); t2this        ->dump(); tty->cr();
+    tty->cr();
+    tty->print_cr("Fail: ");
+    if (t2t != t->_dual) {
+      tty->print_cr("- mt_dual meet t_dual != t_dual");
+    }
+    if (t2this != this->_dual) {
+      tty->print_cr("- mt_dual meet this_dual != this_dual");
+    }
+    tty->cr();
 
     fatal("meet not symmetric");
   }
@@ -2826,6 +2868,18 @@ Type::Offset TypePtr::dual_offset() const {
 const TypePtr::PTR TypePtr::ptr_dual[TypePtr::lastPTR] = {
   BotPTR, NotNull, Constant, Null, AnyNull, TopPTR
 };
+
+const TypePtr::FlatInArray TypePtr::flat_in_array_dual[Uninitialized] = {
+  /* TopFlat   -> */ MaybeFlat,
+  /* Flat      -> */ NotFlat,
+  /* NotFlat   -> */ Flat,
+  /* MaybeFlat -> */ TopFlat
+};
+
+const char* const TypePtr::flat_in_array_msg[Uninitialized] = {
+  "TOP flat in array", "flat in array", "not flat in array", "maybe flat in array"
+};
+
 const Type *TypePtr::xdual() const {
   return new TypePtr(AnyPtr, dual_ptr(), dual_offset(), dual_speculative(), dual_inline_depth());
 }
@@ -3111,6 +3165,39 @@ bool TypePtr::would_improve_ptr(ProfilePtrKind ptr_kind) const {
   return true;
 }
 
+TypePtr::FlatInArray TypePtr::compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact) {
+  if (!instance_klass->can_be_inline_klass(is_exact)) {
+    // Definitely not a value class and thus never flat in an array.
+    return NotFlat;
+  }
+  if (instance_klass->is_inlinetype() && instance_klass->as_inline_klass()->is_always_flat_in_array()) {
+    return Flat;
+  }
+  // We don't know.
+  return MaybeFlat;
+}
+
+// Compute flat in array property if we don't know anything about it (i.e. old_flat_in_array == MaybeFlat).
+TypePtr::FlatInArray TypePtr::compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
+  FlatInArray old_flat_in_array) const {
+  switch (old_flat_in_array) {
+    case Flat:
+      assert(can_be_inline_type(), "only value objects can be flat in array");
+      assert(!instance_klass->is_inlinetype() || instance_klass->as_inline_klass()->is_always_flat_in_array(),
+             "a value object is only marked flat in array if it's proven to be always flat in array");
+      break;
+    case NotFlat:
+      assert(!instance_klass->maybe_flat_in_array(), "cannot be flat");
+      break;
+    case MaybeFlat:
+      return compute_flat_in_array(instance_klass, is_exact);
+      break;
+    default:
+      break;
+  }
+  return old_flat_in_array;
+}
+
 //------------------------------dump2------------------------------------------
 const char *const TypePtr::ptr_msg[TypePtr::lastPTR] = {
   "TopPTR","AnyNull","Constant","null","NotNull","BotPTR"
@@ -3118,11 +3205,14 @@ const char *const TypePtr::ptr_msg[TypePtr::lastPTR] = {
 
 #ifndef PRODUCT
 void TypePtr::dump2( Dict &d, uint depth, outputStream *st ) const {
-  if( _ptr == Null ) st->print("null");
-  else st->print("%s *", ptr_msg[_ptr]);
-  _offset.dump2(st);
+  st->print("ptr:%s", ptr_msg[_ptr]);
+  dump_offset(st);
   dump_inline_depth(st);
   dump_speculative(st);
+}
+
+void TypePtr::dump_offset(outputStream* st) const {
+  _offset.dump2(st);
 }
 
 /**
@@ -3146,6 +3236,22 @@ void TypePtr::dump_inline_depth(outputStream *st) const {
     } else {
       st->print(" (inline_depth=%d)", _inline_depth);
     }
+  }
+}
+
+void TypePtr::dump_flat_in_array(FlatInArray flat_in_array, outputStream* st) {
+  switch (flat_in_array) {
+    case MaybeFlat:
+    case NotFlat:
+      if (!Verbose) {
+        break;
+      }
+    case TopFlat:
+    case Flat:
+      st->print(" (%s)", flat_in_array_msg[flat_in_array]);
+      break;
+    default:
+      ShouldNotReachHere();
   }
 }
 #endif
@@ -3296,11 +3402,12 @@ uint TypeRawPtr::hash(void) const {
 
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
-void TypeRawPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
-  if( _ptr == Constant )
-    st->print(INTPTR_FORMAT, p2i(_bits));
-  else
+void TypeRawPtr::dump2(Dict& d, uint depth, outputStream* st) const {
+  if (_ptr == Constant) {
+    st->print("rawptr:Constant:" INTPTR_FORMAT, p2i(_bits));
+  } else {
     st->print("rawptr:%s", ptr_msg[_ptr]);
+  }
 }
 #endif
 
@@ -3575,6 +3682,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
     _is_ptr_to_narrowoop(false),
     _is_ptr_to_narrowklass(false),
     _is_ptr_to_boxed_value(false),
+    _is_ptr_to_strict_final_field(false),
     _instance_id(instance_id) {
 #ifdef ASSERT
   if (klass() != nullptr && klass()->is_loaded()) {
@@ -3584,7 +3692,17 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
   if (Compile::current()->eliminate_boxing() && (t == InstPtr) &&
       (offset.get() > 0) && xk && (k != nullptr) && k->is_instance_klass()) {
     _is_ptr_to_boxed_value = k->as_instance_klass()->is_boxed_value_offset(offset.get());
+    _is_ptr_to_strict_final_field = _is_ptr_to_boxed_value;
   }
+
+  if (klass() != nullptr && klass()->is_instance_klass() && klass()->is_loaded() &&
+      this->offset() != Type::OffsetBot && this->offset() != Type::OffsetTop) {
+    ciField* field = klass()->as_instance_klass()->get_field_by_offset(this->offset(), false);
+    if (field != nullptr && field->is_strict() && field->is_final()) {
+      _is_ptr_to_strict_final_field = true;
+    }
+  }
+
 #ifdef _LP64
   if (this->offset() > 0 || this->offset() == Type::OffsetTop || this->offset() == Type::OffsetBot) {
     if (this->offset() == oopDesc::klass_offset_in_bytes()) {
@@ -3594,9 +3712,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
       assert(this->isa_aryptr(), "only arrays without klass");
       _is_ptr_to_narrowoop = UseCompressedOops;
     } else if (UseCompressedOops && this->isa_aryptr() && this->offset() != arrayOopDesc::length_offset_in_bytes()) {
-      if (klass()->is_obj_array_klass()) {
-        _is_ptr_to_narrowoop = true;
-      } else if (klass()->is_flat_array_klass() && field_offset != Offset::top && field_offset != Offset::bottom) {
+      if (klass()->is_flat_array_klass() && field_offset != Offset::top && field_offset != Offset::bottom) {
         // Check if the field of the inline type array element contains oops
         ciInlineKlass* vk = klass()->as_flat_array_klass()->element_klass()->as_inline_klass();
         int foffset = field_offset.get() + vk->payload_offset();
@@ -3608,7 +3724,9 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
           assert(field_offset.get() == vk->null_marker_offset_in_payload(), "no field or null marker of %s at offset %d", vk->name()->as_utf8(), foffset);
           field_bt = T_BOOLEAN;
         }
-        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(field_bt);
+        _is_ptr_to_narrowoop = ::is_reference_type(field_bt);
+      } else if (klass()->is_obj_array_klass()) {
+        _is_ptr_to_narrowoop = true;
       }
     } else if (klass()->is_instance_klass()) {
       if (this->isa_klassptr()) {
@@ -3627,13 +3745,12 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
         } else if (klass() == ciEnv::current()->Class_klass() &&
                    this->offset() >= InstanceMirrorKlass::offset_of_static_fields()) {
           // Static fields
-          ciField* field = nullptr;
+          BasicType basic_elem_type = T_ILLEGAL;
           if (const_oop() != nullptr) {
             ciInstanceKlass* k = const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
-            field = k->get_field_by_offset(this->offset(), true);
+            basic_elem_type = k->get_field_type_by_offset(this->offset(), true);
           }
-          if (field != nullptr) {
-            BasicType basic_elem_type = field->layout_type();
+          if (basic_elem_type != T_ILLEGAL) {
             _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(basic_elem_type);
           } else {
             // unsafe access
@@ -3642,9 +3759,8 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
         } else {
           // Instance fields which contains a compressed oop references.
           ciInstanceKlass* ik = klass()->as_instance_klass();
-          ciField* field = ik->get_field_by_offset(this->offset(), false);
-          if (field != nullptr) {
-            BasicType basic_elem_type = field->layout_type();
+          BasicType basic_elem_type = ik->get_field_type_by_offset(this->offset(), false);
+          if (basic_elem_type != T_ILLEGAL) {
             _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(basic_elem_type);
           } else if (klass()->equals(ciEnv::current()->Object_klass())) {
             // Compile::find_alias_type() cast exactness on all types to verify
@@ -3658,7 +3774,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
       }
     }
   }
-#endif
+#endif // _LP64
 }
 
 //------------------------------make-------------------------------------------
@@ -3796,9 +3912,9 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     assert((deps != nullptr) == (C->method() != nullptr && C->method()->code_size() > 0), "sanity");
     // Element is an instance
     bool klass_is_exact = false;
+    ciInstanceKlass* ik = klass->as_instance_klass();
     if (klass->is_loaded()) {
       // Try to set klass_is_exact.
-      ciInstanceKlass* ik = klass->as_instance_klass();
       klass_is_exact = ik->is_final();
       if (!klass_is_exact && klass_change
           && deps != nullptr && UseUniqueSubclasses) {
@@ -3816,28 +3932,46 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
         klass_is_exact = true;
       }
     }
+    FlatInArray flat_in_array = compute_flat_in_array(ik, klass_is_exact);
     const TypeInterfaces* interfaces = TypePtr::interfaces(klass, true, true, false, interface_handling);
-    return TypeInstPtr::make(TypePtr::BotPTR, klass, interfaces, klass_is_exact, nullptr, Offset(0));
+    return TypeInstPtr::make(TypePtr::BotPTR, klass, interfaces, klass_is_exact, nullptr, Offset(0), flat_in_array);
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or inline type array. Recursively call ourself.
-    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact, interface_handling);
+    ciObjArrayKlass* array_klass = klass->as_obj_array_klass();
+    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(array_klass->element_klass(), /* klass_change= */ false, try_for_exact, interface_handling);
+    bool xk = array_klass->is_loaded() && array_klass->is_refined();
+
     // Determine null-free/flat properties
-    const bool is_null_free = klass->as_array_klass()->is_elem_null_free();
-    if (is_null_free) {
-      etype = etype->join_speculative(NOTNULL)->is_oopptr();
+    bool flat;
+    bool not_flat;
+    bool is_null_free;
+    bool not_null_free;
+    bool atomic;
+    if (xk) {
+      flat = array_klass->is_flat_array_klass();
+      not_flat = !flat;
+      is_null_free = array_klass->is_elem_null_free();
+      not_null_free = !is_null_free;
+      atomic = array_klass->is_elem_atomic();
+
+      if (is_null_free) {
+        etype = etype->join_speculative(NOTNULL)->is_oopptr();
+      }
+    } else {
+      const TypeOopPtr* exact_etype = etype;
+      if (etype->can_be_inline_type()) {
+        // Use exact type if element can be an inline type
+        exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, /* try_for_exact= */ true, interface_handling);
+      }
+
+      flat = false;
+      bool not_inline = !exact_etype->can_be_inline_type();
+      not_null_free = not_inline;
+      not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
+      atomic = not_flat;
     }
-    const TypeOopPtr* exact_etype = etype;
-    if (etype->can_be_inline_type()) {
-      // Use exact type if element can be an inline type
-      exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, /* try_for_exact= */ true, interface_handling);
-    }
-    bool not_inline = !exact_etype->can_be_inline_type();
-    bool not_null_free = not_inline;
-    bool not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
-    bool atomic = klass->as_array_klass()->is_elem_atomic();
-    // Even though MyValue is final, [LMyValue is not exact because null-free [LMyValue is a subtype.
-    bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free, atomic);
+
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, flat, not_flat, not_null_free, atomic);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam nullptrs down in the subarrays.
@@ -3847,21 +3981,10 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     // Element is an typeArray
     const Type* etype = get_const_basic_type(klass->as_type_array_klass()->element_type());
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS,
-                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
+                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true, true);
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
     const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
-    return arr;
-  } else if (klass->is_flat_array_klass()) {
-    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
-    const bool is_null_free = klass->as_array_klass()->is_elem_null_free();
-    if (is_null_free) {
-      etype = etype->join_speculative(NOTNULL)->is_oopptr();
-    }
-    bool atomic = klass->as_array_klass()->is_elem_atomic();
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ true, /* not_flat= */ false, /* not_null_free= */ false, atomic);
-    const bool exact = is_null_free; // Only exact if null-free because "null-free [LMyValue <: null-able [LMyValue".
-    const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, exact, Offset(0));
     return arr;
   } else {
     ShouldNotReachHere();
@@ -3893,7 +4016,7 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
     bool is_atomic = o->as_array()->is_atomic();
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()), /* stable= */ false, /* flat= */ false,
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()), /* stable= */ false, /* flat= */ is_flat,
                                         /* not_flat= */ !is_flat, /* not_null_free= */ !is_null_free, /* atomic= */ is_atomic);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -3907,26 +4030,9 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     // Element is an typeArray
     const Type* etype = (Type*)get_const_basic_type(klass->as_type_array_klass()->element_type());
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()), /* stable= */ false, /* flat= */ false,
-                                        /* not_flat= */ true, /* not_null_free= */ true);
+                                        /* not_flat= */ true, /* not_null_free= */ true, true);
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
-    if (make_constant) {
-      return TypeAryPtr::make(TypePtr::Constant, o, arr0, klass, true, Offset(0));
-    } else {
-      return TypeAryPtr::make(TypePtr::NotNull, arr0, klass, true, Offset(0));
-    }
-  } else if (klass->is_flat_array_klass()) {
-    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
-    bool is_null_free = o->as_array()->is_null_free();
-    if (is_null_free) {
-      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-    }
-    bool is_atomic = o->as_array()->is_atomic();
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()), /* stable= */ false, /* flat= */ true,
-                                        /* not_flat= */ false, /* not_null_free= */ !is_null_free, /* atomic= */ is_atomic);
-    // We used to pass NotNull in here, asserting that the sub-arrays
-    // are all not-null.  This is not true in generally, as code can
-    // slam nullptrs down in the subarrays.
     if (make_constant) {
       return TypeAryPtr::make(TypePtr::Constant, o, arr0, klass, true, Offset(0));
     } else {
@@ -3998,18 +4104,28 @@ uint TypeOopPtr::hash(void) const {
 
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
-void TypeOopPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
+void TypeOopPtr::dump2(Dict& d, uint depth, outputStream* st) const {
   st->print("oopptr:%s", ptr_msg[_ptr]);
-  if( _klass_is_exact ) st->print(":exact");
-  if( const_oop() ) st->print(INTPTR_FORMAT, p2i(const_oop()));
-  _offset.dump2(st);
-  if (_instance_id == InstanceTop)
-    st->print(",iid=top");
-  else if (_instance_id != InstanceBot)
-    st->print(",iid=%d",_instance_id);
-
+  if (_klass_is_exact) {
+    st->print(":exact");
+  }
+  if (const_oop() != nullptr) {
+    st->print(":" INTPTR_FORMAT, p2i(const_oop()));
+  }
+  dump_offset(st);
+  dump_instance_id(st);
   dump_inline_depth(st);
   dump_speculative(st);
+}
+
+void TypeOopPtr::dump_instance_id(outputStream* st) const {
+  if (_instance_id == InstanceTop) {
+    st->print(",iid=top");
+  } else if (_instance_id == InstanceBot) {
+    st->print(",iid=bot");
+  } else {
+    st->print(",iid=%d", _instance_id);
+  }
 }
 #endif
 
@@ -4142,15 +4258,15 @@ ciKlass* TypeInstPtr::exact_klass_helper() const {
 
 //------------------------------TypeInstPtr-------------------------------------
 TypeInstPtr::TypeInstPtr(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, bool xk, ciObject* o, Offset off,
-                         bool flat_in_array, int instance_id, const TypePtr* speculative, int inline_depth)
+                         FlatInArray flat_in_array, int instance_id, const TypePtr* speculative, int inline_depth)
   : TypeOopPtr(InstPtr, ptr, k, interfaces, xk, o, off, Offset::bottom, instance_id, speculative, inline_depth),
     _flat_in_array(flat_in_array) {
+
+  assert(flat_in_array != Uninitialized, "must be set now");
   assert(k == nullptr || !k->is_loaded() || !k->is_interface(), "no interface here");
   assert(k != nullptr &&
          (k->is_loaded() || o == nullptr),
          "cannot have constants with non-loaded klass");
-  assert(!klass()->maybe_flat_in_array() || flat_in_array, "Should be flat in array");
-  assert(!flat_in_array || can_be_inline_type(), "Only inline types can be flat in array");
 };
 
 //------------------------------make-------------------------------------------
@@ -4160,7 +4276,7 @@ const TypeInstPtr *TypeInstPtr::make(PTR ptr,
                                      bool xk,
                                      ciObject* o,
                                      Offset offset,
-                                     bool flat_in_array,
+                                     FlatInArray flat_in_array,
                                      int instance_id,
                                      const TypePtr* speculative,
                                      int inline_depth) {
@@ -4172,19 +4288,19 @@ const TypeInstPtr *TypeInstPtr::make(PTR ptr,
   assert( ptr != Null, "null pointers are not typed" );
 
   assert(instance_id <= 0 || xk, "instances are always exactly typed");
+  ciInstanceKlass* ik = k->as_instance_klass();
   if (ptr == Constant) {
     // Note:  This case includes meta-object constants, such as methods.
     xk = true;
   } else if (k->is_loaded()) {
-    ciInstanceKlass* ik = k->as_instance_klass();
     if (!xk && ik->is_final())     xk = true;   // no inexact final klass
     assert(!ik->is_interface(), "no interface here");
     if (xk && ik->is_interface())  xk = false;  // no exact interface
   }
 
-  // Check if this type is known to be flat in arrays
-  flat_in_array = flat_in_array || k->maybe_flat_in_array();
-
+  if (flat_in_array == Uninitialized) {
+    flat_in_array = compute_flat_in_array(ik, xk);
+  }
   // Now hash this baby
   TypeInstPtr *result =
     (TypeInstPtr*)(new TypeInstPtr(ptr, k, interfaces, xk, o, offset, flat_in_array, instance_id, speculative, inline_depth))->hashcons();
@@ -4264,7 +4380,8 @@ const TypeInstPtr* TypeInstPtr::cast_to_exactness(bool klass_is_exact) const {
   ciInstanceKlass* ik = _klass->as_instance_klass();
   if( (ik->is_final() || _const_oop) )  return this;  // cannot clear xk
   assert(!ik->is_interface(), "no interface here");
-  return make(ptr(), klass(), _interfaces, klass_is_exact, const_oop(), _offset, _flat_in_array, _instance_id, _speculative, _inline_depth);
+  FlatInArray flat_in_array = compute_flat_in_array(ik, klass_is_exact);
+  return make(ptr(), klass(), _interfaces, klass_is_exact, const_oop(), _offset, flat_in_array, _instance_id, _speculative, _inline_depth);
 }
 
 //-----------------------------cast_to_instance_id----------------------------
@@ -4302,7 +4419,11 @@ const TypeInstPtr *TypeInstPtr::xmeet_unloaded(const TypeInstPtr *tinst, const T
     assert(loaded->ptr() != TypePtr::Null, "insanity check");
     //
     if (loaded->ptr() == TypePtr::TopPTR)        { return unloaded->with_speculative(speculative); }
-    else if (loaded->ptr() == TypePtr::AnyNull)  { return make(ptr, unloaded->klass(), interfaces, false, nullptr, off, false, instance_id, speculative, depth); }
+    else if (loaded->ptr() == TypePtr::AnyNull)  {
+      FlatInArray flat_in_array = meet_flat_in_array(_flat_in_array, tinst->flat_in_array());
+      return make(ptr, unloaded->klass(), interfaces, false, nullptr, off, flat_in_array, instance_id,
+                  speculative, depth);
+    }
     else if (loaded->ptr() == TypePtr::BotPTR)   { return TypeInstPtr::BOTTOM->with_speculative(speculative); }
     else if (loaded->ptr() == TypePtr::Constant || loaded->ptr() == TypePtr::NotNull) {
       if (unloaded->ptr() == TypePtr::BotPTR)    { return TypeInstPtr::BOTTOM->with_speculative(speculative);  }
@@ -4443,9 +4564,8 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
     ciKlass* res_klass = nullptr;
     bool res_xk = false;
-    bool res_flat_in_array = false;
     const Type* res;
-    MeetResult kind = meet_instptr(ptr, interfaces, this, tinst, res_klass, res_xk, res_flat_in_array);
+    MeetResult kind = meet_instptr(ptr, interfaces, this, tinst, res_klass, res_xk);
 
     if (kind == UNLOADED) {
       // One of these classes has not been loaded
@@ -4465,6 +4585,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 #endif
       res = unloaded_meet;
     } else {
+      FlatInArray flat_in_array = meet_flat_in_array(_flat_in_array, tinst->flat_in_array());
       if (kind == NOT_SUBTYPE && instance_id > 0) {
         instance_id = InstanceBot;
       } else if (kind == LCA) {
@@ -4486,7 +4607,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
         } else
           ptr = NotNull;
       }
-      res = make(ptr, res_klass, interfaces, res_xk, o, off, res_flat_in_array, instance_id, speculative, depth);
+      res = make(ptr, res_klass, interfaces, res_xk, o, off, flat_in_array, instance_id, speculative, depth);
     }
 
     return res;
@@ -4498,13 +4619,9 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 }
 
 template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const TypeInterfaces*& interfaces, const T* this_type, const T* other_type,
-                                                            ciKlass*& res_klass, bool& res_xk, bool& res_flat_in_array) {
+                                                            ciKlass*& res_klass, bool& res_xk) {
   ciKlass* this_klass = this_type->klass();
   ciKlass* other_klass = other_type->klass();
-  const bool this_flat_in_array = this_type->flat_in_array();
-  const bool other_flat_in_array = other_type->flat_in_array();
-  const bool this_not_flat_in_array = this_type->not_flat_in_array();
-  const bool other_not_flat_in_array = other_type->not_flat_in_array();
 
   bool this_xk = this_type->klass_is_exact();
   bool other_xk = other_type->klass_is_exact();
@@ -4516,10 +4633,9 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
   // If we have constants, then we created oops so classes are loaded
   // and we can handle the constants further down.  This case handles
   // both-not-loaded or both-loaded classes
-  if (ptr != Constant && this_klass->equals(other_klass) && this_xk == other_xk && this_flat_in_array == other_flat_in_array) {
+  if (ptr != Constant && this_klass->equals(other_klass) && this_xk == other_xk) {
     res_klass = this_klass;
     res_xk = this_xk;
-    res_flat_in_array = this_flat_in_array;
     return QUICK;
   }
 
@@ -4552,137 +4668,45 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
   // If both types are equal to the subtype, exactness is and-ed below the
   // centerline and or-ed above it.  (N.B. Constants are always exact.)
 
-  // Flat in Array property _flat_in_array.
-  // For simplicity, _flat_in_array is a boolean but we actually have a tri state:
-  // - Flat in array       -> flat_in_array()
-  // - Not flat in array   -> not_flat_in_array()
-  // - Maybe flat in array -> !not_flat_in_array()
-  //
-  // Maybe we should convert _flat_in_array to a proper lattice with four elements at some point:
-  //
-  //                  Top
-  //    Flat in Array     Not Flat in Array
-  //          Maybe Flat in Array
-  //
-  // where
-  //     Top = dual(maybe Flat In Array) = "Flat in Array AND Not Flat in Array"
-  //
-  // But for now we stick with the current model with _flat_in_array as a boolean.
-  //
-  // When meeting two InstPtr types, we want to have the following behavior:
-  //
-  // (FiA-M) Meet(this, other):
-  //     'this' and 'other' are either the same klass OR sub klasses:
-  //
-  //                yes maybe no
-  //           yes   y    m    m                      y = Flat in Array
-  //         maybe   m    m    m                      n = Not Flat in Array
-  //            no   m    m    n                      m = Maybe Flat in Array
-  //
-  //  Join(this, other):
-  //     (FiA-J-Same) 'this' and 'other' are the SAME klass:
-  //
-  //                yes maybe no                      E = Empty set
-  //           yes   y    y    E                      y = Flat in Array
-  //         maybe   y    m    m                      n = Not Flat in Array
-  //            no   E    m    n                      m = Maybe Flat in Array
-  //
-  //     (FiA-J-Sub) 'this' and 'other' are SUB klasses:
-  //
-  //               yes maybe no   -> Super Klass      E = Empty set
-  //          yes   y    y    y                       y = Flat in Array
-  //        maybe   y    m    m                       n = Not Flat in Array
-  //           no   E    m    n                       m = Maybe Flat in Array
-  //           |
-  //           v
-  //       Sub Klass
-  //
-  //     Note the difference when joining a super klass that is not flat in array with a sub klass that is compared to
-  //     the same klass case. We will take over the flat in array property of the sub klass. This can be done because
-  //     the super klass could be Object (i.e. not an inline type and thus not flat in array) while the sub klass is a
-  //     value class which can be flat in array.
-  //
-  //     The empty set is only a possible result when matching 'ptr' above the center line (i.e. joining). In this case,
-  //     we can "fall hard" by setting 'ptr' to NotNull such that when we take the dual of that meet above the center
-  //     line, we get an empty set again.
-  //
-  //     Note: When changing to a separate lattice with _flat_in_array we may want to add TypeInst(Klass)Ptr::empty()
-  //           that returns true when the meet result is FlatInArray::Top (i.e. dual(maybe flat in array)).
-
   const T* subtype = nullptr;
   bool subtype_exact = false;
-  bool flat_in_array = false;
-  bool is_empty = false;
   if (this_type->is_same_java_type_as(other_type)) {
     // Same klass
     subtype = this_type;
     subtype_exact = below_centerline(ptr) ? (this_xk && other_xk) : (this_xk || other_xk);
-    if (above_centerline(ptr)) {
-      // Case (FiA-J-Same)
-      // One is flat in array and the other not? Result is empty/"fall hard".
-      is_empty = (this_flat_in_array && other_not_flat_in_array) || (this_not_flat_in_array && other_flat_in_array);
-    }
-  } else if (!other_xk && is_meet_subtype_of(this_type, other_type)) {
+  } else if (!other_xk && this_type->is_meet_subtype_of(other_type)) {
     subtype = this_type;     // Pick subtyping class
     subtype_exact = this_xk;
-    if (above_centerline(ptr)) {
-      // Case (FiA-J-Sub)
-      is_empty = this_not_flat_in_array && other_flat_in_array;
-      if (!is_empty) {
-        bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
-        flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
-      }
-    }
-  } else if (!this_xk && is_meet_subtype_of(other_type, this_type)) {
+  } else if (!this_xk && other_type->is_meet_subtype_of(this_type)) {
     subtype = other_type;    // Pick subtyping class
     subtype_exact = other_xk;
-    if (above_centerline(ptr)) {
-      // Case (FiA-J-Sub)
-      is_empty = this_flat_in_array && other_not_flat_in_array;
-      if (!is_empty) {
-        bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
-        flat_in_array = other_flat_in_array || this_flat_other_maybe_flat;
-      }
-    }
   }
 
-
-  if (subtype && !is_empty) {
+  if (subtype != nullptr) {
     if (above_centerline(ptr)) {
       // Both types are empty.
       this_type = other_type = subtype;
       this_xk = other_xk = subtype_exact;
-      // Case (FiA-J-Sub)
-      bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
-      flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
-      // One is flat in array and the other not? Result is empty/"fall hard".
-      is_empty = (this_flat_in_array && other_not_flat_in_array) || (this_not_flat_in_array && other_flat_in_array);
     } else if (above_centerline(this_ptr) && !above_centerline(other_ptr)) {
       // this_type is empty while other_type is not. Take other_type.
       this_type = other_type;
       this_xk = other_xk;
-      flat_in_array = other_flat_in_array;
     } else if (above_centerline(other_ptr) && !above_centerline(this_ptr)) {
       // other_type is empty while this_type is not. Take this_type.
       other_type = this_type; // this is down; keep down man
-      flat_in_array = this_flat_in_array;
     } else {
       // this_type and other_type are both non-empty.
       this_xk = subtype_exact;  // either they are equal, or we'll do an LCA
-      // Case (FiA-M)
-      // Meeting two types below the center line: Only flat in array if both are.
-      flat_in_array = this_flat_in_array && other_flat_in_array;
     }
   }
 
   // Check for classes now being equal
-  if (this_type->is_same_java_type_as(other_type) && !is_empty) {
+  if (this_type->is_same_java_type_as(other_type)) {
     // If the klasses are equal, the constants may still differ.  Fall to
     // NotNull if they do (neither constant is null; that is a special case
     // handled elsewhere).
     res_klass = this_type->klass();
     res_xk = this_xk;
-    res_flat_in_array = flat_in_array;
     return SUBTYPE;
   } // Else classes are not equal
 
@@ -4699,13 +4723,41 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
 
   res_klass = k;
   res_xk = false;
-  res_flat_in_array = this_flat_in_array && other_flat_in_array;
-
   return LCA;
 }
 
-template<class T> bool TypePtr::is_meet_subtype_of(const T* sub_type, const T* super_type) {
-  return sub_type->is_meet_subtype_of(super_type) && !(super_type->flat_in_array() && sub_type->not_flat_in_array());
+//                Top-Flat    Flat        Not-Flat    Maybe-Flat
+// -------------------------------------------------------------
+//    Top-Flat    Top-Flat    Flat        Not-Flat    Maybe-Flat
+//        Flat    Flat        Flat        Maybe-Flat  Maybe-Flat
+//    Not-Flat    Not-Flat    Maybe-Flat  Not-Flat    Maybe-Flat
+//  Maybe-Flat    Maybe-Flat  Maybe-Flat  Maybe-Flat  Maybe-flat
+TypePtr::FlatInArray TypePtr::meet_flat_in_array(const FlatInArray left, const FlatInArray right) {
+  if (left == TopFlat) {
+    return right;
+  }
+  if (right == TopFlat) {
+    return left;
+  }
+  if (left == MaybeFlat || right == MaybeFlat) {
+    return MaybeFlat;
+  }
+
+  switch (left) {
+    case Flat:
+      if (right == Flat) {
+        return Flat;
+      }
+      return MaybeFlat;
+    case NotFlat:
+      if (right == NotFlat) {
+        return NotFlat;
+      }
+      return MaybeFlat;
+    default:
+      ShouldNotReachHere();
+      return Uninitialized;
+  }
 }
 
 //------------------------java_mirror_type--------------------------------------
@@ -4722,8 +4774,9 @@ ciType* TypeInstPtr::java_mirror_type() const {
 //------------------------------xdual------------------------------------------
 // Dual: do NOT dual on klasses.  This means I do NOT understand the Java
 // inheritance mechanism.
-const Type *TypeInstPtr::xdual() const {
-  return new TypeInstPtr(dual_ptr(), klass(), _interfaces, klass_is_exact(), const_oop(), dual_offset(), flat_in_array(), dual_instance_id(), dual_speculative(), dual_inline_depth());
+const Type* TypeInstPtr::xdual() const {
+  return new TypeInstPtr(dual_ptr(), klass(), _interfaces, klass_is_exact(), const_oop(), dual_offset(),
+                         dual_flat_in_array(), dual_instance_id(), dual_speculative(), dual_inline_depth());
 }
 
 //------------------------------eq---------------------------------------------
@@ -4732,15 +4785,15 @@ bool TypeInstPtr::eq( const Type *t ) const {
   const TypeInstPtr *p = t->is_instptr();
   return
     klass()->equals(p->klass()) &&
-    flat_in_array() == p->flat_in_array() &&
+    _flat_in_array == p->_flat_in_array &&
     _interfaces->eq(p->_interfaces) &&
     TypeOopPtr::eq(p);          // Check sub-type stuff
 }
 
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
-uint TypeInstPtr::hash(void) const {
-  return klass()->hash() + TypeOopPtr::hash() + _interfaces->hash() + (uint)flat_in_array();
+uint TypeInstPtr::hash() const {
+  return klass()->hash() + TypeOopPtr::hash() + _interfaces->hash() + static_cast<uint>(_flat_in_array);
 }
 
 bool TypeInstPtr::is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const {
@@ -4762,64 +4815,53 @@ bool TypeInstPtr::maybe_java_subtype_of_helper(const TypeOopPtr* other, bool thi
 #ifndef PRODUCT
 void TypeInstPtr::dump2(Dict &d, uint depth, outputStream* st) const {
   // Print the name of the klass.
+  st->print("instptr:");
   klass()->print_name_on(st);
   _interfaces->dump(st);
 
-  switch( _ptr ) {
-  case Constant:
-    if (WizardMode || Verbose) {
-      ResourceMark rm;
-      stringStream ss;
+  if (_ptr == Constant && (WizardMode || Verbose)) {
+    ResourceMark rm;
+    stringStream ss;
 
-      st->print(" ");
-      const_oop()->print_oop(&ss);
-      // 'const_oop->print_oop()' may emit newlines('\n') into ss.
-      // suppress newlines from it so -XX:+Verbose -XX:+PrintIdeal dumps one-liner for each node.
-      char* buf = ss.as_string(/* c_heap= */false);
-      StringUtils::replace_no_expand(buf, "\n", "");
-      st->print_raw(buf);
-    }
-  case BotPTR:
-    if (!WizardMode && !Verbose) {
-      if( _klass_is_exact ) st->print(":exact");
-      break;
-    }
-  case TopPTR:
-  case AnyNull:
-  case NotNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if( _klass_is_exact ) st->print(":exact");
-    break;
-  default:
-    break;
+    st->print(" ");
+    const_oop()->print_oop(&ss);
+    // 'const_oop->print_oop()' may emit newlines('\n') into ss.
+    // suppress newlines from it so -XX:+Verbose -XX:+PrintIdeal dumps one-liner for each node.
+    char* buf = ss.as_string(/* c_heap= */false);
+    StringUtils::replace_no_expand(buf, "\n", "");
+    st->print_raw(buf);
   }
 
-  _offset.dump2(st);
+  st->print(":%s", ptr_msg[_ptr]);
+  if (_klass_is_exact) {
+    st->print(":exact");
+  }
 
   st->print(" *");
 
-  if (flat_in_array() && !klass()->is_inlinetype()) {
-    st->print(" (flat in array)");
-  }
-
-  if (_instance_id == InstanceTop)
-    st->print(",iid=top");
-  else if (_instance_id != InstanceBot)
-    st->print(",iid=%d",_instance_id);
-
+  dump_offset(st);
+  dump_instance_id(st);
   dump_inline_depth(st);
   dump_speculative(st);
+  dump_flat_in_array(_flat_in_array, st);
 }
 #endif
 
+bool TypeInstPtr::empty() const {
+  if (_flat_in_array == TopFlat) {
+    return true;
+  }
+  return TypeOopPtr::empty();
+}
+
 //------------------------------add_offset-------------------------------------
 const TypePtr* TypeInstPtr::add_offset(intptr_t offset) const {
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), xadd_offset(offset), flat_in_array(),
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), xadd_offset(offset), _flat_in_array,
               _instance_id, add_offset_speculative(offset), _inline_depth);
 }
 
 const TypeInstPtr* TypeInstPtr::with_offset(intptr_t offset) const {
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), Offset(offset), flat_in_array(),
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), Offset(offset), _flat_in_array,
               _instance_id, with_offset_speculative(offset), _inline_depth);
 }
 
@@ -4828,28 +4870,32 @@ const TypeInstPtr* TypeInstPtr::remove_speculative() const {
     return this;
   }
   assert(_inline_depth == InlineDepthTop || _inline_depth == InlineDepthBottom, "non speculative type shouldn't have inline depth");
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, flat_in_array(),
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, _flat_in_array,
               _instance_id, nullptr, _inline_depth);
 }
 
 const TypeInstPtr* TypeInstPtr::with_speculative(const TypePtr* speculative) const {
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, flat_in_array(), _instance_id, speculative, _inline_depth);
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, _flat_in_array, _instance_id, speculative, _inline_depth);
 }
 
 const TypePtr* TypeInstPtr::with_inline_depth(int depth) const {
   if (!UseInlineDepthForSpeculativeTypes) {
     return this;
   }
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, flat_in_array(), _instance_id, _speculative, depth);
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, _flat_in_array, _instance_id, _speculative, depth);
 }
 
 const TypePtr* TypeInstPtr::with_instance_id(int instance_id) const {
   assert(is_known_instance(), "should be known");
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, flat_in_array(), instance_id, _speculative, _inline_depth);
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, _flat_in_array, instance_id, _speculative, _inline_depth);
 }
 
 const TypeInstPtr *TypeInstPtr::cast_to_flat_in_array() const {
-  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, true, _instance_id, _speculative, _inline_depth);
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, Flat, _instance_id, _speculative, _inline_depth);
+}
+
+const TypeInstPtr *TypeInstPtr::cast_to_maybe_flat_in_array() const {
+  return make(_ptr, klass(), _interfaces, klass_is_exact(), const_oop(), _offset, MaybeFlat, _instance_id, _speculative, _inline_depth);
 }
 
 const TypeKlassPtr* TypeInstPtr::as_klass_type(bool try_for_exact) const {
@@ -4863,7 +4909,8 @@ const TypeKlassPtr* TypeInstPtr::as_klass_type(bool try_for_exact) const {
       xk = true;
     }
   }
-  return TypeInstKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, klass(), _interfaces, Offset(0), flat_in_array());
+  FlatInArray flat_in_array = compute_flat_in_array_if_unknown(ik, xk, _flat_in_array);
+  return TypeInstKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, klass(), _interfaces, Offset(0), flat_in_array);
 }
 
 template <class T1, class T2> bool TypePtr::is_meet_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_xk, bool other_xk) {
@@ -5051,6 +5098,19 @@ const TypeAryPtr* TypeAryPtr::cast_to_size(const TypeInt* new_size) const {
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
+const TypeAryPtr* TypeAryPtr::cast_to_flat(bool flat) const {
+  if (flat == is_flat()) {
+    return this;
+  }
+  assert(!flat || !is_not_flat(), "inconsistency");
+  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), flat, is_not_flat(), is_not_null_free(), is_atomic());
+  const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  if (res->speculative() == res->remove_speculative()) {
+    return res->remove_speculative();
+  }
+  return res;
+}
+
 //-------------------------------cast_to_not_flat------------------------------
 const TypeAryPtr* TypeAryPtr::cast_to_not_flat(bool not_flat) const {
   if (not_flat == is_not_flat()) {
@@ -5061,6 +5121,27 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_flat(bool not_flat) const {
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
   // We keep the speculative part if it contains information about flat-/nullability.
   // Make sure it's removed if it's not better than the non-speculative type anymore.
+  if (res->speculative() == res->remove_speculative()) {
+    return res->remove_speculative();
+  }
+  return res;
+}
+
+const TypeAryPtr* TypeAryPtr::cast_to_null_free(bool null_free) const {
+  if (null_free == is_null_free()) {
+    return this;
+  }
+  assert(!null_free || !is_not_null_free(), "inconsistency");
+  const Type* elem = this->elem();
+  const Type* new_elem = elem->make_ptr();
+  if (null_free) {
+    new_elem = new_elem->join_speculative(TypePtr::NOTNULL);
+  } else {
+    new_elem = new_elem->meet_speculative(TypePtr::NULL_PTR);
+  }
+  new_elem = elem->isa_narrowoop() ? new_elem->make_narrowoop() : new_elem;
+  const TypeAry* new_ary = TypeAry::make(new_elem, size(), is_stable(), is_flat(), is_not_flat(), is_not_null_free(), is_atomic());
+  const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
@@ -5103,15 +5184,15 @@ const TypeAryPtr* TypeAryPtr::update_properties(const TypeAryPtr* from) const {
 }
 
 jint TypeAryPtr::flat_layout_helper() const {
-  return klass()->as_flat_array_klass()->layout_helper();
+  return exact_klass()->as_flat_array_klass()->layout_helper();
 }
 
 int TypeAryPtr::flat_elem_size() const {
-  return klass()->as_flat_array_klass()->element_byte_size();
+  return exact_klass()->as_flat_array_klass()->element_byte_size();
 }
 
 int TypeAryPtr::flat_log_elem_size() const {
-  return klass()->as_flat_array_klass()->log2_element_size();
+  return exact_klass()->as_flat_array_klass()->log2_element_size();
 }
 
 //------------------------------cast_to_stable---------------------------------
@@ -5340,18 +5421,31 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
       // For instances when a subclass meets a superclass we fall
       // below the centerline when the superclass is exact. We need to
       // do the same here.
-      if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) && !tp->klass_is_exact() && !tp->flat_in_array()) {
+      //
+      // Flat in array:
+      // We do
+      //   dual(TypeAryPtr) MEET dual(TypeInstPtr)
+      // If TypeInstPtr is anything else than Object, then the result of the meet is bottom Object (i.e. we could have
+      // instances or arrays).
+      // If TypeInstPtr is an Object and either
+      // - exact
+      // - inexact AND flat in array == dual(not flat in array) (i.e. not an array type)
+      // then the result of the meet is bottom Object (i.e. we could have instances or arrays).
+      // Otherwise, we meet two array pointers and create a new TypeAryPtr.
+      if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) &&
+          !tp->klass_is_exact() && !tp->is_not_flat_in_array()) {
         return TypeAryPtr::make(ptr, _ary, _klass, _klass_is_exact, offset, _field_offset, instance_id, speculative, depth);
       } else {
         // cannot subclass, so the meet has to fall badly below the centerline
         ptr = NotNull;
         instance_id = InstanceBot;
         interfaces = this_interfaces->intersection_with(tp_interfaces);
-        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, false, nullptr, offset, false, instance_id, speculative, depth);
+        FlatInArray flat_in_array = meet_flat_in_array(NotFlat, tp->flat_in_array());
+        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, false, nullptr, offset, flat_in_array, instance_id, speculative, depth);
       }
     case Constant:
     case NotNull:
-    case BotPTR:                // Fall down to object klass
+    case BotPTR: { // Fall down to object klass
       // LCA is object_klass, but if we subclass from the top we can do better
       if (above_centerline(tp->ptr())) {
         // If 'tp'  is above the centerline and it is Object class
@@ -5359,7 +5453,10 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         // For instances when a subclass meets a superclass we fall
         // below the centerline when the superclass is exact. We need
         // to do the same here.
-        if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) && !tp->klass_is_exact() && !tp->flat_in_array()) {
+
+        // Flat in array: We do TypeAryPtr MEET dual(TypeInstPtr), same applies as above in TopPTR/AnyNull case.
+        if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) &&
+            !tp->klass_is_exact() && !tp->is_not_flat_in_array()) {
           // that is, my array type is a subtype of 'tp' klass
           return make(ptr, (ptr == Constant ? const_oop() : nullptr),
                       _ary, _klass, _klass_is_exact, offset, _field_offset, instance_id, speculative, depth);
@@ -5368,13 +5465,17 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
       // The other case cannot happen, since t cannot be a subtype of an array.
       // The meet falls down to Object class below centerline.
       if (ptr == Constant) {
-         ptr = NotNull;
+        ptr = NotNull;
       }
       if (instance_id > 0) {
         instance_id = InstanceBot;
       }
+
+      FlatInArray flat_in_array = meet_flat_in_array(NotFlat, tp->flat_in_array());
       interfaces = this_interfaces->intersection_with(tp_interfaces);
-      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, false, nullptr, offset, false, instance_id, speculative, depth);
+      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, false, nullptr, offset,
+                               flat_in_array, instance_id, speculative, depth);
+    }
     default: typerr(t);
     }
   }
@@ -5478,6 +5579,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
         if (res_xk && !res_null_free && !res_not_null_free) {
+          ptr = NotNull;
           res_xk = false;
         }
       }
@@ -5497,6 +5599,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
         if (res_xk && !res_null_free && !res_not_null_free) {
+          ptr = NotNull;
           res_xk = false;
         }
       }
@@ -5529,26 +5632,17 @@ Type::Offset TypeAryPtr::dual_field_offset() const {
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
 void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
-  _ary->dump2(d,depth,st);
+  st->print("aryptr:");
+  _ary->dump2(d, depth, st);
   _interfaces->dump(st);
 
-  switch( _ptr ) {
-  case Constant:
+  if (_ptr == Constant) {
     const_oop()->print(st);
-    break;
-  case BotPTR:
-    if (!WizardMode && !Verbose) {
-      if( _klass_is_exact ) st->print(":exact");
-      break;
-    }
-  case TopPTR:
-  case AnyNull:
-  case NotNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if( _klass_is_exact ) st->print(":exact");
-    break;
-  default:
-    break;
+  }
+
+  st->print(":%s", ptr_msg[_ptr]);
+  if (_klass_is_exact) {
+    st->print(":exact");
   }
 
   if (is_flat()) {
@@ -5588,12 +5682,8 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
       }
     }
   }
-  st->print(" *");
-  if (_instance_id == InstanceTop)
-    st->print(",iid=top");
-  else if (_instance_id != InstanceBot)
-    st->print(",iid=%d",_instance_id);
 
+  dump_instance_id(st);
   dump_inline_depth(st);
   dump_speculative(st);
 }
@@ -5655,7 +5745,7 @@ const TypeAryPtr* TypeAryPtr::with_field_offset(int offset) const {
 
 const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
   int adj = 0;
-  if (is_flat() && offset != Type::OffsetBot && offset != Type::OffsetTop) {
+  if (is_flat() && klass_is_exact() && offset != Type::OffsetBot && offset != Type::OffsetTop) {
     if (_offset.get() != OffsetBot && _offset.get() != OffsetTop) {
       adj = _offset.get();
       offset += _offset.get();
@@ -6012,13 +6102,10 @@ const Type *TypeMetadataPtr::xdual() const {
 #ifndef PRODUCT
 void TypeMetadataPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
   st->print("metadataptr:%s", ptr_msg[_ptr]);
-  if( metadata() ) st->print(INTPTR_FORMAT, p2i(metadata()));
-  switch (offset()) {
-  case OffsetTop: st->print("+top"); break;
-  case OffsetBot: st->print("+any"); break;
-  case         0: break;
-  default:        st->print("+%d",offset()); break;
+  if (metadata() != nullptr) {
+    st->print(":" INTPTR_FORMAT, p2i(metadata()));
   }
+  dump_offset(st);
 }
 #endif
 
@@ -6049,18 +6136,24 @@ const TypeMetadataPtr* TypeMetadataPtr::make(PTR ptr, ciMetadata* m, Offset offs
 const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
   const Type* elem = _ary->_elem;
   bool xk = klass_is_exact();
+  bool is_refined = false;
   if (elem->make_oopptr() != nullptr) {
+    is_refined = true;
     elem = elem->make_oopptr()->as_klass_type(try_for_exact);
-    if (elem->is_klassptr()->klass_is_exact() &&
-        // Even though MyValue is final, [LMyValue is only exact if the array
-        // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-        // TODO 8350865 If we know that the array can't be null-free, it's allowed to be exact, right?
-        // If so, we should add '|| is_not_null_free()'
-        (is_null_free() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
-      xk = true;
+    if (elem->isa_aryklassptr()) {
+      const TypeAryKlassPtr* elem_klass = elem->is_aryklassptr();
+      if (elem_klass->is_refined_type()) {
+        elem = elem_klass->cast_to_non_refined();
+      }
+    } else {
+      const TypeInstKlassPtr* elem_klass = elem->is_instklassptr();
+      if (try_for_exact && !xk && elem_klass->klass_is_exact() &&
+          !elem_klass->exact_klass()->as_instance_klass()->can_be_inline_klass()) {
+        xk = true;
+      }
     }
   }
-  return TypeAryKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, elem, klass(), Offset(0), is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_flat() || is_null_free());
+  return TypeAryKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, elem, klass(), Offset(0), is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_refined);
 }
 
 const TypeKlassPtr* TypeKlassPtr::make(ciKlass* klass, InterfaceHandling interface_handling) {
@@ -6068,14 +6161,6 @@ const TypeKlassPtr* TypeKlassPtr::make(ciKlass* klass, InterfaceHandling interfa
     return TypeInstKlassPtr::make(klass, interface_handling);
   }
   return TypeAryKlassPtr::make(klass, interface_handling);
-}
-
-const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, InterfaceHandling interface_handling) {
-  if (klass->is_instance_klass()) {
-    const TypeInterfaces* interfaces = TypePtr::interfaces(klass, true, true, false, interface_handling);
-    return TypeInstKlassPtr::make(ptr, klass, interfaces, offset);
-  }
-  return TypeAryKlassPtr::make(ptr, klass, offset, interface_handling);
 }
 
 TypeKlassPtr::TypeKlassPtr(TYPES t, PTR ptr, ciKlass* klass, const TypeInterfaces* interfaces, Offset offset)
@@ -6169,45 +6254,6 @@ intptr_t TypeKlassPtr::get_con() const {
   return (intptr_t)k->constant_encoding();
 }
 
-//------------------------------dump2------------------------------------------
-// Dump Klass Type
-#ifndef PRODUCT
-void TypeKlassPtr::dump2(Dict & d, uint depth, outputStream *st) const {
-  switch(_ptr) {
-  case Constant:
-    st->print("precise ");
-  case NotNull:
-    {
-      const char *name = klass()->name()->as_utf8();
-      if (name) {
-        st->print("%s: " INTPTR_FORMAT, name, p2i(klass()));
-      } else {
-        ShouldNotReachHere();
-      }
-      _interfaces->dump(st);
-    }
-  case BotPTR:
-    if (!WizardMode && !Verbose && _ptr != Constant) break;
-  case TopPTR:
-  case AnyNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if (_ptr == Constant) st->print(":exact");
-    break;
-  default:
-    break;
-  }
-  if (Verbose) {
-    if (isa_instklassptr() && is_instklassptr()->flat_in_array()) st->print(":flat in array");
-  }
-  _offset.dump2(st);
-  st->print(" *");
-
-  if (flat_in_array() && !klass()->is_inlinetype()) {
-    st->print(" (flat in array)");
-  }
-}
-#endif
-
 //=============================================================================
 // Convenience common pre-built types.
 
@@ -6216,41 +6262,49 @@ const TypeInstKlassPtr *TypeInstKlassPtr::OBJECT;
 const TypeInstKlassPtr *TypeInstKlassPtr::OBJECT_OR_NULL;
 
 bool TypeInstKlassPtr::eq(const Type *t) const {
-  const TypeKlassPtr *p = t->is_klassptr();
+  const TypeInstKlassPtr* p = t->is_instklassptr();
   return
     klass()->equals(p->klass()) &&
-    flat_in_array() == p->flat_in_array() &&
+    _flat_in_array == p->_flat_in_array &&
     TypeKlassPtr::eq(p);
 }
 
-uint TypeInstKlassPtr::hash(void) const {
-  return klass()->hash() + TypeKlassPtr::hash() + (uint)flat_in_array();
+uint TypeInstKlassPtr::hash() const {
+  return klass()->hash() + TypeKlassPtr::hash() + static_cast<uint>(_flat_in_array);
 }
 
-const TypeInstKlassPtr *TypeInstKlassPtr::make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset, bool flat_in_array) {
-  flat_in_array = flat_in_array || k->maybe_flat_in_array();
-
+const TypeInstKlassPtr *TypeInstKlassPtr::make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset, FlatInArray flat_in_array) {
+  if (flat_in_array == Uninitialized) {
+    flat_in_array = compute_flat_in_array(k->as_instance_klass(), ptr == Constant);
+  }
   TypeInstKlassPtr *r =
     (TypeInstKlassPtr*)(new TypeInstKlassPtr(ptr, k, interfaces, offset, flat_in_array))->hashcons();
 
   return r;
 }
 
+bool TypeInstKlassPtr::empty() const {
+  if (_flat_in_array == TopFlat) {
+    return true;
+  }
+  return TypeKlassPtr::empty();
+}
+
 //------------------------------add_offset-------------------------------------
 // Access internals of klass object
 const TypePtr *TypeInstKlassPtr::add_offset( intptr_t offset ) const {
-  return make(_ptr, klass(), _interfaces, xadd_offset(offset), flat_in_array());
+  return make(_ptr, klass(), _interfaces, xadd_offset(offset), _flat_in_array);
 }
 
 const TypeInstKlassPtr* TypeInstKlassPtr::with_offset(intptr_t offset) const {
-  return make(_ptr, klass(), _interfaces, Offset(offset), flat_in_array());
+  return make(_ptr, klass(), _interfaces, Offset(offset), _flat_in_array);
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
 const TypeInstKlassPtr* TypeInstKlassPtr::cast_to_ptr_type(PTR ptr) const {
   assert(_base == InstKlassPtr, "subclass must override cast_to_ptr_type");
   if( ptr == _ptr ) return this;
-  return make(ptr, _klass, _interfaces, _offset, flat_in_array());
+  return make(ptr, _klass, _interfaces, _offset, _flat_in_array);
 }
 
 
@@ -6266,7 +6320,8 @@ const TypeKlassPtr* TypeInstKlassPtr::cast_to_exactness(bool klass_is_exact) con
   if (klass_is_exact == (_ptr == Constant)) return this;
   if (must_be_exact()) return this;
   ciKlass* k = klass();
-  return make(klass_is_exact ? Constant : NotNull, k, _interfaces, _offset, flat_in_array());
+  FlatInArray flat_in_array = compute_flat_in_array(k->as_instance_klass(), klass_is_exact);
+  return make(klass_is_exact ? Constant : NotNull, k, _interfaces, _offset, flat_in_array);
 }
 
 
@@ -6282,9 +6337,9 @@ const TypeOopPtr* TypeInstKlassPtr::as_instance_type(bool klass_change) const {
   // Element is an instance
   bool klass_is_exact = false;
   const TypeInterfaces* interfaces = _interfaces;
+  ciInstanceKlass* ik = k->as_instance_klass();
   if (k->is_loaded()) {
     // Try to set klass_is_exact.
-    ciInstanceKlass* ik = k->as_instance_klass();
     klass_is_exact = ik->is_final();
     if (!klass_is_exact && klass_change
         && deps != nullptr && UseUniqueSubclasses) {
@@ -6298,7 +6353,9 @@ const TypeOopPtr* TypeInstKlassPtr::as_instance_type(bool klass_change) const {
       }
     }
   }
-  return TypeInstPtr::make(TypePtr::BotPTR, k, interfaces, xk, nullptr, Offset(0), flat_in_array() && !klass()->is_inlinetype());
+
+  FlatInArray flat_in_array = compute_flat_in_array_if_unknown(ik, xk, _flat_in_array);
+  return TypeInstPtr::make(TypePtr::BotPTR, k, interfaces, xk, nullptr, Offset(0), flat_in_array);
 }
 
 //------------------------------xmeet------------------------------------------
@@ -6342,7 +6399,7 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
     case Null:
       if( ptr == Null ) return TypePtr::make(AnyPtr, ptr, offset, tp->speculative(), tp->inline_depth());
     case AnyNull:
-      return make(ptr, klass(), _interfaces, offset, flat_in_array());
+      return make(ptr, klass(), _interfaces, offset, _flat_in_array);
     case BotPTR:
     case NotNull:
       return TypePtr::make(AnyPtr, ptr, offset, tp->speculative(), tp->inline_depth());
@@ -6381,8 +6438,8 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
 
     ciKlass* res_klass = nullptr;
     bool res_xk = false;
-    bool res_flat_in_array = false;
-    switch(meet_instptr(ptr, interfaces, this, tkls, res_klass, res_xk, res_flat_in_array)) {
+    const FlatInArray flat_in_array = meet_flat_in_array(_flat_in_array, tkls->flat_in_array());
+    switch (meet_instptr(ptr, interfaces, this, tkls, res_klass, res_xk)) {
       case UNLOADED:
         ShouldNotReachHere();
       case SUBTYPE:
@@ -6390,7 +6447,7 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
       case LCA:
       case QUICK: {
         assert(res_xk == (ptr == Constant), "");
-        const Type* res = make(ptr, res_klass, interfaces, off, res_flat_in_array);
+        const Type* res = make(ptr, res_klass, interfaces, off, flat_in_array);
         return res;
       }
       default:
@@ -6411,17 +6468,21 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
       // For instances when a subclass meets a superclass we fall
       // below the centerline when the superclass is exact. We need to
       // do the same here.
-      if (klass()->equals(ciEnv::current()->Object_klass()) && tp_interfaces->contains(this_interfaces) && !klass_is_exact()) {
-        return TypeAryKlassPtr::make(ptr, tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->is_flat(), tp->is_null_free(), tp->is_atomic(), tp->is_vm_type());
+      //
+      // Flat in array: See explanation for meet with TypeInstPtr in TypeAryPtr::xmeet_helper().
+      if (klass()->equals(ciEnv::current()->Object_klass()) && tp_interfaces->contains(this_interfaces) &&
+          !klass_is_exact() && !is_not_flat_in_array()) {
+        return TypeAryKlassPtr::make(ptr, tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->is_flat(), tp->is_null_free(), tp->is_atomic(), tp->is_refined_type());
       } else {
         // cannot subclass, so the meet has to fall badly below the centerline
         ptr = NotNull;
         interfaces = _interfaces->intersection_with(tp->_interfaces);
-        return make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, false);
+        FlatInArray flat_in_array = meet_flat_in_array(_flat_in_array, NotFlat);
+        return make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, flat_in_array);
       }
     case Constant:
     case NotNull:
-    case BotPTR:                // Fall down to object klass
+    case BotPTR: { // Fall down to object klass
       // LCA is object_klass, but if we subclass from the top we can do better
       if( above_centerline(_ptr) ) { // if( _ptr == TopPTR || _ptr == AnyNull )
         // If 'this' (InstPtr) is above the centerline and it is Object class
@@ -6429,17 +6490,22 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
         // For instances when a subclass meets a superclass we fall
         // below the centerline when the superclass is exact. We need
         // to do the same here.
-        if (klass()->equals(ciEnv::current()->Object_klass()) && tp_interfaces->contains(this_interfaces) && !klass_is_exact()) {
+        //
+        // Flat in array: See explanation for meet with TypeInstPtr in TypeAryPtr::xmeet_helper().
+        if (klass()->equals(ciEnv::current()->Object_klass()) && tp_interfaces->contains(this_interfaces) &&
+            !klass_is_exact() && !is_not_flat_in_array()) {
           // that is, tp's array type is a subtype of my klass
-          return TypeAryKlassPtr::make(ptr, tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->is_flat(), tp->is_null_free(), tp->is_atomic(), tp->is_vm_type());
+          return TypeAryKlassPtr::make(ptr, tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->is_flat(), tp->is_null_free(), tp->is_atomic(), tp->is_refined_type());
         }
       }
       // The other case cannot happen, since I cannot be a subtype of an array.
       // The meet falls down to Object class below centerline.
       if( ptr == Constant )
-         ptr = NotNull;
+        ptr = NotNull;
       interfaces = this_interfaces->intersection_with(tp_interfaces);
-      return make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, false);
+      FlatInArray flat_in_array = meet_flat_in_array(_flat_in_array, NotFlat);
+      return make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, flat_in_array);
+    }
     default: typerr(t);
     }
   }
@@ -6450,8 +6516,8 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
 
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
-const Type    *TypeInstKlassPtr::xdual() const {
-  return new TypeInstKlassPtr(dual_ptr(), klass(), _interfaces, dual_offset(), flat_in_array());
+const Type* TypeInstKlassPtr::xdual() const {
+  return new TypeInstKlassPtr(dual_ptr(), klass(), _interfaces, dual_offset(), dual_flat_in_array());
 }
 
 template <class T1, class T2> bool TypePtr::is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact) {
@@ -6545,19 +6611,16 @@ const TypeKlassPtr* TypeInstKlassPtr::try_improve() const {
   Compile* C = Compile::current();
   Dependencies* deps = C->dependencies();
   assert((deps != nullptr) == (C->method() != nullptr && C->method()->code_size() > 0), "sanity");
-  const TypeInterfaces* interfaces = _interfaces;
   if (k->is_loaded()) {
     ciInstanceKlass* ik = k->as_instance_klass();
-    bool klass_is_exact = ik->is_final();
-    if (!klass_is_exact &&
-        deps != nullptr) {
+    if (deps != nullptr) {
       ciInstanceKlass* sub = ik->unique_concrete_subklass();
       if (sub != nullptr) {
-        if (_interfaces->eq(sub)) {
+        bool improve_to_exact = sub->is_final() && _ptr == NotNull;
+        const TypeInstKlassPtr* improved = TypeInstKlassPtr::make(improve_to_exact ? Constant : _ptr, sub, _offset);
+        if (improved->_interfaces->contains(_interfaces)) {
           deps->assert_abstract_with_unique_concrete_subtype(ik, sub);
-          k = ik = sub;
-          klass_is_exact = sub->is_final();
-          return TypeKlassPtr::make(klass_is_exact ? Constant : _ptr, k, _offset);
+          return improved;
         }
       }
     }
@@ -6568,6 +6631,17 @@ const TypeKlassPtr* TypeInstKlassPtr::try_improve() const {
 bool TypeInstKlassPtr::can_be_inline_array() const {
   return _klass->equals(ciEnv::current()->Object_klass()) && TypeAryKlassPtr::_array_interfaces->contains(_interfaces);
 }
+
+#ifndef PRODUCT
+void TypeInstKlassPtr::dump2(Dict& d, uint depth, outputStream* st) const {
+  st->print("instklassptr:");
+  klass()->print_name_on(st);
+  _interfaces->dump(st);
+  st->print(":%s", ptr_msg[_ptr]);
+  dump_offset(st);
+  dump_flat_in_array(_flat_in_array, st);
+}
+#endif // PRODUCT
 
 bool TypeAryKlassPtr::can_be_inline_array() const {
   return _elem->isa_instklassptr() && _elem->is_instklassptr()->_klass->can_be_inline_klass();
@@ -6581,56 +6655,56 @@ bool TypeAryPtr::can_be_inline_array() const {
   return elem()->make_ptr() && elem()->make_ptr()->isa_instptr() && elem()->make_ptr()->is_instptr()->_klass->can_be_inline_klass();
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool vm_type) {
-  return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, flat, null_free, atomic, vm_type))->hashcons();
+const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type) {
+  return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, flat, null_free, atomic, refined_type))->hashcons();
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool vm_type) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type) {
+  const Type* etype;
   if (k->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     ciKlass* eklass = k->as_obj_array_klass()->element_klass();
-    const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
-    return TypeAryKlassPtr::make(ptr, etype, nullptr, offset, not_flat, not_null_free, flat, null_free, atomic, vm_type);
+    etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
+    k = nullptr;
   } else if (k->is_type_array_klass()) {
     // Element is an typeArray
-    const Type* etype = get_const_basic_type(k->as_type_array_klass()->element_type());
-    return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free, atomic);
-  } else if (k->is_flat_array_klass()) {
-    ciKlass* eklass = k->as_flat_array_klass()->element_klass();
-    const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
-    return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free, atomic, vm_type);
+    etype = get_const_basic_type(k->as_type_array_klass()->element_type());
   } else {
     ShouldNotReachHere();
-    return nullptr;
+  }
+
+  return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free, atomic, refined_type);
+}
+
+const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling interface_handling) {
+  ciArrayKlass* k = klass->as_array_klass();
+  if (k->is_refined()) {
+    return TypeAryKlassPtr::make(Constant, k, Offset(0), interface_handling, !k->is_flat_array_klass(), !k->is_elem_null_free(),
+                                 k->is_flat_array_klass(), k->is_elem_null_free(), k->is_elem_atomic(), true);
+  } else {
+    // Use the default combination to canonicalize all non-refined klass pointers
+    return TypeAryKlassPtr::make(Constant, k, Offset(0), interface_handling, true, true, false, false, true, false);
   }
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool vm_type) {
-  bool flat = k->is_flat_array_klass();
-  bool null_free = k->as_array_klass()->is_elem_null_free();
-  bool atomic = k->as_array_klass()->is_elem_atomic();
-
-  bool not_inline = k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false);
-  bool not_null_free = (ptr == Constant) ? !null_free : not_inline;
-  bool not_flat = (ptr == Constant) ? !flat : (!UseArrayFlattening || not_inline ||
-                   (k->as_array_klass()->element_klass() != nullptr &&
-                    k->as_array_klass()->element_klass()->is_inlinetype() &&
-                   !k->as_array_klass()->element_klass()->maybe_flat_in_array()));
-
-  return TypeAryKlassPtr::make(ptr, k, offset, interface_handling, not_flat, not_null_free, flat, null_free, atomic, vm_type);
-}
-
-const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling interface_handling, bool vm_type) {
-  return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling, vm_type);
-}
-
-const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type(bool vm_type) const {
-  ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
-  if (elem()->isa_aryklassptr()) {
-    eklass = exact_klass()->as_obj_array_klass()->element_klass();
+const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_non_refined() const {
+  assert(is_refined_type(), "must be a refined type");
+  PTR ptr = _ptr;
+  // There can be multiple refined array types corresponding to a single unrefined type
+  if (ptr == NotNull && elem()->is_klassptr()->klass_is_exact()) {
+    ptr = Constant;
   }
-  ciKlass* array_klass = ciArrayKlass::make(eklass, is_null_free(), is_atomic(), true);
-  return make(_ptr, array_klass, Offset(0), trust_interfaces, vm_type);
+  return make(ptr, elem(), nullptr, _offset, true, true, false, false, true, false);
+}
+
+// Get the (non-)refined array klass ptr
+const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_refined_array_klass_ptr(bool refined) const {
+  if ((refined == is_refined_type()) || !klass_is_exact() || !exact_klass()->is_obj_array_klass()) {
+    return this;
+  }
+  ciArrayKlass* k = exact_klass()->as_array_klass();
+  k = ciObjArrayKlass::make(k->element_klass(), refined);
+  return make(k, trust_interfaces);
 }
 
 //------------------------------eq---------------------------------------------
@@ -6644,7 +6718,7 @@ bool TypeAryKlassPtr::eq(const Type *t) const {
     _null_free == p->_null_free &&
     _not_null_free == p->_not_null_free &&
     _atomic == p->_atomic &&
-    _vm_type == p->_vm_type &&
+    _refined_type == p->_refined_type &&
     TypeKlassPtr::eq(p);  // Check sub-parts
 }
 
@@ -6652,7 +6726,7 @@ bool TypeAryKlassPtr::eq(const Type *t) const {
 // Type-specific hashing function.
 uint TypeAryKlassPtr::hash(void) const {
   return (uint)(uintptr_t)_elem + TypeKlassPtr::hash() + (uint)(_not_flat ? 43 : 0) +
-      (uint)(_not_null_free ? 44 : 0) + (uint)(_flat ? 45 : 0) + (uint)(_null_free ? 46 : 0)  + (uint)(_atomic ? 47 : 0) + (uint)(_vm_type ? 48 : 0);
+      (uint)(_not_null_free ? 44 : 0) + (uint)(_flat ? 45 : 0) + (uint)(_null_free ? 46 : 0)  + (uint)(_atomic ? 47 : 0) + (uint)(_refined_type ? 48 : 0);
 }
 
 //----------------------compute_klass------------------------------------------
@@ -6668,14 +6742,7 @@ ciKlass* TypeAryPtr::compute_klass() const {
   }
 
   // Get element klass
-  if (is_flat() && el->is_inlinetypeptr()) {
-    // Klass is required by TypeAryPtr::flat_layout_helper() and others
-    if (el->inline_klass() != nullptr) {
-      // TODO 8350865 We assume atomic if the atomic layout is available, use is_atomic() here
-      bool atomic = is_null_free() ? el->inline_klass()->has_atomic_layout() : el->inline_klass()->has_nullable_atomic_layout();
-      k_ary = ciArrayKlass::make(el->inline_klass(), is_null_free(), atomic, true);
-    }
-  } else if ((tinst = el->isa_instptr()) != nullptr) {
+  if ((tinst = el->isa_instptr()) != nullptr) {
     // Leave k_ary at nullptr.
   } else if ((tary = el->isa_aryptr()) != nullptr) {
     // Leave k_ary at nullptr.
@@ -6726,8 +6793,16 @@ ciKlass* TypeAryPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    k = ciArrayKlass::make(k, is_null_free(), is_atomic(), is_flat() || is_null_free());
-    return k;
+    if (k->is_array_klass() && k->as_array_klass()->is_refined()) {
+      // We have no mechanism to create an array of refined arrays
+      k = ciObjArrayKlass::make(k->as_array_klass()->element_klass(), false);
+    }
+    if (klass_is_exact()) {
+      return ciObjArrayKlass::make(k, true, is_null_free(), is_atomic());
+    } else {
+      // We may reach here if called recursively, must be an unrefined type then
+      return ciObjArrayKlass::make(k, false);
+    }
   }
 
   return klass();
@@ -6746,66 +6821,62 @@ const Type* TypeAryPtr::base_element_type(int& dims) const {
 //------------------------------add_offset-------------------------------------
 // Access internals of klass object
 const TypePtr* TypeAryKlassPtr::add_offset(intptr_t offset) const {
-  return make(_ptr, elem(), klass(), xadd_offset(offset), is_not_flat(), is_not_null_free(), _flat, _null_free, _atomic, _vm_type);
+  return make(_ptr, elem(), klass(), xadd_offset(offset), is_not_flat(), is_not_null_free(), _flat, _null_free, _atomic, _refined_type);
 }
 
 const TypeAryKlassPtr* TypeAryKlassPtr::with_offset(intptr_t offset) const {
-  return make(_ptr, elem(), klass(), Offset(offset), is_not_flat(), is_not_null_free(), _flat, _null_free, _atomic, _vm_type);
+  return make(_ptr, elem(), klass(), Offset(offset), is_not_flat(), is_not_null_free(), _flat, _null_free, _atomic, _refined_type);
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
 const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_ptr_type(PTR ptr) const {
   assert(_base == AryKlassPtr, "subclass must override cast_to_ptr_type");
   if (ptr == _ptr) return this;
-  return make(ptr, elem(), _klass, _offset, is_not_flat(), is_not_null_free(), _flat, _null_free, _atomic, _vm_type);
+  return make(ptr, elem(), _klass, _offset, is_not_flat(), is_not_null_free(), _flat, _null_free, _atomic, _refined_type);
 }
 
 bool TypeAryKlassPtr::must_be_exact() const {
-  if (_elem == Type::BOTTOM) return false;
-  if (_elem == Type::TOP   ) return false;
-  const TypeKlassPtr*  tk = _elem->isa_klassptr();
-  if (!tk)             return true;   // a primitive type, like int
-  // Even though MyValue is final, [LMyValue is only exact if the array
-  // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-  // TODO 8350865 If we know that the array can't be null-free, it's allowed to be exact, right?
-  // If so, we should add '&& !is_not_null_free()'
-  if (tk->isa_instklassptr() && tk->klass()->is_inlinetype() && !is_null_free()) {
+  assert(klass_is_exact(), "precondition");
+  if (_elem == Type::BOTTOM || _elem == Type::TOP) {
     return false;
   }
-  return tk->must_be_exact();
-}
+  const TypeKlassPtr* elem = _elem->isa_klassptr();
+  if (elem == nullptr) {
+    // primitive arrays
+    return true;
+  }
 
+  // refined types are final
+  return _refined_type;
+}
 
 //-----------------------------cast_to_exactness-------------------------------
 const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) const {
-  if (must_be_exact() && !klass_is_exact) return this;  // cannot clear xk
   if (klass_is_exact == this->klass_is_exact()) {
     return this;
   }
-  ciKlass* k = _klass;
+  if (!klass_is_exact && must_be_exact()) {
+    return this;
+  }
   const Type* elem = this->elem();
   if (elem->isa_klassptr() && !klass_is_exact) {
     elem = elem->is_klassptr()->cast_to_exactness(klass_is_exact);
   }
-  bool not_flat = is_not_flat();
-  bool not_null_free = is_not_null_free();
-  if (_elem->isa_klassptr()) {
-    if (klass_is_exact || _elem->isa_aryklassptr()) {
-      assert((!is_null_free() && !is_flat()) ||
-             _elem->is_klassptr()->klass()->is_abstract() || _elem->is_klassptr()->klass()->is_java_lang_Object(),
-             "null-free (or flat) concrete inline type arrays should always be exact");
-      // An array can't be null-free (or flat) if the klass is exact
-      not_null_free = true;
-      not_flat = true;
-    } else {
-      // Klass is not exact (anymore), re-compute null-free/flat properties
-      const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(_elem->is_instklassptr()->instance_klass());
-      bool not_inline = !exact_etype->can_be_inline_type();
-      not_null_free = not_inline;
-      not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
-    }
+
+  if (klass_is_exact) {
+    // cast_to_exactness(true) really means get the LCA of all values represented by this
+    // TypeAryKlassPtr. As a result, it must be an unrefined klass pointer.
+    return make(Constant, elem, nullptr, _offset, true, true, false, false, true, false);
+  } else {
+    // cast_to_exactness(false) means get the TypeAryKlassPtr representing all values that subtype
+    // this value
+    bool not_inline = !_elem->isa_instklassptr() || !_elem->is_instklassptr()->instance_klass()->can_be_inline_klass();
+    bool not_flat = !UseArrayFlattening || not_inline ||
+                    (_elem->isa_instklassptr() && _elem->is_instklassptr()->instance_klass()->is_inlinetype() && !_elem->is_instklassptr()->instance_klass()->maybe_flat_in_array());
+    bool not_null_free = not_inline;
+    bool atomic = not_flat;
+    return make(NotNull, elem, nullptr, _offset, not_flat, not_null_free, false, false, atomic, false);
   }
-  return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _flat, _null_free, _atomic, _vm_type);
 }
 
 //-----------------------------as_instance_type--------------------------------
@@ -6870,7 +6941,7 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
     case Null:
       if( ptr == Null ) return TypePtr::make(AnyPtr, ptr, offset, tp->speculative(), tp->inline_depth());
     case AnyNull:
-      return make(ptr, _elem, klass(), offset, is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_vm_type());
+      return make(ptr, _elem, klass(), offset, is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_refined_type());
     case BotPTR:
     case NotNull:
       return TypePtr::make(AnyPtr, ptr, offset, tp->speculative(), tp->inline_depth());
@@ -6918,31 +6989,36 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
     bool flat = meet_flat(tap->_flat);
     bool null_free = meet_null_free(tap->_null_free);
     bool atomic = meet_atomic(tap->_atomic);
-    bool vm_type = _vm_type && tap->_vm_type;
+    bool refined_type = _refined_type && tap->_refined_type;
     if (res == NOT_SUBTYPE) {
       flat = false;
       null_free = false;
       atomic = false;
-      vm_type = false;
+      refined_type = false;
     } else if (res == SUBTYPE) {
       if (above_centerline(tap->ptr()) && !above_centerline(this->ptr())) {
         flat = _flat;
         null_free = _null_free;
         atomic = _atomic;
-        vm_type = _vm_type;
+        refined_type = _refined_type;
       } else if (above_centerline(this->ptr()) && !above_centerline(tap->ptr())) {
         flat = tap->_flat;
         null_free = tap->_null_free;
         atomic = tap->_atomic;
-        vm_type = tap->_vm_type;
+        refined_type = tap->_refined_type;
       } else if (above_centerline(this->ptr()) && above_centerline(tap->ptr())) {
         flat = _flat || tap->_flat;
         null_free = _null_free || tap->_null_free;
         atomic = _atomic || tap->_atomic;
-        vm_type = _vm_type || tap->_vm_type;
+        refined_type = _refined_type || tap->_refined_type;
+      } else if (res_xk && _refined_type != tap->_refined_type) {
+        // This can happen if the phi emitted by LibraryCallKit::load_default_refined_array_klass/load_non_refined_array_klass
+        // is processed before the typeArray guard is folded. Both inputs are constant but the input corresponding to the
+        // typeArray will go away. Don't constant fold it yet but wait for the control input to collapse.
+        ptr = PTR::NotNull;
       }
     }
-    return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, flat, null_free, atomic, vm_type);
+    return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, flat, null_free, atomic, refined_type);
   } // End of case KlassPtr
   case InstKlassPtr: {
     const TypeInstKlassPtr *tp = t->is_instklassptr();
@@ -6958,18 +7034,21 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
       // For instances when a subclass meets a superclass we fall
       // below the centerline when the superclass is exact. We need to
       // do the same here.
+      //
+      // Flat in array: See explanation for meet with TypeInstPtr in TypeAryPtr::xmeet_helper().
       if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) &&
-          !tp->klass_is_exact()) {
-        return TypeAryKlassPtr::make(ptr, _elem, _klass, offset, is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_vm_type());
+          !tp->klass_is_exact() && !tp->is_not_flat_in_array()) {
+        return TypeAryKlassPtr::make(ptr, _elem, _klass, offset, is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_refined_type());
       } else {
         // cannot subclass, so the meet has to fall badly below the centerline
         ptr = NotNull;
         interfaces = this_interfaces->intersection_with(tp->_interfaces);
-        return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, false);
+        FlatInArray flat_in_array = meet_flat_in_array(NotFlat, tp->flat_in_array());
+        return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, flat_in_array);
       }
     case Constant:
     case NotNull:
-    case BotPTR:                // Fall down to object klass
+    case BotPTR: { // Fall down to object klass
       // LCA is object_klass, but if we subclass from the top we can do better
       if (above_centerline(tp->ptr())) {
         // If 'tp'  is above the centerline and it is Object class
@@ -6977,18 +7056,22 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
         // For instances when a subclass meets a superclass we fall
         // below the centerline when the superclass is exact. We need
         // to do the same here.
+        //
+        // Flat in array: See explanation for meet with TypeInstPtr in TypeAryPtr::xmeet_helper().
         if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) &&
-            !tp->klass_is_exact()) {
+            !tp->klass_is_exact() && !tp->is_not_flat_in_array()) {
           // that is, my array type is a subtype of 'tp' klass
-          return make(ptr, _elem, _klass, offset, is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_vm_type());
+          return make(ptr, _elem, _klass, offset, is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_refined_type());
         }
       }
       // The other case cannot happen, since t cannot be a subtype of an array.
       // The meet falls down to Object class below centerline.
       if (ptr == Constant)
-         ptr = NotNull;
+        ptr = NotNull;
       interfaces = this_interfaces->intersection_with(tp_interfaces);
-      return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, false);
+      FlatInArray flat_in_array = meet_flat_in_array(NotFlat, tp->flat_in_array());
+      return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, tp->flat_in_array());
+    }
     default: typerr(t);
     }
   }
@@ -7121,7 +7204,7 @@ bool TypeAryKlassPtr::maybe_java_subtype_of_helper(const TypeKlassPtr* other, bo
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
 const Type    *TypeAryKlassPtr::xdual() const {
-  return new TypeAryKlassPtr(dual_ptr(), elem()->dual(), klass(), dual_offset(), !is_not_flat(), !is_not_null_free(), dual_flat(), dual_null_free(), dual_atomic(), _vm_type);
+  return new TypeAryKlassPtr(dual_ptr(), elem()->dual(), klass(), dual_offset(), !is_not_flat(), !is_not_null_free(), dual_flat(), dual_null_free(), dual_atomic(), _refined_type);
 }
 
 // Is there a single ciKlass* that can represent that type?
@@ -7131,7 +7214,8 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    k = ciArrayKlass::make(k, is_null_free(), is_atomic(), _vm_type);
+    assert(!k->is_array_klass() || !k->as_array_klass()->is_refined(), "no mechanism to create an array of refined arrays %s", k->name()->as_utf8());
+    k = ciArrayKlass::make(k, is_null_free(), is_atomic(), _refined_type);
     return k;
   }
 
@@ -7158,38 +7242,19 @@ ciKlass* TypeAryKlassPtr::klass() const {
 // Dump Klass Type
 #ifndef PRODUCT
 void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
-  switch( _ptr ) {
-  case Constant:
-    st->print("precise ");
-  case NotNull:
-    {
-      st->print("[");
-      _elem->dump2(d, depth, st);
-      _interfaces->dump(st);
-      st->print(": ");
-    }
-  case BotPTR:
-    if( !WizardMode && !Verbose && _ptr != Constant ) break;
-  case TopPTR:
-  case AnyNull:
-    st->print(":%s", ptr_msg[_ptr]);
-    if( _ptr == Constant ) st->print(":exact");
-    break;
-  default:
-    break;
-  }
+  st->print("aryklassptr:[");
+  _elem->dump2(d, depth, st);
+  _interfaces->dump(st);
+  st->print(":%s", ptr_msg[_ptr]);
   if (_flat) st->print(":flat");
   if (_null_free) st->print(":null free");
   if (_atomic) st->print(":atomic");
-  if (_vm_type) st->print(":vm_type");
+  if (_refined_type) st->print(":refined_type");
   if (Verbose) {
     if (_not_flat) st->print(":not flat");
     if (_not_null_free) st->print(":nullable");
   }
-
-  _offset.dump2(st);
-
-  st->print(" *");
+  dump_offset(st);
 }
 #endif
 

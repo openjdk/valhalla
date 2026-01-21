@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,8 +54,6 @@ class OopClosure : public Closure {
  public:
   virtual void do_oop(oop* o) = 0;
   virtual void do_oop(narrowOop* o) = 0;
-  virtual void do_oop_no_buffering(oop* o) { do_oop(o); }
-  virtual void do_oop_no_buffering(narrowOop* o) { do_oop(o); }
 };
 
 class DoNothingClosure : public OopClosure {
@@ -136,11 +134,6 @@ class DerivedOopClosure : public Closure {
  public:
   enum { SkipNull = true };
   virtual void do_derived_oop(derived_base* base, derived_pointer* derived) = 0;
-};
-
-class BufferedValueClosure : public Closure {
-public:
-  virtual void do_buffered_value(oop* p) = 0;
 };
 
 class KlassClosure : public Closure {
@@ -259,17 +252,14 @@ class NMethodToOopClosure : public NMethodClosure {
   NMethodToOopClosure(OopClosure* cl, bool fix_relocations) : _cl(cl), _fix_relocations(fix_relocations) {}
   void do_nmethod(nmethod* nm) override;
 
-  bool fix_relocations() const { return _fix_relocations; }
   const static bool FixRelocations = true;
 };
 
-class MarkingNMethodClosure : public NMethodToOopClosure {
-  bool _keepalive_nmethods;
+class MarkingNMethodClosure : public NMethodClosure {
+  OopClosure* _cl;
 
  public:
-  MarkingNMethodClosure(OopClosure* cl, bool fix_relocations, bool keepalive_nmethods) :
-      NMethodToOopClosure(cl, fix_relocations),
-      _keepalive_nmethods(keepalive_nmethods) {}
+  MarkingNMethodClosure(OopClosure* cl) : _cl(cl) {}
 
   // Called for each nmethod.
   virtual void do_nmethod(nmethod* nm);

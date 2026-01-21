@@ -26,7 +26,9 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -63,8 +65,6 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  *      </div>
  * </div>
  *
- * @author  Nakul Saraiya
- * @author  Joseph D. Darcy
  * @see     java.lang.Number
  * @since   1.1
  */
@@ -114,6 +114,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
         return Optional.of(DynamicConstantDesc.ofNamed(BSM_EXPLICIT_CAST, DEFAULT_NAME, CD_byte, intValue()));
     }
 
+    @AOTSafeClassInitializer
     private static final class ByteCache {
         private ByteCache() {}
 
@@ -142,11 +143,23 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     /**
      * Returns a {@code Byte} instance representing the specified
      * {@code byte} value.
-     * If a new {@code Byte} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Byte(byte)}, as this method is likely to yield
-     * significantly better space and time performance since
-     * all byte values are cached.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Byte} is an identity class.
+     *              If a new {@code Byte} instance is not required, this method
+     *              should generally be used in preference to the constructor
+     *              {@link #Byte(byte)}, as this method is likely to yield
+     *              significantly better space and time performance since
+     *              all byte values are cached.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Byte} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  b a byte value.
      * @return a {@code Byte} instance representing {@code b}.
@@ -156,7 +169,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     @DeserializeConstructor
     public static Byte valueOf(byte b) {
         final int offset = 128;
-        return ByteCache.cache[(int)b + offset];
+        return (!PreviewFeatures.isEnabled()) ? ByteCache.cache[(int)b + offset] : new Byte(b);
     }
 
     /**

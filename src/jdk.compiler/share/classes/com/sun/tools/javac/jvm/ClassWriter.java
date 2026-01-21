@@ -1844,8 +1844,13 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & IDENTITY_TYPE) != 0) {
-            result |= ACC_IDENTITY;
+        if (sym.kind == TYP) {
+            /* flags IDENTITY_TYPE and HAS_INIT share the same value, this is why we need first to double check that
+             * we are dealing with a type
+             */
+            if ((flags & IDENTITY_TYPE) != 0) {
+                result |= ACC_IDENTITY;
+            }
         }
         if (sym.kind == VAR) {
             if ((flags & STRICT) != 0) {

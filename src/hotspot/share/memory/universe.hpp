@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ class Universe: AllStatic {
   friend class VMStructs;
   friend class VM_PopulateDumpSharedSpace;
   friend class Metaspace;
-  friend class MetaspaceShared;
+  friend class AOTMetaspace;
   friend class vmClasses;
 
   friend jint  universe_init();
@@ -115,7 +115,6 @@ class Universe: AllStatic {
   static CollectedHeap* _collectedHeap;
 
   static intptr_t _non_oop_bits;
-
 
   // array of dummy objects used with +FullGCAlot
   DEBUG_ONLY(static OopHandle   _fullgc_alot_dummy_array;)
@@ -186,15 +185,24 @@ class Universe: AllStatic {
   static TypeArrayKlass* floatArrayKlass()       { return typeArrayKlass(T_FLOAT); }
   static TypeArrayKlass* doubleArrayKlass()      { return typeArrayKlass(T_DOUBLE); }
 
-  static ObjArrayKlass* objectArrayKlass()       { return _objectArrayKlass; }
+  static ObjArrayKlass* objectArrayKlass() {
+    ObjArrayKlass* k = _objectArrayKlass;
+    assert(k != nullptr, "Object array klass should be initialized; too early?");
+    return k;
+  }
 
-  static Klass* fillerArrayKlass()               { return _fillerArrayKlass; }
+  static Klass* fillerArrayKlass() {
+    Klass* k = _fillerArrayKlass;
+    assert(k != nullptr, "Filler array class should be initialized; too early?");
+    return k;
+  }
 
   static TypeArrayKlass* typeArrayKlass(BasicType t) {
     assert((uint)t >= T_BOOLEAN, "range check for type: %s", type2name(t));
     assert((uint)t < T_LONG+1,   "range check for type: %s", type2name(t));
-    assert(_typeArrayKlasses[t] != nullptr, "domain check");
-    return _typeArrayKlasses[t];
+    TypeArrayKlass* k = _typeArrayKlasses[t];
+    assert(k != nullptr, "Type array class should be initialized; too early?");
+    return k;
   }
 
   // Known objects in the VM
@@ -233,6 +241,7 @@ class Universe: AllStatic {
   static oop          array_index_out_of_bounds_exception_instance();
   static oop          array_store_exception_instance();
   static oop          class_cast_exception_instance();
+  static oop          preempted_exception_instance();
   static oop          vm_exception()                  { return internal_error_instance(); }
 
   static Array<Klass*>* the_array_interfaces_array()  { return _the_array_interfaces_array; }
@@ -246,6 +255,8 @@ class Universe: AllStatic {
 
   static Method*      is_substitutable_method();
   static Method*      value_object_hash_code_method();
+  static Method*      is_substitutableAlt_method();
+  static Method*      value_object_hash_codeAlt_method();
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }
@@ -300,12 +311,14 @@ class Universe: AllStatic {
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }
 
+  static void before_exit();
+
   DEBUG_ONLY(static bool is_stw_gc_active();)
   DEBUG_ONLY(static bool is_in_heap(const void* p);)
   DEBUG_ONLY(static bool is_in_heap_or_null(const void* p) { return p == nullptr || is_in_heap(p); })
 
   // Reserve Java heap and determine CompressedOops mode
-  static ReservedHeapSpace reserve_heap(size_t heap_size, size_t alignment);
+  static ReservedHeapSpace reserve_heap(size_t heap_size, size_t alignment, size_t desired_page_size = 0);
 
   // Global OopStorages
   static OopStorage* vm_weak();

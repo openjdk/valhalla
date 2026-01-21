@@ -2,7 +2,8 @@
  * @test /nodynamiccopyright/
  * @bug 8334248
  * @summary Invalid error for early construction local class constructor method reference
- * @compile EarlyIndirectOuterCapture.java
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester EarlyIndirectOuterCapture
  */
 
 public class EarlyIndirectOuterCapture {

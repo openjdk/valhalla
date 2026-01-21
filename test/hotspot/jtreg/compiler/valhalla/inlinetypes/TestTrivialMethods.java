@@ -48,13 +48,10 @@ import compiler.whitebox.CompilerWhiteBoxTest;
 
 import java.lang.reflect.Method;
 
-import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
-import jdk.test.lib.Utils;
 
 import jdk.test.whitebox.WhiteBox;
 

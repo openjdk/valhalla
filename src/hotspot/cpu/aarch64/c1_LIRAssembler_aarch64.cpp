@@ -34,6 +34,7 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "code/compiledIC.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gc_globals.hpp"
@@ -411,12 +412,8 @@ int LIR_Assembler::emit_unwind_handler() {
   MonitorExitStub* stub = nullptr;
   if (method()->is_synchronized()) {
     monitor_address(0, FrameMap::r0_opr);
-    stub = new MonitorExitStub(FrameMap::r0_opr, true, 0);
-    if (LockingMode == LM_MONITOR) {
-      __ b(*stub->entry());
-    } else {
-      __ unlock_object(r5, r4, r0, r6, *stub->entry());
-    }
+    stub = new MonitorExitStub(FrameMap::r0_opr, 0);
+    __ unlock_object(r5, r4, r0, r6, *stub->entry());
     __ bind(*stub->continuation());
   }
 
@@ -455,12 +452,20 @@ int LIR_Assembler::emit_deopt_handler() {
 
   int offset = code_offset();
 
-  __ adr(lr, pc());
-  __ far_jump(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
+  Label start;
+  __ bind(start);
+
+  __ far_call(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
+
+  int entry_offset = __ offset();
+  __ b(start);
+
   guarantee(code_offset() - offset <= deopt_handler_size(), "overflow");
+  assert(code_offset() - entry_offset >= NativePostCallNop::first_check_size,
+         "out of bounds read in post-call NOP check");
   __ end_a_stub();
 
-  return offset;
+  return entry_offset;
 }
 
 void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
@@ -506,7 +511,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
 
       // Load fields from a buffered value with an inline class specific handler
       __ load_klass(rscratch1 /*dst*/, r0 /*src*/);
-      __ ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
       __ ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
       // Unpack handler can be null if inline type is not scalarizable in returns
       __ cbz(rscratch1, skip);
@@ -1398,6 +1403,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   __ verify_oop(obj);
 
   if (op->fast_check()) {
+    assert(!k->is_loaded() || !k->is_obj_array_klass(), "Use refined array for a direct pointer comparison");
     // get object class
     // not a safepoint as obj null check happens earlier
     __ load_klass(rscratch1, obj);
@@ -1420,7 +1426,14 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
         // See if we get an immediate positive hit
         __ br(Assembler::EQ, *success_target);
         // check for self
-        __ cmp(klass_RInfo, k_RInfo);
+        if (k->is_loaded() && k->is_obj_array_klass()) {
+          // For a direct pointer comparison, we need the refined array klass pointer
+          ciKlass* k_refined = ciObjArrayKlass::make(k->as_obj_array_klass()->element_klass());
+          __ mov_metadata(rscratch1, k_refined->constant_encoding());
+          __ cmp(klass_RInfo, rscratch1);
+        } else {
+          __ cmp(klass_RInfo, k_RInfo);
+        }
         __ br(Assembler::EQ, *success_target);
 
         __ stp(klass_RInfo, k_RInfo, Address(__ pre(sp, -2 * wordSize)));
@@ -2682,14 +2695,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
   Register hdr = op->hdr_opr()->as_register();
   Register lock = op->lock_opr()->as_register();
   Register temp = op->scratch_opr()->as_register();
-  if (LockingMode == LM_MONITOR) {
-    if (op->info() != nullptr) {
-      add_debug_info_for_null_check_here(op->info());
-      __ null_check(obj, -1);
-    }
-    __ b(*op->stub()->entry());
-  } else if (op->code() == lir_lock) {
-    assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
+  if (op->code() == lir_lock) {
     // add debug info for NullPointerException only if one is possible
     int null_check_offset = __ lock_object(hdr, obj, lock, temp, *op->stub()->entry());
     if (op->info() != nullptr) {
@@ -2697,7 +2703,6 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
     }
     // done
   } else if (op->code() == lir_unlock) {
-    assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
     __ unlock_object(hdr, obj, lock, temp, *op->stub()->entry());
   } else {
     Unimplemented();
@@ -2790,11 +2795,6 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
     // Static call
     __ addptr(counter_addr, DataLayout::counter_increment);
   }
-}
-
-
-void LIR_Assembler::emit_delay(LIR_OpDelay*) {
-  Unimplemented();
 }
 
 
@@ -3041,7 +3041,7 @@ void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest, LIR_PatchCode patch_code, C
     return;
   }
 
-  __ lea(dest->as_register_lo(), as_Address(addr->as_address_ptr()));
+  __ lea(dest->as_pointer_register(), as_Address(addr->as_address_ptr()));
 }
 
 
@@ -3355,7 +3355,9 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
   default:
     ShouldNotReachHere();
   }
-  __ membar(__ AnyAny);
+  if(!UseLSE) {
+    __ membar(__ AnyAny);
+  }
 }
 
 #undef __

@@ -29,8 +29,10 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-BackgroundCompilation TestFlatArrayAliasesCardMark
+ * @run main/othervm -XX:-BackgroundCompilation compiler.valhalla.inlinetypes.TestFlatArrayAliasesCardMark
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;

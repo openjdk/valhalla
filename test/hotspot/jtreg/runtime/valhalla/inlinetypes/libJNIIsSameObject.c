@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,6 @@
 #include <jni.h>
 
 JNIEXPORT jboolean JNICALL
-Java_TestJNIIsSameObject_isSameObject(JNIEnv* env, jclass klass, jobject obj0, jobject obj1) {
+Java_runtime_valhalla_inlinetypes_TestJNIIsSameObject_isSameObject(JNIEnv* env, jclass klass, jobject obj0, jobject obj1) {
   return (*env)->IsSameObject(env, obj0, obj1);
 }

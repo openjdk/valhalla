@@ -65,10 +65,6 @@ public class Snapshot implements AutoCloseable {
     private Map<String, JavaClass> classes =
                  new TreeMap<String, JavaClass>();
 
-    private Map<Number, Number> flatArrays = new HashMap<>();
-
-    private Map<Number, ClassInlinedFields[]> inlinedFields = new HashMap<>();
-
     // new objects relative to a baseline - lazily initialized
     private volatile Map<JavaHeapObject, Boolean> newObjects;
 
@@ -209,41 +205,6 @@ public class Snapshot implements AutoCloseable {
         return c;
     }
 
-    public void addFlatArray(long objID, long elementClassID) {
-        flatArrays.put(makeId(objID), makeId(elementClassID));
-    }
-
-    /**
-     * @return null if the array is not flat array
-     */
-    Number findFlatArrayElementType(long arrayObjectID) {
-        return flatArrays.get(makeId(arrayObjectID));
-    }
-
-    public static class ClassInlinedFields {
-        final int fieldIndex;
-        final int synthFieldCount;
-        final String fieldName;
-        final long fieldClassID;
-
-        public ClassInlinedFields(int fieldIndex, int synthFieldCount, String fieldName, long fieldClassID) {
-            this.fieldIndex = fieldIndex;
-            this.synthFieldCount = synthFieldCount;
-            this.fieldName = fieldName;
-            this.fieldClassID =  fieldClassID;
-        }
-    }
-
-    public void addClassInlinedFields(long classID, ClassInlinedFields[] fields) {
-        inlinedFields.put(makeId(classID), fields);
-    }
-
-    /**
-     * @return null if the class has no inlined fields
-     */
-    ClassInlinedFields[] findClassInlinedFields(long classID) {
-        return inlinedFields.get(makeId(classID));
-    }
 
     /**
      * @return true iff it's possible that some JavaThing instances might

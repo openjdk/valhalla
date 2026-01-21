@@ -214,53 +214,46 @@ void PhaseMacroExpand::generate_limit_guard(Node** ctrl, Node* offset, Node* sub
 void PhaseMacroExpand::generate_partial_inlining_block(Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type,
                                                        RegionNode** exit_block, Node** result_memory, Node* length,
                                                        Node* src_start, Node* dst_start, BasicType type) {
-  const TypePtr *src_adr_type = _igvn.type(src_start)->isa_ptr();
-  Node* inline_block = nullptr;
-  Node* stub_block = nullptr;
+  int inline_limit = ArrayOperationPartialInlineSize / type2aelembytes(type);
 
-  int const_len = -1;
-  const TypeInt* lty = nullptr;
-  uint shift  = exact_log2(type2aelembytes(type));
-  if (length->Opcode() == Op_ConvI2L) {
-    lty = _igvn.type(length->in(1))->isa_int();
-  } else  {
-    lty = _igvn.type(length)->isa_int();
-  }
-  if (lty && lty->is_con()) {
-    const_len = lty->get_con() << shift;
+  const TypeLong* length_type = _igvn.type(length)->isa_long();
+  if (length_type == nullptr) {
+    assert(_igvn.type(length) == Type::TOP, "");
+    return;
   }
 
-  // Return if copy length is greater than partial inline size limit or
-  // target does not supports masked load/stores.
-  int lane_count = ArrayCopyNode::get_partial_inline_vector_lane_count(type, const_len);
-  if ( const_len > ArrayOperationPartialInlineSize ||
-      !Matcher::match_rule_supported_vector(Op_LoadVectorMasked, lane_count, type)  ||
+  const TypeLong* inline_range = TypeLong::make(0, inline_limit, Type::WidenMin);
+  if (length_type->join(inline_range) == Type::TOP) {
+    // The ranges do not intersect, the inline check will surely fail
+    return;
+  }
+
+  // Return if the target does not supports masked load/stores.
+  int lane_count = ArrayCopyNode::get_partial_inline_vector_lane_count(type, length_type->_hi);
+  if (!Matcher::match_rule_supported_vector(Op_LoadVectorMasked, lane_count, type)  ||
       !Matcher::match_rule_supported_vector(Op_StoreVectorMasked, lane_count, type) ||
       !Matcher::match_rule_supported_vector(Op_VectorMaskGen, lane_count, type)) {
     return;
   }
 
-  int inline_limit = ArrayOperationPartialInlineSize / type2aelembytes(type);
-  Node* casted_length = new CastLLNode(*ctrl, length, TypeLong::make(0, inline_limit, Type::WidenMin));
-  transform_later(casted_length);
-  Node* copy_bytes = new LShiftXNode(length, intcon(shift));
-  transform_later(copy_bytes);
-
-  Node* cmp_le = new CmpULNode(copy_bytes, longcon(ArrayOperationPartialInlineSize));
+  Node* cmp_le = new CmpULNode(length, longcon(inline_limit));
   transform_later(cmp_le);
   Node* bol_le = new BoolNode(cmp_le, BoolTest::le);
   transform_later(bol_le);
-  inline_block  = generate_guard(ctrl, bol_le, nullptr, PROB_FAIR);
-  stub_block = *ctrl;
+  Node* inline_block = generate_guard(ctrl, bol_le, nullptr, PROB_FAIR);
+  Node* stub_block = *ctrl;
 
+  Node* casted_length = new CastLLNode(inline_block, length, inline_range, ConstraintCastNode::DependencyType::FloatingNarrowing);
+  transform_later(casted_length);
   Node* mask_gen = VectorMaskGenNode::make(casted_length, type);
   transform_later(mask_gen);
 
-  unsigned vec_size = lane_count *  type2aelembytes(type);
+  unsigned vec_size = lane_count * type2aelembytes(type);
   if (C->max_vector_size() < vec_size) {
     C->set_max_vector_size(vec_size);
   }
 
+  const TypePtr* src_adr_type = _igvn.type(src_start)->isa_ptr();
   const TypeVect * vt = TypeVect::make(type, lane_count);
   Node* mm = (*mem)->memory_at(C->get_alias_index(src_adr_type));
   Node* masked_load = new LoadVectorMaskedNode(inline_block, mm, src_start,
@@ -1578,26 +1571,12 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
-    // TODO 8350865 Fix below logic. Also handle atomicity.
+    // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
-    if (!(top_src->is_flat() && top_dest->is_flat())) {
+    if (!(top_src->is_flat() && top_dest->is_flat() && top_src->is_null_free() == top_dest->is_null_free())) {
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
-    }
-
-    // Handle inline type arrays
-    if (!top_src->is_flat()) {
-      if (UseArrayFlattening && !top_src->is_not_flat()) {
-        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
-      }
-      if (EnableValhalla) {
-        // No validation. The subtype check emitted at macro expansion time will not go to the slow
-        // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
-        generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
-      }
-    } else {
-      assert(top_dest->is_flat(), "dest array must be flat");
+      generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
     }
   }
 
@@ -1605,7 +1584,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
 
-  if (top_src->is_flat() && top_dest->is_flat()) {
+  if (top_src->is_flat() && top_dest->is_flat() &&
+      top_src->is_null_free() == top_dest->is_null_free()) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();

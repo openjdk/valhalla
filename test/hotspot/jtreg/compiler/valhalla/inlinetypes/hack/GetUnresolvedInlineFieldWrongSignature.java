@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,23 +74,23 @@ class TestUnloadedInlineTypeField {
     }
 }
 
-class GetUnresolvedInlineFieldWrongSignature {
+public class GetUnresolvedInlineFieldWrongSignature {
 
-    static void test13(Object holder) {
+    public static void test13(Object holder) {
         if (holder != null) {
             // Don't use MyValue13Holder in the signature, it might trigger class loading
             ((TestUnloadedInlineTypeField.MyValue13Holder)holder).v = new TestUnloadedInlineTypeField.MyValue13();
         }
     }
 
-    static void test15(Object holder) {
+    public static void test15(Object holder) {
         if (holder != null) {
             // Don't use MyValue15Holder in the signature, it might trigger class loading
             ((TestUnloadedInlineTypeField.MyValue15Holder)holder).v = new TestUnloadedInlineTypeField.MyValue15();
         }
     }
 
-    static Object test16(boolean warmup) {
+    public static Object test16(boolean warmup) {
         if (!warmup) {
             return new TestUnloadedInlineTypeField.MyValue16();
         } else {
@@ -98,7 +98,7 @@ class GetUnresolvedInlineFieldWrongSignature {
         }
     }
 
-    static Object test17(boolean warmup) {
+    public static Object test17(boolean warmup) {
         if (!warmup) {
             return new TestUnloadedInlineTypeField.MyValue17();
         } else {

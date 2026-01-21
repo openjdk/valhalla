@@ -1381,7 +1381,6 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     __ ldr(r10, Address(rmethod, Method::native_function_offset()));
     ExternalAddress unsatisfied(SharedRuntime::native_method_throw_unsatisfied_link_error_entry());
     __ lea(rscratch2, unsatisfied);
-    __ ldr(rscratch2, rscratch2);
     __ cmp(r10, rscratch2);
     __ br(Assembler::NE, L);
     __ call_VM(noreg,
@@ -1484,22 +1483,17 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
   __ stlrw(rscratch1, rscratch2);
 
-  if (LockingMode != LM_LEGACY) {
-    // Check preemption for Object.wait()
-    Label not_preempted;
-    __ ldr(rscratch1, Address(rthread, JavaThread::preempt_alternate_return_offset()));
-    __ cbz(rscratch1, not_preempted);
-    __ str(zr, Address(rthread, JavaThread::preempt_alternate_return_offset()));
-    __ br(rscratch1);
-    __ bind(native_return);
-    __ restore_after_resume(true /* is_native */);
-    // reload result_handler
-    __ ldr(result_handler, Address(rfp, frame::interpreter_frame_result_handler_offset*wordSize));
-    __ bind(not_preempted);
-  } else {
-    // any pc will do so just use this one for LM_LEGACY to keep code together.
-    __ bind(native_return);
-  }
+  // Check preemption for Object.wait()
+  Label not_preempted;
+  __ ldr(rscratch1, Address(rthread, JavaThread::preempt_alternate_return_offset()));
+  __ cbz(rscratch1, not_preempted);
+  __ str(zr, Address(rthread, JavaThread::preempt_alternate_return_offset()));
+  __ br(rscratch1);
+  __ bind(native_return);
+  __ restore_after_resume(true /* is_native */);
+  // reload result_handler
+  __ ldr(result_handler, Address(rfp, frame::interpreter_frame_result_handler_offset*wordSize));
+  __ bind(not_preempted);
 
   // reset_last_Java_frame
   __ reset_last_Java_frame(true);
@@ -1669,7 +1663,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 //
 // Generic interpreted method entry to (asm) interpreter
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool object_init) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls;
 
@@ -1794,6 +1788,12 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
       __ bind(L);
     }
 #endif
+  }
+
+  // Issue a StoreStore barrier on entry to Object_init if the
+  // class has strict field fields.  Be lazy, always do it.
+  if (object_init) {
+    __ membar(MacroAssembler::StoreStore);
   }
 
   // start execution

@@ -674,6 +674,14 @@ bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass
         element_ptr = array_access->element()->ptr_kind();
         flat_array = array_access->flat_array();
         null_free_array = array_access->null_free_array();
+#ifdef ASSERT
+        if (array_type != nullptr) {
+          bool flat = array_type->is_flat_array_klass();
+          bool null_free = array_type->as_array_klass()->is_elem_null_free();
+          assert(!flat || flat_array, "inconsistency");
+          assert(!null_free || null_free_array, "inconsistency");
+        }
+#endif
         return true;
       } else if (data->is_ArrayStoreData()) {
         ciArrayStoreData* array_access = (ciArrayStoreData*) data->as_ArrayStoreData();
@@ -693,6 +701,14 @@ bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass
         } else {
           element_ptr = ProfileMaybeNull;
         }
+#ifdef ASSERT
+        if (array_type != nullptr) {
+          bool flat = array_type->is_flat_array_klass();
+          bool null_free = array_type->as_array_klass()->is_elem_null_free();
+          assert(!flat || flat_array, "inconsistency");
+          assert(!null_free || null_free_array, "inconsistency");
+        }
+#endif
         return true;
       }
     }

@@ -39,6 +39,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/type.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -152,7 +153,7 @@ Node* Parse::fetch_interpreter_state(int index,
 // The type is the type predicted by ciTypeFlow.  Note that it is
 // not a general type, but can only come from Type::get_typeflow_type.
 // The safepoint is a map which will feed an uncommon trap.
-Node* Parse::check_interpreter_type(Node* l, const Type* type,
+Node* Parse::check_interpreter_type(Node* l, const Type* type, const TypeKlassPtr* klass_type,
                                     SafePointNode* &bad_type_exit, bool is_early_larval) {
   const TypeOopPtr* tp = type->isa_oopptr();
 
@@ -184,7 +185,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
 
-    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, is_early_larval);
+    l = gen_checkcast(l, makecon(klass_type), &bad_type_ctrl, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
 
@@ -375,17 +376,27 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // value and the expected type is a constant.
       continue;
     }
+    const TypeKlassPtr* klass_type = nullptr;
+    if (type->isa_oopptr()) {
+      klass_type = TypeKlassPtr::make(osr_block->flow()->local_type_at(index)->unwrap()->as_klass(), Type::ignore_interfaces);
+      klass_type = klass_type->try_improve();
+    }
     bool is_early_larval = osr_block->flow()->local_type_at(index)->is_early_larval();
-    set_local(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
+    set_local(index, check_interpreter_type(l, type, klass_type, bad_type_exit, is_early_larval));
   }
 
   for (index = 0; index < sp(); index++) {
     if (stopped())  break;
     Node* l = stack(index);
     if (l->is_top())  continue;  // nothing here
-    const Type *type = osr_block->stack_type_at(index);
+    const Type* type = osr_block->stack_type_at(index);
+    const TypeKlassPtr* klass_type = nullptr;
+    if (type->isa_oopptr()) {
+      klass_type = TypeKlassPtr::make(osr_block->flow()->stack_type_at(index)->unwrap()->as_klass(), Type::ignore_interfaces);
+      klass_type = klass_type->try_improve();
+    }
     bool is_early_larval = osr_block->flow()->stack_type_at(index)->is_early_larval();
-    set_stack(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
+    set_stack(index, check_interpreter_type(l, type, klass_type, bad_type_exit, is_early_larval));
   }
 
   if (bad_type_exit->control()->req() > 1) {
@@ -1228,6 +1239,13 @@ SafePointNode* Parse::create_entry_map() {
   // Create an initial safepoint to hold JVM state during parsing
   JVMState* jvms = new (C) JVMState(method(), _caller->has_method() ? _caller : nullptr);
   set_map(new SafePointNode(len, jvms));
+
+  // Capture receiver info for compiled lambda forms.
+  if (method()->is_compiled_lambda_form()) {
+    ciInstance* recv_info = _caller->compute_receiver_info(method());
+    jvms->set_receiver_info(recv_info);
+  }
+
   jvms->set_map(map());
   record_for_igvn(map());
   assert(jvms->endoff() == len, "correct jvms sizing");
@@ -1275,6 +1293,36 @@ void Parse::do_method_entry() {
   set_sp(0);                         // Java Stack Pointer
 
   NOT_PRODUCT( count_compiled_calls(true/*at_method_entry*/, false/*is_inline*/); )
+
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    Node* receiver_obj = local(0);
+    const TypeInstPtr* receiver_type = _gvn.type(receiver_obj)->isa_instptr();
+    // If there's no exact type, check if the declared type has no implementors and add a dependency
+    const TypeKlassPtr* klass_ptr = receiver_type->as_klass_type(/* try_for_exact= */ true);
+    ciType* klass = klass_ptr->klass_is_exact() ? klass_ptr->exact_klass() : nullptr;
+    if (klass != nullptr && klass->is_instance_klass()) {
+      // Exact receiver type, check if there is a strict field
+      ciInstanceKlass* holder = klass->as_instance_klass();
+      for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+        ciField* field = holder->nonstatic_field_at(i);
+        if (field->is_strict()) {
+          // Found a strict field, a membar is needed
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(receiver_obj);
+          insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease, receiver_obj);
+          if (DoEscapeAnalysis && (alloc != nullptr)) {
+            alloc->compute_MemBar_redundancy(method());
+          }
+          break;
+        }
+      }
+    } else if (klass == nullptr) {
+      // We can't statically determine the type of the receiver and therefore need
+      // to put a membar here because it could have a strict field.
+      insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease);
+    }
+  }
 
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_entry(method());

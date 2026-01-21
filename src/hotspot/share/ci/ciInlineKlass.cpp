@@ -32,9 +32,14 @@ int ciInlineKlass::payload_offset() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->payload_offset();)
 }
 
-// Are arrays containing this inline type flat arrays?
+// Could any array containing an instance of this value class ever be flat?
 bool ciInlineKlass::maybe_flat_in_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->maybe_flat_in_array();)
+}
+
+// Are arrays containing an instance of this value class always flat?
+bool ciInlineKlass::is_always_flat_in_array() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->is_always_flat_in_array();)
 }
 
 // Can this inline type be passed as multiple values?
@@ -113,7 +118,7 @@ BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
   assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
   int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
-  BasicType bt;
+  BasicType bt = T_ILLEGAL;
   if (size == sizeof(jlong)) {
     bt = T_LONG;
   } else if (size == sizeof(jint)) {
@@ -134,4 +139,15 @@ bool ciInlineKlass::must_be_atomic() const {
 
 bool ciInlineKlass::is_naturally_atomic(bool null_free) {
   return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
+}
+
+int ciInlineKlass::field_map_offset() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->acmp_maps_offset();)
+}
+
+ciConstant ciInlineKlass::get_field_map() const {
+  VM_ENTRY_MARK
+  InlineKlass* vk = get_InlineKlass();
+  oop array = vk->java_mirror()->obj_field(vk->acmp_maps_offset());
+  return ciConstant(T_ARRAY, CURRENT_ENV->get_object(array));
 }

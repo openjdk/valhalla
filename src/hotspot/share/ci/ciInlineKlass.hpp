@@ -61,6 +61,7 @@ public:
   int payload_offset() const;
 
   bool maybe_flat_in_array() const;
+  bool is_always_flat_in_array() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
   bool is_empty();
@@ -79,6 +80,8 @@ public:
 
   bool must_be_atomic() const;
   bool is_naturally_atomic(bool null_free);
+  int field_map_offset() const;
+  ciConstant get_field_map() const;
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

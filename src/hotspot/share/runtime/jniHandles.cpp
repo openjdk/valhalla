@@ -31,6 +31,7 @@
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/javaThread.inline.hpp"
@@ -290,7 +291,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
 
   bool ret = obj1 == obj2;
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     if (!ret && obj1 != nullptr && obj2 != nullptr && obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
       // The two references are different, they are not null and they are both inline types,
       // a full substitutability test is required, calling ValueObjectMethods.isSubstitutable()
@@ -302,7 +303,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
       JavaCallArguments args;
       args.push_oop(ha);
       args.push_oop(hb);
-      methodHandle method(THREAD, Universe::is_substitutable_method());
+      methodHandle method(THREAD, UseAltSubstitutabilityMethod ?  Universe::is_substitutableAlt_method() : Universe::is_substitutable_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         // Something really bad happened because isSubstitutable() should not throw exceptions
@@ -375,7 +376,7 @@ JNIHandleBlock* JNIHandleBlock::allocate_block(JavaThread* thread, AllocFailType
     } else {
       block = new JNIHandleBlock();
     }
-    Atomic::inc(&_blocks_allocated);
+    AtomicAccess::inc(&_blocks_allocated);
     block->zap();
   }
   block->_top = 0;
@@ -412,7 +413,7 @@ void JNIHandleBlock::release_block(JNIHandleBlock* block, JavaThread* thread) {
     DEBUG_ONLY(block->set_pop_frame_link(nullptr));
     while (block != nullptr) {
       JNIHandleBlock* next = block->_next;
-      Atomic::dec(&_blocks_allocated);
+      AtomicAccess::dec(&_blocks_allocated);
       assert(block->pop_frame_link() == nullptr, "pop_frame_link should be null");
       delete block;
       block = next;

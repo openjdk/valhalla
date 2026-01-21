@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 
 #include "interpreter/bytecodes.hpp"
 #include "oops/instanceKlass.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/sizes.hpp"
 
@@ -43,6 +43,9 @@
 // Field bytecodes start with a constant pool index as their operand, which is then rewritten to
 // a "field index", which is an index into the array of ResolvedFieldEntry.
 
+// The explicit paddings are necessary for generating deterministic CDS archives. They prevent
+// the C++ compiler from potentially inserting random values in unused gaps.
+
 //class InstanceKlass;
 class ResolvedFieldEntry {
   friend class VMStructs;
@@ -54,17 +57,9 @@ class ResolvedFieldEntry {
   u1 _tos_state;                // TOS state
   u1 _flags;                    // Flags: [000|has_null_marker|is_null_free_inline_type|is_flat|is_final|is_volatile]
   u1 _get_code, _put_code;      // Get and Put bytecodes of the field
-
-  void copy_from(const ResolvedFieldEntry& other) {
-    _field_holder = other._field_holder;
-    _field_offset = other._field_offset;
-    _field_index = other._field_index;
-    _cpool_index = other._cpool_index;
-    _tos_state = other._tos_state;
-    _flags = other._flags;
-    _get_code = other._get_code;
-    _put_code = other._put_code;
-  }
+#ifdef _LP64
+  u4 _padding;
+#endif
 
 public:
   ResolvedFieldEntry(u2 cpi) :
@@ -75,22 +70,16 @@ public:
     _tos_state(0),
     _flags(0),
     _get_code(0),
-    _put_code(0) {}
+    _put_code(0)
+#ifdef _LP64
+    , _padding(0)
+#endif
+    {}
 
   ResolvedFieldEntry() :
     ResolvedFieldEntry(0) {}
 
-  ResolvedFieldEntry(const ResolvedFieldEntry& other) {
-    copy_from(other);
-  }
-
-  ResolvedFieldEntry& operator=(const ResolvedFieldEntry& other) {
-    copy_from(other);
-    return *this;
-  }
-
   // Bit shift to get flags
-  // Note: Only two flags exists at the moment but more could be added
   enum {
       is_volatile_shift     = 0,
       is_final_shift        = 1, // unused
@@ -101,18 +90,18 @@ public:
   };
 
   // Getters
-  InstanceKlass* field_holder() const { return _field_holder; }
-  int field_offset()            const { return _field_offset; }
-  u2 field_index()              const { return _field_index;  }
-  u2 constant_pool_index()      const { return _cpool_index;  }
-  u1 tos_state()                const { return _tos_state;    }
-  u1 get_code()                 const { return Atomic::load_acquire(&_get_code);      }
-  u1 put_code()                 const { return Atomic::load_acquire(&_put_code);      }
-  bool is_final()               const { return (_flags & (1 << is_final_shift))    != 0; }
-  bool is_volatile ()           const { return (_flags & (1 << is_volatile_shift)) != 0; }
-  bool is_flat()                const { return (_flags & (1 << is_flat_shift))     != 0; }
+  InstanceKlass* field_holder()   const { return _field_holder; }
+  int field_offset()              const { return _field_offset; }
+  u2 field_index()                const { return _field_index;  }
+  u2 constant_pool_index()        const { return _cpool_index;  }
+  u1 tos_state()                  const { return _tos_state;    }
+  u1 get_code()                   const { return AtomicAccess::load_acquire(&_get_code);   }
+  u1 put_code()                   const { return AtomicAccess::load_acquire(&_put_code);   }
+  bool is_volatile ()             const { return (_flags & (1 << is_volatile_shift)) != 0; }
+  bool is_final()                 const { return (_flags & (1 << is_final_shift))    != 0; }
+  bool is_flat()                  const { return (_flags & (1 << is_flat_shift))     != 0; }
   bool is_null_free_inline_type() const { return (_flags & (1 << is_null_free_inline_type_shift)) != 0; }
-  bool has_null_marker()        const { return (_flags & (1 << has_null_marker_shift)) != 0; }
+  bool has_null_marker()          const { return (_flags & (1 << has_null_marker_shift)) != 0; }
   bool is_resolved(Bytecodes::Code code) const {
     switch(code) {
     case Bytecodes::_getstatic:
@@ -130,15 +119,20 @@ public:
   // Printing
   void print_on(outputStream* st) const;
 
-  void set_flags(bool is_final_flag, bool is_volatile_flag, bool is_flat_flag, bool is_null_free_inline_type_flag,
+  void set_flags(bool is_volatile_flag,
+                 bool is_final_flag,
+                 bool is_flat_flag,
+                 bool is_null_free_inline_type_flag,
                  bool has_null_marker_flag) {
-    u1 new_flags = ((is_final_flag ? 1 : 0) << is_final_shift) | static_cast<int>(is_volatile_flag) |
-      ((is_flat_flag ? 1 : 0) << is_flat_shift) |
-      ((is_null_free_inline_type_flag ? 1 : 0) << is_null_free_inline_type_shift) |
-      ((has_null_marker_flag ? 1 : 0) << has_null_marker_shift);
+    int new_flags =
+        ((is_volatile_flag ? 1 : 0) << is_volatile_shift) |
+        ((is_final_flag ? 1 : 0) << is_final_shift) |
+        ((is_flat_flag ? 1 : 0) << is_flat_shift) |
+        ((is_null_free_inline_type_flag ? 1 : 0) << is_null_free_inline_type_shift) |
+        ((has_null_marker_flag  ? 1 : 0) << has_null_marker_shift);
     _flags = checked_cast<u1>(new_flags);
-    assert(is_final() == is_final_flag, "Must be");
     assert(is_volatile() == is_volatile_flag, "Must be");
+    assert(is_final() == is_final_flag, "Must be");
     assert(is_flat() == is_flat_flag, "Must be");
     assert(is_null_free_inline_type() == is_null_free_inline_type_flag, "Must be");
     assert(has_null_marker() == has_null_marker_flag, "Must be");
@@ -150,7 +144,7 @@ public:
     volatile Bytecodes::Code c = (Bytecodes::Code)*code;
     assert(c == 0 || c == new_code || new_code == 0, "update must be consistent");
   #endif
-    Atomic::release_store(code, new_code);
+    AtomicAccess::release_store(code, new_code);
   }
 
   // Populate the structure with resolution information

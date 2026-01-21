@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,91 @@ import jdk.internal.vm.annotation.Strict;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=450 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class calling convention optimizations.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class calling convention optimizations.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class calling convention optimizations.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class calling convention optimizations.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class calling convention optimizations.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class calling convention optimizations.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build jdk.test.whitebox.WhiteBox
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 6
  */
 
 @ForceCompileClassInitializer
@@ -100,7 +184,7 @@ public class TestCallingConvention {
         scenarios[4].addFlags("-XX:-UseTLAB");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -355,7 +439,7 @@ public class TestCallingConvention {
     public void test14_verifier(RunInfo info) {
         MyValue2 result = test14(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // Return value objects in registers from interpreter -> compiled
@@ -604,7 +688,7 @@ public class TestCallingConvention {
         MyValue2 vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
-        Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(MyValue2.createWithFieldsInline(rI, rD), vt);
     }
 
     // Test calling convention with deep hierarchy of flattened fields
@@ -744,7 +828,7 @@ public class TestCallingConvention {
     public void test32_verifier(RunInfo info) throws Throwable {
         MyValue2 result = test32(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI+32, rD);
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // Same as test32, except the return type is not flattenable.
@@ -769,7 +853,7 @@ public class TestCallingConvention {
     public void test33_verifier(RunInfo info) throws Throwable {
         MyValue2 result = test33(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI+33, rD);
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // Test selection of correct entry point in SharedRuntime::handle_wrong_method
@@ -1327,9 +1411,9 @@ public class TestCallingConvention {
     @Warmup(10000)
     public void test56_verifier(RunInfo info) throws Throwable {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
-        Asserts.assertEQ(test56(true).hash(), vt.hash());
+        Asserts.assertEQ(vt, test56(true));
         if (!info.isWarmUp()) {
-            Asserts.assertEQ(test56(false), null);
+            Asserts.assertEQ(null, test56(false));
         }
     }
 
@@ -1362,16 +1446,16 @@ public class TestCallingConvention {
     }
 
     @LooselyConsistentValue
-    value class MyValue58_1 extends MyAbstract58 {
+    value class MyValue58A extends MyAbstract58 {
     }
 
     @LooselyConsistentValue
-    value class MyValue58_2 extends MyAbstract58 {
+    value class MyValue58B extends MyAbstract58 {
         int x = rI;
     }
 
     @LooselyConsistentValue
-    value class MyValue58_3 extends MyAbstract58 {
+    value class MyValue58C extends MyAbstract58 {
         int x = rI;
 
         @Strict
@@ -1382,15 +1466,15 @@ public class TestCallingConvention {
     }
 
     @Test
-    public MyValue58_3 test58(MyValue58_1 arg1, MyValue58_2 arg2, MyValue58_3 arg3) {
-        Asserts.assertEQ(arg1, new MyValue58_1());
-        Asserts.assertEQ(arg2, new MyValue58_2());
-        Asserts.assertEQ(arg3, new MyValue58_3());
+    public MyValue58C test58(MyValue58A arg1, MyValue58B arg2, MyValue58C arg3) {
+        Asserts.assertEQ(arg1, new MyValue58A());
+        Asserts.assertEQ(arg2, new MyValue58B());
+        Asserts.assertEQ(arg3, new MyValue58C());
         return arg3;
     }
 
     @Run(test = "test58")
     public void test58_verifier() {
-        Asserts.assertEQ(test58(new MyValue58_1(), new MyValue58_2(), new MyValue58_3()), new MyValue58_3());
+        Asserts.assertEQ(test58(new MyValue58A(), new MyValue58B(), new MyValue58C()), new MyValue58C());
     }
 }

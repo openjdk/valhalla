@@ -303,7 +303,7 @@ class HierarchicalFieldStream final : public HierarchicalFieldStreamBase<FieldSt
     InstanceKlass* result = _next_klass;
     do  {
       if (!result->is_interface() && result->super() != nullptr) {
-        result = result->java_super();
+        result = result->super();
       } else if (_interface_index > 0) {
         result = _interfaces->at(--_interface_index);
       } else {

@@ -27,8 +27,10 @@
  * @summary Ensures preloading.
  * @library /test/lib
  * @enablePreview
- * @run junit LoadableDescriptorsTest
+ * @run junit runtime.valhalla.inlinetypes.classloading.LoadableDescriptorsTest
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.attribute.LoadableDescriptorsAttribute;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, 2025, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -550,6 +550,14 @@ Node *Node::clone() const {
       to[i] = from[i]->clone();
     }
   }
+  if (this->is_MachProj()) {
+    // MachProjNodes contain register masks that may contain pointers to
+    // externally allocated memory. Make sure to use a proper constructor
+    // instead of just shallowly copying.
+    MachProjNode* mach = n->as_MachProj();
+    MachProjNode* mthis = this->as_MachProj();
+    new (&mach->_rout) RegMask(mthis->_rout);
+  }
   if (n->is_Call()) {
     // CallGenerator is linked to the original node.
     CallGenerator* cg = n->as_Call()->generator();
@@ -566,6 +574,9 @@ Node *Node::clone() const {
   }
   if (n->is_InlineType()) {
     C->add_inline_type(n);
+  }
+  if (n->is_LoadFlat() || n->is_StoreFlat()) {
+    C->add_flat_access(n);
   }
   Compile::current()->record_modified_node(n);
   return n;                     // Return the clone
@@ -998,18 +1009,22 @@ bool Node::has_out_with(int opcode1, int opcode2, int opcode3, int opcode4) {
 //---------------------------uncast_helper-------------------------------------
 Node* Node::uncast_helper(const Node* p, bool keep_deps) {
 #ifdef ASSERT
+  // If we end up traversing more nodes than we actually have,
+  // it is definitely an infinite loop.
+  uint max_depth = Compile::current()->unique();
   uint depth_count = 0;
   const Node* orig_p = p;
 #endif
 
   while (true) {
 #ifdef ASSERT
-    if (depth_count >= K) {
+    if (depth_count++ >= max_depth) {
       orig_p->dump(4);
-      if (p != orig_p)
+      if (p != orig_p) {
         p->dump(1);
+      }
+      fatal("infinite loop in Node::uncast_helper");
     }
-    assert(depth_count++ < K, "infinite loop in Node::uncast_helper");
 #endif
     if (p == nullptr || p->req() != 2) {
       break;
@@ -1208,9 +1223,12 @@ bool Node::has_special_unique_user() const {
   if (this->is_Store()) {
     // Condition for back-to-back stores folding.
     return n->Opcode() == op && n->in(MemNode::Memory) == this;
-  } else if (this->is_Load() || this->is_DecodeN() || this->is_Phi()) {
+  } else if ((this->is_Load() || this->is_DecodeN() || this->is_Phi() || this->is_Con()) && n->Opcode() == Op_MemBarAcquire) {
     // Condition for removing an unused LoadNode or DecodeNNode from the MemBarAcquire precedence input
-    return n->Opcode() == Op_MemBarAcquire;
+    return true;
+  } else if (this->is_Load() && n->is_Move()) {
+    // Condition for MoveX2Y (LoadX mem) => LoadY mem
+    return true;
   } else if (op == Op_AddL) {
     // Condition for convL2I(addL(x,y)) ==> addI(convL2I(x),convL2I(y))
     return n->Opcode() == Op_ConvL2I && n->in(1) == this;
@@ -1222,6 +1240,9 @@ bool Node::has_special_unique_user() const {
     return true;
   } else if ((is_IfFalse() || is_IfTrue()) && n->is_If()) {
     // See IfNode::fold_compares
+    return true;
+  } else if (n->Opcode() == Op_XorV || n->Opcode() == Op_XorVMask) {
+    // Condition for XorVMask(VectorMaskCmp(x,y,cond), MaskAll(true)) ==> VectorMaskCmp(x,y,ncond)
     return true;
   } else {
     return false;
@@ -2598,7 +2619,7 @@ void Node::dump(const char* suffix, bool mark, outputStream* st, DumpConfig* dc)
     t->dump_on(st);
   } else if (t == Type::MEMORY) {
     st->print("  Memory:");
-    MemNode::dump_adr_type(this, adr_type(), st);
+    MemNode::dump_adr_type(adr_type(), st);
   } else if (Verbose || WizardMode) {
     st->print("  Type:");
     if (t) {
@@ -2796,12 +2817,12 @@ uint Node::match_edge(uint idx) const {
 // Register classes are defined for specific machines
 const RegMask &Node::out_RegMask() const {
   ShouldNotCallThis();
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 const RegMask &Node::in_RegMask(uint) const {
   ShouldNotCallThis();
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 void Node_Array::grow(uint i) {
@@ -2868,16 +2889,9 @@ Node* Node::find_similar(int opc) {
         Node* use = def->fast_out(i);
         if (use != this &&
             use->Opcode() == opc &&
-            use->req() == req()) {
-          uint j;
-          for (j = 0; j < use->req(); j++) {
-            if (use->in(j) != in(j)) {
-              break;
-            }
-          }
-          if (j == use->req()) {
-            return use;
-          }
+            use->req() == req() &&
+            has_same_inputs_as(use)) {
+          return use;
         }
       }
     }
@@ -2885,6 +2899,30 @@ Node* Node::find_similar(int opc) {
   return nullptr;
 }
 
+bool Node::has_same_inputs_as(const Node* other) const {
+  assert(req() == other->req(), "should have same number of inputs");
+  for (uint j = 0; j < other->req(); j++) {
+    if (in(j) != other->in(j)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Node* Node::unique_multiple_edges_out_or_null() const {
+  Node* use = nullptr;
+  for (DUIterator_Fast kmax, k = fast_outs(kmax); k < kmax; k++) {
+    Node* u = fast_out(k);
+    if (use == nullptr) {
+      use = u; // first use
+    } else if (u != use) {
+      return nullptr; // not unique
+    } else {
+      // secondary use
+    }
+  }
+  return use;
+}
 
 //--------------------------unique_ctrl_out_or_null-------------------------
 // Return the unique control out if only one. Null if none or more than one.

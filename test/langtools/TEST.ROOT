@@ -15,7 +15,7 @@ keys=intermittent randomness needs-src needs-src-jdk_javadoc
 groups=TEST.groups
 
 # Minimum jtreg version
-requiredVersion=7.5.1+1
+requiredVersion=8.1+1
 
 # Use new module options
 useNewOptions=true
@@ -49,4 +49,5 @@ requires.extraPropDefns.vmOpts = \
     --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
 requires.properties= \
     vm.continuations \
-    vm.debug
+    vm.debug \
+    java.enablePreview

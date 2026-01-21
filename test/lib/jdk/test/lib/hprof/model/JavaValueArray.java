@@ -35,13 +35,35 @@ import java.nio.ByteOrder;
 import java.util.Objects;
 
 /**
- * An array of values, that is, an array of ints, boolean, floats, etc.
- * or flat array of primitive objects.
+ * An array of values, that is, an array of ints, boolean, floats or the like.
  *
  * @author      Bill Foote
  */
 public class JavaValueArray extends JavaLazyReadObject
                 /*imports*/ implements ArrayTypeCodes {
+
+    private static String arrayTypeName(byte sig) {
+        switch (sig) {
+            case 'B':
+                return "byte[]";
+            case 'Z':
+                return "boolean[]";
+            case 'C':
+                return "char[]";
+            case 'S':
+                return "short[]";
+            case 'I':
+                return "int[]";
+            case 'F':
+                return "float[]";
+            case 'J':
+                return "long[]";
+            case 'D':
+                return "double[]";
+            default:
+                throw new RuntimeException("invalid array element sig: " + sig);
+        }
+    }
 
     private static int elementSize(byte type) {
         switch (type) {
@@ -78,7 +100,7 @@ public class JavaValueArray extends JavaLazyReadObject
         // length of the array in elements
         long len = buf().getInt(offset);
         // byte length of array
-        return len * elementSize(getRealElementType());
+        return len * elementSize(getElementType());
     }
 
     private long dataStartOffset() {
@@ -150,13 +172,6 @@ public class JavaValueArray extends JavaLazyReadObject
                               }
                               return res;
                 }
-                case 'Q': {
-                    for (int i = 0; i < len; i++) {
-                        res[i] = new InlinedJavaObject(flatArrayElementClass, offset);
-                        offset += flatArrayElementClass.getInlinedInstanceSize();
-                    }
-                    return res;
-                }
                 default: {
                              throw new RuntimeException("unknown primitive type?");
                 }
@@ -166,8 +181,6 @@ public class JavaValueArray extends JavaLazyReadObject
 
     // JavaClass set only after resolve.
     private JavaClass clazz;
-
-    private long objID;
 
     // This field contains elementSignature byte and
     // divider to be used to calculate length. Note that
@@ -184,25 +197,13 @@ public class JavaValueArray extends JavaLazyReadObject
     // Number of bits to shift to get length divider
     private static final int LENGTH_DIVIDER_SHIFT = 8;
 
-    // Flat array support.
-    private JavaClass flatArrayElementClass;
-
-    public JavaValueArray(long id, byte elementSignature, long offset) {
+    public JavaValueArray(byte elementSignature, long offset) {
         super(offset);
-        this.objID = id;
         this.data = (elementSignature & SIGNATURE_MASK);
     }
 
     public JavaClass getClazz() {
         return clazz;
-    }
-
-    public boolean isFlatArray() {
-        return flatArrayElementClass != null;
-    }
-
-    public JavaClass getFlatElementClazz() {
-        return flatArrayElementClass;
     }
 
     public void visitReferencedObjects(JavaHeapObjectVisitor v) {
@@ -213,25 +214,11 @@ public class JavaValueArray extends JavaLazyReadObject
         if (clazz instanceof JavaClass) {
             return;
         }
-
-        byte elementType = getElementType();
-        String elementSig = "" + (char)elementType;
-        // Check if this is a flat array of primitive objects.
-        Number elementClassID = snapshot.findFlatArrayElementType(objID);
-        if (elementClassID != null) {
-            // This is flat array.
-            JavaHeapObject elementClazz = snapshot.findThing(getIdValue(elementClassID));
-            if (elementClazz instanceof JavaClass elementJavaClazz) {
-                flatArrayElementClass = elementJavaClazz;
-                // need to resolve the element class
-                flatArrayElementClass.resolve(snapshot);
-                elementSig = "Q" + flatArrayElementClass.getName() + ";";
-            } else {
-                // The class not found.
-                System.out.println("WARNING: flat array element class not found");
-            }
+        byte elementSig = getElementType();
+        clazz = snapshot.findClass(arrayTypeName(elementSig));
+        if (clazz == null) {
+            clazz = snapshot.getArrayClass("" + ((char) elementSig));
         }
-        clazz = snapshot.getArrayClass(elementSig);
         getClazz().addInstance(this);
         super.resolve(snapshot);
     }
@@ -257,9 +244,6 @@ public class JavaValueArray extends JavaLazyReadObject
             case 'D':
                 divider = 8;
                 break;
-            case 'Q':
-                divider = flatArrayElementClass.getInlinedInstanceSize();
-                break;
             default:
                 throw new RuntimeException("unknown primitive type: " +
                                 elementSignature);
@@ -274,10 +258,6 @@ public class JavaValueArray extends JavaLazyReadObject
     }
 
     public byte getElementType() {
-        return isFlatArray() ? (byte)'Q' : getRealElementType();
-    }
-
-    private byte getRealElementType() {
         return (byte) (data & SIGNATURE_MASK);
     }
 
@@ -300,7 +280,7 @@ public class JavaValueArray extends JavaLazyReadObject
         StringBuilder result;
         JavaThing[] things = getValue();
         byte elementSignature = getElementType();
-        if (elementSignature == 'C' && !isFlatArray())  {
+        if (elementSignature == 'C')  {
             result = new StringBuilder();
             for (int i = 0; i < things.length; i++) {
                 result.append(things[i]);

@@ -26,21 +26,23 @@
  * @library /test/lib
  * @summary Test correct handling of multidimensional arrays.
  * @enablePreview
- * @run main TestMultidimArrays
+ * @run main compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
- *                   TestMultidimArrays
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
+ *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation -XX:MultiArrayExpandLimit=0
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
- *                   TestMultidimArrays
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
+ *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+StressReflectiveCode
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
- *                   TestMultidimArrays
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
+ *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation -XX:-DoEscapeAnalysis
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
- *                   TestMultidimArrays
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
+ *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 

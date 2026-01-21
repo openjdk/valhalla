@@ -42,6 +42,7 @@
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/macros.hpp"
@@ -1362,7 +1363,7 @@ void GraphBuilder::if_node(Value x, If::Condition cond, Value y, ValueStack* sta
   bool is_bb = tsux->bci() < stream()->cur_bci() || fsux->bci() < stream()->cur_bci();
 
   bool subst_check = false;
-  if (EnableValhalla && (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne)) {
+  if (Arguments::is_valhalla_enabled() && (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne)) {
     ValueType* left_vt = x->type();
     ValueType* right_vt = y->type();
     if (left_vt->is_object()) {
@@ -2566,7 +2567,7 @@ void GraphBuilder::monitorenter(Value x, int bci) {
 #endif
   } else {
     // We are compiling a monitorenter bytecode
-    if (EnableValhalla) {
+    if (Arguments::is_valhalla_enabled()) {
       ciType* obj_type = x->declared_type();
       if (obj_type == nullptr || obj_type->as_klass()->can_be_inline_klass()) {
         // If we're (possibly) locking on an inline type, check for markWord::always_locked_pattern
@@ -4298,6 +4299,34 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
   // (see use of pop_scope() below)
   caller_state->truncate_stack(args_base);
   assert(callee_state->stack_size() == 0, "callee stack must be empty");
+
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    Value receiver = state()->local_at(0);
+    ciType* klass = receiver->exact_type();
+    if (klass == nullptr) {
+      // No exact type, check if the declared type has no implementors and add a dependency
+      klass = receiver->declared_type();
+      klass = compilation()->cha_exact_type(klass);
+    }
+    if (klass != nullptr && klass->is_instance_klass()) {
+      // Exact receiver type, check if there is a strict field
+      ciInstanceKlass* holder = klass->as_instance_klass();
+      for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+        ciField* field = holder->nonstatic_field_at(i);
+        if (field->is_strict()) {
+          // Found a strict field, a membar is needed
+          append(new MemBar(lir_membar_storestore));
+          break;
+        }
+      }
+    } else if (klass == nullptr) {
+      // We can't statically determine the type of the receiver and therefore need
+      // to put a membar here because it could have a strict field.
+      append(new MemBar(lir_membar_storestore));
+    }
+  }
 
   Value lock = nullptr;
   BlockBegin* sync_handler = nullptr;

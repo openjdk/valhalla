@@ -25,18 +25,17 @@
 #ifndef SHARE_RUNTIME_ARGUMENTS_HPP
 #define SHARE_RUNTIME_ARGUMENTS_HPP
 
-#include "logging/logLevel.hpp"
-#include "logging/logTag.hpp"
-#include "memory/allStatic.hpp"
+#include "jni.h"
 #include "memory/allocation.hpp"
-#include "runtime/globals.hpp"
+#include "memory/allStatic.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "runtime/java.hpp"
-#include "runtime/os.hpp"
-#include "utilities/debug.hpp"
-#include "utilities/vmEnums.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // Arguments parses the command line and recognizes options
 
+template <typename E>
+class GrowableArray;
 class JVMFlag;
 
 // Invocation API hook typedefs (these should really be defined in jni.h)
@@ -413,12 +412,8 @@ class Arguments : AllStatic {
 
   // convenient methods to get and set jvm_flags_file
   static const char* get_jvm_flags_file()  { return _jvm_flags_file; }
-  static void set_jvm_flags_file(const char *value) {
-    if (_jvm_flags_file != nullptr) {
-      os::free(_jvm_flags_file);
-    }
-    _jvm_flags_file = os::strdup_check_oom(value);
-  }
+  static void set_jvm_flags_file(const char *value);
+
   // convenient methods to obtain / print jvm_flags and jvm_args
   static const char* jvm_flags()           { return build_resource_string(_jvm_flags_array, _num_jvm_flags); }
   static const char* jvm_args()            { return build_resource_string(_jvm_args_array, _num_jvm_args); }
@@ -475,17 +470,17 @@ class Arguments : AllStatic {
 
   static bool is_internal_module_property(const char* option);
   static bool is_incompatible_cds_internal_module_property(const char* property);
-  static bool patching_migrated_classes(const char* property, const char* value);
 
   // Miscellaneous System property value getter and setters.
   static void set_dll_dir(const char *value) { _sun_boot_library_path->set_value(value); }
   static void set_java_home(const char *value) { _java_home->set_value(value); }
   static void set_library_path(const char *value) { _java_library_path->set_value(value); }
-  static void set_ext_dirs(char *value)     { _ext_dirs = os::strdup_check_oom(value); }
+  static void set_ext_dirs(char *value);
 
   // Set up the underlying pieces of the boot class path
   static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
   static int finalize_patch_module();
+
   static void set_boot_class_path(const char *value, bool has_jimage) {
     // During start up, set by os::set_boot_path()
     assert(get_boot_class_path() == nullptr, "Boot class path previously set");
@@ -516,6 +511,10 @@ class Arguments : AllStatic {
   // preview features
   static void set_enable_preview() { _enable_preview = true; }
   static bool enable_preview() { return _enable_preview; }
+  static bool is_valhalla_enabled() {
+    // Valhalla is a feature opted-in by --enable-preview
+    return enable_preview();
+  }
 
   // jdwp
   static bool has_jdwp_agent() { return _has_jdwp_agent; }

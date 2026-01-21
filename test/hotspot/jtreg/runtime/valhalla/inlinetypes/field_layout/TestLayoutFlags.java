@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 0
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 0
  */
 
  /*
@@ -38,7 +38,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 1
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 1
  */
 
  /* @test id=TestLayoutFlags_2
@@ -47,7 +47,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 2
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 2
  */
 
  /* @test id=TestLayoutFlags_3
@@ -56,7 +56,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 3
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 3
  */
 
 /* @test id=TestLayoutFlags_4
@@ -65,7 +65,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 4
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 4
  */
 
 /* @test id=TestLayoutFlags_5
@@ -74,7 +74,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 5
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 5
  */
 
 /* @test id=TestLayoutFlags_6
@@ -83,7 +83,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 6
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 6
  */
 
 /* @test id=TestLayoutFlags_7
@@ -92,8 +92,10 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 7
+ * @run main runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags 7
  */
+
+package runtime.valhalla.inlinetypes.field_layout;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -113,7 +115,7 @@ public class TestLayoutFlags {
 
     static class TestRunner {
         public static void main(String[] args) throws Exception {
-            Class testClass = Class.forName("TestLayoutFlags");
+            Class testClass = Class.forName("runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags");
             Asserts.assertNotNull(testClass);
             Method[] testMethods = testClass.getMethods();
             for (Method test : testMethods) {
@@ -142,10 +144,10 @@ public class TestLayoutFlags {
     }
 
     static public void check_0(FieldLayoutAnalyzer fla) {
-        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container0");
+        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/TestLayoutFlags$Container0");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
         if (useNullableAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f0.layoutKind());
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f0.layoutKind());
         } else {
             Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
         }
@@ -162,7 +164,7 @@ public class TestLayoutFlags {
     }
 
     static public void check_1(FieldLayoutAnalyzer fla) {
-        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container1");
+        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/TestLayoutFlags$Container1");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
         // volatile fields are never flattened
         Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
@@ -179,10 +181,10 @@ public class TestLayoutFlags {
     }
 
     static public void check_2(FieldLayoutAnalyzer fla) {
-        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container2");
+        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/TestLayoutFlags$Container2");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
         if (useNonAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
         } else {
             Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
         }
@@ -250,7 +252,7 @@ public class TestLayoutFlags {
         TestLayoutFlags vct = new TestLayoutFlags();
 
         // Execute the test runner in charge of loading all test classes
-        ProcessBuilder pb = exec("TestLayoutFlags$TestRunner");
+        ProcessBuilder pb = exec("runtime.valhalla.inlinetypes.field_layout.TestLayoutFlags$TestRunner");
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
         if (out.getExitValue() != 0) {

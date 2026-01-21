@@ -49,8 +49,10 @@ import java.util.stream.Stream;
 
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.value.LayoutIteration;
 import jdk.internal.value.ValueClass;
+
 import sun.invoke.util.Wrapper;
 
 import static java.lang.invoke.MethodHandles.constant;
@@ -72,12 +74,26 @@ import static java.util.stream.Collectors.toMap;
  * private entry points called by VM.
  */
 final class ValueObjectMethods {
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private ValueObjectMethods() {}
     private static final boolean VERBOSE =
             System.getProperty("value.bsm.debug") != null;
     private static final int MAX_NODE_VISITS =
             Integer.getInteger("jdk.value.recursion.threshold", Integer.MAX_VALUE);
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
+
+    /**
+     * A "salt" value used for this internal hashcode implementation that
+     * needs to vary sufficiently from one run to the next so that
+     * the default hashcode for value classes will vary between JVM runs.
+     */
+    static final int SALT;
+    static {
+        long nt = System.nanoTime();
+        int value = (int)((nt >>> 32) ^ nt);
+        SALT = Integer.getInteger("value.bsm.salt", value);
+    }
+
 
     static class MethodHandleBuilder {
         private static final HashMap<Class<?>, MethodHandle> primitiveSubstitutable = new HashMap<>();
@@ -352,18 +368,6 @@ final class ValueObjectMethods {
             } catch (IllegalAccessException e) {
                 throw newLinkageError(e);
             }
-        }
-
-        /**
-         * A "salt" value used for this internal hashcode implementation that
-         * needs to vary sufficiently from one run to the next so that
-         * the default hashcode for value classes will vary between JVM runs.
-         */
-        static final int SALT;
-        static {
-            long nt = System.nanoTime();
-            int value = (int)((nt >>> 32) ^ nt);
-            SALT = Integer.getInteger("value.bsm.salt", value);
         }
 
         static MethodHandleBuilder newBuilder(Class<?> type) {
@@ -1113,7 +1117,7 @@ final class ValueObjectMethods {
      */
     private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
-            System.out.println("substitutable " + a.getClass() + ": " + a + " vs " + b);
+            System.out.println("isSubstitutable " + a + " vs " + b);
         }
 
         // Called directly from the VM.
@@ -1402,4 +1406,109 @@ final class ValueObjectMethods {
         throw new IllegalArgumentException("missing leading MethodHandle parameters: " + mt);
     }
 
+    private static boolean isSubstitutableAlt(Object a, Object b) {
+        if (VERBOSE) {
+            System.out.println("isSubstitutableAlt " + a + " vs " + b);
+        }
+        // This method assumes a and b are not null and they are both instances of the same value class
+        final Unsafe U = UNSAFE;
+        int[] map = U.getFieldMap(a.getClass());
+        int nbNonRef = map[0];
+        for (int i = 0; i < nbNonRef; i++) {
+            int offset = map[i * 2 + 1];
+            int size = map[i * 2 + 2];
+            int nlong = size / 8;
+            for (int j = 0; j < nlong; j++) {
+                long la = U.getLong(a, offset);
+                long lb = U.getLong(b, offset);
+                if (la != lb) return false;
+                offset += 8;
+            }
+            size -= nlong * 8;
+            int nint = size / 4;
+            for (int j = 0; j < nint; j++) {
+                int ia = U.getInt(a, offset);
+                int ib = U.getInt(b, offset);
+                if (ia != ib) return false;
+                offset += 4;
+            }
+            size -= nint * 4;
+            int nshort = size / 2;
+            for (int j = 0; j < nshort; j++) {
+                short sa = U.getShort(a, offset);
+                short sb = U.getShort(b, offset);
+                if (sa != sb) return false;
+                offset += 2;
+            }
+            size -= nshort * 2;
+            for (int j = 0; j < size; j++) {
+                byte ba = U.getByte(a, offset);
+                byte bb = U.getByte(b, offset);
+                if (ba != bb) return false;
+                offset++;
+            }
+        }
+        for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
+            int offset = map[i];
+            Object oa = U.getReference(a, offset);
+            Object ob = U.getReference(b, offset);
+            if (oa != ob) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Return the identity hashCode of a value object.
+     * The hashCode is computed using Unsafe.getFieldMap.
+     * @param obj a value class instance, non-null
+     * @return the hashCode of the object
+     */
+    private static int valueObjectHashCodeAlt(Object obj) {
+        if (VERBOSE) {
+            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj);
+        }
+        // This method assumes a is not null and is an instance of a value class
+        Class<?> type = obj.getClass();
+        final Unsafe U = UNSAFE;
+        int[] map = U.getFieldMap(type);
+        int result = SALT;
+        int nbNonRef = map[0];
+        for (int i = 0; i < nbNonRef; i++) {
+            int offset = map[i * 2 + 1];
+            int size = map[i * 2 + 2];
+            int nlong = size / 8;
+            for (int j = 0; j < nlong; j++) {
+                long la = U.getLong(obj, offset);
+                result = 31 * result + (int) la;
+                result = 31 * result + (int) (la >>> 32);
+                offset += 8;
+            }
+            size -= nlong * 8;
+            int nint = size / 4;
+            for (int j = 0; j < nint; j++) {
+                int ia = U.getInt(obj, offset);
+                result = 31 * result + ia;
+                offset += 4;
+            }
+            size -= nint * 4;
+            int nshort = size / 2;
+            for (int j = 0; j < nshort; j++) {
+                short sa = U.getShort(obj, offset);
+                result = 31 * result + sa;
+                offset += 2;
+            }
+            size -= nshort * 2;
+            for (int j = 0; j < size; j++) {
+                byte ba = U.getByte(obj, offset);
+                result = 31 * result + ba;
+                offset++;
+            }
+        }
+        for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
+            int offset = map[i];
+            Object oa = U.getReference(obj, offset);
+            result = 31 * result + Objects.hashCode(oa);
+        }
+        return result;
+    }
 }
