@@ -34,6 +34,10 @@ package java.lang;
  * <}, {@code <=}, {@code >}, {@code >=}) and participates in operator
  * overloading of those operators.
  *
+ * <p>TOOD: discuss tricotomy of exactly one of less than, greater
+ * than, and equal to <em>usually</em> holding between two operands,
+ * but not for floating-point types with NaN, etc.
+ *
  * @param <OC> The type supporting ordered comparison
  * @see Comparable
  */
@@ -47,7 +51,7 @@ public interface Orderable<OC> {
      * @param op1 the first operand
      * @param op2 the second operand
      */
-     boolean lessThan(OC op1, OC op2);
+    boolean lessThan(OC op1, OC op2);
 
     /**
      * {@return {@code true} if the first operand is less than or
@@ -55,10 +59,16 @@ public interface Orderable<OC> {
      *
      * The method corresponds to the less than operator, "{@code <=}".
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code (lessThan(op1, op2) || op1.equals(op2))}.
+     *
      * @param op1 the first operand
      * @param op2 the second operand
      */
-     boolean lessThanEqual(OC op1, OC op2);
+    default boolean lessThanEqual(OC op1, OC op2) {
+        return lessThan(op1, op2) || op1.equals(op2);
+    }
 
     /**
      * {@return {@code true} if the first operand is greater than the
@@ -66,10 +76,16 @@ public interface Orderable<OC> {
      *
      * The method corresponds to the greater than operator, "{@code >}".
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code !lessThanEqual(op1, op2)}.
+     *
      * @param op1 the first operand
      * @param op2 the second operand
      */
-     boolean greaterThan(OC op1, OC op2);
+    default boolean greaterThan(OC op1, OC op2) {
+         return !lessThanEqual(op1, op2);
+    }
 
     /**
      * {@return {@code true} if the first operand is greater than or
@@ -77,10 +93,16 @@ public interface Orderable<OC> {
      *
      * The method corresponds to the greater than operator, "{@code >=}".
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code !lessThan(op1, op2)}.
+     *
      * @param op1 the first operand
      * @param op2 the second operand
      */
-     boolean greaterThanEqual(OC op1, OC op2);
+    default boolean greaterThanEqual(OC op1, OC op2) {
+         return !lessThan(op1, op2);
+    }
 
     /**
      * {@return the smaller of the two operands}
@@ -89,10 +111,16 @@ public interface Orderable<OC> {
      * Subtypes of this interface can define policies concerning which
      * operand to return if they are the same size.
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code (lessThanEqual(op1, op2) ? op1 : op2)}.
+     *
      * @param op1 the first operand
      * @param op2 the second operand
      */
-     OC min(OC op1, OC op2);
+    default OC min(OC op1, OC op2) {
+        return lessThanEqual(op1, op2) ? op1 : op2;
+    }
 
     /**
      * {@return the larger of the two operands}
@@ -101,8 +129,14 @@ public interface Orderable<OC> {
      * Subtypes of this interface can define policies concerning which
      * operand to return if they are the same size.
      *
+     * @implSpec
+     * Rough draft: the default implementation returns the result of
+     * {@code (greaterThanEqual(op1, op2) ? op1 : op2)}.
+     *
      * @param op1 the first operand
      * @param op2 the second operand
      */
-     OC max(OC op1, OC op2);
+    default OC max(OC op1, OC op2) {
+        return greaterThanEqual(op1, op2) ? op1 : op2;
+    }
 }

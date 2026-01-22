@@ -33,18 +33,25 @@ package java.lang;
  * {@code -}), and participates in operator overloading of those
  * operators.
  *
- * <p>In mathematical terms, various kinds of algebraic structures
- * support the operations modeled by this interface. For example,
- * integers with Euclidean division support the operations in question
- * as do <dfn>algebraic fields</dfn>. Commonly used algebraic fields
- * include rational numbers, real numbers, and complex numbers.  A
- * field has a set of values and operations on those values. The
- * operations have various properties known as the <dfn>field
- * axioms</dfn>. These include associativity of addition and
- * multiplication, commutativity of addition and multiplication, and
- * multiplication distributing over addition. Fields can be
- * {@linkplain Orderable ordered} (rational numbers, real
- * numbers) or unordered (complex numbers).
+ * <p>The intention of this interface is to enable types that
+ * customarily support numerical notions of addition, subtraction,
+ * multiplication and division to enjoy operator overloading syntax
+ * even if the underlying algebraic properties do not hold because of
+ * limitations in approximation. This includes <dfn>algebraic
+ * fields</dfn> and field-like numbers as well as <dfn>algebraic
+ * rings</dfn> and ring-links numbers.
+ *
+ * <p>For example, mathematical integers form a ring and, including
+ * Euclidean division support, integers support the operations in
+ * this interface. Fields also support the operations in
+ * question. Commonly used fields include rational numbers, real
+ * numbers, and complex numbers.  A field has a set of values and
+ * operations on those values. The operations have various properties
+ * known as the <dfn>field axioms</dfn>. These include associativity
+ * of addition and multiplication, commutativity of addition and
+ * multiplication, and multiplication distributing over
+ * addition. Fields can be {@linkplain Orderable ordered} (rational
+ * numbers, real numbers) or unordered (complex numbers).
  *
  * <p>Types used to approximate a field, such as a floating-point type
  * used to approximate real numbers, will both approximate the set of
@@ -53,15 +60,26 @@ package java.lang;
  * addition are <em>not</em> expected to hold for a floating-point
  * type.
  *
- * <p>The intention of this interface is to enable types that
- * customarily support numerical notions of addition, subtraction,
- * multiplication and division to enjoy operator overloading syntax
- * even if the underlying algebraic properties do not hold because of
- * limitations in approximation. This includes fields and field-like
- * numbers as well as rings and ring-links numbers.
- *
  * @apiNote
- * Future work: consider interactions with / support from {@link
+ * A particular numerical type may support returning a number of that
+ * type for all arguments to add, subtract, multiply, and (possibly)
+ * divide. An operation having that property is said to be
+ * <dfn>closed</dfn> over that operation. For example, built-in {@code
+ * int} arithmetic is closed over add, subtract, and multiply, but is
+ * <em>not</em> closed under divide since an {@code
+ * ArithmeticException} is thrown on a zero divisor. Built-in
+ * arithmetic on {@code float} and {@code double} is closed under all
+ * of add, subtract, multiply, and divide, with infinities and NaN
+ * (not-a-number) being returned for cases that would otherwise be
+ * exceptional.
+ *
+ * <p>A given numerical type implementing this interface may or may
+ * not be closed under any particular operation. If it is <em>not</em>
+ * closed, the conditions where an exception is thrown should be
+ * documented with the expected outcome being throwing an {@code
+ * ArithmeticException} rather than returning a value.
+ *
+ * <p>Future work: consider interactions with / support from {@link
  * java.util.Formatter} and numerical types.
  *
  * @param <NT> The numerical type
@@ -74,6 +92,8 @@ public interface Numerical<NT> {
      * @param addend the first operand
      * @param augend the second operand
      * @return the sum of the operands
+     * @throws ArithmeticException if the numerical type does not
+     * allow adding the operands in question
      */
      NT add(NT addend, NT augend);
 
@@ -87,6 +107,8 @@ public interface Numerical<NT> {
      * @param minuend the first operand
      * @param  subtrahend the second operand
      * @return the difference of the operands
+     * @throws ArithmeticException if the numerical type does not
+     * allow subtracting the operands in question
      */
     default NT subtract(NT minuend, NT subtrahend) {
         return this.add(minuend, this.negate(subtrahend));
@@ -98,13 +120,23 @@ public interface Numerical<NT> {
      * @param multiplier the first operand
      * @param multiplicand the second operand
      * @return the product of the operands
+     * @throws ArithmeticException if the numerical type does not
+     * allow multiplying the operands in question
      */
      NT multiply(NT multiplier, NT multiplicand);
 
     /**
      * Division operation, binary operator "{@code /}".
      *
-     * @throws ArithmeticException if the divisor is zero
+     * @apiNote
+     * Numerical types can have different policies regarding how
+     * divisors equal to zero are handled. Many types will throw an
+     * {@code ArithmeticException} in those cases. However, other
+     * types like {@linkplain StandardFloatingPoint floating-point
+     * types} can return a special value like NaN (not-a-number).
+     *
+     * @throws ArithmeticException if the divisor is zero and zero
+     * divisors are not allowed
      * @throws UnsupportedOperationException if division is not supported
      * @param dividend the first operand
      * @param divisor the second operand
@@ -115,7 +147,15 @@ public interface Numerical<NT> {
     /**
      * Remainder operation, binary operator "{@code %}".
      *
-     * @throws ArithmeticException if the divisor is zero
+     * @apiNote
+     * Numerical types can have different policies regarding how
+     * divisors equal to zero are handled. Many types will throw an
+     * {@code ArithmeticException} in those cases. However, other
+     * types like {@linkplain StandardFloatingPoint floating-point
+     * types} can return a special value like NaN (not-a-number).
+     *
+     * @throws ArithmeticException if the divisor is zero and zero
+     * divisors are not allowed
      * @throws UnsupportedOperationException if remainder is not supported
      * @param dividend the first operand
      * @param divisor the second operand
@@ -146,6 +186,8 @@ public interface Numerical<NT> {
      * @throws UnsupportedOperationException if negation is not supported
      * @param operand the operand
      * @return the negation of the operand
+     * @throws ArithmeticException if the numerical type does not
+     * allow negating the operand in question
      */
      NT negate(NT operand);
 }
