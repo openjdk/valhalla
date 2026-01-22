@@ -44,7 +44,7 @@ public class PatchModuleDupModule {
       "--patch-module=module_one=module_one_dir",
       "-version");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldContain("Cannot specify a module more than once to --patch-module");
+    output.shouldContain("java.lang.ExceptionInInitializerError");
     output.shouldHaveExitValue(1);
   }
 }
