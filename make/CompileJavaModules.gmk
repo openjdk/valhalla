@@ -143,7 +143,7 @@ ifneq ($(COMPILER), bootjdk)
   ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
     # Temporarily compile valueclasses into a separate directory with the form:
     #   <tempdir>/<module>/<classpath>
-    # and then move the class files into:
+    # and then copy the class files into:
     #   <outdir>/<module>/META-INF/preview/<classpath>
     # We cannot compile directly into the desired directory because it's the
     # compiler which creates the original '<module>/<classpath>/...' hierarchy.
@@ -175,14 +175,14 @@ ifneq ($(COMPILER), bootjdk)
     # The 'valueclasses' target below depends on it, and that's the non-transient
     # result we care about.
 
-    # Move compiled output from "<tempdir>/<module>/<classpath>/..." to
+    # Copy compiled output from "<tempdir>/<module>/<classpath>/..." to
     # "<outdir>/<module>/META-INF/preview/<classpath>/...".
-    $(MODULE_OUTPUTDIR)/_the.java.base.valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
+    $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
 		$(MKDIR) -p $(@D)/META-INF/preview
-		$(MV) $(TEMP_OUTPUTDIR)/$(MODULE)/*/ $(@D)/META-INF/preview
+		$(CP) -R $(TEMP_OUTPUTDIR)/$(MODULE)/*/ $(@D)/META-INF/preview
 		$(TOUCH) $@
 
-    TARGETS += $(MODULE_OUTPUTDIR)/_the.java.base.valueclasses
+    TARGETS += $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses
   endif
 endif
 
