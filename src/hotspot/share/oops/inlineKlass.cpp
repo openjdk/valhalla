@@ -46,6 +46,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/registerMap.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -243,6 +244,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
+      ZERO_ONLY(ThreadInVMfromJava tivmj(THREAD);) // Zero enters here from C++ intepreter
       oop res = allocate_instance(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk, false);
 
