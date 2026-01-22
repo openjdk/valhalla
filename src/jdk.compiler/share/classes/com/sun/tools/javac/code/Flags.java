@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -527,6 +527,12 @@ public class Flags {
      */
     @Use({FlagTarget.VARIABLE})
     public static final long STRICT = 1L<<19; // VarSymbols
+
+    /**
+     * Flag to inject ACC_STRICT_INIT without compiler behavioral effects
+     */
+    @Use({FlagTarget.VARIABLE})
+    public static final long MARK_STRICT_INIT = 1L<<21; // VarSymbols
 
     /**
      * Describe modifier flags as they might appear in source code, i.e.,

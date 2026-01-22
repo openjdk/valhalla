@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1853,7 +1853,7 @@ public class ClassWriter extends ClassFile {
             }
         }
         if (sym.kind == VAR) {
-            if ((flags & STRICT) != 0) {
+            if ((flags & STRICT) != 0 || (flags & MARK_STRICT_INIT) != 0) {
                 result |= ACC_STRICT;
             }
         }
