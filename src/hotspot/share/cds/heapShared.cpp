@@ -816,6 +816,25 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
     assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
   }
 
+  Klass* k = java_lang_Class::as_Klass(orig_mirror);
+  if (k != nullptr && k->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(k);
+
+    if (ik->is_inline_klass() && ik->is_initialized()) {
+      // Only concrete value classes need the null_reset field
+      InlineKlass* ilk = InlineKlass::cast(k);
+      if (ilk->has_nullable_atomic_layout()) {
+        scratch_m->obj_field_put(ilk->null_reset_value_offset(), ilk->null_reset_value());
+      }
+    }
+
+    if (ik->has_acmp_maps_offset()) {
+      int maps_offset = ik->acmp_maps_offset();
+      oop maps = orig_mirror->obj_field(maps_offset);
+      scratch_m->obj_field_put(maps_offset, maps);
+    }
+  }
+
   if (CDSConfig::is_dumping_aot_linked_classes()) {
     java_lang_Class::set_module(scratch_m, java_lang_Class::module(orig_mirror));
     java_lang_Class::set_protection_domain(scratch_m, java_lang_Class::protection_domain(orig_mirror));
@@ -1981,7 +2000,8 @@ void HeapShared::check_special_subgraph_classes() {
     for (int i = 0; i < num; i++) {
       Klass* subgraph_k = klasses->at(i);
       Symbol* name = subgraph_k->name();
-      if (subgraph_k->is_instance_klass() &&
+
+      if (subgraph_k->is_identity_class() &&
           name != vmSymbols::java_lang_Class() &&
           name != vmSymbols::java_lang_String() &&
           name != vmSymbols::java_lang_ArithmeticException() &&
