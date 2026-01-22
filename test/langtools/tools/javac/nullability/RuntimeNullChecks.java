@@ -37,9 +37,13 @@
 import java.util.*;
 
 import java.io.IOException;
+import java.lang.classfile.*;
+import java.lang.classfile.attribute.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import com.sun.tools.javac.util.Assert;
 
 import toolbox.TestRunner;
 import toolbox.ToolBox;
@@ -340,14 +344,18 @@ public class RuntimeNullChecks extends TestRunner {
             "-XDuseSiteNullChecks=methods+fields"
     };
 
-    private void testHelper(Path base,
+    /* returns the path to the output folder in case the caller wants to analyze the produced class files
+     */
+    private Path testHelper(Path base,
                             String testCode,
                             boolean shouldFail,
                             Class<?> expectedError) throws Exception {
-        testHelper(base, testCode, shouldFail, expectedError, PREVIEW);
+        return testHelper(base, testCode, shouldFail, expectedError, PREVIEW);
     }
 
-    private void testHelper(Path base,
+    /* returns the path to the output folder in case the caller wants to analyze the produced class files
+     */
+    private Path testHelper(Path base,
                             String testCode,
                             boolean shouldFail,
                             Class<?> expectedError,
@@ -389,6 +397,7 @@ public class RuntimeNullChecks extends TestRunner {
                     .classArgs("Test")
                     .run(Task.Expect.SUCCESS);
         }
+        return out;
     }
 
     @Test
@@ -452,9 +461,12 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
+    static final String nullCheckInvocation =
+            "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]";
+
     @Test
     public void testUseSideChecksForMethods(Path base) throws Exception {
-        String[] testCases = new String[] {
+        String[] testCases1 = new String[] {
                 """
                 class Test {
                     class Inner {
@@ -516,12 +528,69 @@ public class RuntimeNullChecks extends TestRunner {
                 }
                 """
         };
-        for (String code : testCases) {
+        for (String code : testCases1) {
             testHelper(base, code, true, NullPointerException.class);
             testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_ONLY);
             testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
             testHelper(base, code, false, null, NO_USE_SITE_CHECKS);
         }
+
+        String[] testCases2 = new String[] {
+                """
+                class Test {
+                    class Inner {
+                        private Object m(Object! arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner();
+                        inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class Inner {
+                        final Object m(Object! arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner();
+                        inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    static class Inner {
+                        static Object m(Object! arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner.m(null);
+                    }
+                }
+                """
+        };
+        for (String code : testCases2) {
+            Path out = testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
+            List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
+            if (instructions.stream()
+                    .anyMatch(instruction -> instruction.toString().equals(nullCheckInvocation))) {
+                throw new AssertionError("an invocation to Checks::nullCheck was not expected");
+            }
+        }
+    }
+
+    private List<CodeElement> readInstructions(Path path, String methodName) throws Exception {
+        ClassModel classFile = ClassFile.of().parse(path);
+        List<CodeElement> result = new ArrayList<>();
+        for (MethodModel method: classFile.methods()) {
+            if (method.methodName().stringValue().equals(methodName)) {
+                CodeAttribute codeAttr = method.findAttribute(Attributes.code()).orElse(null);
+                for (CodeElement ce : codeAttr.elementList()) {
+                    result.add(ce);
+                }
+            }
+        }
+        return result;
     }
 
     @Test
@@ -764,6 +833,30 @@ public class RuntimeNullChecks extends TestRunner {
         if (!output.contains("java.lang.NullPointerException") &&
                 !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
             throw new AssertionError("unexpected output: " + output);
+        }
+    }
+
+    @Test
+    public void testMultipleCasts(Path base) throws Exception {
+        Path out = testHelper(base,
+                """
+                class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object o = (String!)(Object!) s; // NPE, cast
+                    }
+                }
+                """,
+                true, NullPointerException.class, PREVIEW);
+        List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
+        int numberOfNullChecks = 0;
+        for (CodeElement ce : instructions) {
+            if (ce.toString().equals(nullCheckInvocation)) {
+                numberOfNullChecks++;
+            }
+        }
+        if (numberOfNullChecks != 1) {
+            throw new AssertionError("was expecting only one invocation to Checks::nullCheck");
         }
     }
 }
