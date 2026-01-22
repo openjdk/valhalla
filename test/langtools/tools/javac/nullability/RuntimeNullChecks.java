@@ -567,6 +567,17 @@ public class RuntimeNullChecks extends TestRunner {
                         Inner.m(null);
                     }
                 }
+                """,
+                """
+                class Test {
+                    final class Inner {
+                        Object m(Object! arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner();
+                        inner.m(null);
+                    }
+                }
                 """
         };
         for (String code : testCases2) {

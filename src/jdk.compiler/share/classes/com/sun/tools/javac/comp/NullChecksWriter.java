@@ -266,7 +266,8 @@ public class NullChecksWriter extends TreeTranslator {
     @Override
     public void visitApply(JCMethodInvocation tree) {
         MethodSymbol msym = (MethodSymbol) TreeInfo.symbolFor(tree.meth);
-        boolean canBeOverriden = (msym.flags_field & (Flags.PRIVATE | Flags.STATIC | Flags.FINAL)) == 0;
+        boolean canBeOverriden = (msym.flags_field & (Flags.PRIVATE | Flags.STATIC | Flags.FINAL)) == 0 &&
+                !msym.owner.isFinal();
         if (useSiteNullChecks.generateChecksForMethods &&
                 hasNonNullArgs(msym) &&
                 canBeOverriden) {
