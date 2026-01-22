@@ -89,6 +89,9 @@ void ShenandoahMark::do_task(ShenandoahObjToScanQueue* q, T* cl, ShenandoahLiveD
       // Case 2: Object array instance and no chunk is set. Must be the first
       // time we visit it, start the chunked processing.
       do_chunked_array_start<T>(q, cl, obj, weak);
+    } else if (obj->is_flatArray()) {
+      // Really? Is this just a plain object then?
+      obj->oop_iterate(cl);
     } else {
       // Case 3: Primitive array. Do nothing, no oops there. We use the same
       // performance tweak TypeArrayKlass::oop_oop_iterate_impl is using:
@@ -156,7 +159,7 @@ inline void ShenandoahMark::count_liveness(ShenandoahLiveData* live_data, oop ob
 
 template <class T>
 inline void ShenandoahMark::do_chunked_array_start(ShenandoahObjToScanQueue* q, T* cl, oop obj, bool weak) {
-  assert(obj->is_refArray(), "expect object array");
+  assert(obj->is_objArray(), "expect object array");
   objArrayOop array = objArrayOop(obj);
   int len = array->length();
 
@@ -167,7 +170,12 @@ inline void ShenandoahMark::do_chunked_array_start(ShenandoahObjToScanQueue* q, 
 
   if (len <= (int) ObjArrayMarkingStride*2) {
     // A few slices only, process directly
-    array->oop_iterate_range(cl, 0, len);
+    if (array->is_refArray()) {
+      refArrayOop(array)->oop_iterate_range(cl, 0, len);
+    } else {
+      assert(array->is_flatArray(), "What else?");
+      flatArrayOop(array)->oop_iterate_range(cl, 0, len);
+    }    
   } else {
     int bits = log2i_graceful(len);
     // Compensate for non-power-of-two arrays, cover the array in excess:
@@ -216,14 +224,19 @@ inline void ShenandoahMark::do_chunked_array_start(ShenandoahObjToScanQueue* q, 
     // Process the irregular tail, if present
     int from = last_idx;
     if (from < len) {
-      array->oop_iterate_range(cl, from, len);
+      if (array->is_refArray()) {
+        refArrayOop(array)->oop_iterate_range(cl, from, len);
+      } else {
+        assert(array->is_flatArray(), "What else?");
+        flatArrayOop(array)->oop_iterate_range(cl, from, len);
+      }
     }
   }
 }
 
 template <class T>
 inline void ShenandoahMark::do_chunked_array(ShenandoahObjToScanQueue* q, T* cl, oop obj, int chunk, int pow, bool weak) {
-  assert(obj->is_refArray(), "expect object array");
+  assert(obj->is_objArray(), "expect object array");
   objArrayOop array = objArrayOop(obj);
 
   assert (ObjArrayMarkingStride > 0, "sanity");
@@ -248,7 +261,12 @@ inline void ShenandoahMark::do_chunked_array(ShenandoahObjToScanQueue* q, T* cl,
   assert (0 < to && to <= len, "to is sane: %d/%d", to, len);
 #endif
 
-  array->oop_iterate_range(cl, from, to);
+ if (array->is_refArray()) {
+   refArrayOop(array)->oop_iterate_range(cl, from, to);
+ } else {
+   assert(array->is_flatArray(), "What else?");
+   flatArrayOop(array)->oop_iterate_range(cl, from, to);
+ }
 }
 
 template <ShenandoahGenerationType GENERATION>

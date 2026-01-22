@@ -264,6 +264,7 @@ void ShenandoahBarrierSetC2::satb_write_barrier_pre(GraphKit* kit,
     Node* call = c->in(1)->in(1)->in(1)->in(0);
     assert(is_shenandoah_wb_pre_call(call), "shenandoah_wb_pre call expected");
     call->add_req(adr);
+    // kit->gvn().transform(call);
   }
 }
 
@@ -859,7 +860,7 @@ bool ShenandoahBarrierSetC2::clone_needs_barrier(Node* src, PhaseGVN& gvn) {
         }
   } else if (src_type->isa_aryptr()) {
     BasicType src_elem = src_type->isa_aryptr()->elem()->array_element_basic_type();
-    if (is_reference_type(src_elem, true)) {
+    if (is_reference_type(src_elem, true) && !src_type->is_flat()) {
       return true;
     }
   } else {
