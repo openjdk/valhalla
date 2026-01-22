@@ -335,11 +335,13 @@ static const char* find_any_unsupported_module_option() {
   // directly specified in the command-line.
   static const char* unsupported_module_properties[] = {
     "jdk.module.limitmods",
-    "jdk.module.upgrade.path"
+    "jdk.module.upgrade.path",
+    "jdk.module.patch.0"
   };
   static const char* unsupported_module_options[] = {
     "--limit-modules",
-    "--upgrade-module-path"
+    "--upgrade-module-path",
+    "--patch-module"
   };
 
   assert(ARRAY_SIZE(unsupported_module_properties) == ARRAY_SIZE(unsupported_module_options), "must be");

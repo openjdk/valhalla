@@ -950,7 +950,6 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
                                                InstanceKlass* ik,
                                                PackageEntry* pkg_entry,
                                                Handle class_loader) {
-  assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
 
   // (1) Check if we are loading into the same loader as in dump time.
 
@@ -1026,7 +1025,7 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
       // Is the module loaded from the same location as during dump time?
       visible = mod_entry->shared_path_index() == scp_index;
       if (visible) {
-        assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
+        assert(!mod_entry->is_patched(), "cannot load archived classes for patched module");
       }
     } else {
       // During dump time, this class was in a named module, but at run time, this class should be
