@@ -328,8 +328,9 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
   }
   if (res != nullptr) {
     if (ftype->isa_narrowoop()) {
-      // PhaseMacroExpand::scalar_replacement adds DecodeN nodes
-      assert(res->isa_DecodeN(), "should be narrow oop");
+      // PhaseMacroExpand::scalar_replacement adds DecodeN nodes.
+      // Shenandoah LRB returns normal oop, need to convert it back to narrow oop.
+      assert(UseShenandoahGC || res->isa_DecodeN(), "must be DecodeN for narrow oop: %s", res->Name());
       res = _igvn.transform(new EncodePNode(res, ftype));
     }
     return res;
