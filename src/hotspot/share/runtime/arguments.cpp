@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,6 @@
 #include "runtime/vm_version.hpp"
 #include "services/management.hpp"
 #include "utilities/align.hpp"
-#include "utilities/checkedCast.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/macros.hpp"
@@ -1209,16 +1208,22 @@ bool Arguments::process_settings_file(const char* file_name, bool should_exist, 
   }
 
   char token[1024];
-  int  pos = 0;
+  size_t pos = 0;
 
   bool in_white_space = true;
   bool in_comment     = false;
   bool in_quote       = false;
-  int  quote_c        = 0;
+  char quote_c        = 0;
   bool result         = true;
 
-  int c = getc(stream);
-  while(c != EOF && pos < (int)(sizeof(token)-1)) {
+  int c_or_eof = getc(stream);
+  while (c_or_eof != EOF && pos < (sizeof(token) - 1)) {
+    // We have checked the c_or_eof for EOF. getc should only ever return the
+    // EOF or an unsigned char converted to an int. We cast down to a char to
+    // avoid the char to int promotions we would otherwise do in the comparisons
+    // below (which would be incorrect if we ever compared to a non-ascii char),
+    // and the int to char conversions we would otherwise do in the assignments.
+    const char c = static_cast<char>(c_or_eof);
     if (in_white_space) {
       if (in_comment) {
         if (c == '\n') in_comment = false;
@@ -1226,7 +1231,7 @@ bool Arguments::process_settings_file(const char* file_name, bool should_exist, 
         if (c == '#') in_comment = true;
         else if (!isspace((unsigned char) c)) {
           in_white_space = false;
-          token[pos++] = checked_cast<char>(c);
+          token[pos++] = c;
         }
       }
     } else {
@@ -1246,10 +1251,10 @@ bool Arguments::process_settings_file(const char* file_name, bool should_exist, 
       } else if (in_quote && (c == quote_c)) {
         in_quote = false;
       } else {
-        token[pos++] = checked_cast<char>(c);
+        token[pos++] = c;
       }
     }
-    c = getc(stream);
+    c_or_eof = getc(stream);
   }
   if (pos > 0) {
     token[pos] = '\0';
@@ -1969,10 +1974,6 @@ jint Arguments::parse_vm_init_args(GrowableArrayCHeap<VMInitArgsGroup, mtArgumen
   // Disable CDS for exploded image
   if (!has_jimage()) {
     no_shared_spaces("CDS disabled on exploded JDK");
-  }
-
-  if (UseAltSubstitutabilityMethod) {
-    no_shared_spaces("Alternate substitutability method doesn't work with CDS yet");
   }
 
   // We need to ensure processor and memory resources have been properly

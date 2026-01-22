@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,10 +228,10 @@ public class TestLWorldProfiling {
     public void test1_verifier(RunInfo info) {
         if (info.isWarmUp()) {
             Object o = test1(testValue1Array);
-            Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+            Asserts.assertEQ(testValue1, o);
         } else {
             Object o = test1(testValue2Array);
-            Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
+            Asserts.assertEQ(testValue2, o);
         }
     }
 
@@ -266,9 +266,9 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test3_verifier() {
         Object o = test3(testValue1Array);
-        Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, o);
         o = test3(testValue2Array);
-        Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, o);
     }
 
     @Test
@@ -290,7 +290,7 @@ public class TestLWorldProfiling {
             Asserts.assertEQ(o, new MyLong(42L));
         } else {
             Object o = test4(testValue2Array);
-            Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
+            Asserts.assertEQ(testValue2, o);
         }
     }
 
@@ -304,9 +304,9 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test5_verifier() {
         Object o = test5(testValue1Array);
-        Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, o);
         o = test5(testValue1NotFlatArray);
-        Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, o);
     }
 
     // Check that profile data that's useless at the aaload is
@@ -426,7 +426,7 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test9_verifier() {
         test9(testValue1Array, testValue1);
-        Asserts.assertEQ(testValue1Array[0].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, testValue1Array[0]);
     }
 
     @Test

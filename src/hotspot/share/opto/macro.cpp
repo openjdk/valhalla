@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -654,11 +654,13 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
   }
 
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
-    ciType* field_type = vt->field_type(i);
-    int field_offset_in_element = offset_in_element + vt->field_offset(i) - vk->payload_offset();
+    ciField* field = vt->field(i);
+    ciType* field_type = field->type();
+    int field_offset_in_element = offset_in_element + field->offset_in_bytes() - vk->payload_offset();
     Node* field_value = nullptr;
-    if (vt->field_is_flat(i)) {
-      field_value = inline_type_from_mem(field_type->as_inline_klass(), elem_adr_type, elem_idx, field_offset_in_element, vt->field_is_null_free(i), alloc, sfpt);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (field->is_flat()) {
+      field_value = inline_type_from_mem(field_type->as_inline_klass(), elem_adr_type, elem_idx, field_offset_in_element, field->is_null_free(), alloc, sfpt);
     } else {
       const Type* ft = Type::get_const_type(field_type);
       BasicType bt = type2field[field_type->basic_type()];
@@ -789,7 +791,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
             // Use in flat field can be eliminated
             InlineTypeNode* vt = u->as_InlineType();
             for (uint i = 0; i < vt->field_count(); ++i) {
-              if (vt->field_value(i) == use && !vt->field_is_flat(i)) {
+              if (vt->field_value(i) == use && !vt->field(i)->is_flat()) {
                 can_eliminate = false; // Use in non-flat field
                 break;
               }
@@ -3258,11 +3260,11 @@ void PhaseMacroExpand::eliminate_opaque_looplimit_macro_nodes() {
         // a CMoveL construct now. At least until here, the type could be computed
         // precisely. CMoveL is not so smart, but we can give it at least the best
         // type we know abouot n now.
-        Node* repl = MaxNode::signed_max(n->in(1), n->in(2), _igvn.type(n), _igvn);
+        Node* repl = MinMaxNode::signed_max(n->in(1), n->in(2), _igvn.type(n), _igvn);
         _igvn.replace_node(n, repl);
         success = true;
       } else if (n->Opcode() == Op_MinL) {
-        Node* repl = MaxNode::signed_min(n->in(1), n->in(2), _igvn.type(n), _igvn);
+        Node* repl = MinMaxNode::signed_min(n->in(1), n->in(2), _igvn.type(n), _igvn);
         _igvn.replace_node(n, repl);
         success = true;
       }

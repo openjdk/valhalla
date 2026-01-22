@@ -224,10 +224,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // NOTES:
   //   - input holder object via "obj", which must be rax,
   //     will return new instance via the same reg
-  //   - assumes holder_klass and valueKlass field klass have both been resolved
-  void read_flat_field(Register entry,
-                       Register tmp1, Register tmp2,
-                       Register obj = rax);
+  void read_flat_field(Register entry, Register obj);
   void write_flat_field(Register entry,
                         Register tmp1, Register tmp2,
                         Register obj, Register off, Register value);
