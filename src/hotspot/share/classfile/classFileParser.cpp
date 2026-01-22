@@ -1471,11 +1471,10 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
           }
           const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
           if (!is_strict) {
-            Exceptions::fthrow(
-              THREAD_AND_LOCATION,
-              vmSymbols::java_lang_ClassFormatError(),
-              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s which doesn't have the @jdk.internal.vm.annotation.Strict annotation",
-              class_name()->as_C_string(), name->as_C_string());
+            // Inject STRICT_INIT and validate in context
+            const jint patched_flags = flags | JVM_ACC_STRICT;
+            verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
+            access_flags.set_flags(patched_flags);
           }
           is_null_restricted = true;
         }
