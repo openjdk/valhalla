@@ -552,7 +552,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     // Atomic
     kit->set_control(kit->IfTrue(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -566,7 +566,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     // Non-atomic
     kit->set_control(kit->IfFalse(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -1244,7 +1244,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     // Atomic
     kit->set_control(kit->IfTrue(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -1258,7 +1258,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     // Non-Atomic
     kit->set_control(kit->IfFalse(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
