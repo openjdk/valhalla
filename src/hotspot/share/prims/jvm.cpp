@@ -3718,9 +3718,8 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
     THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
 
-  oop ao = JNIHandles::resolve_non_null(threads);
-  assert(ao->is_refArray(), "invariant");
-  refArrayHandle ah(THREAD, ao);
+  refArrayOop a = refArrayOopDesc::cast(JNIHandles::resolve_non_null(threads));
+  refArrayHandle ah(THREAD, a);
   int num_threads = ah->length();
   // check if threads is non-empty array
   if (num_threads == 0) {

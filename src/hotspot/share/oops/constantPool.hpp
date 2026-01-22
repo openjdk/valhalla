@@ -645,7 +645,7 @@ private:
 
   void copy_bootstrap_arguments_at(int cp_index,
                                    int start_arg, int end_arg,
-                                   objArrayHandle info, int pos,
+                                   refArrayHandle info, int pos,
                                    bool must_resolve, Handle if_not_available, TRAPS) {
     constantPoolHandle h_this(THREAD, this);
     copy_bootstrap_arguments_at_impl(h_this, cp_index, start_arg, end_arg,
@@ -744,7 +744,7 @@ private:
                                       bool* status_return, TRAPS);
   static void copy_bootstrap_arguments_at_impl(const constantPoolHandle& this_cp, int cp_index,
                                                int start_arg, int end_arg,
-                                               objArrayHandle info, int pos,
+                                               refArrayHandle info, int pos,
                                                bool must_resolve, Handle if_not_available, TRAPS);
 
   // Exception handling

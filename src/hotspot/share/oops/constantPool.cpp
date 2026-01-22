@@ -1353,7 +1353,7 @@ oop ConstantPool::uncached_string_at(int cp_index, TRAPS) {
 
 void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& this_cp, int cp_index,
                                                     int start_arg, int end_arg,
-                                                    objArrayHandle info, int pos,
+                                                    refArrayHandle info, int pos,
                                                     bool must_resolve, Handle if_not_available,
                                                     TRAPS) {
   int limit = pos + end_arg - start_arg;

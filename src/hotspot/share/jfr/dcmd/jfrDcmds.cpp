@@ -113,8 +113,7 @@ static void handle_pending_exception(outputStream* output, bool startup, oop thr
 
 static void print_message(outputStream* output, oop content, TRAPS) {
   assert(content != nullptr, "invariant");
-  assert(content->is_refArray(), "invariant");
-  refArrayOop lines = refArrayOop(content);
+  refArrayOop lines = refArrayOopDesc::cast(content);
   const int length = lines->length();
   for (int i = 0; i < length; ++i) {
     const char* text = JfrJavaSupport::c_str(lines->obj_at(i), THREAD);
@@ -129,8 +128,7 @@ static void print_message(outputStream* output, oop content, TRAPS) {
 static void log(oop content, TRAPS) {
   LogMessage(jfr,startup) msg;
   assert(content != nullptr, "invariant");
-  assert(content->is_refArray(), "invariant");
-  refArrayOop lines = refArrayOop(content);
+  refArrayOop lines = refArrayOopDesc::cast(content);
   const int length = lines->length();
   for (int i = 0; i < length; ++i) {
     const char* text = JfrJavaSupport::c_str(lines->obj_at(i), THREAD);
@@ -354,8 +352,7 @@ GrowableArray<DCmdArgumentInfo*>* JfrDCmd::argument_info_array() const {
   }
   oop oop_args = result.get_oop();
   assert(oop_args != nullptr, "invariant");
-  assert(oop_args->is_refArray(), "must be a reference array");
-  objArrayOop arguments = objArrayOop(oop_args);
+  refArrayOop arguments = refArrayOopDesc::cast(oop_args);
   const int num_arguments = arguments->length();
   assert(num_arguments == _num_arguments, "invariant");
   prepare_dcmd_string_arena(thread);
