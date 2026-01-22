@@ -835,7 +835,7 @@ class VirtualMachineImpl extends MirrorImpl
         return versionInfo().jdwpMajor >= 19;
     }
 
-    public boolean canUseIsSameObject() {
+    public boolean supportsValueClasses() {
         return versionInfo().jdwpMajor >= 27;
     }
 

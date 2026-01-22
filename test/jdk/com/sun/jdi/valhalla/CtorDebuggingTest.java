@@ -67,22 +67,22 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 
 /*
-The test reproduces scenarios when ObjectReference for value object is fetched during the object construction
-and the object content is changed later. When "this" ObjectReference for value object is requested,
-JDI returns existing reference if there are other references to the equal value object or create a new one otherwise.
-The test debugs "new Value(3,6)" statement by setting breakpoints in Value class constructor at locations
-when the object being constructed is (0,0), (3,0) and (3,6).
-
-Test scenarios are defined by test arguments; TestScaffold passes them creating debuggee process (TargetApp class).
-Debugsee initializes static fields with value objects (0,0), (3,0), (3,6) depending on the passed arguments.
-Debugger gets ObjectReferences for the fields before testing.
-
-Tested scenarios:
-- no existing references;
-- all 3 references exists;
-- there are references for 1 and 3 breakpoints.
-
-*/
+ * The test reproduces scenarios when ObjectReference for value object is fetched during the object construction
+ * and the object content is changed later. When "this" ObjectReference for value object is requested,
+ * JDI returns existing reference if there are other references to the equal value object or create a new one otherwise.
+ * The test debugs "new Value(3,6)" statement by setting breakpoints in Value class constructor at locations
+ * when the object being constructed is (0,0), (3,0) and (3,6).
+ *
+ * Test scenarios are defined by test arguments; TestScaffold passes them creating debuggee process (TargetApp class).
+ * Debugsee initializes static fields with value objects (0,0), (3,0), (3,6) depending on the passed arguments.
+ * Debugger gets ObjectReferences for the fields before testing.
+ *
+ * Tested scenarios:
+ * - no existing references;
+ * - all 3 references exists;
+ * - there are references for 1 and 3 breakpoints.
+ *
+ */
 public class CtorDebuggingTest extends TestScaffold {
 
     static value class Value {
@@ -185,7 +185,7 @@ public class CtorDebuggingTest extends TestScaffold {
         boolean isIdentity = (modifiers & IDENTITY) != 0;
         boolean isInterface = (modifiers & INTERFACE) != 0;
         boolean isAbstract = (modifiers & ABSTRACT) != 0;
-        boolean isValueClass = !isIdentity && !isInterface && !isAbstract;
+        boolean isValueClass = !isIdentity;
         System.out.println("Class " + theClass + " is value class: " + (isValueClass ? "YES" : "NO"));
         if (isValueClass != expected) {
             throw new RuntimeException("IsValueClass verification failed: "

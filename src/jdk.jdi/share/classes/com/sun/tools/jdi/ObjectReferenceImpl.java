@@ -161,7 +161,7 @@ public class ObjectReferenceImpl extends ValueImpl
                 return true;
             }
             // We can get equal value objects with different IDs.
-            if (isValueObject() && vm.canUseIsSameObject()) {
+            if (isValueObject()) {
                 try {
                     return JDWP.ObjectReference.IsSameObject.process(vm, this, other).isSameObject;
                 } catch (JDWPException exc) {
@@ -174,7 +174,7 @@ public class ObjectReferenceImpl extends ValueImpl
 
     @Override
     public int hashCode() {
-        if (isValueObject() && vm.canUseIsSameObject()) {
+        if (isValueObject()) {
             try {
                 return JDWP.ObjectReference.ObjectHashCode.process(vm, this).hashCode;
             } catch (JDWPException exc) {

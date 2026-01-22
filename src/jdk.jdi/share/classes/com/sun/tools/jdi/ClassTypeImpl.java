@@ -132,6 +132,9 @@ public final class ClassTypeImpl extends InvokableTypeImpl
     }
 
     public boolean isValueClass() {
+        if (!vm.supportsValueClasses()) {
+            return false;
+        }
         if (modifiers == -1) {
             getModifiers();
         }
