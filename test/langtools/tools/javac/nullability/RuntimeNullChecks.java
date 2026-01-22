@@ -466,7 +466,7 @@ public class RuntimeNullChecks extends TestRunner {
 
     @Test
     public void testUseSideChecksForMethods(Path base) throws Exception {
-        String[] testCases1 = new String[] {
+        String src =
                 """
                 class Test {
                     class Inner {
@@ -481,7 +481,24 @@ public class RuntimeNullChecks extends TestRunner {
                         inner.m(null);
                     }
                 }
-                """,
+                """;
+        String expectedInstSequence =
+                "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]" +
+                        "Invoke[OP=INVOKEVIRTUAL, m=Test$Inner.m(Ljava/lang/Object;)Ljava/lang/Object;]";
+        Path out;
+        for (String[] options : new String[][] {PREVIEW, USE_SITE_CHECKS_FOR_METHODS_ONLY, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS}) {
+            out = testHelper(base, src, true, NullPointerException.class, options);
+            if (!checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+                throw new AssertionError("was expecting a null check before Inner::m invocation");
+            }
+        }
+        out = testHelper(base, src, false, null, NO_USE_SITE_CHECKS);
+        if (checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+            throw new AssertionError("was not expecting a null check before Inner::m invocation");
+        }
+
+        // null checks in user site for returns
+        src =
                 """
                 class Test {
                     class Inner {
@@ -496,43 +513,25 @@ public class RuntimeNullChecks extends TestRunner {
                         inner.m(null);
                     }
                 }
-                """,
-                """
-                class Test {
-                    class Inner {
-                        Object m(Object! arg, Object... args) { return null; }
-                    }
-                    class Inner2 extends Inner {
-                        @Override
-                        String m(Object arg, Object... args) { return null; }
-                    }
-                    public static void main(String... args) {
-                        Inner inner = new Test().new Inner2();
-                        inner.m(null, null);
-                    }
+                """;
+        expectedInstSequence =
+                "Invoke[OP=INVOKEVIRTUAL, m=Test$Inner.m(Ljava/lang/Object;)Ljava/lang/Object;]" +
+                        "UnboundStackInstruction[op=DUP]" +
+                        "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]";
+        for (String[] options : new String[][] {PREVIEW, USE_SITE_CHECKS_FOR_METHODS_ONLY, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS}) {
+            out = testHelper(base, src, true, NullPointerException.class, options);
+            if (!checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+                List<CodeElement> foundSequence = readInstructions(out.resolve("Test.class"), "main");
+                String found = "";
+                for (CodeElement ce : foundSequence) {
+                    found += ce.toString() + "\n";
                 }
-                """,
-                """
-                class Test {
-                    class Inner {
-                        Object! m(Object arg, Object... args) { return ""; }
-                    }
-                    class Inner2 extends Inner {
-                        @Override
-                        String m(Object arg, Object... args) { return null; }
-                    }
-                    public static void main(String... args) {
-                        Inner inner = new Test().new Inner2();
-                        inner.m(null, null);
-                    }
-                }
-                """
-        };
-        for (String code : testCases1) {
-            testHelper(base, code, true, NullPointerException.class);
-            testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_ONLY);
-            testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
-            testHelper(base, code, false, null, NO_USE_SITE_CHECKS);
+                throw new AssertionError("was expecting a null check after Inner::m invocation, found: \n" + found);
+            }
+        }
+        out = testHelper(base, src, false, null, NO_USE_SITE_CHECKS);
+        if (checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+            throw new AssertionError("was not expecting a null check after Inner::m invocation");
         }
 
         String[] testCases2 = new String[] {
@@ -581,13 +580,20 @@ public class RuntimeNullChecks extends TestRunner {
                 """
         };
         for (String code : testCases2) {
-            Path out = testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
-            List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
-            if (instructions.stream()
-                    .anyMatch(instruction -> instruction.toString().equals(nullCheckInvocation))) {
+            out = testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
+            if (checkInstructionsSequence(out.resolve("Test.class"), "main", nullCheckInvocation)) {
                 throw new AssertionError("an invocation to Checks::nullCheck was not expected");
             }
         }
+    }
+
+    private boolean checkInstructionsSequence(Path path, String methodName, String sequence) throws Exception {
+        List<CodeElement> instructions = readInstructions(path, methodName);
+        String foundSequence = "";
+        for (CodeElement ce : instructions) {
+            foundSequence += ce;
+        }
+        return foundSequence.contains(sequence);
     }
 
     private List<CodeElement> readInstructions(Path path, String methodName) throws Exception {
