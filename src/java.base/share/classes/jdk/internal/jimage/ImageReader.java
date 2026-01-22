@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -413,7 +413,7 @@ public final class ImageReader implements AutoCloseable {
                     sharedReader = new SharedImageReader(imagePath, byteOrder, previewMode);
                     OPEN_FILES.put(key, sharedReader);
                 } else if (sharedReader.getByteOrder() != byteOrder) {
-                    throw new IOException("\"" + sharedReader.getName() + "\" is not an image file");
+                    throw new IOException("\"" + sharedReader.getName() + "\" has incorrect byte ordering");
                 }
 
                 ImageReader image = new ImageReader(sharedReader);
