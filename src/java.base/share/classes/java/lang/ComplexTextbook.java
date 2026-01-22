@@ -122,7 +122,7 @@ public final class /*value record*/ ComplexTextbook  {
      * @param real the real component
      * @param imag the imaginary component
      */
-    public static ComplexTextbook valueOf(double real, double imag) { 
+    public static ComplexTextbook valueOf(double real, double imag) {
         return new ComplexTextbook(real, imag);
     }
 
@@ -132,7 +132,7 @@ public final class /*value record*/ ComplexTextbook  {
      *
      * @param real the real component
      */
-    public static ComplexTextbook valueOf(double real) { 
+    public static ComplexTextbook valueOf(double real) {
         return new ComplexTextbook(real, 0.0);
     }
 
@@ -143,7 +143,7 @@ public final class /*value record*/ ComplexTextbook  {
      *
      * @see Double#parseDouble(String)
      */
-    public static ComplexTextbook valueOf(String s) { 
+    public static ComplexTextbook valueOf(String s) {
         throw new UnsupportedOperationException("work in progress");
     }
 
@@ -160,7 +160,7 @@ public final class /*value record*/ ComplexTextbook  {
      *
      * @see Math#atan2(double, double)
      */
-    public static ComplexTextbook valueOfPolar(double r, double theta) { 
+    public static ComplexTextbook valueOfPolar(double r, double theta) {
         return valueOf(r*Math.cos(theta),
                        r*Math.sin(theta));
     }
