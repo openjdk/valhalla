@@ -43,3 +43,5 @@ java/lang/invoke/DumpMethodHandleInternals.java                 0000000 generic-
 # sun.util.locale.BaseLocale.<clinit> during the training run. Because BaseLocale is aot-initialized,
 # this message will not be printed in the production run.
 java/util/Locale/UseOldISOCodesTest.java                       0000000 generic-all
+
+valhalla/valuetypes/SubstitutabilityTest.java                  8374025 generic-all
