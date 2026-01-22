@@ -1498,8 +1498,9 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
       writer->write_objectID(object_id);
     }
   } else {
+    refArrayOop rarray = refArrayOopDesc::cast(array);
     for (int index = 0; index < length; index++) {
-      oop o = array->obj_at(index);
+      oop o = rarray->obj_at(index);
       o = mask_dormant_archived_object(o, array);
       writer->write_objectID(o);
     }
