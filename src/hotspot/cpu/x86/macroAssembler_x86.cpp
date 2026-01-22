@@ -3878,11 +3878,6 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   bind(done);
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
-  inline_layout_info(holder_klass, index, inline_klass);
-  movptr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
-}
-
 void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
   movptr(layout_info, Address(holder_klass, InstanceKlass::inline_layout_info_array_offset()));
 #ifdef ASSERT

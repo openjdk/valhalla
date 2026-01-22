@@ -5791,11 +5791,6 @@ void MacroAssembler::verify_tlab() {
 #endif
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
-  inline_layout_info(holder_klass, index, inline_klass);
-  ldr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
-}
-
 void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
   assert_different_registers(holder_klass, index, layout_info);
   InlineLayoutInfo array[2];
