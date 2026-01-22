@@ -801,7 +801,7 @@ public class Operators {
                 new UnaryNumericOperator(Tag.COMPL, Type::isIntegral)
                         .addUnaryOperator(LONG, LONG, lxor)
                         .addUnaryOperator(INT, INT, ixor),
-                new UnaryTypeClassOperator(Tag.COMPL, numerical, "complement"),
+                new UnaryTypeClassOperator(Tag.COMPL, integral, "complement"),
                 new UnaryPrefixPostfixOperator(Tag.POSTINC)
                         .addUnaryOperator(DOUBLE, DOUBLE, dadd)
                         .addUnaryOperator(FLOAT, FLOAT, fadd)
