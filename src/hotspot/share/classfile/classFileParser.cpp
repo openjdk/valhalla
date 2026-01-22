@@ -5694,7 +5694,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_aot_runtime_setup_method(false),
   _has_strict_static_fields(false),
-  _has_inline_type_fields(false),
+  _has_inlined_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
   _has_loosely_consistent_annotation(false),
@@ -6250,9 +6250,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != nullptr, "invariant");
 
   if (Arguments::is_valhalla_enabled()) {
-    _inline_layout_info_array = MetadataFactory::new_array<InlineLayoutInfo>(_loader_data,
-                                                   java_fields_count(),
-                                                   CHECK);
     for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
       FieldInfo fieldinfo = *it;
       if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
@@ -6280,8 +6277,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         }
         assert(klass != nullptr, "Sanity check");
         InstanceKlass::check_can_be_annotated_with_NullRestricted(klass, _class_name, CHECK);
-        InlineKlass* vk = InlineKlass::cast(klass);
-        _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
+        set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
         log_info(class, preload)("Preloading of class %s during loading of class %s "
                                  "(cause: null-free non-static field) succeeded",
                                  s->as_C_string(), _class_name->as_C_string());
@@ -6299,7 +6295,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                                  false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
-              _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+              set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
               log_info(class, preload)("Preloading of class %s during loading of class %s "
                                        "(cause: field type in LoadableDescriptors attribute) succeeded",
                                        name->as_C_string(), _class_name->as_C_string());
@@ -6326,7 +6322,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           oop loader = loader_data()->class_loader();
           InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
           if (klass != nullptr && klass->is_inline_klass()) {
-            _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+            set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
             log_info(class, preload)("Preloading of class %s during loading of class %s "
                                      "(cause: field type not in LoadableDescriptors attribute) succeeded",
                                      name->as_C_string(), _class_name->as_C_string());
@@ -6342,7 +6338,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       access_flags().is_abstract() && !access_flags().is_identity_class() && !access_flags().is_interface(),
       _must_be_atomic, _layout_info, _inline_layout_info_array);
   lb.build_layout();
-  _has_inline_type_fields = _layout_info->_has_inline_fields;
+  _has_inlined_fields = _layout_info->_has_inlined_fields;
+
+  // If it turned out that we didn't inline any of the fields, we deallocate
+  // the array of InlineLayoutInfo since it isn't needed, and so it isn't
+  // transferred to the allocated InstanceKlass.
+  if (_inline_layout_info_array != nullptr && !_layout_info->_has_inlined_fields) {
+    MetadataFactory::free_array<InlineLayoutInfo>(_loader_data, _inline_layout_info_array);
+    _inline_layout_info_array = nullptr;
+  }
 
   int injected_fields_count = _temp_field_info->length() - _java_fields_count;
   _fieldinfo_stream =
@@ -6384,6 +6388,22 @@ void ClassFileParser::set_klass(InstanceKlass* klass) {
 #endif
 
   _klass = klass;
+}
+
+void ClassFileParser::set_inline_layout_info_klass(int field_index, Klass* klass, TRAPS) {
+  assert(field_index >= 0 && field_index < java_fields_count(), "IOOB");
+
+  // The array of InlineLayoutInfo is allocated on demand. This way the array is
+  // never allocated for an InstanceKlass which has no need for this information.
+  if (_inline_layout_info_array == nullptr) {
+    _inline_layout_info_array = MetadataFactory::new_array<InlineLayoutInfo>(_loader_data,
+                                                                             java_fields_count(),
+                                                                             CHECK);
+  }
+
+  // Set the Klass for the field's index
+  InlineKlass *ik = InlineKlass::cast(klass);
+  _inline_layout_info_array->adr_at(field_index)->set_klass(ik);
 }
 
 void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {

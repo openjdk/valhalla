@@ -69,7 +69,7 @@ inline address InstanceKlass::end_of_instance_klass() const {
 }
 
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
-  assert(has_inline_type_fields(), "Sanity checking");
+  assert(has_inlined_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   InlineKlass* k = inline_layout_info(idx).klass();
   assert(k != nullptr, "Should always be set before being read");
@@ -77,7 +77,7 @@ inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
 }
 
 inline InlineKlass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
-  assert(has_inline_type_fields(), "Sanity checking");
+  assert(has_inlined_fields(), "Sanity checking");
   assert(idx < java_fields_count(), "IOOB");
   InlineKlass* k = inline_layout_info(idx).klass();
   return k;

@@ -1196,7 +1196,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inline_type_fields()) {
+  if (ik->has_inlined_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) continue;
 
@@ -1211,8 +1211,8 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else if (Signature::has_envelope(sig)) {
-          // Pending exceptions are cleared so we can fail silently
-          try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
+        // Pending exceptions are cleared so we can fail silently
+        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
   }
