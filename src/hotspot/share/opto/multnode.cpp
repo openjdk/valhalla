@@ -152,7 +152,10 @@ const TypePtr *ProjNode::adr_type() const {
       // Jumping over Tuples: the i-th projection of a Tuple is the i-th input of the Tuple.
       ctrl = ctrl->in(_con);
     }
-    if (ctrl == nullptr)  return nullptr; // node is dead
+    // node is dead or we are in the process of removing a dead subgraph
+    if (ctrl == nullptr || ctrl->is_top()) {
+      return nullptr;
+    }
     const TypePtr* adr_type = ctrl->adr_type();
     #ifdef ASSERT
     if (!VMError::is_error_reported() && !Node::in_dump())
