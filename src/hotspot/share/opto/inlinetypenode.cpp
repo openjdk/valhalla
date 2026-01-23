@@ -1658,6 +1658,54 @@ InlineTypeNode* LoadFlatNode::load(GraphKit* kit, ciInlineKlass* vk, Node* base,
   return load->collect_projs(kit, vk, TypeFunc::Parms, null_free);
 }
 
+bool LoadFlatNode::expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const {
+  precond(inst != nullptr);
+  assert(igvn.delay_transform(), "transformation must be delayed");
+  if ((_decorators & C2_MISMATCHED) != 0) {
+    return false;
+  }
+
+  GraphKit kit(jvms(), &igvn);
+  kit.set_all_memory(kit.reset_memory());
+
+  for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
+    ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
+    if (proj_out == nullptr) {
+      continue;
+    }
+
+    ciField* field = _vk->nonstatic_field_at(i);
+    BasicType bt = field->type()->basic_type();
+    if (inst == nullptr) {
+      Node* cst_node = igvn.zerocon(bt);
+      igvn.replace_node(proj_out, cst_node);
+    } else {
+      bool is_unsigned_load = bt == T_BOOLEAN || bt == T_CHAR;
+      const Type* cst_type = Type::make_constant_from_field(field, inst, bt, is_unsigned_load);
+      Node* cst_node = igvn.makecon(cst_type);
+      igvn.replace_node(proj_out, cst_node);
+    }
+  }
+
+  if (!_null_free) {
+    ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + _vk->nof_nonstatic_fields());
+    if (proj_out != nullptr) {
+      igvn.replace_node(proj_out, igvn.intcon(1));
+    }
+  }
+
+  Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
+  if (old_ctrl != nullptr) {
+    igvn.replace_node(old_ctrl, kit.control());
+  }
+  Node* old_mem = proj_out_or_null(TypeFunc::Memory);
+  Node* new_mem = kit.reset_memory();
+  if (old_mem != nullptr) {
+    igvn.replace_node(old_mem, new_mem);
+  }
+  return true;
+}
+
 bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
   assert(igvn.delay_transform(), "transformation must be delayed");
   if ((_decorators & C2_MISMATCHED) != 0) {

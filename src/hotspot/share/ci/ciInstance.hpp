@@ -62,6 +62,7 @@ public:
 
   // Constant value of a field.
   ciConstant field_value(ciField* field);
+  ciConstant flat_field_value(ciField* field);
 
   // Constant value of a field at the specified offset.
   ciConstant field_value_by_offset(int field_offset);

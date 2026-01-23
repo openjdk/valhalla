@@ -2098,36 +2098,56 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
       LoadFlatNode* loadn = n->as_LoadFlat();
       // Expending a flat load atomically means that we get a chunk of memory spanning multiple fields
       // that we chop with bitwise operations. That is too subtle for some optimizations, especially
-      // constant folding when fields are constant. But if the flattened field being accessed is read-only
-      // then no concurrent writes can happen and non-atomic loads are fine, allowing better optimizations.
-      // A way for fields to be read-only is to be stable and already initialized. Here, we check if the
-      // field being accessed is stable, and if the null marker of the field/array element is non-zero.
-      // If so, we know that the stable value was initialized away from the default value (null), and
-      // that we can assume it's read-only, so can the load can be performed non-atomically.
-      bool non_atomic_is_fine = false;
+      // constant folding when fields are constant. If we can get a constant object from which we are
+      // flat-loading, we can simply replace the loads at compilation-time by the field of the constant
+      // object.
+      ciInstance* loaded_from = nullptr;
       if (FoldStableValues) {
         const TypeOopPtr* base_type = igvn.type(loadn->base())->isa_oopptr();
         ciObject* oop = base_type->const_oop();
-        ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
-        ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
         int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
 
-        if (holder != nullptr) {
+        if (UseNewCode) {
+#ifndef PRODUCT
+          tty->print("<> base_type         : %p  =>  ", base_type); base_type->dump(); tty->print_cr("");
+          tty->print("<> oop               : %p  =>  ", oop); if (oop != nullptr) {oop->print();} tty->print_cr("");
+          tty->print("<> off               : %d", off); tty->print_cr("");
+#endif
+        }
+
+        if (oop != nullptr && oop->is_instance()) {
+          ciInstance* holder = oop->as_instance();
           ciKlass* klass = holder->klass();
           ciInstanceKlass* iklass = klass->as_instance_klass();
-          const ciField* field = iklass->get_non_flat_field_by_offset(off);
-          ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
-          ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
-          non_atomic_is_fine = field->is_stable() && cst.is_valid() && cst.as_boolean();
-        } else if (array != nullptr) {
+          ciField* field = iklass->get_non_flat_field_by_offset(off);
+
+          if (UseNewCode) {
+#ifndef PRODUCT
+            tty->print("<> holder            : %p  =>  ", holder); if (holder != nullptr) {holder->print();} tty->print_cr("");
+            tty->print("<> klass             : %p  =>  ", klass); if (klass != nullptr) {klass->print();} tty->print_cr("");
+            tty->print("<> iklass            : %p  =>  ", iklass); if (iklass != nullptr) {iklass->print();} tty->print_cr("");
+            tty->print("<> field             : %p  =>  ", field); if (field != nullptr) {field->print();} tty->print_cr("");
+            tty->print("<> field->is_stable(): %d", field->is_stable()); tty->print_cr("");
+#endif
+          }
+          if (field->is_stable()) {
+            ciConstant fv = holder->flat_field_value(field);
+            if (is_reference_type(fv.basic_type()) && fv.as_object()->is_instance()) {
+              loaded_from = fv.as_object()->as_instance();
+            }
+          }
+        } else if (oop != nullptr && oop->is_array()) {
+          ciArray* array = oop->as_array();
+          ciConstant elt = array->element_value_by_offset(off);
           const TypeAryPtr* aryptr = base_type->is_aryptr();
-          ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
-          non_atomic_is_fine = aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+          if (aryptr->is_stable() && is_reference_type(elt.basic_type()) && elt.as_object()->is_instance()) {
+            loaded_from = elt.as_object()->as_instance();
+          }
         }
       }
 
-      if (non_atomic_is_fine) {
-        loadn->expand_non_atomic(igvn);
+      if (loaded_from != nullptr) {
+        loadn->expand_constant(igvn, loaded_from);
       } else {
         loadn->expand_atomic(igvn);
       }

@@ -193,6 +193,7 @@ public:
   static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
   Node* base() const { return in(TypeFunc::Parms); }
   Node* ptr() const { return in(TypeFunc::Parms + 1); }
+  bool expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const;
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 
