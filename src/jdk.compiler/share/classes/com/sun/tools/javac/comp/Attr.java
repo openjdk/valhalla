@@ -4534,9 +4534,6 @@ public class Attr extends JCTree.Visitor {
 
     public void visitTypeCast(final JCTypeCast tree) {
         Type clazztype = attribType(tree.clazz, env);
-        if (types.isNonNullable(clazztype)) {
-            tree.strict = true;
-        }
         chk.validate(tree.clazz, env, false);
         chk.checkRequiresIdentity(tree, env.info.lint);
         //a fresh environment is required for 292 inference to work properly ---
@@ -4564,6 +4561,9 @@ public class Attr extends JCTree.Visitor {
         if (exprtype.constValue() != null)
             owntype = cfolder.coerce(exprtype, owntype);
         result = check(tree, capture(owntype), KindSelector.VAL, resultInfo);
+        if (types.isNonNullable(clazztype) || tree.expr instanceof JCTypeCast typeCast && typeCast.strict) {
+            tree.strict = true;
+        }
         if (!isPoly)
             chk.checkRedundantCast(localEnv, tree);
     }

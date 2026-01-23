@@ -940,6 +940,15 @@ public class RuntimeNullChecks extends TestRunner {
                         String! s = (String!)oc.m();
                     }
                 }
+                """,
+                """
+                import java.io.*;
+                class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object! o = (String)(CharSequence)(Serializable!) s;
+                    }
+                }
                 """
         };
         for (String testCase : testCases) {
