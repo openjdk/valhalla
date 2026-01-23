@@ -776,9 +776,8 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   oop obj = JNIHandles::resolve_non_null(handle);
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
     // Check if mark word contains hash code already
-    markWord mark = obj->mark();
-    intptr_t hash = mark.hash();
-    if (hash != markWord::no_hash) {
+    intptr_t hash = obj->mark().hash();
+    if (hash != 0) {
       return checked_cast<jint>(hash);
     }
 
@@ -800,8 +799,8 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     hash = result.get_jint() & markWord::hash_mask;
 
     // Store hash in the mark word
-    mark = mark.copy_set_hash(hash);
-    obj->set_mark(mark);
+    markWord mark = ho->mark().copy_set_hash(hash);
+    ho->set_mark(mark);
 
     return checked_cast<jint>(hash);
   } else {
