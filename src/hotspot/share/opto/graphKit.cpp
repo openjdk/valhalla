@@ -1881,11 +1881,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
 
 Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
   assert(elem_vk->maybe_flat_in_array(), "no flat array for %s", elem_vk->name()->as_utf8());
-  if (!elem_vk->has_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
+  if (!elem_vk->has_null_free_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, true, false);
-  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_null_free_non_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, true, true);
-  } else if (!elem_vk->has_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+  } else if (!elem_vk->has_null_free_atomic_layout() && !elem_vk->has_null_free_non_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, false, true);
   }
 
@@ -1941,14 +1941,26 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   uint nargs = domain->cnt();
   int arg_num = 0;
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
-    Node* arg = argument(i-TypeFunc::Parms);
+    uint arg_idx = i - TypeFunc::Parms;
+    Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
     // TODO 8284443 A static call to a mismatched method should still be scalarized
     if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
-        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        // There are 2 cases in which the argument has not been scalarized
+        if (_gvn.type(arg)->is_zero_type()) {
+          arg = InlineTypeNode::make_null(_gvn, t->inline_klass());
+        } else {
+          // During parsing, a method is called with an abstract (or j.l.Object) receiver, the
+          // receiver is a non-scalarized oop. Later on, IGVN reveals that the receiver must be a
+          // value object. The method is devirtualized, and replaced with a direct call with a
+          // scalarized receiver instead.
+          assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
+          assert(C->inlining_incrementally() || C->strength_reduction(), "must be during devirtualization of calls");
+          assert(!is_Parse(), "must be during devirtualization of calls");
+          arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        }
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -3883,12 +3895,12 @@ Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
 }
 
 Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
-  assert(vk->has_atomic_layout() || vk->has_non_atomic_layout(), "Can't be null-free and flat");
+  assert(vk->has_null_free_atomic_layout() || vk->has_null_free_non_atomic_layout(), "Can't be null-free and flat");
 
   // TODO 8350865 Add a stress flag to always access atomic if layout exists?
-  if (!vk->has_non_atomic_layout()) {
+  if (!vk->has_null_free_non_atomic_layout()) {
     return intcon(1); // Always atomic
-  } else if (!vk->has_atomic_layout()) {
+  } else if (!vk->has_null_free_atomic_layout()) {
     return intcon(0); // Never atomic
   }
 

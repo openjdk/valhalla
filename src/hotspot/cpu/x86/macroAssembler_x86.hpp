@@ -565,9 +565,6 @@ public:
   );
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
 
-  // For field "index" within "klass", return inline_klass ...
-  void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
-
   void inline_layout_info(Register klass, Register index, Register layout_info);
 
   void population_count(Register dst, Register src, Register scratch1, Register scratch2);
