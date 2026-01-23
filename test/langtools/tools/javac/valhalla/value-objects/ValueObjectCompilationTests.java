@@ -1455,11 +1455,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     void testLocalProxyVars() throws Exception {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {
-                    "--enable-preview",
-                    "-source", Integer.toString(Runtime.version().feature()),
-                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
-            };
+            String[] testOptions = PREVIEW_OPTIONS;
             setCompileOptions(testOptions);
             String[] sources = new String[] {
                     """
