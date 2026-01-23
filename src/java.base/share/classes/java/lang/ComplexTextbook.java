@@ -28,8 +28,9 @@ package java.lang;
 /**
  * An implementation of complex numbers using "textbook" algorithms
  * for the arithmetic operations and using {@code double} values for
- * the real and imaginary component. This class is intended only for
- * prototyping and <em>not</em> intended for production use.
+ * the {@linkplain real() real} and {@linkplain #imag() imaginary}
+ * components. This class is intended only for prototyping and
+ * <em>not</em> intended for production use.
  *
  * <p>For explanatory purposes, in the discussions below of the semantics
  * of arithmetic methods, two complex numbers
@@ -188,11 +189,8 @@ public final class /*value record*/ ComplexTextbook  {
      */
     @Override
     public boolean equals(Object that) {
-        if (that instanceof ComplexTextbook c) {
-            return this.real == c.real && this.imag == c.imag;
-        } else {
-            return false;
-        }
+        return that instanceof ComplexTextbook c &&
+            this.real == c.real && this.imag == c.imag;
     }
 
     /**
@@ -341,14 +339,6 @@ public final class /*value record*/ ComplexTextbook  {
         return operand;
     }
 
-    // TODO: API discussion, is this method needed?
-    //
-    // If there is a single interface defining the operations over
-    // integral types, negation should be defined over unsigned
-    // values. If there are separate interfaces for signed and
-    // unsigned integral types, the negate method can be elided on
-    // unsigned types.
-
     /**
      * Negation operation, unary "{@code -}".
      *
@@ -364,7 +354,7 @@ public final class /*value record*/ ComplexTextbook  {
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return the complex conjugate of the argument}
      *
      * @implSpec
      * The conjugate is equivalent to
@@ -379,7 +369,7 @@ public final class /*value record*/ ComplexTextbook  {
     // Utility methods
 
     /**
-     * {@return lorem ipsum}
+     * {@return the absolute value of the argument}
      *
      * @implSpec
      * use hypot
@@ -393,10 +383,8 @@ public final class /*value record*/ ComplexTextbook  {
     }
 
     /**
-     * {@return lorem ipsum}
-     *
-     * If the argument is infinite, return the canonical infinity,
-     * otherwise return the argument.
+     * {@return the canonical infinity if the argument is {@linkplain
+     * #isInfinite(ComplexTextbook) infinite}; return the argument otherwise}
      *
      * @param c a complex number
      */
