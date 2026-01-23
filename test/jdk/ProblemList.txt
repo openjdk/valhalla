@@ -796,7 +796,6 @@ tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 83
 
 # valhalla
 build/CheckFiles.java 8376088  generic-all
-java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
 
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
