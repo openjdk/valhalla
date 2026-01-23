@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -466,7 +466,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * Determines if this method is {@link java.lang.Object#Object()}.
      */
     default boolean isJavaLangObjectInit() {
-        return getDeclaringClass().isJavaLangObject() && (getName().equals("<init>") || getName().equals("<vnew>"));
+        return getDeclaringClass().isJavaLangObject() && getName().equals("<init>");
     }
 
     /**
