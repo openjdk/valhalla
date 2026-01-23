@@ -910,7 +910,7 @@ public class RuntimeNullChecks extends TestRunner {
 
     @Test
     public void testMultipleCasts(Path base) throws Exception {
-        Path out = testHelper(base,
+        String[] testCases = new String[] {
                 """
                 class Test {
                     public static void main(String... args) {
@@ -919,16 +919,30 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                true, NullPointerException.class, PREVIEW);
-        List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
-        int numberOfNullChecks = 0;
-        for (CodeElement ce : instructions) {
-            if (ce.toString().equals(nullCheckInvocation)) {
-                numberOfNullChecks++;
+                """
+                import java.io.*;
+                class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object o = (String!)(CharSequence!)(Serializable!) s; // NPE, cast
+                    }
+                }
+                """
+        };
+        for (String testCase : testCases) {
+            Path out = testHelper(base,
+                    testCase,
+                    true, NullPointerException.class, PREVIEW);
+            List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
+            int numberOfNullChecks = 0;
+            for (CodeElement ce : instructions) {
+                if (ce.toString().equals(nullCheckInvocation)) {
+                    numberOfNullChecks++;
+                }
             }
-        }
-        if (numberOfNullChecks != 1) {
-            throw new AssertionError("was expecting only one invocation to Checks::nullCheck");
+            if (numberOfNullChecks != 1) {
+                throw new AssertionError("was expecting only one invocation to Checks::nullCheck");
+            }
         }
     }
 }
