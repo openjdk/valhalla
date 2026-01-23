@@ -138,9 +138,9 @@ class VectorSupport : AllStatic {
   static bool has_scalar_op(jint id);
   static bool is_unsigned_op(jint id);
 
-  static bool is_vector(Klass* klass);
-  static bool is_vector_payload_mf(Klass* klass);
-  static bool skip_value_scalarization(Klass* klass);
+  static bool is_vector(const Klass* klass);
+  static bool is_vector_payload_mf(const Klass* klass);
+  static bool skip_value_scalarization(const Klass* klass);
   static int  max_vector_size(BasicType bt);
   static int  get_max_multifield_count(const Symbol* payload_name);
 };

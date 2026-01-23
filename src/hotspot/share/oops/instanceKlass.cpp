@@ -1051,7 +1051,7 @@ static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, 
       if (!Signature::has_envelope(sig)) continue;
       TempNewSymbol class_name = Signature::strip_envelope(sig);
       if (class_name == ik->name()) continue;
-      if (ClassFileParser::is_jdk_internal_class(class_name)) continue;
+      //if (ClassFileParser::is_jdk_internal_class(class_name)) continue;
       log_info(class, preload)("Preloading of class %s during linking of class %s "
                                "because of the class is listed in the LoadableDescriptors attribute",
                                sig->as_C_string(), ik->name()->as_C_string());

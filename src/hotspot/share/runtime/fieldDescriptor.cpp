@@ -108,8 +108,9 @@ void fieldDescriptor::reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo
   }
   _fieldinfo = fieldinfo;
   _multifield_info = multifield_info;
-  Symbol* name = fieldinfo.is_multifield() ? fieldinfo.get_multifield_name(multifield_info) : _cp()->symbol_at(fieldinfo.name_index());
-  guarantee(name != nullptr && _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
+  assert((multifield_info != nullptr) == fieldinfo.is_multifield(), "multifield info");
+  //Symbol* name = fieldinfo.is_multifield() ? fieldinfo.get_multifield_name(multifield_info) : _cp()->symbol_at(fieldinfo.name_index());
+  guarantee(_fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
 }
 
 void fieldDescriptor::print_on(outputStream* st, int base_offset) const {

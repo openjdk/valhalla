@@ -1554,7 +1554,7 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   // next to the previous insertion. However, in some cases local fields and inherited fields can be
   // interleaved, in which case the search of the insertion position cannot depend on the previous insertion.
   int last_idx = -1;
-  if (_super_klass != nullptr && _super_klass != vmClasses::Object_klass()) {  // Assumes j.l.Object cannot have fields
+  if (_super_klass != nullptr && _super_klass != vmClasses::Object_klass() && !VectorSupport::skip_value_scalarization(_super_klass)) {  // Assumes j.l.Object cannot have fields
     last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, 0, last_idx);
   }
 
@@ -1571,14 +1571,11 @@ void FieldLayoutBuilder::generate_acmp_maps() {
         break;
 
       case LayoutRawBlock::MULTIFIELD:
-        // FIXME
-        assert(false, "Unhandled layout kind");
-        break;
-
       case LayoutRawBlock::REGULAR:
         {
           FieldInfo* fi = _field_info->adr_at(b->field_index());
           if (fi->signature(_constant_pool)->starts_with("L") || fi->signature(_constant_pool)->starts_with("[")) {
+            assert(b->block_kind() != LayoutRawBlock::MULTIFIELD, "no oop in multifield");
             _oop_acmp_map->append(b->offset());
           } else {
             // Non-oop case

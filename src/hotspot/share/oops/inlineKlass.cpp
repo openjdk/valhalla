@@ -310,10 +310,6 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) 
 // Arrays of...
 
 bool InlineKlass::maybe_flat_in_array() {
-  if (VectorSupport::is_vector_payload_mf(this) || VectorSupport::is_vector(this)) {
-    return false;
-  }
-
   if (!UseArrayFlattening) {
     return false;
   }

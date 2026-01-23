@@ -496,7 +496,6 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, bool immutable_m
         val_type = val_type->join_speculative(TypePtr::NOTNULL);
       }
       const TypePtr* field_ptr_type = (decorators & C2_MISMATCHED) == 0 ? kit->gvn().type(field_ptr)->is_ptr() : TypeRawPtr::BOTTOM;
-      ciField* field = inline_klass()->get_field_by_offset(field_offset(i), false);
       bool load_bundle = !InlineTypeNode::is_multifield_scalarized(field);
       if (load_bundle) {
         value = kit->gvn().transform(LoadVectorNode::make(0, kit->control(), kit->memory(field_ptr), field_ptr, field_ptr_type, ft->bundle_size(), bt));

@@ -47,15 +47,15 @@
 #include "opto/vectornode.hpp"
 #endif // COMPILER2
 
-bool VectorSupport::is_vector(Klass* klass) {
+bool VectorSupport::is_vector(const Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorPayload_klass());
 }
 
-bool VectorSupport::is_vector_payload_mf(Klass* klass) {
+bool VectorSupport::is_vector_payload_mf(const Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorPayloadMF_klass());
 }
 
-bool VectorSupport::skip_value_scalarization(Klass* klass) {
+bool VectorSupport::skip_value_scalarization(const Klass* klass) {
   return VectorSupport::is_vector(klass) ||
          VectorSupport::is_vector_payload_mf(klass);
 }

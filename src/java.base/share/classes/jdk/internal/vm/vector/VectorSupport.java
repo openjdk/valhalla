@@ -175,7 +175,6 @@ public class VectorSupport {
 
     public static abstract value class VectorShuffle<E> extends VectorPayload { }
 
-    @LooselyConsistentValue
     public abstract value static class VectorPayloadMF {
         public abstract long multiFieldOffset();
 

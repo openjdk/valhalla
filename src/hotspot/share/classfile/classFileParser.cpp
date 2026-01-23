@@ -6428,7 +6428,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
-              if (VectorSupport::is_vector(klass)) continue;
               log_info(class, preload)("Preloading of class %s during loading of class %s "
                                        "(cause: field type in LoadableDescriptors attribute) succeeded",
                                        name->as_C_string(), _class_name->as_C_string());
