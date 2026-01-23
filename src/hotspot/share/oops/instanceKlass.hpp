@@ -273,7 +273,7 @@ class InstanceKlass: public Klass {
   volatile ClassState _init_state;          // state of class
 
   u1              _reference_type;          // reference type
-  int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
+  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for values classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
                                             // the InlineKlass::Members that only exist for InlineKlass.
 
@@ -327,6 +327,10 @@ class InstanceKlass: public Klass {
 
   Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
+  Array<int>* _acmp_maps_array; // Metadata copy of the acmp_maps oop used in value classes.
+                                // When loading an inline klass from the CDS/AOT archive
+                                // this copy can be used to regenerate the ".acmp_maps" oop
+                                // if it is not stored in the archive.
 
   // Located here because sub-klasses can't have their own C++ fields
   address _adr_inline_klass_members;
@@ -480,7 +484,7 @@ class InstanceKlass: public Klass {
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
-  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
+  int field_null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -508,6 +512,9 @@ class InstanceKlass: public Klass {
 
   Array<u2>* loadable_descriptors() const { return _loadable_descriptors; }
   void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
+
+  Array<int>* acmp_maps_array() const { return _acmp_maps_array; }
+  void set_acmp_maps_array(Array<int>* array) { _acmp_maps_array = array; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
@@ -660,6 +667,10 @@ public:
 
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
+
+  bool has_acmp_maps_offset() const {
+    return _acmp_maps_offset != 0;
+  }
 
   int acmp_maps_offset() const {
     assert(_acmp_maps_offset != 0, "Not initialized");

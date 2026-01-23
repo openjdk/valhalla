@@ -49,6 +49,9 @@
 #endif
 
 // C2 compiled method's prolog code.
+// Beware! This sp_inc is NOT the same as the one mentioned in MacroAssembler::remove_frame but only the size
+// of the extension space + the additional copy of the return address. That means, it doesn't contain the
+// frame size (where the local and sp_inc are) and the saved RBP.
 void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   if (C->clinit_barrier_on_entry()) {
     assert(VM_Version::supports_fast_class_init_checks(), "sanity");
@@ -643,17 +646,16 @@ void C2_MacroAssembler::verify_int_in_range(uint idx, const TypeInt* t, Register
   BLOCK_COMMENT("CastII {");
   Label fail;
   Label succeed;
-  if (hi == max_jint) {
+
+  if (lo != min_jint) {
     cmpl(val, lo);
-    jccb(Assembler::greaterEqual, succeed);
-  } else {
-    if (lo != min_jint) {
-      cmpl(val, lo);
-      jccb(Assembler::less, fail);
-    }
-    cmpl(val, hi);
-    jccb(Assembler::lessEqual, succeed);
+    jccb(Assembler::less, fail);
   }
+  if (hi != max_jint) {
+    cmpl(val, hi);
+    jccb(Assembler::greater, fail);
+  }
+  jmpb(succeed);
 
   bind(fail);
   movl(c_rarg0, idx);
@@ -692,17 +694,15 @@ void C2_MacroAssembler::verify_long_in_range(uint idx, const TypeLong* t, Regist
     }
   };
 
-  if (hi == max_jlong) {
+  if (lo != min_jlong) {
     cmp_val(lo);
-    jccb(Assembler::greaterEqual, succeed);
-  } else {
-    if (lo != min_jlong) {
-      cmp_val(lo);
-      jccb(Assembler::less, fail);
-    }
-    cmp_val(hi);
-    jccb(Assembler::lessEqual, succeed);
+    jccb(Assembler::less, fail);
   }
+  if (hi != max_jlong) {
+    cmp_val(hi);
+    jccb(Assembler::greater, fail);
+  }
+  jmpb(succeed);
 
   bind(fail);
   movl(c_rarg0, idx);

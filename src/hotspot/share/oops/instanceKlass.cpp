@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -605,6 +605,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
+  _acmp_maps_array(nullptr),
   _adr_inline_klass_members(nullptr)
 {
   set_vtable_length(parser.vtable_size());
@@ -815,6 +816,11 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
   set_loadable_descriptors(nullptr);
+
+  if (acmp_maps_array() != nullptr) {
+    MetadataFactory::free_array<int>(loader_data, acmp_maps_array());
+  }
+  set_acmp_maps_array(nullptr);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->in_aot_cache()) {
@@ -1478,7 +1484,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
-      if (vk->has_nullable_atomic_layout()) {
+      if (vk->supports_nullable_layouts()) {
         oop val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);
@@ -2217,7 +2223,7 @@ void InstanceKlass::methods_do(void f(Method* method)) {
 
 
 void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
       cl->do_field(&fd);
@@ -2227,7 +2233,7 @@ void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
 
 
 void InstanceKlass::do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle mirror, TRAPS) {
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
       f(&fd, mirror, CHECK);
@@ -2974,6 +2980,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
   it->push(&_loadable_descriptors);
+  it->push(&_acmp_maps_array, MetaspaceClosure::_writable);
   it->push(&_record_components);
   if(_multifield_info != NULL) {
     it->push(&_multifield_info);
@@ -3149,6 +3156,18 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 
   // restore constant pool resolved references
   constants()->restore_unshareable_info(CHECK);
+
+  // Restore acmp_maps java array from the version stored in metadata.
+  // if it cannot be found in the archive
+  if (Arguments::is_valhalla_enabled() && has_acmp_maps_offset() && java_mirror()->obj_field(_acmp_maps_offset) == nullptr) {
+    int acmp_maps_size = _acmp_maps_array->length();
+    typeArrayOop map = oopFactory::new_intArray(acmp_maps_size, CHECK);
+    typeArrayHandle map_h(THREAD, map);
+    for (int i = 0; i < acmp_maps_size; i++) {
+      map_h->int_at_put(i, _acmp_maps_array->at(i));
+    }
+    java_mirror()->obj_field_put(_acmp_maps_offset, map_h());
+  }
 
   if (array_klasses() != nullptr) {
     // To get a consistent list of classes we need MultiArray_lock to ensure

@@ -494,14 +494,8 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         while (ndim-- > 0) {
           st->print("[]");
         }
-      } else if (cik->is_flat_array_klass()) {
-        ciKlass* cie = cik->as_flat_array_klass()->base_element_klass();
-        cie->print_name_on(st);
-        st->print("[%d]", spobj->n_fields());
-        int ndim = cik->as_array_klass()->dimension() - 1;
-        while (ndim-- > 0) {
-          st->print("[]");
-        }
+      } else {
+        assert(false, "unexpected type %s", cik->name()->as_utf8());
       }
       st->print("={");
       uint nf = spobj->n_fields();
@@ -1079,6 +1073,15 @@ bool CallNode::is_call_to_arraycopystub() const {
   return false;
 }
 
+bool CallNode::is_call_to_multianewarray_stub() const {
+  if (_name != nullptr &&
+      strstr(_name, "multianewarray") != nullptr &&
+      strstr(_name, "C2 runtime") != nullptr) {
+    return true;
+  }
+  return false;
+}
+
 //=============================================================================
 uint CallJavaNode::size_of() const { return sizeof(*this); }
 bool CallJavaNode::cmp( const Node &n ) const {
@@ -1340,8 +1343,11 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
       call = call->in(0);
     } else if (call->Opcode() == Op_CallStaticJava && !call->in(0)->is_top() &&
                call->as_Call()->entry_point() == OptoRuntime::load_unknown_inline_Java()) {
-      assert(call->in(0)->is_Proj() && call->in(0)->in(0)->is_MemBar(), "missing membar");
-      membar = call->in(0)->in(0)->as_MemBar();
+      // If there is no explicit flat array accesses in the compilation unit, there would be no
+      // membar here
+      if (call->in(0)->is_Proj() && call->in(0)->in(0)->is_MemBar()) {
+        membar = call->in(0)->in(0)->as_MemBar();
+      }
       break;
     } else {
       return false;
@@ -1398,7 +1404,9 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
   }
 
   // Remove membar preceding the call
-  membar->remove(igvn);
+  if (membar != nullptr) {
+    membar->remove(igvn);
+  }
 
   address call_addr = OptoRuntime::uncommon_trap_blob()->entry_point();
   CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap", nullptr);

@@ -179,7 +179,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
           InlineLayoutInfo* li = field_holder()->inline_layout_info_adr(index());
           int nm_offset = li->null_marker_offset();
           if (obj->byte_field_acquire(nm_offset) == 0) {
-            st->print(" null");
+            st->print_cr(" null");
             return;
           }
         }

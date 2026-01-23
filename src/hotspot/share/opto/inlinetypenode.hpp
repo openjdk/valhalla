@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,20 +130,15 @@ public:
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
+  ciField*      field(uint index) const;
   Node*         field_value(uint index) const;
   Node*         field_value_by_offset(int offset, bool recursive) const;
   void      set_field_value(uint index, Node* value);
   void      set_field_value_by_offset(int offset, Node* value);
-  int           field_offset(uint index) const;
   uint          field_index(int offset) const;
   bool          is_multifield(uint index) const;
   bool          is_multifield_base(uint index) const;
   int           secondary_fields_count(uint index) const;
-  ciType*       field_type(uint index) const;
-  bool          field_is_flat(uint index) const;
-  bool          field_is_null_free(uint index) const;
-  bool          field_is_volatile(uint index) const;
-  int           field_null_marker_offset(uint index) const;
 
   // Replace InlineTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);

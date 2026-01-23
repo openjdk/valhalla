@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "asm/register.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciMethod.hpp"
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.hpp"
 #include "classfile/javaClasses.hpp"
@@ -1885,11 +1886,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
 
 Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
   assert(elem_vk->maybe_flat_in_array(), "no flat array for %s", elem_vk->name()->as_utf8());
-  if (!elem_vk->has_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
+  if (!elem_vk->has_null_free_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, true, false);
-  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_null_free_non_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, true, true);
-  } else if (!elem_vk->has_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+  } else if (!elem_vk->has_null_free_atomic_layout() && !elem_vk->has_null_free_non_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, false, true);
   }
 
@@ -1945,14 +1946,26 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   uint nargs = domain->cnt();
   int arg_num = 0;
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
-    Node* arg = argument(i-TypeFunc::Parms);
+    uint arg_idx = i - TypeFunc::Parms;
+    Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
     // TODO 8284443 A static call to a mismatched method should still be scalarized
     if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
-        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        // There are 2 cases in which the argument has not been scalarized
+        if (_gvn.type(arg)->is_zero_type()) {
+          arg = InlineTypeNode::make_null(_gvn, t->inline_klass());
+        } else {
+          // During parsing, a method is called with an abstract (or j.l.Object) receiver, the
+          // receiver is a non-scalarized oop. Later on, IGVN reveals that the receiver must be a
+          // value object. The method is devirtualized, and replaced with a direct call with a
+          // scalarized receiver instead.
+          assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
+          assert(C->inlining_incrementally() || C->strength_reduction(), "must be during devirtualization of calls");
+          assert(!is_Parse(), "must be during devirtualization of calls");
+          arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        }
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -2044,45 +2057,52 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       IdealKit ideal(this);
       IdealVariable res(ideal);
       ideal.declarations_done();
-      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
-        // Return value is null
-        ideal.set(res, makecon(TypePtr::NULL_PTR));
-      } ideal.else_(); {
-        // Return value is non-null
-        sync_kit(ideal);
+      // Change return type of call to scalarized return
+      const TypeFunc* tf = call->_tf;
+      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+      call->_tf = new_tf;
+      _gvn.set_type(call, call->Value(&_gvn));
+      _gvn.set_type(ret, ret->Value(&_gvn));
+      // Don't add store to buffer call if we are strength reducing
+      if (!C->strength_reduction()) {
+        ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+          // Return value is null
+          ideal.set(res, makecon(TypePtr::NULL_PTR));
+        } ideal.else_(); {
+          // Return value is non-null
+          sync_kit(ideal);
 
-        // Change return type of call to scalarized return
-        const TypeFunc* tf = call->_tf;
-        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
-        call->_tf = new_tf;
-        _gvn.set_type(call, call->Value(&_gvn));
-        _gvn.set_type(ret, ret->Value(&_gvn));
+          Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                      OptoRuntime::store_inline_type_fields_Type(),
+                                                      StubRoutines::store_inline_type_fields_to_buf(),
+                                                      nullptr, TypePtr::BOTTOM, ret);
 
-        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                                    OptoRuntime::store_inline_type_fields_Type(),
-                                                    StubRoutines::store_inline_type_fields_to_buf(),
-                                                    nullptr, TypePtr::BOTTOM, ret);
-
-        // We don't know how many values are returned. This assumes the
-        // worst case, that all available registers are used.
-        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-          if (domain->field_at(i) == Type::HALF) {
-            store_to_buf_call->init_req(i, top());
-            continue;
+          // We don't know how many values are returned. This assumes the
+          // worst case, that all available registers are used.
+          for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+            if (domain->field_at(i) == Type::HALF) {
+              store_to_buf_call->init_req(i, top());
+              continue;
+            }
+            Node* proj =_gvn.transform(new ProjNode(call, i));
+            store_to_buf_call->init_req(i, proj);
           }
+          make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+
+          Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+          const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+          buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
+
+          ideal.set(res, buf);
+          ideal.sync_kit(this);
+        } ideal.end_if();
+      } else {
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
           Node* proj =_gvn.transform(new ProjNode(call, i));
-          store_to_buf_call->init_req(i, proj);
         }
-        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
-
-        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
-        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
-        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
-
-        ideal.set(res, buf);
-        ideal.sync_kit(this);
-      } ideal.end_if();
+        ideal.set(res, ret);
+      }
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
     }
@@ -2223,9 +2243,19 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   if (callprojs->resproj[0] != nullptr && result != nullptr) {
     // If the inlined code is dead, the result projections for an inline type returned as
     // fields have not been replaced. They will go away once the call is replaced by TOP below.
-    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()),
+    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()) ||
+           (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()),
            "unexpected number of results");
-    C->gvn_replace_by(callprojs->resproj[0], result);
+    // If we are doing strength reduction and the return type is not loaded we
+    // need to rewire all projections since store_inline_type_fields_to_buf is already present
+    if (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()) {
+      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+      for (uint i = TypeFunc::Parms; i < domain->cnt(); i++) {
+        C->gvn_replace_by(callprojs->resproj[0], final_state->in(i));
+      }
+    } else {
+      C->gvn_replace_by(callprojs->resproj[0], result);
+    }
   }
 
   if (ejvms == nullptr) {
@@ -3870,12 +3900,12 @@ Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
 }
 
 Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
-  assert(vk->has_atomic_layout() || vk->has_non_atomic_layout(), "Can't be null-free and flat");
+  assert(vk->has_null_free_atomic_layout() || vk->has_null_free_non_atomic_layout(), "Can't be null-free and flat");
 
   // TODO 8350865 Add a stress flag to always access atomic if layout exists?
-  if (!vk->has_non_atomic_layout()) {
+  if (!vk->has_null_free_non_atomic_layout()) {
     return intcon(1); // Always atomic
-  } else if (!vk->has_atomic_layout()) {
+  } else if (!vk->has_null_free_atomic_layout()) {
     return intcon(0); // Never atomic
   }
 
@@ -3938,6 +3968,7 @@ Node* GraphKit::insert_mem_bar(int opcode, Node* precedent) {
   mb->init_req(TypeFunc::Control, control());
   mb->init_req(TypeFunc::Memory,  reset_memory());
   Node* membar = _gvn.transform(mb);
+  record_for_igvn(membar);
   set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
   set_all_memory_call(membar);
   return membar;
@@ -3967,6 +3998,7 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
     mb->set_req(TypeFunc::Memory, memory(alias_idx));
   }
   Node* membar = _gvn.transform(mb);
+  record_for_igvn(membar);
   set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
   if (alias_idx == Compile::AliasIdxBot) {
     merged_memory()->set_base_memory(_gvn.transform(new ProjNode(membar, TypeFunc::Memory)));
@@ -4190,9 +4222,12 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
       assert(C->flat_accesses_share_alias(), "should be set at parse time");
       const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
       int            elemidx  = C->get_alias_index(telemref);
-      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
+      const TypePtr* alias_adr_type = C->get_adr_type(elemidx);
+      if (alias_adr_type->is_flat()) {
+        C->set_flat_accesses();
+      }
+      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, alias_adr_type)));
     } else if (oop_type->isa_instptr()) {
-      set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
         ciField* field = ik->nonstatic_field_at(i);

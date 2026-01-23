@@ -2709,9 +2709,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 {
   const Register cache     = r2;
   const Register obj       = r4;
-  const Register klass     = r5;
-  const Register inline_klass = r7;
-  const Register field_index = r23;
   const Register index     = r3;
   const Register tos_state = r3;
   const Register off       = r19;
@@ -2720,10 +2717,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   resolve_cache_and_index_for_field(byte_no, cache, index);
   jvmti_post_field_access(cache, index, is_static, false);
-
-  // Valhalla extras
-  __ load_unsigned_short(field_index, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-  __ ldr(klass, Address(cache, ResolvedFieldEntry::field_holder_offset()));
 
   load_resolved_field_entry(obj, cache, tos_state, off, flags, is_static);
 
@@ -2796,8 +2789,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ push(atos);
       __ b(Done);
     } else {
-      Label is_flat, rewrite_inline;
-      __ test_field_is_flat(flags, noreg /*temp*/, is_flat);
+      Label is_flat;
+      __ test_field_is_flat(flags, noreg /* temp */, is_flat);
       __ load_heap_oop(r0, field, rscratch1, rscratch2);
       __ push(atos);
       if (rc == may_rewrite) {
@@ -2805,12 +2798,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       }
       __ b(Done);
       __ bind(is_flat);
-        // field is flat (null-free or nullable with a null-marker)
-        __ mov(r0, obj);
-        __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
-        __ verify_oop(r0);
-        __ push(atos);
-      __ bind(rewrite_inline);
+      // field is flat (null-free or nullable with a null-marker)
+      __ mov(r0, obj);
+      __ read_flat_field(cache, r0);
+      __ verify_oop(r0);
+      __ push(atos);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_vgetfield, bc, r1);
       }
@@ -2979,7 +2971,6 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   const Register off       = r19;
   const Register flags     = r6;
   const Register bc        = r4;
-  const Register inline_klass = r5;
 
   resolve_cache_and_index_for_field(byte_no, cache, index);
   jvmti_post_field_mod(cache, index, is_static);
@@ -3037,7 +3028,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-     if (!Arguments::is_valhalla_enabled()) {
+    if (!Arguments::is_valhalla_enabled()) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
@@ -3047,19 +3038,19 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         patch_bytecode(Bytecodes::_fast_aputfield, bc, r1, true, byte_no);
       }
       __ b(Done);
-     } else { // Valhalla
+    } else { // Valhalla
       __ pop(atos);
       if (is_static) {
         Label is_nullable;
-         __ test_field_is_not_null_free_inline_type(flags, noreg /* temp */, is_nullable);
-         __ null_check(r0);  // FIXME JDK-8341120
-         __ bind(is_nullable);
-         do_oop_store(_masm, field, r0, IN_HEAP);
-         __ b(Done);
+        __ test_field_is_not_null_free_inline_type(flags, noreg /* temp */, is_nullable);
+        __ null_check(r0);  // FIXME JDK-8341120
+        __ bind(is_nullable);
+        do_oop_store(_masm, field, r0, IN_HEAP);
+        __ b(Done);
       } else {
         Label null_free_reference, is_flat, rewrite_inline;
-        __ test_field_is_flat(flags, noreg /*temp*/, is_flat);
-        __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, null_free_reference);
+        __ test_field_is_flat(flags, noreg /* temp */, is_flat);
+        __ test_field_is_null_free_inline_type(flags, noreg /* temp */, null_free_reference);
         pop_and_check_object(obj);
         // Store into the field
         // Clobbers: r10, r11, r3
@@ -3078,14 +3069,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ b(rewrite_inline);
         __ bind(is_flat);
         pop_and_check_object(r7);
-        __ write_flat_field(cache, off, r3, r6, r7);
+        __ write_flat_field(cache, off, index, flags, r7);
         __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_vputfield, bc, r19, true, byte_no);
         }
         __ b(Done);
       }
-     }  // Valhalla
+    } // Valhalla
   }
 
   __ bind(notObj);
@@ -3224,7 +3215,7 @@ void TemplateTable::jvmti_post_fast_field_mod() {
     // to do it for every data type, we use the saved values as the
     // jvalue object.
     switch (bytecode()) {          // load values into the jvalue object
-    case Bytecodes::_fast_vputfield: //fall through
+    case Bytecodes::_fast_vputfield: // fall through
     case Bytecodes::_fast_aputfield: __ push_ptr(r0); break;
     case Bytecodes::_fast_bputfield: // fall through
     case Bytecodes::_fast_zputfield: // fall through
@@ -3251,7 +3242,7 @@ void TemplateTable::jvmti_post_fast_field_mod() {
                r19, c_rarg2, c_rarg3);
 
     switch (bytecode()) {             // restore tos values
-    case Bytecodes::_fast_vputfield: //fall through
+    case Bytecodes::_fast_vputfield: // fall through
     case Bytecodes::_fast_aputfield: __ pop_ptr(r0); break;
     case Bytecodes::_fast_bputfield: // fall through
     case Bytecodes::_fast_zputfield: // fall through
@@ -3301,7 +3292,7 @@ void TemplateTable::fast_storefield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vputfield:
     {
-      Label is_flat, has_null_marker, done;
+      Label is_flat, done;
       __ test_field_is_flat(r5, noreg /* temp */, is_flat);
       __ null_check(r0);
       do_oop_store(_masm, field, r0, IN_HEAP);
@@ -3412,10 +3403,8 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
     {
-      Register index = r4, tmp = r7;
       // field is flat
-      __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-      __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
+      __ read_flat_field(r2, r0);
       __ verify_oop(r0);
     }
     break;

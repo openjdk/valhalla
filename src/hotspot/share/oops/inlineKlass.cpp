@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,10 +65,11 @@ InlineKlass::Members::Members()
     _payload_offset(-1),
     _payload_size_in_bytes(-1),
     _payload_alignment(-1),
-    _non_atomic_size_in_bytes(-1),
-    _non_atomic_alignment(-1),
-    _atomic_size_in_bytes(-1),
-    _nullable_size_in_bytes(-1),
+    _null_free_non_atomic_size_in_bytes(-1),
+    _null_free_non_atomic_alignment(-1),
+    _null_free_atomic_size_in_bytes(-1),
+    _nullable_atomic_size_in_bytes(-1),
+    _nullable_non_atomic_size_in_bytes(-1),
     _null_marker_offset(-1) {
 }
 
@@ -133,16 +134,20 @@ int InlineKlass::nonstatic_oop_count() {
 int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
   switch(kind) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      assert(has_non_atomic_layout(), "Layout not available");
-      return non_atomic_size_in_bytes();
+      assert(has_null_free_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_size_in_bytes();
       break;
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      assert(has_atomic_layout(), "Layout not available");
-      return atomic_size_in_bytes();
+      assert(has_null_free_atomic_layout(), "Layout not available");
+      return null_free_atomic_size_in_bytes();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return nullable_non_atomic_size_in_bytes();
       break;
     case LayoutKind::BUFFERED:
       return payload_size_in_bytes();
@@ -155,17 +160,21 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
 int InlineKlass::layout_alignment(LayoutKind kind) const {
   switch(kind) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      assert(has_non_atomic_layout(), "Layout not available");
-      return non_atomic_alignment();
+      assert(has_null_free_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_alignment();
       break;
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      assert(has_atomic_layout(), "Layout not available");
-      return atomic_size_in_bytes();
+      assert(has_null_free_atomic_layout(), "Layout not available");
+      return null_free_atomic_size_in_bytes();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_alignment();
+    break;
     case LayoutKind::BUFFERED:
       return payload_alignment();
       break;
@@ -177,13 +186,16 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
 bool InlineKlass::is_layout_supported(LayoutKind lk) {
   switch(lk) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      return has_non_atomic_layout();
+      return has_null_free_non_atomic_layout();
       break;
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      return has_atomic_layout();
+      return has_null_free_atomic_layout();
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return has_nullable_atomic_layout();
+      break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      return has_nullable_non_atomic_layout();
       break;
     case LayoutKind::BUFFERED:
       return true;
@@ -197,12 +209,9 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(is_layout_supported(lk), "Unsupported layout");
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-    if (is_payload_marked_as_null((address)src)) {
-        if (!contains_oops()) {
-          mark_payload_as_null((address)dst);
-          return;
-        }
+      if (is_payload_marked_as_null((address)src)) {
         // copy null_reset value to dest
         if (dest_is_initialized) {
           HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
@@ -211,7 +220,6 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
         }
       } else {
         // Copy has to be performed, even if this is an empty value, because of the null marker
-        mark_payload_as_non_null((address)src);
         if (dest_is_initialized) {
           HeapAccess<>::value_copy(src, dst, this, lk);
         } else {
@@ -240,8 +248,9 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-      if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
+      if (is_payload_marked_as_null(cast_from_oop<address>(src) + offset)) {
         return nullptr;
       }
     } // Fallthrough
@@ -250,12 +259,19 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
       oop res = allocate_instance(CHECK_NULL);
-      copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
+      copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk, false);
+
+      // After copying, re-check if the payload is now marked as null. Another
+      // thread could have marked the src object as null after the initial check
+      // but before the copy operation, causing the null-marker to be marked in
+      // the destination. In this case, discard the allocated object and
+      // return nullptr.
       if (LayoutKindHelper::is_nullable_flat(lk)) {
-        if(is_payload_marked_as_null(payload_addr(res))) {
+        if (is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;
         }
       }
+
       return res;
     }
     break;
@@ -264,7 +280,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
   }
 }
 
-void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
+void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
     if (!LayoutKindHelper::is_nullable_flat(lk)) {
@@ -288,7 +304,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
       mark_payload_as_non_null((address)src_addr);
     }
   }
-  copy_payload_to_addr(src_addr, dst, lk, dest_is_initialized);
+  copy_payload_to_addr(src_addr, dst, lk, true /* dest_is_initialized */);
 }
 
 // Arrays of...
@@ -306,7 +322,7 @@ bool InlineKlass::maybe_flat_in_array() {
     return false;
   }
   // No flat layout?
-  if (!has_nullable_atomic_layout() && !has_atomic_layout() && !has_non_atomic_layout()) {
+  if (!has_nullable_atomic_layout() && !has_null_free_atomic_layout() && !has_null_free_non_atomic_layout()) {
     return false;
   }
   return true;
@@ -323,7 +339,7 @@ bool InlineKlass::is_always_flat_in_array() {
 
   // An instance is always flat in an array if we have all layouts. Note that this could change in the future when the
   // flattening policies are updated or if new APIs are added that allow the creation of reference arrays directly.
-  return has_nullable_atomic_layout() && has_atomic_layout() && has_non_atomic_layout();
+  return has_nullable_atomic_layout() && has_null_free_atomic_layout() && has_null_free_non_atomic_layout();
 }
 
 // Inline type arguments are not passed by reference, instead each

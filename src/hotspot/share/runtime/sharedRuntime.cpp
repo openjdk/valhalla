@@ -2916,19 +2916,6 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
           GrowableArray<Method*>* supers = get_supers();
           for (int i = 0; i < supers->length(); ++i) {
             Method* super_method = supers->at(i);
-            if (AOTCodeCache::is_using_adapter() && super_method->adapter()->get_sig_cc() == nullptr) {
-              // Calling conventions have to be regenerated at runtime and are accessed through method adapters,
-              // which are archived in the AOT code cache. If the adapters are not regenerated, the
-              // calling conventions should be regenerated here.
-              CompiledEntrySignature ces(super_method);
-              ces.compute_calling_conventions();
-              if (ces.has_scalarized_args()) {
-                // Save a C heap allocated version of the scalarized signature and store it in the adapter
-                GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
-                heap_sig->appendAll(ces.sig_cc());
-                super_method->adapter()->set_sig_cc(heap_sig);
-              }
-            }
             if (super_method->is_scalarized_arg(arg_num)) {
               scalar_super = true;
             } else {
@@ -3464,9 +3451,24 @@ void AdapterHandlerEntry::link() {
       log_warning(aot)("Failed to link AdapterHandlerEntry (fp=%s) to its code in the AOT code cache", _fingerprint->as_basic_args_string());
       generate_code = true;
     }
+
+    if (get_sig_cc() == nullptr) {
+      // Calling conventions have to be regenerated at runtime and are accessed through method adapters,
+      // which are archived in the AOT code cache. If the adapters are not regenerated, the
+      // calling conventions should be regenerated here.
+      CompiledEntrySignature ces;
+      ces.initialize_from_fingerprint(_fingerprint);
+      if (ces.has_scalarized_args()) {
+        // Save a C heap allocated version of the scalarized signature and store it in the adapter
+        GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
+        heap_sig->appendAll(ces.sig_cc());
+        set_sig_cc(heap_sig);
+      }
+    }
   } else {
     generate_code = true;
   }
+
   if (generate_code) {
     CompiledEntrySignature ces;
     ces.initialize_from_fingerprint(_fingerprint);
@@ -3860,7 +3862,7 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *current) )
                   RegisterMap::WalkContinuation::skip);
   frame sender = fr.sender(&map);
   if (sender.is_interpreted_frame()) {
-    current->push_cont_fastpath(sender.sp());
+    current->push_cont_fastpath(sender.unextended_sp());
   }
 
   return buf;

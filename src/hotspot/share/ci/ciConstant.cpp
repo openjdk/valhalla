@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 
 // ------------------------------------------------------------------
 // ciConstant::is_null_or_zero
+// This assumes `this->is_valid()`, otherwise, `as_object` will assert.
 bool ciConstant::is_null_or_zero() const {
   if (!is_java_primitive(basic_type())) {
     return as_object()->is_null_object();
@@ -62,7 +63,7 @@ bool ciConstant::is_loaded() const {
 
 // ------------------------------------------------------------------
 // ciConstant::print
-void ciConstant::print() {
+void ciConstant::print() const {
   tty->print("<ciConstant type=%s value=",
              basictype_to_str(basic_type()));
   switch (basic_type()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -107,12 +107,14 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
 
   // Create a PhiNode each for merging the field values
   for (uint i = 0; i < vt->field_count(); ++i) {
-    ciType* type = vt->field_type(i);
+    ciType* type = vt->field(i)->type();
     Node*  value = vt->field_value(i);
     // We limit scalarization for inline types with circular fields and can therefore observe nodes
     // of the same type but with different scalarization depth during GVN. To avoid inconsistencies
     // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
-    bool no_circularity = !gvn->C->has_circular_inline_type() || field_is_flat(i);
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    bool no_circularity = !gvn->C->has_circular_inline_type() || field->is_flat();
     if (type->is_inlinetype() && no_circularity) {
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region, map);
@@ -142,8 +144,8 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 #ifdef ASSERT
   if (result) {
     // Check all field value inputs for consistency
-    for (uint i = Values; i < field_count(); ++i) {
-      Node* n = in(i);
+    for (uint i = 0; i < field_count(); ++i) {
+      Node* n = field_value(i);
       if (n->is_InlineType()) {
         assert(n->as_InlineType()->has_phi_inputs(region), "inconsistent phi inputs");
       } else {
@@ -249,18 +251,21 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
   int index = inline_klass()->field_index_by_offset(offset);
   Node* value = field_value(index);
   assert(value != nullptr, "field value not found");
+  ciField* field = this->field(index);
+  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
 
-  if (!recursive || !field_is_flat(index) || value->is_top()) {
-    assert(offset == field_offset(index), "offset mismatch");
+  if (!recursive || !field->is_flat() || value->is_top()) {
+    assert(offset == field->offset_in_bytes(), "offset mismatch");
     return value;
   }
 
   // Flat inline type field
   InlineTypeNode* vt = value->as_InlineType();
-  if (offset == field_null_marker_offset(index)) {
+  assert(field->is_flat(), "must be flat");
+  if (offset == field->null_marker_offset()) {
     return vt->get_null_marker();
   } else {
-    int sub_offset = offset - field_offset(index); // Offset of the flattened field inside the declared field
+    int sub_offset = offset - field->offset_in_bytes(); // Offset of the flattened field inside the declared field
     sub_offset += vt->inline_klass()->payload_offset(); // Add header size
     return vt->field_value_by_offset(sub_offset, recursive);
   }
@@ -275,21 +280,16 @@ void InlineTypeNode::set_field_value_by_offset(int offset, Node* value) {
   set_field_value(field_index(offset), value);
 }
 
-int InlineTypeNode::field_offset(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  return inline_klass()->declared_nonstatic_field_at(index)->offset_in_bytes();
-}
-
 uint InlineTypeNode::field_index(int offset) const {
   uint i = 0;
-  for (; i < field_count() && field_offset(i) != offset; i++) { }
+  for (; i < field_count() && field(i)->offset_in_bytes() != offset; i++) { }
   assert(i < field_count(), "field not found");
   return i;
 }
 
-ciType* InlineTypeNode::field_type(uint index) const {
+ciField* InlineTypeNode::field(uint index) const {
   assert(index < field_count(), "index out of bounds");
-  return inline_klass()->declared_nonstatic_field_at(index)->type();
+  return inline_klass()->declared_nonstatic_field_at(index);
 }
 
 int InlineTypeNode::secondary_fields_count(uint index) const {
@@ -307,42 +307,16 @@ bool InlineTypeNode::is_multifield_base(uint index) const {
   return inline_klass()->declared_nonstatic_field_at(index)->is_multifield_base();
 }
 
-bool InlineTypeNode::field_is_flat(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  ciField* field = inline_klass()->declared_nonstatic_field_at(index);
-  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_flat();
-}
-
-bool InlineTypeNode::field_is_null_free(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  ciField* field = inline_klass()->declared_nonstatic_field_at(index);
-  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_null_free();
-}
-
-bool InlineTypeNode::field_is_volatile(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  ciField* field = inline_klass()->declared_nonstatic_field_at(index);
-  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-  return field->is_volatile();
-}
-
-int InlineTypeNode::field_null_marker_offset(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  ciField* field = inline_klass()->declared_nonstatic_field_at(index);
-  assert(field->is_flat(), "must be an inline type");
-  return field->null_marker_offset();
-}
-
 uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) {
   uint cnt = 0;
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
-    if (field_is_flat(i)) {
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (field->is_flat()) {
       InlineTypeNode* vt = value->as_InlineType();
       cnt += vt->add_fields_to_safepoint(worklist, sfpt);
-      if (!field_is_null_free(i)) {
+      if (!field->is_null_free()) {
         // The null marker of a flat field is added right after we scalarize that field
         sfpt->add_req(vt->get_null_marker());
         cnt++;
@@ -478,9 +452,11 @@ InlineTypeNode* InlineTypeNode::adjust_scalarization_depth_impl(GraphKit* kit, G
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     Node* new_value = value;
-    ciType* ft = field_type(i);
+    ciField* field = this->field(i);
+    ciType* ft = field->type();
     if (value->is_InlineType()) {
-      if (!field_is_flat(i) && visited.contains(ft)) {
+      assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+      if (!field->is_flat() && visited.contains(ft)) {
         new_value = value->as_InlineType()->buffer(kit)->get_oop();
       } else {
         int old_len = visited.length();
@@ -509,12 +485,14 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, bool immutable_m
   // memory and adding the values as input edges to the node.
   ciInlineKlass* vk = inline_klass();
   for (uint i = 0; i < field_count(); ++i) {
-    int field_off = field_offset(i) - vk->payload_offset();
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    int field_off = field->offset_in_bytes() - vk->payload_offset();
     Node* field_ptr = kit->basic_plus_adr(base, ptr, field_off);
     Node* value = nullptr;
-    ciType* ft = field_type(i);
-    bool field_null_free = field_is_null_free(i);
-    if (field_is_flat(i)) {
+    ciType* ft = field->type();
+    bool field_null_free = field->is_null_free();
+    if (field->is_flat()) {
       // Recursively load the flat inline type field
       ciInlineKlass* fvk = ft->as_inline_klass();
       // Atomic if nullable or not LooselyConsistentValue
@@ -631,7 +609,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     // Atomic
     kit->set_control(kit->IfTrue(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -645,7 +623,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     // Non-atomic
     kit->set_control(kit->IfFalse(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -666,12 +644,14 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
   // Write field values to memory
   ciInlineKlass* vk = inline_klass();
   for (uint i = 0; i < field_count(); ++i) {
-    int field_off = field_offset(i) - vk->payload_offset();
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    int field_off = field->offset_in_bytes() - vk->payload_offset();
     Node* field_val = field_value(i);
-    bool field_null_free = field_is_null_free(i);
-    ciType* ft = field_type(i);
+    bool field_null_free = field->is_null_free();
+    ciType* ft = field->type();
     Node* field_ptr = kit->basic_plus_adr(base, ptr, field_off);
-    if (field_is_flat(i)) {
+    if (field->is_flat()) {
       // Recursively store the flat inline type field
       ciInlineKlass* fvk = ft->as_inline_klass();
       // Atomic if nullable or not LooselyConsistentValue
@@ -741,7 +721,7 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
     return false;
   }
   for (uint i = 0; i < field_count(); i++) {
-    ciType* ft = field_type(i);
+    ciType* ft = field(i)->type();
     if (ft->is_inlinetype()) {
       // Check recursively
       if (!field_value(i)->as_InlineType()->can_emit_substitutability_check(nullptr)){
@@ -764,13 +744,14 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
 
   ciInlineKlass* vk = inline_klass();
   for (uint i = 0; i < field_count(); i++) {
-    int field_off = field_offset(i);
+    ciField* field = this->field(i);
+    int field_off = field->offset_in_bytes();
     if (flat) {
       // Flat access, no header
       field_off -= vk->payload_offset();
     }
     Node* this_field = field_value(i);
-    ciType* ft = field_type(i);
+    ciType* ft = field->type();
     BasicType bt = ft->basic_type();
 
     Node* other_base = base;
@@ -783,7 +764,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
     } else {
       // 'other' is an oop, compute address of the field
       other_field = igvn->register_new_node_with_optimizer(new AddPNode(base, other, igvn->MakeConX(field_off)));
-      if (field_is_flat(i)) {
+      if (field->is_flat()) {
         // Flat field, load is handled recursively below
         assert(this_field->is_InlineType(), "inconsistent field value");
       } else {
@@ -798,9 +779,11 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
 
     if (this_field->is_InlineType()) {
       RegionNode* done_region = new RegionNode(1);
-      if (!field_is_null_free(i)) {
+      ciField* field = this->field(i);
+      assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+      if (!field->is_null_free()) {
         // Nullable field, check null marker before accessing the fields
-        if (field_is_flat(i)) {
+        if (field->is_flat()) {
           // Flat field, check embedded null marker
           Node* null_marker = nullptr;
           if (other_field->is_InlineType()) {
@@ -837,7 +820,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
         }
       }
       // Both operands are non-null, compare all the fields recursively
-      this_field->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, other_base, other_field, field_is_flat(i));
+      this_field->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, other_base, other_field, field->is_flat());
 
       done_region->add_req(*ctrl);
       *ctrl = igvn->register_new_node_with_optimizer(done_region);
@@ -974,26 +957,30 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
 void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
-    if (field_is_flat(i)) {
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (field->is_flat()) {
       InlineTypeNode* vt = value->as_InlineType();
       // Replace field projections for flat field
       vt->replace_field_projs(C, call, proj_idx);
-      if (!field_is_null_free(i)) {
+      if (!field->is_null_free()) {
         // Replace null_marker projection for nullable field
         replace_proj(C, call, proj_idx, vt->get_null_marker(), T_BOOLEAN);
       }
       continue;
     }
     // Replace projection for field value
-    replace_proj(C, call, proj_idx, value, field_type(i)->basic_type());
+    replace_proj(C, call, proj_idx, value, field->type()->basic_type());
   }
 }
 
 InlineTypeNode* InlineTypeNode::allocate_fields(GraphKit* kit) {
   InlineTypeNode* vt = clone_if_required(&kit->gvn(), kit->map());
   for (uint i = 0; i < field_count(); i++) {
-     Node* value = field_value(i);
-     if (field_is_flat(i)) {
+    Node* value = field_value(i);
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+     if (field->is_flat()) {
        // Flat inline type field
        vt->set_field_value(i, value->as_InlineType()->allocate_fields(kit));
      } else if (value->is_InlineType()) {
@@ -1141,15 +1128,17 @@ InlineTypeNode* InlineTypeNode::make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass*
   vt->set_is_buffered(gvn, false);
   vt->set_null_marker(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
-    ciType* ft = vt->field_type(i);
+    ciField* field = vt->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    ciType* ft = field->type();
     Node* value = default_value(gvn, ft, vk, i);
-    if (!vt->field_is_flat(i) && visited.contains(ft)) {
+    if (!field->is_flat() && visited.contains(ft)) {
       gvn.C->set_has_circular_inline_type(true);
     } else if (ft->is_inlinetype()) {
       int old_len = visited.length();
       visited.push(ft);
       ciInlineKlass* vk = ft->as_inline_klass();
-      if (vt->field_is_null_free(i)) {
+      if (field->is_null_free()) {
         value = make_all_zero_impl(gvn, vk, visited);
       } else {
         value = make_null_impl(gvn, vk, visited);
@@ -1170,10 +1159,12 @@ bool InlineTypeNode::is_all_zero(PhaseGVN* gvn, bool flat) const {
   }
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
-    if (field_is_null_free(i)) {
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (field->is_null_free()) {
       // Null-free value class field must have the all-zero value. If 'flat' is set,
       // reject non-flat fields because they need to be initialized with an oop to a buffer.
-      if (!value->is_InlineType() || !value->as_InlineType()->is_all_zero(gvn) || (flat && !field_is_flat(i))) {
+      if (!value->is_InlineType() || !value->as_InlineType()->is_all_zero(gvn) || (flat && !field->is_flat())) {
         return false;
       }
       continue;
@@ -1345,7 +1336,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     // Atomic
     kit->set_control(kit->IfTrue(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -1359,7 +1350,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     // Non-Atomic
     kit->set_control(kit->IfFalse(iff_atomic));
     if (!kit->stopped()) {
-      assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
+      assert(vk->has_null_free_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
       Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
@@ -1425,13 +1416,15 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
     vk = inline_klass();
   }
   for (uint i = 0; i < field_count(); ++i) {
-    int offset = holder_offset + field_offset(i);
+    ciField* field = this->field(i);
+    int offset = holder_offset + field->offset_in_bytes();
     Node* value = field_value(i);
     if (value->is_InlineType()) {
+      assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
       InlineTypeNode* vt = value->as_InlineType();
       if (vt->type()->inline_klass()->is_empty()) {
         continue;
-      } else if (field_is_flat(i) && vt->is_InlineType()) {
+      } else if (field->is_flat() && vt->is_InlineType()) {
         // Check inline type field load recursively
         base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->payload_offset());
         if (base == nullptr) {
@@ -1484,11 +1477,13 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
   }
   for (uint i = 0; i < field_count(); i++) {
     Node* arg = field_value(i);
-    if (field_is_flat(i)) {
+    ciField* field = this->field(i);
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (field->is_flat()) {
       // Flat inline type field
       arg->as_InlineType()->pass_fields(kit, n, base_input, in);
-      if (!field_is_null_free(i)) {
-        assert(field_null_marker_offset(i) != -1, "inconsistency");
+      if (!field->is_null_free()) {
+        assert(field->null_marker_offset() != -1, "inconsistency");
         n->init_req(base_input++, arg->as_InlineType()->get_null_marker());
       }
     } else {
@@ -1500,7 +1495,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
       }
       // Initialize call/return arguments
       n->init_req(base_input++, arg);
-      if (field_type(i)->size() == 2) {
+      if (field->type()->size() == 2) {
         n->init_req(base_input++, kit->top());
       }
     }
@@ -1545,14 +1540,16 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
   }
 
   for (uint i = 0; i < field_count(); ++i) {
-    ciType* type = field_type(i);
+    ciField* field = this->field(i);
+    ciType* type = field->type();
     Node* parm = nullptr;
-    if (field_is_flat(i)) {
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (field->is_flat()) {
       // Flat inline type field
-      InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass(), field_is_null_free(i));
+      InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass(), field->is_null_free());
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region, visited);
-      if (!field_is_null_free(i)) {
-        assert(field_null_marker_offset(i) != -1, "inconsistency");
+      if (!field->is_null_free()) {
+        assert(field->null_marker_offset() != -1, "inconsistency");
         Node* null_marker = nullptr;
         if (multi->is_Start()) {
           null_marker = gvn.transform(new ParmNode(multi->as_Start(), base_input));
@@ -1574,7 +1571,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
-      bool null_free = field_is_null_free(i);
+      bool null_free = field->is_null_free();
       // Non-flat inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != nullptr) {
@@ -1669,9 +1666,11 @@ InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk,
   vt->set_is_buffered(gvn);
   vt->set_null_marker(gvn, gvn.intcon(0));
   for (uint i = 0; i < vt->field_count(); i++) {
-    ciType* ft = vt->field_type(i);
+    ciField* field = vt->field(i);
+    ciType* ft = field->type();
     Node* value = default_value(gvn, ft, vk, i);
-    if (!vt->field_is_flat(i) && visited.contains(ft)) {
+    assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+    if (!field->is_flat() && visited.contains(ft)) {
       gvn.C->set_has_circular_inline_type(true);
     } else if (ft->is_inlinetype()) {
       int old_len = visited.length();

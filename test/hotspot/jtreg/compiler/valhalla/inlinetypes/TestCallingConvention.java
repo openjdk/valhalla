@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -185,7 +185,6 @@ public class TestCallingConvention {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -440,7 +439,7 @@ public class TestCallingConvention {
     public void test14_verifier(RunInfo info) {
         MyValue2 result = test14(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // Return value objects in registers from interpreter -> compiled
@@ -689,7 +688,7 @@ public class TestCallingConvention {
         MyValue2 vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
-        Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(MyValue2.createWithFieldsInline(rI, rD), vt);
     }
 
     // Test calling convention with deep hierarchy of flattened fields
@@ -829,7 +828,7 @@ public class TestCallingConvention {
     public void test32_verifier(RunInfo info) throws Throwable {
         MyValue2 result = test32(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI+32, rD);
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // Same as test32, except the return type is not flattenable.
@@ -854,7 +853,7 @@ public class TestCallingConvention {
     public void test33_verifier(RunInfo info) throws Throwable {
         MyValue2 result = test33(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI+33, rD);
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // Test selection of correct entry point in SharedRuntime::handle_wrong_method
@@ -1412,9 +1411,9 @@ public class TestCallingConvention {
     @Warmup(10000)
     public void test56_verifier(RunInfo info) throws Throwable {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
-        Asserts.assertEQ(test56(true).hash(), vt.hash());
+        Asserts.assertEQ(vt, test56(true));
         if (!info.isWarmUp()) {
-            Asserts.assertEQ(test56(false), null);
+            Asserts.assertEQ(null, test56(false));
         }
     }
 

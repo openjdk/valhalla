@@ -2453,6 +2453,11 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
     return;
   }
 
+  if (c->is_FlatArrayCheck()) {
+    maybe_add_predicate_after_if(path);
+    return;
+  }
+
   Node* val = c->in(1);
   Node* con = c->in(2);
   const Type* tcon = _gvn.type(con);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -112,6 +112,8 @@ markWord markWord::flat_array_prototype(LayoutKind lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return markWord(nullable_flat_array_pattern);
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
   }
