@@ -120,11 +120,10 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
       value = value->as_InlineType()->clone_with_phis(gvn, region, map);
     } else {
       t = Type::get_const_type(type);
-      ciField* field = inline_klass()->declared_nonstatic_field_at(i);
-      if (vt->is_multifield_base(i) &&
+      if (field->is_multifield_base() &&
           !InlineTypeNode::is_multifield_scalarized(field) &&
-          Matcher::vector_size_supported(type->basic_type(), vt->secondary_fields_count(i))) {
-        t = TypeVect::make(type->basic_type(), vt->secondary_fields_count(i));
+          Matcher::vector_size_supported(type->basic_type(), field->secondary_fields_count())) {
+        t = TypeVect::make(type->basic_type(), field->secondary_fields_count());
       }
       value = PhiNode::make(region, value, t);
       gvn->set_type(value, t);
@@ -290,21 +289,6 @@ uint InlineTypeNode::field_index(int offset) const {
 ciField* InlineTypeNode::field(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return inline_klass()->declared_nonstatic_field_at(index);
-}
-
-int InlineTypeNode::secondary_fields_count(uint index) const {
-  assert(is_multifield_base(index), "non-multifield field at index");
-  return inline_klass()->declared_nonstatic_field_at(index)->secondary_fields_count();
-}
-
-bool InlineTypeNode::is_multifield(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  return inline_klass()->declared_nonstatic_field_at(index)->is_multifield();
-}
-
-bool InlineTypeNode::is_multifield_base(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  return inline_klass()->declared_nonstatic_field_at(index)->is_multifield_base();
 }
 
 uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) {
