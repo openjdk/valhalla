@@ -227,7 +227,7 @@ public class TypeClassesOperatorResolutionTest {
         assertEquals(numBox(~1), ~numBox(1));                           // -2
         assertEquals(numBox(1 << 2), numBox(1) << 2);                 // 4
         assertEquals(numBox(4 >> 2), numBox(4) >> 2);                 // 1
-        assertEquals(numBox(-4 >>> 30), numBox(-4) >>> 30);           // 1
+        assertEquals(numBox(-4 >>> 30), numBox(-4) >>> 30);           // 3
     }
 
     @Test
@@ -236,56 +236,57 @@ public class TypeClassesOperatorResolutionTest {
         assertTrue(numBox(1) <= numBox(2));
         assertTrue(numBox(2) > numBox(1));
         assertTrue(numBox(2) >= numBox(1));
+        assertTrue(numBox(2) >= numBox(2));
+        assertTrue(numBox(2) <= numBox(2));
     }
 
     @Test
-    void testAssignop() {
-        // Compound assignment operators
-        NumBox a = numBox(3);
-        NumBox b = numBox(2);
+    void testAssignopNumerical() {
+        var plus = numBox(1);
+        plus += numBox(2);
+        assertEquals(numBox(1 + 2), plus); // 3
 
-        a = numBox(3);
-        a += b;
-        assertEquals(numBox(3 + 2), a); // 5
+        var sub = numBox(1);
+        sub -= numBox(2);
+        assertEquals(numBox(1 - 2), sub); // -1
 
-        a = numBox(3);
-        a -= b;
-        assertEquals(numBox(3 - 2), a); // 1
+        var mul = numBox(2);
+        mul *= numBox(3);
+        assertEquals(numBox(2 * 3), mul); // 6
 
-        a = numBox(3);
-        a *= b;
-        assertEquals(numBox(3 * 2), a); // 6
+        var div = numBox(5);
+        div /= numBox(2);
+        assertEquals(numBox(5 / 2), div); // 2
 
-        a = numBox(3);
-        a /= b;
-        assertEquals(numBox(3 / 2), a); // 1
+        var mod = numBox(5);
+        mod %= numBox(2);
+        assertEquals(numBox(5 % 2), mod); // 1
+    }
 
-        a = numBox(3);
-        a %= b;
-        assertEquals(numBox(3 % 2), a); // 1
+    @Test
+    void testAssignopIntegral() {
+        var and = numBox(1);
+        and &= numBox(2);
+        assertEquals(numBox(1 & 2), and); // 0
 
-        a = numBox(3);
-        a &= b;
-        assertEquals(numBox(3 & 2), a); // 2
+        var or = numBox(1);
+        or |= numBox(2);
+        assertEquals(numBox(1 | 2), or); // 3
 
-        a = numBox(3);
-        a |= b;
-        assertEquals(numBox(3 | 2), a); // 3
+        var xor = numBox(1);
+        xor ^= numBox(2);
+        assertEquals(numBox(1 ^ 2), xor); // 3
 
-        a = numBox(3);
-        a ^= b;
-        assertEquals(numBox(3 ^ 2), a); // 1
+        var shl = numBox(1);
+        shl <<= 2;
+        assertEquals(numBox(1 << 2), shl); // 4
 
-        a = numBox(3);
-        a <<= 1;
-        assertEquals(numBox(3 << 1), a); // 6
+        var shr = numBox(4);
+        shr >>= 2;
+        assertEquals(numBox(4 >> 2), shr); // 1
 
-        a = numBox(3);
-        a >>= 1;
-        assertEquals(numBox(3 >> 1), a); // 1
-
-        a = numBox(-4);
-        a >>>= 30;
-        assertEquals(numBox(-4 >>> 30), a); // 1
+        var ushr = numBox(-4);
+        ushr >>= 30;
+        assertEquals(numBox(-4 >> 30), ushr); // 3
     }
 }
