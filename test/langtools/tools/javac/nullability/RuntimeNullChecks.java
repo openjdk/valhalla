@@ -759,8 +759,9 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
-    public void testUseSideChecksForFieldsSepCompilation(Path base) throws Exception {
-        testUseSiteForFieldsSeparateCompilationHelper(base,
+    public void testUseSideChecksForFields(Path base) throws Exception {
+        // separate compilation
+        String ASrc1 =
                 """
                 package pkg;
                 public class A {
@@ -770,7 +771,8 @@ public class RuntimeNullChecks extends TestRunner {
                         super();
                     }
                 }
-                """,
+                """;
+        String ASrc2 =
                 """
                 package pkg;
                 public class A {
@@ -780,7 +782,8 @@ public class RuntimeNullChecks extends TestRunner {
                         super();
                     }
                 }
-                """,
+                """;
+        String testSrc =
                 """
                 package pkg;
                 class Test {
@@ -789,14 +792,38 @@ public class RuntimeNullChecks extends TestRunner {
                         System.out.println(a.a.toString());
                     }
                 }
-                """);
+                """;
+        Path out;
+        String sequenceWithNullCheck =
+                "Field[OP=GETFIELD, field=pkg/A.a:Ljava/lang/String;]" +
+                "UnboundStackInstruction[op=DUP]" +
+                "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]" +
+                        "Invoke[OP=INVOKEVIRTUAL, m=java/lang/String.toString()Ljava/lang/String;]";
+        for (String[] options : new String[][] {USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS, PREVIEW}) {
+            out = testUseSiteForFieldsSeparateCompilationHelper(base, ASrc1, ASrc2, testSrc, true, options);
+            if (!checkInstructionsSequence(out.resolve("pkg").resolve("Test.class"), "main", sequenceWithNullCheck)) {
+                throw new AssertionError("was expecting a null check before String::toString invocation");
+            }
+        }
+
+        String sequenceWithoutNullCheck =
+                "Field[OP=GETFIELD, field=pkg/A.a:Ljava/lang/String;]" +
+                        "Invoke[OP=INVOKEVIRTUAL, m=java/lang/String.toString()Ljava/lang/String;]";
+        for (String[] options : new String[][] {USE_SITE_CHECKS_FOR_METHODS_ONLY, NO_USE_SITE_CHECKS}) {
+            out = testUseSiteForFieldsSeparateCompilationHelper(base, ASrc1, ASrc2, testSrc, false, options);
+            if (!checkInstructionsSequence(out.resolve("pkg").resolve("Test.class"), "main", sequenceWithoutNullCheck)) {
+                throw new AssertionError("was expecting a null check before String::toString invocation");
+            }
+        }
     }
 
-    private void testUseSiteForFieldsSeparateCompilationHelper(
+    private Path testUseSiteForFieldsSeparateCompilationHelper(
             Path base,
             String code1,
             String code2,
-            String testCode) throws Exception {
+            String testCode,
+            boolean shouldFailDueToNullCheck,
+            String[] options) throws Exception {
         Path src = base.resolve("src");
         Path pkg = src.resolve("pkg");
         Path ASrc = pkg.resolve("A");
@@ -811,11 +838,10 @@ public class RuntimeNullChecks extends TestRunner {
         // this compilation will generate null checks in Test before accessing field A.a
         new JavacTask(tb)
                 .outdir(out)
-                .options(USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS) // equivalent to just using PREVIEW options
+                .options(options)
                 .files(findJavaFiles(pkg))
                 .run();
 
-        // let's execute to check that it's producing the NPE
         System.err.println("running, this test should pass");
         String output = new JavaTask(tb)
                 .classpath(out.toString())
@@ -833,7 +859,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
-                .options(USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS) // equivalent to just using PREVIEW options
+                .options(options)
                 .files(findJavaFiles(ASrc))
                 .run();
 
@@ -847,10 +873,39 @@ public class RuntimeNullChecks extends TestRunner {
                 .getOutput(Task.OutputKind.STDERR);
 
         // we need to check that the NPE is due to an invocation to j.l.r.Checks::nullCheck
-        if (!output.contains("java.lang.NullPointerException") &&
-                !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
-            throw new AssertionError("unexpected output: " + output);
+        if (shouldFailDueToNullCheck) {
+            if (!output.contains("java.lang.NullPointerException") &&
+                    !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
+                throw new AssertionError("unexpected output: " + output);
+            }
+        } else {
+            if (!output.startsWith("Exception in thread \"main\" java.lang.NullPointerException: Cannot invoke \"String.toString()\" because \"<local1>.a\" is null")) {
+                throw new AssertionError("unexpected output: " + output);
+            }
         }
+        return out;
+    }
+
+    private Path compile(Path base,
+                         String code,
+                         String className,
+                         String pakageName,
+                         String[] options) throws Exception {
+        Path src = base.resolve("src");
+        Path pkg = pakageName != null ? src.resolve("pakageName") : src;
+        Path ASrc = pkg.resolve(className);
+
+        tb.writeJavaFiles(ASrc, code);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .options(options) // equivalent to just using PREVIEW options
+                .files(findJavaFiles(pkg))
+                .run();
+        return out;
     }
 
     @Test
