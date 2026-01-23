@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -344,11 +344,11 @@ public class TestLWorld {
         result = test3(4);
         Asserts.assertEQ(((MyValue1)result).hash(), hash());
         result = test3(5);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(null, result);
         result = test3(6);
-        Asserts.assertEQ(((MyValue2)result).hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, result);
         result = test3(7);
-        Asserts.assertEQ(((MyValue2)result).hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, result);
     }
 
     // Test merging inline types and objects in loops
@@ -372,7 +372,7 @@ public class TestLWorld {
         int iters = (Math.abs(rI) % 10) + 1;
         MyValue1 result2 = (MyValue1)test4(iters);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + iters - 1, rL);
-        Asserts.assertEQ(result2.hash(), vt.hash());
+        Asserts.assertEQ(vt, result2);
     }
 
     // Test inline types in object variables that are live at safepoint
@@ -648,7 +648,7 @@ public class TestLWorld {
         int iters = (Math.abs(rI) % 10) + 1;
         MyValue1 result2 = (MyValue1)test14(iters);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + iters - 1, rL);
-        Asserts.assertEQ(result2.hash(), vt.hash());
+        Asserts.assertEQ(vt, result2);
     }
 
     // Test inline types in interface variables that are live at safepoint
@@ -703,7 +703,7 @@ public class TestLWorld {
     public void test17_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 result = test17(vt, new NonValueClass(rI));
-        Asserts.assertEquals(result.hash(), vt.hash());
+        Asserts.assertEquals(vt, result);
     }
 
     @Test
@@ -717,7 +717,7 @@ public class TestLWorld {
     public void test18_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 result = test18(vt);
-        Asserts.assertEquals(result.hash(), vt.hash());
+        Asserts.assertEquals(vt, result);
     }
 
     @Test
@@ -834,7 +834,7 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test23(testValue1Array, vt, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
+        Asserts.assertEQ(vt, testValue1Array[index]);
         testValue1Array[index] = testValue1;
         try {
             test23(testValue2Array, vt, index);
@@ -842,7 +842,7 @@ public class TestLWorld {
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, testValue2Array[index]);
     }
 
     @ForceInline
@@ -903,7 +903,7 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test26Interface(testValue1Array, vt, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
+        Asserts.assertEQ(vt, testValue1Array[index]);
         testValue1Array[index] = testValue1;
         try {
             test26Interface(testValue2Array, vt, index);
@@ -911,7 +911,7 @@ public class TestLWorld {
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, testValue2Array[index]);
     }
 
     @ForceInline
@@ -951,7 +951,7 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test26Abstract(testValue1Array, vt, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
+        Asserts.assertEQ(vt, testValue1Array[index]);
         testValue1Array[index] = testValue1;
         try {
             test26Abstract(testValue2Array, vt, index);
@@ -959,7 +959,7 @@ public class TestLWorld {
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, testValue2Array[index]);
     }
 
     @ForceInline
@@ -999,14 +999,14 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test28(testValue1Array, vt1, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         try {
             test28(testValue1Array, testValue2, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         testValue1Array[index] = testValue1;
     }
 
@@ -1029,7 +1029,7 @@ public class TestLWorld {
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, testValue2Array[index]);
     }
 
     @ForceInline
@@ -1069,14 +1069,14 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test31Interface(testValue1Array, vt1, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         try {
             test31Interface(testValue1Array, testValue2, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         testValue1Array[index] = testValue1;
     }
 
@@ -1117,14 +1117,14 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test31Abstract(testValue1Array, vt1, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         try {
             test31Abstract(testValue1Array, testValue2, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         testValue1Array[index] = testValue1;
     }
 
@@ -1262,14 +1262,14 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test37(testValue1Array, vt1, index);
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         try {
             test37(testValue1Array, testValue2, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        Asserts.assertEQ(vt1, testValue1Array[index]);
         testValue1Array[index] = testValue1;
     }
 
@@ -1317,13 +1317,13 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         Object[] result = test38(null, testValue1, index, index, 0);
-        Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, result[index]);
         result = test38(testValue1Array, testValue1, index, index, 1);
-        Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, result[index]);
         result = test38(null, testValue1, index, index, 2);
-        Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, result[index]);
         result = test38(null, testValue2, index, index, 3);
-        Asserts.assertEQ(((MyValue2)result[index]).hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, result[index]);
         try {
             result = test38(null, null, index, index, 3);
             throw new RuntimeException("No NPE thrown");
@@ -1344,7 +1344,7 @@ public class TestLWorld {
             // Expected
         }
         result = test38(null, testValue1Array, index, index, 6);
-        Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, ((MyValue1[][])result)[index][index]);
     }
 
     @ForceInline
@@ -1403,13 +1403,13 @@ public class TestLWorld {
         int index = Math.abs(rI) % 3;
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         Object result = test39(null, testValue1, index, index, 0);
-        Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, ((MyValue1[])result)[index]);
         result = test39(testValue1Array, testValue1, index, index, 1);
-        Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, ((MyValue1[])result)[index]);
         result = test39(null, testValue1, index, index, 2);
-        Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, ((MyValue1[])result)[index]);
         result = test39(null, testValue2, index, index, 3);
-        Asserts.assertEQ(((MyValue2[])result)[index].hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, ((MyValue2[])result)[index]);
         try {
             result = test39(null, null, index, index, 3);
             throw new RuntimeException("No NPE thrown");
@@ -1424,17 +1424,17 @@ public class TestLWorld {
             // Expected
         }
         result = test39(null, testValue1, index, index, 5);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(null, result);
         result = test39(null, testValue1, index, index, 6);
-        Asserts.assertEQ(((MyValue1)result).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, result);
         result = test39(null, testValue1, index, index, 7);
-        Asserts.assertEQ(((MyValue2)result).hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, result);
         result = test39(null, testValue1, index, index, 8);
-        Asserts.assertEQ(((MyValue1)result).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, result);
         result = test39(null, testValue1, index, index, 9);
-        Asserts.assertEQ(((NonValueClass)result).x, 42);
+        Asserts.assertEQ(42, ((NonValueClass)result).x);
         result = test39(null, testValue1Array, index, index, 10);
-        Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, ((MyValue1[][])result)[index][index]);
     }
 
     // Test instanceof with inline types and arrays
@@ -1762,8 +1762,8 @@ public class TestLWorld {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         Test51Value holder = new Test51Value();
-        Asserts.assertEQ(testValue1.hash(), vt.hash());
-        Asserts.assertEQ(holder.valueField1.hash(), vt.hash());
+        Asserts.assertEQ(testValue1, vt);
+        Asserts.assertEQ(vt, holder.valueField1);
         test51_arg1 = holder;
         test51_arg2 = vt;
         test51_arg3 = vt;
@@ -1812,7 +1812,7 @@ public class TestLWorld {
         MyValue1 result1 = (MyValue1)test54(true);
         Asserts.assertEQ(result1.hash(), hash());
         MyValue2 result2 = (MyValue2)test54(false);
-        Asserts.assertEQ(result2.hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, result2);
     }
 
     @Test
@@ -1827,7 +1827,7 @@ public class TestLWorld {
         MyValue1 result1 = (MyValue1)test55(true);
         Asserts.assertEQ(result1.hash(), hash());
         MyValue2 result2 = (MyValue2)test55(false);
-        Asserts.assertEQ(result2.hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, result2);
     }
 
     // Test synchronization on inline types
@@ -2038,7 +2038,7 @@ public class TestLWorld {
     public void test65_verifier() {
         Object[] array = new Object[1];
         test65(array, testValue1);
-        Asserts.assertEQ(((MyValue1)array[0]).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, array[0]);
     }
 
     @Test
@@ -2050,7 +2050,7 @@ public class TestLWorld {
     public void test66_verifier() {
         MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test66(array, testValue1);
-        Asserts.assertEQ(array[0].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, array[0]);
     }
 
     @Test
@@ -2062,7 +2062,7 @@ public class TestLWorld {
     public void test67_verifier() {
         MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test67(array, testValue1);
-        Asserts.assertEQ(array[0].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, array[0]);
     }
 
     @Test
@@ -2207,7 +2207,7 @@ public class TestLWorld {
     @Run(test = "test73")
     public void test73_verifier() {
         MyValue1 vt = (MyValue1)test73(testValue1Array);
-        Asserts.assertEquals(testValue1Array[0].hash(), vt.hash());
+        Asserts.assertEquals(testValue1Array[0], vt);
     }
 
     @Test
@@ -2219,7 +2219,7 @@ public class TestLWorld {
     public void test74_verifier() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test74(va, testValue1);
-        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(va[0], testValue1);
     }
 
     // Verify that mixing instances and arrays with the clone api
@@ -2911,7 +2911,7 @@ public class TestLWorld {
         int iters = (Math.abs(rI) % 10) + 1;
         MyValue1 result2 = (MyValue1)test100(iters);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + iters - 1, rL);
-        Asserts.assertEQ(result2.hash(), vt.hash());
+        Asserts.assertEQ(vt, result2);
     }
 
     // Test inline types in abstract class variables that are live at safepoint
@@ -3711,7 +3711,7 @@ public class TestLWorld {
     // acmp doesn't need substitutability test when one input is known
     // not to be a value type
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test124(NonValueClass o1, Object o2) {
         return o1 == o2;
     }
@@ -3725,7 +3725,7 @@ public class TestLWorld {
 
     // acmp doesn't need substitutability test when one input is null
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test125(Object o1) {
         Object o2 = null;
         return o1 == o2;
@@ -4020,7 +4020,7 @@ public class TestLWorld {
 
     // Test that acmp of different inline objects with same content is removed
     @Test
-    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test137(int i) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4034,7 +4034,7 @@ public class TestLWorld {
 
     // Same as test137 but with null
     @Test
-    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test138(int i, boolean b) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -4436,8 +4436,8 @@ public class TestLWorld {
 
     @Run(test = "test157")
     public void test157_verifier() {
-        Asserts.assertEquals(test157(0), test157Cache);
-        Asserts.assertEquals(test157(rL).hash(), testValue1.hash());
+        Asserts.assertEquals(test157Cache, test157(0));
+        Asserts.assertEquals(testValue1, test157(rL));
     }
 
     @Strict
@@ -4452,8 +4452,8 @@ public class TestLWorld {
 
     @Run(test = "test158")
     public void test158_verifier() {
-        Asserts.assertEquals(test158(0), test158Cache);
-        Asserts.assertEquals(test158(rL).hash(), testValue1.hash());
+        Asserts.assertEquals(test158Cache, test158(0));
+        Asserts.assertEquals(testValue1, test158(rL));
     }
 
     // Verify that cast that with incompatible types is properly handled
@@ -4910,7 +4910,7 @@ public class TestLWorld {
 
     // Verify that the substitutability runtime call is removed if (at least) one of the arguments has a known type
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 2"}) // Need to load from non-flat 'integerValue' fields
     public boolean test174(AllPrimitives x, AllPrimitives y) {
@@ -4934,7 +4934,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test175(AllPrimitives x, Integer y) {
         return getter(x) == getter(y);
     }
@@ -4950,7 +4950,7 @@ public class TestLWorld {
 
     // Same as test174 but only one operand has a known type
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 15"}) // Need to load the fields from 'y'
     public boolean test176(AllPrimitives x, Object y) {
@@ -4976,7 +4976,7 @@ public class TestLWorld {
 
     // Same as above but type of 'y' is only known after loop opts
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 14"}) // Need to load the fields from 'x'
     public boolean test177(Object x, AllPrimitives y) {
@@ -5106,7 +5106,7 @@ public class TestLWorld {
 
     // Test acmp with deep nesting of flat fields
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test178(Value178 x, Value178 y) {
         return getter(x) == getter(y);
     }
@@ -5138,7 +5138,7 @@ public class TestLWorld {
 
     // Same as test178 but with object argument
     @Test
-    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test179(Value178 x, Object y) {
         return getter(x) == getter(y);
     }
@@ -5175,7 +5175,7 @@ public class TestLWorld {
 
     // Test constant folding
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, STATIC_CALL_OF_METHOD, "isSubstitutable"})
+    @IR(failOn = {ALLOC, LOAD, STORE, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test180() {
         Object val1 = null;
         Object val2 = null;
@@ -5210,7 +5210,7 @@ public class TestLWorld {
 
     // Non-optimizable case because the object field would require another substitutability check
     @Test
-    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test181(Value181 val1, Value181 val2) {
         return val1 == val2;
     }
@@ -5238,7 +5238,7 @@ public class TestLWorld {
 
     // Same as test181 but the Object field "hides" one level deeper
     @Test
-    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+    @IR(counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test182(Value182 val1, Value182 val2) {
         return val1 == val2;
     }

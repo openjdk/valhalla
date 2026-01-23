@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,10 +228,10 @@ public class TestLWorldProfiling {
     public void test1_verifier(RunInfo info) {
         if (info.isWarmUp()) {
             Object o = test1(testValue1Array);
-            Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+            Asserts.assertEQ(testValue1, o);
         } else {
             Object o = test1(testValue2Array);
-            Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
+            Asserts.assertEQ(testValue2, o);
         }
     }
 
@@ -266,9 +266,9 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test3_verifier() {
         Object o = test3(testValue1Array);
-        Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, o);
         o = test3(testValue2Array);
-        Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
+        Asserts.assertEQ(testValue2, o);
     }
 
     @Test
@@ -290,7 +290,7 @@ public class TestLWorldProfiling {
             Asserts.assertEQ(o, new MyLong(42L));
         } else {
             Object o = test4(testValue2Array);
-            Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
+            Asserts.assertEQ(testValue2, o);
         }
     }
 
@@ -304,9 +304,9 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test5_verifier() {
         Object o = test5(testValue1Array);
-        Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, o);
         o = test5(testValue1NotFlatArray);
-        Asserts.assertEQ(((MyValue1)o).hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, o);
     }
 
     // Check that profile data that's useless at the aaload is
@@ -426,7 +426,7 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test9_verifier() {
         test9(testValue1Array, testValue1);
-        Asserts.assertEQ(testValue1Array[0].hash(), testValue1.hash());
+        Asserts.assertEQ(testValue1, testValue1Array[0]);
     }
 
     @Test
@@ -675,10 +675,10 @@ public class TestLWorldProfiling {
     // Input profiled non null
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_ASSERT_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test22(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -700,10 +700,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable*"},
         counts = {NULL_ASSERT_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test23(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -725,10 +725,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_ASSERT_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test24(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -750,10 +750,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_ASSERT_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test25(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -776,10 +776,10 @@ public class TestLWorldProfiling {
     // Input profiled not value class with known type
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test26(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -803,10 +803,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = { NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test27(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -830,10 +830,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test28(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -857,10 +857,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test29(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -884,10 +884,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable", NULL_CHECK_TRAP},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", NULL_CHECK_TRAP},
         counts = {CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test30(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -912,9 +912,9 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable", NULL_CHECK_TRAP})
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", NULL_CHECK_TRAP})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test31(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -940,10 +940,10 @@ public class TestLWorldProfiling {
     // Input profiled not value class with unknown type
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test32(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -968,10 +968,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test33(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -996,10 +996,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test34(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -1024,10 +1024,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {NULL_CHECK_TRAP, "= 1", CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test35(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -1052,10 +1052,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable", NULL_CHECK_TRAP},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", NULL_CHECK_TRAP},
         counts = {CLASS_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test36(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -1080,9 +1080,9 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseACmpProfile", "true"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable", NULL_CHECK_TRAP})
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", NULL_CHECK_TRAP})
     @IR(applyIf = {"UseACmpProfile", "false"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 1"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 1"})
     public boolean test37(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -1109,10 +1109,10 @@ public class TestLWorldProfiling {
     // speculation and leverage later
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {CLASS_CHECK_TRAP, "= 2"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 2"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 2"})
     public void test38(Object o1, Object o2, Object o3) {
         if (o1 == o2) {
             test38_helper2();
@@ -1137,10 +1137,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
         counts = {CLASS_CHECK_TRAP, "= 2"})
     @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable", "= 2"})
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "= 2"})
     public void test39(Object o1, Object o2, Object o3) {
         if (o1 == o2) {
             test39_helper2();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1078,6 +1078,39 @@ void ConnectionGraph::updates_after_load_split(Node* data_phi, Node* previous_lo
     // "new_load" might actually be a constant, parameter, etc.
     if (new_load->is_Load()) {
       Node* new_addp = new_load->in(MemNode::Address);
+
+      // If new_load is a Load but not from an AddP, it means that the load is folded into another
+      // load. And since this load is not from a field, we cannot create a unique type for it.
+      // For example:
+      //
+      //   if (b) {
+      //       Holder h1 = new Holder();
+      //       Object o = ...;
+      //       h.o = o.getClass();
+      //   } else {
+      //       Holder h2 = ...;
+      //   }
+      //   Holder h = Phi(h1, h2);
+      //   Object r = h.o;
+      //
+      // Then, splitting r through the merge point results in:
+      //
+      //   if (b) {
+      //       Holder h1 = new Holder();
+      //       Object o = ...;
+      //       h.o = o.getClass();
+      //       Object o1 = h.o;
+      //   } else {
+      //       Holder h2 = ...;
+      //       Object o2 = h2.o;
+      //   }
+      //   Object r = Phi(o1, o2);
+      //
+      // In this case, o1 is folded to o.getClass() which is a Load but not from an AddP, but from
+      // an OopHandle that is loaded from the Klass of o.
+      if (!new_addp->is_AddP()) {
+        continue;
+      }
       Node* base = get_addp_base(new_addp);
 
       // The base might not be something that we can create an unique
@@ -2153,8 +2186,8 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     ciMethod* meth = call->as_CallJava()->method();
     if (meth == nullptr) {
       const char* name = call->as_CallStaticJava()->_name;
-      assert(strncmp(name, "C2 Runtime multianewarray", 25) == 0 ||
-             strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+      assert(call->as_CallStaticJava()->is_call_to_multianewarray_stub() ||
+             strncmp(name, "load_unknown_inline", 19) == 0 ||
              strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "TODO: add failed case check");
       // Returns a newly allocated non-escaped object.
       add_java_object(call, PointsToNode::NoEscape);
@@ -2879,8 +2912,8 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
 #ifdef ASSERT
   if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == nullptr) {
     const char* name = alloc->as_CallStaticJava()->_name;
-    assert(strncmp(name, "C2 Runtime multianewarray", 25) == 0 ||
-           strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+    assert(alloc->as_CallStaticJava()->is_call_to_multianewarray_stub() ||
+           strncmp(name, "load_unknown_inline", 19) == 0 ||
            strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "sanity");
   }
 #endif
@@ -4343,16 +4376,12 @@ Node* ConnectionGraph::find_inst_mem(Node *orig_mem, int alias_idx, GrowableArra
         // which contains this memory slice, otherwise skip over it.
         if (alloc == nullptr || alloc->_idx != (uint)toop->instance_id()) {
           result = proj_in->in(TypeFunc::Memory);
-#if 0  // TODO: Fix 8372259
         } else if (C->get_alias_index(result->adr_type()) != alias_idx) {
           assert(C->get_general_index(alias_idx) == C->get_alias_index(result->adr_type()), "should be projection for the same field/array element");
           result = get_map(result->_idx);
           assert(result != nullptr, "new projection should have been allocated");
           break;
         }
-#else
-        }
-#endif
       } else if (proj_in->is_MemBar()) {
         // Check if there is an array copy for a clone
         // Step over GC barrier when ReduceInitialCardMarks is disabled
