@@ -215,11 +215,12 @@ public class NullChecksWriter extends TreeTranslator {
         }
 
     public void visitTypeCast(JCTypeCast tree) {
+        boolean generateNullCheck = tree.strict;
         if (tree.expr instanceof JCTypeCast otherTypeCast && tree.strict && otherTypeCast.strict) {
-            tree.strict = false;
+            generateNullCheck = false;
         }
         super.visitTypeCast(tree);
-        if (tree.strict) {
+        if (generateNullCheck) {
             tree.expr = attr.makeNullCheck(tree.expr, true);
         }
         result = tree;

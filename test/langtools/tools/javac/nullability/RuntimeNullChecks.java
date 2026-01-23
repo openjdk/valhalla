@@ -909,7 +909,7 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
-    public void testMultipleCasts(Path base) throws Exception {
+    public void testTypeCasts(Path base) throws Exception {
         String[] testCases = new String[] {
                 """
                 class Test {
@@ -927,12 +927,23 @@ public class RuntimeNullChecks extends TestRunner {
                         Object o = (String!)(CharSequence!)(Serializable!) s; // NPE, cast
                     }
                 }
+                """,
+                """
+                class Test {
+                    class OtherClass {
+                        Object! m() {
+                            return "";
+                        }
+                    }
+                    public static void main(String... args) {
+                        OtherClass oc = new Test().new OtherClass();
+                        String! s = (String!)oc.m();
+                    }
+                }
                 """
         };
         for (String testCase : testCases) {
-            Path out = testHelper(base,
-                    testCase,
-                    true, NullPointerException.class, PREVIEW);
+            Path out = compile(base, testCase, "Test", null, PREVIEW);
             List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
             int numberOfNullChecks = 0;
             for (CodeElement ce : instructions) {

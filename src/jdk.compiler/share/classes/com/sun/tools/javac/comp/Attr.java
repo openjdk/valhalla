@@ -3504,8 +3504,16 @@ public class Attr extends JCTree.Visitor {
     /** Make an attributed null check tree.
      */
     public JCExpression makeNullCheck(JCExpression arg, boolean nullRestricted) {
-        // optimization: new Outer() can never be null; skip null check
-        if (arg.getTag() == NEWCLASS)
+        /* optimization:
+         * - non null literals can't be null
+         * - new Class() can never be null; skip null check
+         * - if we already applied a null check operator skip too
+         * - if arg happens to be a strict type cast skip it too
+         */
+        if (arg.hasTag(LITERAL) && !arg.type.hasTag(TypeTag.BOT) ||
+                arg.getTag() == NEWCLASS ||
+                arg.hasTag(NULLRESTRICTEDCHK) || arg.hasTag(NULLCHK) ||
+                arg instanceof JCTypeCast typeCast && typeCast.strict)
             return arg;
         // optimization: X.this is never null; skip null check
         Name name = TreeInfo.name(arg);
