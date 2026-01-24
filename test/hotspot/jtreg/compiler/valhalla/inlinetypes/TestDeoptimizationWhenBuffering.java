@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -359,9 +359,9 @@ public class TestDeoptimizationWhenBuffering {
             Asserts.assertEQ(t.test8(va), va[0]);
             Asserts.assertEQ(t.test9().hash(), expected + 34);
             int count = test10Counter;
-            Asserts.assertEQ(((MyValue1)t.test10()).hash(), test10Field.hash());
+            Asserts.assertEQ(test10Field, t.test10());
             Asserts.assertEQ(t.test10Counter, count + 1);
-            Asserts.assertEQ(t.test11(va[0]).hash(), va[0].testWithField(42).hash());
+            Asserts.assertEQ(t.test11(va[0]), va[0].testWithField(42));
             t.vtField2 = MyValue1.makeDefault();
             Asserts.assertEQ(t.test12().hash(), expected + 39);
             Asserts.assertEQ(t.vtField2.hash(), expected + 39);
