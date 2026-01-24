@@ -157,6 +157,7 @@ class verification_type_info {
 };
 
 #define FOR_EACH_STACKMAP_FRAME_TYPE(macro, arg1, arg2) \
+  macro(early_larval, arg1, arg2) \
   macro(same_frame, arg1, arg2) \
   macro(same_frame_extended, arg1, arg2) \
   macro(same_locals_1_stack_item_frame, arg1, arg2) \
@@ -242,7 +243,7 @@ class same_frame : public stack_map_frame {
     return sm;
   }
 
-  static size_t calculate_size() { return sizeof(u1); }
+  static size_t calculate_size() { return sizeof(u2); }
 
   size_t size() const { return calculate_size(); }
   int offset_delta() const { return frame_type_to_offset_delta(frame_type()); }
@@ -396,6 +397,74 @@ class same_locals_1_stack_item_frame : public stack_map_frame {
   void print_truncated(outputStream* st, int current_offset = -1) const {
     st->print("same_locals_1_stack_item_frame(@%d), output truncated, Stackmap exceeds table size.",
               offset_delta() + current_offset);
+  }
+};
+
+// EARLY_LARVAL frames wrap regular stack map frames
+class early_larval : public stack_map_frame {
+ private:
+  static int frame_type_to_offset_delta(u1 frame_type) {
+      return 0; }
+  static u1 offset_delta_to_frame_type(int offset_delta) {
+      return checked_cast<u1>(246); }
+  address num_unset_fields_addr() const { return frame_type_addr() + sizeof(u1); }
+
+ public:
+  stack_map_frame* nested_frame() const { return (stack_map_frame*)((address)this + calculate_size(number_of_unset_fields())); }
+  static bool is_frame_type(u1 tag) {
+    return tag == 246;
+  }
+
+  static early_larval* at(address addr) {
+    assert(is_frame_type(*addr), "Wrong frame id");
+    return (early_larval*)addr;
+  }
+
+  static early_larval* create_at(address addr, int offset_delta) {
+    early_larval* sm = (early_larval*)addr;
+    return sm;
+  }
+
+  u2 number_of_unset_fields() const { return Bytes::get_Java_u2(num_unset_fields_addr()); }
+  static size_t calculate_size(size_t num_unset_fields) { return sizeof(u2) + (sizeof(u2) * num_unset_fields); }
+
+  size_t size() const { return calculate_size(number_of_unset_fields()) + nested_frame()->size(); }
+  int offset_delta() const { return nested_frame()->offset_delta(); }
+
+  void set_offset_delta(int offset_delta) {
+    assert(offset_delta == 0, "early_larval should not have an offset");
+    set_frame_type(offset_delta_to_frame_type(offset_delta));
+  }
+
+  int number_of_types() const { return 0; }
+  verification_type_info* types() const { return nullptr; }
+
+  bool is_valid_offset(int offset_delta) const {
+    return is_frame_type(offset_delta_to_frame_type(offset_delta));
+  }
+
+  bool verify_subtype(address start, address end) const {
+    return nested_frame()->verify(start, end);
+  }
+
+  void print_on(outputStream* st, int current_offset = -1) const {
+    st->print("early_larval(%u unset fields: ", number_of_unset_fields());
+    st->print("[ ");
+    address addr = num_unset_fields_addr() + sizeof(u2);
+    for (int i = 0; i < number_of_unset_fields(); i++) {
+      st->print("%u ", Bytes::get_Java_u2(addr));
+      addr += sizeof(u2);
+    }
+    st->print_cr("])");
+    st->print("\t");
+    nested_frame()->print_on(st, current_offset);
+  }
+
+  void print_truncated(outputStream* st, int current_offset = -1) const {
+    print_on(st, current_offset);
+    st->cr();
+    st->print("\t");
+    nested_frame()->print_truncated(st, current_offset);
   }
 };
 
@@ -867,7 +936,7 @@ bool stack_map_frame::is_valid_offset(int offset) const {
 bool stack_map_frame::verify(address start, address end) const {
   if (frame_type_addr() >= start && frame_type_addr() < end) {
     FOR_EACH_STACKMAP_FRAME_TYPE(
-       VIRTUAL_DISPATCH, verify_subtype, (start, end));
+       VIRTUAL_DISPATCH, verify_subtype, (start, end)); // HERE!
   }
   return false;
 }
