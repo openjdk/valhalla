@@ -24,12 +24,15 @@
 /*
  * @test
  * @summary Test NullRestricted appearance in non-preview class files
- * @compile NullRestrictionOffender.jcod
+ * @modules java.base/jdk.internal.vm.annotation
+ * @compile -source 25 NullRestrictionWithoutPreview.java
  * @run main/othervm ${test.main.class}
  * @run main/othervm --enable-preview ${test.main.class}
  */
 
 package runtime.valhalla.inlinetypes.classfileparser;
+
+import jdk.internal.vm.annotation.NullRestricted;
 
 public class NullRestrictionWithoutPreview {
     public static void main(String[] args) {
@@ -42,5 +45,15 @@ public class NullRestrictionWithoutPreview {
             return;
         }
         throw new RuntimeException("ClassFormatError expected");
+    }
+}
+
+class NullRestrictionOffender {
+    @NullRestricted
+    Integer barField;
+
+    NullRestrictionOffender() {
+        barField = 5;
+        super();
     }
 }
