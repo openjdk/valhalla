@@ -90,9 +90,109 @@ import static java.lang.Math.multiplyHigh;
 // expected to be aligned with Value Classes and Object as described in
 // JEP-401 (https://openjdk.org/jeps/401).
 // @jdk.internal.ValueBased
-public final class Bfloat16
+public final value class Bfloat16
     extends Number
     implements Comparable<Bfloat16> {
+
+//     public __witness StandardFloatingPoint<Bfloat16> SFP = new StandardFloatingPoint<Bfloat16>() {
+//         public Bfloat16 add(Bfloat16 addend, Bfloat16 augend) {
+//             return Bfloat16.add(addend, augend);
+//         }
+
+//         public Bfloat16 subtract(Bfloat16 minuend, Bfloat16 subtrahend) {
+//             return Bfloat16.subtract(minuend, subtrahend);
+//         }
+
+//         public Bfloat16 multiply(Bfloat16 multiplier, Bfloat16 multiplicand) {
+//             return Bfloat16.multiply(multiplier, multiplicand);
+//         }
+
+//         public Bfloat16 remainder(Bfloat16 dividend, Bfloat16 divisor) {
+//             throw new UnsupportedOperationException("tbd");
+//         }
+
+//         public Bfloat16 negate(Bfloat16 operand) {
+//             return Bfloat16.negate(operand);
+//         }
+
+//         public Bfloat16 divide(Bfloat16 dividend, Bfloat16 divisor) {
+//             return Bfloat16.divide(dividend, divisor);
+//         }
+
+//         public boolean lessThan(Bfloat16 op1, Bfloat16 op2) {
+//             return Bfloat16.compare(op1, op2) < 0;
+//         }
+
+//         public boolean lessThanEqual(Bfloat16 op1, Bfloat16 op2){
+//             return Bfloat16.compare(op1, op2) <= 0;
+//         }
+
+//         public boolean greaterThan(Bfloat16 op1, Bfloat16 op2){
+//             return Bfloat16.compare(op1, op2) > 0;
+//         }
+
+//         public boolean greaterThanEqual(Bfloat16 op1, Bfloat16 op2){
+//             return Bfloat16.compare(op1, op2) >= 0;
+//         }
+
+//         public Bfloat16 min(Bfloat16 op1, Bfloat16 op2) {
+//             return Bfloat16.min(op1, op2);
+//         }
+
+//         public Bfloat16 max(Bfloat16 op1, Bfloat16 op2) {
+//             return Bfloat16.min(op1, op2);
+//         }
+
+//         public Bfloat16 sqrt(Bfloat16 radicand) {
+//             return Bfloat16.sqrt(radicand);
+//         }
+
+//         public Bfloat16 fma(Bfloat16 a, Bfloat16 b, Bfloat16 c) {
+//             return Bfloat16.fma(a, b, c);
+//         }
+
+//         public boolean isNaN(Bfloat16 operand) {
+//             return Bfloat16.isNaN(operand);
+//         }
+
+//         public boolean isInfinite(Bfloat16 operand) {
+//             return Bfloat16.isInfinite(operand);
+//         }
+
+//         public Bfloat16 ulp(Bfloat16 operand) {
+//             return Bfloat16.ulp(operand);
+//         }
+
+//         public String toHexString(Bfloat16 operand) {
+//             return Bfloat16.toHexString(operand);
+//         }
+//     };
+
+    public __witness Numerical<Bfloat16> NUM = new Numerical<Bfloat16>() {
+        public Bfloat16 add(Bfloat16 addend, Bfloat16 augend) {
+            return Bfloat16.add(addend, augend);
+        }
+
+        public Bfloat16 subtract(Bfloat16 minuend, Bfloat16 subtrahend) {
+            return Bfloat16.subtract(minuend, subtrahend);
+        }
+
+        public Bfloat16 multiply(Bfloat16 multiplier, Bfloat16 multiplicand) {
+            return Bfloat16.multiply(multiplier, multiplicand);
+        }
+
+        public Bfloat16 remainder(Bfloat16 dividend, Bfloat16 divisor) {
+            throw new UnsupportedOperationException("tbd");
+        }
+
+        public Bfloat16 negate(Bfloat16 operand) {
+            return Bfloat16.negate(operand);
+        }
+
+        public Bfloat16 divide(Bfloat16 dividend, Bfloat16 divisor) {
+            return Bfloat16.divide(dividend, divisor);
+        }
+    };
 
     /**
      * {@return the {@code float} value closest to the numerical value

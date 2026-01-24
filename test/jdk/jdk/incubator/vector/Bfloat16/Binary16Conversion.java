@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8340339
+ * @enablePreview
  * @summary Verify conversion between float and the bfloat16 format
  * @library ../../../../java/lang/Math
  * @modules jdk.incubator.vector

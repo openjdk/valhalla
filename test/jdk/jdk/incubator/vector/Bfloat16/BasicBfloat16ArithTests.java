@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8340339
+ * @enablePreview
  * @modules jdk.incubator.vector
  * @build Bfloat16
  * @run main BasicBfloat16ArithTests
@@ -334,6 +335,9 @@ public class BasicBfloat16ArithTests {
         Bfloat16 b16 = valueOfExact(b);
 
         if (Bfloat16.add(a16, b16).floatValue() != (a + b)) {
+            throwRE("failure with " + a16 + " + " + b16);
+        }
+        if ((a16 + b16).floatValue() != (a + b)) {
             throwRE("failure with " + a16 + " + " + b16);
         }
         if (Bfloat16.add(b16, a16).floatValue() != (b + a)) {
