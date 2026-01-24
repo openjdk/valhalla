@@ -97,10 +97,42 @@ import jdk.test.whitebox.WhiteBox;
         int j = 0;
     }
 
+    static class BadClass1 {
+        @NullRestricted
+        ValueClass1 vc;
+    }
+
+    void test_1() {
+        Throwable exception = null;
+        try {
+            BadClass1 tc = new BadClass1();
+        } catch (ClassFormatError e) {
+            exception = e;
+            System.out.println("Received " + e);
+        }
+        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted without @Strict on a non-static field");
+    }
+
     // Invalid usage of @NullRestricted on a non-strict non-static field
     static value class ValueClass2 {
         int i = 0;
         int j = 0;
+    }
+
+    static class BadClass2 {
+        @NullRestricted
+        static ValueClass2 val;
+    }
+
+    void test_2() {
+        Throwable exception = null;
+        try {
+            BadClass2 tc = new BadClass2();
+        } catch (ClassFormatError e) {
+            exception = e;
+            System.out.println("Received " + e);
+        }
+        Asserts.assertNotNull(exception, "FFailed to detect illegal use of @NullRestricted without @Strict on a static field");
     }
 
     // Test invalid usage of @LooselyConsistentValue on an identity class
