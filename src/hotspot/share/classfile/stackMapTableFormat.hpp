@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -935,7 +935,7 @@ bool stack_map_frame::is_valid_offset(int offset) const {
 bool stack_map_frame::verify(address start, address end) const {
   if (frame_type_addr() >= start && frame_type_addr() < end) {
     FOR_EACH_STACKMAP_FRAME_TYPE(
-       VIRTUAL_DISPATCH, verify_subtype, (start, end)); // HERE!
+       VIRTUAL_DISPATCH, verify_subtype, (start, end));
   }
   return false;
 }
