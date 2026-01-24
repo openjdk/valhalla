@@ -838,7 +838,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseAtomicValueFlattening, true,                             \
           "Allow the JVM to flatten some atomic values")                    \
                                                                             \
-  product(bool, UseNullableNonAtomicValueFlattening, false,                 \
+  product(bool, UseNullableNonAtomicValueFlattening, true,                  \
            "Allow the JVM to flatten some strict final non-static fields")  \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \

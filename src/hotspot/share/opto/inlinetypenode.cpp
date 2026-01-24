@@ -444,8 +444,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, bool immutable_m
     if (field->is_flat()) {
       // Recursively load the flat inline type field
       ciInlineKlass* fvk = ft->as_inline_klass();
-      // Atomic if nullable or not LooselyConsistentValue
-      bool atomic = !field_null_free || fvk->must_be_atomic();
+      bool atomic = field->is_atomic();
 
       int old_len = visited.length();
       visited.push(ft);
@@ -597,8 +596,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
     if (field->is_flat()) {
       // Recursively store the flat inline type field
       ciInlineKlass* fvk = ft->as_inline_klass();
-      // Atomic if nullable or not LooselyConsistentValue
-      bool atomic = !field_null_free || fvk->must_be_atomic();
+      bool atomic = field->is_atomic();
 
       field_val->as_InlineType()->store_flat(kit, base, field_ptr, atomic, immutable_memory, field_null_free, decorators);
     } else {

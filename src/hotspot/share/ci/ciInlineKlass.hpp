@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,7 @@ public:
   bool is_naturally_atomic(bool null_free);
   int field_map_offset() const;
   ciConstant get_field_map() const;
+  ciConstant get_null_reset_value() const;
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

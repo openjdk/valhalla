@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,14 @@
  *
  */
 
+#include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // Offset of the first field in the inline type
 int ciInlineKlass::payload_offset() const {
@@ -150,4 +154,14 @@ ciConstant ciInlineKlass::get_field_map() const {
   InlineKlass* vk = get_InlineKlass();
   oop array = vk->java_mirror()->obj_field(vk->acmp_maps_offset());
   return ciConstant(T_ARRAY, CURRENT_ENV->get_object(array));
+}
+
+// All fields of this object is zero even if they can be null-free. As a result, this object should
+// only be used to reset the payload of fields or array elements and should not be leaked
+// elsewhere.
+ciConstant ciInlineKlass::get_null_reset_value() const {
+  VM_ENTRY_MARK
+  InlineKlass* vk = get_InlineKlass();
+  oop null_reset_value = vk->null_reset_value();
+  return ciConstant(T_OBJECT, CURRENT_ENV->get_object(null_reset_value));
 }
