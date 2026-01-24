@@ -39,7 +39,6 @@ import java.util.stream.Stream;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -59,9 +58,9 @@ public class MethodHandleTest {
 
     @LooselyConsistentValue
     static value class Line {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p1;
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -71,7 +70,7 @@ public class MethodHandleTest {
     }
 
     static class Ref {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p;
         Line l;
         List<String> list;

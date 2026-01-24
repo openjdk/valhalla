@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,13 +44,11 @@ value class PointN {
 
 @LooselyConsistentValue
 value class RectangleN {
-    @Strict
     @NullRestricted
     PointN p1 = new PointN(4, 7);
 }
 
 class NamedRectangleN {
-    @Strict
     @NullRestricted
     RectangleN rect = new RectangleN();
     String name = "";
@@ -62,13 +60,11 @@ class NamedRectangleN {
 
 @LooselyConsistentValue
 value class RectangleP {
-    @Strict
     @NullRestricted
     PointN p1 = new PointN(4, 7); // Made private
 }
 
 class NamedRectangleP {
-    @Strict
     @NullRestricted
     RectangleP rect = new RectangleP();
     String name = "";

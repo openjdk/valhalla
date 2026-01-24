@@ -25,7 +25,6 @@ package org.openjdk.bench.valhalla.array.fill;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
@@ -77,14 +76,12 @@ public class Value128NullFreeNonAtomic extends FillBase {
     }
 
     public static class StaticHolder {
-        @Strict
         @NullRestricted
         public static ValueInt4 VALUE = new ValueInt4(42);
     }
 
     @State(Scope.Thread)
     public static class InstanceHolder {
-        @Strict
         @NullRestricted
         public ValueInt4 VALUE;
 

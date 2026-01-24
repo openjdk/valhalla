@@ -41,7 +41,6 @@ import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -60,9 +59,9 @@ public class ValueObjectMethodsTest {
     }
 
     static value class Line {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p1;
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -72,7 +71,7 @@ public class ValueObjectMethodsTest {
     }
 
     static class Ref {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p;
         Line l;
         Ref(Point p, Line l) {
@@ -83,9 +82,9 @@ public class ValueObjectMethodsTest {
     }
 
     static value class Value {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p;
-        @NullRestricted  @Strict
+        @NullRestricted
         Line l;
         Ref r;
         String s;
