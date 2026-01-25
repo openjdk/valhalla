@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2783,7 +2783,7 @@ public class Lower extends TreeTranslator {
                 }
             }
             if (initializers.nonEmpty()) {
-                if (allowValueClasses && (tree.sym.owner.isValueClass() || tree.sym.owner.hasStrict() || ((ClassSymbol)tree.sym.owner).isRecord())) {
+                if (allowValueClasses && (tree.sym.owner.isValueClass() || ((ClassSymbol)tree.sym.owner).isRecord())) {
                     TreeInfo.mapSuperCalls(tree.body, supercall -> make.Block(0, initializers.toList().append(supercall)));
                 } else {
                     tree.body.stats = tree.body.stats.appendList(initializers);
