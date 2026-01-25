@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -247,7 +247,6 @@ public class Symtab {
     public final Type valueBasedInternalType;
     public final Type migratedValueClassType;
     public final Type migratedValueClassInternalType;
-    public final Type strictType;
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
@@ -631,7 +630,6 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
-        strictType = enterClass("jdk.internal.vm.annotation.Strict");
         migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");
