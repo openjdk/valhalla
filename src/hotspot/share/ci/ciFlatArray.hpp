@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,10 +38,26 @@ class ciFlatArray : public ciArray {
 protected:
   ciFlatArray(flatArrayHandle h_o) : ciArray(h_o) {}
 
-  const char* type_string() { return "ciFlatArray"; }
+  const char* type_string() override { return "ciFlatArray"; }
 
 public:
-  bool is_flat()      { return true; }
+  bool is_flat_array() const override { return true; }
+  bool is_flat() override { return true; }
+
+  // Current value of an element at the specified offset.
+  // Returns T_ILLEGAL if there is no element at the given offset.
+  ciConstant element_value_by_offset(intptr_t element_offset) override;
+  ciConstant field_value_by_offset(intptr_t field_offset);
+  ciConstant field_value(int index, ciField* field);
+  ciConstant null_marker_of_element_by_offset(intptr_t element_offset);
+  ciConstant null_marker_of_element_by_index(int index);
+
+private:
+  ciConstant null_marker_of_element_by_offset_impl(arrayOop ary, int index);
+  ciConstant check_constant_null_marker_cache(int off);
+  void add_to_constant_null_marker_cache(int off, ciConstant val);
+
+  GrowableArray<ConstantValue>* _constant_null_markers = nullptr;
 };
 
 #endif // SHARE_VM_CI_CIFLATARRAY_HPP

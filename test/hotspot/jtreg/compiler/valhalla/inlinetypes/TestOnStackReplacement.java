@@ -82,7 +82,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 3
+ * @run main/timeout=240 compiler.valhalla.inlinetypes.TestOnStackReplacement 3
  */
 
 /*

@@ -82,6 +82,19 @@ final class ValueObjectMethods {
             Integer.getInteger("jdk.value.recursion.threshold", Integer.MAX_VALUE);
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
+    /**
+     * A "salt" value used for this internal hashcode implementation that
+     * needs to vary sufficiently from one run to the next so that
+     * the default hashcode for value classes will vary between JVM runs.
+     */
+    static final int SALT;
+    static {
+        long nt = System.nanoTime();
+        int value = (int)((nt >>> 32) ^ nt);
+        SALT = Integer.getInteger("value.bsm.salt", value);
+    }
+
+
     static class MethodHandleBuilder {
         private static final HashMap<Class<?>, MethodHandle> primitiveSubstitutable = new HashMap<>();
 
@@ -355,18 +368,6 @@ final class ValueObjectMethods {
             } catch (IllegalAccessException e) {
                 throw newLinkageError(e);
             }
-        }
-
-        /**
-         * A "salt" value used for this internal hashcode implementation that
-         * needs to vary sufficiently from one run to the next so that
-         * the default hashcode for value classes will vary between JVM runs.
-         */
-        static final int SALT;
-        static {
-            long nt = System.nanoTime();
-            int value = (int)((nt >>> 32) ^ nt);
-            SALT = Integer.getInteger("value.bsm.salt", value);
         }
 
         static MethodHandleBuilder newBuilder(Class<?> type) {
@@ -1470,7 +1471,7 @@ final class ValueObjectMethods {
         Class<?> type = obj.getClass();
         final Unsafe U = UNSAFE;
         int[] map = U.getFieldMap(type);
-        int result = 0;
+        int result = SALT;
         int nbNonRef = map[0];
         for (int i = 0; i < nbNonRef; i++) {
             int offset = map[i * 2 + 1];
