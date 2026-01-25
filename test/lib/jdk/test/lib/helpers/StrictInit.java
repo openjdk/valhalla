@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,31 +23,17 @@
  * questions.
  */
 
-import jdk.test.lib.helpers.StrictInit;
+package jdk.test.lib.helpers;
 
-class StrictFieldsNew {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    @StrictInit
-    int x;
-    @StrictInit
-    int y;
-
-    StrictFieldsNew(boolean a, boolean b) {
-        System.out.println("Calling new constructor with " + a + " " + b);
-        if (a) {
-            x = 4;
-            if (b) {
-                y = 4;
-            } else {
-                y = 5;
-            }
-        } else {
-            x = y = 7;
-        }
-        super();
-    }
-
-    public void foo() {
-        System.out.println("Hello new fool " + x + " " + y );
-    }
+/**
+ * Annotated field should be marked ACC_STRICT_INIT.
+ */
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.CLASS)
+public @interface StrictInit {
 }
