@@ -2709,9 +2709,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 {
   const Register cache     = r2;
   const Register obj       = r4;
-  const Register klass     = r5;
-  const Register inline_klass = r7;
-  const Register field_index = r23;
   const Register index     = r3;
   const Register tos_state = r3;
   const Register off       = r19;
@@ -2720,10 +2717,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   resolve_cache_and_index_for_field(byte_no, cache, index);
   jvmti_post_field_access(cache, index, is_static, false);
-
-  // Valhalla extras
-  __ load_unsigned_short(field_index, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-  __ ldr(klass, Address(cache, ResolvedFieldEntry::field_holder_offset()));
 
   load_resolved_field_entry(obj, cache, tos_state, off, flags, is_static);
 
@@ -2807,7 +2800,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(is_flat);
       // field is flat (null-free or nullable with a null-marker)
       __ mov(r0, obj);
-      __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
+      __ read_flat_field(cache, r0);
       __ verify_oop(r0);
       __ push(atos);
       if (rc == may_rewrite) {
@@ -3410,10 +3403,8 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
     {
-      Register index = r4, tmp = r7;
       // field is flat
-      __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-      __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
+      __ read_flat_field(r2, r0);
       __ verify_oop(r0);
     }
     break;

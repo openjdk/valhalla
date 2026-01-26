@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,10 +88,11 @@ class InlineKlass: public InstanceKlass {
     int _payload_offset;           // offset of the beginning of the payload in a heap buffered instance
     int _payload_size_in_bytes;    // size of payload layout
     int _payload_alignment;        // alignment required for payload
-    int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
-    int _non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
-    int _atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
-    int _nullable_size_in_bytes;   // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+    int _null_free_non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
+    int _null_free_non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
+    int _null_free_atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
+    int _nullable_atomic_size_in_bytes;      // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+    int _nullable_non_atomic_size_in_bytes;  // size and alignment requirement for a nullable non-atomic layout, -1 if not available
     int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
@@ -162,40 +163,50 @@ class InlineKlass: public InstanceKlass {
   int payload_alignment() const                               { return members()._payload_alignment; }
   void set_payload_alignment(int alignment)                   { members()._payload_alignment = alignment; }
 
-  int non_atomic_size_in_bytes() const                        { return members()._non_atomic_size_in_bytes; }
-  void set_non_atomic_size_in_bytes(int size)                 { members()._non_atomic_size_in_bytes = size; }
-  bool has_non_atomic_layout() const                          { return non_atomic_size_in_bytes() != -1; }
+  int null_free_non_atomic_size_in_bytes() const              { return members()._null_free_non_atomic_size_in_bytes; }
+  void set_null_free_non_atomic_size_in_bytes(int size)       { members()._null_free_non_atomic_size_in_bytes = size; }
+  bool has_null_free_non_atomic_layout() const                { return null_free_non_atomic_size_in_bytes() != -1; }
 
-  int non_atomic_alignment() const                            { return members()._non_atomic_alignment; }
-  void set_non_atomic_alignment(int alignment)                { members()._non_atomic_alignment = alignment; }
+  int null_free_non_atomic_alignment() const                  { return members()._null_free_non_atomic_alignment; }
+  void set_null_free_non_atomic_alignment(int alignment)      { members()._null_free_non_atomic_alignment = alignment; }
 
-  int atomic_size_in_bytes() const                            { return members()._atomic_size_in_bytes; }
-  void set_atomic_size_in_bytes(int size)                     { members()._atomic_size_in_bytes = size; }
-  bool has_atomic_layout() const                              { return atomic_size_in_bytes() != -1; }
+  int null_free_atomic_size_in_bytes() const                  { return members()._null_free_atomic_size_in_bytes; }
+  void set_null_free_atomic_size_in_bytes(int size)           { members()._null_free_atomic_size_in_bytes = size; }
+  bool has_null_free_atomic_layout() const                    { return null_free_atomic_size_in_bytes() != -1; }
 
-  // FIXME: These names are not consistent w.r.t the atomic part.
-  int nullable_atomic_size_in_bytes() const                   { return members()._nullable_size_in_bytes; }
-  void set_nullable_size_in_bytes(int size)                   { members()._nullable_size_in_bytes = size; }
+  int nullable_atomic_size_in_bytes() const                   { return members()._nullable_atomic_size_in_bytes; }
+  void set_nullable_atomic_size_in_bytes(int size)            { members()._nullable_atomic_size_in_bytes = size; }
   bool has_nullable_atomic_layout() const                     { return nullable_atomic_size_in_bytes() != -1; }
+
+  int nullable_non_atomic_size_in_bytes() const               { return members()._nullable_non_atomic_size_in_bytes; }
+  void set_nullable_non_atomic_size_in_bytes(int size)        { members()._nullable_non_atomic_size_in_bytes = size; }
+  bool has_nullable_non_atomic_layout() const                 { return nullable_non_atomic_size_in_bytes() != -1; }
 
   int null_marker_offset() const                              { return members()._null_marker_offset; }
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
+  bool supports_nullable_layouts() const {
+    return has_nullable_non_atomic_layout() || has_nullable_atomic_layout();
+  }
+
   jbyte* null_marker_address(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
+    assert(supports_nullable_layouts(), " Must do");
     return (jbyte*)payload + null_marker_offset_in_payload();
   }
 
   bool is_payload_marked_as_null(address payload) {
+    assert(supports_nullable_layouts(), " Must do");
     return *null_marker_address(payload) == 0;
   }
 
   void mark_payload_as_non_null(address payload) {
+    assert(supports_nullable_layouts(), " Must do");
     *null_marker_address(payload) = 1;
   }
 
   void mark_payload_as_null(address payload) {
+    assert(supports_nullable_layouts(), " Must do");
     *null_marker_address(payload) = 0;
   }
 

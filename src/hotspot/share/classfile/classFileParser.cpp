@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -5514,10 +5514,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_payload_alignment(_layout_info->_payload_alignment);
     vk->set_payload_offset(_layout_info->_payload_offset);
     vk->set_payload_size_in_bytes(_layout_info->_payload_size_in_bytes);
-    vk->set_non_atomic_size_in_bytes(_layout_info->_non_atomic_size_in_bytes);
-    vk->set_non_atomic_alignment(_layout_info->_non_atomic_alignment);
-    vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
-    vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
+    vk->set_null_free_non_atomic_size_in_bytes(_layout_info->_null_free_non_atomic_size_in_bytes);
+    vk->set_null_free_non_atomic_alignment(_layout_info->_null_free_non_atomic_alignment);
+    vk->set_null_free_atomic_size_in_bytes(_layout_info->_null_free_atomic_layout_size_in_bytes);
+    vk->set_nullable_atomic_size_in_bytes(_layout_info->_nullable_atomic_layout_size_in_bytes);
+    vk->set_nullable_non_atomic_size_in_bytes(_layout_info->_nullable_non_atomic_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();

@@ -1152,50 +1152,10 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, Register tmp2, Register obj) {
-  Label alloc_failed, slow_path, done;
-  const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
-  const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
-  assert_different_registers(obj, entry, tmp1, tmp2, dst_temp, r8, r9);
-
-  // If the field is nullable, jump to slow path
-  load_unsigned_byte(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())));
-  testl(tmp1, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
-  jcc(Assembler::equal, slow_path);
-
-  // Grap the inline field klass
-  const Register field_klass = tmp1;
-  load_unsigned_short(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
-
-  movptr(tmp1, Address(entry, ResolvedFieldEntry::field_holder_offset()));
-  get_inline_type_field_klass(tmp1, tmp2, field_klass);
-
-  // allocate buffer
-  push(obj);  // push object being read from
-  allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
-
-  // Have an oop instance buffer, copy into it
-  load_unsigned_short(r9, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
-  movptr(r8, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-  inline_layout_info(r8, r9, r8); // holder, index, info => InlineLayoutInfo into r8
-
-  payload_addr(obj, dst_temp, field_klass);
-  pop(alloc_temp);             // restore object being read from
-  load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
-  lea(tmp2, Address(alloc_temp, tmp2));
-  // call_VM_leaf, clobbers a few regs, save restore new obj
-  push(obj);
-  flat_field_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, r8);
-  pop(obj);
-  jmp(done);
-
-  bind(alloc_failed);
-  pop(obj);
-  bind(slow_path);
+void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
   get_vm_result_oop(obj);
-  bind(done);
 }
 
 void InterpreterMacroAssembler::write_flat_field(Register entry, Register tmp1, Register tmp2,

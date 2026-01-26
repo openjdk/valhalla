@@ -3878,11 +3878,6 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   bind(done);
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
-  inline_layout_info(holder_klass, index, inline_klass);
-  movptr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
-}
-
 void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
   movptr(layout_info, Address(holder_klass, InstanceKlass::inline_layout_info_array_offset()));
 #ifdef ASSERT
@@ -6889,7 +6884,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
           vpbroadcastd(xtmp, xtmp, Assembler::AVX_512bit);
 
           subptr(count, 16 << shift);
-          jccb(Assembler::less, L_check_fill_32_bytes);
+          jcc(Assembler::less, L_check_fill_32_bytes);
           align(16);
 
           BIND(L_fill_64_bytes_loop_avx3);
@@ -7054,46 +7049,32 @@ void MacroAssembler::evpbroadcast(BasicType type, XMMRegister dst, Register src,
   }
 }
 
-// Encode given char[]/byte[] to byte[] in ISO_8859_1 or ASCII
-//
-// @IntrinsicCandidate
-// int sun.nio.cs.ISO_8859_1.Encoder#encodeISOArray0(
-//         char[] sa, int sp, byte[] da, int dp, int len) {
-//     int i = 0;
-//     for (; i < len; i++) {
-//         char c = sa[sp++];
-//         if (c > '\u00FF')
-//             break;
-//         da[dp++] = (byte) c;
-//     }
-//     return i;
-// }
-//
-// @IntrinsicCandidate
-// int java.lang.StringCoding.encodeISOArray0(
-//         byte[] sa, int sp, byte[] da, int dp, int len) {
-//   int i = 0;
-//   for (; i < len; i++) {
-//     char c = StringUTF16.getChar(sa, sp++);
-//     if (c > '\u00FF')
-//       break;
-//     da[dp++] = (byte) c;
-//   }
-//   return i;
-// }
-//
-// @IntrinsicCandidate
-// int java.lang.StringCoding.encodeAsciiArray0(
-//         char[] sa, int sp, byte[] da, int dp, int len) {
-//   int i = 0;
-//   for (; i < len; i++) {
-//     char c = sa[sp++];
-//     if (c >= '\u0080')
-//       break;
-//     da[dp++] = (byte) c;
-//   }
-//   return i;
-// }
+// encode char[] to byte[] in ISO_8859_1 or ASCII
+   //@IntrinsicCandidate
+   //private static int implEncodeISOArray(byte[] sa, int sp,
+   //byte[] da, int dp, int len) {
+   //  int i = 0;
+   //  for (; i < len; i++) {
+   //    char c = StringUTF16.getChar(sa, sp++);
+   //    if (c > '\u00FF')
+   //      break;
+   //    da[dp++] = (byte)c;
+   //  }
+   //  return i;
+   //}
+   //
+   //@IntrinsicCandidate
+   //private static int implEncodeAsciiArray(char[] sa, int sp,
+   //    byte[] da, int dp, int len) {
+   //  int i = 0;
+   //  for (; i < len; i++) {
+   //    char c = sa[sp++];
+   //    if (c >= '\u0080')
+   //      break;
+   //    da[dp++] = (byte)c;
+   //  }
+   //  return i;
+   //}
 void MacroAssembler::encode_iso_array(Register src, Register dst, Register len,
   XMMRegister tmp1Reg, XMMRegister tmp2Reg,
   XMMRegister tmp3Reg, XMMRegister tmp4Reg,
