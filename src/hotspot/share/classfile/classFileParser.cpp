@@ -6391,7 +6391,7 @@ void ClassFileParser::set_klass(InstanceKlass* klass) {
 }
 
 void ClassFileParser::set_inline_layout_info_klass(int field_index, InstanceKlass* klass, TRAPS) {
-  assert(field_index >= 0 && field_index < java_fields_count(), "IOOB");
+  assert(field_index >= 0 && field_index < java_fields_count(), "IOOB: 0 <= %d < %d", field_index, (int)java_fields_count());
 
   // The array of InlineLayoutInfo is allocated on demand. This way the array is
   // never allocated for an InstanceKlass which has no need for this information.
