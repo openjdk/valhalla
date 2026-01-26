@@ -187,6 +187,13 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     @Override
+    public void visitAssignop(JCAssignOp tree) {
+        tree.lhs = translate(tree.lhs, false);
+        tree.rhs = translate(tree.rhs);
+        result = tree;
+    }
+
+    @Override
     public void visitIdent(JCIdent tree) {
         super.visitIdent(tree);
         identSelectVisitHelper(tree);

@@ -324,6 +324,19 @@ public class RuntimeNullChecks extends TestRunner {
                 class Other {
                     public static String! str = "";
                 }
+                """,
+                """
+                class Test {
+                    static String get() {
+                        return Other.str += "add";
+                    }
+                    public static void main(String... args) {
+                        get();
+                    }
+                }
+                class Other {
+                    public static String! str = "";
+                }
                 """
         }) {
             System.err.println("executing test " + i++);
