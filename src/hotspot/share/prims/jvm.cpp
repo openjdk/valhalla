@@ -796,13 +796,17 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
         THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
       }
     }
-    hash = result.get_jint() & markWord::hash_mask;
+    hash = result.get_jint();
 
     // Store hash in the mark word
-    markWord mark = ho->mark().copy_set_hash(hash);
-    ho->set_mark(mark);
+    markWord old_mark, new_mark, test;
+    do {
+      old_mark = ho->mark_acquire();
+      new_mark = old_mark.copy_set_hash(hash);
+      test = ho->cas_set_mark(new_mark, old_mark);
+    } while (test != old_mark);
 
-    return checked_cast<jint>(hash);
+    return checked_cast<jint>(new_mark.hash());
   } else {
     return checked_cast<jint>(ObjectSynchronizer::FastHashCode(THREAD, obj));
   }
