@@ -222,9 +222,11 @@ class stack_map_frame {
 class same_frame : public stack_map_frame {
  private:
   static int frame_type_to_offset_delta(u1 frame_type) {
-      return frame_type + 1; }
+    return frame_type + 1;
+  }
   static u1 offset_delta_to_frame_type(int offset_delta) {
-      return checked_cast<u1>(offset_delta - 1); }
+    return checked_cast<u1>(offset_delta - 1);
+  }
 
  public:
 
@@ -328,9 +330,11 @@ class same_locals_1_stack_item_frame : public stack_map_frame {
   address type_addr() const { return frame_type_addr() + sizeof(u1); }
 
   static int frame_type_to_offset_delta(u1 frame_type) {
-      return frame_type - 63; }
+    return frame_type - 63;
+  }
   static u1 offset_delta_to_frame_type(int offset_delta) {
-      return (u1)(offset_delta + 63); }
+    return (u1)(offset_delta + 63);
+  }
 
  public:
   static bool is_frame_type(u1 tag) {
@@ -403,9 +407,11 @@ class same_locals_1_stack_item_frame : public stack_map_frame {
 class early_larval : public stack_map_frame {
  private:
   static int frame_type_to_offset_delta(u1 frame_type) {
-      return 0; }
+    return 0;
+  }
   static u1 offset_delta_to_frame_type(int offset_delta) {
-      return checked_cast<u1>(246); }
+    return checked_cast<u1>(246);
+  }
 
   address num_unset_fields_addr() const { return frame_type_addr() + sizeof(u1); }
   int number_of_unset_fields() const { return Bytes::get_Java_u2(num_unset_fields_addr()); }
@@ -725,9 +731,11 @@ class full_frame : public stack_map_frame {
   address num_locals_addr() const { return offset_delta_addr() + sizeof(u2); }
   address locals_addr() const { return num_locals_addr() + sizeof(u2); }
   address stack_slots_addr(address end_of_locals) const {
-      return end_of_locals; }
+    return end_of_locals;
+  }
   address stack_addr(address end_of_locals) const {
-      return stack_slots_addr(end_of_locals) + sizeof(u2); }
+    return stack_slots_addr(end_of_locals) + sizeof(u2);
+  }
 
   enum { _frame_id = 255 };
 
@@ -998,11 +1006,14 @@ class stack_map_table {
 class stack_map_table_attribute {
  private:
   address name_index_addr() const {
-      return (address)this; }
+    return (address)this;
+  }
   address attribute_length_addr() const {
-      return name_index_addr() + sizeof(u2); }
+    return name_index_addr() + sizeof(u2);
+  }
   address stack_map_table_addr() const {
-      return attribute_length_addr() + sizeof(u4); }
+    return attribute_length_addr() + sizeof(u4);
+  }
   NONCOPYABLE(stack_map_table_attribute);
 
  protected:
@@ -1016,9 +1027,11 @@ class stack_map_table_attribute {
   }
 
   u2 name_index() const {
-    return Bytes::get_Java_u2(name_index_addr()); }
+    return Bytes::get_Java_u2(name_index_addr());
+  }
   u4 attribute_length() const {
-    return Bytes::get_Java_u4(attribute_length_addr()); }
+    return Bytes::get_Java_u4(attribute_length_addr());
+  }
   stack_map_table* table() const {
     return stack_map_table::at(stack_map_table_addr());
   }
