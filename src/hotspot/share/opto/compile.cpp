@@ -2107,29 +2107,12 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
         ciObject* oop = base_type->const_oop();
         int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
 
-        if (UseNewCode) {
-#ifndef PRODUCT
-          tty->print("<> base_type         : %p  =>  ", base_type); base_type->dump(); tty->print_cr("");
-          tty->print("<> oop               : %p  =>  ", oop); if (oop != nullptr) {oop->print();} tty->print_cr("");
-          tty->print("<> off               : %d", off); tty->print_cr("");
-#endif
-        }
-
         if (oop != nullptr && oop->is_instance()) {
           ciInstance* holder = oop->as_instance();
           ciKlass* klass = holder->klass();
           ciInstanceKlass* iklass = klass->as_instance_klass();
           ciField* field = iklass->get_non_flat_field_by_offset(off);
 
-          if (UseNewCode) {
-#ifndef PRODUCT
-            tty->print("<> holder            : %p  =>  ", holder); if (holder != nullptr) {holder->print();} tty->print_cr("");
-            tty->print("<> klass             : %p  =>  ", klass); if (klass != nullptr) {klass->print();} tty->print_cr("");
-            tty->print("<> iklass            : %p  =>  ", iklass); if (iklass != nullptr) {iklass->print();} tty->print_cr("");
-            tty->print("<> field             : %p  =>  ", field); if (field != nullptr) {field->print();} tty->print_cr("");
-            tty->print("<> field->is_stable(): %d", field->is_stable()); tty->print_cr("");
-#endif
-          }
           if (field->is_stable()) {
             ciConstant fv = holder->flat_field_value(field);
             if (is_reference_type(fv.basic_type()) && fv.as_object()->is_instance()) {

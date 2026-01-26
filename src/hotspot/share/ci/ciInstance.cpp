@@ -138,37 +138,16 @@ ciConstant ciInstance::flat_field_value(ciField* field) {
   InstanceKlass* holder = InstanceKlass::cast(obj->klass());
   int index = -1;
   for (JavaFieldStream fs(holder); !fs.done(); fs.next()) {
-    if (UseNewCode) {
-#ifndef PRODUCT
-      tty->print("<> fs                : "); const_cast<FieldInfo&>(fs.to_FieldInfo()).print(tty, holder->constants());
-#endif
-    }
     if (!fs.access_flags().is_static() && fs.offset() == field->offset_in_bytes()) {
       index = fs.index();
       break;
     }
-  }
-  if (UseNewCode) {
-#ifndef PRODUCT
-    tty->print("<> index             : %d", index); tty->print_cr("");
-#endif
   }
   if (index == -1) {
     return ciConstant();
   }
   InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(index);
   InlineKlass* vk = layout_info->klass();
-  if (UseNewCode) {
-#ifndef PRODUCT
-    tty->print("<> obj               : %p  =>  ", (oopDesc*)obj); if ((oopDesc*)obj != nullptr) {obj->print();} tty->print_cr("");
-    tty->print("<> holder            : %p  =>  ", holder); if (holder != nullptr) {holder->print();} tty->print_cr("");
-    if (holder != nullptr) {
-      tty->print("<> layout_info length: %d", holder->inline_layout_info_array()->length()); tty->print_cr("");
-    }
-    tty->print("<> layout_info       : %p", layout_info); tty->print_cr("");
-    tty->print("<> vk                : %p  =>  ", vk); if (vk != nullptr) {vk->print();} tty->print_cr("");
-#endif
-  }
   oop res = vk->read_payload_from_addr(obj, field->offset_in_bytes(), layout_info->kind(), CHECK_(ciConstant()));
   return ciConstant(field->type()->basic_type(), CURRENT_ENV->get_object(res));
 }
