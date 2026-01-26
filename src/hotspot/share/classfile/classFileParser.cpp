@@ -6320,6 +6320,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                      name->as_C_string(), _class_name->as_C_string(),
                                      PENDING_EXCEPTION->klass()->name()->as_C_string());
 
+            // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
+            // impact loading of current class.
             CLEAR_PENDING_EXCEPTION;
           }
         } else {
