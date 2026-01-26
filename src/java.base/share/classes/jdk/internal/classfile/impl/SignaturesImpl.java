@@ -52,12 +52,12 @@ public final class SignaturesImpl {
     public ClassSignature parseClassSignature() {
         try {
             List<TypeParam> typeParamTypes = parseParamTypes();
-            ClassTypeSig superclass = classTypeSig();
+            ClassTypeSig superclass = unmarkedClassTypeSig();
             ArrayList<ClassTypeSig> superinterfaces = null;
             while (sigp < sig.length()) {
                 if (superinterfaces == null)
                     superinterfaces = new ArrayList<>();
-                superinterfaces.add(classTypeSig());
+                superinterfaces.add(unmarkedClassTypeSig());
             }
             return new ClassSignatureImpl(typeParamTypes, superclass, null2Empty(superinterfaces));
         } catch (IndexOutOfBoundsException e) {
@@ -81,7 +81,7 @@ public final class SignaturesImpl {
                 require('^');
                 if (throwsTypes == null)
                     throwsTypes = new ArrayList<>();
-                var t = referenceTypeSig();
+                var t = unmarkedReferenceTypeSig();
                 if (t instanceof ThrowableSig ts)
                     throwsTypes.add(ts);
                 else
@@ -123,7 +123,7 @@ public final class SignaturesImpl {
                     if (p < sig.length()) {
                         char limit = sig.charAt(p);
                         if (limit != '>' && limit != ':') {
-                            classBound = referenceTypeSig();
+                            classBound = unmarkedReferenceTypeSig();
                         }
                     }
                     // If classBound is absent here, we start tokenizing
@@ -132,7 +132,7 @@ public final class SignaturesImpl {
                 while (match(':')) {
                     if (interfaceBounds == null)
                         interfaceBounds = new ArrayList<>();
-                    interfaceBounds.add(referenceTypeSig());
+                    interfaceBounds.add(unmarkedReferenceTypeSig());
                 }
                 typeParamTypes.add(new TypeParamImpl(name, Optional.ofNullable(classBound), null2Empty(interfaceBounds)));
             } while (!match('>'));
@@ -142,17 +142,20 @@ public final class SignaturesImpl {
 
     private Signature typeSig() {
         char c = sig.charAt(sigp++);
-        switch (c) {
-            case 'B','C','D','F','I','J','V','S','Z': return Signature.BaseTypeSig.of(c);
-            default:
+        return switch (c) {
+            case 'B', 'C', 'D', 'F', 'I', 'J', 'V', 'S', 'Z' -> Signature.BaseTypeSig.of(c);
+            case '!' -> unmarkedReferenceTypeSig().nullChecked();
+            case 'L', 'T', '[' -> {
                 sigp--;
-                return referenceTypeSig();
-        }
+                yield unmarkedReferenceTypeSig();
+            }
+            default -> throw unexpectedError("a type signature");
+        };
     }
 
-    private RefTypeSig referenceTypeSig() {
+    private RefTypeSig unmarkedReferenceTypeSig() {
         return switch (sig.charAt(sigp)) {
-            case 'L' -> classTypeSig();
+            case 'L' -> unmarkedClassTypeSig();
             case 'T' -> {
                 sigp++;
                 var ty = Signature.TypeVarSig.of(sig.substring(sigp, requireIdentifier()));
@@ -163,11 +166,7 @@ public final class SignaturesImpl {
                 sigp++;
                 yield ArrayTypeSig.of(typeSig());
             }
-            case '?', '!', '=' -> {
-                sigp++;
-                yield referenceTypeSig();
-            }
-            default -> throw unexpectedError("a type signature");
+            default -> throw unexpectedError("an unmarked reference type signature");
         };
     }
 
@@ -175,15 +174,15 @@ public final class SignaturesImpl {
         char c = sig.charAt(sigp++);
         switch (c) {
             case '*': return TypeArg.unbounded();
-            case '+': return TypeArg.extendsOf(referenceTypeSig());
-            case '-': return TypeArg.superOf(referenceTypeSig());
+            case '+': return TypeArg.extendsOf(unmarkedReferenceTypeSig());
+            case '-': return TypeArg.superOf(unmarkedReferenceTypeSig());
             default:
                 sigp--;
-                return TypeArg.of(referenceTypeSig());
+                return TypeArg.of(unmarkedReferenceTypeSig());
         }
     }
 
-    private ClassTypeSig classTypeSig() {
+    private ClassTypeSig unmarkedClassTypeSig() {
         require('L');
         Signature.ClassTypeSig t = null;
 
@@ -210,7 +209,7 @@ public final class SignaturesImpl {
 
             boolean end = match(';');
             if (end || match('.')) {
-                t = new ClassTypeSigImpl(Optional.ofNullable(t), className, null2Empty(argTypes));
+                t = new ClassTypeSigImpl(RefTypeSig.NullMarker.UNSPECIFIED, Optional.ofNullable(t), className, null2Empty(argTypes));
                 if (end)
                     return t;
             } else {
@@ -311,6 +310,15 @@ public final class SignaturesImpl {
         return incoming;
     }
 
+    /// Validates the signature to have no null marker.
+    public static <T extends RefTypeSig> T validateUnmarked(T incoming) {
+        // implicit null check
+        if (incoming.nullMarker() != RefTypeSig.NullMarker.UNSPECIFIED) {
+            throw new IllegalArgumentException("Must not have null marker: " + incoming);
+        }
+        return incoming;
+    }
+
     /// Returns the validated immutable argument list or fails with IAE.
     public static List<Signature> validateArgumentList(Signature[] signatures) {
         return validateArgumentList(List.of(signatures));
@@ -334,29 +342,57 @@ public final class SignaturesImpl {
         }
     }
 
-    public static record TypeVarSigImpl(String identifier) implements Signature.TypeVarSig {
+    public static String marker(RefTypeSig.NullMarker marker) {
+        return switch (marker) {
+            case UNSPECIFIED -> "";
+            case NOT_NULL -> "!";
+        };
+    }
+
+    public static record TypeVarSigImpl(NullMarker nullMarker, String identifier) implements Signature.TypeVarSig {
+
+        @Override
+        public TypeVarSig nullMarker(NullMarker marker) {
+            return marker == nullMarker ? this : new TypeVarSigImpl(marker, identifier);
+        }
 
         @Override
         public String signatureString() {
-            return "T" + identifier + ';';
+            return marker(nullMarker) + "T" + identifier + ';';
         }
     }
 
-    public static record ArrayTypeSigImpl(int arrayDepth, Signature elemType) implements Signature.ArrayTypeSig {
+    public static record ArrayTypeSigImpl(NullMarker nullMarker, int arrayDepth, Signature elemType) implements Signature.ArrayTypeSig {
+
+        public ArrayTypeSigImpl {
+            if (elemType instanceof RefTypeSig ref) {
+                validateUnmarked(ref);
+            }
+        }
+
+        @Override
+        public ArrayTypeSig nullMarker(NullMarker marker) {
+            return marker == nullMarker ? this : new ArrayTypeSigImpl(marker, arrayDepth, elemType);
+        }
 
         @Override
         public Signature componentSignature() {
-            return arrayDepth > 1 ? new ArrayTypeSigImpl(arrayDepth - 1, elemType) : elemType;
+            return arrayDepth > 1 ? new ArrayTypeSigImpl(NullMarker.UNSPECIFIED, arrayDepth - 1, elemType) : elemType;
         }
 
         @Override
         public String signatureString() {
-            return "[".repeat(arrayDepth) + elemType.signatureString();
+            return marker(nullMarker) + "[".repeat(arrayDepth) + elemType.signatureString();
         }
     }
 
-    public static record ClassTypeSigImpl(Optional<ClassTypeSig> outerType, String className, List<Signature.TypeArg> typeArgs)
+    public static record ClassTypeSigImpl(NullMarker nullMarker, Optional<ClassTypeSig> outerType, String className, List<Signature.TypeArg> typeArgs)
             implements Signature.ClassTypeSig {
+
+        @Override
+        public ClassTypeSig nullMarker(NullMarker marker) {
+            return marker == nullMarker ? this : new ClassTypeSigImpl(marker, outerType, className, typeArgs);
+        }
 
         @Override
         public String signatureString() {
@@ -384,7 +420,7 @@ public final class SignaturesImpl {
                 }
                 suffix = sb.append(">;").toString();
             }
-            return prefix + className + suffix;
+            return marker(nullMarker) + prefix + className + suffix;
         }
     }
 
@@ -393,10 +429,21 @@ public final class SignaturesImpl {
     }
 
     public static record TypeArgImpl(WildcardIndicator wildcardIndicator, RefTypeSig boundType) implements Signature.TypeArg.Bounded {
+        public TypeArgImpl {
+            validateUnmarked(boundType);
+        }
     }
 
     public static record TypeParamImpl(String identifier, Optional<RefTypeSig> classBound, List<RefTypeSig> interfaceBounds)
             implements TypeParam {
+        public TypeParamImpl {
+            if (classBound.isPresent()) {
+                validateUnmarked(classBound.get());
+            }
+            for (var each : interfaceBounds) {
+                validateUnmarked(each);
+            }
+        }
     }
 
     private static StringBuilder printTypeParameters(List<TypeParam> typeParameters) {
@@ -417,6 +464,13 @@ public final class SignaturesImpl {
 
     public static record ClassSignatureImpl(List<TypeParam> typeParameters, ClassTypeSig superclassSignature,
             List<ClassTypeSig> superinterfaceSignatures) implements ClassSignature {
+
+        public ClassSignatureImpl {
+            validateUnmarked(superclassSignature);
+            for (var each : superinterfaceSignatures) {
+                validateUnmarked(each);
+            }
+        }
 
         @Override
         public String signatureString() {
