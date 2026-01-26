@@ -249,7 +249,7 @@ class ClassFileParser {
 
   void set_klass(InstanceKlass* instance);
 
-  void set_inline_layout_info_klass(int field_index, Klass* klass, TRAPS);
+  void set_inline_layout_info_klass(int field_index, InstanceKlass* klass, TRAPS);
 
   void set_class_bad_constant_seen(short bad_constant);
   short class_bad_constant_seen() { return  _bad_constant_seen; }

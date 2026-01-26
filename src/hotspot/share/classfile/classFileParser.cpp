@@ -6290,9 +6290,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                    "Cause: field type in LoadableDescriptors attribute",
                                    name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
-          Klass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
-                                                                 Handle(THREAD, loader),
-                                                                 false, THREAD);
+          InstanceKlass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
+                                                                         Handle(THREAD, loader),
+                                                                         false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
@@ -6390,7 +6390,7 @@ void ClassFileParser::set_klass(InstanceKlass* klass) {
   _klass = klass;
 }
 
-void ClassFileParser::set_inline_layout_info_klass(int field_index, Klass* klass, TRAPS) {
+void ClassFileParser::set_inline_layout_info_klass(int field_index, InstanceKlass* klass, TRAPS) {
   assert(field_index >= 0 && field_index < java_fields_count(), "IOOB");
 
   // The array of InlineLayoutInfo is allocated on demand. This way the array is
@@ -6402,7 +6402,7 @@ void ClassFileParser::set_inline_layout_info_klass(int field_index, Klass* klass
   }
 
   // Set the Klass for the field's index
-  InlineKlass *ik = InlineKlass::cast(klass);
+  InlineKlass* ik = InlineKlass::cast(klass);
   _inline_layout_info_array->adr_at(field_index)->set_klass(ik);
 }
 
