@@ -264,7 +264,6 @@ void ShenandoahBarrierSetC2::satb_write_barrier_pre(GraphKit* kit,
     Node* call = c->in(1)->in(1)->in(1)->in(0);
     assert(is_shenandoah_wb_pre_call(call), "shenandoah_wb_pre call expected");
     call->add_req(adr);
-    // kit->gvn().transform(call);
   }
 }
 

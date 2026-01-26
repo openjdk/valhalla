@@ -1287,15 +1287,6 @@ void Compile::print_missing_nodes() {
 }
 void Compile::record_modified_node(Node* n) {
   if (_modified_nodes != nullptr && !_inlining_incrementally && !n->is_Con()) {
-    //  624  MergeMem  === _ 1 284 640  [[ ]]  { N640:rawptr:BotPTR }  Memory: @ptr:BotPTR+bot, idx=Bot;
-    // if (UseShenandoahGC && n->is_MergeMem() &&
-    //     (n->_idx == 624) &&
-    //     (n->req() >= 3) &&
-    //     (n->in(2) != nullptr) &&
-    //     (n->in(2)->_idx == 284)
-    //   ) {
-    //   fatal("Gotcha");
-    // }
     _modified_nodes->push(n);
   }
 }

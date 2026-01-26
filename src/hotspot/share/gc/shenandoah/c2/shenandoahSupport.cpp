@@ -2497,7 +2497,6 @@ bool ShenandoahLoadReferenceBarrierNode::needs_barrier_impl(PhaseGVN* phase, Nod
     case Op_CreateEx:
       return false;
     case Op_InlineType:
-      // Right?
       return true;
     default:
       break;
