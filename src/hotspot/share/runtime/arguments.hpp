@@ -300,6 +300,8 @@ class Arguments : AllStatic {
   static bool create_numbered_module_property(const char* prop_base_name, const char* prop_value, unsigned int count);
 
   static int process_patch_mod_option(const char* patch_mod_tail);
+  static void add_patch_mod_prefix(const char *module_name, const char *path);
+  static int finalize_patch_module();
 
   // Aggressive optimization flags.
   static jint set_aggressive_opts_flags();
@@ -476,10 +478,6 @@ class Arguments : AllStatic {
   static void set_java_home(const char *value) { _java_home->set_value(value); }
   static void set_library_path(const char *value) { _java_library_path->set_value(value); }
   static void set_ext_dirs(char *value);
-
-  // Set up the underlying pieces of the boot class path
-  static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
-  static int finalize_patch_module();
 
   static void set_boot_class_path(const char *value, bool has_jimage) {
     // During start up, set by os::set_boot_path()
