@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,28 +19,32 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "oops/layoutKind.hpp"
+package compiler.ciReplay;
 
-const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
-  switch(lk) {
-    case LayoutKind::REFERENCE:
-      return "REFERENCE";
-    case LayoutKind::BUFFERED:
-      return "BUFFERED";
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      return "NULL_FREE_NON_ATOMIC_FLAT";
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      return "NULL_FREE_ATOMIC_FLAT";
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      return "NULLABLE_ATOMIC_FLAT";
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-      return "NULLABLE_NON_ATOMIC_FLAT";
-    case LayoutKind::UNKNOWN:
-      return "UNKNOWN";
-    default:
-      ShouldNotReachHere();
-  }
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
+public class ErrorFile {
+    private final String errorFile;
+
+    public ErrorFile(String errorFile) {
+        this.errorFile = errorFile;
+    }
+
+    public boolean find(String toMatch) {
+        try (var br = Files.newBufferedReader(Paths.get(errorFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains(toMatch)) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            throw new Error("Failed to read " + errorFile + " data: " + e, e);
+        }
+        return false;
+    }
 }
