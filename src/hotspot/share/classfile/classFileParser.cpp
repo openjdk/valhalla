@@ -6293,7 +6293,16 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           InstanceKlass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
                                                                          Handle(THREAD, loader),
                                                                          false, THREAD);
+
           if (klass != nullptr) {
+            // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
+            // impact loading of current class. We need to clear the exception before setting the klass
+            // in the array of InlineLayoutInfo, since it might throw a new exception during Metaspace
+            // allocation.
+            if (HAS_PENDING_EXCEPTION) {
+              CLEAR_PENDING_EXCEPTION;
+            }
+
             if (klass->is_inline_klass()) {
               set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
               log_info(class, preload)("Preloading of class %s during loading of class %s "
@@ -6302,17 +6311,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
               log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                          "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
-                                          name->as_C_string(), _class_name->as_C_string());
+                                       "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
+                                       name->as_C_string(), _class_name->as_C_string());
             }
           } else {
             log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                        "(cause: field type in LoadableDescriptors attribute) failed : %s",
-                                        name->as_C_string(), _class_name->as_C_string(),
-                                        PENDING_EXCEPTION->klass()->name()->as_C_string());
-          }
-          // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not impact loading of current class
-          if (HAS_PENDING_EXCEPTION) {
+                                     "(cause: field type in LoadableDescriptors attribute) failed : %s",
+                                     name->as_C_string(), _class_name->as_C_string(),
+                                     PENDING_EXCEPTION->klass()->name()->as_C_string());
+
             CLEAR_PENDING_EXCEPTION;
           }
         } else {
