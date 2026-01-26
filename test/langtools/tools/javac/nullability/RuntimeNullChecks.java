@@ -310,6 +310,20 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
+                """,
+                //should not crash javac:
+                """
+                class Test {
+                    static String get() {
+                        return Other.str = "";
+                    }
+                    public static void main(String... args) {
+                        get();
+                    }
+                }
+                class Other {
+                    public static String! str = "";
+                }
                 """
         }) {
             System.err.println("executing test " + i++);
