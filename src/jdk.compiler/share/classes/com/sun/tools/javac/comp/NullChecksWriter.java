@@ -77,6 +77,7 @@ public class NullChecksWriter extends TreeTranslator {
       */
     private final boolean allowNullRestrictedTypes;
     private final UseSiteNullChecks useSiteNullChecks;
+    private boolean checkNulls;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -172,24 +173,15 @@ public class NullChecksWriter extends TreeTranslator {
         result = tree;
     }
 
-    boolean generateNullChecks = false;
-
     @Override
     public void visitAssign(JCAssign tree) {
         // could be null for indexed array accesses, we should deal with those later
-        boolean prevGenerateNullChecks = generateNullChecks;
-        try {
-            generateNullChecks = false;
-            tree.lhs = translate(tree.lhs);
-            generateNullChecks = true;
-            tree.rhs = translate(tree.rhs);
-            Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
-            if (lhsSym != null &&
-                    types.isNonNullable(lhsSym.type)) {
-                tree.rhs = attr.makeNullCheck(tree.rhs, true);
-            }
-        } finally {
-            generateNullChecks = prevGenerateNullChecks;
+        tree.lhs = translate(tree.lhs, false);
+        tree.rhs = translate(tree.rhs);
+        Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
+        if (lhsSym != null &&
+                types.isNonNullable(lhsSym.type)) {
+            tree.rhs = attr.makeNullCheck(tree.rhs, true);
         }
         result = tree;
     }
@@ -209,12 +201,12 @@ public class NullChecksWriter extends TreeTranslator {
     // where
         private void identSelectVisitHelper(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
-            if (generateNullChecks &&
-                    useSiteNullChecks.generateChecksForFields &&
+            if (useSiteNullChecks.generateChecksForFields &&
                     sym.owner.kind == TYP &&
                     sym.kind == VAR &&
                     types.isNonNullable(sym.type) &&
-                    sym.owner != currentClass) {
+                    sym.owner != currentClass &&
+                    checkNulls) {
                 /* we are accessing a non-nullable field declared in another
                  * class
                  */
@@ -223,15 +215,9 @@ public class NullChecksWriter extends TreeTranslator {
         }
 
     public void visitTypeCast(JCTypeCast tree) {
-        boolean prevGenerateNullChecks = generateNullChecks;
-        try {
-            generateNullChecks = false;
-            super.visitTypeCast(tree);
-            if (tree.strict) {
-                tree.expr = attr.makeNullCheck(tree.expr, true);
-            }
-        } finally {
-            generateNullChecks = prevGenerateNullChecks;
+        super.visitTypeCast(tree);
+        if (tree.strict) {
+            tree.expr = attr.makeNullCheck(tree.expr, true);
         }
         result = tree;
     }
@@ -241,9 +227,7 @@ public class NullChecksWriter extends TreeTranslator {
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
         Type prevRetType = returnType;
-        boolean prevGenerateNullChecks = generateNullChecks;
         try {
-            generateNullChecks = true;
             returnType = tree.sym.type.getReturnType();
             ListBuffer<JCStatement> paramNullChecks = new ListBuffer<>();
             for (JCVariableDecl param : tree.params) {
@@ -259,61 +243,42 @@ public class NullChecksWriter extends TreeTranslator {
             result = tree;
         } finally {
             returnType = prevRetType;
-            generateNullChecks = prevGenerateNullChecks;
         }
     }
 
     @Override
     public void visitReturn(JCReturn tree) {
-        boolean prevGenerateNullChecks = generateNullChecks;
-        try {
-            super.visitReturn(tree);
-            if (tree.expr != null && returnType != null && !returnType.hasTag(VOID)) {
-                if (types.isNonNullable(returnType)) {
-                    tree.expr = attr.makeNullCheck(tree.expr, true);
-                }
+        super.visitReturn(tree);
+        if (tree.expr != null && returnType != null && !returnType.hasTag(VOID)) {
+            if (types.isNonNullable(returnType)) {
+                tree.expr = attr.makeNullCheck(tree.expr, true);
             }
-        } finally {
-            generateNullChecks = prevGenerateNullChecks;
         }
         result = tree;
     }
 
     @Override
     public void visitApply(JCMethodInvocation tree) {
-        boolean prevGenerateNullChecks = generateNullChecks;
-        try {
-            generateNullChecks = true;
-            Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
-            if (useSiteNullChecks.generateChecksForMethods) {
-                tree.args = newArgs(msym, tree.args);
+        Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
+        if (useSiteNullChecks.generateChecksForMethods) {
+            tree.args = newArgs(msym, tree.args);
+        }
+        super.visitApply(tree);
+        result = tree;
+        if (useSiteNullChecks.generateChecksForMethods) {
+            if (types.isNonNullable(msym.type.asMethodType().restype)) {
+                result = attr.makeNullCheck(tree, true);
             }
-            super.visitApply(tree);
-            result = tree;
-            if (useSiteNullChecks.generateChecksForMethods) {
-                if (types.isNonNullable(msym.type.asMethodType().restype)) {
-                    result = attr.makeNullCheck(tree, true);
-                }
-            }
-        } finally {
-            generateNullChecks = prevGenerateNullChecks;
         }
     }
 
     @Override
     public void visitNewClass(JCNewClass tree) {
-        boolean prevGenerateNullChecks = generateNullChecks;
-        try {
-            generateNullChecks = true;
-            if (useSiteNullChecks.generateChecksForMethods) {
-                tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
-            }
-            super.visitNewClass(tree);
-            result = tree;
-        } finally {
-            generateNullChecks = prevGenerateNullChecks;
+        if (useSiteNullChecks.generateChecksForMethods) {
+            tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
         }
-
+        super.visitNewClass(tree);
+        result = tree;
     }
 
     private List<JCExpression> newArgs(Symbol.MethodSymbol msym, List<JCExpression> actualArgs) {
@@ -353,4 +318,20 @@ public class NullChecksWriter extends TreeTranslator {
         }
         return newArgs.toList();
     }
+
+    @Override
+    public <T extends JCTree> T translate(T tree) {
+        return translate(tree, true);
+    }
+
+    public <T extends JCTree> T translate(T tree, boolean checkNulls) {
+        boolean prevCheckNulls = this.checkNulls;
+        try {
+            this.checkNulls = checkNulls;
+            return super.translate(tree);
+        } finally {
+            this.checkNulls = prevCheckNulls;
+        }
+    }
+
 }
