@@ -178,6 +178,7 @@ ifneq ($(COMPILER), bootjdk)
     # Copy compiled output from "<tempdir>/<module>/<classpath>/..." to
     # "<outdir>/<module>/META-INF/preview/<classpath>/...".
     $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
+		$(RM) -r $(@D)/META-INF/preview
 		$(MKDIR) -p $(@D)/META-INF/preview
 		$(CP) -R $(TEMP_OUTPUTDIR)/$(MODULE)/*/ $(@D)/META-INF/preview
 		$(TOUCH) $@
