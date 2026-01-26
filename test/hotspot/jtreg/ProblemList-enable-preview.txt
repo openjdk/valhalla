@@ -37,4 +37,3 @@ runtime/cds/appcds/cacheObject/ArchivedIntegerCacheTest.java                    
 
 # Serviceability (all Valhalla):
 vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java                        8375069 generic-all
-vmTestbase/nsk/jdi/ModificationWatchpointEvent/valueToBe/valuetobe001/TestDescription.java       8375074 generic-all
