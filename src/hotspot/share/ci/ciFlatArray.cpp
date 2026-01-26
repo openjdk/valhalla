@@ -30,53 +30,12 @@
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/oop.inline.hpp"
 
-ciConstant ciFlatArray::null_marker_of_element_by_offset_impl(arrayOop ary, int index) {
-  if (ary == nullptr) {
-    return ciConstant();
-  }
-  assert(ary->is_array(), "");
-  if (index < 0 || index >= ary->length()) {
-    return ciConstant();
-  }
-    assert(ary->is_objArray(), "");
-    flatArrayOop objary = (flatArrayOop) ary;
-    jboolean elem = objary->null_marker_of_obj_at(index);
-    return ciConstant(T_BOOLEAN, elem);
-}
-
-ciConstant ciFlatArray::check_constant_null_marker_cache(int off) {
-  if (_constant_null_markers != nullptr) {
-    for (int i = 0; i < _constant_null_markers->length(); ++i) {
-      ConstantValue cached_val = _constant_null_markers->at(i);
-      if (cached_val.off() == off) {
-        return cached_val.value();
-      }
-    }
-  }
-  return ciConstant();
-}
-
-void ciFlatArray::add_to_constant_null_marker_cache(int off, ciConstant val) {
-  assert(val.is_valid(), "value must be valid");
-  assert(!check_constant_value_cache(off, val.basic_type()).is_valid(), "duplicate");
-  if (_constant_null_markers == nullptr) {
-    Arena* arena = CURRENT_ENV->arena();
-    _constant_null_markers = new (arena) GrowableArray<ConstantValue>(arena, 1, 0, ConstantValue());
-  }
-  _constant_null_markers->append(ConstantValue(off, val));
-}
-
 // Current value of an element.
 // Returns T_ILLEGAL if there is no element at the given index.
 ciConstant ciFlatArray::null_marker_of_element_by_index(int index) {
-  ciConstant value = check_constant_null_marker_cache(index);
-  if (value.is_valid()) {
-    return value;
-  }
-  GUARDED_VM_ENTRY(
-      value = null_marker_of_element_by_offset_impl(get_arrayOop(), index);)
-  add_to_constant_null_marker_cache(index, value);
-  return value;
+  ciConstant nm = field_value(index, nullptr);
+  postcond(!nm.is_valid() || nm.basic_type() == T_BOOLEAN);
+  return nm;
 }
 
 ciConstant ciFlatArray::null_marker_of_element_by_offset(intptr_t element_offset) {
@@ -136,7 +95,27 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
   auto get_field_from_object_constant = [field](const ciConstant& v) -> ciConstant {
     ciObject* obj = v.as_object();
     if (obj->is_null_object()) {
-      return ciConstant();
+      if (field == nullptr) {
+        return ciConstant(T_BOOLEAN, 0);
+      }
+      BasicType bt = field->type()->basic_type();
+      switch (bt) {
+        case T_FLOAT: return ciConstant(.0f);
+        case T_DOUBLE: return ciConstant(.0);
+        case T_LONG: return ciConstant(0L);
+        case T_BOOLEAN:
+        case T_CHAR:
+        case T_BYTE:
+        case T_SHORT:
+        case T_INT:
+          return ciConstant(bt, 0);
+        case T_OBJECT:
+        case T_ARRAY:
+          return ciConstant(bt, CURRENT_ENV->get_object(nullptr));
+        default:
+          assert(false, "case should be handled");
+          return ciConstant();
+        }
     }
     // obj cannot be an ciArray since it is an element of a flat array, so it must be a value class, which arrays are not.
     ciInstance* inst = obj->as_instance();

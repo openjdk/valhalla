@@ -400,7 +400,12 @@ static const Type* make_constant_from_non_flat_array_element(ciArray* array, int
 
 static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int off, int field_offset, int stable_dimension,
                                                          BasicType loadbt, bool is_unsigned_load) {
-  // Decode the results of GraphKit::array_element_address.
+  if (!array->is_null_free()) {
+    ciConstant nm_value = array->null_marker_of_element_by_offset(off);
+    if (!nm_value.is_valid() || !nm_value.as_boolean()) {
+      return nullptr;
+    }
+  }
   ciConstant element_value = array->field_value_by_offset(off + field_offset);
   if (element_value.basic_type() == T_ILLEGAL) {
     return nullptr; // wrong offset, or the array element at offset off is null.
@@ -410,8 +415,7 @@ static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int
   assert(con.basic_type() != T_ILLEGAL, "elembt=%s; loadbt=%s; unsigned=%d",
          type2name(element_value.basic_type()), type2name(loadbt), is_unsigned_load);
 
-  if (con.is_valid() &&          // not a mismatched access
-      !con.is_null_or_zero()) {  // not a default value
+  if (con.is_valid()) { // not a mismatched access
     bool is_narrow_oop = (loadbt == T_NARROWOOP);
     return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
   }
