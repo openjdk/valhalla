@@ -94,6 +94,28 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   }
 }
 
+static bool field_is_inlineable(FieldInfo fieldinfo, LayoutKind lk, Array<InlineLayoutInfo>* ili) {
+  if (fieldinfo.field_flags().is_null_free_inline_type()) {
+    // A null-free inline type is always inlineable
+    return true;
+  }
+
+  if (lk != LayoutKind::REFERENCE) {
+    // We've chosen a layout that isn't a normal reference
+    return true;
+  }
+
+  if (!fieldinfo.field_flags().is_injected() &&
+      ili != nullptr &&
+      ili->adr_at((int)fieldinfo.index())->klass() != nullptr &&
+      !ili->adr_at((int)fieldinfo.index())->klass()->is_identity_class()) {
+    // The field's klass is not an identity class
+    return true;
+  }
+
+  return false;
+}
+
 static void get_size_and_alignment(InlineKlass* vk, LayoutKind kind, int* size, int* alignment) {
   switch(kind) {
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
@@ -840,12 +862,8 @@ void FieldLayoutBuilder::regular_field_sorting() {
     case T_ARRAY:
     {
       LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, true);
-      const int field_index = (int)fieldinfo.index();
 
-      if (fieldinfo.field_flags().is_null_free_inline_type() || lk != LayoutKind::REFERENCE
-          || (!fieldinfo.field_flags().is_injected()
-              && _inline_layout_info_array != nullptr && _inline_layout_info_array->adr_at(field_index)->klass() != nullptr
-              && !_inline_layout_info_array->adr_at(field_index)->klass()->is_identity_class())) {
+      if (field_is_inlineable(fieldinfo, lk, _inline_layout_info_array)) {
         _has_inlineable_fields = true;
       }
 
@@ -853,6 +871,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
+        const int field_index = (int)fieldinfo.index();
         assert(_inline_layout_info_array != nullptr, "Array must have been created");
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
@@ -928,12 +947,8 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     {
       bool use_atomic_flat = _must_be_atomic; // flatten atomic fields only if the container is itself atomic
       LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, use_atomic_flat);
-      const int field_index = (int)fieldinfo.index();
 
-      if (fieldinfo.field_flags().is_null_free_inline_type() || lk != LayoutKind::REFERENCE
-          || (!fieldinfo.field_flags().is_injected()
-              && _inline_layout_info_array != nullptr && _inline_layout_info_array->adr_at(field_index)->klass() != nullptr
-              && !_inline_layout_info_array->adr_at(field_index)->klass()->is_identity_class())) {
+      if (field_is_inlineable(fieldinfo, lk, _inline_layout_info_array)) {
         _has_inlineable_fields = true;
       }
 
@@ -944,6 +959,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         }
         group->add_oop_field(idx);
       } else {
+        const int field_index = (int)fieldinfo.index();
         assert(_inline_layout_info_array != nullptr, "Array must have been created");
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
