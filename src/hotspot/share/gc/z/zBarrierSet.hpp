@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,7 +140,7 @@ public:
                                                size_t length);
     static OopCopyResult oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, oop* src_raw,
                                                arrayOop dst_obj, size_t dst_offset_in_bytes, oop* dst_raw,
-                                              size_t length) {
+                                               size_t length) {
       return oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, (zpointer*)src_raw,
                                    dst_obj, dst_offset_in_bytes, (zpointer*)dst_raw,
                                    length);

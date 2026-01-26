@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "ci/ciFlatArray.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciReplay.hpp"
 #include "classfile/javaClasses.hpp"
@@ -2094,7 +2095,42 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
     Node* n = _flat_access_nodes.at(i);
     assert(n != nullptr, "unexpected nullptr");
     if (n->is_LoadFlat()) {
-      n->as_LoadFlat()->expand_atomic(igvn);
+      LoadFlatNode* loadn = n->as_LoadFlat();
+      // Expending a flat load atomically means that we get a chunk of memory spanning multiple fields
+      // that we chop with bitwise operations. That is too subtle for some optimizations, especially
+      // constant folding when fields are constant. But if the flattened field being accessed is read-only
+      // then no concurrent writes can happen and non-atomic loads are fine, allowing better optimizations.
+      // A way for fields to be read-only is to be stable and already initialized. Here, we check if the
+      // field being accessed is stable, and if the null marker of the field/array element is non-zero.
+      // If so, we know that the stable value was initialized away from the default value (null), and
+      // that we can assume it's read-only, so can the load can be performed non-atomically.
+      bool non_atomic_is_fine = false;
+      if (FoldStableValues) {
+        const TypeOopPtr* base_type = igvn.type(loadn->base())->isa_oopptr();
+        ciObject* oop = base_type->const_oop();
+        ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
+        ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
+        int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
+
+        if (holder != nullptr) {
+          ciKlass* klass = holder->klass();
+          ciInstanceKlass* iklass = klass->as_instance_klass();
+          const ciField* field = iklass->get_non_flat_field_by_offset(off);
+          ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
+          ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
+          non_atomic_is_fine = field->is_stable() && cst.is_valid() && cst.as_boolean();
+        } else if (array != nullptr) {
+          const TypeAryPtr* aryptr = base_type->is_aryptr();
+          ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
+          non_atomic_is_fine = aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+        }
+      }
+
+      if (non_atomic_is_fine) {
+        loadn->expand_non_atomic(igvn);
+      } else {
+        loadn->expand_atomic(igvn);
+      }
     } else {
       n->as_StoreFlat()->expand_atomic(igvn);
     }

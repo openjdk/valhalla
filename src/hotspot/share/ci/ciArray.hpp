@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ public:
 
   // Current value of an element at the specified offset.
   // Returns T_ILLEGAL if there is no element at the given offset.
-  ciConstant element_value_by_offset(intptr_t element_offset);
+  virtual ciConstant element_value_by_offset(intptr_t element_offset);
 
   // What kind of ciObject is this?
   bool is_array()        { return true; }
