@@ -853,7 +853,8 @@ void FieldLayoutBuilder::regular_field_sorting() {
         if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
-        assert(_inline_layout_info_array != nullptr && _inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Array must have been set up");
+        assert(_inline_layout_info_array != nullptr, "Array must have been created");
+        assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
         InlineKlass* vk = _inline_layout_info_array->adr_at(field_index)->klass();
         int size, alignment;
@@ -943,7 +944,8 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         }
         group->add_oop_field(idx);
       } else {
-        assert(_inline_layout_info_array != nullptr && _inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Array must have been set up");
+        assert(_inline_layout_info_array != nullptr, "Array must have been created");
+        assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
         InlineKlass* vk = _inline_layout_info_array->adr_at(field_index)->klass();
         if (!vk->is_naturally_atomic()) _has_non_naturally_atomic_fields = true;
