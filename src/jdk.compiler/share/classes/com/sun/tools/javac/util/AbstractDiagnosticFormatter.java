@@ -52,6 +52,7 @@ import com.sun.tools.javac.jvm.Profile;
 import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.tree.Pretty;
 
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticType.*;
@@ -200,7 +201,7 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
             return formatIterable(d, iterable, l);
         }
         else if (arg instanceof Type type) {
-            return printer.visit(type.stripMetadata(), l);
+            return printer.visit(normalize(type), l);
         }
         else if (arg instanceof JCDiagnostic.AnnotatedType type) {
             return printer.visit(type.type(), l);
@@ -235,6 +236,14 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
         }
     }
     //where
+            private Type normalize(Type type) {
+                Type t2 = type.stripMetadata();
+                if (t2 != type && type.getNullMarker() == NullMarker.NOT_NULL) {
+                    t2 = t2.asNullMarked(NullMarker.NOT_NULL);
+                }
+                return t2;
+            }
+
             private String expr2String(JCExpression tree) {
                 switch(tree.getTag()) {
                     case PARENS:
