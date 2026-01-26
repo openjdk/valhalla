@@ -22,13 +22,21 @@
  */
 
 /*
- * @test
+ * @test id=cds
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @run junit/othervm SubstitutabilityTest
- * @run junit/othervm -Xshare:off -XX:+UseAltSubstitutabilityMethod SubstitutabilityTest
+ */
+
+/*
+ * @test id=nocds
+ * @modules java.base/java.lang.runtime:open
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @run junit/othervm -Xshare:off SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
