@@ -27,7 +27,7 @@
  * @enablePreview
  * @library / /test/lib
  * @summary Testing that compiler replay correctly loads sub classes of ObjArrayKlass.
- * @requires vm.flightRecorder != true & vm.compMode != "Xint" & vm.compMode != "Xcomp" &
+ * @requires vm.flagless & vm.flightRecorder != true & vm.compMode != "Xint" & vm.compMode != "Xcomp" &
  *           vm.debug == true & vm.compiler2.enabled
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
