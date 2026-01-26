@@ -113,7 +113,7 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
         case T_ARRAY:
           return ciConstant(bt, CURRENT_ENV->get_object(nullptr));
         default:
-          assert(false, "case should be handled");
+          ShouldNotReachHere();
           return ciConstant();
         }
     }
