@@ -777,7 +777,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
     // Check if mark word contains hash code already
     intptr_t hash = obj->mark().hash();
-    if (hash != 0) {
+    if (hash != markWord::no_hash) {
       return checked_cast<jint>(hash);
     }
 
