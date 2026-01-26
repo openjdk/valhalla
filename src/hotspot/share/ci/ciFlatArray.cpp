@@ -100,9 +100,9 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
       }
       BasicType bt = field->type()->basic_type();
       switch (bt) {
-        case T_FLOAT: return ciConstant(.0f);
-        case T_DOUBLE: return ciConstant(.0);
-        case T_LONG: return ciConstant(0L);
+        case T_FLOAT: return ciConstant((jfloat).0f);
+        case T_DOUBLE: return ciConstant((jdouble).0);
+        case T_LONG: return ciConstant((jlong)0L);
         case T_BOOLEAN:
         case T_CHAR:
         case T_BYTE:
