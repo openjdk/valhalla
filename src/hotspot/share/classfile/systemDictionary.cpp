@@ -951,6 +951,9 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
                                                PackageEntry* pkg_entry,
                                                Handle class_loader) {
 
+  assert(!ModuleEntryTable::javabase_moduleEntry()->is_patched(),
+         "Cannot use sharing if java.base is patched");
+
   // (1) Check if we are loading into the same loader as in dump time.
 
   if (ik->defined_by_boot_loader()) {
