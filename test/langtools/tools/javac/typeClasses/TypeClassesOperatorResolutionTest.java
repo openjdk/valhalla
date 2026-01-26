@@ -289,4 +289,58 @@ public class TypeClassesOperatorResolutionTest {
         ushr >>= 30;
         assertEquals(numBox(-4 >> 30), ushr); // 3
     }
+
+    @Test
+    void testStackmapUnary() {
+        NumBox e1 = numBox(1);
+        NumBox eR  = testStackmapUnary(e1, true);
+        assertEquals(eR, numBox(-1));
+    }
+
+    @Test
+    static NumBox testStackmapUnary(NumBox e1, boolean cond) {
+        NumBox eR = null;
+        if (cond) {
+            eR = -e1;
+        } else {
+            eR = e1;
+        }
+        return eR;
+    }
+
+    @Test
+    void testStackmapBinary() {
+        NumBox e1 = numBox(1);
+        NumBox e2 = numBox(2);
+        NumBox eR  = testStackmapBinary(e1, e2, true);
+        assertEquals(eR, numBox(3));
+    }
+
+    NumBox testStackmapBinary(NumBox e1, NumBox e2, boolean cond) {
+        NumBox eR = null;
+        if (cond) {
+            eR = e1 + e2;
+        } else {
+            eR = e1;
+        }
+        return eR;
+    }
+
+    @Test
+    void testStackmapAssignop() {
+        NumBox e1 = numBox(1);
+        NumBox e2 = numBox(2);
+        NumBox eR  = testStackmapAssignop(e1, e2, true);
+        assertEquals(eR, numBox(3));
+    }
+
+    NumBox testStackmapAssignop(NumBox e1, NumBox e2, boolean cond) {
+        NumBox eR = e1;
+        if (cond) {
+            eR += e2;
+        } else {
+            eR = e1;
+        }
+        return eR;
+    }
 }

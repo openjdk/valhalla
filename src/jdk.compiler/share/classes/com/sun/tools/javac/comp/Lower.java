@@ -3563,13 +3563,10 @@ public class Lower extends TreeTranslator {
         tree.arg = boxIfNeeded(translate(tree.arg, tree), tree.type);
 
         if (tree.operator.opcode == type_classes_unop) {
-            // type classes unary operation
-            TypeClassOperatorSymbol tcOp = (TypeClassOperatorSymbol)tree.operator;
-            Type opType = tree.operator.type.getParameterTypes().head;
-            ClassType witness = new ClassType(Type.noType, List.of(opType), (TypeSymbol) tcOp.opMethod.owner);
-            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, witness)));
-            JCExpression witnessMeth = make.Select(witnessRcvr, tcOp.opMethod);
-            result = make.App(witnessMeth, List.of(tree.arg)).setType(tree.type);
+            result = visitTypeClassOperator(
+                    (TypeClassOperatorSymbol)tree.operator,
+                    List.of(tree.arg),
+                    tree.type);
         } else {
             if (tree.hasTag(NOT) && tree.arg.type.constValue() != null) {
                 tree.type = cfolder.fold1(bool_not, tree.arg.type);
@@ -3613,16 +3610,33 @@ public class Lower extends TreeTranslator {
         }
         tree.rhs = translate(tree.rhs, formals.tail.head);
         if (tree.operator.opcode == type_classes_binop) {
-            // type classes unary operation
-            TypeClassOperatorSymbol tcOp = (TypeClassOperatorSymbol)tree.operator;
-            Type opType = tree.operator.type.getParameterTypes().head;
-            ClassType witness = new ClassType(Type.noType, List.of(opType), (TypeSymbol) tcOp.opMethod.owner);
-            JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, witness)));
-            JCExpression witnessMeth = make.Select(witnessRcvr, tcOp.opMethod);
-            result = make.App(witnessMeth, List.of(tree.lhs, tree.rhs)).setType(tree.type);
+            result = visitTypeClassOperator(
+                    (TypeClassOperatorSymbol)tree.operator,
+                    List.of(tree.lhs, tree.rhs),
+                    tree.type);
         } else {
             result = tree;
         }
+    }
+
+    /*
+     * This method lowers a type class-mediated operator (unary or binary) into the corresponding
+     * witness call. For instance:
+     *
+     * P p1 = ... ; P p2 = ...
+     * p1 + p2
+     *
+     * is translated to:
+     *
+     * (P)Numerical<P>.__witness.add(p1, p2)
+     */
+    JCExpression visitTypeClassOperator(TypeClassOperatorSymbol tcOp, List<JCExpression> loweredArgs, Type pType) {
+        Type opType = tcOp.type.getParameterTypes().head;
+        ClassType witness = new ClassType(Type.noType, List.of(opType), (TypeSymbol) tcOp.opMethod.owner);
+        JCExpression witnessRcvr = make.Ident(witnessOf((WitnessSymbol) rs.findWitness(attrEnv, witness)));
+        JCExpression witnessMeth = make.Select(witnessRcvr, tcOp.opMethod);
+        JCExpression witnessCall = make.App(witnessMeth, loweredArgs);
+        return convert(witnessCall, types.erasure(pType));
     }
 
     public void visitIdent(JCIdent tree) {
