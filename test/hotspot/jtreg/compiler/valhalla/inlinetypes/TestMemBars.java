@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,12 @@ import jdk.test.lib.Asserts;
 public class TestMemBars {
     static long VAL = 42; // Prevent constant folding
 
+    public TestMemBars() {
+        field1 = new MyValue1();
+        field2 = new MyValue2();
+        super();
+    }
+
     static value class MyValue1 {
         @Strict
         @NullRestricted
@@ -65,11 +71,11 @@ public class TestMemBars {
 
     @Strict
     @NullRestricted
-    MyValue1 field1 = new MyValue1();
+    MyValue1 field1;
 
     @Strict
     @NullRestricted
-    MyValue2 field2 = new MyValue2();
+    MyValue2 field2;
 
     static MyValue1[] array1 = new MyValue1[1];
     static MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, new MyValue1());

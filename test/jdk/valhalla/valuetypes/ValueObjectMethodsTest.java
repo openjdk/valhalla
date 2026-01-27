@@ -78,6 +78,7 @@ public class ValueObjectMethodsTest {
         Ref(Point p, Line l) {
             this.p = p;
             this.l = l;
+            super();
         }
     }
 

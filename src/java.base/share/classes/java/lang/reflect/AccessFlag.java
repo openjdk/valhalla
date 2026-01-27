@@ -290,7 +290,7 @@ public enum AccessFlag {
      * @jvms 4.5 Fields
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective=true)
     STRICT_INIT(ACC_STRICT_INIT, false,
                 Location.SET_FIELD,
                 List.of(Map.entry(latest(), Location.EMPTY_SET))),
