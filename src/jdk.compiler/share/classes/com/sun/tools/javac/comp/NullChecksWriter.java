@@ -187,13 +187,6 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     @Override
-    public void visitAssignop(JCAssignOp tree) {
-        tree.lhs = translate(tree.lhs, false);
-        tree.rhs = translate(tree.rhs);
-        result = tree;
-    }
-
-    @Override
     public void visitIdent(JCIdent tree) {
         super.visitIdent(tree);
         identSelectVisitHelper(tree);
@@ -207,13 +200,8 @@ public class NullChecksWriter extends TreeTranslator {
 
     // where
         private void identSelectVisitHelper(JCTree tree) {
-            Symbol sym = TreeInfo.symbolFor(tree);
-            if (useSiteNullChecks.generateChecksForFields &&
-                    sym.owner.kind == TYP &&
-                    sym.kind == VAR &&
-                    types.isNonNullable(sym.type) &&
-                    sym.owner != currentClass &&
-                    checkNulls) {
+            if (needsUseSiteNullCheck(tree, currentClass) &&
+                checkNulls) {
                 /* we are accessing a non-nullable field declared in another
                  * class
                  */
@@ -341,4 +329,13 @@ public class NullChecksWriter extends TreeTranslator {
         }
     }
 
+    public boolean needsUseSiteNullCheck(JCTree tree, ClassSymbol currentClass) {
+        Symbol sym = TreeInfo.symbolFor(tree);
+        return sym != null &&
+                useSiteNullChecks.generateChecksForFields &&
+                sym.owner.kind == TYP &&
+                sym.kind == VAR &&
+                types.isNonNullable(sym.type) &&
+                sym.owner != currentClass;
+    }
 }

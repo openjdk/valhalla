@@ -731,6 +731,68 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """);
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! value;
+                    public A() {
+                        this.value = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String value;
+                    public A() {
+                        this.value = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        a.value = a.value + "";
+                        System.out.println(a.value);
+                    }
+                }
+                """);
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! value;
+                    public A() {
+                        this.value = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String value;
+                    public A() {
+                        this.value = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        a.value += "";
+                        System.out.println(a.value);
+                    }
+                }
+                """);
     }
 
     private void testUseSiteForFieldsSeparateCompilationHelper(
