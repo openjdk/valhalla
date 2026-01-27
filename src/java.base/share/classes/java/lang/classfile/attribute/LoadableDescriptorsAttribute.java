@@ -44,7 +44,7 @@ import jdk.internal.javac.PreviewFeature;
 
 /**
  * Models the {@link Attributes#loadableDescriptors() LoadableDescriptors}
- * attribute (JVMS {@jvms 4.7.32}), which suggests the JVM may load mentioned
+ * attribute (JVMS {@jvms value-objects-4.7.32}), which suggests the JVM may load mentioned
  * types before the {@code class} file carrying this attribute is loaded.
  * <p>
  * This attribute only appears on classes, and does not permit {@linkplain
@@ -56,7 +56,7 @@ import jdk.internal.javac.PreviewFeature;
  * version {@value ClassFile#JAVA_25_VERSION}. (FIXME)
  *
  * @see Attributes#loadableDescriptors()
- * @jvms 4.7.32 The {@code LoadableDescriptors} Attribute
+ * @jvms value-objects-4.7.32 The {@code LoadableDescriptors} Attribute
  * @since Valhalla
  */
 @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)

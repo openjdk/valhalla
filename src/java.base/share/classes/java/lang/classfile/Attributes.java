@@ -255,7 +255,8 @@ public final class Attributes {
     }
 
     /**
-     * {@return Attribute mapper for the {@code LoadableDescriptors} attribute}
+     * {@return the mapper for the {@code LoadableDescriptors} attribute}
+     *
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
