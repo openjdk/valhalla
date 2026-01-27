@@ -26,10 +26,8 @@
 package x;
 
 import java.util.function.IntConsumer;
-import java.util.function.IntUnaryOperator;
 
 public class TestClass {
-    //void m(IntUnaryOperator intOp) { }
     void m(IntConsumer intConsumer) { }
 
     void testUnary() {
@@ -38,5 +36,7 @@ public class TestClass {
 
     void testBinary() {
         m(x -> x + x);
+        m(x -> x + 1);
+        m(x -> 1 + x);
     }
 }
