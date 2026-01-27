@@ -80,9 +80,16 @@ public class CheckIntegerCacheApp {
         }
 
         // In preview mode the Integer is a value class and the Integer cache is disabled
-        if (!PreviewFeatures.isEnabled() && Integer.valueOf(high + 1) == Integer.valueOf(high + 1)) {
-            throw new RuntimeException(
-                    "FAILED. Value not expected to be retrieved from cache: " + high);
+        if (!PreviewFeatures.isEnabled()) {
+            if (Integer.valueOf(high + 1) == Integer.valueOf(high + 1)) {
+                throw new RuntimeException(
+                        "FAILED. Value not expected to be retrieved from cache: " + high);
+            }
+        } else {
+            if (Integer.valueOf(high + 1) != Integer.valueOf(high + 1)) {
+                throw new RuntimeException(
+                        "FAILED. Values must be equal in preview mode: " + high);
+            }
         }
     }
 }
