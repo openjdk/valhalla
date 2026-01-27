@@ -484,7 +484,7 @@ public class Operators {
 
         @Override
         public boolean test(Env<AttrContext> env, Type arg) {
-            if (types.unboxedTypeOrType(arg).isPrimitive()) {
+            if (types.unboxedTypeOrType(arg).isPrimitive() || arg.isErroneous()) {
                 return false;
             }
             Type witnessType = witnessType(typeClassFunc.apply(syms), arg);
@@ -590,7 +590,9 @@ public class Operators {
 
         @Override
         public boolean test(Env<AttrContext> env, Type arg1, Type arg2) {
-            if (types.unboxedTypeOrType(arg1).isPrimitive()) {
+            if (types.unboxedTypeOrType(arg1).isPrimitive() ||
+                    types.unboxedTypeOrType(arg1).isPrimitive() ||
+                    arg1.isErroneous() || arg2.isErroneous()) {
                 return false;
             }
             Type witnessType = witnessType(typeClassFunc.apply(syms), arg1);
