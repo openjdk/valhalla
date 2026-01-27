@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -159,16 +159,24 @@ public value class InlineWithJni {
     static class Container1 {
         @Strict
         @NullRestricted
-        SmallValue sv = new SmallValue();
+        SmallValue sv;
         @Strict
         @NullRestricted
-        MediumValue mv = new MediumValue();
+        MediumValue mv;
         @Strict
         @NullRestricted
-        BigValue bv = new BigValue();
+        BigValue bv;
         @Strict
         @NullRestricted
-        ValueWithOop vwo = new ValueWithOop();
+        ValueWithOop vwo;
+
+        Container1() {
+            sv = new SmallValue();
+            mv = new MediumValue();
+            bv = new BigValue();
+            vwo = new ValueWithOop();
+            super();
+        }
     }
 
     static String getFieldSignature(Class c, String name) {

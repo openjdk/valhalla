@@ -863,6 +863,12 @@ class CompileReplay : public StackObj {
         return;
       }
       Klass* k = parse_klass(CHECK);
+      if (had_error()) {
+        return;
+      }
+      if (Arguments::is_valhalla_enabled() && _version >= 3 && k->is_objArray_klass()) {
+        k = create_concrete_object_array_klass(ObjArrayKlass::cast(k), THREAD);
+      }
       rec->_classes_offsets[i] = offset;
       rec->_classes[i] = k;
     }
@@ -881,6 +887,19 @@ class CompileReplay : public StackObj {
       rec->_methods_offsets[i] = offset;
       rec->_methods[i] = m;
     }
+  }
+
+  ObjArrayKlass* create_concrete_object_array_klass(ObjArrayKlass* obj_array_klass, TRAPS) {
+    ArrayKlass::ArrayProperties array_properties =
+    static_cast<ArrayKlass::ArrayProperties>(parse_int("array_properties"));
+    if (array_properties != ArrayKlass::DEFAULT &&
+        array_properties != ArrayKlass::NULL_RESTRICTED &&
+        array_properties != ArrayKlass::NON_ATOMIC &&
+        array_properties != (ArrayKlass::NULL_RESTRICTED | ArrayKlass::NON_ATOMIC)) {
+      guarantee(false, "invalid array_properties: %d, fall back to DEFAULT", array_properties);
+    }
+
+    return obj_array_klass->klass_with_properties(array_properties, THREAD);
   }
 
   // instanceKlass <name>

@@ -24,6 +24,7 @@
 
 #include "ci/ciMetadata.hpp"
 #include "ci/ciMethodData.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "compiler/compiler_globals.hpp"
@@ -721,8 +722,15 @@ void ciMethodData::dump_replay_data_type_helper(outputStream* out, int round, in
     if (round == 0) {
       count++;
     } else {
-      out->print(" %d %s", (int)(dp_to_di(pdata->dp() + in_bytes(offset)) / sizeof(intptr_t)),
-                           CURRENT_ENV->replay_name(k));
+      if (Arguments::is_valhalla_enabled() && k->is_obj_array_klass()) {
+        // For value class arrays, we also record the array property to load the correct array class during replay.
+        ArrayKlass::ArrayProperties array_properties = k->as_obj_array_klass()->properties();
+        out->print(" %d %s %d", static_cast<int>(dp_to_di(pdata->dp() + in_bytes(offset)) / sizeof(intptr_t)),
+                                      CURRENT_ENV->replay_name(k), static_cast<int>(array_properties));
+      } else {
+        out->print(" %d %s", static_cast<int>(dp_to_di(pdata->dp() + in_bytes(offset)) / sizeof(intptr_t)),
+                             CURRENT_ENV->replay_name(k));
+      }
     }
   }
 }

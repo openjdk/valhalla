@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,11 @@ public class ValueCopyingTest {
 
   static ValueCopyingTest target = new ValueCopyingTest();
 
+  public ValueCopyingTest() {
+      tv = new TestValue(0);
+      super();
+  }
+
   @LooselyConsistentValue
   static value class TestValue {
     int i;
@@ -56,7 +61,7 @@ public class ValueCopyingTest {
 
   @Strict
   @NullRestricted
-  TestValue tv = new TestValue(0);
+  TestValue tv;
 
   static class Worker implements Runnable {
     int i;
