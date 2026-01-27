@@ -1412,10 +1412,10 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
   }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool has_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited) {
   PhaseGVN& gvn = kit->gvn();
   Node* null_marker = nullptr;
-  if (!has_null_marker) {
+  if (!no_null_marker) {
     // Nullable inline type
     if (in) {
       // Set null marker
@@ -1510,7 +1510,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     gvn.record_for_igvn(parm);
   }
   // The last argument is used to pass the null marker to compiled code
-  if (!has_null_marker && !in) {
+  if (!no_null_marker && !in) {
     Node* cmp = null_marker->raw_out(0);
     null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));
     set_req(NullMarker, null_marker);
