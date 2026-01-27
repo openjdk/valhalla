@@ -26,7 +26,6 @@
 package java.lang;
 
 import java.lang.annotation.Annotation;
-import java.lang.classfile.ClassFile;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.invoke.TypeDescriptor;
@@ -640,8 +639,8 @@ public final class Class<T> implements java.io.Serializable,
      *          or {@code void} this method returns {@code false}.
      *      <li>
      *          For all other {@code Class} objects, this method returns {@code true} if either
-     *          preview features are disabled or {@linkplain ClassFile#ACC_IDENTITY} is set in the
-     *          {@linkplain #getModifiers() class modifiers}.
+     *          preview features are disabled or {@linkplain AccessFlag#IDENTITY IDENTITY} is
+     *          present in the {@linkplain #accessFlags() class access flags}.
      * </ul>
      * @see AccessFlag#IDENTITY
      * @since Valhalla
@@ -662,8 +661,8 @@ public final class Class<T> implements java.io.Serializable,
      *          or {@code void} this method returns {@code true} only if preview features are enabled.
      *      <li>
      *          For all other {@code Class} objects, this method returns {@code true} only if
-     *          preview features are enabled and {@linkplain ClassFile#ACC_IDENTITY} is not set in the
-     *          {@linkplain #getModifiers() class modifiers}.
+     *          preview features are enabled and {@linkplain AccessFlag#IDENTITY IDENTITY} is not
+     *          present in the {@linkplain #accessFlags() class access flags}.
      * </ul>
      * @see AccessFlag#IDENTITY
      * @since Valhalla
@@ -1437,7 +1436,7 @@ public final class Class<T> implements java.io.Serializable,
      * <li> its {@code ABSTRACT} and {@code FINAL} flags are present
      * <li> its {@code INTERFACE} flag is absent, even when the
      *      component type is an interface
-    * <li> its {@code identity} modifier is always true
+     * <li> its {@code identity} modifier is always true
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and
