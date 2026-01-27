@@ -92,7 +92,11 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset, bool 
         assert(index != -1, "no field at given offset");
         InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(index);
         InlineKlass* vk = layout_info->klass();
-        oop res = vk->read_payload_from_addr(obj, offset, layout_info->kind(), CHECK_(ciConstant()));
+        oop res = vk->read_payload_from_addr(obj, offset, layout_info->kind(), THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+          CLEAR_PENDING_EXCEPTION;
+          return ciConstant();
+        }
         value = ciConstant(field_btype, CURRENT_ENV->get_object(res));
       } else {
         oop o = obj->obj_field(offset);
