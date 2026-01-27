@@ -801,7 +801,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     // Store hash in the mark word
     markWord old_mark, new_mark, test;
     do {
-      old_mark = ho->mark_acquire();
+      old_mark = ho->mark();
       new_mark = old_mark.copy_set_hash(hash);
       test = ho->cas_set_mark(new_mark, old_mark);
     } while (test != old_mark);
