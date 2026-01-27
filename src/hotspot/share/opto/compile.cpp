@@ -2114,8 +2114,9 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
           ciField* field = iklass->get_non_flat_field_by_offset(off);
 
           if (field->is_stable()) {
-            ciConstant fv = holder->flat_field_value(field);
+            ciConstant fv = holder->field_value(field);
             if (is_reference_type(fv.basic_type()) && fv.as_object()->is_instance()) {
+              // The field value is an object, not null. We can use stability.
               loaded_from = fv.as_object()->as_instance();
             }
           }

@@ -96,31 +96,14 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
     ciObject* obj = v.as_object();
     if (obj->is_null_object()) {
       if (field == nullptr) {
-        return ciConstant(T_BOOLEAN, 0);
+        return ciConstant::make_zero_or_null(T_BOOLEAN);
       }
-      BasicType bt = field->type()->basic_type();
-      switch (bt) {
-        case T_FLOAT: return ciConstant((jfloat).0f);
-        case T_DOUBLE: return ciConstant((jdouble).0);
-        case T_LONG: return ciConstant((jlong)0L);
-        case T_BOOLEAN:
-        case T_CHAR:
-        case T_BYTE:
-        case T_SHORT:
-        case T_INT:
-          return ciConstant(bt, 0);
-        case T_OBJECT:
-        case T_ARRAY:
-          return ciConstant(bt, CURRENT_ENV->get_object(nullptr));
-        default:
-          ShouldNotReachHere();
-          return ciConstant();
-        }
+      return ciConstant::make_zero_or_null(field->type()->basic_type());
     }
     // obj cannot be an ciArray since it is an element of a flat array, so it must be a value class, which arrays are not.
     ciInstance* inst = obj->as_instance();
     if (field == nullptr) {
-      return inst->null_marker_value();
+      return ciConstant(T_BOOLEAN, 1);
     }
     return inst->field_value(field);
   };

@@ -61,7 +61,7 @@ ciType* ciInstance::java_mirror_type() {
 
 // ------------------------------------------------------------------
 // ciInstance::field_value_impl
-ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
+ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset, bool field_is_flat) {
   ciConstant value = check_constant_value_cache(offset, field_btype);
   if (value.is_valid()) {
     return value;
@@ -80,19 +80,35 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
     case T_LONG:    value = ciConstant(obj->long_field(offset)); break;
     case T_OBJECT:  // fall through
     case T_ARRAY: {
-      oop o = obj->obj_field(offset);
-
-      // A field will be "constant" if it is known always to be
-      // a non-null reference to an instance of a particular class,
-      // or to a particular array.  This can happen even if the instance
-      // or array is not perm.  In such a case, an "unloaded" ciArray
-      // or ciInstance is created.  The compiler may be able to use
-      // information about the object's class (which is exact) or length.
-
-      if (o == nullptr) {
-        value = ciConstant(field_btype, ciNullObject::make());
+      if (field_is_flat) {
+        InstanceKlass* holder = InstanceKlass::cast(obj->klass());
+        int index = -1;
+        for (JavaFieldStream fs(holder); !fs.done(); fs.next()) {
+          if (!fs.access_flags().is_static() && fs.offset() == offset) {
+            index = fs.index();
+            break;
+          }
+        }
+        assert(index != -1, "no field at given offset");
+        InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(index);
+        InlineKlass* vk = layout_info->klass();
+        oop res = vk->read_payload_from_addr(obj, offset, layout_info->kind(), CHECK_(ciConstant()));
+        value = ciConstant(field_btype, CURRENT_ENV->get_object(res));
       } else {
-        value = ciConstant(field_btype, CURRENT_ENV->get_object(o));
+        oop o = obj->obj_field(offset);
+
+        // A field will be "constant" if it is known always to be
+        // a non-null reference to an instance of a particular class,
+        // or to a particular array.  This can happen even if the instance
+        // or array is not perm.  In such a case, an "unloaded" ciArray
+        // or ciInstance is created.  The compiler may be able to use
+        // information about the object's class (which is exact) or length.
+
+        if (o == nullptr) {
+          value = ciConstant(field_btype, ciNullObject::make());
+        } else {
+          value = ciConstant(field_btype, CURRENT_ENV->get_object(o));
+        }
       }
       break;
     }
@@ -103,53 +119,95 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
   return value;
 }
 
-// Constant value of the null marker.
-ciConstant ciInstance::null_marker_value() {
-  if (!klass()->is_inlinetype()) {
-    return ciConstant();
-  }
-  ciInlineKlass* ik = klass()->as_inline_klass();
-  return field_value_impl(T_BOOLEAN, ik->null_marker_offset_in_payload() + ik->payload_offset());
-}
-
 // ------------------------------------------------------------------
 // ciInstance::field_value
 //
-// Constant value of a field.
+// Constant value of a field. The field can be flat, in which case a cached copy
+// of the value object is returned. Since stable fields are "constant" but not
+// really, we need to cache the value of fields so that the compiler will observe
+// only one value. We also need to ensure that sub-fields (flattened fields) from
+// a single stable field of value class type will be observed to be consistent with
+// each other. To do so, we need to always fetch the declared field containing the
+// desired field. If we want a sub-field of a flat field, we then extract the field
+// out of the cached copy.
 ciConstant ciInstance::field_value(ciField* field) {
-  precond(!field->is_flat());
   assert(is_loaded(), "invalid access - must be loaded");
   assert(field->holder()->is_loaded(), "invalid access - holder must be loaded");
   assert(field->is_static() || field->holder()->is_inlinetype() || klass()->is_subclass_of(field->holder()),
          "invalid access - must be subclass");
-
-  return field_value_impl(field->type()->basic_type(), field->offset_in_bytes());
-}
-
-ciConstant ciInstance::flat_field_value(ciField* field) {
-  precond(field->is_flat());
-  assert(is_loaded(), "invalid access - must be loaded");
-  assert(field->holder()->is_loaded(), "invalid access - holder must be loaded");
-  assert(field->is_static() || field->holder()->is_inlinetype() || klass()->is_subclass_of(field->holder()),
-         "invalid access - must be subclass");
-
-  VM_ENTRY_MARK;
-  oop obj = get_oop();
-  InstanceKlass* holder = InstanceKlass::cast(obj->klass());
-  int index = -1;
-  for (JavaFieldStream fs(holder); !fs.done(); fs.next()) {
-    if (!fs.access_flags().is_static() && fs.offset() == field->offset_in_bytes()) {
-      index = fs.index();
-      break;
-    }
+  ciInstanceKlass* klass = this->klass()->as_instance_klass();
+  ciField* containing_field;
+  if (field->original_holder() == nullptr) {
+    containing_field = field;
+  } else {
+    int containing_field_idx = klass->field_index_by_offset(field->offset_in_bytes());
+    containing_field = klass->declared_nonstatic_field_at(containing_field_idx);
   }
-  if (index == -1) {
+  ciConstant containing_field_value = field_value_impl(containing_field->type()->basic_type(), containing_field->offset_in_bytes(), field->is_flat());
+  if (!containing_field_value.is_valid()) {
     return ciConstant();
   }
-  InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(index);
-  InlineKlass* vk = layout_info->klass();
-  oop res = vk->read_payload_from_addr(obj, field->offset_in_bytes(), layout_info->kind(), CHECK_(ciConstant()));
-  return ciConstant(field->type()->basic_type(), CURRENT_ENV->get_object(res));
+  if (field->original_holder() == nullptr) {
+    return containing_field_value;
+  } else {
+    ciObject* obj = containing_field_value.as_object();
+    if (obj->is_instance()) {
+      ciInstance* inst = obj->as_instance();
+      ciInlineKlass* inst_klass = inst->klass()->as_inline_klass();
+      ciField* field_in_value_klass = inst_klass->get_field_by_offset(inst_klass->payload_offset() + field->offset_in_bytes() - containing_field->offset_in_bytes(), false);
+      return inst->non_flat_field_value(field_in_value_klass);
+    } else if (obj->is_null_object()) {
+      return ciConstant::make_zero_or_null(field->type()->basic_type());
+    }
+    // obj should not be an array since we are trying to get a field inside it
+    ShouldNotReachHere();
+    return ciConstant();
+  }
+}
+
+// Extract a field from an value object.
+// This won't cache. Must be used only on cached values.
+ciConstant ciInstance::non_flat_field_value(ciField* field) {
+  precond(klass()->is_inlinetype());
+  precond(!field->is_flat());
+  auto offset = field->offset_in_bytes();
+  auto field_btype = field->type()->basic_type();
+
+  ciConstant value;
+  VM_ENTRY_MARK;
+  oop obj = get_oop();
+  assert(obj != nullptr, "bad oop");
+  switch(field_btype) {
+  case T_BYTE:    value = ciConstant(field_btype, obj->byte_field(offset)); break;
+  case T_CHAR:    value = ciConstant(field_btype, obj->char_field(offset)); break;
+  case T_SHORT:   value = ciConstant(field_btype, obj->short_field(offset)); break;
+  case T_BOOLEAN: value = ciConstant(field_btype, obj->bool_field(offset)); break;
+  case T_INT:     value = ciConstant(field_btype, obj->int_field(offset)); break;
+  case T_FLOAT:   value = ciConstant(obj->float_field(offset)); break;
+  case T_DOUBLE:  value = ciConstant(obj->double_field(offset)); break;
+  case T_LONG:    value = ciConstant(obj->long_field(offset)); break;
+  case T_OBJECT:  // fall through
+  case T_ARRAY: {
+    oop o = obj->obj_field(offset);
+
+    // A field will be "constant" if it is known always to be
+    // a non-null reference to an instance of a particular class,
+    // or to a particular array.  This can happen even if the instance
+    // or array is not perm.  In such a case, an "unloaded" ciArray
+    // or ciInstance is created.  The compiler may be able to use
+    // information about the object's class (which is exact) or length.
+
+    if (o == nullptr) {
+      value = ciConstant(field_btype, ciNullObject::make());
+    } else {
+      value = ciConstant(field_btype, CURRENT_ENV->get_object(o));
+    }
+    break;
+  }
+  default:
+    fatal("no field value: %s", type2name(field_btype));
+  }
+  return value;
 }
 
 // ------------------------------------------------------------------
