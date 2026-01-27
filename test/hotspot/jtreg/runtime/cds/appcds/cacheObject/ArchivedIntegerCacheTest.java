@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,24 @@
  */
 
 /*
- * @test
+ * @test id=NoPreview
  * @summary Test primitive box caches integrity in various scenarios (IntegerCache etc)
  * @requires vm.cds.write.archived.java.heap
+ * @requires !java.enablePreview
+ * @library /test/jdk/lib/testlibrary /test/lib /test/hotspot/jtreg/runtime/cds/appcds
+ * @compile --add-exports java.base/jdk.internal.misc=ALL-UNNAMED CheckIntegerCacheApp.java ArchivedIntegerHolder.java
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar WhiteBox.jar jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar boxCache.jar CheckIntegerCacheApp
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar boxCache-boot.jar ArchivedIntegerHolder
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:./WhiteBox.jar ArchivedIntegerCacheTest
+ */
+
+/*
+ * @test id=Preview
+ * @summary Test primitive box caches integrity in various scenarios (IntegerCache etc)
+ * @requires vm.cds.write.archived.java.heap
+ * @enablePreview
  * @library /test/jdk/lib/testlibrary /test/lib /test/hotspot/jtreg/runtime/cds/appcds
  * @compile --add-exports java.base/jdk.internal.misc=ALL-UNNAMED CheckIntegerCacheApp.java ArchivedIntegerHolder.java
  * @build jdk.test.whitebox.WhiteBox

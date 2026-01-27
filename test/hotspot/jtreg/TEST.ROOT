@@ -100,6 +100,7 @@ requires.properties= \
     vm.flagless \
     container.support \
     systemd.support \
+    java.enablePreview \
     jdk.containerized \
     jdk.explodedImage \
     jlink.runtime.linkable \
