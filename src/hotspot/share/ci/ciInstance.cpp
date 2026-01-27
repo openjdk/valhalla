@@ -143,7 +143,7 @@ ciConstant ciInstance::field_value(ciField* field) {
     int containing_field_idx = klass->field_index_by_offset(field->offset_in_bytes());
     containing_field = klass->declared_nonstatic_field_at(containing_field_idx);
   }
-  ciConstant containing_field_value = field_value_impl(containing_field->type()->basic_type(), containing_field->offset_in_bytes(), field->is_flat());
+  ciConstant containing_field_value = field_value_impl(containing_field->type()->basic_type(), containing_field->offset_in_bytes(), containing_field->is_flat());
   if (!containing_field_value.is_valid()) {
     return ciConstant();
   }
