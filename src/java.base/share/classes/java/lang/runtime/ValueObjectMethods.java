@@ -1464,8 +1464,8 @@ final class ValueObjectMethods {
      * @return the hashCode of the object
      */
     private static int valueObjectHashCodeAlt(Object obj) {
-        if (VERBOSE) {
-            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj);
+        if (VERBOSE && obj != null) {
+            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj.getClass().getName());
         }
         // This method assumes a is not null and is an instance of a value class
         Class<?> type = obj.getClass();
