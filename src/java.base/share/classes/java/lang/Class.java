@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package java.lang;
 
 import java.lang.annotation.Annotation;
+import java.lang.classfile.ClassFile;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.invoke.TypeDescriptor;
@@ -639,7 +640,7 @@ public final class Class<T> implements java.io.Serializable,
      *          or {@code void} this method returns {@code false}.
      *      <li>
      *          For all other {@code Class} objects, this method returns {@code true} if either
-     *          preview features are disabled or {@linkplain Modifier#IDENTITY} is set in the
+     *          preview features are disabled or {@linkplain ClassFile#ACC_IDENTITY} is set in the
      *          {@linkplain #getModifiers() class modifiers}.
      * </ul>
      * @see AccessFlag#IDENTITY
@@ -661,7 +662,7 @@ public final class Class<T> implements java.io.Serializable,
      *          or {@code void} this method returns {@code true} only if preview features are enabled.
      *      <li>
      *          For all other {@code Class} objects, this method returns {@code true} only if
-     *          preview features are enabled and {@linkplain Modifier#IDENTITY} is not set in the
+     *          preview features are enabled and {@linkplain ClassFile#ACC_IDENTITY} is not set in the
      *          {@linkplain #getModifiers() class modifiers}.
      * </ul>
      * @see AccessFlag#IDENTITY
