@@ -1468,6 +1468,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
               vmSymbols::java_lang_ClassFormatError(),
               "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s with signature %s (primitive types can never be null)",
               class_name()->as_C_string(), name->as_C_string(), sig->as_C_string());
+            parsed_annotations.set_field_annotations(nullptr);
+            return;
           }
           if (!supports_inline_types()) {
             Exceptions::fthrow(
@@ -1475,9 +1477,11 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
               vmSymbols::java_lang_ClassFormatError(),
               "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s in non-preview class file",
               class_name()->as_C_string(), name->as_C_string());
+            parsed_annotations.set_field_annotations(nullptr);
+            return;
           }
-          const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
-          if (!is_strict && !HAS_PENDING_EXCEPTION) {
+
+          if ((flags & JVM_ACC_STRICT) == 0) {
             // Inject STRICT_INIT and validate in context
             const jint patched_flags = flags | JVM_ACC_STRICT;
             verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
