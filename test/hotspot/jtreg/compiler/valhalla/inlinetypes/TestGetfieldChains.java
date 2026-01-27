@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,8 +67,13 @@ value class Rectangle {
 class NamedRectangle {
     @Strict
     @NullRestricted
-    Rectangle rect = new Rectangle();
+    Rectangle rect;
     String name = "";
+
+    NamedRectangle() {
+        rect = new Rectangle();
+        super();
+    }
 
     static int getP1X(NamedRectangle nr) {
         return nr.rect
