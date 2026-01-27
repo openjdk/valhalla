@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,4 +99,7 @@ public class TestScalarReplaceFlatFields {
                 .addScenarios(InlineTypes.DEFAULT_SCENARIOS)
                 .start();
     }
+
+    // TODO 8376254: C1 bailouts if the type of the nullable flat field is uninitialized
+    static final V0 LOAD_V0 = new V0(0, 0);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,18 +138,14 @@ public class ValueCompositionTest {
 
   static public void check_1(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container1");
-    FieldLayoutAnalyzer.FieldBlock f = cl.getFieldFromName("val0", false);
+    FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     if (useAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_ATOMIC_FLAT, f.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_ATOMIC_FLAT, f0.layoutKind());
     } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f.layoutKind());
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
     }
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
-    if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
-    } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
-    }
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
   }
 
   @LooselyConsistentValue
@@ -167,8 +163,8 @@ public class ValueCompositionTest {
   // An atomic value should not be flattened in a non-atomic value
   static public void check_2(FieldLayoutAnalyzer fla) {
     FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container2");
-    FieldLayoutAnalyzer.FieldBlock f = cl.getFieldFromName("val0", false);
-    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f.layoutKind());
+    FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
   }
@@ -218,11 +214,7 @@ public class ValueCompositionTest {
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
-    if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
-    } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
-    }
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
   }
 
   @LooselyConsistentValue
@@ -288,11 +280,7 @@ public class ValueCompositionTest {
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
-    if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
-    } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
-    }
+    Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
   }
 
   @LooselyConsistentValue

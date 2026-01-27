@@ -137,10 +137,6 @@ BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   return bt;
 }
 
-bool ciInlineKlass::must_be_atomic() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->must_be_atomic();)
-}
-
 bool ciInlineKlass::is_naturally_atomic(bool null_free) {
   return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
 }
@@ -156,7 +152,7 @@ ciConstant ciInlineKlass::get_field_map() const {
   return ciConstant(T_ARRAY, CURRENT_ENV->get_object(array));
 }
 
-// All fields of this object is zero even if they can be null-free. As a result, this object should
+// All fields of this object are zero even if they are null-free. As a result, this object should
 // only be used to reset the payload of fields or array elements and should not be leaked
 // elsewhere.
 ciConstant ciInlineKlass::get_null_reset_value() const {

@@ -1498,9 +1498,6 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
         } else if (!parm->is_InlineType()) {
           int old_len = visited.length();
           visited.push(type);
-          if (null_free) {
-            parm = kit->cast_not_null(parm);
-          }
           parm = make_from_oop_impl(kit, parm, type->as_inline_klass(), visited);
           visited.trunc_to(old_len);
         }

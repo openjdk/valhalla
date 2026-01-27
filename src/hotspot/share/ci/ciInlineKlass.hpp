@@ -78,7 +78,6 @@ public:
   int null_marker_offset_in_payload() const;
   BasicType atomic_size_to_basic_type(bool null_free) const;
 
-  bool must_be_atomic() const;
   bool is_naturally_atomic(bool null_free);
   int field_map_offset() const;
   ciConstant get_field_map() const;
