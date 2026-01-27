@@ -1399,7 +1399,8 @@ public final class Class<T> implements java.io.Serializable,
      *      {@code true}
      * <li> its interface modifier is always {@code false}, even when
      *      the component type is an interface
-     * <li> its {@code identity} modifier is always true
+     * <li> when preview features are enabled, its {@linkplain
+     *      AccessFlag#IDENTITY identity} modifier is always true
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, its {@code public}, {@code abstract}, and {@code final}
@@ -1436,7 +1437,8 @@ public final class Class<T> implements java.io.Serializable,
      * <li> its {@code ABSTRACT} and {@code FINAL} flags are present
      * <li> its {@code INTERFACE} flag is absent, even when the
      *      component type is an interface
-     * <li> its {@code identity} modifier is always true
+     * <li> when preview features are enabled, its {@code IDENTITY} flag
+    *       is present
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and
