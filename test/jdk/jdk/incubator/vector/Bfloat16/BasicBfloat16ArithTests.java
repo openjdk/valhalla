@@ -210,7 +210,7 @@ public class BasicBfloat16ArithTests {
             Bfloat16 argBf16 = valueOfExact(arg);
             float expected = testCase[1];
             Bfloat16 result =  Bfloat16.negate(argBf16);
-            Bfloat16 resultOp = -argBf16;
+            Bfloat16 resultOp = -argBf16; // check unary - operator
 
             if (Float.compare(expected, result.floatValue()) != 0) {
                 checkBfloat16(result, expected, "negate(" + arg + ")");
@@ -416,8 +416,8 @@ public class BasicBfloat16ArithTests {
     }
 
     /*
-     * Cursory checks to make sure correct the ordered comparison
-     * operators are behaving as expected.
+     * Cursory checks to make sure the ordered comparison operators
+     * are behaving as expected.
      */
     private static void checkOrderable() {
         float[] testCases = {NaNf,
@@ -631,7 +631,7 @@ public class BasicBfloat16ArithTests {
             {0x1.fp-126f, 0x1.fp-126},
 
             // Reorder after code fixed
-             {Math.nextUp( 0x1.0p-133f * 0.5d),  0x1.0p-133}, // Bfloat16.MIN_VALUE
+            {Math.nextUp( 0x1.0p-133f * 0.5d),  0x1.0p-133}, // Bfloat16.MIN_VALUE
         };
 
         System.out.println(Bfloat16.toHexString(Bfloat16.MIN_VALUE));
