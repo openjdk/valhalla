@@ -6294,15 +6294,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                                          Handle(THREAD, loader),
                                                                          false, THREAD);
 
-          if (klass != nullptr) {
-            // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
-            // impact loading of current class. We need to clear the exception before setting the klass
-            // in the array of InlineLayoutInfo, since it might throw a new exception during Metaspace
-            // allocation.
-            if (HAS_PENDING_EXCEPTION) {
-              CLEAR_PENDING_EXCEPTION;
-            }
+          assert((klass == nullptr) == HAS_PENDING_EXCEPTION, "Must be the same");
 
+          if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
               log_info(class, preload)("Preloading of class %s during loading of class %s "
