@@ -148,7 +148,6 @@ ifneq ($(COMPILER), bootjdk)
     # We cannot compile directly into the desired directory because it's the
     # compiler which creates the original '<module>/<classpath>/...' hierarchy.
     TEMP_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)
-    MODULE_OUTPUTDIR := $(COMPILATION_OUTPUTDIR)/$(MODULE)
 
     $(eval $(call SetupJavaCompilation, $(MODULE)-$(VALUECLASSES_STR), \
         SMALL_JAVA := false, \
@@ -175,15 +174,20 @@ ifneq ($(COMPILER), bootjdk)
     # The 'valueclasses' target below depends on it, and that's the non-transient
     # result we care about.
 
-    # Copy compiled output from "<tempdir>/<module>/<classpath>/..." to
-    # "<outdir>/<module>/META-INF/preview/<classpath>/...".
-    $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
+    # Copy compiled output from "<tempdir>/<module>/<classpath>/..." directories
+    # to "<outdir>/<module>/META-INF/preview/<classpath>/...".
+    MOD_SRC := $(TEMP_OUTPUTDIR)/$(MODULE)
+    MOD_DST := $(COMPILATION_OUTPUTDIR)/$(MODULE)
+
+    # NOTE: We cannot use '$(CP) -R $(MOD_SRC)/*/ ...' to select sub-directories (it
+    # does not work on MacOS/BSD). Use 'filter-out' to explicitly exclude marker files.
+    $(MOD_DST)/_the.$(MODULE).valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
 		$(RM) -r $(@D)/META-INF/preview
 		$(MKDIR) -p $(@D)/META-INF/preview
-		$(CP) -R $(TEMP_OUTPUTDIR)/$(MODULE)/*/ $(@D)/META-INF/preview
+		$(CP) -R $(filter-out $(MOD_SRC)/_%, $(wildcard $(MOD_SRC)/*)) $(@D)/META-INF/preview
 		$(TOUCH) $@
 
-    TARGETS += $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses
+    TARGETS += $(MOD_DST)/_the.$(MODULE).valueclasses
   endif
 endif
 
