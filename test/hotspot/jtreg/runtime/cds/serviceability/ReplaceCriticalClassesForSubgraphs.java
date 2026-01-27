@@ -34,6 +34,8 @@
  * @run main/othervm/native ReplaceCriticalClassesForSubgraphs
  */
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import jdk.internal.misc.PreviewFeatures;
 
 public class ReplaceCriticalClassesForSubgraphs extends ReplaceCriticalClasses {
@@ -43,46 +45,30 @@ public class ReplaceCriticalClassesForSubgraphs extends ReplaceCriticalClasses {
     }
 
     public String[] getTests() {
-        String tests[];
+        ArrayList<String> tests = new ArrayList<String>(Arrays.asList(
+            // Try to replace classes that are used by the archived subgraph graphs. (CDS should be disabled)
+            "-early -notshared -subgraph java/lang/module/ResolvedModule jdk.internal.module.ArchivedModuleGraph",
+            "-early -notshared -subgraph java/lang/Integer java.lang.Integer$IntegerCache",
+
+            // CDS should not be disabled -- these critical classes cannot be replaced because
+            // JvmtiExport::early_class_hook_env() is false.
+            "-subgraph java/lang/module/Configuration java.lang.module.Configuration",
+            "-subgraph java/lang/ModuleLayer java.lang.ModuleLayer",
+
+            // Tests for archived full module graph. We cannot use whitebox, which requires appending to bootclasspath.
+            // VM will disable full module graph if bootclasspath is appended.
+            "-nowhitebox -early -notshared -subgraph java/lang/Module jdk.internal.module.ArchivedBootLayer",
+            "-nowhitebox -early -notshared -subgraph java/lang/ModuleLayer jdk.internal.module.ArchivedBootLayer",
+            "-nowhitebox -subgraph java/lang/Module jdk.internal.module.ArchivedBootLayer",
+            "-nowhitebox -subgraph java/lang/ModuleLayer jdk.internal.module.ArchivedBootLayer"));
+
         // IntegerCache does not exist in preview mode so it should not be expected in the output
-        if (PreviewFeatures.isEnabled()) {
-            tests = new String[] {
-                // Try to replace classes that are used by the archived subgraph graphs. (CDS should be disabled)
-                "-early -notshared -subgraph java/lang/module/ResolvedModule jdk.internal.module.ArchivedModuleGraph",
-                "-early -notshared -subgraph java/lang/Integer java.lang.Integer$IntegerCache",
-
-                // CDS should not be disabled -- these critical classes cannot be replaced because
-                // JvmtiExport::early_class_hook_env() is false.
-                "-subgraph java/lang/module/Configuration java.lang.module.Configuration",
-                "-subgraph java/lang/ModuleLayer java.lang.ModuleLayer",
-
-                // Tests for archived full module graph. We cannot use whitebox, which requires appending to bootclasspath.
-                // VM will disable full module graph if bootclasspath is appended.
-                "-nowhitebox -early -notshared -subgraph java/lang/Module jdk.internal.module.ArchivedBootLayer",
-                "-nowhitebox -early -notshared -subgraph java/lang/ModuleLayer jdk.internal.module.ArchivedBootLayer",
-                "-nowhitebox -subgraph java/lang/Module jdk.internal.module.ArchivedBootLayer",
-                "-nowhitebox -subgraph java/lang/ModuleLayer jdk.internal.module.ArchivedBootLayer",
-            };
-        } else {
-            tests = new String[] {
-                // Try to replace classes that are used by the archived subgraph graphs. (CDS should be disabled)
-                "-early -notshared -subgraph java/lang/module/ResolvedModule jdk.internal.module.ArchivedModuleGraph",
-                "-early -notshared -subgraph java/lang/Integer java.lang.Integer$IntegerCache",
-
-                // CDS should not be disabled -- these critical classes cannot be replaced because
-                // JvmtiExport::early_class_hook_env() is false.
-                "-subgraph java/lang/module/Configuration java.lang.module.Configuration",
-                "-subgraph java/lang/ModuleLayer java.lang.ModuleLayer",
-                "-subgraph java/lang/Integer java.lang.Integer$IntegerCache",
-
-                // Tests for archived full module graph. We cannot use whitebox, which requires appending to bootclasspath.
-                // VM will disable full module graph if bootclasspath is appended.
-                "-nowhitebox -early -notshared -subgraph java/lang/Module jdk.internal.module.ArchivedBootLayer",
-                "-nowhitebox -early -notshared -subgraph java/lang/ModuleLayer jdk.internal.module.ArchivedBootLayer",
-                "-nowhitebox -subgraph java/lang/Module jdk.internal.module.ArchivedBootLayer",
-                "-nowhitebox -subgraph java/lang/ModuleLayer jdk.internal.module.ArchivedBootLayer",
-            };
+        if (!PreviewFeatures.isEnabled()) {
+            // CDS should not be disabled -- these critical classes cannot be replaced because
+            // JvmtiExport::early_class_hook_env() is false.
+            tests.add("-subgraph java/lang/Integer java.lang.Integer$IntegerCache");
         }
-        return tests;
+
+        return tests.toArray(new String[0]);
     }
 }
