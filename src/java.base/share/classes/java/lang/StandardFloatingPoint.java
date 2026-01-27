@@ -69,6 +69,16 @@ public interface StandardFloatingPoint<SFP>
     @Override
     SFP remainder(SFP dividend, SFP divisor);
 
+
+    /**
+     * {@return {@code true} if the operands are considered equal by the
+     * IEEE 754 standard and {@code falue} otherwise}
+     *
+     * @param op1 the first operand
+     * @param op2 the second operand
+     */
+    boolean equalsStd(SFP op1, SFP op2);
+
     /**
      * {@inheritDoc Orderable}
      *
@@ -92,14 +102,14 @@ public interface StandardFloatingPoint<SFP>
      *
      * @implSpec
      * Rough draft: the default implementation returns the result of
-     * {@code Orderable.super.lessThanEqual(op1, op2)}.
+     * {@code lessThan(op1, op2) || equalsStd(op1, op2)}.
      *
      * @param op1 the {@inheritDoc Orderable}
      * @param op2 the {@inheritDoc Orderable}
      */
      @Override
      default boolean lessThanEqual(SFP op1, SFP op2) {
-         return Orderable.super.lessThanEqual(op1, op2);
+         return lessThan(op1, op2) || equalsStd(op1, op2);
      }
 
     /**
