@@ -1741,7 +1741,7 @@ public class Flow {
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
                 isFinalOrStrictUninitializedField(sym)) ||
-                isUninitializedNonNullableField(sym));
+                isNonNullableField(sym));
         }
 
         boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
@@ -1751,9 +1751,9 @@ public class Flow {
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
-        boolean isUninitializedNonNullableField(VarSymbol sym) {
+        boolean isNonNullableField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
-                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
+                    ((sym.flags() & (FINAL | PARAMETER)) == 0 &&
                             classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
                             types.isNonNullable(sym.type));
         }
@@ -2619,12 +2619,19 @@ public class Flow {
                         boolean isInstanceRecordField = var.enclClass().isRecord() &&
                                 (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
                                 var.owner.kind == TYP;
-                        if (allowValueClasses && (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField)) {
+                        if (allowValueClasses &&
+                                (var.owner == classDef.sym &&
+                                !var.isStatic() &&
+                                (var.isStrict() || types.isNonNullable(var.type)) &&
+                                !isInstanceRecordField)) {
+                            Error errorKey =  (var.owner.isValueClass()) ?
+                                    Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var) :
+                                    Errors.NullRestrictedFieldNotHaveBeenInitializedBeforeSuper(var);
                             if (isSynthesized) {
                                 checkInit(TreeInfo.diagnosticPositionFor(var, vardecl),
-                                        var, Errors.NonNullableShouldBeInitialized);
+                                        var, errorKey);
                             } else {
-                                checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
+                                checkInit(TreeInfo.diagEndPos(tree), var, errorKey);
                             }
                         }
                     }
