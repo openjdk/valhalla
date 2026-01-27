@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -174,10 +174,16 @@ public class InlineOops {
     static class Couple {
         @Strict
         @NullRestricted
-        public Person onePerson = new Person(0, null, null);
+        public Person onePerson;
         @Strict
         @NullRestricted
-        public Person otherPerson = new Person(0, null, null);
+        public Person otherPerson;
+
+        Couple() {
+            onePerson = new Person(0, null, null);
+            otherPerson = new Person(0, null, null);
+            super();
+        }
     }
 
     @LooselyConsistentValue

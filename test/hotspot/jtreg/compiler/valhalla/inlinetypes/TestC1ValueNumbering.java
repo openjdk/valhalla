@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,11 @@ import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
 public class TestC1ValueNumbering {
+    public TestC1ValueNumbering() {
+        p = new Point(0, 0);
+        super();
+    }
+
     @LooselyConsistentValue
     static value class Point {
         int x;
@@ -61,7 +66,7 @@ public class TestC1ValueNumbering {
 
     @Strict
     @NullRestricted
-    Point p = new Point(0, 0);
+    Point p;
 
     // Notes on test 1:
     // 1 - asserts are important create several basic blocks (asserts create branches)
