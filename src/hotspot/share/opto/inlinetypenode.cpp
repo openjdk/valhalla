@@ -1477,7 +1477,6 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
-      bool null_free = field->is_null_free();
       // Non-flat inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != nullptr) {
@@ -1491,7 +1490,6 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
           parm = PhiNode::make(null_check_region, parm, TypeInstPtr::make(TypePtr::BotPTR, type->as_inline_klass()));
           parm->set_req(2, kit->zerocon(T_OBJECT));
           parm = gvn.transform(parm);
-          null_free = false;
         }
         if (visited.contains(type)) {
           kit->C->set_has_circular_inline_type(true);
