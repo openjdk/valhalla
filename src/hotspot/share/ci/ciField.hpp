@@ -30,6 +30,7 @@
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciUtilities.hpp"
+#include "oops/layoutKind.hpp"
 
 // ciField
 //
@@ -49,6 +50,7 @@ private:
   ciSymbol*        _signature;
   ciType*          _type;
   int              _offset;
+  LayoutKind       _layout_kind;
   bool             _is_constant;
   bool             _is_flat;
   bool             _is_null_free;
@@ -179,6 +181,13 @@ public:
   bool is_flat                 () const { return _is_flat; }
   bool is_null_free            () const { return _is_null_free; }
   int null_marker_offset       () const { return _null_marker_offset; }
+
+  // Whether this field needs to act atomically. Note that it does not actually need accessing
+  // atomically. For example, if there cannot be racy accesses to this field, then it can be
+  // accessed in a non-atomic manner. This method must not depend on the fact that the field cannot
+  // be accessed racily (e.g. it is a strict final field), as if the holder object is flattened
+  // as a field that is not strict final, this property is lost.
+  bool is_atomic();
 
   // The field is modified outside of instance initializer methods
   // (or class/initializer methods if the field is static).

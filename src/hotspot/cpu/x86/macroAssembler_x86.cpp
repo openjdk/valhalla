@@ -6380,17 +6380,17 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       jmp(L_notNull);
       bind(L_null);
       // Set null marker to zero to signal that the argument is null.
-      // Also set all oop fields to zero to make the GC happy.
+      // Also set all fields to zero since the runtime requires a canonical
+      // representation of a flat null.
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {
-        if (sig->at(stream.sig_index())._offset == -1 ||
-            bt == T_OBJECT || bt == T_ARRAY) {
-          if (toReg->is_stack()) {
-            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-            movq(Address(rsp, st_off), 0);
-          } else {
-            xorq(toReg->as_Register(), toReg->as_Register());
-          }
+        if (toReg->is_stack()) {
+          int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+          movq(Address(rsp, st_off), 0);
+        } else if (toReg->is_XMMRegister()) {
+          xorps(toReg->as_XMMRegister(), toReg->as_XMMRegister());
+        } else {
+          xorl(toReg->as_Register(), toReg->as_Register());
         }
       }
       bind(L_notNull);

@@ -68,7 +68,7 @@ private:
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0);
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region, GrowableArray<ciType*>& visited);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited);
   // Initialize the inline type by loading its field values from memory
   void load(GraphKit* kit, Node* base, Node* ptr, bool immutable_memory, bool trust_null_free_oop, DecoratorSet decorators, GrowableArray<ciType*>& visited);
   // Store the field values to memory
