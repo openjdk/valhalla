@@ -871,6 +871,9 @@ void FieldLayoutBuilder::regular_field_sorting() {
         if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
+        assert(lk != LayoutKind::BUFFERED && lk != LayoutKind::UNKNOWN,
+               "Invalid layout kind for flat field: %s", LayoutKindHelper::layout_kind_as_string(lk));
+
         const int field_index = (int)fieldinfo.index();
         assert(_inline_layout_info_array != nullptr, "Array must have been created");
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
@@ -959,6 +962,9 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         }
         group->add_oop_field(idx);
       } else {
+        assert(lk != LayoutKind::BUFFERED && lk != LayoutKind::UNKNOWN,
+               "Invalid layout kind for flat field: %s", LayoutKindHelper::layout_kind_as_string(lk));
+
         const int field_index = (int)fieldinfo.index();
         assert(_inline_layout_info_array != nullptr, "Array must have been created");
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
