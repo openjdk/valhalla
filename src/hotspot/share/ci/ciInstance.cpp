@@ -157,6 +157,7 @@ ciConstant ciInstance::field_value(ciField* field) {
     ciObject* obj = containing_field_value.as_object();
     if (obj->is_instance()) {
       ciInstance* inst = obj->as_instance();
+      // inst->klass() must be an inline klass since it is the value of a flat field.
       ciInlineKlass* inst_klass = inst->klass()->as_inline_klass();
       ciField* field_in_value_klass = inst_klass->get_field_by_offset(inst_klass->payload_offset() + field->offset_in_bytes() - containing_field->offset_in_bytes(), false);
       return inst->non_flat_field_value(field_in_value_klass);
@@ -169,13 +170,13 @@ ciConstant ciInstance::field_value(ciField* field) {
   }
 }
 
-// Extract a field from an value object.
+// Extract a field from a value object.
 // This won't cache. Must be used only on cached values.
 ciConstant ciInstance::non_flat_field_value(ciField* field) {
   precond(klass()->is_inlinetype());
   precond(!field->is_flat());
-  auto offset = field->offset_in_bytes();
-  auto field_btype = field->type()->basic_type();
+  int offset = field->offset_in_bytes();
+  BasicType field_btype = field->type()->basic_type();
 
   ciConstant value;
   VM_ENTRY_MARK;
