@@ -1368,7 +1368,7 @@ void IterateThroughHeapObjectClosure::visit_object(const JvmtiHeapwalkObject& ob
 
   // If the object has flat fields, report them as heap objects.
   if (obj.klass()->is_instance_klass()) {
-    if (InstanceKlass::cast(obj.klass())->has_inline_type_fields()) {
+    if (InstanceKlass::cast(obj.klass())->has_inlined_fields()) {
       visit_flat_fields(obj);
       // check if iteration has been halted
       if (is_iteration_aborted()) {

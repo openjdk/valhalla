@@ -396,8 +396,8 @@ class InstanceKlass: public Klass {
   bool has_localvariable_table() const     { return _misc_flags.has_localvariable_table(); }
   void set_has_localvariable_table(bool b) { _misc_flags.set_has_localvariable_table(b); }
 
-  bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
-  void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
+  bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
+  void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
 
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
@@ -1072,16 +1072,14 @@ public:
 
   void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
   Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
-  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
-    _inline_layout_info_array->at_put(index, *info);
-  }
+
   InlineLayoutInfo inline_layout_info(int index) const {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->at(index);
   }
+
   InlineLayoutInfo* inline_layout_info_adr(int index) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->adr_at(index);
   }
 

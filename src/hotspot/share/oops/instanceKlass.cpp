@@ -603,8 +603,8 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   if (parser.is_hidden()) set_is_hidden();
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-  if (parser.has_inline_fields()) {
-    set_has_inline_type_fields();
+  if (parser.has_inlined_fields()) {
+    set_has_inlined_fields();
   }
 
   assert(nullptr == _methods, "underlying memory not zeroed?");

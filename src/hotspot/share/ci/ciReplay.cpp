@@ -1085,23 +1085,16 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT:
-        if (!fd->is_null_free_inline_type()) {
+        if (fd->is_null_free_inline_type() && fd->is_flat()) {
+          InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
+          int field_offset = fd->offset() - vk->payload_offset();
+          oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
+          InlineTypeFieldInitializer init_fields(obj, _replay);
+          vk->do_nonstatic_fields(&init_fields);
+        } else {
           JavaThread* THREAD = JavaThread::current();
           bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
           assert(res, "should succeed for arrays & objects");
-          break;
-        } else {
-          InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
-          if (fd->is_flat()) {
-            int field_offset = fd->offset() - vk->payload_offset();
-            oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
-            InlineTypeFieldInitializer init_fields(obj, _replay);
-            vk->do_nonstatic_fields(&init_fields);
-          } else {
-            oop value = vk->allocate_instance(JavaThread::current());
-            _vt->obj_field_put(fd->offset(), value);
-          }
-          break;
         }
       default: {
         fatal("Unhandled type: %s", type2name(bt));
