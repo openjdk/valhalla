@@ -83,7 +83,7 @@ public sealed interface StackMapFrameInfo
     /**
      * {@return the expanded unset fields}
      *
-     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20250409/specs/strict-fields-jvms.html">Specs</a>
+     * @jvms strict-fields-4.7.4 The {@code StackMapTable} Attribute
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
