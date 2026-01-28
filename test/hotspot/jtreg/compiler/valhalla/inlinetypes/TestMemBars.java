@@ -21,7 +21,7 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @bug 8354981 8359345
  * @summary Test that membars are emitted around flat, atomic loads and stores.
@@ -36,7 +36,6 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -57,7 +56,6 @@ public class TestMemBars {
     }
 
     static value class MyValue2 {
-        @Strict
         MyValue3 val = new MyValue3(); // Too large to be flattened
 
         int unused = 42; // Make sure it's not naturally atomic
