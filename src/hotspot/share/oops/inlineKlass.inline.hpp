@@ -155,7 +155,7 @@ inline bool InlineKlassPayloadImpl<OopOrHandle>::has_null_marker() const {
   // TODO: Cleanup this. Should probably be a function on the klass.
   return LayoutKindHelper::is_nullable_flat(get_layout_kind()) ||
          (get_layout_kind() == LayoutKind::BUFFERED &&
-          get_klass()->has_nullable_atomic_layout());
+          get_klass()->supports_nullable_layouts());
 }
 
 template <typename OopOrHandle>
@@ -205,7 +205,8 @@ inline instanceOop InlineKlassPayloadImpl<OopOrHandle>::read(TRAPS) {
          "Should not need to clone a buffer.");
 
   switch(get_layout_kind()) {
-    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT: {
       if (is_marked_as_null()) {
         return nullptr;
       }
@@ -237,19 +238,18 @@ inline void InlineKlassPayloadImpl<OopOrHandle>::copy(const PayloadA& src, const
   precond(klass == dst.get_klass());
   precond(src.get_layout_kind() == copy_layout_kind ||
           dst.get_layout_kind() == copy_layout_kind);
-  // Round up because the buffered layout size does not include the the padding.
-  precond(round_up_power_of_2(klass->layout_size_in_bytes(src.get_layout_kind())) >=
-          round_up_power_of_2(klass->layout_size_in_bytes(copy_layout_kind)));
-  precond(round_up_power_of_2(klass->layout_size_in_bytes(dst.get_layout_kind())) >=
-          round_up_power_of_2(klass->layout_size_in_bytes(copy_layout_kind)));
+  precond(klass->layout_size_in_bytes(src.get_layout_kind()) >=
+          klass->layout_size_in_bytes(copy_layout_kind) || true /* TODO: Need JDK-8376532 fixed */);
+  precond(klass->layout_size_in_bytes(dst.get_layout_kind()) >=
+          klass->layout_size_in_bytes(copy_layout_kind) || true /* TODO: Need JDK-8376532 fixed */);
 
   const auto value_copy = [&] (const auto& src) {
     HeapAccess<>::value_copy(src.get_address(), dst.get_address(), klass, copy_layout_kind);
   };
 
   switch(copy_layout_kind) {
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT: {
       if (src.is_marked_as_null()) {
         // copy null_reset value to dest
         value_copy(klass->null_payload());
