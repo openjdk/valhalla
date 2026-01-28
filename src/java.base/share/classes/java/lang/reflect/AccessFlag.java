@@ -27,6 +27,7 @@ package java.lang.reflect;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.FieldModel;
 import java.lang.classfile.MethodModel;
@@ -172,15 +173,14 @@ public enum AccessFlag {
           List.of(Map.entry(latest(), Location.SET_CLASS))),
 
     /**
-     * The access flag {@code ACC_IDENTITY}, corresponding to the
-     * modifier {@link Modifier#IDENTITY identity}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
+     * The access flag {@code ACC_IDENTITY} with a mask value of
+     * <code>{@value "0x%04x" ClassFile#ACC_IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
      *
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    IDENTITY(Modifier.IDENTITY, false,
+    IDENTITY(ACC_IDENTITY, false,
              Location.SET_CLASS_INNER_CLASS,
              List.of(Map.entry(latest(), Location.EMPTY_SET))),
 
@@ -285,7 +285,7 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_STRICT_INIT}, with a mask value of
-     * <code>{@value "0x%04x" java.lang.classfile.ClassFile#ACC_STRICT_INIT}</code>.
+     * <code>{@value "0x%04x" ClassFile#ACC_STRICT_INIT}</code>.
      *
      * @jvms 4.5 Fields
      * @since Valhalla
