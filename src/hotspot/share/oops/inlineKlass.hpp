@@ -300,6 +300,8 @@ class InlineKlass: public InstanceKlass {
     *null_marker_address(payload) = 0;
   }
 
+  inline bool layout_has_null_marker(LayoutKind lk) const;
+
   bool is_layout_supported(LayoutKind lk) const;
 
   int layout_alignment(LayoutKind kind) const;

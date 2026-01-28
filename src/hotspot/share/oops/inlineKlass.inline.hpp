@@ -152,10 +152,7 @@ inline address InlineKlassPayloadImpl<OopOrHandle>::get_address() const {
 
 template <typename OopOrHandle>
 inline bool InlineKlassPayloadImpl<OopOrHandle>::has_null_marker() const {
-  // TODO: Cleanup this. Should probably be a function on the klass.
-  return LayoutKindHelper::is_nullable_flat(get_layout_kind()) ||
-         (get_layout_kind() == LayoutKind::BUFFERED &&
-          get_klass()->supports_nullable_layouts());
+  return get_klass()->layout_has_null_marker(get_layout_kind());
 }
 
 template <typename OopOrHandle>
@@ -333,6 +330,12 @@ inline void InlineKlassPayloadImpl<OopOrHandle>::write(instanceOop obj, TRAPS) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
   }
   write(obj);
+}
+
+inline bool InlineKlass::layout_has_null_marker(LayoutKind lk) const {
+  assert(is_layout_supported(lk), "Must do");
+  return LayoutKindHelper::is_nullable_flat(lk) ||
+         (lk == LayoutKind::BUFFERED && supports_nullable_layouts());
 }
 
 inline address InlineKlass::payload_addr(oop o) const {
