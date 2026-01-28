@@ -302,10 +302,10 @@ class InlineKlass: public InstanceKlass {
 
   inline bool layout_has_null_marker(LayoutKind lk) const;
 
-  bool is_layout_supported(LayoutKind lk) const;
+  inline bool is_layout_supported(LayoutKind lk) const;
 
-  int layout_alignment(LayoutKind kind) const;
-  int layout_size_in_bytes(LayoutKind kind) const;
+  inline int layout_alignment(LayoutKind kind) const;
+  inline int layout_size_in_bytes(LayoutKind kind) const;
 
 #if INCLUDE_CDS
   void remove_unshareable_info() override;
