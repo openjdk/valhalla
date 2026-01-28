@@ -25,7 +25,9 @@
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/array.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "runtime/signature.hpp"
 
 // Offset of the first field in the inline type
 int ciInlineKlass::payload_offset() const {

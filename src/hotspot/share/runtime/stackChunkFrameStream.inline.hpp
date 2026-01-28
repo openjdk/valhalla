@@ -232,9 +232,11 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
       }
       if (is_interpreted()) {
         _unextended_sp = unextended_sp_for_interpreter_frame();
+#ifndef ZERO
       } else if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
         _unextended_sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
         _callee_augmented = _unextended_sp != _sp;
+#endif
       } else {
         _unextended_sp = _sp;
       }
@@ -242,10 +244,13 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
   } else {
     _sp = _unextended_sp + cb()->frame_size();
+#ifndef ZERO
     if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
       _unextended_sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
       _callee_augmented = _unextended_sp != _sp;
-    } else {
+    } else
+#endif
+    {
       _unextended_sp = _sp;
     }
   }
