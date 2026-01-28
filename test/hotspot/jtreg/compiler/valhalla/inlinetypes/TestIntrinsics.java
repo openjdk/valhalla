@@ -159,6 +159,11 @@ public class TestIntrinsics {
     private static final boolean UseFieldFlattening = WHITEBOX.getBooleanVMFlag("UseFieldFlattening");
     private static final boolean PreloadClasses = WHITEBOX.getBooleanVMFlag("PreloadClasses");
 
+    public TestIntrinsics() {
+        test24_vt = MyValue1.createWithFieldsInline(rI, rL);
+        super();
+    }
+
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
@@ -535,7 +540,7 @@ public class TestIntrinsics {
 
     @Strict
     @NullRestricted
-    MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1 test24_vt;
 
     @Test
     @IR(failOn = {CALL_UNSAFE})

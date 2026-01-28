@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -140,23 +140,25 @@ VALUECLASSES_STR := valueclasses
 ifneq ($(COMPILER), bootjdk)
   MODULE_VALUECLASS_SRC_DIRS := $(call FindModuleValueClassSrcDirs, $(MODULE))
   MODULE_VALUECLASS_SOURCEPATH := $(call GetModuleValueClassSrcPath)
-  ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
-    # Temporarily compile valueclasses into a separate directory with the form:
-    #   <tempdir>/<module>/<classpath>
-    # and then copy the class files into:
-    #   <outdir>/<module>/META-INF/preview/<classpath>
-    # We cannot compile directly into the desired directory because it's the
-    # compiler which creates the original '<module>/<classpath>/...' hierarchy.
-    TEMP_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)
-    MODULE_OUTPUTDIR := $(COMPILATION_OUTPUTDIR)/$(MODULE)
 
+  # Temporarily compile valueclasses into a separate directory with the form:
+  #   <tempdir>/<module>/<classpath>
+  # and then copy the class files into:
+  #   <outdir>/<module>/META-INF/preview/<classpath>
+  # We cannot compile directly into the desired directory because it's the
+  # compiler which creates the original '<module>/<classpath>/...' hierarchy.
+  VALUECLASS_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)
+  PREVIEW_OUTPUTDIR := $(COMPILATION_OUTPUTDIR)/$(MODULE)/META-INF/preview
+
+  ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
     $(eval $(call SetupJavaCompilation, $(MODULE)-$(VALUECLASSES_STR), \
         SMALL_JAVA := false, \
         MODULE := $(MODULE), \
         SRC := $(wildcard $(MODULE_VALUECLASS_SRC_DIRS)), \
         INCLUDES := $(JDK_USER_DEFINED_FILTER), \
         FAIL_NO_SRC := $(FAIL_NO_SRC), \
-        BIN := $(TEMP_OUTPUTDIR)/, \
+        BIN := $(VALUECLASS_OUTPUTDIR)/, \
+        JAR := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
         HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
         DISABLED_WARNINGS := $(DISABLED_WARNINGS_java) preview, \
         EXCLUDES := $(EXCLUDES), \
@@ -171,19 +173,27 @@ ifneq ($(COMPILER), bootjdk)
             --enable-preview -source $(JDK_SOURCE_TARGET_VERSION), \
     ))
 
-    # Don't add '$($(MODULE)-$(VALUECLASSES_STR))' to TARGETS (it's transient).
-    # The 'valueclasses' target below depends on it, and that's the non-transient
-    # result we care about.
+    TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
 
-    # Copy compiled output from "<tempdir>/<module>/<classpath>/..." to
-    # "<outdir>/<module>/META-INF/preview/<classpath>/...".
-    $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
-		$(RM) -r $(@D)/META-INF/preview
-		$(MKDIR) -p $(@D)/META-INF/preview
-		$(CP) -R $(TEMP_OUTPUTDIR)/$(MODULE)/*/ $(@D)/META-INF/preview
+    # Restructure the value class hierarchy from "<module>/<classpath>/..."
+    # to "<module>/META-INF/preview/<classpath>/..."
+    # When module patching is removed, this could probably be a move rather than a copy.
+
+    # FIXME: The marker file should probably go in modules root dir.
+    # FIXME: Copying value classes should not also copy marker files.
+    $(PREVIEW_OUTPUTDIR)/_the.copy_valueclasses.marker: $($(MODULE)-$(VALUECLASSES_STR))
+		$(call MakeTargetDir)
+		$(CP) -R $(VALUECLASS_OUTPUTDIR)/$(MODULE)/. $(@D)/
 		$(TOUCH) $@
 
-    TARGETS += $(MODULE_OUTPUTDIR)/_the.$(MODULE).valueclasses
+    TARGETS += $(PREVIEW_OUTPUTDIR)/_the.copy_valueclasses.marker
+
+    $(eval $(call SetupCopyFiles, $(MODULE)-copy-valueclass-jar, \
+        FILES := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
+        DEST := $(SUPPORT_OUTPUTDIR)/modules_libs/$(MODULE)/$(VALUECLASSES_STR), \
+    ))
+
+    TARGETS += $($(MODULE)-copy-valueclass-jar)
   endif
 endif
 

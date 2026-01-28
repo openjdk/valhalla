@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,13 @@
  * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseFieldFlattening ValueObjectMethodsTest
  * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
  */
+import java.lang.classfile.ClassFile;
 import java.util.Optional;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.lang.reflect.AccessFlag;
-import java.lang.reflect.Modifier;
 
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -78,6 +78,7 @@ public class ValueObjectMethodsTest {
         Ref(Point p, Line l) {
             this.p = p;
             this.l = l;
+            super();
         }
     }
 
@@ -170,8 +171,8 @@ public class ValueObjectMethodsTest {
                 identityClass, "AccessFlag.IDENTITY: " + clazz);
 
         int modifiers = clazz.getModifiers();
-        assertEquals(clazz.isIdentity(), (modifiers & Modifier.IDENTITY) != 0, "Class.getModifiers() & IDENTITY != 0");
-        assertEquals(clazz.isValue(), (modifiers & Modifier.IDENTITY) == 0, "Class.getModifiers() & IDENTITY == 0");
+        assertEquals(clazz.isIdentity(), (modifiers & ClassFile.ACC_IDENTITY) != 0, "Class.getModifiers() & ACC_IDENTITY != 0");
+        assertEquals(clazz.isValue(), (modifiers & ClassFile.ACC_IDENTITY) == 0, "Class.getModifiers() & ACC_IDENTITY == 0");
     }
 
     @Test

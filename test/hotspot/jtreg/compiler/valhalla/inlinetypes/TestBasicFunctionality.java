@@ -139,6 +139,11 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 @ForceCompileClassInitializer
 public class TestBasicFunctionality {
 
+    public TestBasicFunctionality() {
+        val3 = MyValue1.createWithFieldsInline(rI, rL);
+        super();
+    }
+
     public static void main(String[] args) {
         InlineTypes.getFramework()
                    .addScenarios(InlineTypes.DEFAULT_SCENARIOS[Integer.parseInt(args[0])])
@@ -596,7 +601,7 @@ static MyValue1 tmp = null;
     MyValue2 val2;
     @Strict
     @NullRestricted
-    final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
+    final MyValue1 val3;
     @Strict
     @NullRestricted
     static MyValue1 val4 = MyValue1.DEFAULT;
@@ -648,7 +653,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(result, val5.hash() + val5.v3.hash());
     }
 
-    // Test aconst_init
+    // Test value class initialization
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test23() {
@@ -662,7 +667,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(result, MyValue2.createDefaultInline().hash());
     }
 
-    // Test aconst_init
+    // Test value class initialization
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test24() {
@@ -709,7 +714,12 @@ static MyValue1 tmp = null;
     class TestClass27 {
         @Strict
         @NullRestricted
-        public MyValue1 v = MyValue1.DEFAULT;
+        public MyValue1 v;
+
+        TestClass27() {
+            v = MyValue1.DEFAULT;
+            super();
+        }
     }
 
     // Test allocation elimination of unused object with initialized value class field
@@ -1239,6 +1249,7 @@ static MyValue1 tmp = null;
 
         MyValue45Holder(Integer v) {
             this.v = new MyValue45(v);
+            super();
         }
     }
 
@@ -1302,6 +1313,7 @@ static MyValue1 tmp = null;
 
         MyValue47HolderHolder(MyValue47Holder v) {
             this.v = v;
+            super();
         }
     }
 
