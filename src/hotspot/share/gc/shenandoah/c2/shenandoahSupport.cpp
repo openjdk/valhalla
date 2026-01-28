@@ -51,6 +51,7 @@ bool ShenandoahBarrierC2Support::expand(Compile* C, PhaseIterGVN& igvn) {
     C->clear_major_progress();
     PhaseIdealLoop::optimize(igvn, LoopOptsShenandoahExpand);
     if (C->failing()) return false;
+    C->clear_major_progress(); // TODO: Why this is only needed for Valhalla?
     C->process_for_post_loop_opts_igvn(igvn);
     if (C->failing()) return false;
 
@@ -2495,6 +2496,8 @@ bool ShenandoahLoadReferenceBarrierNode::needs_barrier_impl(PhaseGVN* phase, Nod
              needs_barrier_impl(phase, n->in(3), visited);
     case Op_CreateEx:
       return false;
+    case Op_InlineType:
+      return true;
     default:
       break;
   }

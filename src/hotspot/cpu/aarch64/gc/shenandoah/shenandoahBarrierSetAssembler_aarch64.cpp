@@ -409,13 +409,16 @@ void ShenandoahBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet 
     __ lea(tmp3, dst);
   }
 
-  shenandoah_write_barrier_pre(masm,
-                               tmp3 /* obj */,
-                               tmp2 /* pre_val */,
-                               rthread /* thread */,
-                               tmp1  /* tmp */,
-                               val != noreg /* tosca_live */,
-                               false /* expand_call */);
+  bool dest_initialized = (decorators & IS_DEST_UNINITIALIZED) == 0;
+  if (dest_initialized) {
+    shenandoah_write_barrier_pre(masm,
+                                 tmp3 /* obj */,
+                                 tmp2 /* pre_val */,
+                                 rthread /* thread */,
+                                 tmp1  /* tmp */,
+                                 val != noreg /* tosca_live */,
+                                 false /* expand_call */);
+  }
 
   BarrierSetAssembler::store_at(masm, decorators, type, Address(tmp3, 0), val, noreg, noreg, noreg);
 
