@@ -388,9 +388,7 @@ public class Annotate {
                     && toAnnotate.owner.kind == TYP
                     && types.isSameType(c.type, syms.strictType)) {
                 preview.checkSourceLevel(pos.get(c), Feature.VALUE_CLASSES);
-                toAnnotate.flags_field |= Flags.STRICT;
-                // temporary hack to indicate that a class has at least one strict field
-                toAnnotate.owner.flags_field |= Flags.HAS_STRICT;
+                toAnnotate.flags_field |= Flags.MARK_STRICT_INIT;
             }
 
             if (!c.type.isErroneous()

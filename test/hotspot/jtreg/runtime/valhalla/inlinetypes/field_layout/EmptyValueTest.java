@@ -110,7 +110,12 @@ public class EmptyValueTest {
     static class Container2 {
       @Strict
       @NullRestricted
-      WrappedEmpty1 we = new WrappedEmpty1();
+      WrappedEmpty1 we;
+
+      Container2() {
+          we = new WrappedEmpty1();
+          super();
+      }
     }
 
     static public void test_2() {

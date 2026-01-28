@@ -156,7 +156,11 @@
                             "public class " + className + " extends " + sName + " { " +
                             "    @Strict" +
                             "    @NullRestricted" +
-                            "    " + vName + " v1 = new " + vName + "();" +
+                            "    " + vName + " v1;" +
+                            "    public " + className + "() {" +
+                            "      v1 = new " + vName + "();" +
+                            "      super();" +
+                            "    }" +
                             "}";
         String java_version = System.getProperty("java.specification.version");
         byte[] byteCode = InMemoryJavaCompiler.compile(className, sourceCode,

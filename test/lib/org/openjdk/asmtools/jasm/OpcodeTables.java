@@ -321,8 +321,6 @@ public class OpcodeTables {
     opc_ifnonnull           (199, "ifnonnull", 3),
     opc_goto_w              (200, "goto_w", 5),
     opc_jsr_w               (201, "jsr_w", 5),
-    opc_aconst_init         (203, "aconst_init", 3),
-    opc_withfield           (204, "withfield", 3),
 
         /* Pseudo-instructions */
     opc_bytecode            (210, "bytecode", 1),
