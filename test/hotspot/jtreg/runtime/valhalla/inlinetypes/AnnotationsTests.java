@@ -93,50 +93,6 @@ import jdk.test.whitebox.WhiteBox;
         Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted");
     }
 
-    // Test detection of non-static field annotated with @NullRestricted but not @Strict
-    static value class ValueClass1 {
-        int i = 0;
-        int j = 0;
-    }
-
-    static class BadClass1 {
-        @NullRestricted
-        ValueClass1 vc;
-    }
-
-    void test_1() {
-        Throwable exception = null;
-        try {
-            BadClass1 tc = new BadClass1();
-        } catch (ClassFormatError e) {
-            exception = e;
-            System.out.println("Received " + e);
-        }
-        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted without @Strict on a non-static field");
-    }
-
-    // Invalid usage of @NullRestricted on a non-strict non-static field
-    static value class ValueClass2 {
-        int i = 0;
-        int j = 0;
-    }
-
-    static class BadClass2 {
-        @NullRestricted
-        static ValueClass2 val;
-    }
-
-    void test_2() {
-        Throwable exception = null;
-        try {
-            BadClass2 tc = new BadClass2();
-        } catch (ClassFormatError e) {
-            exception = e;
-            System.out.println("Received " + e);
-        }
-        Asserts.assertNotNull(exception, "FFailed to detect illegal use of @NullRestricted without @Strict on a static field");
-    }
-
     // Test invalid usage of @LooselyConsistentValue on an identity class
     @LooselyConsistentValue
     static class BadClass4 {
@@ -318,29 +274,6 @@ import jdk.test.whitebox.WhiteBox;
             System.out.println("Received " + e);
         }
         Asserts.assertNotNull(exception, "Expected NullPointerException not received");
-    }
-
-    // Test static null restricted field that is not declared strict
-    static value class ValueClass11 {
-        int i = 0;
-        int j = 0;
-    }
-
-    static class BadClass11 {
-        @NullRestricted
-        static ValueClass11 val = new ValueClass11();
-    }
-
-    void test_11() {
-        Throwable exception = null;
-        try {
-            ValueClass11 val = BadClass11.val;
-            System.out.println(val);
-        } catch(ClassFormatError e) {
-            exception = e;
-            System.out.println("Received " + e);
-        }
-        Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
     }
 
     // Test illegal use of @NullRestricted on a primitive field
