@@ -653,7 +653,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(result, val5.hash() + val5.v3.hash());
     }
 
-    // Test aconst_init
+    // Test value class initialization
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test23() {
@@ -667,7 +667,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(result, MyValue2.createDefaultInline().hash());
     }
 
-    // Test aconst_init
+    // Test value class initialization
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test24() {

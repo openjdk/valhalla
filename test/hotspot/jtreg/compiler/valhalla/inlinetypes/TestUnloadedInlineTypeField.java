@@ -609,7 +609,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 16:
-    // aconst_init with type which is not a value class
+    // Value class with field which is not a value class
     static class MyValue16 {
         int foo;
 
@@ -640,7 +640,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 17:
-    // Same as test16 but with unloaded type at aconst_init
+    // Same as test16 but with unloaded type at init
     static class MyValue17 {
         int foo;
 
