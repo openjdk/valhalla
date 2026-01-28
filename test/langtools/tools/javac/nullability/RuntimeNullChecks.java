@@ -281,6 +281,33 @@ public class RuntimeNullChecks extends TestRunner {
                         test.isSystemProperty("1", "2", "3", null);
                     }
                 }
+                """,
+                //should not crash javac:
+                """
+                class Test {
+                    static String get() {
+                        return Other.str = "";
+                    }
+                    public static void main(String... args) {
+                        get();
+                    }
+                }
+                class Other {
+                    public static String! str = "";
+                }
+                """,
+                """
+                class Test {
+                    static String get() {
+                        return Other.str += "add";
+                    }
+                    public static void main(String... args) {
+                        get();
+                    }
+                }
+                class Other {
+                    public static String! str = "";
+                }
                 """
         }) {
             System.err.println("executing test " + i++);
@@ -672,6 +699,68 @@ public class RuntimeNullChecks extends TestRunner {
                     public static void main(String... args) {
                         A a = new A();
                         System.out.println(a.a.toString());
+                    }
+                }
+                """);
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! value;
+                    public A() {
+                        this.value = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String value;
+                    public A() {
+                        this.value = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        a.value = a.value + "";
+                        System.out.println(a.value);
+                    }
+                }
+                """);
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! value;
+                    public A() {
+                        this.value = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String value;
+                    public A() {
+                        this.value = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        a.value += "";
+                        System.out.println(a.value);
                     }
                 }
                 """);
