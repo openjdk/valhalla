@@ -261,7 +261,7 @@ public class TestTearing {
     volatile static MyValueTearing field1 = MyValueTearing.DEFAULT;
     @Strict
     @NullRestricted
-    volatile MyValueTearing field2 = MyValueTearing.DEFAULT;
+    volatile MyValueTearing field2;
 
     // Nullable fields are always atomic
     static MyValueTearing field3 = new MyValueTearing((short)0, (short)0);
@@ -312,6 +312,11 @@ public class TestTearing {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
         }
+    }
+
+    public TestTearing() {
+        field2 = MyValueTearing.DEFAULT;
+        super();
     }
 
     static class Runner extends Thread {

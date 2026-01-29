@@ -187,6 +187,7 @@ public class StrictFinalTest {
         final Value1 val0;
         Container5(Value1 v) {
           val0 = v;
+          super();
         }
     }
 
@@ -206,7 +207,12 @@ public class StrictFinalTest {
 
     static class Container6 {
         @Strict
-        final Value1 val0 = null;
+        final Value1 val0;
+
+        Container6() {
+            val0 = null;
+            super();
+        }
     }
 
     static public void test_6() {

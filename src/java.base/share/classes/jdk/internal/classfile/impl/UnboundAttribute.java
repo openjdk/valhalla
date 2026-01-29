@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -522,7 +522,7 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
 
         public UnboundLoadableDescriptorsAttribute(List<Utf8Entry> loadableDescriptors) {
             super(Attributes.loadableDescriptors());
-            this.loadableDescriptors = List.copyOf(loadableDescriptors);
+            this.loadableDescriptors = Util.sanitizeU2List(loadableDescriptors);
         }
 
         @Override
