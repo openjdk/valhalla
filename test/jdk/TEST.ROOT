@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This file identifies the root of the test-suite hierarchy.
@@ -102,6 +102,7 @@ requires.properties= \
     vm.cds.write.archived.java.heap \
     vm.cds.write.mapped.java.heap \
     vm.cds.write.streamed.java.heap \
+    vm.cds.using.aot.code.caching \
     vm.continuations \
     vm.musl \
     vm.asan \
