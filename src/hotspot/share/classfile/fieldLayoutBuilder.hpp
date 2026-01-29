@@ -197,7 +197,7 @@ class FieldLayout : public ResourceObj {
   int _super_min_align_required;
   int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   int _acmp_maps_offset;
-  bool _super_has_fields;
+  bool _super_has_nonstatic_fields;
   bool _has_inherited_fields;
 
  public:
@@ -229,7 +229,7 @@ class FieldLayout : public ResourceObj {
     assert(_acmp_maps_offset != -1, "Must have been set");
     return _acmp_maps_offset;
   }
-  bool super_has_fields() const { return _super_has_fields; }
+  bool super_has_nonstatic_fields() const { return _super_has_nonstatic_fields; }
   bool has_inherited_fields() const { return _has_inherited_fields; }
 
   LayoutRawBlock* first_field_block();
@@ -237,7 +237,7 @@ class FieldLayout : public ResourceObj {
   void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = nullptr);
   void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
   LayoutRawBlock* insert_field_block(LayoutRawBlock* slot, LayoutRawBlock* block);
-  void reconstruct_layout(const InstanceKlass* ik, bool& has_instance_fields, bool& ends_with_oop);
+  void reconstruct_layout(const InstanceKlass* ik, bool& has_nonstatic_fields, bool& ends_with_oop);
   void fill_holes(const InstanceKlass* ik);
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
