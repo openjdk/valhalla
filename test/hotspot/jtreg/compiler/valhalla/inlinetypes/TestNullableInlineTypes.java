@@ -2304,8 +2304,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
-/*
     @ForceInline
     public Object test80_helper(Object obj, int i) {
         if ((i % 2) == 0) {
@@ -2406,7 +2404,6 @@ public class TestNullableInlineTypes {
         }
         Asserts.assertEquals(test82(), test82Result);
     }
-*/
 
     @ForceInline
     public Object test83_helper(boolean b) {
