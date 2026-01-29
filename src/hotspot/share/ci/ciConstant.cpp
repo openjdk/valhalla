@@ -31,6 +31,26 @@
 //
 // This class represents a constant value.
 
+ciConstant ciConstant::make_zero_or_null(BasicType bt) {
+  switch (bt) {
+  case T_FLOAT: return ciConstant((jfloat).0f);
+  case T_DOUBLE: return ciConstant((jdouble).0);
+  case T_LONG: return ciConstant((jlong)0L);
+  case T_BOOLEAN:
+  case T_CHAR:
+  case T_BYTE:
+  case T_SHORT:
+  case T_INT:
+    return ciConstant(bt, 0);
+  case T_OBJECT:
+  case T_ARRAY:
+    return ciConstant(bt, CURRENT_ENV->get_object(nullptr));
+  default:
+    ShouldNotReachHere();
+    return ciConstant();
+  }
+}
+
 // ------------------------------------------------------------------
 // ciConstant::is_null_or_zero
 // This assumes `this->is_valid()`, otherwise, `as_object` will assert.
