@@ -99,7 +99,7 @@ public class BasicUnsignedIntArith {
                                    Integer.remainderUnsigned(op1, op2), "%");
                 } else {
 
-                    // TODO: migrate these two try-catch statemtns to
+                    // TODO: migrate these two try-catch statements to
                     // method calls once lambda's work.
                     // expectDivideByZero(op1_U, op2_U, () -> op1_U / op2_U); // Verify error :-(
                     // expectDivideByZero(op1_U, op2_U, () -> op1_U % op2_U); // Verify error :-(
