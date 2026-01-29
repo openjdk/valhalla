@@ -43,8 +43,8 @@ void AccessFlags::print_on(outputStream* st) const {
   if (is_abstract    ()) st->print("abstract "    );
   if (is_synthetic   ()) st->print("synthetic "   );
   if (Arguments::is_valhalla_enabled()) {
-    if (is_identity_class()) st->print("identity "  );
-    if (!is_identity_class()) st->print("value "    );
+    if (is_identity_class()) st->print("identity ");
+    if (!is_identity_class()) st->print("value "  );
   }
 }
 
