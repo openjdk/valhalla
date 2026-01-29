@@ -148,8 +148,8 @@ public final class /* value */ UnsignedInt  {
     public static final UnsignedInt MIN_VALUE = valueOf(0);
 
     /**
-     * A constant holding the maximum value an {@code int} can
-     * have, 2<sup>32</sup>-1.
+     * A constant holding the maximum value an unsigned {@code int}
+     * can have, 2<sup>32</sup>-1.
      */
     public static final UnsignedInt MAX_VALUE = valueOf(0xffff_ffff);
 
