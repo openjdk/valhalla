@@ -100,6 +100,7 @@ public class Lower extends TreeTranslator {
     private final Name dollarAssertionsDisabled;
     private final Types types;
     private final TransTypes transTypes;
+    private final NullChecksWriter nullChecksWriter;
     private final boolean debugLower;
     private final boolean disableProtectedAccessors; // experimental
     private final PkgInfo pkginfoOpt;
@@ -129,6 +130,7 @@ public class Lower extends TreeTranslator {
 
         types = Types.instance(context);
         transTypes = TransTypes.instance(context);
+        nullChecksWriter = NullChecksWriter.instance(context);
         Options options = Options.instance(context);
         debugLower = options.isSet("debuglower");
         pkginfoOpt = PkgInfo.get(options);
@@ -3392,7 +3394,8 @@ public class Lower extends TreeTranslator {
         AssignopDependencyScanner depScanner = new AssignopDependencyScanner(tree);
         depScanner.scan(tree.rhs);
 
-        if (boxingReq || depScanner.dependencyFound) {
+        if (boxingReq || depScanner.dependencyFound ||
+            nullChecksWriter.needsUseSiteNullCheck(tree.lhs, currentClass)) {
             // boxing required; need to rewrite as x = (unbox typeof x)(x op y);
             // or if x == (typeof x)z then z = (unbox typeof x)((typeof x)z op y)
             // (but without recomputing x)
