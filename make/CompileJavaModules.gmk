@@ -141,10 +141,8 @@ ifneq ($(COMPILER), bootjdk)
   MODULE_VALUECLASS_SRC_DIRS := $(call FindModuleValueClassSrcDirs, $(MODULE))
   MODULE_VALUECLASS_SOURCEPATH := $(call GetModuleValueClassSrcPath)
   ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
-    # Temporarily compile valueclasses into a separate directory with the form:
-    #   <tempdir>/<module>/<classpath>
-    # and then copy the class files into:
-    #   <outdir>/<module>/META-INF/preview/<classpath>
+    # Temporarily compile valueclasses into a separate directory, and then copy
+    # into the correct "META-INF/preview" path location.
     # We cannot compile directly into the desired directory because it's the
     # compiler which creates the original '<module>/<classpath>/...' hierarchy.
     TEMP_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)
@@ -174,8 +172,8 @@ ifneq ($(COMPILER), bootjdk)
     # The 'valueclasses' target below depends on it, and that's the non-transient
     # result we care about.
 
-    # Copy compiled output from "<tempdir>/<module>/<classpath>/..." directories
-    # to "<outdir>/<module>/META-INF/preview/<classpath>/...".
+    # Copy compiled output from "$TEMP_OUTPUTDIR/$MODULE/<classpath>/..."
+    # to "$COMPILATION_OUTPUTDIR/$MODULE/META-INF/preview/<classpath>/...".
     MOD_SRC := $(TEMP_OUTPUTDIR)/$(MODULE)
     MOD_DST := $(COMPILATION_OUTPUTDIR)/$(MODULE)
 
