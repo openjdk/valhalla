@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,6 +95,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue1Holder() {
             v = new MyValue1();
+            super();
         }
     }
 
@@ -147,6 +148,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue2Holder() {
             v = new MyValue2(rI);
+            super();
         }
     }
 
@@ -188,6 +190,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue4Holder() {
             v = new MyValue4(0);
+            super();
         }
     }
 
@@ -229,6 +232,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue5Holder() {
             v = new MyValue5(0);
+            super();
         }
 
         public Object make(int n) {
@@ -363,6 +367,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue8Holder() {
             v = new MyValue8();
+            super();
         }
     }
 
@@ -407,6 +412,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue9Holder() {
             v = new MyValue9(rI);
+            super();
         }
     }
 
@@ -447,6 +453,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue11Holder() {
             v = new MyValue11(0);
+            super();
         }
     }
 
@@ -490,6 +497,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue12Holder() {
             v = new MyValue12(0);
+            super();
         }
     }
 
@@ -534,6 +542,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue13Holder() {
             v = new MyValue13();
+            super();
         }
     }
 
@@ -577,6 +586,7 @@ public class TestUnloadedInlineTypeField {
 
         public MyValue15Holder() {
             v = new MyValue15();
+            super();
         }
     }
 
@@ -599,7 +609,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 16:
-    // aconst_init with type which is not a value class
+    // Value class with field which is not a value class
     static class MyValue16 {
         int foo;
 
@@ -630,7 +640,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 17:
-    // Same as test16 but with unloaded type at aconst_init
+    // Same as test16 but with unloaded type at init
     static class MyValue17 {
         int foo;
 

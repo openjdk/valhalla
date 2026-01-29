@@ -174,6 +174,20 @@ public class TestCallingConvention {
         }
     }
 
+    public TestCallingConvention() {
+        test15_vt = MyValue3.create();
+        test16_vt = MyValue3.create();
+        test17_vt = MyValue3.create();
+        test18_vt = MyValue4.create();
+        test19_vt = MyValue4.create();
+        test20_vt = MyValue4.create();
+        test21_vt = MyValue3.create();
+        test29_vt = MyValue3.create();
+        test50_vt = MyValue3.create();
+        test50_vt2 = MyValue3.create();
+        super();
+    }
+
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
@@ -445,7 +459,7 @@ public class TestCallingConvention {
     // Return value objects in registers from interpreter -> compiled
     @Strict
     @NullRestricted
-    final MyValue3 test15_vt = MyValue3.create();
+    final MyValue3 test15_vt;
 
     @DontCompile
     public MyValue3 test15_interp() {
@@ -467,7 +481,7 @@ public class TestCallingConvention {
     // Return value objects in registers from compiled -> interpreter
     @Strict
     @NullRestricted
-    final MyValue3 test16_vt = MyValue3.create();
+    final MyValue3 test16_vt;
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
@@ -485,7 +499,7 @@ public class TestCallingConvention {
     // Return value objects in registers from compiled -> compiled
     @Strict
     @NullRestricted
-    final MyValue3 test17_vt = MyValue3.create();
+    final MyValue3 test17_vt;
 
     @DontInline
     public MyValue3 test17_comp() {
@@ -515,7 +529,7 @@ public class TestCallingConvention {
     // Return value objects in registers from interpreter -> compiled
     @Strict
     @NullRestricted
-    final MyValue4 test18_vt = MyValue4.create();
+    final MyValue4 test18_vt;
 
     @DontCompile
     public MyValue4 test18_interp() {
@@ -538,7 +552,7 @@ public class TestCallingConvention {
     // Return value objects in registers from compiled -> interpreter
     @Strict
     @NullRestricted
-    final MyValue4 test19_vt = MyValue4.create();
+    final MyValue4 test19_vt;
 
     @Test
     public MyValue4 test19() {
@@ -554,7 +568,7 @@ public class TestCallingConvention {
     // Return value objects in registers from compiled -> compiled
     @Strict
     @NullRestricted
-    final MyValue4 test20_vt = MyValue4.create();
+    final MyValue4 test20_vt;
 
     @DontInline
     public MyValue4 test20_comp() {
@@ -582,7 +596,7 @@ public class TestCallingConvention {
     // Test no result from inlined method for incremental inlining
     @Strict
     @NullRestricted
-    final MyValue3 test21_vt = MyValue3.create();
+    final MyValue3 test21_vt;
 
     public MyValue3 test21_inlined() {
         throw new RuntimeException();
@@ -764,7 +778,7 @@ public class TestCallingConvention {
     // Test calling a method returning a value object as fields via reflection
     @Strict
     @NullRestricted
-    MyValue3 test29_vt = MyValue3.create();
+    MyValue3 test29_vt;
 
     @Test
     public MyValue3 test29() {
@@ -1256,10 +1270,10 @@ public class TestCallingConvention {
     // Variant of test49 with result verification (triggered different failure mode)
     @Strict
     @NullRestricted
-    final MyValue3 test50_vt = MyValue3.create();
+    final MyValue3 test50_vt;
     @Strict
     @NullRestricted
-    final MyValue3 test50_vt2 = MyValue3.create();
+    final MyValue3 test50_vt2;
 
     public MyValue3 test50_inlined1(boolean b) {
         if (b) {
