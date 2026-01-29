@@ -1424,7 +1424,7 @@ public class TransPatterns extends TreeTranslator {
      */
     JCBinary makeBinary(JCTree.Tag optag, JCExpression lhs, JCExpression rhs) {
         JCBinary tree = make.Binary(optag, lhs, rhs);
-        tree.operator = operators.resolveBinary(tree, optag, lhs.type, rhs.type);
+        tree.operator = operators.resolveBinary(tree, env, optag, lhs.type, rhs.type);
         tree.type = tree.operator.type.getReturnType();
         return tree;
     }
@@ -1435,7 +1435,7 @@ public class TransPatterns extends TreeTranslator {
      */
     JCTree.JCUnary makeUnary(JCTree.Tag optag, JCExpression arg) {
         JCTree.JCUnary tree = make.Unary(optag, arg);
-        tree.operator = operators.resolveUnary(tree, optag, arg.type);
+        tree.operator = operators.resolveUnary(tree, env, optag, arg.type);
         tree.type = tree.operator.type.getReturnType();
         return tree;
     }

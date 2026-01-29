@@ -254,6 +254,10 @@ public class Symtab {
 
     // For type classes
     public final Type witnessType;
+    public final Type numericalType;
+    public final Type orderableType;
+    public final Type integralType;
+    public final Type standardFloatingPointType;
 
     /** The symbol representing the length field of an array.
      */
@@ -664,7 +668,14 @@ public class Symtab {
 
         // For type classes
         witnessType = enterClass("java.lang.runtime.Witness");
-
+        numericalType = enterClass("java.lang.Numerical");
+        orderableType = enterClass("java.lang.Orderable");
+        integralType = enterClass("java.lang.Integral");
+        standardFloatingPointType = enterClass("java.lang.StandardFloatingPoint");
+        synthesizeEmptyInterfaceIfMissing(numericalType);
+        synthesizeEmptyInterfaceIfMissing(orderableType);
+        synthesizeEmptyInterfaceIfMissing(integralType);
+        synthesizeEmptyInterfaceIfMissing(standardFloatingPointType);
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
@@ -945,4 +956,5 @@ public class Symtab {
     public Iterable<PackageSymbol> getPackagesForName(Name candidate) {
         return packages.getOrDefault(candidate, Collections.emptyMap()).values();
     }
+
 }

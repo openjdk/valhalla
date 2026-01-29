@@ -3499,7 +3499,7 @@ public class Attr extends JCTree.Visitor {
 
         JCTree.Tag optag = NULLCHK;
         JCUnary tree = make.at(arg.pos).Unary(optag, arg);
-        tree.operator = operators.resolveUnary(arg, optag, arg.type);
+        tree.operator = operators.resolveUnary(arg, env, optag, arg.type);
         tree.type = arg.type;
         return tree;
     }
@@ -4383,7 +4383,7 @@ public class Attr extends JCTree.Visitor {
         Type owntype = attribTree(tree.lhs, env, varAssignmentInfo);
         Type operand = attribExpr(tree.rhs, env);
         // Find operator.
-        Symbol operator = tree.operator = operators.resolveBinary(tree, tree.getTag().noAssignOp(), owntype, operand);
+        Symbol operator = tree.operator = operators.resolveBinary(tree, env, tree.getTag().noAssignOp(), owntype, operand);
         if (operator != operators.noOpSymbol &&
                 !owntype.isErroneous() &&
                 !operand.isErroneous()) {
@@ -4404,7 +4404,7 @@ public class Attr extends JCTree.Visitor {
             : chk.checkNonVoid(tree.arg.pos(), attribExpr(tree.arg, env));
 
         // Find operator.
-        OperatorSymbol operator = tree.operator = operators.resolveUnary(tree, tree.getTag(), argtype);
+        OperatorSymbol operator = tree.operator = operators.resolveUnary(tree, env, tree.getTag(), argtype);
         Type owntype = types.createErrorType(tree.type);
         if (operator != operators.noOpSymbol &&
                 !argtype.isErroneous()) {
@@ -4458,7 +4458,7 @@ public class Attr extends JCTree.Visitor {
         matchBindings = matchBindingsComputer.binary(tree, lhsBindings, matchBindings);
 
         // Find operator.
-        OperatorSymbol operator = tree.operator = operators.resolveBinary(tree, tree.getTag(), left, right);
+        OperatorSymbol operator = tree.operator = operators.resolveBinary(tree, env, tree.getTag(), left, right);
         Type owntype = types.createErrorType(tree.type);
         if (operator != operators.noOpSymbol &&
                 !left.isErroneous() &&

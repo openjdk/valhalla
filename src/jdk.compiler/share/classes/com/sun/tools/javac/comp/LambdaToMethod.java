@@ -757,8 +757,8 @@ public class LambdaToMethod extends TreeTranslator {
     }
 
     private JCExpression eqTest(Type argType, JCExpression arg1, JCExpression arg2) {
-        JCBinary testExpr = make.Binary(Tag.EQ, arg1, arg2);
-        testExpr.operator = operators.resolveBinary(testExpr, Tag.EQ, argType, argType);
+        JCBinary testExpr = make.Binary(JCTree.Tag.EQ, arg1, arg2);
+        testExpr.operator = operators.resolveBinary(testExpr, attrEnv, JCTree.Tag.EQ, argType, argType);
         testExpr.setType(syms.booleanType);
         return testExpr;
     }
@@ -771,8 +771,8 @@ public class LambdaToMethod extends TreeTranslator {
                 make.Select(deserGetter(func, syms.stringType), eqsym).setType(eqmt),
                 List.of(make.Literal(lit)));
         eqtest.setType(syms.booleanType);
-        JCBinary compound = make.Binary(Tag.AND, prev, eqtest);
-        compound.operator = operators.resolveBinary(compound, Tag.AND, syms.booleanType, syms.booleanType);
+        JCBinary compound = make.Binary(JCTree.Tag.AND, prev, eqtest);
+        compound.operator = operators.resolveBinary(compound, attrEnv, JCTree.Tag.AND, syms.booleanType, syms.booleanType);
         compound.setType(syms.booleanType);
         return compound;
     }
