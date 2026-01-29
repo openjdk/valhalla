@@ -1236,7 +1236,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (has_null_free_atomic_layout() && _payload_alignment < null_free_atomic_layout_size_in_bytes()) {
       required_alignment = null_free_atomic_layout_size_in_bytes();
     }
-    if (has_nullable_atomic_layout() && _payload_alignment < nullable_atomic_layout_size_in_bytes()) {
+    if (has_nullable_atomic_layout() && required_alignment < nullable_atomic_layout_size_in_bytes()) {
       required_alignment = nullable_atomic_layout_size_in_bytes();
     }
     int shift = first_field->offset() % required_alignment;
@@ -1267,6 +1267,16 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // non-null before copying the payload to other containers.
     if (has_nullable_atomic_layout() && payload_layout_size_in_bytes() < nullable_atomic_layout_size_in_bytes()) {
       _payload_size_in_bytes = nullable_atomic_layout_size_in_bytes();
+    }
+    if (has_nullable_non_atomic_layout() && payload_layout_size_in_bytes() < nullable_non_atomic_layout_size_in_bytes()) {
+      _payload_size_in_bytes = nullable_non_atomic_layout_size_in_bytes();
+    }
+
+    // if the inline class has a null-free atomic layout, the the layout used in heap allocated standalone
+    // instances must have at least equal to the atomic layout to allow safe read/write atomic
+    // operation
+    if (has_null_free_atomic_layout() && payload_layout_size_in_bytes() < null_free_atomic_layout_size_in_bytes()) {
+      _payload_size_in_bytes = null_free_atomic_layout_size_in_bytes();
     }
   }
   // Warning:: InstanceMirrorKlass expects static oops to be allocated first
