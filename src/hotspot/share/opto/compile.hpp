@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -374,7 +374,6 @@ class Compile : public Phase {
   int                   _loop_opts_cnt;         // loop opts round
   bool                  _has_flat_accesses;     // Any known flat array accesses?
   bool                  _flat_accesses_share_alias; // Initially all flat array share a single slice
-  bool                  _scalarize_in_safepoints; // Scalarize inline types in safepoint debug info
   uint                  _stress_seed;           // Seed for stress testing
 
   // Compilation environment.
@@ -669,8 +668,6 @@ public:
   void          set_flat_accesses()              { _has_flat_accesses = true; }
   bool          flat_accesses_share_alias() const { return _flat_accesses_share_alias; }
   void          set_flat_accesses_share_alias(bool z) { _flat_accesses_share_alias = z; }
-  bool          scalarize_in_safepoints() const { return _scalarize_in_safepoints; }
-  void          set_scalarize_in_safepoints(bool z) { _scalarize_in_safepoints = z; }
 
   // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != nullptr && _method->has_scalarized_args(); }

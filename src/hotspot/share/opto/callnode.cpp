@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1690,8 +1690,7 @@ Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return this;
   }
   // Scalarize inline types in safepoint debug info.
-  // Delay this until all inlining is over to avoid getting inconsistent debug info.
-  if (phase->C->scalarize_in_safepoints() && can_reshape && jvms() != nullptr) {
+  if (can_reshape && jvms() != nullptr) {
     for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
       Node* n = in(i)->uncast();
       if (n->is_InlineType()) {

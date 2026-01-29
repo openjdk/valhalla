@@ -1113,7 +1113,6 @@ void Compile::Init(bool aliasing) {
   _loop_opts_cnt = LoopOptsCount;
   _has_flat_accesses = false;
   _flat_accesses_share_alias = true;
-  _scalarize_in_safepoints = false;
 
   set_do_inlining(Inline);
   set_max_inline_size(MaxInlineSize);
@@ -2012,8 +2011,6 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
     return;
   }
   // Scalarize inline types in safepoint debug info.
-  // Delay this until all inlining is over to avoid getting inconsistent debug info.
-  set_scalarize_in_safepoints(true);
   for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
     InlineTypeNode* vt = _inline_type_nodes.at(i)->as_InlineType();
     vt->make_scalar_in_safepoints(&igvn);
