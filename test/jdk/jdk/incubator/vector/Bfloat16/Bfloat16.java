@@ -152,7 +152,7 @@ public final value class Bfloat16
         }
 
         public Bfloat16 max(Bfloat16 op1, Bfloat16 op2) {
-            return Bfloat16.min(op1, op2);
+            return Bfloat16.max(op1, op2);
         }
 
         public Bfloat16 sqrt(Bfloat16 radicand) {
