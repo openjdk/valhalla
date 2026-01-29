@@ -117,7 +117,7 @@ public final class /* value */ UnsignedInt  {
         }
 
         public UnsignedInt max(UnsignedInt op1, UnsignedInt op2) {
-            return UnsignedInt.min(op1, op2);
+            return UnsignedInt.max(op1, op2);
         }
     };
 
