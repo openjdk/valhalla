@@ -132,6 +132,41 @@ public final class /* value */ UnsignedInt  {
     public __witness Orderable<UnsignedInt> ORD = INT;
 
     /**
+     * A constant holding an unsigned {@code int} 0.
+     */
+    public static final UnsignedInt ZERO = valueOf(0);
+
+    /**
+     * A constant holding an unsigned {@code int} 1.
+     */
+    public static final UnsignedInt ONE  = valueOf(1);
+
+    /**
+     * A constant holding the minimum value an unsigned {@code int} can
+     * have, 0.
+     */
+    public static final UnsignedInt MIN_VALUE = valueOf(0);
+
+    /**
+     * A constant holding the maximum value an {@code int} can
+     * have, 2<sup>32</sup>-1.
+     */
+    public static final UnsignedInt MAX_VALUE = valueOf(0xffff_ffff);
+
+    // Consider these in the future.
+//     /**
+//      * The number of bits used to represent an unsigned {@code int} value in two's
+//      * complement binary form.
+//      */
+//     public static final int SIZE = Integer.SIZE;
+
+//     /**
+//      * The number of bytes used to represent an unsigned {@code int}
+//      * value in two's complement binary form.
+//      */
+//     public static final int BYTES = SIZE / Byte.SIZE;
+
+    /**
      * The bits of the unsigned value.
      */
     private int value;

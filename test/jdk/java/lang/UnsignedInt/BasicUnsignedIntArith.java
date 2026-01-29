@@ -81,19 +81,67 @@ public class BasicUnsignedIntArith {
                                UnsignedInt.multiply(op1_U, op2_U),
                                op1   * op2, "*");
 
-                // Division
                 if (op2 != 0) {
+                    // Division
                     errors += test(op1_U, op2_U,
                                    op1_U / op2_U,
                                    Integer.divideUnsigned(op1, op2), "/");
                     errors += test(op1_U, op2_U,
                                    UnsignedInt.divide(op1_U, op2_U),
                                    Integer.divideUnsigned(op1, op2), "/");
+
+                    // Remainder
+                    errors += test(op1_U, op2_U,
+                                   op1_U % op2_U,
+                                   Integer.remainderUnsigned(op1, op2), "%");
+                    errors += test(op1_U, op2_U,
+                                   UnsignedInt.remainder(op1_U, op2_U),
+                                   Integer.remainderUnsigned(op1, op2), "%");
+                } else {
+
+                    // TODO: migrate these two try-catch statemtns to
+                    // method calls once lambda's work.
+                    // expectDivideByZero(op1_U, op2_U, () -> op1_U / op2_U); // Verify error :-(
+                    // expectDivideByZero(op1_U, op2_U, () -> op1_U % op2_U); // Verify error :-(
+                    try {
+                        UnsignedInt quotient = op1_U / op2_U;
+                        System.err.println("Missing arithmetic exception for divide by zero: " +
+                                           op1_U + " / " + op2_U);
+                        errors++;
+                    } catch(ArithmeticException ae) {
+                        ; // expected
+                    }
+
+                    try {
+                        UnsignedInt quotient = op1_U % op2_U;
+                        System.err.println("Missing arithmetic exception for divide by zero: " +
+                                           op1_U + " % " + op2_U);
+                        errors++;
+                    } catch(ArithmeticException ae) {
+                        ; // expected
+                    }
+
+                    errors += expectDivideByZero(op1_U, op2_U,
+                                                 () -> UnsignedInt.divide(op1_U, op2_U));
+                    errors += expectDivideByZero(op1_U, op2_U,
+                                                 () -> UnsignedInt.remainder(op1_U, op2_U));
                 }
             }
         }
 
         return errors;
+    }
+
+    private static int expectDivideByZero(UnsignedInt op1_U,  UnsignedInt op2_U,
+                                          java.util.function.Supplier<UnsignedInt> supplier) {
+        try {
+            UnsignedInt quotient = supplier.get();
+            System.err.println("Missing arithmetic exception for divide by zero: " +
+                               op1_U + " OP " + op2_U);
+            return 1;
+        } catch(ArithmeticException ae) {
+            return 0; // expected
+        }
     }
 
     private static int checkComparison() {
