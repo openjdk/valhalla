@@ -33,7 +33,6 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
@@ -257,7 +256,6 @@ public class TestMethodHandles {
     }
 
     // Everything inlined
-    @Strict
     @NullRestricted
     final MyValue3 test1_vt;
 
@@ -285,7 +283,6 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined but returned type is known
-    @Strict
     @NullRestricted
     final MyValue3 test2_vt;
 
@@ -314,7 +311,6 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined and returned type not known
-    @Strict
     @NullRestricted
     final MyValue3 test3_vt;
 
@@ -348,7 +344,6 @@ public class TestMethodHandles {
         return vt.x;
     }
 
-    @Strict
     @NullRestricted
     static MyValue1 test4_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -376,7 +371,6 @@ public class TestMethodHandles {
 
     static final MethodHandle test5_mh;
 
-    @Strict
     @NullRestricted
     MyValue1 test5_vt;
 
@@ -393,7 +387,6 @@ public class TestMethodHandles {
 
     // Return of target1 and target2 merged in a Lambda Form as an
     // Object. Shouldn't cause any allocation
-    @Strict
     @NullRestricted
     final MyValue3 test6_vt1;
 
@@ -402,7 +395,6 @@ public class TestMethodHandles {
         return test6_vt1;
     }
 
-    @Strict
     @NullRestricted
     final MyValue3 test6_vt2;
 
@@ -501,7 +493,6 @@ public class TestMethodHandles {
 
     // Return of target1, target2 and target3 merged in Lambda Forms
     // as an Object. Shouldn't cause any allocation
-    @Strict
     @NullRestricted
     final MyValue3 test9_vt1;
 
@@ -510,7 +501,6 @@ public class TestMethodHandles {
         return test9_vt1;
     }
 
-    @Strict
     @NullRestricted
     final MyValue3 test9_vt2;
 
@@ -519,7 +509,6 @@ public class TestMethodHandles {
         return test9_vt2;
     }
 
-    @Strict
     @NullRestricted
     final MyValue3 test9_vt3;
 

@@ -23,7 +23,6 @@
 package org.openjdk.bench.valhalla.acmp.field;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.CompilerControl;
@@ -194,7 +193,6 @@ public class Value128NullFree {
 
     public static class ValWrapper {
 
-        @Strict
         @NullRestricted
         public final ValueInt4 f;
 

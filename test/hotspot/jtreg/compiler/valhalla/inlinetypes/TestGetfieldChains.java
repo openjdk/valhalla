@@ -31,7 +31,6 @@ import compiler.lib.ir_framework.Test;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -56,16 +55,13 @@ value class Point {
 
 @LooselyConsistentValue
 value class Rectangle {
-    @Strict
     @NullRestricted
     Point p0 = new Point();
-    @Strict
     @NullRestricted
     Point p1 = new Point();
 }
 
 class NamedRectangle {
-    @Strict
     @NullRestricted
     Rectangle rect;
     String name = "";
@@ -222,17 +218,14 @@ public class TestGetfieldChains {
     @LooselyConsistentValue
     static value class EmptyContainer1 {
         int i = 0;
-        @Strict
         @NullRestricted
         EmptyType1 et = new EmptyType1();
     }
 
     @LooselyConsistentValue
     static value class Container1 {
-        @Strict
         @NullRestricted
         EmptyContainer1 container0 = new EmptyContainer1();
-        @Strict
         @NullRestricted
         EmptyContainer1 container1 = new EmptyContainer1();
     }

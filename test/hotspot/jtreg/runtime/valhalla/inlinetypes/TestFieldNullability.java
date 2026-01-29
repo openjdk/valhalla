@@ -35,7 +35,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 
@@ -62,11 +61,9 @@ public class TestFieldNullability {
 
     static class TestIdentityClass {
         MyValue nullableField;
-        @Strict
         @NullRestricted
         MyValue nullfreeField;       // flattened
         MyValue nullField;
-        @Strict
         @NullRestricted
         MyBigValue nullfreeBigField; // not flattened
         MyBigValue nullBigField;

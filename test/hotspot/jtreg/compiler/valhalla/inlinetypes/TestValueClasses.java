@@ -36,7 +36,6 @@ import static compiler.lib.ir_framework.IRNode.ALLOC;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -674,7 +673,6 @@ public class TestValueClasses {
     }
 
     static value class MyValue17 {
-        @Strict
         @NullRestricted
         MyPrimitive17 flattened;
 

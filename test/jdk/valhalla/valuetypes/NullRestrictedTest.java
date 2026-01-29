@@ -37,7 +37,6 @@ import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,7 +53,7 @@ public class NullRestrictedTest {
 
     static value class Value {
         Object o;
-        @NullRestricted  @Strict
+        @NullRestricted
         EmptyValue empty;
         Value() {
             this.o = null;
@@ -68,9 +67,9 @@ public class NullRestrictedTest {
 
     static class Mutable {
         EmptyValue o;
-        @NullRestricted  @Strict
+        @NullRestricted
         EmptyValue empty;
-        @NullRestricted  @Strict
+        @NullRestricted
         volatile EmptyValue vempty;
 
         Mutable() {

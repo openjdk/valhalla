@@ -32,7 +32,6 @@ import java.util.concurrent.*;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
@@ -172,10 +171,8 @@ public class InlineOops {
 
 
     static class Couple {
-        @Strict
         @NullRestricted
         public Person onePerson;
-        @Strict
         @NullRestricted
         public Person otherPerson;
 
@@ -188,10 +185,8 @@ public class InlineOops {
 
     @LooselyConsistentValue
     static value class Composition {
-        @Strict
         @NullRestricted
         public Person onePerson;
-        @Strict
         @NullRestricted
         public Person otherPerson;
 
@@ -687,7 +682,6 @@ public class InlineOops {
 
     @LooselyConsistentValue
     static value class BarValue {
-        @Strict
         @NullRestricted
         FooValue foo;
         long extendedId;

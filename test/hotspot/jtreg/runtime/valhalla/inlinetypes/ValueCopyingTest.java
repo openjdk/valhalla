@@ -35,7 +35,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 public class ValueCopyingTest {
@@ -59,7 +58,6 @@ public class ValueCopyingTest {
     }
   }
 
-  @Strict
   @NullRestricted
   TestValue tv;
 

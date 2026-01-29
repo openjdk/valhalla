@@ -32,7 +32,6 @@ import java.util.List;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
 /*
@@ -71,7 +70,6 @@ import jdk.test.whitebox.WhiteBox;
     }
 
     static class BadClass0 {
-        @Strict
         @NullRestricted
         String s;
 
@@ -164,7 +162,6 @@ import jdk.test.whitebox.WhiteBox;
     static class GoodClass5 {
         ValueClass5 f0 = new ValueClass5();
 
-        @Strict
         @NullRestricted
         ValueClass5 f1;
 
@@ -199,19 +196,16 @@ import jdk.test.whitebox.WhiteBox;
     // Test detection/handling of circularity
 
     static value class ValueClass6a {
-        @Strict
         @NullRestricted
         ValueClass6b val = new ValueClass6b();
     }
 
     static value class ValueClass6b {
-        @Strict
         @NullRestricted
         ValueClass6a val = new ValueClass6a();
     }
 
     static class BadClass6 {
-        @Strict
         @NullRestricted
         ValueClass6a val;
 
@@ -238,7 +232,6 @@ import jdk.test.whitebox.WhiteBox;
     }
 
     static class GoodClass7 {
-        @Strict
         @NullRestricted
         static ValueClass7 sval = new ValueClass7();
     }
@@ -257,7 +250,6 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test circularity on static fields
     static value class ValueClass8 {
-        @Strict
         @NullRestricted
         static ValueClass8 sval = new ValueClass8();
     }
@@ -280,7 +272,6 @@ import jdk.test.whitebox.WhiteBox;
     }
 
     static class GoodClass9 {
-        @Strict
         @NullRestricted
         ValueClass9 val;
 
@@ -304,7 +295,6 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test that writing null to a @NullRestricted static field throws an exception
     static value class ValueClass10 {
-        @Strict
         @NullRestricted
         static ValueClass10 sval = new ValueClass10();
     }
@@ -345,7 +335,6 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test illegal use of @NullRestricted on a primitive field
     static class BadClass12 {
-        @Strict
         @NullRestricted
         int i;
 
@@ -368,7 +357,6 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test illegal use of @NullRestricted on an array field
     static class BadClass13 {
-        @Strict
         @NullRestricted
         int[] intArray;
 

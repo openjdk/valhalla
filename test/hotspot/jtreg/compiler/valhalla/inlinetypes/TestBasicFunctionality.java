@@ -31,7 +31,6 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
@@ -599,13 +598,10 @@ static MyValue1 tmp = null;
     // Value class fields in regular object
     MyValue1 val1;
     MyValue2 val2;
-    @Strict
     @NullRestricted
     final MyValue1 val3;
-    @Strict
     @NullRestricted
     static MyValue1 val4 = MyValue1.DEFAULT;
-    @Strict
     @NullRestricted
     static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -712,7 +708,6 @@ static MyValue1 tmp = null;
     }
 
     class TestClass27 {
-        @Strict
         @NullRestricted
         public MyValue1 v;
 
@@ -740,10 +735,8 @@ static MyValue1 tmp = null;
         test27(!info.isWarmUp(), info.getTest());
     }
 
-    @Strict
     @NullRestricted
     static MyValue3 staticVal3 = MyValue3.DEFAULT;
-    @Strict
     @NullRestricted
     static MyValue3 staticVal3_copy = MyValue3.DEFAULT;
 
@@ -997,7 +990,6 @@ static MyValue1 tmp = null;
     value class Test37Value1 {
         double d = 0;
         float f = 0;
-        @Strict
         @NullRestricted
         Test37Value2 v = new Test37Value2();
     }
@@ -1020,7 +1012,6 @@ static MyValue1 tmp = null;
         public Test38Value(int i) { this.i = i; }
     }
 
-    @Strict
     @NullRestricted
     static Test38Value test38Field = new Test38Value(0);
 
@@ -1054,7 +1045,6 @@ static MyValue1 tmp = null;
 
     static int test39A1[][] = new int[400][400];
     static double test39A2[] = new double[400];
-    @Strict
     @NullRestricted
     static Test39Value test39Val = new Test39Value(0, 0);
 
@@ -1234,7 +1224,6 @@ static MyValue1 tmp = null;
 
     static value class MyValue45ValueHolder {
         @NullRestricted
-        @Strict
         MyValue45 v;
 
         MyValue45ValueHolder(Integer v) {
@@ -1244,7 +1233,6 @@ static MyValue1 tmp = null;
 
     static class MyValue45Holder {
         @NullRestricted
-        @Strict
         MyValue45 v;
 
         MyValue45Holder(Integer v) {
@@ -1296,7 +1284,6 @@ static MyValue1 tmp = null;
 
     static value class MyValue47Holder {
         @NullRestricted
-        @Strict
         MyValue47 v;
 
         MyValue47Holder(int v) {
@@ -1308,7 +1295,6 @@ static MyValue1 tmp = null;
 
     static class MyValue47HolderHolder {
         @NullRestricted
-        @Strict
         MyValue47Holder v;
 
         MyValue47HolderHolder(MyValue47Holder v) {

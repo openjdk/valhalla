@@ -24,7 +24,6 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -38,7 +37,6 @@ import jdk.test.lib.Asserts;
  */
 
 class A {
-    @Strict
     @NullRestricted
     Point p;
 
@@ -61,7 +59,6 @@ class D {
 }
 
 class E extends D {
-    @Strict
     @NullRestricted
     Point p1;
 
@@ -76,7 +73,6 @@ class F extends E {
 }
 
 class G extends F {
-    @Strict
     @NullRestricted
     Point p2;
 

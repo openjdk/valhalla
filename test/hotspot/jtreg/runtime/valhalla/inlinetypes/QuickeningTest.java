@@ -25,7 +25,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -100,10 +99,8 @@ public class QuickeningTest {
 
     static class Parent {
         Point nfp;       /* Not flattenable inline field */
-        @Strict
         @NullRestricted
         Point fp;         /* Flattenable and flattened inline field */
-        @Strict
         @NullRestricted
         JumboInline fj;    /* Flattenable not flattened inline field */
 
@@ -121,10 +118,8 @@ public class QuickeningTest {
     static class Child extends Parent {
         // This class inherited fields from the Parent class
         Point nfp2;      /* Not flattenable inline field */
-        @Strict
         @NullRestricted
         Point fp2;        /* Flattenable and flattened inline field */
-        @Strict
         @NullRestricted
         JumboInline fj2;   /* Flattenable not flattened inline field */
 
@@ -142,10 +137,8 @@ public class QuickeningTest {
     @LooselyConsistentValue
     static value class Value {
         final Point nfp;       /* Not flattenable inline field */
-        @Strict
         @NullRestricted
         final Point fp;         /* Flattenable and flattened inline field */
-        @Strict
         @NullRestricted
         final JumboInline fj;    /* Flattenable not flattened inline field */
 

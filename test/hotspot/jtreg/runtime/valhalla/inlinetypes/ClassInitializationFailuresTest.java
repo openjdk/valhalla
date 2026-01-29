@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@ import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -54,7 +53,6 @@ public class ClassInitializationFailuresTest {
 
     @LooselyConsistentValue
     static value class TestClass1 {
-        @Strict
         @NullRestricted
         BadOne badField = new BadOne();
     }

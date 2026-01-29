@@ -32,7 +32,6 @@ import java.util.Arrays;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 @LooselyConsistentValue
 @ForceCompileClassInitializer
@@ -44,17 +43,13 @@ public value class MyValue1 extends MyAbstract {
     short z;
     Integer o;
     int[] oa;
-    @Strict
     @NullRestricted
     MyValue2 v1;
-    @Strict
     @NullRestricted
     MyValue2 v2;
-    @Strict
     @NullRestricted
     static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
     MyValue2 v4;
-    @Strict
     @NullRestricted
     MyValue2 v5;
     int c;

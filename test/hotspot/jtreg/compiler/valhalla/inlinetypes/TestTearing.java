@@ -33,7 +33,6 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test id=no-flattening
@@ -256,10 +255,8 @@ public class TestTearing {
         !WHITE_BOX.getBooleanVMFlag("UseTLAB");
 
     // Null-free, volatile -> atomic access
-    @Strict
     @NullRestricted
     volatile static MyValueTearing field1 = MyValueTearing.DEFAULT;
-    @Strict
     @NullRestricted
     volatile MyValueTearing field2;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,6 @@ import compiler.whitebox.CompilerWhiteBoxTest;
 import java.lang.reflect.Method;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -58,11 +57,9 @@ import jdk.test.whitebox.WhiteBox;
 public class TestTrivialMethods {
     public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
-    @Strict
     @NullRestricted
     static MyValue3 staticField = MyValue3.create();
     static MyValue3 staticFieldRef = MyValue3.create();
-    @Strict
     @NullRestricted
     MyValue3 field = MyValue3.create();
     MyValue3 fieldRef = MyValue3.create();
