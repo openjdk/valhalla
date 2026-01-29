@@ -2033,9 +2033,126 @@ public final class Integer extends Number
      *
      * @since Valhalla
      */
+    @jdk.internal.MigratedValueClass
     @jdk.internal.ValueBased
-    public final static class /*value record*/ ExactInt  {
+    public final static class /* value */ ExactInt  {
         // NOTE: set of superinterfaces may be expanded in the future.
+
+        private static Integral<ExactInt> INT = new Integral<ExactInt>() {
+            public ExactInt add(ExactInt addend, ExactInt augend) {
+                return ExactInt.add(addend, augend);
+            }
+
+            @Override
+            public ExactInt subtract(ExactInt minuend, ExactInt subtrahend) {
+                return ExactInt.subtract(minuend, subtrahend);
+            }
+
+            public ExactInt multiply(ExactInt multiplier, ExactInt multiplicand) {
+                return ExactInt.multiply(multiplier, multiplicand);
+            }
+
+            public ExactInt divide(ExactInt dividend, ExactInt divisor) {
+                return ExactInt.divide(dividend, divisor);
+            }
+
+            public ExactInt remainder(ExactInt dividend, ExactInt divisor) {
+                return ExactInt.remainder(dividend, divisor);
+            }
+
+            public ExactInt negate(ExactInt operand) {
+                return ExactInt.negate(operand);
+            }
+
+            public ExactInt and(ExactInt op1, ExactInt op2) {
+                return ExactInt.add(op1, op2);
+            }
+
+            public ExactInt or(ExactInt op1, ExactInt op2) {
+                return ExactInt.or(op1, op2);
+            }
+
+            public ExactInt xor(ExactInt op1, ExactInt op2) {
+                return ExactInt.xor(op1, op2);
+            }
+
+            public ExactInt complement(ExactInt op1) {
+                return ExactInt.complement(op1);
+            }
+
+            public ExactInt shiftLeft(ExactInt x, int shiftDistance) {
+                return ExactInt.shiftLeft(x, shiftDistance);
+            }
+
+            public ExactInt shiftRight(ExactInt x, int shiftDistance) {
+                return ExactInt.shiftRight(x, shiftDistance);
+            }
+
+            public ExactInt shiftRightUnsigned(ExactInt x, int shiftDistance) {
+                return ExactInt.shiftRightUnsigned(x, shiftDistance);
+            }
+
+            @Override
+            public boolean lessThan(ExactInt op1, ExactInt op2) {
+                return ExactInt.lessThan(op1, op2);
+            }
+
+            @Override
+            public boolean lessThanEqual(ExactInt op1, ExactInt op2) {
+                return ExactInt.lessThanEqual(op1, op2);
+            }
+
+            @Override
+            public boolean greaterThan(ExactInt op1, ExactInt op2) {
+                return ExactInt.greaterThan(op1, op2);
+            }
+
+            @Override
+            public boolean greaterThanEqual(ExactInt op1, ExactInt op2) {
+                return ExactInt.greaterThanEqual(op1, op2);
+            }
+
+            public ExactInt min(ExactInt op1, ExactInt op2) {
+                return ExactInt.min(op1, op2);
+            }
+
+            public ExactInt max(ExactInt op1, ExactInt op2) {
+                return ExactInt.max(op1, op2);
+            }
+        };
+
+        /**
+         * Witness for the {@code Numerical} interface.
+         */
+        public __witness Numerical<ExactInt> NUM = INT;
+
+        /**
+         * Witness for the {@code Orderable} interface.
+         */
+        public __witness Orderable<ExactInt> ORD = INT;
+
+        /**
+         * A constant holding an {@code ExactInt} 0.
+         */
+        public static final ExactInt ZERO = valueOf(0);
+
+        /**
+         * A constant holding an {@code ExactInt} 1.
+         */
+        public static final ExactInt ONE  = valueOf(1);
+
+        /**
+         * A constant holding the minimum value an {@code ExactInt} can
+         * have, -2<sup>31</sup>.
+         */
+        public static final ExactInt MIN_VALUE = valueOf(Integer.MIN_VALUE);
+
+        /**
+         * A constant holding the maximum value an {@code ExactInt}
+         * can have, 2<sup>31</sup>-1.
+         */
+        public static final ExactInt MAX_VALUE = valueOf(Integer.MAX_VALUE);
+
 
         /**
          * The bits of the exact value.
@@ -2315,6 +2432,29 @@ public final class Integer extends Number
          */
         public static boolean greaterThanEqual(ExactInt x, ExactInt y) {
             return x.value >= y.value;
+        }
+
+        /**
+         * Returns the greater of two {@code ExactInt} values.
+         *
+         * @param x the first operand
+         * @param y the second operand
+         * @return the greater of {@code x} and {@code y}
+         * @see java.util.function.BinaryOperator
+         */
+        public static ExactInt max(ExactInt x, ExactInt y) {
+            return valueOf(Math.max(x.value, y.value));
+        }
+
+        /**
+         * Returns the smaller of two {@code ExactInt} values.
+         *
+         * @param x the first operand
+         * @param y the second operand
+         * @return the greater of {@code x} and {@code y}
+         */
+        public static ExactInt min(ExactInt x, ExactInt y) {
+            return valueOf(Math.min(x.value, y.value));
         }
 
         // Bit-wise operators
