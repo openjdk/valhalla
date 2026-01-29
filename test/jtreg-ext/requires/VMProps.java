@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,7 +125,6 @@ public class VMProps implements Callable<Map<String, String>> {
         map.put("vm.cds.custom.loaders", this::vmCDSForCustomLoaders);
         map.put("vm.cds.supports.aot.class.linking", this::vmCDSSupportsAOTClassLinking);
         map.put("vm.cds.supports.aot.code.caching", this::vmCDSSupportsAOTCodeCaching);
-        map.put("vm.cds.using.aot.code.caching", this::vmCDSUsingAOTCodeCaching);
         map.put("vm.cds.write.archived.java.heap", this::vmCDSCanWriteArchivedJavaHeap);
         map.put("vm.cds.write.mapped.java.heap", this::vmCDSCanWriteMappedArchivedJavaHeap);
         map.put("vm.cds.write.streamed.java.heap", this::vmCDSCanWriteStreamedArchivedJavaHeap);
@@ -534,17 +533,6 @@ public class VMProps implements Callable<Map<String, String>> {
       } else {
         return "false";
       }
-    }
-
-    /**
-     * @return true if this VM is using the -XX:AOTCache flag
-     */
-    protected String vmCDSUsingAOTCodeCaching() {
-        if ("true".equals(vmCDSSupportsAOTCodeCaching()) && allFlags().anyMatch(s -> s.startsWith("-XX:AOTCache"))) {
-            return "true";
-        } else {
-            return "false";
-        }
     }
 
     /**

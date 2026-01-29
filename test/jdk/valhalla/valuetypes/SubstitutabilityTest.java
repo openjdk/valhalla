@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @requires !vm.cds.using.aot.code.caching
  * @run junit/othervm -Xshare:off SubstitutabilityTest
  */
 
