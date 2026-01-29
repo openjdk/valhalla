@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2025,4 +2025,569 @@ public final class Integer extends Number
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
     @java.io.Serial
     @Native private static final long serialVersionUID = 1360826667806852920L;
+
+    /**
+     * Exact arithmetic over 32-bit two's complement
+     * integers. Operations that would overflow instead throw {@link
+     * ArithmeticException}.
+     *
+     * @since Valhalla
+     */
+    @jdk.internal.MigratedValueClass
+    @jdk.internal.ValueBased
+    public final static class /* value */ ExactInt  {
+        // NOTE: set of superinterfaces may be expanded in the future.
+
+        private static final Integral<ExactInt> INT = new Integral<ExactInt>() {
+            public ExactInt add(ExactInt addend, ExactInt augend) {
+                return ExactInt.add(addend, augend);
+            }
+
+            @Override
+            public ExactInt subtract(ExactInt minuend, ExactInt subtrahend) {
+                return ExactInt.subtract(minuend, subtrahend);
+            }
+
+            public ExactInt multiply(ExactInt multiplier, ExactInt multiplicand) {
+                return ExactInt.multiply(multiplier, multiplicand);
+            }
+
+            public ExactInt divide(ExactInt dividend, ExactInt divisor) {
+                return ExactInt.divide(dividend, divisor);
+            }
+
+            public ExactInt remainder(ExactInt dividend, ExactInt divisor) {
+                return ExactInt.remainder(dividend, divisor);
+            }
+
+            public ExactInt negate(ExactInt operand) {
+                return ExactInt.negate(operand);
+            }
+
+            public ExactInt and(ExactInt op1, ExactInt op2) {
+                return ExactInt.add(op1, op2);
+            }
+
+            public ExactInt or(ExactInt op1, ExactInt op2) {
+                return ExactInt.or(op1, op2);
+            }
+
+            public ExactInt xor(ExactInt op1, ExactInt op2) {
+                return ExactInt.xor(op1, op2);
+            }
+
+            public ExactInt complement(ExactInt op1) {
+                return ExactInt.complement(op1);
+            }
+
+            public ExactInt shiftLeft(ExactInt x, int shiftDistance) {
+                return ExactInt.shiftLeft(x, shiftDistance);
+            }
+
+            public ExactInt shiftRight(ExactInt x, int shiftDistance) {
+                return ExactInt.shiftRight(x, shiftDistance);
+            }
+
+            public ExactInt shiftRightUnsigned(ExactInt x, int shiftDistance) {
+                return ExactInt.shiftRightUnsigned(x, shiftDistance);
+            }
+
+            @Override
+            public boolean lessThan(ExactInt op1, ExactInt op2) {
+                return ExactInt.lessThan(op1, op2);
+            }
+
+            @Override
+            public boolean lessThanEqual(ExactInt op1, ExactInt op2) {
+                return ExactInt.lessThanEqual(op1, op2);
+            }
+
+            @Override
+            public boolean greaterThan(ExactInt op1, ExactInt op2) {
+                return ExactInt.greaterThan(op1, op2);
+            }
+
+            @Override
+            public boolean greaterThanEqual(ExactInt op1, ExactInt op2) {
+                return ExactInt.greaterThanEqual(op1, op2);
+            }
+
+            public ExactInt min(ExactInt op1, ExactInt op2) {
+                return ExactInt.min(op1, op2);
+            }
+
+            public ExactInt max(ExactInt op1, ExactInt op2) {
+                return ExactInt.max(op1, op2);
+            }
+        };
+
+        /**
+         * Witness for the {@code Numerical} interface.
+         */
+        public static final __witness Numerical<ExactInt> NUM = INT;
+
+        /**
+         * Witness for the {@code Orderable} interface.
+         */
+        public static final __witness Orderable<ExactInt> ORD = INT;
+
+        /**
+         * A constant holding an {@code ExactInt} 0.
+         */
+        public static final ExactInt ZERO = valueOf(0);
+
+        /**
+         * A constant holding an {@code ExactInt} 1.
+         */
+        public static final ExactInt ONE  = valueOf(1);
+
+        /**
+         * A constant holding the minimum value an {@code ExactInt} can
+         * have, -2<sup>31</sup>.
+         */
+        public static final ExactInt MIN_VALUE = valueOf(Integer.MIN_VALUE);
+
+        /**
+         * A constant holding the maximum value an {@code ExactInt}
+         * can have, 2<sup>31</sup>-1.
+         */
+        public static final ExactInt MAX_VALUE = valueOf(Integer.MAX_VALUE);
+
+
+        /**
+         * The bits of the exact value.
+         */
+        private int value;
+
+        /**
+         * Constructs a new exact int.
+         */
+        private ExactInt(int value) {
+            this.value = value;
+        }
+
+        /**
+         * {@return an exact integer with the value of the argument}
+         *
+         * @param x the argument
+         */
+        public static ExactInt valueOf(int x) {
+            return new ExactInt(x);
+        }
+
+        /**
+         * {@return the result of parsing the string as an integer}
+         * Base 10 is used as the implicit radix.
+         *
+         * @implSpec
+         * The same grammar of strings is recognized by this method as by
+         * {@link Integer#parseInt(String)}.
+         *
+         * @param s the argument
+         * @throws    NumberFormatException  if the string does not contain a
+         *            parsable integer.
+         * @see Integer#parseInt(String)
+         */
+        public static ExactInt valueOf(String s) throws NumberFormatException {
+            return new ExactInt(Integer.parseInt(s));
+        }
+
+        /**
+         * {@return the result of parsing the string as an integer in the
+         * specified radix}
+         *
+         * @implSpec
+         * The same grammar of strings is recognized by this method as by
+         * {@link Integer#parseInt(String, int)}.
+         *
+         * @param      s   the string to be parsed.
+         * @param      radix the radix to be used in interpreting {@code s}
+         * @throws    NumberFormatException if the {@code String}
+         *            does not contain a parsable exact integer.
+         * @see Integer#parseInt(String, int)
+         */
+        public static ExactInt valueOf(String s, int radix) throws NumberFormatException {
+            return new ExactInt(Integer.parseInt(s, radix));
+        }
+
+        /**
+         * {@return a string representing the value}
+         */
+        @Override
+            public String toString() {
+            return toString(this);
+        }
+
+        /**
+         * {@return a string representing the argument}
+         *
+         * @implSpec
+         * The method behaves as if the argument were passed to {@link
+         * Integer#toString(int)}.
+         *
+         * @param x the integer to be represented
+         * @see Integer#toString(int)
+         */
+        public static String toString(ExactInt x) {
+            return Integer.toString(x.value);
+        }
+
+        /**
+         * {@return a string representing the argument in the
+         * specified radix}
+         *
+         * @implSpec
+         * The method behaves as if the arguments were passed to {@link
+         * Integer#toString(int, int)}.
+         *
+         * @param x the integer to be represented
+         * @param radix the radix to use in the string representation
+         * @see Integer#toString(int, int)
+         */
+        public static String toString(ExactInt x, int radix) {
+            return Integer.toString(x.value, radix);
+        }
+
+        /**
+         * {@return the bits of this exact integer as an {@code int}}
+         */
+        public int intValue() {
+            return this.value;
+        }
+
+        // Arithmetic operators
+
+        // Note: could add implSpec tags to the add, subtract,
+        // multiply, and divide methods.
+
+        /**
+         * Addition operation, binary "{@code +}".
+         *
+         * @param addend the first operand
+         * @param augend the second operand
+         * @return the sum of the operands
+         * @throws ArithmeticException if the result overflows an {@code int}
+         * @see Math#addExact(int, int)
+         */
+        public static ExactInt add(ExactInt addend, ExactInt augend) {
+            return valueOf(Math.addExact(addend.value, augend.value));
+        }
+
+        /**
+         * Subtraction operation, binary "{@code -}".
+         *
+         * @param minuend the first operand
+         * @param subtrahend the second operand
+         * @return the difference of the operands
+         * @throws ArithmeticException if the result overflows an {@code int}
+         * @see Math#subtractExact(int, int)
+         */
+        public static ExactInt subtract(ExactInt minuend, ExactInt subtrahend) {
+            return valueOf(Math.subtractExact(minuend.value, subtrahend.value));
+        }
+
+        /**
+         * Multiplication operation, "{@code *}".
+         *
+         * @param multiplier the first operand
+         * @param multiplicand the second operand
+         * @return the product of the operands
+         * @throws ArithmeticException if the result overflows an {@code int}
+         * @see Math#multiplyExact(int, int)
+         */
+        public static ExactInt multiply(ExactInt multiplier,
+                                        ExactInt multiplicand) {
+            return valueOf(Math.multiplyExact(multiplier.value, multiplicand.value));
+        }
+
+        /**
+         * Division operation, "{@code /}".
+         *
+         * @param dividend the value to be divided
+         * @param divisor the value being divided by
+         * @return the quotient of the first argument divided by
+         * the second argument
+         * @throws ArithmeticException if the divisor is zero or the
+         * quotient overflows an int
+         * @see Math#divideExact(int, int)
+         */
+        public static ExactInt divide(ExactInt dividend,
+                                      ExactInt divisor) {
+            return valueOf(Math.divideExact(dividend.value, divisor.value));
+        }
+
+        /**
+         * Remainder operation, "{@code %}".
+         *
+         * @param dividend the value to be divided to compute the remainder
+         * @param divisor the value being divided by
+         * @return the exact remainder of the first argument divided by
+         * the second argument
+         * @throws ArithmeticException if the divisor is zero or the
+         * quotient overflows an int
+         */
+        public static ExactInt remainder(ExactInt dividend,
+                                         ExactInt divisor) {
+            // TOOD: refactor/improve
+            ExactInt quotient = divide(dividend, divisor);
+            // Trigger ArithmeticException for overflow
+            return valueOf(dividend.value % divisor.value);
+        }
+
+        // TODO: API decision, is this method needed?
+
+        /**
+         * Unary plus operation, "{@code +}".
+         *
+         * @param operand the operand
+         * @return unary plus of the operand
+         */
+        public static ExactInt plus(ExactInt operand) {
+            return operand;
+        }
+
+        /**
+         * Negation operation, unary "{@code -}".
+
+         * @param operand the operand
+         * @return the negation of the operand
+         * @throws ArithmeticException if the result overflows an {@code int}
+         * @see Math#negateExact(int)
+         */
+        public static ExactInt negate(ExactInt operand) {
+            return valueOf(Math.negateExact(operand.value));
+        }
+
+        /**
+         * Compares two exact int values numerically.
+         *
+         * @param x the first argument
+         * @param y the second argument
+         * @return the value {@code 0} if {@code x == y};
+         *         a value less than {@code 0} if {@code x < y}; and
+         *         a value greater than {@code 0} if {@code x > y}
+         * @see Integer#compare(int, int)
+         */
+        public static int compare(ExactInt x, ExactInt y) {
+            return Integer.compare(x.value, y.value);
+        }
+
+        // Integral-specific operations
+        // and, or, xor, complement, leftShift, rightShift, rightShift exact...
+
+        // OrderedComparison
+        // min, max, lessThan, lessThanEqual, greaterThan, greaterThanEqual,
+
+        // Ordered comparison operators
+
+        /**
+         * {@return {@code true} if the first argument is less than the
+         * second argument and {@code false} otherwise}
+         *
+         * The method corresponds to the less than operator, "{@code <}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static boolean lessThan(ExactInt x, ExactInt y) {
+            return x.value < y.value;
+        }
+
+        /**
+         * {@return {@code true} if the first argument is less than or
+         * equal to the second argument and {@code false} otherwise}
+         *
+         * The method corresponds to the less than or equal to operator,
+         * "{@code <=}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static boolean lessThanEqual(ExactInt x, ExactInt y) {
+            return x.value <= y.value;
+        }
+
+        /**
+         * {@return {@code true} if the first argument is greater than the
+         * second argument and {@code false} otherwise}
+         *
+         * The method corresponds to the less than operator, "{@code >}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static boolean greaterThan(ExactInt x, ExactInt y) {
+            return x.value > y.value;
+        }
+
+        /**
+         * {@return {@code true} if the first argument is greater than or
+         * equal to the second argument and {@code false} otherwise}
+         *
+         * The method corresponds to the greater than or equal to operator,
+         * "{@code >=}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static boolean greaterThanEqual(ExactInt x, ExactInt y) {
+            return x.value >= y.value;
+        }
+
+        /**
+         * Returns the greater of two {@code ExactInt} values.
+         *
+         * @param x the first operand
+         * @param y the second operand
+         * @return the greater of {@code x} and {@code y}
+         * @see java.util.function.BinaryOperator
+         */
+        public static ExactInt max(ExactInt x, ExactInt y) {
+            return valueOf(Math.max(x.value, y.value));
+        }
+
+        /**
+         * Returns the smaller of two {@code ExactInt} values.
+         *
+         * @param x the first operand
+         * @param y the second operand
+         * @return the greater of {@code x} and {@code y}
+         */
+        public static ExactInt min(ExactInt x, ExactInt y) {
+            return valueOf(Math.min(x.value, y.value));
+        }
+
+        // Bit-wise operators
+
+        /**
+         * {@return the bit-wise AND of the arguments}
+         *
+         * The method corresponds to the AND operator, "{@code &}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static ExactInt and(ExactInt x, ExactInt y) {
+            return valueOf(x.value & y.value);
+        }
+
+        /**
+         * {@return the bit-wise OR of the arguments}
+         *
+         * The method corresponds to the OR operator, "{@code |}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static ExactInt or(ExactInt x, ExactInt y) {
+            return valueOf(x.value | y.value);
+        }
+
+        /**
+         * {@return the bit-wise XOR of the arguments}
+         *
+         * The method corresponds to the XOR operator, "{@code ^}".
+         *
+         * @param x the first argument
+         * @param y the second argument
+         */
+        public static ExactInt xor(ExactInt x, ExactInt y) {
+            return valueOf(x.value ^ y.value);
+        }
+
+        /**
+         * {@return the bit-wise complement of the argument}
+         *
+         * The method corresponds to the complement operator, "{@code ~}".
+         *
+         * @param x the argument
+         */
+        public static ExactInt complement(ExactInt x) {
+            return valueOf(~x.value);
+        }
+
+        // Shift Operators
+
+        // Per the JLS, the shiftDistance is AND-ed with a 5 or 6 bit mask
+        // (for int and long value being shifted, respectively) so the
+        // distance always non-negative.
+
+        /**
+         * {@return the first operand left shifted by the distance
+         * indicated by the second operand, operator "{@code <<"}}
+         *
+         * Only the value of the five low-order bits of the shift distance
+         * argument are taken into account in determining the shift
+         * distance.
+         *
+         * The method corresponds to the shift left operator, "{@code <<}".
+         *
+         * @param x the value to be shifted
+         * @param shiftDistance number of bits to shift
+         * @throws ArithmeticException if the result is not exact
+         * @jls 15.19 Shift Operators
+         */
+        public static ExactInt shiftLeft(ExactInt x, int shiftDistance) {
+            int xValue = x.value;
+            int xShift = xValue << shiftDistance;
+            sameBitCount(xValue, xShift);
+            return valueOf(xShift);
+        }
+
+        private static void sameBitCount(int x, int y) {
+            if (bitCount(x) != bitCount(y)) {
+                throw new ArithmeticException("inexact shift");
+            }
+        }
+
+        /**
+         * {@return the first operand right shifted by the distance
+         * indicated by the second operand}
+         *
+         * This method corresponds to the shift right operator, "{@code >>}".
+         *
+         * Note: since this the is exact, semantically a (signed) right
+         * shift is equivalent to an <em>exact</em> right shift.
+         *
+         * <p>Only the value of the five low-order bits of the shift distance
+         * argument are taken into account in determining the shift
+         * distance.
+         *
+         * @param x the value to be shifted
+         * @param shiftDistance number of bits to shift
+         * @throws ArithmeticException if the result is not exact
+         * @jls 15.19 Shift Operators
+         */
+        public static ExactInt shiftRight(ExactInt x, int shiftDistance) {
+            int xValue = x.value;
+            int xShift = xValue >> shiftDistance;
+            // TOOD: Might need a more nuanced check here for negative
+            // x values, such as the shift distance must be less than
+            // the number of trailing zeros in the initial x value.
+            sameBitCount(xValue, xShift);
+            return valueOf(xShift);
+        }
+
+        /**
+         * {@return the first operand right shifted by the distance
+         * indicated by the second operand}
+         *
+         * This method corresponds to the shift right exact operator, "{@code >>>}".
+         *
+         * <p>Only the value of the five low-order bits of the shift distance
+         * argument are taken into account in determining the shift
+         * distance.
+         *
+         * @param x the value to be shifted
+         * @param shiftDistance  number of bits to shift
+         * @throws ArithmeticException if the result is not exact
+         * @jls 15.19 Shift Operators
+         */
+        public static ExactInt shiftRightUnsigned(ExactInt x, int shiftDistance) {
+            int xValue = x.value;
+            int xShift = xValue >>> shiftDistance;
+            sameBitCount(xValue, xShift);
+            return valueOf(xShift);
+        }
+    }
 }
