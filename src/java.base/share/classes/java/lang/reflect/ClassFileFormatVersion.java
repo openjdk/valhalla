@@ -27,6 +27,8 @@ package java.lang.reflect;
 
 import java.lang.classfile.ClassFile;
 
+import jdk.internal.javac.PreviewFeature;
+
 /**
  * Class file format versions of the Java virtual machine.
  *
@@ -403,7 +405,8 @@ public enum ClassFileFormatVersion {
     // the implementation of latest() must be updated too.
 
     /// The preview features of Valhalla.
-    /// @since 26
+    /// @since Valhalla
+    @PreviewFeature(feature = PreviewFeature.Feature.LANGUAGE_MODEL, reflective = true)
     CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
 
     private final int major;

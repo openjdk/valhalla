@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +63,7 @@
 
 package compiler.c1;
 
+import java.lang.classfile.ClassFile;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.AccessFlag;
 
@@ -88,12 +90,12 @@ public class CanonicalizeGetModifiers {
     }
 
     static void test(Class poison) {
-        Asserts.assertEQ(CanonicalizeGetModifiers.class.getModifiers(), Modifier.PUBLIC | Modifier.IDENTITY);
-        Asserts.assertEQ(T1.class.getModifiers(), Modifier.PUBLIC | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(T2.class.getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(T3.class.getModifiers(), Modifier.PRIVATE | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(T4.class.getModifiers(), Modifier.PROTECTED | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(new CanonicalizeGetModifiers().new T5().getClass().getModifiers(), 0/* NONE */ | Modifier.IDENTITY);
+        Asserts.assertEQ(CanonicalizeGetModifiers.class.getModifiers(), Modifier.PUBLIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(T1.class.getModifiers(), Modifier.PUBLIC | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(T2.class.getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(T3.class.getModifiers(), Modifier.PRIVATE | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(T4.class.getModifiers(), Modifier.PROTECTED | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(new CanonicalizeGetModifiers().new T5().getClass().getModifiers(), 0/* NONE */ | ClassFile.ACC_IDENTITY);
         Asserts.assertEQ(T6.class.getModifiers(), Modifier.ABSTRACT | Modifier.STATIC | Modifier.INTERFACE);
 
         Asserts.assertEQ(int.class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
@@ -104,21 +106,21 @@ public class CanonicalizeGetModifiers {
         Asserts.assertEQ(byte.class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
         Asserts.assertEQ(short.class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
         Asserts.assertEQ(void.class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
-        Asserts.assertEQ(int[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(long[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(double[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(float[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(char[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(byte[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(short[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(Object[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
-        Asserts.assertEQ(CanonicalizeGetModifiers[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? Modifier.IDENTITY : 0));
+        Asserts.assertEQ(int[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(long[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(double[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(float[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(char[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(byte[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(short[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(Object[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
+        Asserts.assertEQ(CanonicalizeGetModifiers[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL | (PreviewFeatures.isEnabled() ? ClassFile.ACC_IDENTITY : 0));
 
-        Asserts.assertEQ(new CanonicalizeGetModifiers().getClass().getModifiers(), Modifier.PUBLIC | Modifier.IDENTITY);
-        Asserts.assertEQ(new T1().getClass().getModifiers(), Modifier.PUBLIC | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(new T2().getClass().getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(new T3().getClass().getModifiers(), Modifier.PRIVATE | Modifier.STATIC | Modifier.IDENTITY);
-        Asserts.assertEQ(new T4().getClass().getModifiers(), Modifier.PROTECTED | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(new CanonicalizeGetModifiers().getClass().getModifiers(), Modifier.PUBLIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(new T1().getClass().getModifiers(), Modifier.PUBLIC | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(new T2().getClass().getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(new T3().getClass().getModifiers(), Modifier.PRIVATE | Modifier.STATIC | ClassFile.ACC_IDENTITY);
+        Asserts.assertEQ(new T4().getClass().getModifiers(), Modifier.PROTECTED | Modifier.STATIC | ClassFile.ACC_IDENTITY);
         try {
             // null_check
             poison.getModifiers();

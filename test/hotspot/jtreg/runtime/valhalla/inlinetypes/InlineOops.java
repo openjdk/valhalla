@@ -312,7 +312,7 @@ public class InlineOops {
     }
 
     /**
-     * Just some check sanity checks with aconst_init, withfield, astore and aload
+     * Just some check sanity checks with astore and aload
      *
      * Changes to javac slot usage may well break this test
      */
@@ -357,10 +357,6 @@ public class InlineOops {
                 oopMaps[0][3] == desc &&
                 oopMaps[0][4] == note, "Test-R0 incorrect");
 
-        /**
-         * TODO: vwithfield from method handle cooked from anonymous class within the inline class
-         *       even with "MethodHandles.privateLookupIn()" will fail final putfield rules
-         */
     }
 
     /**
