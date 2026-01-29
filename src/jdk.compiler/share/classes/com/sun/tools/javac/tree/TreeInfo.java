@@ -194,6 +194,21 @@ public class TreeInfo {
         }
     }
 
+    /** Is this tree `this`, or `Ident.this`?
+     */
+    public static boolean isThisOrSelectorDotThis(JCTree tree) {
+        switch (tree.getTag()) {
+            case PARENS:
+                return isThisOrSelectorDotThis(skipParens(tree));
+            case IDENT:
+                return ((JCIdent)tree).name == ((JCIdent)tree).name.table.names._this;
+            case SELECT:
+                return ((JCFieldAccess)tree).name == ((JCFieldAccess)tree).name.table.names._this;
+            default:
+                return false;
+        }
+    }
+
     /** Check if the given tree is an explicit reference to the 'this' instance of the
      *  class currently being compiled. This is true if tree is:
      *  - An unqualified 'this' identifier
