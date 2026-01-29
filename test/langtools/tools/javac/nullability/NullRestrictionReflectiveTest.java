@@ -85,10 +85,15 @@ public class NullRestrictionReflectiveTest extends ComboInstance<NullRestriction
 
                 static <Z> Z init() { return null; }
 
-                #{TYPE} fld = init();
+                #{TYPE} fld;
 
                 #{TYPE} meth(#{TYPE} arg) {
                     return init();
+                }
+
+                Test() {
+                    fld = init();
+                    super();
                 }
             }
             """;

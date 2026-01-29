@@ -76,7 +76,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData( // case 0
                     """
                     class Test {
-                        String! t = "";
+                        String! t;
+                        Test() {
+                            t = "";
+                            super();
+                        }
                     }
                     """,
                     "!Ljava/lang/String;"
@@ -85,7 +89,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
                     """
                     import java.util.*;
                     class Test {
-                        List<Test>! t = new ArrayList<>();
+                        List<Test>! t;
+                        Test() {
+                            t = new ArrayList<>();
+                            super();
+                        }
                     }
                     """,
                     "!Ljava/util/List<LTest;>;"
@@ -93,7 +101,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData( // case 2
                     """
                     class Test<T> {
-                        T! t = (T)new Object();
+                        T! t;
+                        Test() {
+                            t = (T)new Object();
+                            super();
+                        }
                     }
                     """,
                     "!TT;"
@@ -101,7 +113,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData( // case 3
                     """
                     class Test {
-                        String[]! t = {""};
+                        String[]! t;
+                        Test() {
+                            t = new String[]{""};
+                            super();
+                        }
                     }
                     """,
                     "![Ljava/lang/String;"
@@ -109,7 +125,11 @@ public class NullabilitySignatureAttrTests extends CompilationTestCase {
             new SignatureData( // case 4
                     """
                     class Test {
-                        String[][]! t = {{""}};
+                        String[][]! t;
+                        Test() {
+                            t = new String[][]{{""}};
+                            super();
+                        }
                     }
                     """,
                     "![[Ljava/lang/String;"

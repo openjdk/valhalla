@@ -144,7 +144,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 class Foo {
@@ -152,7 +152,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 value class Point { }
@@ -161,7 +161,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 class Foo {
@@ -169,7 +169,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 value class Point { }
@@ -178,7 +178,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 value class Point { }
@@ -187,7 +187,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 class Foo {
@@ -195,7 +195,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized")
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super")
                 )
         );
     }
@@ -491,8 +491,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 void main() {
                                 }
                                 """,
-                                Result.Clean,
-                                ""),
+                                Result.Error,
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 String! test() {
@@ -508,7 +508,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testNonNullableFieldsAreStrict() throws Exception {
+    void testNonNullableFieldsAreInitializedBeforeSuper() throws Exception {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -522,7 +522,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.strict.field.not.have.been.initialized.before.super"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 class Test {
@@ -530,7 +530,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.non.nullable.should.be.initialized"),
+                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
                         new DiagAndCode(
                                 """
                                 class Test {
@@ -546,8 +546,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 class Test {
-                                    Object! o = new Object();
-                                    Test() {}
+                                    Object! o;
+                                    Test() {
+                                        o = new Object();
+                                        super();
+                                    }
                                 }
                                 """,
                                 Result.Clean,
@@ -555,7 +558,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 class Test {
-                                    Object! o = new Object();
+                                    Object! o;
+                                    Test() {
+                                        o = new Object();
+                                        super();
+                                    }
                                 }
                                 """,
                                 Result.Clean,
@@ -590,33 +597,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "")
                 )
         );
-
-        for (String source : List.of(
-                """
-                class Test {
-                    Object! o = new Object();
-                }
-                """,
-                """
-                class Test {
-                    static Object! o = new Object();
-                }
-                """
-        )) {
-            File dir = assertOK(true, source);
-            for (final File fileEntry : dir.listFiles()) {
-                var classFile = ClassFile.of().parse(fileEntry.toPath());
-                for (var field : classFile.fields()) {
-                    if (!field.flags().has(AccessFlag.STATIC)) {
-                        Set<AccessFlag> fieldFlags = field.flags().flags();
-                        Assert.check(fieldFlags.size() == 1 && fieldFlags.contains(AccessFlag.STRICT_INIT));
-                    } else {
-                        Set<AccessFlag> fieldFlags = field.flags().flags();
-                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains(AccessFlag.STRICT_INIT) && fieldFlags.contains(AccessFlag.STATIC));
-                    }
-                }
-            }
-        }
     }
 
     @Test

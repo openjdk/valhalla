@@ -1202,7 +1202,6 @@ public class Check {
                     implicit |= FINAL | STRICT;
                     mask = ValueFieldFlags;
                 } else if (isNonNullableFieldOfNonValueClass) {
-                    implicit |= STRICT;
                     mask = ValueFieldFlags;
                 } else {
                     mask = VarFlags;

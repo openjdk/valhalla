@@ -1,6 +1,6 @@
 NonNullFieldInitTest.java:9:20: compiler.err.non.nullable.should.be.initialized
-NonNullFieldInitTest.java:14:20: compiler.err.strict.field.not.have.been.initialized.before.super: s
-NonNullFieldInitTest.java:18:17: compiler.err.non.nullable.should.be.initialized
+NonNullFieldInitTest.java:14:20: compiler.err.null.restricted.field.not.have.been.initialized.before.super: s
+NonNullFieldInitTest.java:18:17: compiler.err.null.restricted.field.not.have.been.initialized.before.super: s
 - compiler.note.preview.filename: NonNullFieldInitTest.java, DEFAULT
 - compiler.note.preview.recompile
 3 errors

@@ -28,11 +28,19 @@ package pkg;
 import java.util.List;
 
 public class Foo<X> {
-    public String! s = "";
-    public String[]! s_arr = new String[] { "" };
+    public String! s;
+    public String[]! s_arr;
+    public X! x;
+    public X[]! x_arr;
+    public List<X>! list_x;
+
     @SuppressWarnings("unchecked")
-    public X! x = (X)(String)"";
-    @SuppressWarnings("unchecked")
-    public X[]! x_arr = (X[])(String[])new String[] { "" };
-    public List<X>! list_x = List.of(null);
+    Foo() {
+        s = "";
+        s_arr = new String[] { "" };
+        x = (X)(String)"";
+        x_arr = (X[])(String[])new String[] { "" };
+        list_x = List.of(null);
+        super();
+    }
 }
