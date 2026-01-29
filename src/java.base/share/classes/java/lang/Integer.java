@@ -2038,7 +2038,7 @@ public final class Integer extends Number
     public final static class /* value */ ExactInt  {
         // NOTE: set of superinterfaces may be expanded in the future.
 
-        private static Integral<ExactInt> INT = new Integral<ExactInt>() {
+        private static final Integral<ExactInt> INT = new Integral<ExactInt>() {
             public ExactInt add(ExactInt addend, ExactInt augend) {
                 return ExactInt.add(addend, augend);
             }
@@ -2124,12 +2124,12 @@ public final class Integer extends Number
         /**
          * Witness for the {@code Numerical} interface.
          */
-        public __witness Numerical<ExactInt> NUM = INT;
+        public static final __witness Numerical<ExactInt> NUM = INT;
 
         /**
          * Witness for the {@code Orderable} interface.
          */
-        public __witness Orderable<ExactInt> ORD = INT;
+        public static final __witness Orderable<ExactInt> ORD = INT;
 
         /**
          * A constant holding an {@code ExactInt} 0.
