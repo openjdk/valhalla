@@ -108,7 +108,7 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   }
 
   InlineKlassPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index, faklass);
-  payload.write(instanceOop(value));
+  payload.write(inlineOop(value));
 }
 
 #endif // SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP

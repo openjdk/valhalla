@@ -1963,7 +1963,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InlineKlassPayload payload(instanceOop(o), &fd);
-    payload.write(instanceOop(JNIHandles::resolve(value)), CHECK);
+    payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
   }
   log_debug_if_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();

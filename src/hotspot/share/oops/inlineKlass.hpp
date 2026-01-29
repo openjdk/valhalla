@@ -26,6 +26,7 @@
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
 #include "oops/inlineKlassPayload.hpp"
+#include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -246,7 +247,7 @@ class InlineKlass: public InstanceKlass {
 
   // Allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
-  instanceOop allocate_instance(TRAPS);
+  inlineOop allocate_instance(TRAPS);
 
   address payload_addr(oop o) const;
 

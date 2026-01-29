@@ -464,7 +464,7 @@ UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj,
   InlineKlass* vk = InlineKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc)));
   assert_and_log_unsafe_value_access(base, offset, vk);
   InlineKlassPayload payload(base, vk, static_cast<size_t>(offset), static_cast<LayoutKind>(layoutKind));
-  payload.write(instanceOop(JNIHandles::resolve(value)), CHECK);
+  payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetReferenceVolatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) {

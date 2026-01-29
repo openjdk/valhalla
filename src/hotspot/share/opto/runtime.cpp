@@ -375,7 +375,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
       const jint layout_helper = fak->layout_helper();
       for (int i = 0; i < len; i++) {
         payload.set_index(i, layout_helper);
-        payload.write(instanceOop(h_init_val()));
+        payload.write(inlineOop(h_init_val()));
       }
     }
     result = array;

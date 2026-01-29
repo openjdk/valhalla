@@ -262,7 +262,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDes
   Handle val_h(THREAD, value);
 
   InlineKlassPayload payload(instanceOop(obj), entry);
-  payload.write(instanceOop(value), CHECK);
+  payload.write(inlineOop(value), CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))

@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
 #define SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
 
+#include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -51,7 +52,7 @@ private:
 
   inline void assert_invariants() const;
 
-  instanceOop allocate_instance(TRAPS) const;
+  inlineOop allocate_instance(TRAPS) const;
 
   inline InlineKlassPayloadImpl(instanceOop oop, size_t offset, InlineLayoutInfo* inline_layout_info);
 
@@ -67,8 +68,8 @@ public:
   // Constructed from parts
   inline InlineKlassPayloadImpl(oop oop, InlineKlass* klass, size_t offset, LayoutKind layout_kind);
 
-  explicit inline InlineKlassPayloadImpl(/* TODO: Introduce inlineOop */ instanceOop oop);
-  inline InlineKlassPayloadImpl(/* TODO: Introduce inlineOop */ instanceOop oop, InlineKlass* klass);
+  explicit inline InlineKlassPayloadImpl(inlineOop oop);
+  inline InlineKlassPayloadImpl(inlineOop oop, InlineKlass* klass);
 
   // TODO: Maybe add a NoIndex{} marker
   explicit inline InlineKlassPayloadImpl(flatArrayOop oop);
@@ -109,13 +110,13 @@ private:
 
 public:
 
-  inline instanceOop read(TRAPS);
+  inline inlineOop read(TRAPS);
   template <typename OtherOopOrHandle>
   inline void copy_to(const InlineKlassPayloadImpl<OtherOopOrHandle>& dst);
   template <typename OtherOopOrHandle>
   inline void copy_from(const InlineKlassPayloadImpl<OtherOopOrHandle>& src);
-  inline void write(instanceOop obj);
-  inline void write(instanceOop obj, TRAPS);
+  inline void write(inlineOop obj);
+  inline void write(inlineOop obj, TRAPS);
 };
 
 using InlineKlassPayload = InlineKlassPayloadImpl<oop>;

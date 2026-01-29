@@ -292,7 +292,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         const jint src_layout_helper = fsk->layout_helper();
         const jint dst_layout_helper = fdk->layout_helper();
         const bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
-        instanceOop buffer = vk->allocate_instance(CHECK);
+        inlineOop buffer = vk->allocate_instance(CHECK);
         InlineKlassPayload buf_payload(buffer);
         for (int i = 0; i < length; i++) {
           src_payload.set_index(src_pos + i, src_layout_helper);

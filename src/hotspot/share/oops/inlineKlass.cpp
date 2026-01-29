@@ -101,7 +101,7 @@ address InlineKlass::calculate_members_address() const {
 }
 
 InlineKlassPayload InlineKlass::null_payload() const {
-  return InlineKlassPayload(instanceOop(null_reset_value()), const_cast<InlineKlass*>(this));
+  return InlineKlassPayload(inlineOop(null_reset_value()), const_cast<InlineKlass*>(this));
 }
 
 oop InlineKlass::null_reset_value() const {
@@ -119,8 +119,8 @@ void InlineKlass::set_null_reset_value(oop val) {
   java_mirror()->obj_field_put(null_reset_value_offset(), val);
 }
 
-instanceOop InlineKlass::allocate_instance(TRAPS) {
-  instanceOop oop = InstanceKlass::allocate_instance(CHECK_NULL);
+inlineOop InlineKlass::allocate_instance(TRAPS) {
+  inlineOop oop = (inlineOop)InstanceKlass::allocate_instance(CHECK_NULL);
   assert(oop->mark().is_inline_type(), "Expected inline type");
   return oop;
 }
