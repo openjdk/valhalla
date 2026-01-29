@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,12 +66,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     private static String[] PREVIEW_OPTIONS = {
             "--enable-preview",
             "-source", Integer.toString(Runtime.version().feature())
-    };
-
-    private static String[] PREVIEW_OPTIONS_PLUS_VM_ANNO = {
-            "--enable-preview",
-            "-source", Integer.toString(Runtime.version().feature()),
-            "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
     };
 
     public ValueObjectCompilationTests() {
@@ -743,45 +737,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
         }
-
-        // testing experimental @Strict annotation
-        String[] previousOptions = getCompileOptions();
-        try {
-            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
-            for (String source : List.of(
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict int i = 0;
-                    }
-                    """,
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict final int i = 0;
-                    }
-                    """
-            )) {
-                File dir = assertOK(true, source);
-                for (final File fileEntry : dir.listFiles()) {
-                    var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
-                    for (var field : classFile.fields()) {
-                        if (!field.flags().has(AccessFlag.STATIC)) {
-                            Set<AccessFlag> fieldFlags = field.flags().flags();
-                            Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
-                            if (field.attributes().size() != 0) {
-                                for (var attr : field.attributes()) {
-                                    Assert.check(!attr.attributeName().stringValue().equals("RuntimeInvisibleAnnotations"));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } finally {
-            setCompileOptions(previousOptions);
-        }
     }
 
     @Test
@@ -1004,109 +959,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-
-        String[] previousOptions = getCompileOptions();
-        try {
-            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
-            String[] sources = new String[]{
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        @Strict
-                        final IValue val = new IValue();
-                    }
-                    """,
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        @Strict
-                        final IValue val;
-                        Test() {
-                            val = new IValue();
-                        }
-                    }
-                    """
-            };
-            String expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return";
-            for (String src : sources) {
-                checkMnemonicsFor(src, "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return");
-            }
-
-            assertFail("compiler.err.cant.ref.before.ctor.called",
-                    """
-                    import jdk.internal.vm.annotation.NullRestricted;
-                    import jdk.internal.vm.annotation.Strict;
-                    class StrictNR {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        value class SValue {
-                            short s = 0;
-                        }
-                        @Strict
-                        @NullRestricted
-                        IValue val = new IValue();
-                        @Strict
-                        @NullRestricted
-                        final IValue val2;
-                        @Strict
-                        @NullRestricted
-                        SValue val3 = new SValue();
-                    }
-                    """
-            );
-            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict int i;
-                    }
-                    """
-            );
-            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict int i;
-                        Test() {
-                            super();
-                            i = 0;
-                        }
-                    }
-                    """
-            );
-            assertFail("compiler.err.cant.ref.before.ctor.called",
-                    """
-                    import jdk.internal.vm.annotation.NullRestricted;
-                    import jdk.internal.vm.annotation.Strict;
-                    class StrictNR {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        value class SValue {
-                            short s = 0;
-                        }
-                        @Strict
-                        @NullRestricted
-                        IValue val = new IValue();
-                            @Strict
-                            @NullRestricted
-                            SValue val4;
-                        public StrictNR() {
-                            val4 = new SValue();
-                        }
-                    }
-                    """
-            );
-        } finally {
-            setCompileOptions(previousOptions);
-        }
 
         source =
             """
@@ -1489,7 +1341,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     "-source", Integer.toString(Runtime.version().feature()),
                     "-XDnoLocalProxyVars",
                     "-XDdebug.stackmap",
-                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
             };
             setCompileOptions(testOptions);
 
@@ -1497,11 +1348,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             for (Data data : List.of(
                     new Data(
                             """
-                            import jdk.internal.vm.annotation.Strict;
-                            class Test {
-                                @Strict
+                            value class Test {
                                 final int x;
-                                @Strict
                                 final int y;
                                 Test(boolean a, boolean b) {
                                     if (a) { // early_larval {x, y}
@@ -1525,11 +1373,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     ),
                     new Data(
                             """
-                            import jdk.internal.vm.annotation.Strict;
-                            class Test {
-                                @Strict
+                            value class Test {
                                 final int x;
-                                @Strict
                                 final int y;
                                 Test(int n) {
                                     switch(n) {
@@ -1551,11 +1396,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     ),
                     new Data(
                             """
-                            import jdk.internal.vm.annotation.Strict;
-                            class Test {
-                                @Strict
+                            value class Test {
                                 final int x;
-                                @Strict
                                 final int y;
                                 Test(int n) {
                                     if (n % 3 == 0) {
@@ -1613,11 +1455,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     void testLocalProxyVars() throws Exception {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {
-                    "--enable-preview",
-                    "-source", Integer.toString(Runtime.version().feature()),
-                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
-            };
+            String[] testOptions = PREVIEW_OPTIONS;
             setCompileOptions(testOptions);
             String[] sources = new String[] {
                     """
@@ -1633,11 +1471,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """,
                     """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict
+                    value class Test {
                         int i;
-                        @Strict
                         int j;
                         Test() {
                             i = 1;
