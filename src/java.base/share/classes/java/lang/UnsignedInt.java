@@ -30,12 +30,141 @@ package java.lang;
  *
  * @see Integer
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class /*value record*/ UnsignedInt  {
+public final class /* value */ UnsignedInt  {
     // In the future, expect to add "implements Integral<UnsignedInt>"
     // (or similar).
     // Currently *not* extending java.lang.Number, and, for now, *not*
     // implementing Serializable. Might implement Comparable<UnsignedInt>.
+
+    private static Integral<UnsignedInt> INT = new Integral<UnsignedInt>() {
+        public UnsignedInt add(UnsignedInt addend, UnsignedInt augend) {
+            return UnsignedInt.add(addend, augend);
+        }
+
+        @Override
+        public UnsignedInt subtract(UnsignedInt minuend, UnsignedInt subtrahend) {
+            return UnsignedInt.subtract(minuend, subtrahend);
+        }
+
+        public UnsignedInt multiply(UnsignedInt multiplier, UnsignedInt multiplicand) {
+            return UnsignedInt.multiply(multiplier, multiplicand);
+        }
+
+        public UnsignedInt divide(UnsignedInt dividend, UnsignedInt divisor) {
+            return UnsignedInt.divide(dividend, divisor);
+        }
+
+        public UnsignedInt remainder(UnsignedInt dividend, UnsignedInt divisor) {
+            return UnsignedInt.remainder(dividend, divisor);
+        }
+
+        public UnsignedInt negate(UnsignedInt operand) {
+            return UnsignedInt.negate(operand);
+        }
+
+        public UnsignedInt and(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.add(op1, op2);
+        }
+
+        public UnsignedInt or(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.or(op1, op2);
+        }
+
+        public UnsignedInt xor(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.xor(op1, op2);
+        }
+
+        public UnsignedInt complement(UnsignedInt op1) {
+            return UnsignedInt.complement(op1);
+        }
+
+        public UnsignedInt shiftLeft(UnsignedInt x, int shiftDistance) {
+            return UnsignedInt.shiftLeft(x, shiftDistance);
+        }
+
+        public UnsignedInt shiftRight(UnsignedInt x, int shiftDistance) {
+            return UnsignedInt.shiftRight(x, shiftDistance);
+        }
+
+        public UnsignedInt shiftRightUnsigned(UnsignedInt x, int shiftDistance) {
+            return UnsignedInt.shiftRightUnsigned(x, shiftDistance);
+        }
+
+        @Override
+        public boolean lessThan(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.lessThan(op1, op2);
+        }
+
+        @Override
+        public boolean lessThanEqual(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.lessThanEqual(op1, op2);
+        }
+
+        @Override
+        public boolean greaterThan(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.greaterThan(op1, op2);
+        }
+
+        @Override
+        public boolean greaterThanEqual(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.greaterThanEqual(op1, op2);
+        }
+
+        public UnsignedInt min(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.min(op1, op2);
+        }
+
+        public UnsignedInt max(UnsignedInt op1, UnsignedInt op2) {
+            return UnsignedInt.max(op1, op2);
+        }
+    };
+
+    /**
+     * Witness for the {@code Numerical} interface.
+     */
+    public __witness Numerical<UnsignedInt> NUM = INT;
+
+    /**
+     * Witness for the {@code Orderable} interface.
+     */
+    public __witness Orderable<UnsignedInt> ORD = INT;
+
+    /**
+     * A constant holding an unsigned {@code int} 0.
+     */
+    public static final UnsignedInt ZERO = valueOf(0);
+
+    /**
+     * A constant holding an unsigned {@code int} 1.
+     */
+    public static final UnsignedInt ONE  = valueOf(1);
+
+    /**
+     * A constant holding the minimum value an unsigned {@code int} can
+     * have, 0.
+     */
+    public static final UnsignedInt MIN_VALUE = valueOf(0);
+
+    /**
+     * A constant holding the maximum value an unsigned {@code int}
+     * can have, 2<sup>32</sup>-1.
+     */
+    public static final UnsignedInt MAX_VALUE = valueOf(0xffff_ffff);
+
+    // Consider these in the future.
+//     /**
+//      * The number of bits used to represent an unsigned {@code int} value in two's
+//      * complement binary form.
+//      */
+//     public static final int SIZE = Integer.SIZE;
+
+//     /**
+//      * The number of bytes used to represent an unsigned {@code int}
+//      * value in two's complement binary form.
+//      */
+//     public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * The bits of the unsigned value.
