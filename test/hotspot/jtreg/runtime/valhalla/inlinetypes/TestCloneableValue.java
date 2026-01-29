@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,7 +83,7 @@
       try {
         var c2 = nssv.clone();
         Asserts.assertNE(nssv, c2);
-        Asserts.assertEQ(nssv.hashCode(), c2.hashCode());
+        Asserts.assertNE(nssv.hashCode(), c2.hashCode());
       } catch(CloneNotSupportedException e) {
         Asserts.fail("Unexpected exception", e);
       }
