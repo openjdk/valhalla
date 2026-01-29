@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,12 @@ import jdk.test.whitebox.WhiteBox;
     static class BadClass0 {
         @Strict
         @NullRestricted
-        String s = new String("bad");
+        String s;
+
+        BadClass0() {
+            s = new String("bad");
+            super();
+        }
     }
 
     // Test detection of illegal usage of NullRestricted on an identity field
@@ -161,7 +166,12 @@ import jdk.test.whitebox.WhiteBox;
 
         @Strict
         @NullRestricted
-        ValueClass5 f1 = new ValueClass5();
+        ValueClass5 f1;
+
+        GoodClass5() {
+            f1 = new ValueClass5();
+            super();
+        }
     }
 
     void test_5() {
@@ -203,7 +213,12 @@ import jdk.test.whitebox.WhiteBox;
     static class BadClass6 {
         @Strict
         @NullRestricted
-        ValueClass6a val = new ValueClass6a();
+        ValueClass6a val;
+
+        BadClass6() {
+            val = new ValueClass6a();
+            super();
+        }
     }
 
     void test_6() {
@@ -267,7 +282,12 @@ import jdk.test.whitebox.WhiteBox;
     static class GoodClass9 {
         @Strict
         @NullRestricted
-        ValueClass9 val = new ValueClass9();
+        ValueClass9 val;
+
+        GoodClass9() {
+            val = new ValueClass9();
+            super();
+        }
     }
 
     void test_9() {
@@ -327,7 +347,12 @@ import jdk.test.whitebox.WhiteBox;
     static class BadClass12 {
         @Strict
         @NullRestricted
-        int i = 0;
+        int i;
+
+        BadClass12() {
+            i = 0;
+            super();
+        }
     }
     void test_12() {
         Throwable exception = null;
@@ -345,7 +370,12 @@ import jdk.test.whitebox.WhiteBox;
     static class BadClass13 {
         @Strict
         @NullRestricted
-        int[] intArray = new int[1];
+        int[] intArray;
+
+        BadClass13() {
+            intArray = new int[1];
+            super();
+        }
     }
     void test_13() {
         Throwable exception = null;

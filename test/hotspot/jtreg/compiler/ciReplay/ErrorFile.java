@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,30 @@
  * questions.
  */
 
-/*
- * @test
- * @summary If a module is specificed twice to --patch-module, it should print an error
- * @requires vm.flagless
- * @modules java.base/jdk.internal.misc
- * @library /test/lib
- * @run driver PatchModuleDupModule
- */
+package compiler.ciReplay;
 
-import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
-public class PatchModuleDupModule {
+public class ErrorFile {
+    private final String errorFile;
 
-  // if --patch-module is specified with the same module more than once.
-  // The launcher should print an error.
+    public ErrorFile(String errorFile) {
+        this.errorFile = errorFile;
+    }
 
-  public static void main(String args[]) throws Exception {
-    ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
-      "--patch-module=module_one=module_one_dir",
-      "--patch-module=module_one=module_one_dir",
-      "-version");
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldContain("java.lang.ExceptionInInitializerError");
-    output.shouldHaveExitValue(1);
-  }
+    public boolean find(String toMatch) {
+        try (var br = Files.newBufferedReader(Paths.get(errorFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains(toMatch)) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            throw new Error("Failed to read " + errorFile + " data: " + e, e);
+        }
+        return false;
+    }
 }
