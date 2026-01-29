@@ -54,7 +54,7 @@ private:
 
   inlineOop allocate_instance(TRAPS) const;
 
-  inline InlineKlassPayloadImpl(instanceOop oop, size_t offset, InlineLayoutInfo* inline_layout_info);
+  inline InlineKlassPayloadImpl(instanceOop holder, size_t offset, InlineLayoutInfo* inline_layout_info);
 
 
 public: // TEMPORARY
@@ -66,22 +66,22 @@ public:
   // Empty constructor
   inline InlineKlassPayloadImpl();
   // Constructed from parts
-  inline InlineKlassPayloadImpl(oop oop, InlineKlass* klass, size_t offset, LayoutKind layout_kind);
+  inline InlineKlassPayloadImpl(oop holder, InlineKlass* klass, size_t offset, LayoutKind layout_kind);
 
-  explicit inline InlineKlassPayloadImpl(inlineOop oop);
-  inline InlineKlassPayloadImpl(inlineOop oop, InlineKlass* klass);
+  explicit inline InlineKlassPayloadImpl(inlineOop buffer);
+  inline InlineKlassPayloadImpl(inlineOop buffer, InlineKlass* klass);
 
   // TODO: Maybe add a NoIndex{} marker
-  explicit inline InlineKlassPayloadImpl(flatArrayOop oop);
-  inline InlineKlassPayloadImpl(flatArrayOop oop, FlatArrayKlass* klass);
+  explicit inline InlineKlassPayloadImpl(flatArrayOop holder);
+  inline InlineKlassPayloadImpl(flatArrayOop holder, FlatArrayKlass* klass);
 
-  inline InlineKlassPayloadImpl(flatArrayOop oop, int index);
-  inline InlineKlassPayloadImpl(flatArrayOop oop, int index, FlatArrayKlass* klass);
+  inline InlineKlassPayloadImpl(flatArrayOop holder, int index);
+  inline InlineKlassPayloadImpl(flatArrayOop holder, int index, FlatArrayKlass* klass);
 
-  inline InlineKlassPayloadImpl(instanceOop oop, fieldDescriptor* field_descriptor);
-  inline InlineKlassPayloadImpl(instanceOop oop, fieldDescriptor* field_descriptor, InstanceKlass* klass);
-  inline InlineKlassPayloadImpl(instanceOop oop, ResolvedFieldEntry* resolved_field_entry);
-  inline InlineKlassPayloadImpl(instanceOop oop, ResolvedFieldEntry* resolved_field_entry, InstanceKlass* klass);
+  inline InlineKlassPayloadImpl(instanceOop holder, fieldDescriptor* field_descriptor);
+  inline InlineKlassPayloadImpl(instanceOop holder, fieldDescriptor* field_descriptor, InstanceKlass* klass);
+  inline InlineKlassPayloadImpl(instanceOop holder, ResolvedFieldEntry* resolved_field_entry);
+  inline InlineKlassPayloadImpl(instanceOop holder, ResolvedFieldEntry* resolved_field_entry, InstanceKlass* klass);
 
   inline oop get_holder() const;
   inline InlineKlass* get_klass() const;

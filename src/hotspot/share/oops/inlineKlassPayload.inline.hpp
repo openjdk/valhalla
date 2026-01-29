@@ -46,8 +46,8 @@ inline void InlineKlassPayloadImpl<OopOrHandle>::assert_invariants() const {
 }
 
 template <>
-inline InlineKlassPayloadImpl<oop>::InlineKlassPayloadImpl(oop oop, InlineKlass* klass, size_t offset, LayoutKind layout_kind)
-  : _holder(oop),
+inline InlineKlassPayloadImpl<oop>::InlineKlassPayloadImpl(oop holder, InlineKlass* klass, size_t offset, LayoutKind layout_kind)
+  : _holder(holder),
     _klass(klass),
     _offset(offset),
     _layout_kind(layout_kind) {
@@ -55,8 +55,8 @@ inline InlineKlassPayloadImpl<oop>::InlineKlassPayloadImpl(oop oop, InlineKlass*
 }
 
 template <>
-inline InlineKlassPayloadImpl<Handle>::InlineKlassPayloadImpl(oop oop, InlineKlass* klass, size_t offset, LayoutKind layout_kind)
-  : _holder(Thread::current(), oop),
+inline InlineKlassPayloadImpl<Handle>::InlineKlassPayloadImpl(oop holder, InlineKlass* klass, size_t offset, LayoutKind layout_kind)
+  : _holder(Thread::current(), holder),
     _klass(klass),
     _offset(offset),
     _layout_kind(layout_kind) {
@@ -64,17 +64,17 @@ inline InlineKlassPayloadImpl<Handle>::InlineKlassPayloadImpl(oop oop, InlineKla
 }
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop oop, size_t offset, InlineLayoutInfo* inline_layout_info)
-  : InlineKlassPayloadImpl(oop, inline_layout_info->klass(), offset, inline_layout_info->kind()) {}
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop holder, size_t offset, InlineLayoutInfo* inline_layout_info)
+  : InlineKlassPayloadImpl(holder, inline_layout_info->klass(), offset, inline_layout_info->kind()) {}
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(inlineOop oop)
-  : InlineKlassPayloadImpl(oop, InlineKlass::cast(oop->klass())) {}
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(inlineOop buffer)
+  : InlineKlassPayloadImpl(buffer, InlineKlass::cast(buffer->klass())) {}
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(inlineOop oop, InlineKlass* klass)
-  : InlineKlassPayloadImpl(oop, klass, klass->payload_offset(), LayoutKind::BUFFERED) {
-  postcond(oop->klass() == klass);
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(inlineOop buffer, InlineKlass* klass)
+  : InlineKlassPayloadImpl(buffer, klass, klass->payload_offset(), LayoutKind::BUFFERED) {
+  postcond(buffer->klass() == klass);
 }
 
 template <typename OopOrHandle>
@@ -88,34 +88,34 @@ inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(flatArrayOop 
 }
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(flatArrayOop oop, int index)
-  : InlineKlassPayloadImpl(oop, index, FlatArrayKlass::cast(oop->klass())) {}
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(flatArrayOop holder, int index)
+  : InlineKlassPayloadImpl(holder, index, FlatArrayKlass::cast(holder->klass())) {}
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(flatArrayOop oop, int index, FlatArrayKlass* klass)
-  : InlineKlassPayloadImpl(oop, klass->element_klass(), oop->value_offset(index, klass->layout_helper()), klass->layout_kind()) {
-  postcond(oop->klass() == klass);
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(flatArrayOop holder, int index, FlatArrayKlass* klass)
+  : InlineKlassPayloadImpl(holder, klass->element_klass(), holder->value_offset(index, klass->layout_helper()), klass->layout_kind()) {
+  postcond(holder->klass() == klass);
 }
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop oop, fieldDescriptor* field_descriptor)
-  : InlineKlassPayloadImpl(oop, field_descriptor, InstanceKlass::cast(oop->klass())) {}
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop holder, fieldDescriptor* field_descriptor)
+  : InlineKlassPayloadImpl(holder, field_descriptor, InstanceKlass::cast(holder->klass())) {}
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop oop, fieldDescriptor* field_descriptor, InstanceKlass* klass)
-  : InlineKlassPayloadImpl(oop, klass->field_offset(field_descriptor->index()), klass->inline_layout_info_adr(field_descriptor->index())) {
-  postcond(oop->klass() == klass);
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop holder, fieldDescriptor* field_descriptor, InstanceKlass* klass)
+  : InlineKlassPayloadImpl(holder, klass->field_offset(field_descriptor->index()), klass->inline_layout_info_adr(field_descriptor->index())) {
+  postcond(holder->klass() == klass);
 }
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop oop, ResolvedFieldEntry* resolved_field_entry)
-  : InlineKlassPayloadImpl(oop, resolved_field_entry, resolved_field_entry->field_holder()) {}
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop holder, ResolvedFieldEntry* resolved_field_entry)
+  : InlineKlassPayloadImpl(holder, resolved_field_entry, resolved_field_entry->field_holder()) {}
 
 template <typename OopOrHandle>
-inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop oop, ResolvedFieldEntry* resolved_field_entry, InstanceKlass* klass)
-  : InlineKlassPayloadImpl(oop, resolved_field_entry->field_offset(), klass->inline_layout_info_adr(resolved_field_entry->field_index())) {
+inline InlineKlassPayloadImpl<OopOrHandle>::InlineKlassPayloadImpl(instanceOop holder, ResolvedFieldEntry* resolved_field_entry, InstanceKlass* klass)
+  : InlineKlassPayloadImpl(holder, resolved_field_entry->field_offset(), klass->inline_layout_info_adr(resolved_field_entry->field_index())) {
   // TODO: Is it fine to use the subclass here rather than the exact klass?
-  postcond(oop->klass()->is_subclass_of(klass));
+  postcond(holder->klass()->is_subclass_of(klass));
 }
 
 template <>
