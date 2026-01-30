@@ -758,7 +758,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _nullable_atomic_layout_size_in_bytes(-1),
   _nullable_non_atomic_layout_size_in_bytes(-1),
   _fields_size_sum(0),
-  _declared_non_static_fields_count(0),
+  _declared_nonstatic_fields_count(0),
   _has_non_naturally_atomic_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(must_be_atomic),
@@ -900,7 +900,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
       group = _static_fields;
     } else {
       _has_nonstatic_fields = true;
-      _declared_non_static_fields_count++;
+      _declared_nonstatic_fields_count++;
       group = _root_group;
     }
     assert(group != nullptr, "invariant");
@@ -1135,8 +1135,8 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   }
 
   // Determining if the value class is naturally atomic:
-  if ((!_layout->super_has_nonstatic_fields() && _declared_non_static_fields_count <= 1 && !_has_non_naturally_atomic_fields)
-      || (_layout->super_has_nonstatic_fields() && _super_klass->is_naturally_atomic() && _declared_non_static_fields_count == 0)) {
+  if ((!_layout->super_has_nonstatic_fields() && _declared_nonstatic_fields_count <= 1 && !_has_non_naturally_atomic_fields)
+      || (_layout->super_has_nonstatic_fields() && _super_klass->is_naturally_atomic() && _declared_nonstatic_fields_count == 0)) {
         _is_naturally_atomic = true;
   }
 

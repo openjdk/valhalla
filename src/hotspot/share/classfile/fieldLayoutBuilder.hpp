@@ -299,7 +299,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int _nullable_atomic_layout_size_in_bytes;
   int _nullable_non_atomic_layout_size_in_bytes;
   int _fields_size_sum;
-  int _declared_non_static_fields_count;
+  int _declared_nonstatic_fields_count;
   bool _has_non_naturally_atomic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
