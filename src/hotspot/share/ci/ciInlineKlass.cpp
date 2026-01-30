@@ -155,7 +155,8 @@ ciConstant ciInlineKlass::get_field_map() const {
 // All fields of this object are zero even if they are null-free. As a result, this object should
 // only be used to reset the payload of fields or array elements and should not be leaked
 // elsewhere.
-ciConstant ciInlineKlass::get_null_reset_value() const {
+ciConstant ciInlineKlass::get_null_reset_value() {
+  assert(is_initialized(), "null_reset_value is only allocated during initialization of %s", name()->as_utf8());
   VM_ENTRY_MARK
   InlineKlass* vk = get_InlineKlass();
   oop null_reset_value = vk->null_reset_value();
