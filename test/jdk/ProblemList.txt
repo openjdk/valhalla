@@ -504,11 +504,6 @@ java/lang/invoke/LFCaching/LFGarbageCollectedTest.java          8078602 generic-
 java/lang/invoke/lambda/LambdaFileEncodingSerialization.java    8249079 linux-all
 java/lang/invoke/RicochetTest.java                              8251969 generic-all
 
-java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
-java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
-
-java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
-
 ############################################################################
 
 # jdk_instrument
@@ -526,7 +521,6 @@ java/lang/IO/IO.java                                            8337935 linux-pp
 ############################################################################
 
 # jdk_management
-com/sun/management/HotSpotDiagnosticMXBean/DumpThreadsWithEliminatedLock.java 8360599 generic-all
 
 
 java/lang/management/MemoryMXBean/Pending.java                  8158837 generic-all
@@ -547,8 +541,6 @@ javax/management/remote/mandatory/connection/BrokenConnectionTest.java 8262312 l
 ############################################################################
 
 # jdk_net
-
-java/net/CookieHandler/B6644726.java                            8365811 generic-all
 
 java/net/DatagramSocket/DatagramSocketExample.java              8308807 aix-ppc64
 java/net/DatagramSocket/DatagramSocketMulticasting.java         8308807 aix-ppc64
@@ -687,10 +679,6 @@ javax/swing/plaf/synth/7158712/bug7158712.java 8324782 macosx-all
 
 com/sun/jdi/InvokeHangTest.java                                 8218463 linux-all
 
-com/sun/jdi/cds/CDSBreakpointTest.java                          8304168 generic-all
-com/sun/jdi/cds/CDSDeleteAllBkptsTest.java                      8304168 generic-all
-com/sun/jdi/cds/CDSFieldWatchpoints.java                        8304168 generic-all
-
 ############################################################################
 
 # jdk_time
@@ -699,7 +687,6 @@ com/sun/jdi/cds/CDSFieldWatchpoints.java                        8304168 generic-
 
 # jdk_util
 java/util/zip/CloseInflaterDeflaterTest.java  8339216 linux-s390x
-java/util/Collection/MOAT.java 8375086 generic-all
 
 ############################################################################
 
@@ -785,24 +772,48 @@ java/awt/Menu/MenuVisibilityTest.java 8161110 macosx-all
 java/awt/Modal/NativeDialogToFrontBackTest.java 7188049 windows-all,linux-all
 java/awt/Cursor/CursorDragTest/ListDragCursor.java 7177297 macosx-all
 
-
 ############################################################################
 
 # jdk_since_checks
 
 tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 8354921 generic-all
 
-############################################################################
+#############################################################################
 
-# valhalla
+# Preview project specific failures go here at the end of the file.
+#
+# These are NOT failures that occur with the '--enable-preview' option
+# specified; those go in the appropriate ProblemList-enable-preview.txt file.
+# These are failures that occur WITHOUT the '--enable-preview' option
+# specified AND occur because of some issue with preview project code,
+# in either implementation or test code.
+
+#############################################################################
+
+# Valhalla failures start here:
+
 build/CheckFiles.java 8376088  generic-all
+
+com/sun/jdi/cds/CDSBreakpointTest.java                          8304168 generic-all
+com/sun/jdi/cds/CDSDeleteAllBkptsTest.java                      8304168 generic-all
+com/sun/jdi/cds/CDSFieldWatchpoints.java                        8304168 generic-all
+
+com/sun/management/HotSpotDiagnosticMXBean/DumpThreadsWithEliminatedLock.java 8360599 generic-all
+
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
+java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
+java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
+java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
+
+java/net/CookieHandler/B6644726.java                            8365811 generic-all
 
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
 
 jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
 jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,generic-x64
+
+java/util/Collection/MOAT.java 8375086 generic-all
 
 sun/tools/jhsdb/BasicLauncherTest.java 8366806 generic-all
 sun/tools/jhsdb/HeapDumpTest.java 8366806 generic-all
