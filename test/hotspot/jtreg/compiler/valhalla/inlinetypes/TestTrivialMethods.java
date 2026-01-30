@@ -69,9 +69,8 @@ public class TestTrivialMethods {
 
     private TestTrivialMethods() {
         field = MyValue3.create();
-        MyValue3 field = MyValue3.create();
-        MyValue3 fieldRef = MyValue3.create();
-        Object objField = null;
+        fieldRef = MyValue3.create();
+        objField = null;
         super();
     }
 
