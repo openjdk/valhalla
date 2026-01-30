@@ -192,15 +192,15 @@ public class FieldLayoutAnalyzer {
     int payloadSize;
     int payloadAlignment;
     int firstFieldOffset;
-    int nonAtomicLayoutSize;         // -1 if no non-nullable layout
-    int nonAtomicLayoutAlignment;    // -1 if no non-nullable layout
-    int atomicLayoutSize;            // -1 if no atomic layout
-    int atomicLayoutAlignment;       // -1 if no atomic layout
-    int nullableAtomicLayoutSize;          // -1 if no nullable layout
-    int nullableAtomicLayoutAlignment;     // -1 if no nullable layout
-    int nullableNonAtomicLayoutSize;
-    int nullableNonAtomicLayoutAlignment;
-    int nullMarkerOffset;            // -1 if no nullable layout
+    int nullFreeNonAtomicLayoutSize;         // -1 if no null-free non-atomic layout
+    int nullFreeNonAtomicLayoutAlignment;    // -1 if no null-free non-atomic layout
+    int nullFreeAtomicLayoutSize;            // -1 if no null-free atomic layout
+    int nullFreeAtomicLayoutAlignment;       // -1 if no null-free atomic layout
+    int nullableAtomicLayoutSize;            // -1 if no nullable atomic layout
+    int nullableAtomicLayoutAlignment;       // -1 if no nullable atomic layout
+    int nullableNonAtomicLayoutSize;         // -1 if no nullable non-atomic layout
+    int nullableNonAtomicLayoutAlignment;    // -1 if no nullable non-atomic layout
+    int nullMarkerOffset;                    // -1 if no nullable layout
     String[] lines;
     ArrayList<FieldBlock> staticFields;
     ArrayList<FieldBlock> nonStaticFields;
@@ -210,8 +210,8 @@ public class FieldLayoutAnalyzer {
       nonStaticFields = new ArrayList<FieldBlock>();
     }
 
-    boolean hasNonAtomicLayout() { return nonAtomicLayoutSize != -1; }
-    boolean hasAtomicLayout() { return atomicLayoutSize != -1; }
+    boolean hasNullFreeNonAtomicLayout() { return nullFreeNonAtomicLayoutSize != -1; }
+    boolean hasNullFreeAtomicLayout() { return nullFreeAtomicLayoutSize != -1; }
     boolean hasNullableAtomicLayout() { return nullableAtomicLayoutSize != -1; }
     boolean hasNullableNonAtomicLayout() { return nullableNonAtomicLayoutSize != -1; }
     boolean hasNullMarker() {return nullMarkerOffset != -1; }
@@ -221,11 +221,11 @@ public class FieldLayoutAnalyzer {
         case NON_FLAT:
           throw new RuntimeException("Should not be called on non-flat fields");
         case NULL_FREE_NON_ATOMIC_FLAT:
-          Asserts.assertTrue(nonAtomicLayoutSize != -1);
-          return nonAtomicLayoutSize;
+          Asserts.assertTrue(nullFreeNonAtomicLayoutSize != -1);
+          return nullFreeNonAtomicLayoutSize;
         case NULL_FREE_ATOMIC_FLAT:
-          Asserts.assertTrue(atomicLayoutSize != -1);
-          return atomicLayoutSize;
+          Asserts.assertTrue(nullFreeAtomicLayoutSize != -1);
+          return nullFreeAtomicLayoutSize;
         case NULLABLE_ATOMIC_FLAT:
           Asserts.assertTrue(nullableAtomicLayoutSize != -1);
           return nullableAtomicLayoutSize;
@@ -242,11 +242,11 @@ public class FieldLayoutAnalyzer {
         case NON_FLAT:
           throw new RuntimeException("Should not be called on non-flat fields");
         case NULL_FREE_NON_ATOMIC_FLAT:
-          Asserts.assertTrue(nonAtomicLayoutSize != -1);
-          return nonAtomicLayoutAlignment;
+          Asserts.assertTrue(nullFreeNonAtomicLayoutSize != -1);
+          return nullFreeNonAtomicLayoutAlignment;
         case NULL_FREE_ATOMIC_FLAT:
-          Asserts.assertTrue(atomicLayoutSize != -1);
-          return atomicLayoutAlignment;
+          Asserts.assertTrue(nullFreeAtomicLayoutSize != -1);
+          return nullFreeAtomicLayoutAlignment;
         case NULLABLE_ATOMIC_FLAT:
           Asserts.assertTrue(nullableAtomicLayoutSize != -1);
           return nullableAtomicLayoutAlignment;
@@ -320,11 +320,11 @@ public class FieldLayoutAnalyzer {
         size_align = nonAtomicLayoutLine[2].split("/");
         if (size_align[0].contentEquals("-")) {
           Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
-          cl.nonAtomicLayoutSize = -1;
-          cl.nonAtomicLayoutAlignment = -1;
+          cl.nullFreeNonAtomicLayoutSize = -1;
+          cl.nullFreeNonAtomicLayoutAlignment = -1;
         } else {
-          cl.nonAtomicLayoutSize = Integer.parseInt(size_align[0]);
-          cl.nonAtomicLayoutAlignment = Integer.parseInt(size_align[1]);
+          cl.nullFreeNonAtomicLayoutSize = Integer.parseInt(size_align[0]);
+          cl.nullFreeNonAtomicLayoutAlignment = Integer.parseInt(size_align[1]);
         }
         lo.moveToNextLine();
         // NULL_FREE_ATOMIC_FLAT layout: x/y
@@ -333,11 +333,11 @@ public class FieldLayoutAnalyzer {
         size_align = atomicLayoutLine[2].split("/");
         if (size_align[0].contentEquals("-")) {
           Asserts.assertTrue(size_align[1].contentEquals("-"), "Size/Alignment mismatch");
-          cl.atomicLayoutSize = -1;
-          cl.atomicLayoutAlignment = -1;
+          cl.nullFreeAtomicLayoutSize = -1;
+          cl.nullFreeAtomicLayoutAlignment = -1;
         } else {
-          cl.atomicLayoutSize = Integer.parseInt(size_align[0]);
-          cl.atomicLayoutAlignment = Integer.parseInt(size_align[1]);
+          cl.nullFreeAtomicLayoutSize = Integer.parseInt(size_align[0]);
+          cl.nullFreeAtomicLayoutAlignment = Integer.parseInt(size_align[1]);
         }
         lo.moveToNextLine();
         // Nullable atomic flat layout: x/y
@@ -491,7 +491,7 @@ public class FieldLayoutAnalyzer {
         checkNoOverlapOnFields(layout.staticFields);
         checkNoOverlapOnFields(layout.nonStaticFields);
       } catch(Throwable t) {
-        System.out.println("Unexpection exception when checking for overlaps/holes in class " + layout.name);
+        System.out.println("Unexpected exception when checking for overlaps/holes in class " + layout.name);
         throw t;
       }
     }
@@ -706,6 +706,35 @@ public class FieldLayoutAnalyzer {
     }
   }
 
+  void checkBufferedLayout() {
+    // The BUFFERED layout is supposed to be compatible with all other layouts,
+    // which means its size must be equal or bigger than all other supported layouts
+    // and its alignment must the alignment of the most constraining supported layout.
+    for (ClassLayout layout : layouts) {
+      try {
+        if (layout.hasNullFreeNonAtomicLayout()) {
+          Asserts.assertTrue(layout.payloadSize >= layout.nullFreeNonAtomicLayoutSize);
+          Asserts.assertTrue(layout.payloadAlignment >= layout.nullFreeNonAtomicLayoutAlignment);
+        }
+        if (layout.hasNullFreeAtomicLayout()) {
+          Asserts.assertTrue(layout.payloadSize >= layout.nullFreeAtomicLayoutSize);
+          Asserts.assertTrue(layout.payloadAlignment >= layout.nullFreeAtomicLayoutAlignment);
+        }
+        if (layout.hasNullableAtomicLayout()) {
+          Asserts.assertTrue(layout.payloadSize >= layout.nullableAtomicLayoutSize);
+          Asserts.assertTrue(layout.payloadAlignment >= layout.nullableAtomicLayoutAlignment);
+        }
+        if (layout.hasNullableNonAtomicLayout()) {
+          Asserts.assertTrue(layout.payloadSize >= layout.nullableNonAtomicLayoutSize);
+          Asserts.assertTrue(layout.payloadAlignment >= layout.nullableNonAtomicLayoutAlignment);
+        }
+      } catch (Throwable t) {
+        System.out.println("Exception while processing class " + layout.name);
+        throw t;
+      }
+    }
+  }
+
   public void check() {
     checkOffsets();
     checkNoOverlap();
@@ -713,6 +742,7 @@ public class FieldLayoutAnalyzer {
     checkInheritedFields();
     checkSubClasses();
     checkNullMarkers();
+    checkBufferedLayout();
   }
 
   private void generate(LogOutput lo) {
