@@ -1689,7 +1689,7 @@ public class Attr extends JCTree.Visitor {
                     initEnv.info.enclVar = v;
                     boolean previousCtorPrologue = initEnv.info.ctorPrologue;
                     try {
-                        if (v.owner.kind == TYP && !v.isStatic() && v.isStrict()) {
+                        if (v.owner.kind == TYP && !v.isStatic() && v.ownerIsValueOrRecord()) {
                             // strict instance initializer in a value class
                             initEnv.info.ctorPrologue = true;
                         }
@@ -1705,7 +1705,7 @@ public class Attr extends JCTree.Visitor {
                 if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
                     // strict field initializers are inlined in constructor's prologues
                     CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
-                            !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR,
+                            !v.ownerIsValueOrRecord() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR,
                             true);
                     ctorPrologueVisitor.scan(tree.init);
                 }

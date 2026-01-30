@@ -504,7 +504,7 @@ public class Flow {
                     if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
                         if (def instanceof JCVariableDecl varDecl) {
                             boolean isEarly = varDecl.init != null &&
-                                    varDecl.sym.isStrict() &&
+                                    varDecl.sym.ownerIsValueOrRecord() &&
                                     !varDecl.sym.isStatic();
                             if (isEarly == earlyOnly) {
                                 handler.accept(def);
@@ -1747,7 +1747,7 @@ public class Flow {
         boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                    (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
-                     (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) &&
+                   (sym.ownerIsValueOrRecord() && (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT)) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
@@ -2622,7 +2622,7 @@ public class Flow {
                         if (allowValueClasses &&
                                 (var.owner == classDef.sym &&
                                 !var.isStatic() &&
-                                (var.isStrict() || types.isNonNullable(var.type)) &&
+                                (var.ownerIsValueOrRecord() || types.isNonNullable(var.type)) &&
                                 !isInstanceRecordField)) {
                             Error errorKey =  (var.owner.isValueClass()) ?
                                     Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var) :

@@ -439,6 +439,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags_field & VALUE_CLASS) != 0;
     }
 
+    public boolean hasRecordFlag() {
+        return (flags_field & RECORD) != 0;
+    }
+
     public boolean isIdentityClass() {
         return !isInterface() && (flags_field & IDENTITY_TYPE) != 0;
     }
@@ -1837,6 +1841,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         public boolean isResourceVariable() {
             return data == ElementKind.RESOURCE_VARIABLE;
+        }
+
+        public boolean ownerIsValueOrRecord() {
+            return owner.isValueClass() || owner.hasRecordFlag();
         }
 
         public Object getConstValue() {
