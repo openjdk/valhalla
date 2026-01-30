@@ -101,8 +101,13 @@ public class ValueCompositionTest {
   static class Container0 {
     @Strict
     @NullRestricted
-    Value0 val0 = new Value0();
+    Value0 val0;
     Value0 val1 = new Value0();
+
+    Container0() {
+      val0 = new Value0();
+      super();
+    }
   }
 
   static public void test_0() {
@@ -182,8 +187,13 @@ public class ValueCompositionTest {
   static class Container3 {
     @Strict
     @NullRestricted
-    Value1 val0 = new Value1();
+    Value1 val0;
     Value1 val1 = new Value1();
+
+    Container3() {
+      val0 = new Value1();
+      super();
+    }
   }
 
   static public void test_3() {
@@ -252,8 +262,13 @@ public class ValueCompositionTest {
   static class Container6 {
     @Strict
     @NullRestricted
-    Value2 val0 = new Value2();
+    Value2 val0;
     Value2 val1 = new Value2();
+
+    Container6() {
+      val0 = new Value2();
+      super();
+    }
   }
 
   static public void test_6() {

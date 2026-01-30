@@ -69,6 +69,7 @@ public class TestScalarReplaceFlatFields {
         Holder(V1 v1, V1 v2) {
             this.v1 = v1;
             this.v2 = v2;
+            super();
         }
     }
 

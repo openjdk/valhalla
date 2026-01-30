@@ -148,6 +148,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
   Node* adr = basic_plus_adr(obj, obj, offset);
+  assert(C->get_alias_index(C->alias_type(field)->adr_type()) == C->get_alias_index(_gvn.type(adr)->isa_ptr()),
+         "slice of address and input slice don't match");
 
   Node* ld = nullptr;
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
@@ -299,6 +301,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
 
     const TypePtr* adr_type = C->alias_type(field)->adr_type();
+    assert(C->get_alias_index(adr_type) == C->get_alias_index(_gvn.type(adr)->isa_ptr()),
+           "slice of address and input slice don't match");
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     inc_sp(1);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -639,8 +639,8 @@ public final class Class<T> implements java.io.Serializable,
      *          or {@code void} this method returns {@code false}.
      *      <li>
      *          For all other {@code Class} objects, this method returns {@code true} if either
-     *          preview features are disabled or {@linkplain Modifier#IDENTITY} is set in the
-     *          {@linkplain #getModifiers() class modifiers}.
+     *          preview features are disabled or {@linkplain AccessFlag#IDENTITY IDENTITY} is
+     *          present in the {@linkplain #accessFlags() class access flags}.
      * </ul>
      * @see AccessFlag#IDENTITY
      * @since Valhalla
@@ -661,8 +661,8 @@ public final class Class<T> implements java.io.Serializable,
      *          or {@code void} this method returns {@code true} only if preview features are enabled.
      *      <li>
      *          For all other {@code Class} objects, this method returns {@code true} only if
-     *          preview features are enabled and {@linkplain Modifier#IDENTITY} is not set in the
-     *          {@linkplain #getModifiers() class modifiers}.
+     *          preview features are enabled and {@linkplain AccessFlag#IDENTITY IDENTITY} is not
+     *          present in the {@linkplain #accessFlags() class access flags}.
      * </ul>
      * @see AccessFlag#IDENTITY
      * @since Valhalla
@@ -1399,7 +1399,8 @@ public final class Class<T> implements java.io.Serializable,
      *      {@code true}
      * <li> its interface modifier is always {@code false}, even when
      *      the component type is an interface
-     * <li> its {@code identity} modifier is always true
+     * <li> when preview features are enabled, its {@linkplain
+     *      AccessFlag#IDENTITY identity} modifier is always true
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, its {@code public}, {@code abstract}, and {@code final}
@@ -1436,7 +1437,8 @@ public final class Class<T> implements java.io.Serializable,
      * <li> its {@code ABSTRACT} and {@code FINAL} flags are present
      * <li> its {@code INTERFACE} flag is absent, even when the
      *      component type is an interface
-    * <li> its {@code identity} modifier is always true
+     * <li> when preview features are enabled, its {@code IDENTITY} flag
+    *       is present
      * </ul>
      * If this {@code Class} object represents a primitive type or
      * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and

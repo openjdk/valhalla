@@ -67,8 +67,13 @@ value class Rectangle {
 class NamedRectangle {
     @Strict
     @NullRestricted
-    Rectangle rect = new Rectangle();
+    Rectangle rect;
     String name = "";
+
+    NamedRectangle() {
+        rect = new Rectangle();
+        super();
+    }
 
     static int getP1X(NamedRectangle nr) {
         return nr.rect
