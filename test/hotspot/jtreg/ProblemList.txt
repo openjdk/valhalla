@@ -97,6 +97,7 @@ compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
+ompiler/valhalla/inlinetypes/TestTrivialMethods.java      8376815 generic-all
 
 #############################################################################
 
