@@ -29,7 +29,6 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -167,7 +166,6 @@ public class TestDeoptimizationWhenBuffering {
     static value class MyValue1 {
         static int cnt = 0;
         int x;
-        @Strict
         @NullRestricted
         MyValue2 vtField1;
         MyValue2 vtField2;
@@ -237,7 +235,6 @@ public class TestDeoptimizationWhenBuffering {
         return new MyValue1();
     }
 
-    @Strict
     @NullRestricted
     static MyValue1 vtField1 = MyValue1.DEFAULT;
 
@@ -291,7 +288,6 @@ public class TestDeoptimizationWhenBuffering {
     }
 
     static final MethodHandle test10_mh;
-    @Strict
     @NullRestricted
     static final MyValue1 test10Field = new MyValue1();
     static int test10Counter = 0;

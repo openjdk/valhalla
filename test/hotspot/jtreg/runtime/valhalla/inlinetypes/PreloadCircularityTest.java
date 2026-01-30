@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ import javax.management.relation.RelationServiceNotRegisteredException;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
@@ -54,13 +53,11 @@ public class PreloadCircularityTest {
     // Testing preload due to non-static fields
 
     static value class Class0a {
-        @Strict
         @NullRestricted
         Class0b vb = new Class0b();
     }
 
     static value class Class0b {
-        @Strict
         @NullRestricted
         Class0c vc = new Class0c();
     }
@@ -80,7 +77,6 @@ public class PreloadCircularityTest {
     }
 
     static value class Class1a {
-        @Strict
         @NullRestricted
         Class1b vb = new Class1b();
     }
@@ -103,19 +99,16 @@ public class PreloadCircularityTest {
     }
 
     static value class Class2a {
-        @Strict
         @NullRestricted
         Class2b vb = new Class2b();
     }
 
     static value class Class2b {
-        @Strict
         @NullRestricted
         Class2c vc = new Class2c();
     }
 
     static value class Class2c {
-        @Strict
         @NullRestricted
         Class2b vb = new Class2b();
     }
@@ -132,13 +125,11 @@ public class PreloadCircularityTest {
     }
 
     static value class Class3a {
-        @Strict
         @NullRestricted
         Class3b vb = new Class3b();
     }
 
     static value class Class3b {
-        @Strict
         @NullRestricted
         Class3c vc = new Class3c();
     }
@@ -159,13 +150,11 @@ public class PreloadCircularityTest {
     }
 
     static value class Class4a {
-        @Strict
         @NullRestricted
         Class4b vb = new Class4b();
     }
 
     static value class Class4b {
-        @Strict
         @NullRestricted
         Class4a vc = new Class4a();
     }
@@ -182,13 +171,11 @@ public class PreloadCircularityTest {
     static value class Class5a {
         Class5b vb = new Class5b();
 
-        @Strict
         @NullRestricted
         Class5c vc = new Class5c();
     }
 
     static value class Class5b {
-        @Strict
         @NullRestricted
         Class5d vd = new Class5d();
     }
@@ -198,7 +185,6 @@ public class PreloadCircularityTest {
     }
 
     static value class Class5d {
-        @Strict
         @NullRestricted
         Class5b vb = new Class5b();
     }
@@ -223,7 +209,6 @@ public class PreloadCircularityTest {
     }
 
     static value class Class6a {
-        @Strict
         @NullRestricted
         Class6b vb = new Class6b();
     }
@@ -231,7 +216,6 @@ public class PreloadCircularityTest {
     static value class Class6b {
         Class6c vc = new Class6c();
 
-        @Strict
         @NullRestricted
         Class6d vd = new Class6d();
     }
@@ -241,7 +225,6 @@ public class PreloadCircularityTest {
     }
 
     static value class Class6d {
-        @Strict
         @NullRestricted
         Class6b vb = new Class6b();
     }
@@ -260,7 +243,6 @@ public class PreloadCircularityTest {
     }
 
     static value class Class7a {
-        @Strict
         @NullRestricted
         Class7a va = new Class7a();
     }
@@ -282,7 +264,6 @@ public class PreloadCircularityTest {
     }
 
     static value class Class9a {
-        @Strict
         @NullRestricted
         Class9b vb = new Class9b();
     }

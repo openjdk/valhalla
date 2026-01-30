@@ -24,7 +24,6 @@ package org.openjdk.bench.valhalla.field.read;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
@@ -35,7 +34,6 @@ import org.openjdk.jmh.infra.Blackhole;
 public class Value128NullFreeNonAtomic extends ReadBase {
 
     public static class ValWrapper {
-        @Strict
         @NullRestricted
         public ValueInt4 f;
 

@@ -23,7 +23,6 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -37,16 +36,12 @@ import jdk.test.lib.Asserts;
  */
 public class InlineTypeGetField {
 
-    @Strict
     @NullRestricted
     static Point staticPoint0;
-    @Strict
     @NullRestricted
     static Point staticPoint1;
-    @Strict
     @NullRestricted
     Point instancePoint0;
-    @Strict
     @NullRestricted
     Point instancePoint1;
 
