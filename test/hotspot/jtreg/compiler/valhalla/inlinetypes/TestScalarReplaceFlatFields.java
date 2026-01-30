@@ -24,7 +24,6 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -61,7 +60,6 @@ public class TestScalarReplaceFlatFields {
     }
 
     static class Holder {
-        @Strict
         @NullRestricted
         V1 v1;
         V1 v2;

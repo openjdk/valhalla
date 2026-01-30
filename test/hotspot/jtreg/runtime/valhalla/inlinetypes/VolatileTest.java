@@ -37,7 +37,6 @@ package runtime.valhalla.inlinetypes;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -57,10 +56,8 @@ public class VolatileTest {
     }
 
     static class MyContainer {
-        @Strict
         @NullRestricted
         MyValue mv0;
-        @Strict
         @NullRestricted
         volatile MyValue mv1;
 

@@ -44,7 +44,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -457,7 +456,6 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from interpreter -> compiled
-    @Strict
     @NullRestricted
     final MyValue3 test15_vt;
 
@@ -479,7 +477,6 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
-    @Strict
     @NullRestricted
     final MyValue3 test16_vt;
 
@@ -497,7 +494,6 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
-    @Strict
     @NullRestricted
     final MyValue3 test17_vt;
 
@@ -527,7 +523,6 @@ public class TestCallingConvention {
     // Same tests as above but with a value class that cannot be returned in registers
 
     // Return value objects in registers from interpreter -> compiled
-    @Strict
     @NullRestricted
     final MyValue4 test18_vt;
 
@@ -550,7 +545,6 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
-    @Strict
     @NullRestricted
     final MyValue4 test19_vt;
 
@@ -566,7 +560,6 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
-    @Strict
     @NullRestricted
     final MyValue4 test20_vt;
 
@@ -594,7 +587,6 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
-    @Strict
     @NullRestricted
     final MyValue3 test21_vt;
 
@@ -776,7 +768,6 @@ public class TestCallingConvention {
     }
 
     // Test calling a method returning a value object as fields via reflection
-    @Strict
     @NullRestricted
     MyValue3 test29_vt;
 
@@ -1108,7 +1099,6 @@ public class TestCallingConvention {
 
     @LooselyConsistentValue
     static value class EmptyContainer {
-        @Strict
         @NullRestricted
         private MyValueEmpty empty;
 
@@ -1127,7 +1117,6 @@ public class TestCallingConvention {
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val;
-        @Strict
         @NullRestricted
         private EmptyContainer empty;
 
@@ -1268,10 +1257,8 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
-    @Strict
     @NullRestricted
     final MyValue3 test50_vt;
-    @Strict
     @NullRestricted
     final MyValue3 test50_vt2;
 
@@ -1447,7 +1434,6 @@ public class TestCallingConvention {
     // Test abstract value class with flat fields
     @LooselyConsistentValue
     abstract value class MyAbstract58 {
-        @Strict
         @NullRestricted
         MyValue58Inline nullfree = new MyValue58Inline();
 
@@ -1472,7 +1458,6 @@ public class TestCallingConvention {
     value class MyValue58C extends MyAbstract58 {
         int x = rI;
 
-        @Strict
         @NullRestricted
         MyValue1 nullfree = MyValue1.DEFAULT;
 

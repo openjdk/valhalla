@@ -50,7 +50,6 @@ public class TestMemBars {
     }
 
     static value class MyValue1 {
-        @Strict
         @NullRestricted
         MyValue3 val = new MyValue3(); // Too large to be flattened
 
@@ -69,11 +68,9 @@ public class TestMemBars {
         long l1 = VAL;
     }
 
-    @Strict
     @NullRestricted
     MyValue1 field1;
 
-    @Strict
     @NullRestricted
     MyValue2 field2;
 
