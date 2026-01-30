@@ -597,6 +597,37 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 "")
                 )
         );
+
+        for (String source : List.of(
+                """
+                class Test {
+                    Object! o;
+                    Test() {
+                        o = new Object();
+                        super();
+                    }
+                }
+                """,
+                """
+                class Test {
+                    static Object! o = new Object();
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var field : classFile.fields()) {
+                    if (!field.flags().has(AccessFlag.STATIC)) {
+                        Set<AccessFlag> fieldFlags = field.flags().flags();
+                        Assert.check(fieldFlags.size() == 1 && fieldFlags.contains(AccessFlag.STRICT_INIT));
+                    } else {
+                        Set<AccessFlag> fieldFlags = field.flags().flags();
+                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains(AccessFlag.STRICT_INIT) && fieldFlags.contains(AccessFlag.STATIC));
+                    }
+                }
+            }
+        }
     }
 
     @Test

@@ -1201,8 +1201,6 @@ public class Check {
                 if (allowValueClasses && (isInstanceFieldOfValueClass || isRecordField)) {
                     implicit |= FINAL | STRICT;
                     mask = ValueFieldFlags;
-                } else if (isNonNullableFieldOfNonValueClass) {
-                    mask = ValueFieldFlags;
                 } else {
                     mask = VarFlags;
                 }
