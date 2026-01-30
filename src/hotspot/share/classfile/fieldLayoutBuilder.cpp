@@ -1043,15 +1043,15 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   // Test if the concrete inline class is an empty class (no instance fields)
   // and insert a dummy field if needed
   if (!_is_abstract_value) {
-    bool declares_non_static_fields = false;
+    bool declares_nonstatic_fields = false;
     for (FieldInfo fieldinfo : *_field_info) {
       if (!fieldinfo.access_flags().is_static()) {
-        declares_non_static_fields = true;
+        declares_nonstatic_fields = true;
         break;
       }
     }
 
-    if (!declares_non_static_fields) {
+    if (!declares_nonstatic_fields) {
       bool has_inherited_fields = _super_klass != nullptr && _super_klass->has_nonstatic_fields();
       if (!has_inherited_fields) {
         // Inject ".empty" dummy field
