@@ -31,6 +31,11 @@ import java.util.Arrays;
  * Polynomials of one variable using {@code double} values to store
  * coefficients of the terms.
  *
+ * The exponents on the polynomial terms are 0 (for the constant term)
+ * or positive. Negative exponents, for terms like
+ * <i>x</i><sup>&minus;1</sup> are <em>not</em> supported in this
+ * class.
+ *
  * <p>Blanket statement on nulls: if you pass in a null argument, you
  * should usually expect to get a {@code NullPointerException}.
  *
@@ -221,6 +226,19 @@ public final class /* value */ PolynomialDouble  {
             }
             return valueOf(result);
         }
+    }
+
+    /**
+     * {@return the coefficients of this polynomial}
+     *
+     * The value of {@code coefficients[0]} is the coeffiecnet for
+     * <i>x</i><sup>0</sup>, the constnat term; the value of {@code
+     * coefficients[1]} is the coefficeint for <i>x</i><sup>1</sup> =
+     * <i>x</i>; and so on with {@code coefficients[i]} being the
+     * coefficient for <i>x</i><sup><i>i</i></sup>.
+     */
+    public double[] coefficients() {
+        return this.coeffs.clone(); // Prevent malicious updates
     }
 
     // For future consideration.
@@ -414,9 +432,29 @@ public final class /* value */ PolynomialDouble  {
     }
 
     /**
+     * {@return whether or not the argument is a polynomial equal to this one}
+     *
+     * @param o the object to compare to
+     */
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof PolynomialDouble that &&
+            this.degree == that.degree &&
+            Arrays.equals(this.coeffs, that.coeffs);
+    }
+
+    /**
+     * {@return the hashcode of this polynomial}
+     */
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(coeffs);
+    }
+
+    /**
      * {@return a string representing the polynomial}
      */
-    // @Override
+    @Override
     public String toString() {
         if (degree <= 0) { // constant or zero
             return Double.toString(coeffs[0]);
