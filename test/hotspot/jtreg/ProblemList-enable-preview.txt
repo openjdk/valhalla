@@ -37,8 +37,6 @@ compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJav
 compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJavaType.java       8372605 generic-all
 
 # Runtime:
-runtime/cds/serviceability/ReplaceCriticalClassesForSubgraphs.java                               8372599 generic-all
-runtime/cds/appcds/cacheObject/ArchivedIntegerCacheTest.java                                     8374959 generic-all
 
 # Serviceability:
 vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java                        8375069 generic-all
