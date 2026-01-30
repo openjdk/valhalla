@@ -184,9 +184,49 @@ public:
 
   // Whether this field needs to act atomically. Note that it does not actually need accessing
   // atomically. For example, if there cannot be racy accesses to this field, then it can be
-  // accessed in a non-atomic manner. This method must not depend on the fact that the field cannot
-  // be accessed racily (e.g. it is a strict final field), as if the holder object is flattened
-  // as a field that is not strict final, this property is lost.
+  // accessed in a non-atomic manner. Unless this field must be in observably immutable memory,
+  // this method must not depend on the fact that the field cannot be accessed racily (e.g. it is a
+  // strict final field), as if the holder object is flattened as a field that is not strict final,
+  // this property is lost.
+  //
+  // A slice of memory is observably immutable if all stores to it must happen before all loads
+  // from it. A typical example is when the memory is a strict field and its immediate holder is
+  // not a field inside another object.
+  //
+  // For example:
+  // value class A {
+  //     int x;
+  //     int y;
+  // }
+  // value class AHolder {
+  //     A v;
+  // }
+  // class AHolderHolder {
+  //     AHolder v;
+  // }
+  // The field AHolder.v is flattened in AHolder, but AHolder cannot be flattened in AHolderHolder
+  // because we cannot access AHolderHolder.v atomically. As a result, we can say that the field is
+  // non-atomic. In this case, AHolder.v has its layout being NULLABLE_NON_ATOMIC_FLAT, this
+  // prevents its holder from being flattened in observably mutable memory.
+  //
+  // Another example:
+  // value class B {
+  //     int v;
+  // }
+  // looselyconsistent value class BHolder {
+  //     B v;
+  //     byte b;
+  // }
+  // class BHolderHolder {
+  //     null-free BHolder v;
+  // }
+  // The field BHolder.v is flattened in BHolder, and BHolder can be flattened further in
+  // BHolderHolder. In this case, while BHolder.v can be accessed in a non-atomic manner if BHolder
+  // is a standalone object, it must still be accessed atomically when it is a subfield in
+  // BHolderHolder.v. As a result, the field BHolder.v must still return true for this method, so
+  // that the compiler knows to access it correctly in all circumstances. Implementation-wise,
+  // BHolder.v has its layout being NULLABLE_ATOMIC_FLAT, which still allows its holder to be
+  // flattened in observably mutable memory.
   bool is_atomic();
 
   // The field is modified outside of instance initializer methods
