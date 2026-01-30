@@ -1410,7 +1410,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
     if (!supports_inline_types()) {
-      recognized_modifiers &= ~JVM_ACC_STRICT;
+      recognized_modifiers &= ~JVM_ACC_STRICT_INIT;
     }
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
@@ -1469,7 +1469,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
               "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s with signature %s (primitive types can never be null)",
               class_name()->as_C_string(), name->as_C_string(), sig->as_C_string());
           }
-          const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
+          const bool is_strict = (flags & JVM_ACC_STRICT_INIT) != 0;
           if (!is_strict) {
             Exceptions::fthrow(
               THREAD_AND_LOCATION,
