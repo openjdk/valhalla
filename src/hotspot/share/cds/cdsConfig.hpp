@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,9 +45,6 @@ class CDSConfig : public AllStatic {
   static bool _is_single_command_training;
   static bool _has_temp_aot_config_file;
   static bool _is_at_aot_safepoint;
-
-  static bool _module_patching_disables_cds;
-  static bool _java_base_module_patching_disables_cds;
 
   const static char* _default_archive_path;
   const static char* _input_static_archive_path;
@@ -100,12 +97,8 @@ public:
   static void check_internal_module_property(const char* key, const char* value) NOT_CDS_RETURN;
   static void check_incompatible_property(const char* key, const char* value) NOT_CDS_RETURN;
   static bool has_unsupported_runtime_module_options() NOT_CDS_RETURN_(false);
-  static bool check_vm_args_consistency(bool mode_flag_cmd_line) NOT_CDS_RETURN_(true);
+  static bool check_vm_args_consistency(bool patch_mod_javabase, bool mode_flag_cmd_line) NOT_CDS_RETURN_(true);
 
-  static bool module_patching_disables_cds() { return CDS_ONLY(_module_patching_disables_cds) NOT_CDS(false); }
-  static void set_module_patching_disables_cds() { CDS_ONLY(_module_patching_disables_cds = true;) }
-  static bool java_base_module_patching_disables_cds() { return CDS_ONLY(_java_base_module_patching_disables_cds) NOT_CDS(false); }
-  static void set_java_base_module_patching_disables_cds() { CDS_ONLY(_java_base_module_patching_disables_cds = true;) }
   static const char* type_of_archive_being_loaded();
   static const char* type_of_archive_being_written();
   static void prepare_for_dumping();

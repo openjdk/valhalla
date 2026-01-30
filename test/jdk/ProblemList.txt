@@ -808,5 +808,3 @@ sun/tools/jhsdb/HeapDumpTest.java 8366806 generic-all
 sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java 8366806 generic-all
 sun/tools/jhsdb/JShellHeapDumpTest.java 8366806 generic-all
 sun/tools/jhsdb/JStackStressTest.java 8375470 macosx-aarch64
-
-tools/sincechecker/modules/java.base/JavaBaseCheckSince.java 8375574 generic-all
