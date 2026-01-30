@@ -643,20 +643,29 @@ void FieldLayout::remove_null_marker() {
   ShouldNotReachHere(); // if we reach this point, the null marker was not found!
 }
 
-void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields) {
+void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields, bool dummy_field_is_reused_as_null_marker) {
   ResourceMark rm;
   LayoutRawBlock* b = _blocks;
   while(b != _last) {
     switch(b->block_kind()) {
       case LayoutRawBlock::REGULAR: {
         FieldInfo* fi = _field_info->adr_at(b->field_index());
-        output->print_cr(" @%d %s %d/%d \"%s\" %s",
-                         b->offset(),
-                         "REGULAR",
-                         b->size(),
-                         b->alignment(),
-                         fi->name(_cp)->as_C_string(),
-                         fi->signature(_cp)->as_C_string());
+        output->print(" @%d %s %d/%d \"%s\" %s",
+                      b->offset(),
+                      "REGULAR",
+                      b->size(),
+                      b->alignment(),
+                      fi->name(_cp)->as_C_string(),
+                      fi->signature(_cp)->as_C_string());
+
+        if (dummy_field_is_reused_as_null_marker) {
+          const bool is_dummy_field = fi->name(_cp)->fast_compare(vmSymbols::symbol_at(VM_SYMBOL_ENUM_NAME(empty_marker_name))) == 0;
+          if (is_dummy_field) {
+            output->print(" (reused as null-marker)");
+          }
+        }
+
+        output->cr();
         break;
       }
       case LayoutRawBlock::FLAT: {
@@ -1572,9 +1581,10 @@ void FieldLayoutBuilder::epilogue() {
       st.print_cr("Layout of class %s@%p", _classname->as_C_string(), _loader_data);
     }
     st.print_cr("Instance fields:");
-    _layout->print(&st, false, _super_klass, _inline_layout_info_array);
+    const bool dummy_field_is_reused_as_null_marker = _is_empty_inline_class && _null_marker_offset != -1;
+    _layout->print(&st, false, _super_klass, _inline_layout_info_array, dummy_field_is_reused_as_null_marker);
     st.print_cr("Static fields:");
-    _static_layout->print(&st, true, nullptr, _inline_layout_info_array);
+    _static_layout->print(&st, true, nullptr, _inline_layout_info_array, dummy_field_is_reused_as_null_marker);
     st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
       st.print_cr("First field offset = %d", _payload_offset);
