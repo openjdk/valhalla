@@ -72,7 +72,7 @@ public final class /* value */ PolynomialDouble  {
                                           PolynomialDouble divisor) {
             return PolynomialDouble.remainder( dividend,  divisor);
         }
-        
+
         public PolynomialDouble plus(PolynomialDouble operand) {
             return PolynomialDouble.plus(operand);
         }
@@ -165,7 +165,7 @@ public final class /* value */ PolynomialDouble  {
             }
 
             return (i == 0) ?
-                ZERO : 
+                ZERO :
                 new PolynomialDouble(Arrays.copyOf(coeffs, i));
         }
     }
