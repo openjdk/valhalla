@@ -4183,7 +4183,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       m->method_holder()->print_value_on(stream);
     } else {
       bool did_name = false;
-      if (is_reference_type(t)) {
+      if (is_reference_type(t) && !(*sig)._vt_oop) {
         Symbol* name = (*sig)._name;
         name->print_value_on(stream);
         did_name = true;
@@ -4192,6 +4192,9 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         stream->print("%s", type2name(t));
       if ((*sig)._null_marker) {
         stream->print(" (null marker)");
+      }
+      if ((*sig)._vt_oop) {
+        stream->print(" (VT OOP)");
       }
     }
     if (at_old_sp) {

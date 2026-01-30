@@ -1067,6 +1067,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
             __ bind(L_notNull);
             continue;
           }
+          if (sig_extended->at(next_arg_comp)._vt_oop) {
+            continue;
+          }
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
           bool is_oop = is_reference_type(bt);

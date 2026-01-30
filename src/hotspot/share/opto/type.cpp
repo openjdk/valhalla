@@ -2286,6 +2286,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
       break;
     case T_OBJECT:
       if (type->is_inlinetype() && vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
+        field_array[pos++] = get_const_type(type, interface_handling);
         // InlineTypeNode::NullMarker field used for null checking
         field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
