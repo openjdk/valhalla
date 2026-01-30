@@ -158,6 +158,18 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 //@ForceCompileClassInitialize
 public class TestLWorld {
 
+    public TestLWorld() {
+        valueField1 = testValue1;
+        valueField2 = testValue1;
+        valueField4 = MyValue1.DEFAULT;
+        small = new Small();
+        smallDefault = new Small(0, new Big(0));
+        big = new Big();
+        bigDefault = new Big(0);
+        fEmpty3 = new MyValueEmpty();
+        super();
+    }
+
     public static void main(String[] args) {
         // Make sure Test140Value is loaded but not linked
         Class<?> class1 = Test140Value.class;
@@ -244,14 +256,14 @@ public class TestLWorld {
 
     @Strict
     @NullRestricted
-    MyValue1 valueField1 = testValue1;
+    MyValue1 valueField1;
     @Strict
     @NullRestricted
-    MyValue1 valueField2 = testValue1;
+    MyValue1 valueField2;
     MyValue1 valueField3 = testValue1;
     @Strict
     @NullRestricted
-    MyValue1 valueField4 = MyValue1.DEFAULT;
+    MyValue1 valueField4;
     MyValue1 valueField5;
 
     static MyValue1 staticValueField1 = testValue1;
@@ -2351,16 +2363,16 @@ public class TestLWorld {
 
     @Strict
     @NullRestricted
-    Small small = new Small();
+    Small small;
     @Strict
     @NullRestricted
-    Small smallDefault = new Small(0, new Big(0));
+    Small smallDefault;
     @Strict
     @NullRestricted
-    Big big = new Big();
+    Big big;
     @Strict
     @NullRestricted
-    Big bigDefault = new Big(0);
+    Big bigDefault;
 
     @Test
     public long test80() {
@@ -3244,6 +3256,7 @@ public class TestLWorld {
         @ForceInline
         InlineBox(long val) {
             this.content = LongWrapper.wrap(val);
+            super();
         }
 
         @ForceInline
@@ -3542,7 +3555,7 @@ public class TestLWorld {
     static MyValueEmpty fEmpty2 = new MyValueEmpty();
     @Strict
     @NullRestricted
-           MyValueEmpty fEmpty3 = new MyValueEmpty();
+           MyValueEmpty fEmpty3;
            MyValueEmpty fEmpty4 = new MyValueEmpty();
 
     // Test fields loads/stores with empty inline types

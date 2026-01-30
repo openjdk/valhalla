@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,22 +20,31 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.asmtools.jcoder;
 
-/**
- * A sorted list of error messages
- */
-final class ErrorMessage {
+package compiler.ciReplay;
 
-    int where;
-    String message;
-    ErrorMessage next;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
-    /**
-     * Constructor
-     */
-    ErrorMessage(int where, String message) {
-        this.where = where;
-        this.message = message;
+public class ErrorFile {
+    private final String errorFile;
+
+    public ErrorFile(String errorFile) {
+        this.errorFile = errorFile;
+    }
+
+    public boolean find(String toMatch) {
+        try (var br = Files.newBufferedReader(Paths.get(errorFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains(toMatch)) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            throw new Error("Failed to read " + errorFile + " data: " + e, e);
+        }
+        return false;
     }
 }

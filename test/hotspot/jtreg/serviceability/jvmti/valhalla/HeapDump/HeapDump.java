@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,7 +100,7 @@ value class TestClass {
     // null restricted value
     @Strict
     @NullRestricted
-    public Value nullRestrictedValue = new Value(11);
+    public Value nullRestrictedValue;
     // null value
     public Value nullValue = null;
     // value object with reference
@@ -115,6 +115,8 @@ value class TestClass {
     public static Value staticValue = new Value(31);
 
     public TestClass() {
+        nullRestrictedValue = new Value(11);
+        super();
     }
 
     static Value[] createNullableArray(int seed) {
