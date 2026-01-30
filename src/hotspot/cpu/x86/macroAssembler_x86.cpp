@@ -6312,6 +6312,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       break;
     }
   }
+  assert(null_check, "");
   stream.reset(sig_index, to_index);
   while (stream.next(toReg, bt)) {
     assert(toReg->is_valid(), "destination must be valid");
@@ -6351,6 +6352,15 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         movq(Address(rsp, st_off), 1);
       } else {
         movq(toReg->as_Register(), 1);
+      }
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(Address(rsp, st_off), fromReg);
+      } else {
+        movq(toReg->as_Register(), fromReg);
       }
       continue;
     }
