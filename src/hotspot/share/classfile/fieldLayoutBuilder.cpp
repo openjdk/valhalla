@@ -1233,7 +1233,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // field shift is needed but not possible, all atomic layouts are disabled and only reference
     // and loosely consistent are supported.
     int required_alignment = _payload_alignment;
-    if (has_null_free_atomic_layout() && _payload_alignment < null_free_atomic_layout_size_in_bytes()) {
+    if (has_null_free_atomic_layout() && required_alignment < null_free_atomic_layout_size_in_bytes()) {
       required_alignment = null_free_atomic_layout_size_in_bytes();
     }
     if (has_nullable_atomic_layout() && required_alignment < nullable_atomic_layout_size_in_bytes()) {
