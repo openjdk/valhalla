@@ -192,15 +192,15 @@ public class FieldLayoutAnalyzer {
     int payloadSize;
     int payloadAlignment;
     int firstFieldOffset;
-    int nullFreeNonAtomicLayoutSize;         // -1 if no non-nullable layout
-    int nullFreeNonAtomicLayoutAlignment;    // -1 if no non-nullable layout
-    int nullFreeAtomicLayoutSize;            // -1 if no atomic layout
-    int nullFreeAtomicLayoutAlignment;       // -1 if no atomic layout
-    int nullableAtomicLayoutSize;          // -1 if no nullable layout
-    int nullableAtomicLayoutAlignment;     // -1 if no nullable layout
-    int nullableNonAtomicLayoutSize;
-    int nullableNonAtomicLayoutAlignment;
-    int nullMarkerOffset;            // -1 if no nullable layout
+    int nullFreeNonAtomicLayoutSize;         // -1 if no null-free non-atomic layout
+    int nullFreeNonAtomicLayoutAlignment;    // -1 if no null-free non-atomic layout
+    int nullFreeAtomicLayoutSize;            // -1 if no null-free atomic layout
+    int nullFreeAtomicLayoutAlignment;       // -1 if no null-free atomic layout
+    int nullableAtomicLayoutSize;            // -1 if no nullable atomic layout
+    int nullableAtomicLayoutAlignment;       // -1 if no nullable atomic layout
+    int nullableNonAtomicLayoutSize;         // -1 if no nullable non-atomic layout
+    int nullableNonAtomicLayoutAlignment;    // -1 if no nullable non-atomic layout
+    int nullMarkerOffset;                    // -1 if no nullable layout
     String[] lines;
     ArrayList<FieldBlock> staticFields;
     ArrayList<FieldBlock> nonStaticFields;
