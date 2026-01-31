@@ -860,7 +860,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.non.nullable.should.be.initialized",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int f;
@@ -1334,120 +1334,180 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testAssertUnsetFieldsSMEntry() throws Exception {
-        String[] previousOptions = getCompileOptions();
-        try {
-            String[] testOptions = {
-                    "--enable-preview",
-                    "-source", Integer.toString(Runtime.version().feature()),
-                    "-XDnoLocalProxyVars",
-                    "-XDdebug.stackmap",
-            };
-            setCompileOptions(testOptions);
-
-            record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
-            for (Data data : List.of(
-                    new Data(
-                            """
-                            value class Test {
-                                final int x;
-                                final int y;
-                                Test(boolean a, boolean b) {
-                                    if (a) { // early_larval {x, y}
-                                        x = 1;
-                                        if (b) { // early_larval {y}
-                                            y = 1;
-                                        } else { // early_larval {y}
-                                            y = 2;
-                                        }
-                                    } else { // early_larval {x, y}
-                                        x = y = 3;
+        record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
+        for (Data data : List.of(
+                new Data(
+                        """
+                        value class Test {
+                            final int x;
+                            final int y;
+                            Test(boolean a, boolean b) {
+                                if (a) { // early_larval {x, y}
+                                    x = 1;
+                                    if (b) { // early_larval {y}
+                                        y = 1;
+                                    } else { // early_larval {y}
+                                        y = 2;
                                     }
-                                    super();
+                                } else { // early_larval {x, y}
+                                    x = y = 3;
                                 }
+                                super();
                             }
-                            """,
-                            // three unset_fields entries, entry type 246, are expected in the stackmap table
-                            new int[] {246, 246, 246},
-                            // expected fields for each of them:
-                            new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
-                    ),
-                    new Data(
-                            """
-                            value class Test {
-                                final int x;
-                                final int y;
-                                Test(int n) {
-                                    switch(n) {
-                                        case 2:
-                                            x = y = 2;
-                                            break;
-                                        default:
-                                            x = y = 100;
-                                            break;
+                        }
+                        """,
+                        // three unset_fields entries, entry type 246, are expected in the stackmap table
+                        new int[] {246, 246, 246},
+                        // expected fields for each of them:
+                        new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
+                ),
+                new Data(
+                        """
+                        class Test {
+                            Integer! x;
+                            Integer! y;
+                            Test(boolean a, boolean b) {
+                                if (a) { // early_larval {x, y}
+                                    x = 1;
+                                    if (b) { // early_larval {y}
+                                        y = 1;
+                                    } else { // early_larval {y}
+                                        y = 2;
                                     }
-                                    super();
+                                } else { // early_larval {x, y}
+                                    x = y = 3;
                                 }
+                                super();
                             }
-                            """,
-                            // here we expect only one
-                            new int[] {20, 12, 246},
-                            // stating that no field is unset
-                            new String[][] { new String[] {} }
-                    ),
-                    new Data(
-                            """
-                            value class Test {
-                                final int x;
-                                final int y;
-                                Test(int n) {
-                                    if (n % 3 == 0) {
-                                        x = n / 3;
-                                    } else { // no unset change
-                                        x = n + 2;
-                                    } // early_larval {y}
-                                    y = n >>> 3;
-                                    super();
-                                    if ((char) n != n) {
-                                        n -= 5;
-                                    } // no uninitializedThis - automatically cleared unsets
-                                    Math.abs(n);
+                        }
+                        """,
+                        // three unset_fields entries, entry type 246, are expected in the stackmap table
+                        new int[] {246, 246, 246},
+                        // expected fields for each of them:
+                        new String[][] { new String[] { "y:Ljava/lang/Integer;" }, new String[] { "x:Ljava/lang/Integer;", "y:Ljava/lang/Integer;" }, new String[] {} }
+                ),
+                new Data(
+                        """
+                        value class Test {
+                            final int x;
+                            final int y;
+                            Test(int n) {
+                                switch(n) {
+                                    case 2:
+                                        x = y = 2;
+                                        break;
+                                    default:
+                                        x = y = 100;
+                                        break;
                                 }
+                                super();
                             }
-                            """,
-                            // here we expect only one, none for the post-larval frame
-                            new int[] {16, 246, 255},
-                            // stating that y is unset when if-else finishes
-                            new String[][] { new String[] {"y:I"} }
-                    )
-            )) {
-                File dir = assertOK(true, data.src());
-                for (final File fileEntry : dir.listFiles()) {
-                    var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    for (var method : classFile.methods()) {
-                        if (method.methodName().equalsString(ConstantDescs.INIT_NAME)) {
-                            var code = method.findAttribute(Attributes.code()).orElseThrow();
-                            var stackMapTable = code.findAttribute(Attributes.stackMapTable()).orElseThrow();
-                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries().size(), "unexpected stackmap length");
-                            int entryIndex = 0;
-                            int expectedUnsetFieldsIndex = 0;
-                            for (var entry : stackMapTable.entries()) {
-                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.frameType(), "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.frameType());
-                                if (entry.frameType() == 246) {
-                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == entry.unsetFields().size());
-                                    int index = 0;
-                                    for (var nat : entry.unsetFields()) {
-                                        String unsetStr = nat.name() + ":" + nat.type();
-                                        Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
-                                    }
-                                    expectedUnsetFieldsIndex++;
+                        }
+                        """,
+                        // here we expect only one
+                        new int[] {20, 12, 246},
+                        // stating that no field is unset
+                        new String[][] { new String[] {} }
+                ),
+                new Data(
+                        """
+                        class Test {
+                            Integer! x;
+                            Integer! y;
+                            Test(int n) {
+                                switch(n) {
+                                    case 2:
+                                        x = y = 2;
+                                        break;
+                                    default:
+                                        x = y = 100;
+                                        break;
                                 }
+                                super();
+                            }
+                        }
+                        """,
+                        // here we expect only one
+                        new int[] {20, 23, 246},
+                        // stating that no field is unset
+                        new String[][] { new String[] {} }
+                ),
+                new Data(
+                        """
+                        value class Test {
+                            final int x;
+                            final int y;
+                            Test(int n) {
+                                if (n % 3 == 0) {
+                                    x = n / 3;
+                                } else { // no unset change
+                                    x = n + 2;
+                                } // early_larval {y}
+                                y = n >>> 3;
+                                super();
+                                if ((char) n != n) {
+                                    n -= 5;
+                                } // no uninitializedThis - automatically cleared unsets
+                                Math.abs(n);
+                            }
+                        }
+                        """,
+                        // here we expect only one, none for the post-larval frame
+                        new int[] {16, 246, 255},
+                        // stating that y is unset when if-else finishes
+                        new String[][] { new String[] {"y:I"} }
+                ),
+                new Data(
+                        """
+                        class Test {
+                            Integer! x;
+                            Integer! y;
+                            Test(int n) {
+                                if (n % 3 == 0) {
+                                    x = n / 3;
+                                } else { // no unset change
+                                    x = n + 2;
+                                } // early_larval {y}
+                                y = n >>> 3;
+                                super();
+                                if ((char) n != n) {
+                                    n -= 5;
+                                } // no uninitializedThis - automatically cleared unsets
+                                Math.abs(n);
+                            }
+                        }
+                        """,
+                        // here we expect only one, none for the post-larval frame
+                        new int[] {23, 246, 255},
+                        // stating that y is unset when if-else finishes
+                        new String[][] { new String[] {"y:Ljava/lang/Integer;"} }
+                )
+        )) {
+            File dir = assertOK(true, data.src());
+            for (final File fileEntry : dir.listFiles()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var method : classFile.methods()) {
+                    if (method.methodName().equalsString(ConstantDescs.INIT_NAME)) {
+                        var code = method.findAttribute(Attributes.code()).orElseThrow();
+                        var stackMapTable = code.findAttribute(Attributes.stackMapTable()).orElseThrow();
+                        Assert.check(data.expectedFrameTypes().length == stackMapTable.entries().size(), "unexpected stackmap length");
+                        int entryIndex = 0;
+                        int expectedUnsetFieldsIndex = 0;
+                        for (var entry : stackMapTable.entries()) {
+                            Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.frameType(), "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.frameType());
+                            if (entry.frameType() == 246) {
+                                Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == entry.unsetFields().size());
+                                int index = 0;
+                                for (var nat : entry.unsetFields()) {
+                                    String unsetStr = nat.name() + ":" + nat.type();
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
+                                }
+                                expectedUnsetFieldsIndex++;
                             }
                         }
                     }
                 }
             }
-        } finally {
-            setCompileOptions(previousOptions);
         }
     }
 

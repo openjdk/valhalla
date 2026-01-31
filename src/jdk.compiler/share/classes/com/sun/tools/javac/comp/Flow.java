@@ -504,7 +504,7 @@ public class Flow {
                     if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
                         if (def instanceof JCVariableDecl varDecl) {
                             boolean isEarly = varDecl.init != null &&
-                                    varDecl.sym.isStrict() &&
+                                    varDecl.sym.ownerIsValueOrRecord() &&
                                     !varDecl.sym.isStatic();
                             if (isEarly == earlyOnly) {
                                 handler.accept(def);
@@ -1740,22 +1740,23 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalOrStrictUninitializedField(sym)) ||
-                isUninitializedNonNullableField(sym));
+                isTrackableField(sym)));
         }
 
-        boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
+        /* we want to track fields with no initializers that are either:
+         * - final or,
+         * - declared in a value or record class
+         *
+         * or:
+         * - a non-nullable field, with or without initializer, declared in a class that is neither
+         * a value or a record class
+         */
+        boolean isTrackableField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                    (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
-                     (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) &&
+                   (sym.ownerIsValueOrRecord() && (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) ||
+                   !sym.ownerIsValueOrRecord() && (sym.flags() & (FINAL | PARAMETER)) == 0 && types.isNonNullable(sym.type)) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
-        }
-
-        boolean isUninitializedNonNullableField(VarSymbol sym) {
-            return sym.owner.kind == TYP &&
-                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
-                            classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
-                            types.isNonNullable(sym.type));
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -2619,12 +2620,19 @@ public class Flow {
                         boolean isInstanceRecordField = var.enclClass().isRecord() &&
                                 (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
                                 var.owner.kind == TYP;
-                        if (allowValueClasses && (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField)) {
+                        if (allowValueClasses &&
+                                (var.owner == classDef.sym &&
+                                !var.isStatic() &&
+                                (var.ownerIsValueOrRecord() || types.isNonNullable(var.type)) &&
+                                !isInstanceRecordField)) {
+                            Error errorKey =  (var.owner.isValueClass()) ?
+                                    Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var) :
+                                    Errors.NullRestrictedFieldNotHaveBeenInitializedBeforeSuper(var);
                             if (isSynthesized) {
                                 checkInit(TreeInfo.diagnosticPositionFor(var, vardecl),
-                                        var, Errors.NonNullableShouldBeInitialized);
+                                        var, errorKey);
                             } else {
-                                checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
+                                checkInit(TreeInfo.diagEndPos(tree), var, errorKey);
                             }
                         }
                     }
@@ -2638,7 +2646,7 @@ public class Flow {
                 else if (name == names._this) {
                     for (int address = firstadr; address < nextadr; address++) {
                         VarSymbol sym = vardecls[address].sym;
-                        if (isFinalOrStrictUninitializedField(sym) && !sym.isStatic())
+                        if (isTrackableField(sym) && !sym.isStatic())
                             letInit(tree.pos(), sym);
                     }
                 }
