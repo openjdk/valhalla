@@ -1843,6 +1843,14 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             return data == ElementKind.RESOURCE_VARIABLE;
         }
 
+        /** we use this method to discriminate strict fields that belong to a record
+         *  or value class from null restricted fields declared in any other class.
+         *  The second are also strict but not treated in the same way as the first ones.
+         *  In particular the compiler will place the initializers of fields declared in
+         *  records and value classes before any implicit super constructor invocation.
+         *  So some actions apply to all strict fields and some only to strict fields
+         *  declared in records and value classes.
+         */
         public boolean ownerIsValueOrRecord() {
             return owner.isValueClass() || owner.hasRecordFlag();
         }
