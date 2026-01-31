@@ -374,10 +374,8 @@ public final class /* value */ PolynomialDouble  {
      */
      public static PolynomialDouble divide(PolynomialDouble dividend,
                              PolynomialDouble divisor) {
-         if (ZERO.equals(divisor)) {
-             throw new ArithmeticException("Attempt to divide by a zero polynomial");
-         }
-         throw new UnsupportedOperationException("/ TBD");
+         var qr = divideAndRemainder(dividend, divisor);
+         return qr[0];
      }
 
     /**
@@ -387,15 +385,65 @@ public final class /* value */ PolynomialDouble  {
      * Synthetic division FTW.
      *
      * @throws ArithmeticException if the divisor is zero
-     * @throws UnsupportedOperationException if remainder is not supported
      * @param dividend the first operand
      * @param divisor the second operand
-     * @return the quotient of the operands
+     * @return the remainder of the operands
      */
      public static PolynomialDouble remainder(PolynomialDouble dividend,
                                 PolynomialDouble divisor) {
-        throw new UnsupportedOperationException("% TBD");
+         var qr = divideAndRemainder(dividend, divisor);
+         return qr[1];
      }
+
+    /**
+     * Compute both the quotient and remainder of the arguments.
+     *
+     * @apiNote
+     * Synthetic division FTW.
+     *
+     * @throws ArithmeticException if the divisor is zero
+     * @param dividend the first operand
+     * @param divisor the second operand
+     * @return the quotient and remainder of the operands in the
+     * zeroth and first positions,, respectively, of the returned
+     * array.
+     */
+     public static PolynomialDouble[] divideAndRemainder(PolynomialDouble dividend,
+                                                         PolynomialDouble divisor) {
+         if (ZERO.equals(divisor)) {
+             throw new ArithmeticException("Attempt to divide by a zero polynomial");
+         }
+
+         PolynomialDouble workingQuotient = ZERO;
+         PolynomialDouble workingRemainder = dividend;
+
+         while(!ZERO.equals(workingRemainder) &&
+               degree(workingRemainder) >= degree(divisor) ) {
+             PolynomialDouble tmp = leadQuotient(workingRemainder, divisor);
+             workingQuotient = add(workingQuotient, tmp);
+             workingRemainder = subtract(workingRemainder, multiply(tmp, divisor));
+         }
+         return new PolynomialDouble[]{workingQuotient, workingRemainder};
+     }
+
+    /**
+     * {@return a polynomial of dividing the leading terms of p and q}
+     * @param p dividend
+     * @param q divisor
+     */
+    private static final PolynomialDouble leadQuotient(PolynomialDouble p,
+                                                      PolynomialDouble q) {
+
+        // Probably need some checks here for a zero dividend...
+        int pDeg = p.degree;
+        int qDeg = q.degree;
+        int quotDegree = pDeg - qDeg;
+        assert quotDegree >= 0;
+        double quotCoeff = p.coeffs[pDeg]/q.coeffs[qDeg];
+        double[] quotCoeffs = new double[quotDegree+1];
+        quotCoeffs[quotDegree] = quotCoeff;
+        return valueOf(quotCoeffs);
+    }
 
     /**
      * Unary plus operation, unary operator "{@code +}".
