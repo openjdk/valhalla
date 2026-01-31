@@ -1740,22 +1740,23 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalOrStrictUninitializedField(sym)) ||
-                isNonNullableField(sym));
+                isTrackableField(sym)));
         }
 
-        boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
+        /* we want to track fields with no initializers that are either:
+         * - final or,
+         * - declared in a value or record class
+         *
+         * or:
+         * - a non-nullable field, with or without initializer, declared in a class that is neither
+         * a value or a record class
+         */
+        boolean isTrackableField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                    (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
-                   (sym.ownerIsValueOrRecord() && (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT)) &&
+                   (sym.ownerIsValueOrRecord() && (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) ||
+                   !sym.ownerIsValueOrRecord() && (sym.flags() & (FINAL | PARAMETER)) == 0 && types.isNonNullable(sym.type)) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
-        }
-
-        boolean isNonNullableField(VarSymbol sym) {
-            return sym.owner.kind == TYP &&
-                    ((sym.flags() & (FINAL | PARAMETER)) == 0 &&
-                            classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
-                            types.isNonNullable(sym.type));
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -2645,7 +2646,7 @@ public class Flow {
                 else if (name == names._this) {
                     for (int address = firstadr; address < nextadr; address++) {
                         VarSymbol sym = vardecls[address].sym;
-                        if (isFinalOrStrictUninitializedField(sym) && !sym.isStatic())
+                        if (isTrackableField(sym) && !sym.isStatic())
                             letInit(tree.pos(), sym);
                     }
                 }
