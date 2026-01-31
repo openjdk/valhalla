@@ -24,7 +24,6 @@
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 public class HelloInlineClassApp {
 
@@ -67,11 +66,9 @@ public class HelloInlineClassApp {
         Point p1 = new Point(1,1);
     }
 
-    @Strict
     @NullRestricted
     Point point;
 
-    @Strict
     @NullRestricted
     static Rectangle rectangle = new Rectangle();
 

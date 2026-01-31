@@ -49,7 +49,6 @@ import compiler.whitebox.CompilerWhiteBoxTest;
 import java.lang.reflect.Method;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 

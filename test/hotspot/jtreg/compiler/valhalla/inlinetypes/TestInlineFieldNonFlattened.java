@@ -31,7 +31,6 @@ import jdk.test.lib.Utils;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -48,7 +47,6 @@ import jdk.internal.vm.annotation.Strict;
 
 public class TestInlineFieldNonFlattened {
     static class MyClass {
-        @Strict
         @NullRestricted
         public final MyValue v1;
 

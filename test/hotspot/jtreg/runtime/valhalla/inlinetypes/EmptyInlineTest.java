@@ -29,7 +29,6 @@ import java.lang.reflect.Field;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 
 /*
@@ -54,7 +53,6 @@ public class EmptyInlineTest {
 
     @LooselyConsistentValue
     static value class EmptyField {
-        @Strict
         @NullRestricted
         EmptyInline empty;
 
@@ -72,7 +70,6 @@ public class EmptyInlineTest {
         // inline field would be placed between the int and the Object
         // fields, along with some padding.
         Object o;
-        @Strict
         @NullRestricted
         EmptyInline empty;
 
