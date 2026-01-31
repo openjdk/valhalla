@@ -46,7 +46,7 @@ import java.util.Arrays;
  */
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class /* value */ PolynomialDouble  {
+public final /* value */ class PolynomialDouble  {
     /**
      * Witness for the {@code Numerical} interface.
      */
@@ -269,9 +269,8 @@ public final class /* value */ PolynomialDouble  {
             return addend;
         }
 
-        double[] x, y;
-
         // x has at least as many elements as y
+        double[] x, y;
         if (addend.degree >= augend.degree) {
             x = addend.coeffs;
             y = augend.coeffs;
@@ -280,6 +279,7 @@ public final class /* value */ PolynomialDouble  {
             y = addend.coeffs;
         }
 
+        // could simplify to x.length per invariant above
         double[] tmp = new double[Math.max(x.length, y.length)];
 
         int i = 0;
@@ -346,11 +346,9 @@ public final class /* value */ PolynomialDouble  {
      }
 
     private static PolynomialDouble multiplyByScalar(double scalar, PolynomialDouble poly) {
-        if (scalar == 1.0) {
-            return poly;
-        } else {
-            return valueOf(scaleArray(scalar, poly.coeffs));
-        }
+        return (scalar == 1.0) ?
+            poly :
+            valueOf(scaleArray(scalar, poly.coeffs));
     }
 
     private static double[] scaleArray(double scaleFactor, double[] array) {
@@ -417,10 +415,13 @@ public final class /* value */ PolynomialDouble  {
          PolynomialDouble workingQuotient = ZERO;
          PolynomialDouble workingRemainder = dividend;
 
+         // Eschew using operator overloading for now to avoid any bootstrapping issues
          while(!ZERO.equals(workingRemainder) &&
                degree(workingRemainder) >= degree(divisor) ) {
              PolynomialDouble tmp = leadQuotient(workingRemainder, divisor);
+             // workingQuotient += tmp;
              workingQuotient = add(workingQuotient, tmp);
+             // workingRemainder -= tmp * divisor
              workingRemainder = subtract(workingRemainder, multiply(tmp, divisor));
          }
          return new PolynomialDouble[]{workingQuotient, workingRemainder};
