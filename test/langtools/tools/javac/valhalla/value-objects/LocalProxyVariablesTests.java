@@ -194,6 +194,9 @@ public class LocalProxyVariablesTests {
             return transformed;
         }
 
+        /* we need to analyze the tree obtained from invoking `translateTopLevelClass` asap, we can't wait
+         * until the compilation ends as other phases continue transforming the AST
+         */
         void analyzeTransformedClass(JCClassDecl transformed) {
             for (JCTree def : transformed.defs) {
                 if (def instanceof JCMethodDecl methodDecl && methodDecl.name.toString().equals("<init>")) {
