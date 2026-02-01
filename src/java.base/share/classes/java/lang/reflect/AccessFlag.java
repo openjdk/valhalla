@@ -284,6 +284,18 @@ public enum AccessFlag {
                    Map.entry(RELEASE_1, Location.EMPTY_SET))),
 
     /**
+     * The access flag {@code ACC_NULL_CHECKED}, with a mask value of
+     * <code>{@value "0x%01x" ClassFile#ACC_NULL_CHECKED}</code>.
+     *
+     * @jvms TBD
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective=true)
+    NULL_CHECKED(ACC_NULL_CHECKED, false,
+            Location.SET_FIELD,
+            List.of(Map.entry(latest(), Location.EMPTY_SET))),
+
+    /**
      * The access flag {@code ACC_STRICT_INIT}, with a mask value of
      * <code>{@value "0x%04x" ClassFile#ACC_STRICT_INIT}</code>.
      *
@@ -479,7 +491,7 @@ public enum AccessFlag {
          */
         FIELD(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
               ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
-              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT,
+              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT | ACC_NULL_CHECKED,
               List.of(Map.entry(latest(), // no strict_init
                                 ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                                 ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
@@ -763,7 +775,7 @@ public enum AccessFlag {
             CLASS_FLAGS         = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
             CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE), // identity
             FIELD_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
-            FIELD_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT), // strict
+            FIELD_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT, NULL_CHECKED), // strict
             METHOD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),
             INNER_CLASS_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
             INNER_CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),  // identity

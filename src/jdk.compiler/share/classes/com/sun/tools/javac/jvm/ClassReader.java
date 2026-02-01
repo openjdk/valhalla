@@ -3343,9 +3343,14 @@ public class ClassReader {
 
     long adjustFieldFlags(long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
-        if (allowValueClasses && previewClassFile && (flags & ACC_STRICT) != 0) {
-            flags &= ~ACC_STRICT;
-            flags |= STRICT;
+        if (allowValueClasses && previewClassFile) {
+            if ((flags & ACC_STRICT) != 0) {
+                flags &= ~ACC_STRICT;
+                flags |= STRICT;
+            }
+            if ((flags & ACC_NULL_CHECKED) != 0) {
+                flags &= ~ACC_NULL_CHECKED;
+            }
         }
         return flags;
     }

@@ -1935,6 +1935,9 @@ public class ClassWriter extends ClassFile {
             if ((flags & STRICT) != 0 || (flags & MARK_STRICT_INIT) != 0 || types.isNonNullable(sym.type)) {
                 result |= ACC_STRICT;
             }
+            if (types.isNonNullable(sym.type)) {
+                result |= ACC_NULL_CHECKED;
+            }
         }
         return result;
     }

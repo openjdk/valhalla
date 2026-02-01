@@ -737,6 +737,27 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
         }
+        for (String source : List.of(
+                """
+                value class Test {
+                    String! s;
+                    static String! ss = "static";
+                    Test() {
+                        s = "instance";
+                        super();
+                    }
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var field : classFile.fields()) {
+                    Set<AccessFlag> fieldFlags = field.flags().flags();
+                    Assert.check(fieldFlags.contains(AccessFlag.NULL_CHECKED) && fieldFlags.contains(AccessFlag.STRICT_INIT));
+                }
+            }
+        }
     }
 
     @Test
