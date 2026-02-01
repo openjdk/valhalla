@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @bug 8180141
- * @summary Missing entry in LineNumberTable for break statement that jumps out of try-finally
+ * @bug 8376843
+ * @summary add more regression tests for local variable proxies
  * @modules jdk.compiler/com.sun.tools.javac.code
  *          jdk.compiler/com.sun.tools.javac.comp
  *          jdk.compiler/com.sun.tools.javac.file
