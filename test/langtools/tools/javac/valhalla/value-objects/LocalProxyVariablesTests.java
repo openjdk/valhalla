@@ -83,11 +83,11 @@ public class LocalProxyVariablesTests {
     void tests() throws Throwable {
         doTest(
                 """
-                value class Test1 {
+                value class Test {
                     static String s0;
                     String s;
                     String ss;
-                    Test1(boolean b) {
+                    Test(boolean b) {
                         s0 = null;
                         s = s0; // no local proxy variable for `s0` as it is static
                         ss = s; // but there should be a local proxy for `s`
@@ -97,10 +97,10 @@ public class LocalProxyVariablesTests {
                 """, Set.of("local$s"));
         doTest(
                 """
-                value class Test2 {
+                value class Test {
                     int i;
                     int j;
-                    Test2() {// javac should generate a proxy local var for `i`
+                    Test() {// javac should generate a proxy local var for `i`
                         i = 1;
                         j = i; // as here `i` is being read during the early construction phase, use the local var instead
                         super();
@@ -109,10 +109,10 @@ public class LocalProxyVariablesTests {
                 """, Set.of("local$i"));
         doTest(
                 """
-                value class Test3 {
+                value class Test {
                     Integer x;
                     Integer y;
-                    Test3(boolean a, boolean b) {
+                    Test(boolean a, boolean b) {
                         if (a) {
                             x = 1;
                             if (b) {
@@ -129,10 +129,10 @@ public class LocalProxyVariablesTests {
                 """, Set.of()); // no proxies in this case
         doTest(
                 """
-                value class Test4 {
+                value class Test {
                     Integer x;
                     Integer y;
-                    Test4(boolean a) {
+                    Test(boolean a) {
                         x = 1;
                         if (a) {
                             y = x;
@@ -228,8 +228,12 @@ public class LocalProxyVariablesTests {
         }
 
         void clear() {
+            chk.newRound();
+            enter.newRound();
             newRound();
             Modules.instance(context).newRound();
+            types.newRound();
+            annotate.newRound();
         }
     }
 }
