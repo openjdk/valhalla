@@ -866,7 +866,7 @@ class CompileReplay : public StackObj {
       if (had_error()) {
         return;
       }
-      if (Arguments::is_valhalla_enabled() && _version >= 3 && k->is_objArray_klass()) {
+      if (Arguments::is_valhalla_enabled() && _version >= 3 && k != nullptr && k->is_objArray_klass()) {
         k = create_concrete_object_array_klass(ObjArrayKlass::cast(k), THREAD);
       }
       rec->_classes_offsets[i] = offset;

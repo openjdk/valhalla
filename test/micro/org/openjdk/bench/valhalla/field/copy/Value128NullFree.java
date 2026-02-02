@@ -23,7 +23,6 @@
 package org.openjdk.bench.valhalla.field.copy;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
@@ -33,7 +32,6 @@ import org.openjdk.jmh.annotations.Setup;
 public class Value128NullFree extends CopyBase {
 
     public static class ValWrapper {
-        @Strict
         @NullRestricted
         public ValueInt4 f;
 

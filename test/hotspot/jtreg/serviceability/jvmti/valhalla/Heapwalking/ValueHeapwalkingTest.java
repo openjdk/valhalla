@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,6 @@ import java.util.Arrays;
 import java.util.List;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Field;
 
@@ -63,10 +62,8 @@ public class ValueHeapwalkingTest {
 
     // flat object has flat field (address of the field is the same as address of the object)
     static value class Value2 {
-        @Strict
         @NullRestricted
         public Value v1;
-        @Strict
         @NullRestricted
         public Value v2;
         Value2() {
@@ -81,13 +78,11 @@ public class ValueHeapwalkingTest {
 
     static value class ValueHolder {
         public Value v1;
-        @Strict
         @NullRestricted
         public Value v2;
         public Value v_null;
 
         public Value2 v2_1;
-        @Strict
         @NullRestricted
         public Value2 v2_2;
 
