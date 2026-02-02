@@ -258,6 +258,10 @@ public class TestGetfieldChains {
 
     static value class EmptyType2 { }
 
+    // TODO 8376254: C1 bailouts if the type of the nullable flat field is uninitialized
+    static final EmptyType2 LOAD_EMPTY_TYPE_2 = new EmptyType2();
+    static final EmptyContainer2 LOAD_EMPTY_CONTAINER_2 = new EmptyContainer2();
+
     static value class EmptyContainer2 {
         EmptyType2 et = null;
     }
