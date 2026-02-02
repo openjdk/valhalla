@@ -61,9 +61,16 @@ public class TestTrivialMethods {
     static MyValue3 staticField = MyValue3.create();
     static MyValue3 staticFieldRef = MyValue3.create();
     @NullRestricted
-    MyValue3 field = MyValue3.create();
-    MyValue3 fieldRef = MyValue3.create();
-    Object objField = null;
+    MyValue3 field;
+    MyValue3 fieldRef;
+    Object objField;
+
+    private TestTrivialMethods() {
+        field = MyValue3.create();
+        fieldRef = MyValue3.create();
+        objField = null;
+        super();
+    }
 
     public MyValue3 getter1() {
         return staticField;
