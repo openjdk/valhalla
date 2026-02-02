@@ -316,6 +316,7 @@ class InlineKlass: public InstanceKlass {
   void verify_on(outputStream* st) override;
   void oop_verify_on(oop obj, outputStream* st) override;
 
+  void print_on(outputStream* st) const override;
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASS_HPP
