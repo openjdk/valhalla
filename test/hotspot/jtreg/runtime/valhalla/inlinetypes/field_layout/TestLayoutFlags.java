@@ -103,7 +103,6 @@ import java.util.List;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -154,7 +153,6 @@ public class TestLayoutFlags {
     }
 
     static class Container1 {
-        @Strict
         @NullRestricted
         volatile Value0 val0;
 
@@ -176,7 +174,6 @@ public class TestLayoutFlags {
     }
 
     static class Container2 {
-        @Strict
         @NullRestricted
         Value0 val0;
 
