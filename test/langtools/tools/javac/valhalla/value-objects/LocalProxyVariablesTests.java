@@ -155,6 +155,9 @@ public class LocalProxyVariablesTests {
         } catch (Throwable ex) {
             throw new AssertionError(ex);
         }
+        if (tool.errorCount() > 0) {
+            throw new AssertionError("unexpected compilation error");
+        }
     }
 
     class JavaSource extends SimpleJavaFileObject {
