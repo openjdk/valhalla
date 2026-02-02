@@ -163,7 +163,7 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegLNoSp src, iRegPNoSp tmp1, iRe
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1 */,
                       $tmp3$$Register /* tmp2 */,
-                      RegSet::of($mem$$Register, $src$$Register, $tmp4$$Register) /* preserve */);
+                      RegSet::of($mem$$Register, $src$$Register) /* preserve */);
 
     __ str($src$$Register, $mem$$Register);
 
@@ -176,6 +176,8 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegLNoSp src, iRegPNoSp tmp1, iRe
                        $tmp2$$Register /* tmp1 */,
                        $tmp3$$Register /* tmp2 */);
 
+    // Recompute the oop address because write_barrier_pre may clobber it
+    __ add($tmp4$$Register, $mem$$Register, 4);
     // Shift long value to extract the second narrow oop field value
     __ lsr($tmp1$$Register, $src$$Register, 32);
     __ decode_heap_oop($tmp1$$Register, $tmp1$$Register);
