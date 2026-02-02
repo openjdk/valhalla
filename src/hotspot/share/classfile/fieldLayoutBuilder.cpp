@@ -1584,7 +1584,7 @@ void FieldLayoutBuilder::epilogue() {
     const bool dummy_field_is_reused_as_null_marker = _is_empty_inline_class && _null_marker_offset != -1;
     _layout->print(&st, false, _super_klass, _inline_layout_info_array, dummy_field_is_reused_as_null_marker);
     st.print_cr("Static fields:");
-    _static_layout->print(&st, true, nullptr, _inline_layout_info_array, dummy_field_is_reused_as_null_marker);
+    _static_layout->print(&st, true, nullptr, _inline_layout_info_array, false);
     st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
       st.print_cr("First field offset = %d", _payload_offset);
