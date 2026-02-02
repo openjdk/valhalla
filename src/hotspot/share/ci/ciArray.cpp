@@ -62,10 +62,23 @@ ciConstant ciArray::element_value_impl(BasicType elembt,
   case T_ARRAY:
   case T_OBJECT:
     {
-      assert(ary->is_objArray(), "");
-      objArrayOop objary = (objArrayOop) ary;
-      oop elem = objary->obj_at(index);
-      return ciConstant(elembt, CURRENT_ENV->get_object(elem));
+      if (ary->is_refArray()) {
+        assert(ary->is_objArray(), "");
+        refArrayOop refary = refArrayOopDesc::cast(ary);
+        oop elem = refary->obj_at(index);
+        return ciConstant(elembt, CURRENT_ENV->get_object(elem));
+      } else {
+        assert(ary->is_flatArray(), "");
+        flatArrayOop flatary = flatArrayOopDesc::cast(ary);
+        assert(CompilerThread::current()->thread_state() == _thread_in_vm, "");
+        Thread* THREAD = CompilerThread::current();
+        oop elem = flatary->obj_at(index, THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+          CLEAR_PENDING_EXCEPTION;
+          return ciConstant();
+        }
+        return ciConstant(elembt, CURRENT_ENV->get_object(elem));
+      }
     }
   default:
     break;
