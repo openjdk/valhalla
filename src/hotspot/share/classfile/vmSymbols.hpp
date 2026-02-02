@@ -780,8 +780,6 @@ class SerializeClosure;
   template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
-  template(valueObjectHashCodeAlt_name,                     "valueObjectHashCodeAlt")                             \
-  template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
   /* jcmd Thread.dump_to_file */                                                                                  \
