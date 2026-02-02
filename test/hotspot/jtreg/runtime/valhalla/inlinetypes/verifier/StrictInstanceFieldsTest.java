@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @enablePreview
- * @modules java.base/jdk.internal.vm.annotation
+ * @library /test/lib
  * @compile BadChild.jasm
  *          BadChild1.jasm
  *          ControlFlowChildBad.jasm
@@ -33,12 +33,15 @@
  *          EndsInEarlyLarval.jcod
  *          StrictFieldsNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
- * @compile -XDnoLocalProxyVars StrictInstanceFieldsTest.java
+ * @compile StrictInstanceFieldsTest.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictInstanceFieldsTest
+ *             Child ControlFlowChild TryCatchChild AssignedInConditionalChild
+ *             SwitchCaaseChild NestedConstructorChild FinalChild
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
 
 import java.lang.reflect.Field;
-import jdk.internal.vm.annotation.Strict;
+import jdk.test.lib.helpers.StrictInit;
 
 public class StrictInstanceFieldsTest {
     public static void main(String[] args) {
@@ -204,9 +207,9 @@ class Parent {
 
 class Child extends Parent {
 
-    @Strict
+    @StrictInit
     int x;
-    @Strict
+    @StrictInit
     int y;
 
     Child() {
@@ -217,9 +220,9 @@ class Child extends Parent {
 
 class ControlFlowChild extends Parent {
 
-    @Strict
+    @StrictInit
     int x;
-    @Strict
+    @StrictInit
     int y;
 
     ControlFlowChild(boolean a, boolean b) {
@@ -239,9 +242,9 @@ class ControlFlowChild extends Parent {
 
 class TryCatchChild extends Parent {
 
-    @Strict
+    @StrictInit
     int x;
-    @Strict
+    @StrictInit
     int y;
 
     TryCatchChild() {
@@ -260,9 +263,9 @@ class TryCatchChild extends Parent {
 
 class AssignedInConditionalChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     AssignedInConditionalChild() {
@@ -277,9 +280,9 @@ class AssignedInConditionalChild extends Parent {
 
 class SwitchCaseChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     SwitchCaseChild(int n) {
@@ -303,9 +306,9 @@ class SwitchCaseChild extends Parent {
 
 class NestedConstructorChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     NestedConstructorChild(boolean a, boolean b) {
@@ -329,9 +332,9 @@ class NestedConstructorChild extends Parent {
 
 class FinalChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     FinalChild() {
