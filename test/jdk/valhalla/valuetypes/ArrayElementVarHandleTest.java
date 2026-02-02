@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ import java.lang.invoke.*;
 import java.util.stream.Stream;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -51,9 +50,9 @@ public class ArrayElementVarHandleTest {
     }
 
     static value class Line {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p1;
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p2;
 
         Line(Point p1, Point p2) {

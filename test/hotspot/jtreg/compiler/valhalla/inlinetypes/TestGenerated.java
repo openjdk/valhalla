@@ -41,7 +41,6 @@ package compiler.valhalla.inlinetypes;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 @LooselyConsistentValue
 value class EmptyPrimitive {
@@ -141,7 +140,6 @@ public class TestGenerated {
     }
 
     long f3;
-    @Strict
     @NullRestricted
     MyValue1Generated f4;
 
@@ -214,7 +212,6 @@ public class TestGenerated {
     }
 
     MyValue4Generated[] d = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 1, new MyValue4Generated());
-    @Strict
     @NullRestricted
     MyValue4Generated e;
     byte f;
@@ -240,7 +237,6 @@ public class TestGenerated {
 
     int test13_iField;
     MyValue5Generated test13_c;
-    @Strict
     @NullRestricted
     MyValue5Generated test13_t;
 

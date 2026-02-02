@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 import static jdk.test.lib.Asserts.*;
 
@@ -215,7 +214,6 @@ public class ValueTearing {
     }
 
     class TPointBox implements PointBox {
-        @Strict
         @NullRestricted
         TPoint field = new TPoint(0, 0);
         TPoint[] array = (TPoint[])ValueClass.newNullRestrictedNonAtomicArray(TPoint.class, 1, new TPoint(0, 0));
@@ -267,7 +265,6 @@ public class ValueTearing {
     }
 
     class NTPointBox implements PointBox {
-        @Strict
         @NullRestricted
         NTPoint field = new NTPoint(0, 0);
         NTPoint[] array = (NTPoint[])ValueClass.newNullRestrictedNonAtomicArray(NTPoint.class, 1, new NTPoint(0, 0));

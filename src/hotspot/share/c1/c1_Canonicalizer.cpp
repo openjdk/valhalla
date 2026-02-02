@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -468,11 +468,8 @@ void Canonicalizer::do_CompareOp      (CompareOp*       x) {
 
 
 void Canonicalizer::do_IfOp(IfOp* x) {
-  // Currently, Canonicalizer is only used by GraphBuilder,
-  // and IfOp is not created by GraphBuilder but only later
-  // when eliminating conditional expressions with CE_Eliminator,
-  // so this method will not be called.
-  ShouldNotReachHere();
+  // Currently, Canonicalizer is only used by GraphBuilder, and IfOp is only created by
+  // GraphBuilder when loading/storing flat fields, do nothing for now.
 }
 
 

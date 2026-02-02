@@ -28,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -94,10 +93,8 @@ public class FlatVarHandleTest {
     static class WeakPointHolder {
         WeakPoint p_i = new WeakPoint(0, 0);
         static WeakPoint p_s = new WeakPoint(0, 0);
-        @Strict
         @NullRestricted
         WeakPoint p_i_nr;
-        @Strict
         @NullRestricted
         static WeakPoint p_s_nr = new WeakPoint(0, 0);
 
