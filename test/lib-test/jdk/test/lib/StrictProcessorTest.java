@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,29 +21,40 @@
  * questions.
  */
 
+/* @test
+ * @bug 8351362
+ * @summary Unit Test for StrictProcessor
+ * @enablePreview
+ * @library /test/lib
+ * @build StrictProcessorTest
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictProcessorTest$StrictTarget
+ * @run junit StrictProcessorTest
+ */
+
 import jdk.test.lib.helpers.StrictInit;
+import org.junit.jupiter.api.Test;
 
-class StrictFieldsOld {
-    @StrictInit
-    int x;
-    @StrictInit
-    int y;
+import static java.lang.classfile.ClassFile.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-    StrictFieldsOld(boolean a, boolean b) {
-        if (a) {
-            x = 1;
-            if (b) {
-                y = 1;
-            } else {
-                y = 2;
-            }
-        } else {
-            x = y = 3;
+class StrictProcessorTest {
+    @Test
+    void testReflectMyself() throws Throwable {
+        for (var field : StrictTarget.class.getDeclaredFields()) {
+            assertEquals(ACC_STRICT_INIT | ACC_FINAL, field.getModifiers(), () -> field.getName());
         }
-        super();
     }
 
-    public void foo() {
-        System.out.println("Hello old fool " + x + " " + y );
+    static final class StrictTarget {
+        @StrictInit
+        final int a;
+        @StrictInit
+        final Object b;
+
+        StrictTarget() {
+            this.a = 1;
+            this.b = 2392352234L;
+            super();
+        }
     }
 }

@@ -5557,8 +5557,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
 
     typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
-    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
     typeArrayHandle map_h(THREAD, map);
+    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
+
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
     acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,17 @@
  * questions.
  */
 
-package jdk.internal.vm.annotation;
+package jdk.test.lib.helpers;
 
-import java.lang.annotation.*;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Annotation to indicate that the strict field semantic applies to this field.
- * Internal and experimental use only
+ * Annotated field should be marked ACC_STRICT_INIT.
  */
 @Target(ElementType.FIELD)
-@Retention(RetentionPolicy.SOURCE)
-public @interface Strict {
+@Retention(RetentionPolicy.CLASS)
+public @interface StrictInit {
 }
