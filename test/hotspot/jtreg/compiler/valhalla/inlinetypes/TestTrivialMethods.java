@@ -60,6 +60,7 @@ public class TestTrivialMethods {
     @NullRestricted
     static MyValue3 staticField = MyValue3.create();
     static MyValue3 staticFieldRef = MyValue3.create();
+
     @NullRestricted
     MyValue3 field;
     MyValue3 fieldRef;
