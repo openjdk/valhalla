@@ -620,10 +620,15 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 for (var field : classFile.fields()) {
                     if (!field.flags().has(AccessFlag.STATIC)) {
                         Set<AccessFlag> fieldFlags = field.flags().flags();
-                        Assert.check(fieldFlags.size() == 1 && fieldFlags.contains(AccessFlag.STRICT_INIT));
+                        Assert.check(fieldFlags.size() == 2 &&
+                                fieldFlags.contains(AccessFlag.STRICT_INIT) &&
+                                fieldFlags.contains(AccessFlag.NULL_CHECKED));
                     } else {
                         Set<AccessFlag> fieldFlags = field.flags().flags();
-                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains(AccessFlag.STRICT_INIT) && fieldFlags.contains(AccessFlag.STATIC));
+                        Assert.check(fieldFlags.size() == 3 &&
+                                fieldFlags.contains(AccessFlag.STRICT_INIT) &&
+                                fieldFlags.contains(AccessFlag.STATIC) &&
+                                fieldFlags.contains(AccessFlag.NULL_CHECKED));
                     }
                 }
             }

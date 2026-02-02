@@ -134,6 +134,9 @@ public class Flags {
     public static final int ACC_VARARGS  = 1<<7;
     @Use({FlagTarget.VARIABLE})
     @NoToStringValue
+    public static final int ACC_NULL_CHECKED = 1<<9;
+    @Use({FlagTarget.VARIABLE})
+    @NoToStringValue
     public static final int ACC_STRICT   = 1<<11;
     @Use({FlagTarget.CLASS})
     @NoToStringValue

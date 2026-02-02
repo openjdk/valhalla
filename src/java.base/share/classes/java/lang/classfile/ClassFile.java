@@ -848,6 +848,14 @@ public sealed interface ClassFile
     int ACC_STRICT = 0x0800;
 
     /**
+     * The bit mask of {@link AccessFlag#NULL_CHECKED} access and property modifier.
+     *
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective = true)
+    int ACC_NULL_CHECKED = 0x0200;
+
+    /**
      * The bit mask of {@link AccessFlag#STRICT_INIT} access and property modifier.
      *
      * @since Valhalla
