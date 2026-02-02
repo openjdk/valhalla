@@ -105,11 +105,13 @@ static bool field_is_inlineable(FieldInfo fieldinfo, LayoutKind lk, Array<Inline
     return true;
   }
 
+  const int field_index = (int)fieldinfo.index();
   if (!fieldinfo.field_flags().is_injected() &&
       ili != nullptr &&
-      ili->adr_at((int)fieldinfo.index())->klass() != nullptr &&
-      !ili->adr_at((int)fieldinfo.index())->klass()->is_identity_class()) {
-    // The field's klass is not an identity class
+      ili->adr_at(field_index)->klass() != nullptr &&
+      !ili->adr_at(field_index)->klass()->is_identity_class() &&
+      !ili->adr_at(field_index)->klass()->is_abstract()) {
+    // The field's klass is not an identity class or abstract
     return true;
   }
 
