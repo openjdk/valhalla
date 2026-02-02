@@ -124,7 +124,7 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 }
 
 flatArrayOop oopFactory::new_flatArray(FlatArrayKlass* klass, int length, TRAPS) {
-  return klass->allocate_instance(length, klass->properties(), THREAD);
+  return flatArrayOop(klass->allocate_instance(length, klass->properties(), THREAD));
 }
 
 flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {

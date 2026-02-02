@@ -32,94 +32,349 @@
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/macros.hpp"
+#include "utilities/ostream.hpp"
 
 class fieldDescriptor;
+class JavaThread;
+class outputStream;
 class ResolvedFieldEntry;
 
-template <typename OopOrHandle>
-class InlineKlassPayloadImpl {
+template <typename OopOrHandle> class InlineKlassPayloadImpl {
   // Friend each other to use the private interface
   friend class InlineKlassPayloadImpl<oop>;
   friend class InlineKlassPayloadImpl<Handle>;
 
 private:
-  static constexpr size_t BAD_OFFSET = ~0u;
-
   mutable OopOrHandle _holder;
   InlineKlass* _klass;
   size_t _offset;
   LayoutKind _layout_kind;
 
-  inline void assert_invariants() const;
+protected:
+  static constexpr size_t BAD_OFFSET = ~0u;
 
-  inlineOop allocate_instance(TRAPS) const;
+  InlineKlassPayloadImpl() = default;
+  InlineKlassPayloadImpl(const InlineKlassPayloadImpl&) = default;
+  InlineKlassPayloadImpl& operator=(const InlineKlassPayloadImpl&) = default;
 
-  inline InlineKlassPayloadImpl(instanceOop holder, size_t offset, InlineLayoutInfo* inline_layout_info);
+  // Constructed from parts
+  inline InlineKlassPayloadImpl(oop holder, InlineKlass* klass, size_t offset,
+                                LayoutKind layout_kind);
+  inline InlineKlassPayloadImpl(oop holder, InlineKlass* klass, size_t offset,
+                                LayoutKind layout_kind, JavaThread* thread);
 
-
-public: // TEMPORARY
-  inline bool has_null_marker() const;
-
-  inline void mark_as_non_null();
+  inline void set_offset(size_t offset);
 
 public:
-  // Empty constructor
-  inline InlineKlassPayloadImpl();
-  // Constructed from parts
-  inline InlineKlassPayloadImpl(oop holder, InlineKlass* klass, size_t offset, LayoutKind layout_kind);
-
-  explicit inline InlineKlassPayloadImpl(inlineOop buffer);
-  inline InlineKlassPayloadImpl(inlineOop buffer, InlineKlass* klass);
-
-  // TODO: Maybe add a NoIndex{} marker
-  explicit inline InlineKlassPayloadImpl(flatArrayOop holder);
-  inline InlineKlassPayloadImpl(flatArrayOop holder, FlatArrayKlass* klass);
-
-  inline InlineKlassPayloadImpl(flatArrayOop holder, int index);
-  inline InlineKlassPayloadImpl(flatArrayOop holder, int index, FlatArrayKlass* klass);
-
-  inline InlineKlassPayloadImpl(instanceOop holder, fieldDescriptor* field_descriptor);
-  inline InlineKlassPayloadImpl(instanceOop holder, fieldDescriptor* field_descriptor, InstanceKlass* klass);
-  inline InlineKlassPayloadImpl(instanceOop holder, ResolvedFieldEntry* resolved_field_entry);
-  inline InlineKlassPayloadImpl(instanceOop holder, ResolvedFieldEntry* resolved_field_entry, InstanceKlass* klass);
-
   inline oop get_holder() const;
   inline InlineKlass* get_klass() const;
   inline size_t get_offset() const;
   inline LayoutKind get_layout_kind() const;
 
   inline address get_address() const;
-  inline bool is_marked_as_null() const;
 
-  // TODO: Cache layout helper or create more specialized payload type for arrays.
-  // TODO: Maybe add delta index versions as well.
-  inline void set_index(int index);
-  inline void set_index(int index, FlatArrayKlass* klass);
-  inline void set_index(int index, jint layout_helper);
-
-  // Methods to copy payload between containers
-  //
-  // Methods taking a LayoutKind argument expect that both the source and the destination
-  // layouts are compatible with the one specified in argument (alignment, size, presence
-  // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
-  // is compatible with all the other layouts.
+  inline bool has_null_marker() const;
+  inline void mark_as_non_null();
+  inline void mark_as_null();
+  inline bool is_payload_null() const;
 
 private:
+  inlineOop allocate_instance(TRAPS) const;
+
+  inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
+  inline void assert_post_construction_invariants() const NOT_DEBUG_RETURN;
   template <typename PayloadA, typename PayloadB>
-  static inline void copy(const PayloadA& src, const PayloadB& dst, LayoutKind copy_layout_kind);
+  static inline void
+  assert_pre_copy_invariants(const PayloadA& src, const PayloadB& dst,
+                             LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
+
+  template <typename PayloadA, typename PayloadB>
+  static inline void copy(const PayloadA& src, const PayloadB& dst,
+                          LayoutKind copy_layout_kind);
 
 public:
-
-  inline inlineOop read(TRAPS);
-  template <typename OtherOopOrHandle>
-  inline void copy_to(const InlineKlassPayloadImpl<OtherOopOrHandle>& dst);
-  template <typename OtherOopOrHandle>
-  inline void copy_from(const InlineKlassPayloadImpl<OtherOopOrHandle>& src);
-  inline void write(inlineOop obj);
-  inline void write(inlineOop obj, TRAPS);
+  class BufferedInlineKlassPayloadImpl;
+  class FlatInlineKlassPayloadImpl;
+  class FlatFieldInlineKlassPayloadImpl;
+  class FlatArrayInlineKlassPayloadImpl;
 };
 
 using InlineKlassPayload = InlineKlassPayloadImpl<oop>;
 using InlineKlassPayloadHandle = InlineKlassPayloadImpl<Handle>;
+
+class BufferedInlineKlassPayload;
+class BufferedInlineKlassPayloadHandle;
+
+template <typename OopOrHandle>
+class InlineKlassPayloadImpl<OopOrHandle>::BufferedInlineKlassPayloadImpl
+    : public InlineKlassPayloadImpl {
+protected:
+  using InlineKlassPayloadImpl::InlineKlassPayloadImpl;
+
+public:
+  BufferedInlineKlassPayloadImpl() = default;
+  BufferedInlineKlassPayloadImpl(const BufferedInlineKlassPayloadImpl&) =
+      default;
+  BufferedInlineKlassPayloadImpl&
+  operator=(const BufferedInlineKlassPayloadImpl&) = default;
+
+  inline inlineOop get_holder() const;
+
+  [[nodiscard]] inline inlineOop make_private_buffer(TRAPS);
+
+  inline void copy_to(const BufferedInlineKlassPayload& dst);
+  inline void copy_to(const BufferedInlineKlassPayloadHandle& dst);
+};
+
+class BufferedInlineKlassPayload
+    : public InlineKlassPayload::BufferedInlineKlassPayloadImpl {
+protected:
+  using BufferedInlineKlassPayloadImpl::BufferedInlineKlassPayloadImpl;
+
+public:
+  BufferedInlineKlassPayload() = default;
+  explicit inline BufferedInlineKlassPayload(inlineOop buffer);
+  inline BufferedInlineKlassPayload(inlineOop buffer, InlineKlass* klass);
+
+  [[nodiscard]] static inline BufferedInlineKlassPayload
+  construct_from_parts(oop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind);
+};
+
+class BufferedInlineKlassPayloadHandle
+    : public InlineKlassPayloadHandle::BufferedInlineKlassPayloadImpl {
+protected:
+  using BufferedInlineKlassPayloadImpl::BufferedInlineKlassPayloadImpl;
+
+public:
+  BufferedInlineKlassPayloadHandle() = default;
+
+  explicit inline BufferedInlineKlassPayloadHandle(inlineOop buffer,
+                                                   JavaThread* thread);
+  inline BufferedInlineKlassPayloadHandle(inlineOop buffer, InlineKlass* klass,
+                                          JavaThread* thread);
+
+  [[nodiscard]] static inline BufferedInlineKlassPayloadHandle
+  construct_from_parts(oop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind, JavaThread* thread);
+};
+
+class FlatFieldInlineKlassPayload;
+class FlatFieldInlineKlassPayloadHandle;
+
+class FlatArrayInlineKlassPayload;
+class FlatArrayInlineKlassPayloadHandle;
+
+template <typename OopOrHandle>
+class InlineKlassPayloadImpl<OopOrHandle>::FlatInlineKlassPayloadImpl
+    : public InlineKlassPayloadImpl {
+protected:
+  using InlineKlassPayloadImpl::InlineKlassPayloadImpl;
+
+private:
+  template <typename OtherOopOrHandle>
+  [[nodiscard]] inline bool
+  copy_to_helper(InlineKlassPayloadImpl<OtherOopOrHandle>& dst);
+  template <typename OtherOopOrHandle>
+  inline void copy_from_helper(InlineKlassPayloadImpl<OtherOopOrHandle>& src);
+
+public:
+  FlatInlineKlassPayloadImpl() = default;
+  FlatInlineKlassPayloadImpl(const FlatInlineKlassPayloadImpl&) = default;
+  FlatInlineKlassPayloadImpl&
+  operator=(const FlatInlineKlassPayloadImpl&) = default;
+
+  [[nodiscard]] inline bool copy_to(BufferedInlineKlassPayload& dst);
+  [[nodiscard]] inline bool copy_to(BufferedInlineKlassPayloadHandle& dst);
+  [[nodiscard]] inline bool
+  copy_to_uninitialized(BufferedInlineKlassPayload& dst);
+  [[nodiscard]] inline bool
+  copy_to_uninitialized(BufferedInlineKlassPayloadHandle& dst);
+  inline void copy_from_non_null(BufferedInlineKlassPayload& src);
+  inline void copy_from_non_null(BufferedInlineKlassPayloadHandle& src);
+
+  inline void copy_to(const FlatFieldInlineKlassPayload& dst);
+  inline void copy_to(const FlatFieldInlineKlassPayloadHandle& dst);
+
+  inline void copy_to(const FlatArrayInlineKlassPayload& dst);
+  inline void copy_to(const FlatArrayInlineKlassPayloadHandle& dst);
+
+  [[nodiscard]] inline inlineOop read(TRAPS);
+  inline void write_without_nullability_check(inlineOop obj);
+  inline void write(inlineOop obj, TRAPS);
+
+  [[nodiscard]] static inline FlatInlineKlassPayloadImpl
+  construct_from_parts(oop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind);
+  [[nodiscard]] static inline FlatInlineKlassPayloadImpl
+  construct_from_parts(oop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind, JavaThread* thread);
+};
+
+using FlatInlineKlassPayload = InlineKlassPayload::FlatInlineKlassPayloadImpl;
+using FlatInlineKlassPayloadHandle =
+    InlineKlassPayloadHandle::FlatInlineKlassPayloadImpl;
+
+template <typename OopOrHandle>
+class InlineKlassPayloadImpl<OopOrHandle>::FlatFieldInlineKlassPayloadImpl
+    : public FlatInlineKlassPayloadImpl {
+protected:
+  using FlatInlineKlassPayloadImpl::FlatInlineKlassPayloadImpl;
+
+  inline FlatFieldInlineKlassPayloadImpl(instanceOop holder, size_t offset,
+                                         InlineLayoutInfo* inline_layout_info);
+  inline FlatFieldInlineKlassPayloadImpl(instanceOop holder, size_t offset,
+                                         InlineLayoutInfo* inline_layout_info,
+                                         JavaThread* thread);
+
+public:
+  inline instanceOop get_holder() const;
+};
+
+class FlatFieldInlineKlassPayload
+    : public InlineKlassPayload::FlatFieldInlineKlassPayloadImpl {
+protected:
+  using FlatFieldInlineKlassPayloadImpl::FlatFieldInlineKlassPayloadImpl;
+
+public:
+  FlatFieldInlineKlassPayload() = default;
+
+  inline FlatFieldInlineKlassPayload(instanceOop holder,
+                                     fieldDescriptor* field_descriptor);
+  inline FlatFieldInlineKlassPayload(instanceOop holder,
+                                     fieldDescriptor* field_descriptor,
+                                     InstanceKlass* klass);
+
+  inline FlatFieldInlineKlassPayload(instanceOop holder,
+                                     ResolvedFieldEntry* resolved_field_entry);
+  inline FlatFieldInlineKlassPayload(instanceOop holder,
+                                     ResolvedFieldEntry* resolved_field_entry,
+                                     InstanceKlass* klass);
+
+  [[nodiscard]] static inline FlatFieldInlineKlassPayload
+  construct_from_parts(instanceOop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind);
+};
+
+class FlatFieldInlineKlassPayloadHandle
+    : public InlineKlassPayloadHandle::FlatFieldInlineKlassPayloadImpl {
+protected:
+  using FlatFieldInlineKlassPayloadImpl::FlatFieldInlineKlassPayloadImpl;
+
+public:
+  FlatFieldInlineKlassPayloadHandle() = default;
+
+  inline FlatFieldInlineKlassPayloadHandle(instanceOop holder,
+                                           fieldDescriptor* field_descriptor,
+                                           JavaThread* thread);
+  inline FlatFieldInlineKlassPayloadHandle(instanceOop holder,
+                                           fieldDescriptor* field_descriptor,
+                                           InstanceKlass* klass,
+                                           JavaThread* thread);
+
+  inline FlatFieldInlineKlassPayloadHandle(
+      instanceOop holder, ResolvedFieldEntry* resolved_field_entry,
+      JavaThread* thread);
+  inline FlatFieldInlineKlassPayloadHandle(
+      instanceOop holder, ResolvedFieldEntry* resolved_field_entry,
+      InstanceKlass* klass, JavaThread* thread);
+
+  [[nodiscard]] static inline FlatFieldInlineKlassPayloadHandle
+  construct_from_parts(instanceOop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind, JavaThread* thread);
+};
+
+template <typename OopOrHandle>
+class InlineKlassPayloadImpl<OopOrHandle>::FlatArrayInlineKlassPayloadImpl
+    : public FlatInlineKlassPayloadImpl {
+private:
+  jint _layout_helper;
+  int _element_size;
+
+protected:
+  using FlatInlineKlassPayloadImpl::FlatInlineKlassPayloadImpl;
+
+  inline FlatArrayInlineKlassPayloadImpl(flatArrayOop holder,
+                                         InlineKlass* klass, size_t offset,
+                                         LayoutKind layout_kind,
+                                         jint layout_helper, int element_size);
+  inline FlatArrayInlineKlassPayloadImpl(flatArrayOop holder,
+                                         InlineKlass* klass, size_t offset,
+                                         LayoutKind layout_kind,
+                                         jint layout_helper, int element_size,
+                                         JavaThread* thread);
+
+public:
+  FlatArrayInlineKlassPayloadImpl() = default;
+  FlatArrayInlineKlassPayloadImpl(const FlatArrayInlineKlassPayloadImpl&) =
+      default;
+  FlatArrayInlineKlassPayloadImpl&
+  operator=(const FlatArrayInlineKlassPayloadImpl&) = default;
+
+  inline flatArrayOop get_holder() const;
+
+  inline void set_index(int index);
+  inline void advance_index(int delta);
+
+  inline void next_element();
+  inline void previous_element();
+
+private:
+  inline void set_offset(size_t offset);
+};
+
+class FlatArrayInlineKlassPayload
+    : public InlineKlassPayload::FlatArrayInlineKlassPayloadImpl {
+protected:
+  using FlatArrayInlineKlassPayloadImpl::FlatArrayInlineKlassPayloadImpl;
+
+public:
+  FlatArrayInlineKlassPayload() = default;
+
+  explicit inline FlatArrayInlineKlassPayload(flatArrayOop holder);
+  inline FlatArrayInlineKlassPayload(flatArrayOop holder,
+                                     FlatArrayKlass* klass);
+
+  inline FlatArrayInlineKlassPayload(flatArrayOop holder, int index);
+  inline FlatArrayInlineKlassPayload(flatArrayOop holder, int index,
+                                     FlatArrayKlass* klass);
+
+  [[nodiscard]] static inline FlatArrayInlineKlassPayload
+  construct_from_parts(flatArrayOop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind);
+  [[nodiscard]] static inline FlatArrayInlineKlassPayload
+  construct_from_parts(flatArrayOop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind, FlatArrayKlass* holder_klass);
+};
+
+class FlatArrayInlineKlassPayloadHandle
+    : public InlineKlassPayloadHandle::FlatArrayInlineKlassPayloadImpl {
+protected:
+  using FlatArrayInlineKlassPayloadImpl::FlatArrayInlineKlassPayloadImpl;
+
+public:
+  FlatArrayInlineKlassPayloadHandle() = default;
+
+  explicit inline FlatArrayInlineKlassPayloadHandle(flatArrayOop holder,
+                                                    JavaThread* thread);
+  inline FlatArrayInlineKlassPayloadHandle(flatArrayOop holder,
+                                           FlatArrayKlass* klass,
+                                           JavaThread* thread);
+
+  inline FlatArrayInlineKlassPayloadHandle(flatArrayOop holder, int index,
+                                           JavaThread* thread);
+  inline FlatArrayInlineKlassPayloadHandle(flatArrayOop holder, int index,
+                                           FlatArrayKlass* klass,
+                                           JavaThread* thread);
+
+  [[nodiscard]] static inline FlatArrayInlineKlassPayloadHandle
+  construct_from_parts(flatArrayOop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind, JavaThread* thread);
+  [[nodiscard]] static inline FlatArrayInlineKlassPayloadHandle
+  construct_from_parts(flatArrayOop holder, InlineKlass* klass, size_t offset,
+                       LayoutKind layout_kind, FlatArrayKlass* holder_klass,
+                       JavaThread* thread);
+};
 
 #endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP

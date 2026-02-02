@@ -27,6 +27,7 @@
 
 #include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/ostream.hpp"
 
 // LayoutKind is an enum used to indicate which layout has been used for a given value field.
 // Each layout has its own properties and its own access protocol that is detailed below.
@@ -94,6 +95,8 @@ enum class LayoutKind : uint32_t {
   UNKNOWN                   = 6     // used for uninitialized fields of type LayoutKind
 };
 
+class outputStream;
+
 class LayoutKindHelper : AllStatic {
  public:
   static bool is_flat(LayoutKind lk) {
@@ -108,6 +111,8 @@ class LayoutKindHelper : AllStatic {
     return lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
   static const char* layout_kind_as_string(LayoutKind lk);
+
+  static void print_on(LayoutKind lk, outputStream* st) NOT_DEBUG_RETURN;
 };
 
 #endif // SHARE_OOPS_LAYOUTKIND_HPP

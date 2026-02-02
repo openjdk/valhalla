@@ -60,6 +60,7 @@
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.hpp"
@@ -455,20 +456,28 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
   }
   if (org->is_flatArray()) {
+    assert(to >= 0 && from >= 0, "Assume this for now");
+    int org_length = org->length();
+    int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
     FlatArrayKlass* const fak = FlatArrayKlass::cast(org->klass());
-    const jint layout_helper = fak->layout_helper();
-    const LayoutKind lk = FlatArrayKlass::cast(org->klass())->layout_kind();
-    const ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
-    flatArrayOop dst = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
-    InlineKlassPayload src_payload(flatArrayOop(oh()), fak);
-    InlineKlassPayload dst_payload(dst, fak);
-    int end = to < oh()->length() ? to : oh()->length();
-    for (int i = from; i < end; i++) {
-      src_payload.set_index(i, layout_helper);
-      dst_payload.set_index(i - from, layout_helper);
-      src_payload.copy_to(dst_payload);
+    flatArrayOop dst = oopFactory::new_flatArray(fak, len, CHECK_NULL);
+    assert(!ak->is_null_free_array_klass() || copy_len == len,
+           "Failed to throw the IllegalArgumentException");
+    if (copy_len != 0) {
+      int start = MIN2(from, org_length - 1);
+      FlatArrayInlineKlassPayload src_payload(flatArrayOop(oh()), start, fak);
+      FlatArrayInlineKlassPayload dst_payload(dst, 0, fak);
+      int end = to < oh()->length() ? to : oh()->length();
+      for (int i = from; i < end; i++) {
+        // Copy a value
+        src_payload.copy_to(dst_payload);
+
+        // Advance to the next element
+        src_payload.next_element();
+        dst_payload.next_element();
+      }
     }
-    array = dst_payload.get_holder();
+    array = dst;
   } else {
     ArrayKlass::ArrayProperties props = org->is_null_free_array() ? ArrayKlass::ArrayProperties::NULL_RESTRICTED : ArrayKlass::ArrayProperties::DEFAULT;
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);

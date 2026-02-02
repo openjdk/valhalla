@@ -304,9 +304,9 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(Members, _null_marker_offset);
   }
 
-  InlineKlassPayload null_payload() const;
+  BufferedInlineKlassPayload null_payload() const;
 
-  oop null_reset_value() const;
+  inlineOop null_reset_value() const;
   void set_null_reset_value(oop val);
 
   void deallocate_contents(ClassLoaderData* loader_data);

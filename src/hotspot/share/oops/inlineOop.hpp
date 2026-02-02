@@ -28,7 +28,7 @@
 
 #include "oops/instanceOop.hpp"
 
-// A buffered of a java value class InlineKlass objects
+// A buffered object of a java value class InlineKlass.
 class inlineOopDesc : public instanceOopDesc {
 };
 

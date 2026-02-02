@@ -40,6 +40,7 @@
 #include "oops/flatArrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/layoutKind.hpp"
@@ -287,29 +288,33 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
           }
         }
       } else {
-        InlineKlassPayloadHandle src_payload(sa, fsk);
-        InlineKlassPayloadHandle dst_payload(da, fdk);
-        const jint src_layout_helper = fsk->layout_helper();
-        const jint dst_layout_helper = fdk->layout_helper();
-        const bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
+        flatArrayHandle sah(THREAD, sa);
+        flatArrayHandle dah(THREAD, da);
+
         inlineOop buffer = vk->allocate_instance(CHECK);
-        InlineKlassPayload buf_payload(buffer);
+        BufferedInlineKlassPayload buf_payload(buffer);
+
+        // We have already checked that src_pos and dst_pos are valid indices.
+        FlatArrayInlineKlassPayload src_payload(sah(), src_pos, fsk);
+        FlatArrayInlineKlassPayload dst_payload(dah(), dst_pos, fdk);
+
+        const bool need_null_check =
+            LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) &&
+            !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
+
         for (int i = 0; i < length; i++) {
-          src_payload.set_index(src_pos + i, src_layout_helper);
-          dst_payload.set_index(dst_pos + i, dst_layout_helper);
-          if (need_null_check && src_payload.is_marked_as_null()) {
-              THROW(vmSymbols::java_lang_NullPointerException());
+          // Copy via buffer
+          if ((need_null_check && src_payload.is_payload_null()) ||
+              !src_payload.copy_to(buf_payload)) {
+            assert(need_null_check,
+                   "Should only occur if we need a null check");
+            THROW(vmSymbols::java_lang_NullPointerException());
           }
-          src_payload.copy_to(buf_payload);
-          // TODO: We have a race here where we may copy a null value and then
-          //       mark it as none null.
-          if (buf_payload.has_null_marker()) {
-            // TODO: Move this into copy. With a compatible copy layout and mark
-            // as none null before and after depending on buffered.
-            // Setting null marker to not zero for non-nullable source layouts
-            buf_payload.mark_as_non_null();
-          }
-          dst_payload.copy_from(buf_payload);
+          dst_payload.copy_from_non_null(buf_payload);
+
+          // Advance to next element
+          src_payload.next_element();
+          dst_payload.next_element();
         }
       }
     } else { // flatArray-to-objArray

@@ -49,6 +49,7 @@
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
@@ -243,8 +244,8 @@ JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, o
   assert(fd.is_flat(), "Field must be flat");
 #endif // ASSERT
 
-  InlineKlassPayload payload(instanceOop(obj), entry);
-  if (payload.is_marked_as_null()) {
+  FlatFieldInlineKlassPayload payload(instanceOop(obj), entry);
+  if (payload.is_payload_null()) {
     // If the payload is null return before entring the JRT_BLOCK.
     current->set_vm_result_oop(nullptr);
     return;
@@ -261,7 +262,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDes
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
   Handle val_h(THREAD, value);
 
-  InlineKlassPayload payload(instanceOop(obj), entry);
+  FlatFieldInlineKlassPayload payload(instanceOop(obj), entry);
   payload.write(inlineOop(value), CHECK);
 JRT_END
 

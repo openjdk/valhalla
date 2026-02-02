@@ -47,6 +47,7 @@
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -362,7 +363,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(fak->layout_kind());
     flatArrayOop array = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
     // For flat arrays
-    if (array != nullptr && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+    if (array != nullptr && len != 0 && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       precond(h_init_val() != nullptr);
       precond(array->klass() == fak);
       // Null-free arrays need to be initialized
@@ -371,11 +372,10 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
       // represented by all zeros. A newly allocated null-free array is already
       // initialised with all zeros and has no null markers. So the payload copy
       // can be elided.
-      InlineKlassPayload payload(array, fak);
-      const jint layout_helper = fak->layout_helper();
+      FlatArrayInlineKlassPayload payload(array, 0, fak);
       for (int i = 0; i < len; i++) {
-        payload.set_index(i, layout_helper);
-        payload.write(inlineOop(h_init_val()));
+        payload.write_without_nullability_check(inlineOop(h_init_val()));
+        payload.next_element();
       }
     }
     result = array;

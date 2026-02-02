@@ -38,6 +38,7 @@
 #include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -290,7 +291,10 @@ public:
     for (int i = 0; i < _entries.length(); i++) {
       EXCEPTION_MARK;
       Entry& entry = _entries.at(i);
-      InlineKlassPayload payload(entry.holder(), entry.inline_klass, static_cast<size_t>(entry.offset), entry.layout_kind);
+      FlatInlineKlassPayload payload =
+          FlatInlineKlassPayload::construct_from_parts(
+              entry.holder(), entry.inline_klass, (size_t)entry.offset,
+              entry.layout_kind);
       oop obj = payload.read(JavaThread::current());
 
       if (HAS_PENDING_EXCEPTION) {
