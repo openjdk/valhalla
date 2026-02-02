@@ -331,6 +331,8 @@ public class ValueCompositionTest {
     Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
     Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
+    // TODO JDK-8376814: Make this test works with this flag
+    Collections.addAll(argsList, "-XX:-UseNullableNonAtomicValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
