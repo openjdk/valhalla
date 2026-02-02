@@ -27,7 +27,7 @@
  * @bug 8357373 8370714
  * @summary test Object methods on value classes
  * @enablePreview
- * @run junit/othervm ValueObjectMethodsTest=
+ * @run junit/othervm ValueObjectMethodsTest
  * @run junit/othervm -XX:+UseFieldFlattening ValueObjectMethodsTest
  * @run junit/othervm -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
  */
