@@ -2936,8 +2936,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
                 if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
-                  super_method->set_mismatch();
                   MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
+                  super_method->set_mismatch();
                   JavaThread* thread = JavaThread::current();
                   HandleMark hm(thread);
                   methodHandle mh(thread, super_method);
