@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -331,8 +331,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_inflateStringC:
   case vmIntrinsics::_inflateStringB:           return inline_string_copy(!is_compress);
 
-  case vmIntrinsics::_makePrivateBuffer:        return inline_unsafe_make_private_buffer();
-  case vmIntrinsics::_finishPrivateBuffer:      return inline_unsafe_finish_private_buffer();
   case vmIntrinsics::_getReference:             return inline_unsafe_access(!is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_getBoolean:               return inline_unsafe_access(!is_store, T_BOOLEAN,  Relaxed, false);
   case vmIntrinsics::_getByte:                  return inline_unsafe_access(!is_store, T_BYTE,     Relaxed, false);
@@ -2892,72 +2890,6 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     set_result(result);
     return true;
   }
-}
-
-bool LibraryCallKit::inline_unsafe_make_private_buffer() {
-  Node* receiver = argument(0);
-  Node* value = argument(1);
-
-  const Type* type = gvn().type(value);
-  if (!type->is_inlinetypeptr()) {
-    C->record_method_not_compilable("value passed to Unsafe::makePrivateBuffer is not of a constant value type");
-    return false;
-  }
-
-  null_check(receiver);
-  if (stopped()) {
-    return true;
-  }
-
-  value = null_check(value);
-  if (stopped()) {
-    return true;
-  }
-
-  ciInlineKlass* vk = type->inline_klass();
-  Node* klass = makecon(TypeKlassPtr::make(vk));
-  Node* obj = new_instance(klass);
-  AllocateNode::Ideal_allocation(obj)->_larval = true;
-
-  assert(value->is_InlineType(), "must be an InlineTypeNode");
-  Node* payload_ptr = basic_plus_adr(obj, vk->payload_offset());
-  value->as_InlineType()->store_flat(this, obj, payload_ptr, false, true, true, IN_HEAP | MO_UNORDERED);
-
-  set_result(obj);
-  return true;
-}
-
-bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
-  Node* receiver = argument(0);
-  Node* buffer = argument(1);
-
-  const Type* type = gvn().type(buffer);
-  if (!type->is_inlinetypeptr()) {
-    C->record_method_not_compilable("value passed to Unsafe::finishPrivateBuffer is not of a constant value type");
-    return false;
-  }
-
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer);
-  if (alloc == nullptr) {
-    C->record_method_not_compilable("value passed to Unsafe::finishPrivateBuffer must be allocated by Unsafe::makePrivateBuffer");
-    return false;
-  }
-
-  null_check(receiver);
-  if (stopped()) {
-    return true;
-  }
-
-  // Unset the larval bit in the object header
-  Node* old_header = make_load(control(), buffer, TypeX_X, TypeX_X->basic_type(), MemNode::unordered, LoadNode::Pinned);
-  Node* new_header = gvn().transform(new AndXNode(old_header, MakeConX(~markWord::larval_bit_in_place)));
-  access_store_at(buffer, buffer, type->is_ptr(), new_header, TypeX_X, TypeX_X->basic_type(), MO_UNORDERED | IN_HEAP);
-
-  // We must ensure that the buffer is properly published
-  insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
-  assert(!type->maybe_null(), "result of an allocation should not be null");
-  set_result(InlineTypeNode::make_from_oop(this, buffer, type->inline_klass()));
-  return true;
 }
 
 //----------------------------inline_unsafe_load_store----------------------------

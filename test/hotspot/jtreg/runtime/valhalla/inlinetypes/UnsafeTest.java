@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,18 +108,19 @@ public class UnsafeTest {
         int layout_point = U.fieldLayout(Value1.class.getDeclaredField("point"));
 
         List<String> list = List.of("Value1", "Value2", "Value3");
-        Value3 v = v3;
+        Value3 v;
+        Value3[] array = ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v3);
         try {
-            v = U.makePrivateBuffer(v);
+            long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
             // patch v3.o
-            U.putReference(v, off_o, list);
+            U.putReference(array, baseOff + off_o, list);
             // patch v3.v.i;
-            U.putInt(v, off_v + off_i - U.valueHeaderSize(Value2.class), 999);
+            U.putInt(array, baseOff + off_v + off_i - U.valueHeaderSize(Value2.class), 999);
             // patch v3.v.v.point
-            U.putFlatValue(v, off_v + off_v2 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
+            U.putFlatValue(array, baseOff + off_v + off_v2 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
                            layout_point, Point.class, new Point(100, 100));
         } finally {
-            v = U.finishPrivateBuffer(v);
+            v = array[0];
         }
 
         assertEquals(v.v.v.point, new Point(100, 100));
@@ -131,12 +132,13 @@ public class UnsafeTest {
         Value2 nv2 = new Value2(nv1, 100);
         Value3 nv3 = new Value3(nv2, list);
 
+        array = ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v);
         try {
-            v = U.makePrivateBuffer(v);
+            long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
             // patch v3.v
-            U.putFlatValue(v, off_v2, layout_v2, Value2.class, nv2);
+            U.putFlatValue(array, baseOff + off_v2, layout_v2, Value2.class, nv2);
         } finally {
-            v = U.finishPrivateBuffer(v);
+            v = array[0];
         }
         assertEquals(v, nv3);
     }
