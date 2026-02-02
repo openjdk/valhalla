@@ -1415,7 +1415,7 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
-        boolean isInstanceField(JCTree tree) {
+        private boolean isInstanceField(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
             return (sym != null &&
                     !sym.isStatic() &&
@@ -1545,7 +1545,7 @@ public class Attr extends JCTree.Visitor {
                             } else {
                                 if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
                                     reportPrologueError(tree, sym);
-                                } else if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR) {
+                                } else if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR && isInstanceField(tree)) {
                                     localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
                                 }
                                 /* we do nothing in warnings only mode, as in that mode we are simulating what
