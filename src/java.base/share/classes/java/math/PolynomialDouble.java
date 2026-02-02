@@ -99,6 +99,11 @@ public final /* value */ class PolynomialDouble  {
 
     private static final int IMPL_LIMIT = 1000;
 
+    /*
+     * Arrays passed to the (private) constructors are trusted.
+     * Arrays passed to the (public) valueOf factories are untrusted.
+     */
+
     private PolynomialDouble(double[] coeffs) {
         int length = coeffs.length;
         if (length > IMPL_LIMIT) {
@@ -152,17 +157,19 @@ public final /* value */ class PolynomialDouble  {
      * @throws IllegalArgumentException if there are zero coefficients
      */
     public static PolynomialDouble valueOf(double... coeffs) {
-        int length = coeffs.length; // implicit null check
+         // Avoid malicious writes; clone upfront.
+        double[] clonedCoeffs = coeffs.clone(); // implicit null check
+        int length = clonedCoeffs.length;
         if (length == 0) {
             throw new IllegalArgumentException("Zero-length arrays not allowed");
         }
         if (length == 1) {
-            return valueOf(coeffs[0]);
+            return valueOf(clonedCoeffs[0]);
         } else {
             // Check for zeros in high-order components and strip out.
             int i;
             for(i = length; i > 0; i--) {
-                if (coeffs[i -1] == 0) {
+                if (clonedCoeffs[i -1] == 0) {
                     continue;
                 } else {
                     break;
@@ -171,7 +178,7 @@ public final /* value */ class PolynomialDouble  {
 
             return (i == 0) ?
                 ZERO :
-                new PolynomialDouble(Arrays.copyOf(coeffs, i));
+                new PolynomialDouble(Arrays.copyOf(clonedCoeffs, i));
         }
     }
 
@@ -279,8 +286,7 @@ public final /* value */ class PolynomialDouble  {
             y = addend.coeffs;
         }
 
-        // could simplify to x.length per invariant above
-        double[] tmp = new double[Math.max(x.length, y.length)];
+        double[] tmp = new double[x.length];
 
         int i = 0;
         for( ; i < y.length; i++) {
