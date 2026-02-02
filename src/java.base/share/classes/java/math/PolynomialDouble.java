@@ -103,21 +103,21 @@ public final /* value */ class PolynomialDouble  {
      * coefficient may be zero. This leading nonzero constraint is
      * enforced by the valueOf factories.
      *
+     * The distinguished zero polynomial is represented using a
+     * zero-length coefficients array.
+     *
      * The coeffs arrays should be unshared and not modified after
      * being referenced by a polynomial.
      *
-     * To make instances of the class smaller, the degree field could
-     * be removed and the degree inferred from the length of the array
-     * (and of the value of coeffs[0] in the case of zero).
-     *
-     * A variation of this data approach would be to internally use an
-     * empty array as a sentinel value for the zero polynomial.
+     * Alternatively, an explicit degree field could be use and
+     * length-one array used to represent both the zero polynomial and
+     * nonzero constant polynomials.
      *
      * Alternatively, a sparse storage scheme of the coefficients
      * could be used, such as a list of (exponent, coefficient) pairs.
      */
     private final double[] coeffs;
-    private final int degree; // could infer this from length of coeffs
+    // private final int degree; // could infer this from length of coeffs
 
     /*
      * Arrays passed to the (private) constructors are trusted.
@@ -130,16 +130,12 @@ public final /* value */ class PolynomialDouble  {
         if (length > IMPL_LIMIT) {
             throw new IllegalArgumentException("Size above implementation limit");
         }
-        degree = length - 1;
         this.coeffs = coeffs;
     }
 
-    // Used to create the zero polynomial
-    private PolynomialDouble(double coeff, int degree) {
-        double[] tmp = new double[1];
-        tmp[0] = coeff;
-        this.coeffs = tmp;
-        this.degree = degree;
+     // Used to create the zero polynomial
+    private PolynomialDouble() {
+        this.coeffs = new double[0];
     }
 
     private PolynomialDouble(double coeff) {
@@ -147,13 +143,16 @@ public final /* value */ class PolynomialDouble  {
         double[] tmp = new double[1];
         tmp[0] = coeff;
         this.coeffs = tmp;
-        this.degree = 0;
     }
 
     /**
      * The zero polynomial.
      */
-    public static final PolynomialDouble ZERO = new PolynomialDouble(0.0, -1);
+    public static final PolynomialDouble ZERO = new PolynomialDouble();
+
+    private boolean isZero() {
+        return coeffs.length == 0;
+    }
 
     /**
      * A polynomial of the constant 1.
@@ -214,7 +213,7 @@ public final /* value */ class PolynomialDouble  {
      * @param pd a polynomial
      */
     public static int degree(PolynomialDouble pd) {
-        return pd.degree;
+        return pd.coeffs.length - 1;
     }
 
     // Internally use an instance method
@@ -232,18 +231,22 @@ public final /* value */ class PolynomialDouble  {
      * @param x the assignment of the polynomial's variable
      */
     public double eval(double x) {
-        if (this.deg() <= 0) { // zero or constant
-            // Result not a function of x.
-            return this.coeffs[0];
-        } else {
-            int length = this.coeffs.length;
-            double result = this.coeffs[length - 1];
+        return switch (this.deg()) {
+        case -1 -> 0; // Zero polynomial
+        case  0 -> this.coeffs[0]; // Result *not* a function of x.
+        default -> horner(this.coeffs, x);
+        };
+    }
 
-            for(int i = length - 2; i >= 0; i--) {
-                result = this.coeffs[i] + x*result;
-            }
-            return result;
+    private static double horner(double[] p, double x) {
+        int length = p.length;
+        assert length > 0;
+
+        double result = p[length - 1];
+        for(int i = length - 2; i >= 0; i--) {
+            result = p[i] + x*result;
         }
+        return result;
     }
 
     /**
@@ -274,7 +277,11 @@ public final /* value */ class PolynomialDouble  {
      * coefficient for <i>x</i><sup><i>i</i></sup>.
      */
     public double[] coefficients() {
-        return this.coeffs.clone(); // Prevent malicious updates
+        if (this.deg() == -1) { // zero special case
+            return new double[]{0.0};
+        } else {
+            return this.coeffs.clone(); // Prevent malicious updates
+        }
     }
 
     // For future consideration.
@@ -301,10 +308,10 @@ public final /* value */ class PolynomialDouble  {
         // For this prototype, don't worry about negative zero
         // coefficients in a nonzero polynomial having their signs
         // changed.
-        if(ZERO.equals(addend)) {
+        if(addend.isZero()) {
             return augend;
         }
-        if(ZERO.equals(augend)) {
+        if(augend.isZero()) {
             return addend;
         }
 
@@ -364,7 +371,7 @@ public final /* value */ class PolynomialDouble  {
         // generating NaN coefficients in the product. Also don't
         // worry about NaN coefficients don't be removed by being
         // multiplied by zero.
-         if (ZERO.equals(multiplier) || ZERO.equals(multiplicand) ) {
+         if (multiplier.isZero() || multiplicand.isZero() ) {
              return ZERO;
          }
 
@@ -454,7 +461,7 @@ public final /* value */ class PolynomialDouble  {
      */
      public static PolynomialDouble[] divideAndRemainder(PolynomialDouble dividend,
                                                          PolynomialDouble divisor) {
-         if (ZERO.equals(divisor)) {
+         if (divisor.isZero()) {
              throw new ArithmeticException("Attempt to divide by a zero polynomial");
          }
 
@@ -462,7 +469,7 @@ public final /* value */ class PolynomialDouble  {
          PolynomialDouble workingRemainder = dividend;
 
          // Eschew using operator overloading for now to avoid any bootstrapping issues
-         while(!ZERO.equals(workingRemainder) &&
+         while(!workingRemainder.isZero() &&
                degree(workingRemainder) >= degree(divisor) ) {
              PolynomialDouble tmp = leadQuotient(workingRemainder, divisor);
              // workingQuotient += tmp;
@@ -514,7 +521,7 @@ public final /* value */ class PolynomialDouble  {
      * allow negating the operand in question
      */
     public static PolynomialDouble negate(PolynomialDouble operand) {
-        if (ZERO.equals(operand)) {
+        if (operand.isZero()) {
             return ZERO; // Don't worry about negative zeros here
         } else {
             int length = operand.coeffs.length;
@@ -551,7 +558,9 @@ public final /* value */ class PolynomialDouble  {
      */
     @Override
     public String toString() {
-        if (deg() <= 0) { // constant or zero
+        if (deg() == -1) {
+            return "0";
+        } else if(deg() == 0) { // nonzero constant
             return Double.toString(coeffs[0]);
         } else {
             StringBuilder sb = new StringBuilder();
