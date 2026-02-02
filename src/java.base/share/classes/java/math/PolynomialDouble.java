@@ -33,14 +33,22 @@ import java.util.Arrays;
  *
  * The exponents on the polynomial terms are 0 (for the constant term)
  * or positive. Negative exponents, for terms like
- * <i>x</i><sup>&minus;1</sup> are <em>not</em> supported in this
+ * <i>x</i><sup>&minus;1</sup>, are <em>not</em> supported in this
  * class.
+ *
+ * <p>This class models polynomials as a <i>algebraic ring</i>. This
+ * includes having a {@linkplain #ZERO zero element} such that
+ * multiplying by a zero polynomial results in zero polynomial as the
+ * product. This property would <em>not</em> necessarily hold if the
+ * underlying operations on the {@code double} floating-point
+ * coefficients were done since {@code 0.0 * Infinity} is {@code NaN}
+ * and {@code NaN} is <em>not</em> {@code 0.0}.
  *
  * <p>Blanket statement on nulls: if you pass in a null argument, you
  * should usually expect to get a {@code NullPointerException}.
  *
  * @apiNote
- * This is a prototype class not intended for production work.
+ * As a prototype, this class is <em>not</em> intended for production work.
  *
  * @since Valhalla
  */
@@ -87,23 +95,36 @@ public final /* value */ class PolynomialDouble  {
         }
     };
 
-    /**
-     * coeffs[i] is the coeffs for x^i. Therefore coeffs[0] is the
-     * constant term, etc.
+    /*
+     * Use a dense array to store the coefficients; coeffs[i] is the
+     * coefficient for x^i. Therefore coeffs[0] is the constant term,
+     * etc. Putting aside the special case of the zero polynomial, the
+     * leading coefficient of a polynomial is nonzero, but any other
+     * coefficient may be zero. This leading nonzero constraint is
+     * enforced by the valueOf factories.
      *
      * The coeffs arrays should be unshared and not modified after
      * being referenced by a polynomial.
+     *
+     * To make instances of the class smaller, the degree field could
+     * be removed and the degree inferred from the length of the array
+     * (and of the value of coeffs[0] in the case of zero).
+     *
+     * A variation of this data approach would be to internally use an
+     * empty array as a sentinel value for the zero polynomial.
+     *
+     * Alternatively, a sparse storage scheme of the coefficients
+     * could be used, such as a list of (exponent, coefficient) pairs.
      */
     private final double[] coeffs;
     private final int degree; // could infer this from length of coeffs
-
-    private static final int IMPL_LIMIT = 1000;
 
     /*
      * Arrays passed to the (private) constructors are trusted.
      * Arrays passed to the (public) valueOf factories are untrusted.
      */
 
+    private static final int IMPL_LIMIT = 1000;
     private PolynomialDouble(double[] coeffs) {
         int length = coeffs.length;
         if (length > IMPL_LIMIT) {
@@ -113,6 +134,7 @@ public final /* value */ class PolynomialDouble  {
         this.coeffs = coeffs;
     }
 
+    // Used to create the zero polynomial
     private PolynomialDouble(double coeff, int degree) {
         double[] tmp = new double[1];
         tmp[0] = coeff;
@@ -121,6 +143,7 @@ public final /* value */ class PolynomialDouble  {
     }
 
     private PolynomialDouble(double coeff) {
+        assert coeff != 0;
         double[] tmp = new double[1];
         tmp[0] = coeff;
         this.coeffs = tmp;
@@ -151,10 +174,10 @@ public final /* value */ class PolynomialDouble  {
     /**
      * {@return a polynomial with coefficients set by the argument values}
      *
-     * Describe zero handling, etc.
+     * <p>Describe zero handling, etc.
      *
      * @param coeffs the coefficients
-     * @throws IllegalArgumentException if there are zero coefficients
+     * @throws IllegalArgumentException if there are no coefficients
      */
     public static PolynomialDouble valueOf(double... coeffs) {
          // Avoid malicious writes; clone upfront.
@@ -167,6 +190,7 @@ public final /* value */ class PolynomialDouble  {
             return valueOf(clonedCoeffs[0]);
         } else {
             // Check for zeros in high-order components and strip out.
+            // See discussion of constrains on coeffs array.
             int i;
             for(i = length; i > 0; i--) {
                 if (clonedCoeffs[i -1] == 0) {
@@ -193,6 +217,11 @@ public final /* value */ class PolynomialDouble  {
         return pd.degree;
     }
 
+    // Internally use an instance method
+    private int deg() {
+        return degree(this);
+    }
+
     /**
      * {@return the computed value of the polynomial at the given
      * variable assignment}
@@ -203,7 +232,7 @@ public final /* value */ class PolynomialDouble  {
      * @param x the assignment of the polynomial's variable
      */
     public double eval(double x) {
-        if (this.degree <= 0) { // zero or constant
+        if (this.deg() <= 0) { // zero or constant
             // Result not a function of x.
             return this.coeffs[0];
         } else {
@@ -221,7 +250,7 @@ public final /* value */ class PolynomialDouble  {
      * {@return the derivative of the polynomial}
      */
     public PolynomialDouble diff() {
-        if (this.degree <= 0) { // zero or constant
+        if (this.deg() <= 0) { // zero or constant
             return ZERO;
         } else {
             int length = coeffs.length;
@@ -238,9 +267,9 @@ public final /* value */ class PolynomialDouble  {
     /**
      * {@return the coefficients of this polynomial}
      *
-     * The value of {@code coefficients[0]} is the coeffiecnet for
-     * <i>x</i><sup>0</sup>, the constnat term; the value of {@code
-     * coefficients[1]} is the coefficeint for <i>x</i><sup>1</sup> =
+     * The value of {@code coefficients[0]} is the coefficient for
+     * <i>x</i><sup>0</sup>, the constant term; the value of {@code
+     * coefficients[1]} is the coefficient for <i>x</i><sup>1</sup> =
      * <i>x</i>; and so on with {@code coefficients[i]} being the
      * coefficient for <i>x</i><sup><i>i</i></sup>.
      */
@@ -269,6 +298,9 @@ public final /* value */ class PolynomialDouble  {
      */
     public static PolynomialDouble add(PolynomialDouble addend,
                                        PolynomialDouble augend) {
+        // For this prototype, don't worry about negative zero
+        // coefficients in a nonzero polynomial having their signs
+        // changed.
         if(ZERO.equals(addend)) {
             return augend;
         }
@@ -276,16 +308,19 @@ public final /* value */ class PolynomialDouble  {
             return addend;
         }
 
-        // x has at least as many elements as y
-        double[] x, y;
-        if (addend.degree >= augend.degree) {
-            x = addend.coeffs;
-            y = augend.coeffs;
-        } else {
-            x = augend.coeffs;
-            y = addend.coeffs;
-        }
+        // To simplify the logic, since add is commutative, first
+        // argument to add0 has at least as many elements as the
+        // second argument.
+        return (addend.deg() >= augend.deg()) ?
+            add0(addend.coeffs, augend.coeffs):
+            add0(augend.coeffs, addend.coeffs);
+    }
 
+    /**
+     * Compute polynomial sum from raw arrays.
+     */
+    private static PolynomialDouble add0(double[] x, double[] y) {
+        assert x.length >= y.length;
         double[] tmp = new double[x.length];
 
         int i = 0;
@@ -324,14 +359,19 @@ public final /* value */ class PolynomialDouble  {
      */
      public static PolynomialDouble multiply(PolynomialDouble multiplier,
                                              PolynomialDouble multiplicand) {
+        // For this prototype, don't worry about multiplying a zero
+        // polynomial with a polynomial with infinite coefficients
+        // generating NaN coefficients in the product. Also don't
+        // worry about NaN coefficients don't be removed by being
+        // multiplied by zero.
          if (ZERO.equals(multiplier) || ZERO.equals(multiplicand) ) {
              return ZERO;
          }
 
-         if (multiplier.degree == 0) {
+         if (multiplier.deg() == 0) {
              return multiplyByScalar(multiplier.coeffs[0], multiplicand);
          }
-         if (multiplicand.degree == 0) {
+         if (multiplicand.deg() == 0) {
              return multiplyByScalar(multiplicand.coeffs[0], multiplier);
          }
 
@@ -340,7 +380,7 @@ public final /* value */ class PolynomialDouble  {
          // compensated summation to compute each z[k].
          double[] x = multiplier.coeffs;
          double[] y = multiplicand.coeffs;
-         double[] z = new double[multiplier.degree + multiplicand.degree + 1];
+         double[] z = new double[multiplier.deg() + multiplicand.deg() + 1];
 
          for(int i = 0; i < x.length; i ++) {
              double x_i = x[i];
@@ -418,7 +458,7 @@ public final /* value */ class PolynomialDouble  {
              throw new ArithmeticException("Attempt to divide by a zero polynomial");
          }
 
-         PolynomialDouble workingQuotient = ZERO;
+         PolynomialDouble workingQuotient  = ZERO;
          PolynomialDouble workingRemainder = dividend;
 
          // Eschew using operator overloading for now to avoid any bootstrapping issues
@@ -442,12 +482,12 @@ public final /* value */ class PolynomialDouble  {
                                                       PolynomialDouble q) {
 
         // Probably need some checks here for a zero dividend...
-        int pDeg = p.degree;
-        int qDeg = q.degree;
+        int pDeg = p.deg();
+        int qDeg = q.deg();
         int quotDegree = pDeg - qDeg;
         assert quotDegree >= 0;
         double quotCoeff = p.coeffs[pDeg]/q.coeffs[qDeg];
-        double[] quotCoeffs = new double[quotDegree+1];
+        double[] quotCoeffs = new double[quotDegree + 1];
         quotCoeffs[quotDegree] = quotCoeff;
         return valueOf(quotCoeffs);
     }
@@ -494,7 +534,7 @@ public final /* value */ class PolynomialDouble  {
     @Override
     public boolean equals(Object o) {
         return o instanceof PolynomialDouble that &&
-            this.degree == that.degree &&
+            this.deg() == that.deg() &&
             Arrays.equals(this.coeffs, that.coeffs);
     }
 
@@ -511,7 +551,7 @@ public final /* value */ class PolynomialDouble  {
      */
     @Override
     public String toString() {
-        if (degree <= 0) { // constant or zero
+        if (deg() <= 0) { // constant or zero
             return Double.toString(coeffs[0]);
         } else {
             StringBuilder sb = new StringBuilder();
