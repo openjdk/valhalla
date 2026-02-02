@@ -1186,7 +1186,7 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
   if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
-      (method()->name() == ciSymbols::isSubstitutableAlt_name() || method()->name() == ciSymbols::isSubstitutable_name())) {
+      (method()->name() == ciSymbols::isSubstitutable_name())) {
     Node* left = in(TypeFunc::Parms);
     Node* right = in(TypeFunc::Parms + 1);
     if (!left->is_top() && !right->is_top() && (left->is_InlineType() || right->is_InlineType())) {

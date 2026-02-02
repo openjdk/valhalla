@@ -1242,7 +1242,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     vmClasses::ValueObjectMethods_klass()->initialize(CHECK_NH);
     LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, false, CHECK_NH);
 #ifdef ASSERT
-    Symbol* subst_method_name = UseAltSubstitutabilityMethod ? vmSymbols::isSubstitutableAlt_name() : vmSymbols::isSubstitutable_name();
+    Symbol* subst_method_name = vmSymbols::isSubstitutable_name();
     Method* is_subst = vmClasses::ValueObjectMethods_klass()->find_method(subst_method_name, vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
 #endif

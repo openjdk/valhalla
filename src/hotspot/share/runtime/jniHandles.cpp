@@ -303,7 +303,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
       JavaCallArguments args;
       args.push_oop(ha);
       args.push_oop(hb);
-      methodHandle method(THREAD, UseAltSubstitutabilityMethod ?  Universe::is_substitutableAlt_method() : Universe::is_substitutable_method());
+      methodHandle method(THREAD, Universe::is_substitutable_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         // Something really bad happened because isSubstitutable() should not throw exceptions
