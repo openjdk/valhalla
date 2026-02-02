@@ -6277,7 +6277,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         }
         assert(klass != nullptr, "Sanity check");
         InstanceKlass::check_can_be_annotated_with_NullRestricted(klass, _class_name, CHECK);
-        set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
+        set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
         log_info(class, preload)("Preloading of class %s during loading of class %s "
                                  "(cause: null-free non-static field) succeeded",
                                  s->as_C_string(), _class_name->as_C_string());
@@ -6298,7 +6298,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
-              set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
+              set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
               log_info(class, preload)("Preloading of class %s during loading of class %s "
                                        "(cause: field type in LoadableDescriptors attribute) succeeded",
                                        name->as_C_string(), _class_name->as_C_string());
@@ -6325,7 +6325,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           oop loader = loader_data()->class_loader();
           InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
           if (klass != nullptr && klass->is_inline_klass()) {
-            set_inline_layout_info_klass(fieldinfo.index(), klass, CHECK);
+            set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
             log_info(class, preload)("Preloading of class %s during loading of class %s "
                                      "(cause: field type not in LoadableDescriptors attribute) succeeded",
                                      name->as_C_string(), _class_name->as_C_string());
@@ -6393,7 +6393,7 @@ void ClassFileParser::set_klass(InstanceKlass* klass) {
   _klass = klass;
 }
 
-void ClassFileParser::set_inline_layout_info_klass(int field_index, InstanceKlass* klass, TRAPS) {
+void ClassFileParser::set_inline_layout_info_klass(int field_index, InlineKlass* ik, TRAPS) {
   assert(field_index >= 0 && field_index < java_fields_count(), "IOOB: 0 <= %d < %d", field_index, (int)java_fields_count());
 
   // The array of InlineLayoutInfo is allocated on demand. This way the array is
@@ -6405,7 +6405,6 @@ void ClassFileParser::set_inline_layout_info_klass(int field_index, InstanceKlas
   }
 
   // Set the Klass for the field's index
-  InlineKlass* ik = InlineKlass::cast(klass);
   _inline_layout_info_array->adr_at(field_index)->set_klass(ik);
 }
 
