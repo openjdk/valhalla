@@ -1428,7 +1428,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (iter.length() == 0) {
     // Neither an inner nor outer class
-    oop result = oopFactory::new_objArray(vmClasses::Class_klass(), 0, CHECK_NULL);
+    oop result = oopFactory::new_refArray(vmClasses::Class_klass(), 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
     return (jobjectArray)JNIHandles::make_local(THREAD, result);
   }
 
@@ -1437,8 +1437,8 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
   int length = iter.length();
 
   // Allocate temp. result array
-  objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), length/4, CHECK_NULL);
-  objArrayHandle result (THREAD, r);
+  refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length/4, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  refArrayHandle result (THREAD, r);
   int members = 0;
 
   for (; !iter.done(); iter.next()) {

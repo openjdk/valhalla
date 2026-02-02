@@ -71,7 +71,7 @@ ciConstant ciArray::element_value_impl(BasicType elembt,
         assert(ary->is_flatArray(), "");
         flatArrayOop flatary = flatArrayOopDesc::cast(ary);
         assert(CompilerThread::current()->thread_state() == _thread_in_vm, "");
-        Thread* THREAD = CompilerThread::current();
+        JavaThread* THREAD = CompilerThread::current();
         oop elem = flatary->obj_at(index, THREAD);
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
