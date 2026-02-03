@@ -1400,7 +1400,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   //   - The nonstatic field ".empty" the JVM injects when detecting an empty
   //     inline class, added in FieldLayoutBuilder::compute_inline_class_layout
   // One more slot is required for both abstract value class and inline classes:
-  //   - The the static field ".acmp_maps" for acmp and identity hash, tracks
+  //   - The static field ".acmp_maps" for acmp and identity hash, tracks
   //     nonstatic fields both inherited or declared, added below
   const int total_fields = length + num_injected + (is_inline_type ? 2 : 0)
                            + (is_value_class ? 1 : 0);
