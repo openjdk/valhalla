@@ -41,7 +41,7 @@ class JavaThread;
 class outputStream;
 class ResolvedFieldEntry;
 
-class InlineKlassPayload {
+class ValuePayload {
 private:
   template <typename Holder> struct StorageImpl {
     mutable Holder _holder;
@@ -57,13 +57,13 @@ private:
 protected:
   static constexpr ptrdiff_t BAD_OFFSET = -1;
 
-  InlineKlassPayload() = default;
-  InlineKlassPayload(const InlineKlassPayload&) = default;
-  InlineKlassPayload& operator=(const InlineKlassPayload&) = default;
+  ValuePayload() = default;
+  ValuePayload(const ValuePayload&) = default;
+  ValuePayload& operator=(const ValuePayload&) = default;
 
   // Constructed from parts
-  inline InlineKlassPayload(oop holder, InlineKlass* klass, ptrdiff_t offset,
-                            LayoutKind layout_kind);
+  inline ValuePayload(oop holder, InlineKlass* klass, ptrdiff_t offset,
+                      LayoutKind layout_kind);
 
   inline void set_offset(ptrdiff_t offset);
   inlineOop allocate_instance(TRAPS) const;
@@ -101,9 +101,9 @@ public:
   inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
-class BufferedInlineKlassPayload : public InlineKlassPayload {
+class BufferedInlineKlassPayload : public ValuePayload {
 protected:
-  using InlineKlassPayload::InlineKlassPayload;
+  using ValuePayload::ValuePayload;
 
 public:
   BufferedInlineKlassPayload() = default;
@@ -134,12 +134,12 @@ public:
 class FlatArrayInlineKlassPayload;
 class FlatFieldInlineKlassPayload;
 
-class FlatInlineKlassPayload : public InlineKlassPayload {
+class FlatInlineKlassPayload : public ValuePayload {
 protected:
-  using InlineKlassPayload::InlineKlassPayload;
+  using ValuePayload::ValuePayload;
 
 private:
-  inline void copy_from_helper(InlineKlassPayload& src);
+  inline void copy_from_helper(ValuePayload& src);
 
 public:
   FlatInlineKlassPayload() = default;
@@ -258,7 +258,7 @@ public:
   inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
-class InlineKlassPayload::Handle {
+class ValuePayload::Handle {
 private:
   using Storage = StorageImpl<::Handle>;
 
@@ -269,17 +269,17 @@ public:
   Handle(const Handle&) = default;
   Handle& operator=(const Handle&) = default;
 
-  inline Handle(const InlineKlassPayload& payload, JavaThread* thread);
+  inline Handle(const ValuePayload& payload, JavaThread* thread);
 
   inline oop get_holder() const;
   inline InlineKlass* get_klass() const;
   inline ptrdiff_t get_offset() const;
   inline LayoutKind get_layout_kind() const;
 
-  inline InlineKlassPayload operator()() const;
+  inline ValuePayload operator()() const;
 };
 
-class InlineKlassPayload::OopHandle {
+class ValuePayload::OopHandle {
 private:
   using Storage = StorageImpl<::OopHandle>;
 
@@ -290,45 +290,44 @@ public:
   OopHandle(const OopHandle&) = default;
   OopHandle& operator=(const OopHandle&) = default;
 
-  inline OopHandle(const InlineKlassPayload& payload, OopStorage* storage);
+  inline OopHandle(const ValuePayload& payload, OopStorage* storage);
 
   inline oop get_holder() const;
   inline InlineKlass* get_klass() const;
   inline ptrdiff_t get_offset() const;
   inline LayoutKind get_layout_kind() const;
 
-  inline InlineKlassPayload operator()() const;
+  inline ValuePayload operator()() const;
 };
 
-class BufferedInlineKlassPayload::Handle : public InlineKlassPayload::Handle {
+class BufferedInlineKlassPayload::Handle : public ValuePayload::Handle {
 public:
-  using InlineKlassPayload::Handle::Handle;
+  using ValuePayload::Handle::Handle;
 
   inline BufferedInlineKlassPayload operator()() const;
 
   inline inlineOop get_holder() const;
 };
 
-class BufferedInlineKlassPayload::OopHandle
-    : public InlineKlassPayload::OopHandle {
+class BufferedInlineKlassPayload::OopHandle : public ValuePayload::OopHandle {
 public:
-  using InlineKlassPayload::OopHandle::OopHandle;
+  using ValuePayload::OopHandle::OopHandle;
 
   inline BufferedInlineKlassPayload operator()() const;
 
   inline inlineOop get_holder() const;
 };
 
-class FlatInlineKlassPayload::Handle : public InlineKlassPayload::Handle {
+class FlatInlineKlassPayload::Handle : public ValuePayload::Handle {
 public:
-  using InlineKlassPayload::Handle::Handle;
+  using ValuePayload::Handle::Handle;
 
   inline FlatInlineKlassPayload operator()() const;
 };
 
-class FlatInlineKlassPayload::OopHandle : public InlineKlassPayload::OopHandle {
+class FlatInlineKlassPayload::OopHandle : public ValuePayload::OopHandle {
 public:
-  using InlineKlassPayload::OopHandle::OopHandle;
+  using ValuePayload::OopHandle::OopHandle;
 
   inline FlatInlineKlassPayload operator()() const;
 };
