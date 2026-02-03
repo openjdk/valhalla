@@ -339,12 +339,12 @@ BufferedValuePayload::get_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
-inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
-    instanceOop holder, ptrdiff_t offset, InlineLayoutInfo* inline_layout_info)
-    : FlatFieldInlineKlassPayload(holder, inline_layout_info->klass(), offset,
-                                  inline_layout_info->kind()) {}
+inline FlatFieldPayload::FlatFieldPayload(instanceOop holder, ptrdiff_t offset,
+                                          InlineLayoutInfo* inline_layout_info)
+    : FlatFieldPayload(holder, inline_layout_info->klass(), offset,
+                       inline_layout_info->kind()) {}
 
-inline instanceOop FlatFieldInlineKlassPayload::get_holder() const {
+inline instanceOop FlatFieldPayload::get_holder() const {
   return instanceOop(ValuePayload::get_holder());
 }
 
@@ -382,7 +382,7 @@ inline void FlatValuePayload::copy_from_non_null(BufferedValuePayload& src) {
   copy_from_helper(src);
 }
 
-inline void FlatValuePayload::copy_to(const FlatFieldInlineKlassPayload& dst) {
+inline void FlatValuePayload::copy_to(const FlatFieldPayload& dst) {
   copy(*this, dst, get_layout_kind());
 }
 
@@ -480,68 +480,66 @@ FlatValuePayload::get_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
-inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
-    instanceOop holder, fieldDescriptor* field_descriptor)
-    : FlatFieldInlineKlassPayload(holder, field_descriptor,
-                                  InstanceKlass::cast(holder->klass())) {}
+inline FlatFieldPayload::FlatFieldPayload(instanceOop holder,
+                                          fieldDescriptor* field_descriptor)
+    : FlatFieldPayload(holder, field_descriptor,
+                       InstanceKlass::cast(holder->klass())) {}
 
-inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
-    instanceOop holder, fieldDescriptor* field_descriptor, InstanceKlass* klass)
-    : FlatFieldInlineKlassPayload(
+inline FlatFieldPayload::FlatFieldPayload(instanceOop holder,
+                                          fieldDescriptor* field_descriptor,
+                                          InstanceKlass* klass)
+    : FlatFieldPayload(
           holder, klass->field_offset(field_descriptor->index()),
           klass->inline_layout_info_adr(field_descriptor->index())) {
   postcond(holder->klass() == klass);
 }
 
-inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
+inline FlatFieldPayload::FlatFieldPayload(
     instanceOop holder, ResolvedFieldEntry* resolved_field_entry)
-    : FlatFieldInlineKlassPayload(holder, resolved_field_entry,
-                                  resolved_field_entry->field_holder()) {}
+    : FlatFieldPayload(holder, resolved_field_entry,
+                       resolved_field_entry->field_holder()) {}
 
-inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
+inline FlatFieldPayload::FlatFieldPayload(
     instanceOop holder, ResolvedFieldEntry* resolved_field_entry,
     InstanceKlass* klass)
-    : FlatFieldInlineKlassPayload(
+    : FlatFieldPayload(
           holder, resolved_field_entry->field_offset(),
           klass->inline_layout_info_adr(resolved_field_entry->field_index())) {
   postcond(holder->klass()->is_subclass_of(klass));
 }
 
-inline FlatFieldInlineKlassPayload
-FlatFieldInlineKlassPayload::construct_from_parts(instanceOop holder,
-                                                  InlineKlass* klass,
-                                                  ptrdiff_t offset,
-                                                  LayoutKind layout_kind) {
-  return FlatFieldInlineKlassPayload(holder, klass, offset, layout_kind);
+inline FlatFieldPayload
+FlatFieldPayload::construct_from_parts(instanceOop holder, InlineKlass* klass,
+                                       ptrdiff_t offset,
+                                       LayoutKind layout_kind) {
+  return FlatFieldPayload(holder, klass, offset, layout_kind);
 }
 
-FlatFieldInlineKlassPayload
-FlatFieldInlineKlassPayload::Handle::operator()() const {
+FlatFieldPayload FlatFieldPayload::Handle::operator()() const {
   return construct_from_parts(get_holder(), get_klass(), get_offset(),
                               get_layout_kind());
 }
 
-FlatFieldInlineKlassPayload
-FlatFieldInlineKlassPayload::OopHandle::operator()() const {
+FlatFieldPayload FlatFieldPayload::OopHandle::operator()() const {
   return construct_from_parts(get_holder(), get_klass(), get_offset(),
                               get_layout_kind());
 }
 
-inline instanceOop FlatFieldInlineKlassPayload::Handle::get_holder() const {
+inline instanceOop FlatFieldPayload::Handle::get_holder() const {
   return instanceOop(ValuePayload::Handle::get_holder());
 }
 
-inline instanceOop FlatFieldInlineKlassPayload::OopHandle::get_holder() const {
+inline instanceOop FlatFieldPayload::OopHandle::get_holder() const {
   return instanceOop(ValuePayload::OopHandle::get_holder());
 }
 
-FlatFieldInlineKlassPayload::Handle
-FlatFieldInlineKlassPayload::get_handle(JavaThread* thread) const {
+FlatFieldPayload::Handle
+FlatFieldPayload::get_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
-FlatFieldInlineKlassPayload::OopHandle
-FlatFieldInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+FlatFieldPayload::OopHandle
+FlatFieldPayload::get_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 

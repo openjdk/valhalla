@@ -244,7 +244,7 @@ JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, o
   assert(fd.is_flat(), "Field must be flat");
 #endif // ASSERT
 
-  FlatFieldInlineKlassPayload payload(instanceOop(obj), entry);
+  FlatFieldPayload payload(instanceOop(obj), entry);
   if (payload.is_payload_null()) {
     // If the payload is null return before entring the JRT_BLOCK.
     current->set_vm_result_oop(nullptr);
@@ -262,7 +262,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDes
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
   Handle val_h(THREAD, value);
 
-  FlatFieldInlineKlassPayload payload(instanceOop(obj), entry);
+  FlatFieldPayload payload(instanceOop(obj), entry);
   payload.write(inlineOop(value), CHECK);
 JRT_END
 

@@ -130,8 +130,8 @@ public:
   inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
+class FlatFieldPayload;
 class FlatArrayInlineKlassPayload;
-class FlatFieldInlineKlassPayload;
 
 class FlatValuePayload : public ValuePayload {
 protected:
@@ -148,7 +148,7 @@ public:
   [[nodiscard]] inline bool copy_to(BufferedValuePayload& dst);
   inline void copy_from_non_null(BufferedValuePayload& src);
 
-  inline void copy_to(const FlatFieldInlineKlassPayload& dst);
+  inline void copy_to(const FlatFieldPayload& dst);
 
   inline void copy_to(const FlatArrayInlineKlassPayload& dst);
 
@@ -167,31 +167,30 @@ public:
   inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
-class FlatFieldInlineKlassPayload : public FlatValuePayload {
+class FlatFieldPayload : public FlatValuePayload {
 protected:
   using FlatValuePayload::FlatValuePayload;
 
-  inline FlatFieldInlineKlassPayload(instanceOop holder, ptrdiff_t offset,
-                                     InlineLayoutInfo* inline_layout_info);
+  inline FlatFieldPayload(instanceOop holder, ptrdiff_t offset,
+                          InlineLayoutInfo* inline_layout_info);
 
 public:
-  FlatFieldInlineKlassPayload() = default;
+  FlatFieldPayload() = default;
 
-  inline FlatFieldInlineKlassPayload(instanceOop holder,
-                                     fieldDescriptor* field_descriptor);
-  inline FlatFieldInlineKlassPayload(instanceOop holder,
-                                     fieldDescriptor* field_descriptor,
-                                     InstanceKlass* klass);
+  inline FlatFieldPayload(instanceOop holder,
+                          fieldDescriptor* field_descriptor);
+  inline FlatFieldPayload(instanceOop holder, fieldDescriptor* field_descriptor,
+                          InstanceKlass* klass);
 
-  inline FlatFieldInlineKlassPayload(instanceOop holder,
-                                     ResolvedFieldEntry* resolved_field_entry);
-  inline FlatFieldInlineKlassPayload(instanceOop holder,
-                                     ResolvedFieldEntry* resolved_field_entry,
-                                     InstanceKlass* klass);
+  inline FlatFieldPayload(instanceOop holder,
+                          ResolvedFieldEntry* resolved_field_entry);
+  inline FlatFieldPayload(instanceOop holder,
+                          ResolvedFieldEntry* resolved_field_entry,
+                          InstanceKlass* klass);
 
   inline instanceOop get_holder() const;
 
-  [[nodiscard]] static inline FlatFieldInlineKlassPayload
+  [[nodiscard]] static inline FlatFieldPayload
   construct_from_parts(instanceOop holder, InlineKlass* klass, ptrdiff_t offset,
                        LayoutKind layout_kind);
 
@@ -331,21 +330,20 @@ public:
   inline FlatValuePayload operator()() const;
 };
 
-class FlatFieldInlineKlassPayload::Handle : public FlatValuePayload::Handle {
+class FlatFieldPayload::Handle : public FlatValuePayload::Handle {
 public:
   using FlatValuePayload::Handle::Handle;
 
-  inline FlatFieldInlineKlassPayload operator()() const;
+  inline FlatFieldPayload operator()() const;
 
   inline instanceOop get_holder() const;
 };
 
-class FlatFieldInlineKlassPayload::OopHandle
-    : public FlatValuePayload::OopHandle {
+class FlatFieldPayload::OopHandle : public FlatValuePayload::OopHandle {
 public:
   using FlatValuePayload::OopHandle::OopHandle;
 
-  inline FlatFieldInlineKlassPayload operator()() const;
+  inline FlatFieldPayload operator()() const;
 
   inline instanceOop get_holder() const;
 };

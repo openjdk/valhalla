@@ -1828,7 +1828,7 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     fieldDescriptor fd;
     bool found = ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     assert(found, "Field not found");
-    FlatFieldInlineKlassPayload payload(instanceOop(o), &fd);
+    FlatFieldPayload payload(instanceOop(o), &fd);
     res = payload.read(CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
@@ -1963,7 +1963,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
-    FlatFieldInlineKlassPayload payload(instanceOop(o), &fd);
+    FlatFieldPayload payload(instanceOop(o), &fd);
     payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
   }
   log_debug_if_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
