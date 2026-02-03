@@ -4563,6 +4563,9 @@ public class Attr extends JCTree.Visitor {
         result = check(tree, capture(owntype), KindSelector.VAL, resultInfo);
         if (types.isNonNullable(clazztype) || tree.expr instanceof JCTypeCast typeCast && typeCast.strict) {
             tree.strict = true;
+            if (tree.expr instanceof JCTypeCast typeCast && typeCast.strict) {
+                typeCast.strict = false;
+            }
         }
         if (!isPoly)
             chk.checkRedundantCast(localEnv, tree);

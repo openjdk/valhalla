@@ -208,12 +208,8 @@ public class NullChecksWriter extends TreeTranslator {
         }
 
     public void visitTypeCast(JCTypeCast tree) {
-        boolean generateNullCheck = tree.strict;
-        if (tree.expr instanceof JCTypeCast otherTypeCast && tree.strict && otherTypeCast.strict) {
-            generateNullCheck = false;
-        }
         super.visitTypeCast(tree);
-        if (generateNullCheck) {
+        if (tree.strict) {
             tree.expr = attr.makeNullCheck(tree.expr, true);
         }
         result = tree;
@@ -277,7 +273,7 @@ public class NullChecksWriter extends TreeTranslator {
     public void visitNewClass(JCNewClass tree) {
         if (useSiteNullChecks.generateChecksForMethods &&
                 hasNonNullArgs((MethodSymbol) tree.constructor) &&
-                !isInThisSameCompUnit(tree.constructor, env)) {
+                !isInThisSameCompUnit(tree.constructor)) {
             tree.args = newArgs((MethodSymbol) tree.constructor, tree.args);
         }
         super.visitNewClass(tree);
@@ -356,6 +352,10 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     // where
+        private boolean isInThisSameCompUnit(Symbol sym) {
+            return isInThisSameCompUnit(sym, env);
+        }
+
         private boolean isInThisSameCompUnit(Symbol sym, Env<AttrContext> env) {
             return env.toplevel.getTypeDecls().stream()
                     .anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
