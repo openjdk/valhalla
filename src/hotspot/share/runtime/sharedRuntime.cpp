@@ -4020,6 +4020,19 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
 
+  RegisterMap reg_map2(THREAD,
+                       RegisterMap::UpdateMap::include,
+                       RegisterMap::ProcessFrames::include,
+                       RegisterMap::WalkContinuation::skip);
+  frame stubFrame = THREAD->last_frame();
+  frame callerFrame = stubFrame.sender(&reg_map2);
+  Handle(current, callerFrame.retrieve_receiver(&reg_map2));
+  int arg_size;
+  const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
+  assert(sig != nullptr, "sig should never be null");
+  TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
+  VMRegPair* reg_pairs = find_callee_arguments(tmp_sig, false, false, &arg_size);
+
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
   allocate_receiver &= !callee->is_static() && holder->is_inline_klass() && callee->is_scalarized_arg(0);
@@ -4036,22 +4049,68 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
       arg_num++;
     }
   }
-  objArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
-  objArrayHandle array(THREAD, array_oop);
+  objArrayOop array_oop = nullptr;
+  objArrayHandle array;
   arg_num = callee->is_static() ? 0 : 1;
   int i = 0;
+  uint pos = 0;
+  uint depth = 0;
+  uint ignored = 0;
   if (allocate_receiver) {
+    assert(sig->at(pos)._bt == T_METADATA, "");
+    pos++;
+    ignored++;
+    depth++;
+    assert(sig->at(pos)._bt == T_OBJECT, "");
+    uint reg_pos = 0;
+    assert(reg_pos < (uint)arg_size, "");
+    VMRegPair reg_pair = reg_pairs[reg_pos];
+    oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
     InlineKlass* vk = InlineKlass::cast(holder);
     oop res = vk->allocate_instance(CHECK_NULL);
+    // array.replace(array_oop);
+    if (array_oop == nullptr) {
+      array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
+      array = objArrayHandle(THREAD, array_oop);
+    }
     array->obj_at_put(i++, res);
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
     if (bt == T_OBJECT && callee->is_scalarized_arg(arg_num)) {
+      while (true) {
+        BasicType bt = sig->at(pos)._bt;
+        if (bt == T_METADATA) {
+          depth++;
+          ignored++;
+          if (depth == 1) {
+            break;
+          }
+        } else if (bt == T_VOID && sig->at(pos - 1)._bt != T_LONG && sig->at(pos - 1)._bt != T_DOUBLE) {
+          ignored++;
+          depth--;
+        }
+        pos++;
+      }
+      pos++;
+      assert(sig->at(pos)._bt == T_OBJECT, "");
+      uint reg_pos = pos - ignored;
+      assert(reg_pos < (uint)arg_size, "");
+      VMRegPair reg_pair = reg_pairs[reg_pos];
+      oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
       InlineKlass* vk = ss.as_inline_klass(holder);
       assert(vk != nullptr, "Unexpected klass");
-      oop res = vk->allocate_instance(CHECK_NULL);
-      array->obj_at_put(i++, res);
+      if (*buffer != nullptr) {
+        assert((*buffer)->klass() == vk, "");
+        // array->obj_at_put(i++, *buffer);
+      } else {
+        if (array_oop == nullptr) {
+          array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
+          array = objArrayHandle(THREAD, array_oop);
+        }
+        oop res = vk->allocate_instance(CHECK_NULL);
+        array->obj_at_put(i++, res);
+      }
     }
     if (bt != T_VOID) {
       arg_num++;
