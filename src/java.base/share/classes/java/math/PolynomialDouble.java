@@ -50,6 +50,12 @@ import java.util.Arrays;
  * @apiNote
  * As a prototype, this class is <em>not</em> intended for production work.
  *
+ * <p>A future refinement of a polynomial class could be parameterized,
+ * say {@code Polynomial<N extends Numerical>} where {@link Numerical}
+ * indicated a type supported the algebraic ring operations of add,
+ * subtract, and multiply. If a type supported field-like divide as
+ * well, then a polynomial over that type could support divide too.
+ *
  * @since Valhalla
  */
 @jdk.internal.MigratedValueClass
@@ -96,25 +102,29 @@ public final /* value */ class PolynomialDouble  {
     };
 
     /*
-     * Use a dense array to store the coefficients; coeffs[i] is the
-     * coefficient for x^i. Therefore coeffs[0] is the constant term,
-     * etc. Putting aside the special case of the zero polynomial, the
-     * leading coefficient of a polynomial is nonzero, but any other
-     * coefficient may be zero. This leading nonzero constraint is
-     * enforced by the valueOf factories.
+     * Use a dense array to store the coefficients for nonzero
+     * polynomials; coeffs[i] is the coefficient for x^i. Therefore
+     * coeffs[0] is the constant term, etc. Putting aside the special
+     * case of the zero polynomial, the leading coefficient of a
+     * polynomial is nonzero, but any other coefficient may be
+     * zero. This leading nonzero constraint is enforced by the
+     * valueOf factories.
      *
      * The distinguished zero polynomial is represented using a
      * zero-length coefficients array.
      *
-     * The coeffs arrays should be unshared and not modified after
-     * being referenced by a polynomial.
+     * The arrays of coefficients should be unshared and not modified
+     * after being referenced by a polynomial.
      *
-     * Alternatively, an explicit degree field could be use and
-     * length-one array used to represent both the zero polynomial and
-     * nonzero constant polynomials.
+     * Alternatively, an explicit degree instance field could be used
+     * along with a length-one array to represent both the zero
+     * polynomial and nonzero constant polynomials.
      *
-     * Alternatively, a sparse storage scheme of the coefficients
-     * could be used, such as a list of (exponent, coefficient) pairs.
+     * Alternatively, a sparse storage scheme for the coefficients
+     * could be used, such as a list of (exponent, coefficient)
+     * pairs. Such a structure could be used to model Laurent
+     * polynomial, which allow negative as well as nonnegative
+     * exponents.
      */
     private final double[] coeffs;
     // private final int degree; // could infer this from length of coeffs
@@ -125,6 +135,7 @@ public final /* value */ class PolynomialDouble  {
      */
 
     private static final int IMPL_LIMIT = 1000;
+
     private PolynomialDouble(double[] coeffs) {
         int length = coeffs.length;
         if (length > IMPL_LIMIT) {
@@ -139,10 +150,8 @@ public final /* value */ class PolynomialDouble  {
     }
 
     private PolynomialDouble(double coeff) {
-        assert coeff != 0;
-        double[] tmp = new double[1];
-        tmp[0] = coeff;
-        this.coeffs = tmp;
+        assert coeff != 0.0;
+        this.coeffs = new double[]{coeff};
     }
 
     /**
@@ -232,7 +241,7 @@ public final /* value */ class PolynomialDouble  {
      */
     public double eval(double x) {
         return switch (this.deg()) {
-        case -1 -> 0; // Zero polynomial
+        case -1 -> 0;              // Zero polynomial
         case  0 -> this.coeffs[0]; // Result *not* a function of x.
         default -> horner(this.coeffs, x);
         };
@@ -253,7 +262,7 @@ public final /* value */ class PolynomialDouble  {
      * {@return the derivative of the polynomial}
      */
     public PolynomialDouble diff() {
-        if (this.deg() <= 0) { // zero or constant
+        if (deg() <= 0) { // zero or constant
             return ZERO;
         } else {
             int length = coeffs.length;
@@ -261,7 +270,7 @@ public final /* value */ class PolynomialDouble  {
             double[] result = new double[length - 1];
 
             for(int i = 1; i < length; i++) {
-                result[i-1] = coeffs[i] * i;
+                result[i - 1] = coeffs[i] * i;
             }
             return valueOf(result);
         }
@@ -277,11 +286,9 @@ public final /* value */ class PolynomialDouble  {
      * coefficient for <i>x</i><sup><i>i</i></sup>.
      */
     public double[] coefficients() {
-        if (this.deg() == -1) { // zero special case
-            return new double[]{0.0};
-        } else {
-            return this.coeffs.clone(); // Prevent malicious updates
-        }
+        return  (this.deg() == -1) ?
+            (new double[]{0.0}) : // zero special case
+            this.coeffs.clone();  // Prevent malicious updates
     }
 
     // For future consideration.
@@ -369,7 +376,7 @@ public final /* value */ class PolynomialDouble  {
         // For this prototype, don't worry about multiplying a zero
         // polynomial with a polynomial with infinite coefficients
         // generating NaN coefficients in the product. Also don't
-        // worry about NaN coefficients don't be removed by being
+        // worry about NaN coefficients not being canceled by being
         // multiplied by zero.
          if (multiplier.isZero() || multiplicand.isZero() ) {
              return ZERO;
@@ -486,7 +493,7 @@ public final /* value */ class PolynomialDouble  {
      * @param q divisor
      */
     private static final PolynomialDouble leadQuotient(PolynomialDouble p,
-                                                      PolynomialDouble q) {
+                                                       PolynomialDouble q) {
 
         // Probably need some checks here for a zero dividend...
         int pDeg = p.deg();
@@ -527,7 +534,7 @@ public final /* value */ class PolynomialDouble  {
             int length = operand.coeffs.length;
             double[] tmp = Arrays.copyOf(operand.coeffs, length);
             for(int i = 0; i < length; i++ ){
-                tmp[i] = -1.0* tmp[i];
+                tmp[i] = -1.0 * tmp[i];
             }
             return new PolynomialDouble(tmp);
         }
