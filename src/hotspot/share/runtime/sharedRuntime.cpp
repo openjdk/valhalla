@@ -2941,6 +2941,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
                   methodHandle mh(thread, super_method);
                   DeoptimizationScope deopt_scope;
                   {
+                    // Keep the lock scope minimal. Prevent interference with other
+                    // dependency checks by setting mismatch and marking within the lock.
                     MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                     super_method->set_mismatch();
                     CodeCache::mark_for_deoptimization(&deopt_scope, mh());
