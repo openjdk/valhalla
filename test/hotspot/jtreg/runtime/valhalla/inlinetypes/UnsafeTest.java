@@ -109,7 +109,7 @@ public class UnsafeTest {
 
         List<String> list = List.of("Value1", "Value2", "Value3");
         Value3 v;
-        Value3[] array = ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v3);
+        Value3[] array = (Value3[]) ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v3);
         try {
             long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
             // patch v3.o
@@ -132,7 +132,7 @@ public class UnsafeTest {
         Value2 nv2 = new Value2(nv1, 100);
         Value3 nv3 = new Value3(nv2, list);
 
-        array = ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v);
+        array = (Value3[]) ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v);
         try {
             long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
             // patch v3.v

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,16 +73,16 @@ public final class ValueClass {
      *                                  value class type.
      */
     @IntrinsicCandidate
-    public static native <T> T[] newNullRestrictedAtomicArray(Class<T> componentType,
-                                                              int length, T initVal);
+    public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,
+                                                               int length, Object initVal);
 
     @IntrinsicCandidate
-    public static native <T> T[] newNullRestrictedNonAtomicArray(Class<T> componentType,
-                                                                 int length, T initVal);
+    public static native Object[] newNullRestrictedNonAtomicArray(Class<?> componentType,
+                                                                  int length, Object initVal);
 
     @IntrinsicCandidate
-    public static native <T> T[] newNullableAtomicArray(Class<T> componentType,
-                                                        int length);
+    public static native Object[] newNullableAtomicArray(Class<?> componentType,
+                                                         int length);
 
     /**
      * {@return true if the given array is a flat array}

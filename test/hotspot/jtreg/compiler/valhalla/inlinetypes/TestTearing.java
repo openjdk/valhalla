@@ -238,7 +238,7 @@ value class MyValueTearing {
 
     MyValueTearing incrementAndCheckUnsafe() {
         Asserts.assertEQ(x, y, "Inconsistent field values");
-        MyValueTearing[] vt = ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, this);
+        MyValueTearing[] vt = (MyValueTearing[]) ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, this);
         long baseOffset = U.arrayInstanceBaseOffset(vt) - U.valueHeaderSize(MyValueTearing.class);
         U.putShort(vt, baseOffset + X_OFFSET, (short)(x + 1));
         U.putShort(vt, baseOffset + Y_OFFSET, (short)(y + 1));
