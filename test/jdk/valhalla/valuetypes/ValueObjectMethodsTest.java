@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,15 +32,15 @@
  * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseFieldFlattening ValueObjectMethodsTest
  * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
  */
+import java.lang.classfile.ClassFile;
 import java.util.Optional;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.lang.reflect.AccessFlag;
-import java.lang.reflect.Modifier;
 
-import jdk.internal.vm.annotation.Strict;
+import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -59,10 +59,10 @@ public class ValueObjectMethodsTest {
     }
 
     static value class Line {
-        @Strict
-        Point! p1;
-        @Strict
-        Point! p2;
+        @NullRestricted
+        Point p1;
+        @NullRestricted
+        Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
             this.p1 = new Point(x1, y1);
@@ -71,20 +71,21 @@ public class ValueObjectMethodsTest {
     }
 
     static class Ref {
-        @Strict
-        Point! p;
+        @NullRestricted
+        Point p;
         Line l;
         Ref(Point p, Line l) {
             this.p = p;
             this.l = l;
+            super();
         }
     }
 
     static value class Value {
-        @Strict
-        Point! p;
-        @Strict
-        Line! l;
+        @NullRestricted
+        Point p;
+        @NullRestricted
+        Line l;
         Ref r;
         String s;
         Value(Point p, Line l, Ref r, String s) {
@@ -169,8 +170,8 @@ public class ValueObjectMethodsTest {
                 identityClass, "AccessFlag.IDENTITY: " + clazz);
 
         int modifiers = clazz.getModifiers();
-        assertEquals(clazz.isIdentity(), (modifiers & Modifier.IDENTITY) != 0, "Class.getModifiers() & IDENTITY != 0");
-        assertEquals(clazz.isValue(), (modifiers & Modifier.IDENTITY) == 0, "Class.getModifiers() & IDENTITY == 0");
+        assertEquals(clazz.isIdentity(), (modifiers & ClassFile.ACC_IDENTITY) != 0, "Class.getModifiers() & ACC_IDENTITY != 0");
+        assertEquals(clazz.isValue(), (modifiers & ClassFile.ACC_IDENTITY) == 0, "Class.getModifiers() & ACC_IDENTITY == 0");
     }
 
     @Test

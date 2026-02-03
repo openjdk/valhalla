@@ -78,6 +78,7 @@ public class NullChecksWriter extends TreeTranslator {
       */
     private final boolean allowNullRestrictedTypes;
     private final UseSiteNullChecks useSiteNullChecks;
+    private boolean checkNulls;
 
     @SuppressWarnings("this-escape")
     protected NullChecksWriter(Context context) {
@@ -173,7 +174,8 @@ public class NullChecksWriter extends TreeTranslator {
     @Override
     public void visitAssign(JCAssign tree) {
         // could be null for indexed array accesses, we should deal with those later
-        super.visitAssign(tree);
+        tree.lhs = translate(tree.lhs, false);
+        tree.rhs = translate(tree.rhs);
         Symbol lhsSym = TreeInfo.symbolFor(tree.lhs);
         if (lhsSym != null &&
                 types.isNonNullable(lhsSym.type)) {
@@ -196,22 +198,13 @@ public class NullChecksWriter extends TreeTranslator {
 
     // where
         private void identSelectVisitHelper(JCTree tree) {
-            Symbol sym = TreeInfo.symbolFor(tree);
-            if (useSiteNullChecks.generateChecksForFields &&
-                    sym.owner.kind == TYP &&
-                    sym.kind == VAR &&
-                    types.isNonNullable(sym.type) &&
-                    !isInThisSameCompUnit(sym)) {
+            if (needsUseSiteNullCheck(tree, currentClass) &&
+                checkNulls) {
                 /* we are accessing a non-nullable field declared in another
                  * compilation unit
                  */
                 result = attr.makeNullCheck((JCExpression) tree, true);
             }
-        }
-
-        private boolean isInThisSameCompUnit(Symbol sym) {
-            return env.toplevel.getTypeDecls().stream()
-                    .anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
         }
 
     public void visitTypeCast(JCTypeCast tree) {
@@ -332,4 +325,35 @@ public class NullChecksWriter extends TreeTranslator {
         }
         return newArgs.toList();
     }
+
+    @Override
+    public <T extends JCTree> T translate(T tree) {
+        return translate(tree, true);
+    }
+
+    public <T extends JCTree> T translate(T tree, boolean checkNulls) {
+        boolean prevCheckNulls = this.checkNulls;
+        try {
+            this.checkNulls = checkNulls;
+            return super.translate(tree);
+        } finally {
+            this.checkNulls = prevCheckNulls;
+        }
+    }
+
+    public boolean needsUseSiteNullCheck(JCTree tree, ClassSymbol currentClass) {
+        Symbol sym = TreeInfo.symbolFor(tree);
+        return sym != null &&
+                useSiteNullChecks.generateChecksForFields &&
+                sym.owner.kind == TYP &&
+                sym.kind == VAR &&
+                types.isNonNullable(sym.type) &&
+                !isInThisSameCompUnit(sym);
+    }
+
+    // where
+        private boolean isInThisSameCompUnit(Symbol sym) {
+            return env.toplevel.getTypeDecls().stream()
+                    .anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
+        }
 }

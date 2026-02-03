@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package java.lang.reflect;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.FieldModel;
 import java.lang.classfile.MethodModel;
@@ -172,15 +173,14 @@ public enum AccessFlag {
           List.of(Map.entry(latest(), Location.SET_CLASS))),
 
     /**
-     * The access flag {@code ACC_IDENTITY}, corresponding to the
-     * modifier {@link Modifier#IDENTITY identity}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
-     * @jvms 4.1 -B. Class access and property modifiers
+     * The access flag {@code ACC_IDENTITY} with a mask value of
+     * <code>{@value "0x%04x" ClassFile#ACC_IDENTITY}</code>.
      *
+     * @jvms value-objects-4.1 Class access and property modifiers
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    IDENTITY(Modifier.IDENTITY, false,
+    IDENTITY(ACC_IDENTITY, false,
              Location.SET_CLASS_INNER_CLASS,
              List.of(Map.entry(latest(), Location.EMPTY_SET))),
 
@@ -284,13 +284,25 @@ public enum AccessFlag {
                    Map.entry(RELEASE_1, Location.EMPTY_SET))),
 
     /**
-     * The access flag {@code ACC_STRICT_INIT}, with a mask value of
-     * <code>{@value "0x%04x" java.lang.classfile.ClassFile#ACC_STRICT_INIT}</code>.
+     * The access flag {@code ACC_NULL_CHECKED}, with a mask value of
+     * <code>{@value "0x%01x" ClassFile#ACC_NULL_CHECKED}</code>.
      *
-     * @jvms 4.5 Fields
+     * @jvms TBD
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective=true)
+    NULL_CHECKED(ACC_NULL_CHECKED, false,
+            Location.SET_FIELD,
+            List.of(Map.entry(latest(), Location.EMPTY_SET))),
+
+    /**
+     * The access flag {@code ACC_STRICT_INIT}, with a mask value of
+     * <code>{@value "0x%04x" ClassFile#ACC_STRICT_INIT}</code>.
+     *
+     * @jvms strict-fields-4.5 Field access and property flags
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective=true)
     STRICT_INIT(ACC_STRICT_INIT, false,
                 Location.SET_FIELD,
                 List.of(Map.entry(latest(), Location.EMPTY_SET))),
@@ -479,7 +491,7 @@ public enum AccessFlag {
          */
         FIELD(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
               ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
-              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT,
+              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT | ACC_NULL_CHECKED,
               List.of(Map.entry(latest(), // no strict_init
                                 ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                                 ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
@@ -763,7 +775,7 @@ public enum AccessFlag {
             CLASS_FLAGS         = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
             CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE), // identity
             FIELD_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
-            FIELD_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT), // strict
+            FIELD_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT, NULL_CHECKED), // strict
             METHOD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),
             INNER_CLASS_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
             INNER_CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),  // identity

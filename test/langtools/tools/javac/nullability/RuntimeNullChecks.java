@@ -116,15 +116,6 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                /*"""
-                class Test { // should fail, needs to be fixed once we redo null-restricted array creation
-                    public static void main(String... args) {
-                        String s = null;
-                        String[]! sr = new String![10];
-                        sr[0] = s; // NPE at runtime, assignment
-                    }
-                }
-                """,*/
                 """
                 class Test {
                     static String id(String! arg) { return arg; }
@@ -134,26 +125,6 @@ public class RuntimeNullChecks extends TestRunner {
                     }
                 }
                 """,
-                /*"""
-                class Test {
-                    static String id(int i, String!... arg) { return ""; }
-                    public static void main(String... args) {
-                        String s1 = null;
-                        String s2 = "";
-                        Object o = id(1, s1, s2); // NPE at runtime, method invocation
-                    }
-                }
-                """,
-                """
-                class Test {
-                    static String id(int i, String!... arg) { return ""; }
-                    public static void main(String... args) {
-                        String s1 = "";
-                        String s2 = null;
-                        Object o = id(1, s1, s2); // NPE at runtime, method invocation
-                    }
-                }
-                """,*/
                 """
                 class Test {
                     public static void main(String... args) {
@@ -313,6 +284,33 @@ public class RuntimeNullChecks extends TestRunner {
                         Test test = new Test();
                         test.isSystemProperty("1", "2", "3", null);
                     }
+                }
+                """,
+                //should not crash javac:
+                """
+                class Test {
+                    static String get() {
+                        return Other.str = "";
+                    }
+                    public static void main(String... args) {
+                        get();
+                    }
+                }
+                class Other {
+                    public static String! str = "";
+                }
+                """,
+                """
+                class Test {
+                    static String get() {
+                        return Other.str += "add";
+                    }
+                    public static void main(String... args) {
+                        get();
+                    }
+                }
+                class Other {
+                    public static String! str = "";
                 }
                 """
         }) {

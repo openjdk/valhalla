@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.lang.reflect.Field;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.Strict;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,8 +53,8 @@ public class NullRestrictedTest {
 
     static value class Value {
         Object o;
-        @Strict
-        EmptyValue! empty;
+        @NullRestricted
+        EmptyValue empty;
         Value() {
             this.o = null;
             this.empty = new EmptyValue();
@@ -67,10 +67,10 @@ public class NullRestrictedTest {
 
     static class Mutable {
         EmptyValue o;
-        @Strict
-        EmptyValue! empty;
-        @Strict
-        volatile EmptyValue! vempty;
+        @NullRestricted
+        EmptyValue empty;
+        @NullRestricted
+        volatile EmptyValue vempty;
 
         Mutable() {
             empty = new EmptyValue();

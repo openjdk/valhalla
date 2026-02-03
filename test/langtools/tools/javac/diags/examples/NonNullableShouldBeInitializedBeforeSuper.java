@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,22 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.asmtools.jasm;
 
-import java.util.List;
+// key: compiler.err.null.restricted.field.not.have.been.initialized.before.super
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
-/**
- * The "classes[]" data of attributes
- * JEP 181 (Nest-based Access Control): class file 55.0
- * NestMembers_attribute {
- * u2 attribute_name_index;
- * u4 attribute_length;
- * u2 number_of_classes;
- * u2 classes[number_of_classes];
- * }
- */
-public class NestMembersAttr extends ClassArrayAttr {
-    public NestMembersAttr(ClassData cdata, List<ConstantPool.ConstCell> classes) {
-        super(Tables.AttrTag.ATT_NestMembers.parsekey(), cdata, classes);
-    }
+class NonNullableShouldBeInitializedBeforeSuper {
+    NonNullableShouldBeInitializedBeforeSuper! field;
 }

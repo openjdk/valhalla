@@ -37,7 +37,6 @@ import java.util.Objects;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.INLINE_ARRAY_NULL_GUARD;
@@ -158,6 +157,18 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 //@ForceCompileClassInitialize
 public class TestLWorld {
 
+    public TestLWorld() {
+        valueField1 = testValue1;
+        valueField2 = testValue1;
+        valueField4 = MyValue1.DEFAULT;
+        small = new Small();
+        smallDefault = new Small(0, new Big(0));
+        big = new Big();
+        bigDefault = new Big(0);
+        fEmpty3 = new MyValueEmpty();
+        super();
+    }
+
     public static void main(String[] args) {
         // Make sure Test140Value is loaded but not linked
         Class<?> class1 = Test140Value.class;
@@ -186,10 +197,8 @@ public class TestLWorld {
 
     // Helper methods
 
-    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-    @Strict
     @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
 
@@ -242,23 +251,18 @@ public class TestLWorld {
     Object objectField5 = null;
     Object objectField6 = null;
 
-    @Strict
     @NullRestricted
-    MyValue1 valueField1 = testValue1;
-    @Strict
+    MyValue1 valueField1;
     @NullRestricted
-    MyValue1 valueField2 = testValue1;
+    MyValue1 valueField2;
     MyValue1 valueField3 = testValue1;
-    @Strict
     @NullRestricted
-    MyValue1 valueField4 = MyValue1.DEFAULT;
+    MyValue1 valueField4;
     MyValue1 valueField5;
 
     static MyValue1 staticValueField1 = testValue1;
-    @Strict
     @NullRestricted
     static MyValue1 staticValueField2 = testValue1;
-    @Strict
     @NullRestricted
     static MyValue1 staticValueField3 = MyValue1.DEFAULT;
     static MyValue1 staticValueField4;
@@ -1667,14 +1671,11 @@ public class TestLWorld {
         Object objectField5;
         Object objectField6;
 
-        @Strict
         @NullRestricted
         MyValue1 valueField1;
-        @Strict
         @NullRestricted
         MyValue1 valueField2;
         MyValue1 valueField3;
-        @Strict
         @NullRestricted
         MyValue1 valueField4;
         MyValue1 valueField5;
@@ -1743,10 +1744,8 @@ public class TestLWorld {
     }
 
     // Pass arguments via fields to avoid excessive spilling leading to compilation bailouts
-    @Strict
     @NullRestricted
     static Test51Value test51_arg1 = new Test51Value();
-    @Strict
     @NullRestricted
     static MyValue1 test51_arg2 = MyValue1.DEFAULT;
     static Object test51_arg3;
@@ -2315,7 +2314,6 @@ public class TestLWorld {
     @LooselyConsistentValue
     static value class Small {
         int i;
-        @Strict
         @NullRestricted
         Big big; // Too big to be flattened
 
@@ -2349,18 +2347,14 @@ public class TestLWorld {
         }
     }
 
-    @Strict
     @NullRestricted
-    Small small = new Small();
-    @Strict
+    Small small;
     @NullRestricted
-    Small smallDefault = new Small(0, new Big(0));
-    @Strict
+    Small smallDefault;
     @NullRestricted
-    Big big = new Big();
-    @Strict
+    Big big;
     @NullRestricted
-    Big bigDefault = new Big(0);
+    Big bigDefault;
 
     @Test
     public long test80() {
@@ -3158,7 +3152,6 @@ public class TestLWorld {
     @ForceCompileClassInitializer
     @LooselyConsistentValue
     static value class LongWrapper implements WrapperInterface {
-        @Strict
         @NullRestricted
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
@@ -3237,13 +3230,13 @@ public class TestLWorld {
     }
 
     static class InlineBox {
-        @Strict
         @NullRestricted
         LongWrapper content;
 
         @ForceInline
         InlineBox(long val) {
             this.content = LongWrapper.wrap(val);
+            super();
         }
 
         @ForceInline
@@ -3536,13 +3529,11 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
-    @Strict
     @NullRestricted
     static MyValueEmpty fEmpty1 = new MyValueEmpty();
     static MyValueEmpty fEmpty2 = new MyValueEmpty();
-    @Strict
     @NullRestricted
-           MyValueEmpty fEmpty3 = new MyValueEmpty();
+           MyValueEmpty fEmpty3;
            MyValueEmpty fEmpty4 = new MyValueEmpty();
 
     // Test fields loads/stores with empty inline types
@@ -3592,7 +3583,6 @@ public class TestLWorld {
 
     @LooselyConsistentValue
     static value class EmptyContainer {
-        @Strict
         @NullRestricted
         private MyValueEmpty empty = new MyValueEmpty();
     }
@@ -3600,20 +3590,16 @@ public class TestLWorld {
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val = 0;
-        @Strict
         @NullRestricted
         private EmptyContainer empty = new EmptyContainer();
     }
 
-    @Strict
     @NullRestricted
     static final MyValueEmpty empty = new MyValueEmpty();
 
-    @Strict
     @NullRestricted
     static final EmptyContainer emptyC = new EmptyContainer();
 
-    @Strict
     @NullRestricted
     static final MixedContainer mixedContainer = new MixedContainer();
 
@@ -4054,14 +4040,12 @@ public class TestLWorld {
     @LooselyConsistentValue
     static value class Test139Value {
         Object obj = null;
-        @Strict
         @NullRestricted
         MyValueEmpty empty = new MyValueEmpty();
     }
 
     @LooselyConsistentValue
     static value class Test139Wrapper {
-        @Strict
         @NullRestricted
         Test139Value value = new Test139Value();
     }
@@ -4322,7 +4306,6 @@ public class TestLWorld {
     @LooselyConsistentValue
     static value class MyWrapper152 {
         private int unused = 0; // Make sure sub-offset of val field is non-zero
-        @Strict
         @NullRestricted
         MyValue152 val;
 
@@ -4424,7 +4407,6 @@ public class TestLWorld {
         }
     }
 
-    @Strict
     @NullRestricted
     final static MyValue1 test157Cache = MyValue1.createWithFieldsInline(rI, 0);
 
@@ -4440,7 +4422,6 @@ public class TestLWorld {
         Asserts.assertEquals(testValue1, test157(rL));
     }
 
-    @Strict
     @NullRestricted
     static MyValue1 test158Cache = MyValue1.createWithFieldsInline(rI, 0);
 
@@ -5010,7 +4991,6 @@ public class TestLWorld {
     static value class Value178_1 {
         long l1;
         long l2;
-        @Strict
         @NullRestricted
         AllPrimitives prims1;
         AllPrimitives prims2;
@@ -5039,19 +5019,16 @@ public class TestLWorld {
 
     @LooselyConsistentValue
     static value class Value178 {
-        @Strict
         @NullRestricted
         Value178_1 val1;
 
         Value178_1 val2;
 
-        @Strict
         @NullRestricted
         Value178_1 val3;
 
         Value178_1 val4;
 
-        @Strict
         @NullRestricted
         AllPrimitives prims1;
 
@@ -5227,7 +5204,6 @@ public class TestLWorld {
 
     @LooselyConsistentValue
     static value class Value182 {
-        @Strict
         @NullRestricted
         Value181 val; // This will require another substitutability check because it has an Object field
 

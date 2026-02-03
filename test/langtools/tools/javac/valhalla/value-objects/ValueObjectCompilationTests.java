@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,12 +66,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     private static String[] PREVIEW_OPTIONS = {
             "--enable-preview",
             "-source", Integer.toString(Runtime.version().feature())
-    };
-
-    private static String[] PREVIEW_OPTIONS_PLUS_VM_ANNO = {
-            "--enable-preview",
-            "-source", Integer.toString(Runtime.version().feature()),
-            "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
     };
 
     public ValueObjectCompilationTests() {
@@ -743,45 +737,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
         }
-
-        // testing experimental @Strict annotation
-        String[] previousOptions = getCompileOptions();
-        try {
-            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
-            for (String source : List.of(
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict int i = 0;
-                    }
-                    """,
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict final int i = 0;
-                    }
-                    """
-            )) {
-                File dir = assertOK(true, source);
-                for (final File fileEntry : dir.listFiles()) {
-                    var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
-                    for (var field : classFile.fields()) {
-                        if (!field.flags().has(AccessFlag.STATIC)) {
-                            Set<AccessFlag> fieldFlags = field.flags().flags();
-                            Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
-                            if (field.attributes().size() != 0) {
-                                for (var attr : field.attributes()) {
-                                    Assert.check(!attr.attributeName().stringValue().equals("RuntimeInvisibleAnnotations"));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } finally {
-            setCompileOptions(previousOptions);
-        }
     }
 
     @Test
@@ -905,7 +860,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.non.nullable.should.be.initialized",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int f;
@@ -1004,109 +959,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-
-        String[] previousOptions = getCompileOptions();
-        try {
-            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
-            String[] sources = new String[]{
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        @Strict
-                        final IValue val = new IValue();
-                    }
-                    """,
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        @Strict
-                        final IValue val;
-                        Test() {
-                            val = new IValue();
-                        }
-                    }
-                    """
-            };
-            String expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return";
-            for (String src : sources) {
-                checkMnemonicsFor(src, "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return");
-            }
-
-            assertFail("compiler.err.cant.ref.before.ctor.called",
-                    """
-                    import jdk.internal.vm.annotation.NullRestricted;
-                    import jdk.internal.vm.annotation.Strict;
-                    class StrictNR {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        value class SValue {
-                            short s = 0;
-                        }
-                        @Strict
-                        @NullRestricted
-                        IValue val = new IValue();
-                        @Strict
-                        @NullRestricted
-                        final IValue val2;
-                        @Strict
-                        @NullRestricted
-                        SValue val3 = new SValue();
-                    }
-                    """
-            );
-            assertFail("compiler.err.non.nullable.should.be.initialized",
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict int i;
-                    }
-                    """
-            );
-            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
-                    """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict int i;
-                        Test() {
-                            super();
-                            i = 0;
-                        }
-                    }
-                    """
-            );
-            assertFail("compiler.err.cant.ref.before.ctor.called",
-                    """
-                    import jdk.internal.vm.annotation.NullRestricted;
-                    import jdk.internal.vm.annotation.Strict;
-                    class StrictNR {
-                        static value class IValue {
-                            int i = 0;
-                        }
-                        value class SValue {
-                            short s = 0;
-                        }
-                        @Strict
-                        @NullRestricted
-                        IValue val = new IValue();
-                            @Strict
-                            @NullRestricted
-                            SValue val4;
-                        public StrictNR() {
-                            val4 = new SValue();
-                        }
-                    }
-                    """
-            );
-        } finally {
-            setCompileOptions(previousOptions);
-        }
 
         source =
             """
@@ -1482,130 +1334,180 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testAssertUnsetFieldsSMEntry() throws Exception {
-        String[] previousOptions = getCompileOptions();
-        try {
-            String[] testOptions = {
-                    "--enable-preview",
-                    "-source", Integer.toString(Runtime.version().feature()),
-                    "-XDnoLocalProxyVars",
-                    "-XDdebug.stackmap",
-                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
-            };
-            setCompileOptions(testOptions);
-
-            record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
-            for (Data data : List.of(
-                    new Data(
-                            """
-                            import jdk.internal.vm.annotation.Strict;
-                            class Test {
-                                @Strict
-                                final int x;
-                                @Strict
-                                final int y;
-                                Test(boolean a, boolean b) {
-                                    if (a) { // early_larval {x, y}
-                                        x = 1;
-                                        if (b) { // early_larval {y}
-                                            y = 1;
-                                        } else { // early_larval {y}
-                                            y = 2;
-                                        }
-                                    } else { // early_larval {x, y}
-                                        x = y = 3;
+        record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
+        for (Data data : List.of(
+                new Data(
+                        """
+                        value class Test {
+                            final int x;
+                            final int y;
+                            Test(boolean a, boolean b) {
+                                if (a) { // early_larval {x, y}
+                                    x = 1;
+                                    if (b) { // early_larval {y}
+                                        y = 1;
+                                    } else { // early_larval {y}
+                                        y = 2;
                                     }
-                                    super();
+                                } else { // early_larval {x, y}
+                                    x = y = 3;
                                 }
+                                super();
                             }
-                            """,
-                            // three unset_fields entries, entry type 246, are expected in the stackmap table
-                            new int[] {246, 246, 246},
-                            // expected fields for each of them:
-                            new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
-                    ),
-                    new Data(
-                            """
-                            import jdk.internal.vm.annotation.Strict;
-                            class Test {
-                                @Strict
-                                final int x;
-                                @Strict
-                                final int y;
-                                Test(int n) {
-                                    switch(n) {
-                                        case 2:
-                                            x = y = 2;
-                                            break;
-                                        default:
-                                            x = y = 100;
-                                            break;
+                        }
+                        """,
+                        // three unset_fields entries, entry type 246, are expected in the stackmap table
+                        new int[] {246, 246, 246},
+                        // expected fields for each of them:
+                        new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
+                ),
+                new Data(
+                        """
+                        class Test {
+                            Integer! x;
+                            Integer! y;
+                            Test(boolean a, boolean b) {
+                                if (a) { // early_larval {x, y}
+                                    x = 1;
+                                    if (b) { // early_larval {y}
+                                        y = 1;
+                                    } else { // early_larval {y}
+                                        y = 2;
                                     }
-                                    super();
+                                } else { // early_larval {x, y}
+                                    x = y = 3;
                                 }
+                                super();
                             }
-                            """,
-                            // here we expect only one
-                            new int[] {20, 12, 246},
-                            // stating that no field is unset
-                            new String[][] { new String[] {} }
-                    ),
-                    new Data(
-                            """
-                            import jdk.internal.vm.annotation.Strict;
-                            class Test {
-                                @Strict
-                                final int x;
-                                @Strict
-                                final int y;
-                                Test(int n) {
-                                    if (n % 3 == 0) {
-                                        x = n / 3;
-                                    } else { // no unset change
-                                        x = n + 2;
-                                    } // early_larval {y}
-                                    y = n >>> 3;
-                                    super();
-                                    if ((char) n != n) {
-                                        n -= 5;
-                                    } // no uninitializedThis - automatically cleared unsets
-                                    Math.abs(n);
+                        }
+                        """,
+                        // three unset_fields entries, entry type 246, are expected in the stackmap table
+                        new int[] {246, 246, 246},
+                        // expected fields for each of them:
+                        new String[][] { new String[] { "y:Ljava/lang/Integer;" }, new String[] { "x:Ljava/lang/Integer;", "y:Ljava/lang/Integer;" }, new String[] {} }
+                ),
+                new Data(
+                        """
+                        value class Test {
+                            final int x;
+                            final int y;
+                            Test(int n) {
+                                switch(n) {
+                                    case 2:
+                                        x = y = 2;
+                                        break;
+                                    default:
+                                        x = y = 100;
+                                        break;
                                 }
+                                super();
                             }
-                            """,
-                            // here we expect only one, none for the post-larval frame
-                            new int[] {16, 246, 255},
-                            // stating that y is unset when if-else finishes
-                            new String[][] { new String[] {"y:I"} }
-                    )
-            )) {
-                File dir = assertOK(true, data.src());
-                for (final File fileEntry : dir.listFiles()) {
-                    var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    for (var method : classFile.methods()) {
-                        if (method.methodName().equalsString(ConstantDescs.INIT_NAME)) {
-                            var code = method.findAttribute(Attributes.code()).orElseThrow();
-                            var stackMapTable = code.findAttribute(Attributes.stackMapTable()).orElseThrow();
-                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries().size(), "unexpected stackmap length");
-                            int entryIndex = 0;
-                            int expectedUnsetFieldsIndex = 0;
-                            for (var entry : stackMapTable.entries()) {
-                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.frameType(), "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.frameType());
-                                if (entry.frameType() == 246) {
-                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == entry.unsetFields().size());
-                                    int index = 0;
-                                    for (var nat : entry.unsetFields()) {
-                                        String unsetStr = nat.name() + ":" + nat.type();
-                                        Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
-                                    }
-                                    expectedUnsetFieldsIndex++;
+                        }
+                        """,
+                        // here we expect only one
+                        new int[] {20, 12, 246},
+                        // stating that no field is unset
+                        new String[][] { new String[] {} }
+                ),
+                new Data(
+                        """
+                        class Test {
+                            Integer! x;
+                            Integer! y;
+                            Test(int n) {
+                                switch(n) {
+                                    case 2:
+                                        x = y = 2;
+                                        break;
+                                    default:
+                                        x = y = 100;
+                                        break;
                                 }
+                                super();
+                            }
+                        }
+                        """,
+                        // here we expect only one
+                        new int[] {20, 23, 246},
+                        // stating that no field is unset
+                        new String[][] { new String[] {} }
+                ),
+                new Data(
+                        """
+                        value class Test {
+                            final int x;
+                            final int y;
+                            Test(int n) {
+                                if (n % 3 == 0) {
+                                    x = n / 3;
+                                } else { // no unset change
+                                    x = n + 2;
+                                } // early_larval {y}
+                                y = n >>> 3;
+                                super();
+                                if ((char) n != n) {
+                                    n -= 5;
+                                } // no uninitializedThis - automatically cleared unsets
+                                Math.abs(n);
+                            }
+                        }
+                        """,
+                        // here we expect only one, none for the post-larval frame
+                        new int[] {16, 246, 255},
+                        // stating that y is unset when if-else finishes
+                        new String[][] { new String[] {"y:I"} }
+                ),
+                new Data(
+                        """
+                        class Test {
+                            Integer! x;
+                            Integer! y;
+                            Test(int n) {
+                                if (n % 3 == 0) {
+                                    x = n / 3;
+                                } else { // no unset change
+                                    x = n + 2;
+                                } // early_larval {y}
+                                y = n >>> 3;
+                                super();
+                                if ((char) n != n) {
+                                    n -= 5;
+                                } // no uninitializedThis - automatically cleared unsets
+                                Math.abs(n);
+                            }
+                        }
+                        """,
+                        // here we expect only one, none for the post-larval frame
+                        new int[] {23, 246, 255},
+                        // stating that y is unset when if-else finishes
+                        new String[][] { new String[] {"y:Ljava/lang/Integer;"} }
+                )
+        )) {
+            File dir = assertOK(true, data.src());
+            for (final File fileEntry : dir.listFiles()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var method : classFile.methods()) {
+                    if (method.methodName().equalsString(ConstantDescs.INIT_NAME)) {
+                        var code = method.findAttribute(Attributes.code()).orElseThrow();
+                        var stackMapTable = code.findAttribute(Attributes.stackMapTable()).orElseThrow();
+                        Assert.check(data.expectedFrameTypes().length == stackMapTable.entries().size(), "unexpected stackmap length");
+                        int entryIndex = 0;
+                        int expectedUnsetFieldsIndex = 0;
+                        for (var entry : stackMapTable.entries()) {
+                            Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.frameType(), "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.frameType());
+                            if (entry.frameType() == 246) {
+                                Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == entry.unsetFields().size());
+                                int index = 0;
+                                for (var nat : entry.unsetFields()) {
+                                    String unsetStr = nat.name() + ":" + nat.type();
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
+                                }
+                                expectedUnsetFieldsIndex++;
                             }
                         }
                     }
                 }
             }
-        } finally {
-            setCompileOptions(previousOptions);
         }
     }
 
@@ -1613,11 +1515,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
     void testLocalProxyVars() throws Exception {
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {
-                    "--enable-preview",
-                    "-source", Integer.toString(Runtime.version().feature()),
-                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
-            };
+            String[] testOptions = PREVIEW_OPTIONS;
             setCompileOptions(testOptions);
             String[] sources = new String[] {
                     """
@@ -1633,11 +1531,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """,
                     """
-                    import jdk.internal.vm.annotation.Strict;
-                    class Test {
-                        @Strict
+                    value class Test {
                         int i;
-                        @Strict
                         int j;
                         Test() {
                             i = 1;

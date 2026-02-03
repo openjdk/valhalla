@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,6 +132,9 @@ public class Flags {
     @Use({FlagTarget.METHOD})
     @NoToStringValue
     public static final int ACC_VARARGS  = 1<<7;
+    @Use({FlagTarget.VARIABLE})
+    @NoToStringValue
+    public static final int ACC_NULL_CHECKED = 1<<9;
     @Use({FlagTarget.VARIABLE})
     @NoToStringValue
     public static final int ACC_STRICT   = 1<<11;
@@ -529,6 +532,12 @@ public class Flags {
     public static final long STRICT = 1L<<19; // VarSymbols
 
     /**
+     * Flag to inject ACC_STRICT_INIT without compiler behavioral effects
+     */
+    @Use({FlagTarget.VARIABLE})
+    public static final long MARK_STRICT_INIT = 1L<<21; // VarSymbols
+
+    /**
      * Describe modifier flags as they might appear in source code, i.e.,
      * separated by spaces and in the order suggested by JLS 8.1.1.
      */
@@ -567,6 +576,7 @@ public class Flags {
         ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
         ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
         ValueFieldFlags                   = (long) VarFlags | STRICT | FINAL,
+        NonNullableFieldFlags             = (long) VarFlags | STRICT,
         ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,

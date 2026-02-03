@@ -32,7 +32,6 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
@@ -116,10 +115,8 @@ public class TestLWorldProfiling {
                    .start();
     }
 
-    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-    @Strict
     @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
     private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
@@ -525,7 +522,6 @@ public class TestLWorldProfiling {
         private Object o6 = null;
     }
 
-    @Strict
     @NullRestricted
     private static final NotFlattenable notFlattenable = new NotFlattenable();
     private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, new NotFlattenable());
