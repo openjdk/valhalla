@@ -40,7 +40,6 @@ import jdk.test.lib.Asserts;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 public class TestC1ValueNumbering {
     public TestC1ValueNumbering() {
@@ -64,7 +63,6 @@ public class TestC1ValueNumbering {
         }
     }
 
-    @Strict
     @NullRestricted
     Point p;
 

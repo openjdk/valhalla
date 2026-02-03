@@ -34,7 +34,6 @@ import java.util.Arrays;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
 import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
@@ -538,7 +537,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
-    @Strict
     @NullRestricted
     MyValue1 test24_vt;
 
@@ -1166,7 +1164,6 @@ public class TestIntrinsics {
         test53(MyValue1[].class, MyValue1[].class, len, 4);
     }
 
-    @Strict
     @NullRestricted
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1630,7 +1627,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
     }
 
-    @Strict
     @NullRestricted
     static final MyValue1 test73_value1 = MyValue1.createWithFieldsInline(rI, rL);
     static final MyValue1 test73_value2 = MyValue1.createWithFieldsInline(rI+1, rL+1);
@@ -1761,7 +1757,6 @@ public class TestIntrinsics {
 
     @LooselyConsistentValue
     public static value class Test80Value1 {
-        @Strict
         @NullRestricted
         Test80Value2 v = new Test80Value2();
     }

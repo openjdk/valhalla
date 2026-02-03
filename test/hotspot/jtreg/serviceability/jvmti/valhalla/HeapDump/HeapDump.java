@@ -40,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.Enumeration;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
@@ -98,7 +97,6 @@ value class TestClass {
     // nullable value
     public Value nullableValue = new Value(1);
     // null restricted value
-    @Strict
     @NullRestricted
     public Value nullRestrictedValue;
     // null value

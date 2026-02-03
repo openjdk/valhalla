@@ -108,7 +108,7 @@ void G1FullGCMarker::follow_array_chunk(objArrayOop array, int index) {
     push_objarray(array, end_index);
   }
   assert(array->is_refArray(), "Must be");
-  refArrayOop(array)->oop_iterate_range(mark_closure(), beg_index, end_index);
+  refArrayOop(array)->oop_iterate_elements_range(mark_closure(), beg_index, end_index);
 }
 
 inline void G1FullGCMarker::follow_object(oop obj) {

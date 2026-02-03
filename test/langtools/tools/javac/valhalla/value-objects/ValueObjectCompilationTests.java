@@ -1453,11 +1453,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     @Test
     void testLocalProxyVars() throws Exception {
-        String[] previousOptions = getCompileOptions();
-        try {
-            String[] testOptions = PREVIEW_OPTIONS;
-            setCompileOptions(testOptions);
-            String[] sources = new String[] {
+        checkMnemonicsFor(
                     """
                     value class Test {
                         int i;
@@ -1466,29 +1462,25 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             i = 1;
                             j = i; // as here `i` is being read during the early construction phase, use the local var instead
                             super();
-                            System.err.println(i);
                         }
                     }
                     """,
+                    "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield,aload_0,invokespecial,return");
+        checkMnemonicsFor(
                     """
                     value class Test {
-                        int i;
-                        int j;
-                        Test() {
-                            i = 1;
-                            j = i;
+                        static String s0;
+                        String s;
+                        String ss;
+                        Test(boolean b) {
+                            s0 = null;
+                            s = s0; // no local proxy variable for `s0` as it is static
+                            ss = s; // but there should be a local proxy for `s`
                             super();
-                            System.err.println(i);
                         }
                     }
-                    """
-            };
-            for (String source : sources) {
-                checkMnemonicsFor(source, "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
-                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return");
-            }
-        } finally {
-            setCompileOptions(previousOptions);
-        }
+                    """,
+                    "aconst_null,putstatic,getstatic,astore_2,aload_0,aload_2,putfield,aload_0,aload_2," +
+                    "putfield,aload_0,invokespecial,return");
     }
 }

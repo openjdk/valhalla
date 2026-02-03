@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -140,25 +140,20 @@ VALUECLASSES_STR := valueclasses
 ifneq ($(COMPILER), bootjdk)
   MODULE_VALUECLASS_SRC_DIRS := $(call FindModuleValueClassSrcDirs, $(MODULE))
   MODULE_VALUECLASS_SOURCEPATH := $(call GetModuleValueClassSrcPath)
-
-  # Temporarily compile valueclasses into a separate directory with the form:
-  #   <tempdir>/<module>/<classpath>
-  # and then copy the class files into:
-  #   <outdir>/<module>/META-INF/preview/<classpath>
-  # We cannot compile directly into the desired directory because it's the
-  # compiler which creates the original '<module>/<classpath>/...' hierarchy.
-  VALUECLASS_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)
-  PREVIEW_OUTPUTDIR := $(COMPILATION_OUTPUTDIR)/$(MODULE)/META-INF/preview
-
   ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
+    # Temporarily compile valueclasses into a separate directory, and then copy
+    # into the correct "META-INF/preview" path location.
+    # We cannot compile directly into the desired directory because it's the
+    # compiler which creates the original '<module>/<classpath>/...' hierarchy.
+    TEMP_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)
+
     $(eval $(call SetupJavaCompilation, $(MODULE)-$(VALUECLASSES_STR), \
         SMALL_JAVA := false, \
         MODULE := $(MODULE), \
         SRC := $(wildcard $(MODULE_VALUECLASS_SRC_DIRS)), \
         INCLUDES := $(JDK_USER_DEFINED_FILTER), \
         FAIL_NO_SRC := $(FAIL_NO_SRC), \
-        BIN := $(VALUECLASS_OUTPUTDIR)/, \
-        JAR := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
+        BIN := $(TEMP_OUTPUTDIR)/, \
         HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
         DISABLED_WARNINGS := $(DISABLED_WARNINGS_java) preview, \
         EXCLUDES := $(EXCLUDES), \
@@ -173,27 +168,24 @@ ifneq ($(COMPILER), bootjdk)
             --enable-preview -source $(JDK_SOURCE_TARGET_VERSION), \
     ))
 
-    TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
+    # Don't add '$($(MODULE)-$(VALUECLASSES_STR))' to TARGETS (it's transient).
+    # The 'valueclasses' target below depends on it, and that's the non-transient
+    # result we care about.
 
-    # Restructure the value class hierarchy from "<module>/<classpath>/..."
-    # to "<module>/META-INF/preview/<classpath>/..."
-    # When module patching is removed, this could probably be a move rather than a copy.
+    # Copy compiled output from "$TEMP_OUTPUTDIR/$MODULE/<classpath>/..."
+    # to "$COMPILATION_OUTPUTDIR/$MODULE/META-INF/preview/<classpath>/...".
+    MOD_SRC := $(TEMP_OUTPUTDIR)/$(MODULE)
+    MOD_DST := $(COMPILATION_OUTPUTDIR)/$(MODULE)
 
-    # FIXME: The marker file should probably go in modules root dir.
-    # FIXME: Copying value classes should not also copy marker files.
-    $(PREVIEW_OUTPUTDIR)/_the.copy_valueclasses.marker: $($(MODULE)-$(VALUECLASSES_STR))
-		$(call MakeTargetDir)
-		$(CP) -R $(VALUECLASS_OUTPUTDIR)/$(MODULE)/. $(@D)/
+    # NOTE: We cannot use '$(CP) -R $(MOD_SRC)/*/ ...' to select sub-directories (it
+    # does not work on MacOS/BSD). Use 'filter-out' to explicitly exclude marker files.
+    $(MOD_DST)/_the.$(MODULE).valueclasses: $($(MODULE)-$(VALUECLASSES_STR))
+		$(RM) -r $(@D)/META-INF/preview
+		$(MKDIR) -p $(@D)/META-INF/preview
+		$(CP) -R $(filter-out $(MOD_SRC)/_%, $(wildcard $(MOD_SRC)/*)) $(@D)/META-INF/preview
 		$(TOUCH) $@
 
-    TARGETS += $(PREVIEW_OUTPUTDIR)/_the.copy_valueclasses.marker
-
-    $(eval $(call SetupCopyFiles, $(MODULE)-copy-valueclass-jar, \
-        FILES := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
-        DEST := $(SUPPORT_OUTPUTDIR)/modules_libs/$(MODULE)/$(VALUECLASSES_STR), \
-    ))
-
-    TARGETS += $($(MODULE)-copy-valueclass-jar)
+    TARGETS += $(MOD_DST)/_the.$(MODULE).valueclasses
   endif
 endif
 
