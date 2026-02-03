@@ -198,7 +198,7 @@ public class NullChecksWriter extends TreeTranslator {
 
     // where
         private void identSelectVisitHelper(JCTree tree) {
-            if (needsUseSiteNullCheck(tree, currentClass) &&
+            if (needsUseSiteNullCheck(tree) &&
                 checkNulls) {
                 /* we are accessing a non-nullable field declared in another
                  * compilation unit
@@ -277,7 +277,7 @@ public class NullChecksWriter extends TreeTranslator {
     public void visitNewClass(JCNewClass tree) {
         if (useSiteNullChecks.generateChecksForMethods &&
                 hasNonNullArgs((MethodSymbol) tree.constructor) &&
-                !isInThisSameCompUnit(tree.constructor)) {
+                !isInThisSameCompUnit(tree.constructor, env)) {
             tree.args = newArgs((MethodSymbol) tree.constructor, tree.args);
         }
         super.visitNewClass(tree);
@@ -341,18 +341,22 @@ public class NullChecksWriter extends TreeTranslator {
         }
     }
 
-    public boolean needsUseSiteNullCheck(JCTree tree, ClassSymbol currentClass) {
+    private boolean needsUseSiteNullCheck(JCTree tree) {
+        return needsUseSiteNullCheck(tree, env);
+    }
+
+    public boolean needsUseSiteNullCheck(JCTree tree, Env<AttrContext> env) {
         Symbol sym = TreeInfo.symbolFor(tree);
         return sym != null &&
                 useSiteNullChecks.generateChecksForFields &&
                 sym.owner.kind == TYP &&
                 sym.kind == VAR &&
                 types.isNonNullable(sym.type) &&
-                !isInThisSameCompUnit(sym);
+                !isInThisSameCompUnit(sym, env);
     }
 
     // where
-        private boolean isInThisSameCompUnit(Symbol sym) {
+        private boolean isInThisSameCompUnit(Symbol sym, Env<AttrContext> env) {
             return env.toplevel.getTypeDecls().stream()
                     .anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
         }

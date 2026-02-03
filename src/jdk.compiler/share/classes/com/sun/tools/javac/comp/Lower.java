@@ -3395,7 +3395,7 @@ public class Lower extends TreeTranslator {
         depScanner.scan(tree.rhs);
 
         if (boxingReq || depScanner.dependencyFound ||
-            nullChecksWriter.needsUseSiteNullCheck(tree.lhs, currentClass)) {
+            nullChecksWriter.needsUseSiteNullCheck(tree.lhs, attrEnv)) {
             // boxing required; need to rewrite as x = (unbox typeof x)(x op y);
             // or if x == (typeof x)z then z = (unbox typeof x)((typeof x)z op y)
             // (but without recomputing x)

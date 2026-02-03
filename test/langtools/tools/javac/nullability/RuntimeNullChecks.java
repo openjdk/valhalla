@@ -815,6 +815,102 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
+    @Test
+    public void testUseSideChecksForFieldsSepCompilation(Path base) throws Exception {
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! a;
+                    public A() {
+                        this.a = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String a;
+                    public A() {
+                        this.a = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        System.out.println(a.a.toString());
+                    }
+                }
+                """, true, PREVIEW);
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! value;
+                    public A() {
+                        this.value = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String value;
+                    public A() {
+                        this.value = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        a.value = a.value + "";
+                        System.out.println(a.value);
+                    }
+                }
+                """, true, PREVIEW);
+        testUseSiteForFieldsSeparateCompilationHelper(base,
+                """
+                package pkg;
+                public class A {
+                    String! value;
+                    public A() {
+                        this.value = "test";
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                public class A {
+                    String value;
+                    public A() {
+                        this.value = null;
+                        super();
+                    }
+                }
+                """,
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        a.value += "";
+                        System.out.println(a.value);
+                    }
+                }
+                """, true, PREVIEW);
+    }
+
     private Path testUseSiteForFieldsSeparateCompilationHelper(
             Path base,
             String code1,
