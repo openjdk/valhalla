@@ -61,7 +61,9 @@ ciType* ciInstance::java_mirror_type() {
 
 // ------------------------------------------------------------------
 // ciInstance::field_value_impl
-ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset, bool field_is_flat) {
+ciConstant ciInstance::field_value_impl(ciField* field) {
+  BasicType field_btype = field->type()->basic_type();
+  int offset = field->offset_in_bytes();
   ciConstant value = check_constant_value_cache(offset, field_btype);
   if (value.is_valid()) {
     return value;
@@ -80,19 +82,10 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset, bool 
     case T_LONG:    value = ciConstant(obj->long_field(offset)); break;
     case T_OBJECT:  // fall through
     case T_ARRAY: {
-      if (field_is_flat) {
-        InstanceKlass* holder = InstanceKlass::cast(obj->klass());
-        int index = -1;
-        for (JavaFieldStream fs(holder); !fs.done(); fs.next()) {
-          if (!fs.access_flags().is_static() && fs.offset() == offset) {
-            index = fs.index();
-            break;
-          }
-        }
-        assert(index != -1, "no field at given offset");
-        InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(index);
-        InlineKlass* vk = layout_info->klass();
-        oop res = vk->read_payload_from_addr(obj, offset, layout_info->kind(), THREAD);
+      if (field->is_flat()) {
+        assert(field->is_atomic(), "do not query atomically a non-atomic flat field");
+        InlineKlass* vk = field->type()->as_inline_klass()->get_InlineKlass();
+        oop res = vk->read_payload_from_addr(obj, offset, field->layout_kind(), THREAD);
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
           return ciConstant();
@@ -126,13 +119,13 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset, bool 
 // ------------------------------------------------------------------
 // ciInstance::field_value
 //
-// Constant value of a field of any kind: a declared field, or a sub-field field.
+// Constant value of a field of any kind: a declared field, or a leaf field.
+// For a flat declared field, a cached copy of the value object is returned.
 //
-// The field can be flat, in which case a cached copy of the value object is returned.
-// Since stable fields are "constant" but not really, we need to cache the value of
-// fields so that the compiler will observe only one value. We also need to ensure
-// that sub-fields (flattened fields) from a single stable field of value class type
-// will be observed to be consistent with each other.
+// Since stable fields can be treated as "constant" but are not really, we need
+// to cache the value of fields so that the compiler will observe only one value
+// per field. We also need to ensure that leaf fields from a single stable
+// flat declared field will be observed to be consistent with each other.
 //
 // To do so, we need to always fetch the whole declared field containing the
 // desired field. If we want a sub-field of a flat field, we then extract the field
@@ -148,36 +141,43 @@ ciConstant ciInstance::field_value(ciField* field) {
   ciInstanceKlass* klass = this->klass()->as_instance_klass();
   int containing_field_idx = klass->field_index_by_offset(field->offset_in_bytes());
   ciField* containing_field = klass->declared_nonstatic_field_at(containing_field_idx);
-  ciConstant containing_field_value = field_value_impl(containing_field->type()->basic_type(), containing_field->offset_in_bytes(), containing_field->is_flat());
+  if (containing_field->is_flat() && !containing_field->is_atomic()) {
+    assert(field != containing_field, "do not ask for a non atomic declared field");
+    return field_value_impl(field);
+  }
+  ciConstant containing_field_value = field_value_impl(containing_field);
   if (!containing_field_value.is_valid()) {
     return ciConstant();
   }
-  if (field == containing_field) {
+  if (field->original_holder() == nullptr) {
     return containing_field_value;
-  } else {
-    ciObject* obj = containing_field_value.as_object();
-    if (obj->is_instance()) {
-      ciInstance* inst = obj->as_instance();
-      // inst->klass() must be an inline klass since it is the value of a flat field.
-      ciInlineKlass* inst_klass = inst->klass()->as_inline_klass();
-      ciField* field_in_value_klass = inst_klass->get_field_by_offset(inst_klass->payload_offset() + field->offset_in_bytes() - containing_field->offset_in_bytes(), false);
-      return inst->sub_field_value(field_in_value_klass);
-    } else if (obj->is_null_object()) {
-      return ciConstant::make_zero_or_null(field->type()->basic_type());
-    }
-    // obj should not be an array since we are trying to get a field inside it
-    ShouldNotReachHere();
-    return ciConstant();
   }
+  ciObject* obj = containing_field_value.as_object();
+  if (obj->is_instance()) {
+    ciInstance* inst = obj->as_instance();
+    // inst->klass() must be an inline klass since it is the value of a flat field.
+    ciInlineKlass* inst_klass = inst->klass()->as_inline_klass();
+    ciField* field_in_value_klass = inst_klass->get_field_by_offset(inst_klass->payload_offset() + field->offset_in_bytes() - containing_field->offset_in_bytes(), false);
+    return inst->sub_field_value(field_in_value_klass);
+  } else if (obj->is_null_object()) {
+    return ciConstant::make_zero_or_null(field->type()->basic_type());
+  }
+  // obj should not be an array since we are trying to get a field inside it
+  ShouldNotReachHere();
+  return ciConstant();
 }
 
-// Extract a field from a value object.
-// This won't cache. Must be used only on cached values.
-// This is used by field_value when getting the value of a sub-field. Field value
+// Extract a leaf field from a value object.
+//
+// This is used by field_value when getting the value of a sub-field. field_value
 // will take care of getting the value of the declared field containing the requested
-// field, and of caching, but if we want the value of a sub-field, we need to extract
-// it from the value of the declared field containing the sub-field. This is what
-// this function does.
+// field, and of caching (see the comment on field_value for why). But if we want the
+// value of a sub-field, we need to extract it from the value of the declared field
+// containing the said sub-field. This is what this function does.
+//
+// This is meant for internal used only. In particular, this function does not cache
+// the result and must be called only on already cached values (to ensure consistency).
+// field_value takes care of that.
 ciConstant ciInstance::sub_field_value(ciField* field) {
   precond(klass()->is_inlinetype());
   precond(!field->is_flat());

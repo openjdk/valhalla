@@ -179,6 +179,7 @@ public:
   bool is_flat                 () const { return _is_flat; }
   bool is_null_free            () const { return _is_null_free; }
   int null_marker_offset       () const { return _null_marker_offset; }
+  LayoutKind layout_kind       () const { return _layout_kind; }
 
   // Whether this field needs to act atomically. Note that it does not actually need accessing
   // atomically. For example, if there cannot be racy accesses to this field, then it can be

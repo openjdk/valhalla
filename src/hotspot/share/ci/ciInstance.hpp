@@ -49,7 +49,7 @@ protected:
 
   void print_impl(outputStream* st);
 
-  ciConstant field_value_impl(BasicType field_btype, int offset, bool field_is_flat);
+  ciConstant field_value_impl(ciField* field);
   ciConstant sub_field_value(ciField* field);
 
 public:
