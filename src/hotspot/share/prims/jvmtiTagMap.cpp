@@ -293,7 +293,7 @@ public:
       Entry& entry = _entries.at(i);
       FlatInlineKlassPayload payload =
           FlatInlineKlassPayload::construct_from_parts(
-              entry.holder(), entry.inline_klass, (size_t)entry.offset,
+              entry.holder(), entry.inline_klass, entry.offset,
               entry.layout_kind);
       oop obj = payload.read(JavaThread::current());
 

@@ -40,13 +40,13 @@
 #include "utilities/vmError.hpp"
 
 inline InlineKlassPayload::InlineKlassPayload(oop holder, InlineKlass* klass,
-                                              size_t offset,
+                                              ptrdiff_t offset,
                                               LayoutKind layout_kind)
     : _storage{holder, klass, offset, layout_kind} {
   assert_post_construction_invariants();
 }
 
-inline void InlineKlassPayload::set_offset(size_t offset) {
+inline void InlineKlassPayload::set_offset(ptrdiff_t offset) {
   _storage._offset = offset;
 }
 
@@ -56,7 +56,7 @@ inline InlineKlass* InlineKlassPayload::get_klass() const {
   return _storage._klass;
 }
 
-inline size_t InlineKlassPayload::get_offset() const {
+inline ptrdiff_t InlineKlassPayload::get_offset() const {
   precond(_storage._offset != BAD_OFFSET);
   return _storage._offset;
 }
@@ -120,7 +120,7 @@ void InlineKlassPayload::print_on(outputStream* st) const {
   {
     st->print_cr("--- offset ---");
     StreamIndentor si(st);
-    st->print_cr("_offset: %zu", _storage._offset);
+    st->print_cr("_offset: %zd", _storage._offset);
   }
   {
     const LayoutKind layout_kind = get_layout_kind();
@@ -181,14 +181,14 @@ inline void InlineKlassPayload::assert_pre_copy_invariants(
       src.get_layout_kind() == dst.get_layout_kind();
   const bool src_has_copy_layout = src.get_layout_kind() == copy_layout_kind;
   const bool dst_has_copy_layout = dst.get_layout_kind() == copy_layout_kind;
-  const size_t src_layout_size_in_bytes =
+  const int src_layout_size_in_bytes =
       src.get_klass()->layout_size_in_bytes(src.get_layout_kind());
-  const size_t dst_layout_size_in_bytes =
+  const int dst_layout_size_in_bytes =
       dst.get_klass()->layout_size_in_bytes(dst.get_layout_kind());
-  const size_t copy_layout_size_in_bytes =
+  const int copy_layout_size_in_bytes =
       src_has_copy_layout
           ? src_layout_size_in_bytes
-          : (dst_has_copy_layout ? dst_layout_size_in_bytes : 0xBADBADu);
+          : (dst_has_copy_layout ? dst_layout_size_in_bytes : -1);
 
   precond(src.get_klass() == dst.get_klass());
   precond(src_or_dst_is_buffered || src_and_dst_same_layout_kind);
@@ -211,7 +211,7 @@ inline InlineKlass* InlineKlassPayload::Handle::get_klass() const {
   return _storage._klass;
 }
 
-inline size_t InlineKlassPayload::Handle::get_offset() const {
+inline ptrdiff_t InlineKlassPayload::Handle::get_offset() const {
   return _storage._offset;
 }
 
@@ -237,7 +237,7 @@ inline InlineKlass* InlineKlassPayload::OopHandle::get_klass() const {
   return _storage._klass;
 }
 
-inline size_t InlineKlassPayload::OopHandle::get_offset() const {
+inline ptrdiff_t InlineKlassPayload::OopHandle::get_offset() const {
   return _storage._offset;
 }
 
@@ -308,12 +308,12 @@ inline BufferedInlineKlassPayload::BufferedInlineKlassPayload(inlineOop buffer)
 
 inline BufferedInlineKlassPayload::BufferedInlineKlassPayload(
     inlineOop buffer, InlineKlass* klass)
-    : BufferedInlineKlassPayload(buffer, klass, (size_t)klass->payload_offset(),
+    : BufferedInlineKlassPayload(buffer, klass, klass->payload_offset(),
                                  LayoutKind::BUFFERED) {}
 
 inline BufferedInlineKlassPayload
 BufferedInlineKlassPayload::construct_from_parts(oop holder, InlineKlass* klass,
-                                                 size_t offset,
+                                                 ptrdiff_t offset,
                                                  LayoutKind layout_kind) {
   return BufferedInlineKlassPayload(holder, klass, offset, layout_kind);
 }
@@ -349,7 +349,7 @@ BufferedInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
 }
 
 inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
-    instanceOop holder, size_t offset, InlineLayoutInfo* inline_layout_info)
+    instanceOop holder, ptrdiff_t offset, InlineLayoutInfo* inline_layout_info)
     : FlatFieldInlineKlassPayload(holder, inline_layout_info->klass(), offset,
                                   inline_layout_info->kind()) {}
 
@@ -469,7 +469,7 @@ inline void FlatInlineKlassPayload::write(inlineOop obj, TRAPS) {
 }
 
 inline FlatInlineKlassPayload FlatInlineKlassPayload::construct_from_parts(
-    oop holder, InlineKlass* klass, size_t offset, LayoutKind layout_kind) {
+    oop holder, InlineKlass* klass, ptrdiff_t offset, LayoutKind layout_kind) {
   return FlatInlineKlassPayload(holder, klass, offset, layout_kind);
 }
 
@@ -501,7 +501,7 @@ inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
 inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
     instanceOop holder, fieldDescriptor* field_descriptor, InstanceKlass* klass)
     : FlatFieldInlineKlassPayload(
-          holder, (size_t)klass->field_offset(field_descriptor->index()),
+          holder, klass->field_offset(field_descriptor->index()),
           klass->inline_layout_info_adr(field_descriptor->index())) {
   postcond(holder->klass() == klass);
 }
@@ -515,7 +515,7 @@ inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
     instanceOop holder, ResolvedFieldEntry* resolved_field_entry,
     InstanceKlass* klass)
     : FlatFieldInlineKlassPayload(
-          holder, (size_t)resolved_field_entry->field_offset(),
+          holder, resolved_field_entry->field_offset(),
           klass->inline_layout_info_adr(resolved_field_entry->field_index())) {
   postcond(holder->klass()->is_subclass_of(klass));
 }
@@ -523,7 +523,7 @@ inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
 inline FlatFieldInlineKlassPayload
 FlatFieldInlineKlassPayload::construct_from_parts(instanceOop holder,
                                                   InlineKlass* klass,
-                                                  size_t offset,
+                                                  ptrdiff_t offset,
                                                   LayoutKind layout_kind) {
   return FlatFieldInlineKlassPayload(holder, klass, offset, layout_kind);
 }
@@ -559,7 +559,7 @@ FlatFieldInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
 }
 
 inline FlatArrayInlineKlassPayload::FlatArrayInlineKlassPayload(
-    flatArrayOop holder, InlineKlass* klass, size_t offset,
+    flatArrayOop holder, InlineKlass* klass, ptrdiff_t offset,
     LayoutKind layout_kind, jint layout_helper, int element_size)
     : FlatInlineKlassPayload(holder, klass, offset, layout_kind),
       _storage{layout_helper, element_size} {}
@@ -569,11 +569,12 @@ inline flatArrayOop FlatArrayInlineKlassPayload::get_holder() const {
 }
 
 inline void FlatArrayInlineKlassPayload::set_index(int index) {
-  set_offset(get_holder()->value_offset(index, _storage._layout_helper));
+  set_offset(
+      (ptrdiff_t)get_holder()->value_offset(index, _storage._layout_helper));
 }
 
 inline void FlatArrayInlineKlassPayload::advance_index(int delta) {
-  set_offset(this->get_offset() + delta * ssize_t(_storage._element_size));
+  set_offset(this->get_offset() + delta * _storage._element_size);
 }
 
 inline void FlatArrayInlineKlassPayload::next_element() { advance_index(1); }
@@ -582,29 +583,25 @@ inline void FlatArrayInlineKlassPayload::previous_element() {
   advance_index(-1);
 }
 
-inline void FlatArrayInlineKlassPayload::set_offset(size_t offset) {
+inline void FlatArrayInlineKlassPayload::set_offset(ptrdiff_t offset) {
 #ifdef ASSERT
-  // For ease of use as iterators we allow the offset to point the one element
-  // size beyond the first and last element. If there are no elements only the
-  // base offset is allowed. However we treat these as terminal states, and set
-  // the offset to a BAD_OFFSET in debug builds.
+  // For ease of use as iterators we allow the offset to point one element size
+  // beyond the first and last element. If there are no elements only the base
+  // offset is allowed. However we treat these as terminal states, and set the
+  // offset to a BAD_OFFSET in debug builds.
 
-  const int element_size = _storage._element_size;
+  const ptrdiff_t element_size = _storage._element_size;
+  const ptrdiff_t length = get_holder()->length();
+  const ptrdiff_t base_offset =
+      (ptrdiff_t)flatArrayOopDesc::base_offset_in_bytes();
 
-  assert(flatArrayOopDesc::base_offset_in_bytes() >= (size_t)element_size,
-         "These asserts assumes that the largest element is smaller than the "
-         "base offset. %zu >= %zu",
-         flatArrayOopDesc::base_offset_in_bytes(), (size_t)element_size);
-  const int length = get_holder()->length();
-  const ssize_t min_offset = (ssize_t)flatArrayOopDesc::base_offset_in_bytes() -
-                             (length == 0 ? 0 : element_size);
-  const ssize_t max_offset =
-      flatArrayOopDesc::base_offset_in_bytes() + length * element_size;
-  assert(min_offset <= (ssize_t)offset && (ssize_t)offset <= max_offset,
-         "Offset out-ouf-bounds: %zd <= %zd <= %zd", min_offset,
-         (ssize_t)offset, max_offset);
+  const ptrdiff_t min_offset = base_offset - (length == 0 ? 0 : element_size);
+  const ptrdiff_t max_offset = base_offset + length * element_size;
+  assert(min_offset <= offset && offset <= max_offset,
+         "Offset out-ouf-bounds: %zd <= %zd <= %zd", min_offset, offset,
+         max_offset);
 
-  if ((ssize_t)offset == min_offset || (ssize_t)offset == max_offset) {
+  if (offset == min_offset || offset == max_offset) {
     // Terminal state of iteration, set a bad value.
     InlineKlassPayload::set_offset(BAD_OFFSET);
   } else {
@@ -637,7 +634,7 @@ inline FlatArrayInlineKlassPayload::FlatArrayInlineKlassPayload(
     flatArrayOop holder, int index, FlatArrayKlass* klass)
     : FlatArrayInlineKlassPayload(
           holder, klass->element_klass(),
-          holder->value_offset(index, klass->layout_helper()),
+          (ptrdiff_t)holder->value_offset(index, klass->layout_helper()),
           klass->layout_kind(), klass->layout_helper(),
           klass->element_byte_size()) {
   postcond(holder->klass() == klass);
@@ -646,7 +643,7 @@ inline FlatArrayInlineKlassPayload::FlatArrayInlineKlassPayload(
 inline FlatArrayInlineKlassPayload
 FlatArrayInlineKlassPayload::construct_from_parts(flatArrayOop holder,
                                                   InlineKlass* klass,
-                                                  size_t offset,
+                                                  ptrdiff_t offset,
                                                   LayoutKind layout_kind) {
   return construct_from_parts(holder, klass, offset, layout_kind,
                               FlatArrayKlass::cast(holder->klass()));
@@ -654,7 +651,7 @@ FlatArrayInlineKlassPayload::construct_from_parts(flatArrayOop holder,
 
 inline FlatArrayInlineKlassPayload
 FlatArrayInlineKlassPayload::construct_from_parts(
-    flatArrayOop holder, InlineKlass* klass, size_t offset,
+    flatArrayOop holder, InlineKlass* klass, ptrdiff_t offset,
     LayoutKind layout_kind, FlatArrayKlass* holder_klass) {
   return FlatArrayInlineKlassPayload(holder, klass, offset, layout_kind,
                                      holder_klass->layout_helper(),
