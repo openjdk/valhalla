@@ -918,6 +918,13 @@ public class RuntimeNullChecks extends TestRunner {
             String testCode,
             boolean shouldFailDueToNullCheck,
             String[] options) throws Exception {
+        /* this method compiles code1 + testCode and executes the class in testCode,
+         * there shouldn't be any NPE during this first execution.
+         * Then it compiles only code2, without testCode and then executes again the class in testCode
+         * this time it expects a NPE.
+         * Depeding on argument `shouldFailDueToNullCheck` the NPE is expected, or not, to be produced
+         * by an invocation to java.lang.runtime.Checks::nullCheck
+         */
         Path src = base.resolve("src");
         Path pkg = src.resolve("pkg");
         Path ASrc = pkg.resolve("A");
