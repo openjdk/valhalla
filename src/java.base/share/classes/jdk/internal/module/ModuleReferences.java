@@ -25,11 +25,6 @@
 
 package jdk.internal.module;
 
-import jdk.internal.jmod.JmodFile;
-import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.module.ModuleHashes.HashSupplier;
-import sun.net.www.ParseUtil;
-
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
@@ -53,6 +48,10 @@ import java.util.jar.JarFile;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
+import jdk.internal.jmod.JmodFile;
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.module.ModuleHashes.HashSupplier;
+import sun.net.www.ParseUtil;
 
 /**
  * A factory for creating ModuleReference implementations where the modules are
