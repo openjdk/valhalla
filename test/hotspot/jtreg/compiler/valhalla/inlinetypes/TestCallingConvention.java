@@ -44,7 +44,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -172,6 +171,20 @@ public class TestCallingConvention {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
         }
+    }
+
+    public TestCallingConvention() {
+        test15_vt = MyValue3.create();
+        test16_vt = MyValue3.create();
+        test17_vt = MyValue3.create();
+        test18_vt = MyValue4.create();
+        test19_vt = MyValue4.create();
+        test20_vt = MyValue4.create();
+        test21_vt = MyValue3.create();
+        test29_vt = MyValue3.create();
+        test50_vt = MyValue3.create();
+        test50_vt2 = MyValue3.create();
+        super();
     }
 
     public static void main(String[] args) {
@@ -443,9 +456,8 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from interpreter -> compiled
-    @Strict
     @NullRestricted
-    final MyValue3 test15_vt = MyValue3.create();
+    final MyValue3 test15_vt;
 
     @DontCompile
     public MyValue3 test15_interp() {
@@ -465,9 +477,8 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
-    @Strict
     @NullRestricted
-    final MyValue3 test16_vt = MyValue3.create();
+    final MyValue3 test16_vt;
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
@@ -483,9 +494,8 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
-    @Strict
     @NullRestricted
-    final MyValue3 test17_vt = MyValue3.create();
+    final MyValue3 test17_vt;
 
     @DontInline
     public MyValue3 test17_comp() {
@@ -513,9 +523,8 @@ public class TestCallingConvention {
     // Same tests as above but with a value class that cannot be returned in registers
 
     // Return value objects in registers from interpreter -> compiled
-    @Strict
     @NullRestricted
-    final MyValue4 test18_vt = MyValue4.create();
+    final MyValue4 test18_vt;
 
     @DontCompile
     public MyValue4 test18_interp() {
@@ -536,9 +545,8 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
-    @Strict
     @NullRestricted
-    final MyValue4 test19_vt = MyValue4.create();
+    final MyValue4 test19_vt;
 
     @Test
     public MyValue4 test19() {
@@ -552,9 +560,8 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
-    @Strict
     @NullRestricted
-    final MyValue4 test20_vt = MyValue4.create();
+    final MyValue4 test20_vt;
 
     @DontInline
     public MyValue4 test20_comp() {
@@ -580,9 +587,8 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
-    @Strict
     @NullRestricted
-    final MyValue3 test21_vt = MyValue3.create();
+    final MyValue3 test21_vt;
 
     public MyValue3 test21_inlined() {
         throw new RuntimeException();
@@ -762,9 +768,8 @@ public class TestCallingConvention {
     }
 
     // Test calling a method returning a value object as fields via reflection
-    @Strict
     @NullRestricted
-    MyValue3 test29_vt = MyValue3.create();
+    MyValue3 test29_vt;
 
     @Test
     public MyValue3 test29() {
@@ -1094,7 +1099,6 @@ public class TestCallingConvention {
 
     @LooselyConsistentValue
     static value class EmptyContainer {
-        @Strict
         @NullRestricted
         private MyValueEmpty empty;
 
@@ -1113,7 +1117,6 @@ public class TestCallingConvention {
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val;
-        @Strict
         @NullRestricted
         private EmptyContainer empty;
 
@@ -1254,12 +1257,10 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
-    @Strict
     @NullRestricted
-    final MyValue3 test50_vt = MyValue3.create();
-    @Strict
+    final MyValue3 test50_vt;
     @NullRestricted
-    final MyValue3 test50_vt2 = MyValue3.create();
+    final MyValue3 test50_vt2;
 
     public MyValue3 test50_inlined1(boolean b) {
         if (b) {
@@ -1433,7 +1434,6 @@ public class TestCallingConvention {
     // Test abstract value class with flat fields
     @LooselyConsistentValue
     abstract value class MyAbstract58 {
-        @Strict
         @NullRestricted
         MyValue58Inline nullfree = new MyValue58Inline();
 
@@ -1458,7 +1458,6 @@ public class TestCallingConvention {
     value class MyValue58C extends MyAbstract58 {
         int x = rI;
 
-        @Strict
         @NullRestricted
         MyValue1 nullfree = MyValue1.DEFAULT;
 

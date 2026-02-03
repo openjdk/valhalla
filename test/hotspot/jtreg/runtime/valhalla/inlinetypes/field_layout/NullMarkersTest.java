@@ -95,7 +95,6 @@ import java.util.List;
 
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -151,9 +150,13 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
   static class Container1 {
     Value1 val0;
     Value1 val1;
-    @Strict
     @NullRestricted
-    Value1 val2 = new Value1();
+    Value1 val2;
+
+    Container1() {
+      val2 = new Value1();
+      super();
+    }
   }
 
   static public void test_1() {
@@ -209,17 +212,25 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
   }
 
   static class Container3a {
-    @Strict
     @NullRestricted
-    Value3 val0 = new Value3();
+    Value3 val0;
     Value3 val1;
+
+    Container3a() {
+      val0 = new Value3();
+      super();
+    }
   }
 
   static class Container3b extends Container3a {
     Value3 val2;
-    @Strict
     @NullRestricted
-    Value3 val3 = new Value3();
+    Value3 val3;
+
+    Container3b() {
+      val3 = new Value3();
+      super();
+    }
   }
 
   static class Container3c extends Container3b {
@@ -288,10 +299,8 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
 
   @LooselyConsistentValue
   static value class Value5b {
-    @Strict
     @NullRestricted
     Value5a val0 = new Value5a();
-    @Strict
     @NullRestricted
     Value5a val1 = new Value5a();
   }

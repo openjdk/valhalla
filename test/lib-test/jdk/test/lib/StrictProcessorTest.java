@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,43 +20,41 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.asmtools.jasm;
 
-/**
- *
+/* @test
+ * @bug 8351362
+ * @summary Unit Test for StrictProcessor
+ * @enablePreview
+ * @library /test/lib
+ * @build StrictProcessorTest
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictProcessorTest$StrictTarget
+ * @run junit StrictProcessorTest
  */
-public class ParseBase {
 
-    protected boolean debugFlag;
-    protected Scanner scanner;
-    protected Parser parser;
-    protected Environment env;
+import jdk.test.lib.helpers.StrictInit;
+import org.junit.jupiter.api.Test;
 
-    public ParseBase() {
-        init(null, null, null);
-    }
+import static java.lang.classfile.ClassFile.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-    public void init(Scanner scnr, Parser prsr, Environment envr) {
-        debugFlag = false;
-        scanner = scnr;
-        parser = prsr;
-        env = envr;
-    }
-
-    public void enableDebug(boolean debState) {
-        debugFlag = debState;
-    }
-
-    protected void debugStr(String str) {
-        if (debugFlag) {
-            env.traceln(str);
+class StrictProcessorTest {
+    @Test
+    void testReflectMyself() throws Throwable {
+        for (var field : StrictTarget.class.getDeclaredFields()) {
+            assertEquals(ACC_STRICT_INIT | ACC_FINAL, field.getModifiers(), () -> field.getName());
         }
     }
 
-    protected void debugScan(String str) {
-        if (debugFlag) {
-            scanner.debugScan(str);
+    static final class StrictTarget {
+        @StrictInit
+        final int a;
+        @StrictInit
+        final Object b;
+
+        StrictTarget() {
+            this.a = 1;
+            this.b = 2392352234L;
+            super();
         }
     }
-
 }

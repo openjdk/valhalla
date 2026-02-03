@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -478,7 +478,7 @@ class Arguments : AllStatic {
   static void set_ext_dirs(char *value);
 
   // Set up the underlying pieces of the boot class path
-  static void add_patch_mod_prefix(const char *module_name, const char *path, bool allow_append, bool allow_cds);
+  static void add_patch_mod_prefix(const char *module_name, const char *path);
   static int finalize_patch_module();
 
   static void set_boot_class_path(const char *value, bool has_jimage) {

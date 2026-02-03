@@ -3849,7 +3849,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     j++;
   }
   assert(j == regs->length(), "missed a field?");
-  if (vk->has_nullable_atomic_layout()) {
+  if (vk->supports_nullable_layouts()) {
     // Set the null marker
     __ movb(Address(rax, vk->null_marker_offset()), 1);
   }
@@ -3862,7 +3862,8 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   __ testptr(rax, rax);
   __ jcc(Assembler::notZero, not_null);
 
-  // Return value is null. Zero oop registers to make the GC happy.
+  // Return value is null. Zero all registers because the runtime requires a canonical
+  // representation of a flat null.
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
@@ -3876,10 +3877,13 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       }
       continue;
     }
-    if (bt == T_OBJECT || bt == T_ARRAY) {
-      VMRegPair pair = regs->at(j);
-      VMReg r_1 = pair.first();
-      __ xorq(r_1->as_Register(), r_1->as_Register());
+
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    if (r_1->is_XMMRegister()) {
+      __ xorps(r_1->as_XMMRegister(), r_1->as_XMMRegister());
+    } else {
+      __ xorl(r_1->as_Register(), r_1->as_Register());
     }
     j++;
   }

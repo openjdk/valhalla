@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,6 +148,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
   Node* adr = basic_plus_adr(obj, obj, offset);
+  assert(C->get_alias_index(C->alias_type(field)->adr_type()) == C->get_alias_index(_gvn.type(adr)->isa_ptr()),
+         "slice of address and input slice don't match");
 
   Node* ld = nullptr;
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
@@ -157,7 +159,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     // Loading from a flat inline type field.
     ciInlineKlass* vk = field->type()->as_inline_klass();
     bool is_immutable = field->is_final() && field->is_strict();
-    bool atomic = vk->must_be_atomic() || !field->is_null_free();
+    bool atomic = field->is_atomic();
     ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
   } else {
     // Build the resultant type of the load
@@ -282,7 +284,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
     inc_sp(1);
     bool is_immutable = field->is_final() && field->is_strict();
-    bool atomic = vk->must_be_atomic() || !field->is_null_free();
+    bool atomic = field->is_atomic();
     val->as_InlineType()->store_flat(this, obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
@@ -299,6 +301,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
 
     const TypePtr* adr_type = C->alias_type(field)->adr_type();
+    assert(C->get_alias_index(adr_type) == C->get_alias_index(_gvn.type(adr)->isa_ptr()),
+           "slice of address and input slice don't match");
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     inc_sp(1);

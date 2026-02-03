@@ -37,7 +37,6 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
@@ -144,6 +143,17 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 @ForceCompileClassInitializer
 public class TestNullableInlineTypes {
 
+    public TestNullableInlineTypes() {
+        valueField1 = testValue1;
+        flatField = MyValue1.DEFAULT;
+        wrapperField = new MyValue1Wrapper(testValue1);
+        test97_res1 = MyValue3.create();
+        test97_res3 = MyValue3.create();
+        field2 = new MyValue104();
+        field4 = new MyValueEmpty();
+        super();
+    }
+
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
@@ -180,7 +190,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -193,9 +202,8 @@ public class TestNullableInlineTypes {
 
     MyValue1 nullField;
 
-    @Strict
     @NullRestricted
-    MyValue1 valueField1 = testValue1;
+    MyValue1 valueField1;
 
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
@@ -715,7 +723,6 @@ public class TestNullableInlineTypes {
     @LooselyConsistentValue
     value class Test21Value {
         MyValue1 valueField1;
-        @Strict
         @NullRestricted
         MyValue1 valueField2;
 
@@ -995,7 +1002,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Strict
     @NullRestricted
     public static final Test33Value2 test33Val = new Test33Value2();
 
@@ -1132,9 +1138,8 @@ public class TestNullableInlineTypes {
     }
 
     MyValue1 refField;
-    @Strict
     @NullRestricted
-    MyValue1 flatField = MyValue1.DEFAULT;
+    MyValue1 flatField;
 
     // Test scalarization of .ref
     @Test
@@ -1388,9 +1393,8 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Strict
     @NullRestricted
-    MyValue1Wrapper wrapperField = new MyValue1Wrapper(testValue1);
+    MyValue1Wrapper wrapperField;
 
     @Test
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
@@ -2531,14 +2535,12 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     public static value class Test87C1 {
-        @Strict
         @NullRestricted
         Test87C0 field = new Test87C0();
     }
 
     @LooselyConsistentValue
     public static value class Test87C2 {
-        @Strict
         @NullRestricted
         Test87C1 field = new Test87C1();
     }
@@ -2814,13 +2816,11 @@ public class TestNullableInlineTypes {
         return b ? null : test97_res3;
     }
 
-    @Strict
     @NullRestricted
-    final MyValue3 test97_res1 = MyValue3.create();
+    final MyValue3 test97_res1;
 
-    @Strict
     @NullRestricted
-    final MyValue3 test97_res3 = MyValue3.create();
+    final MyValue3 test97_res3;
 
     // Same as test96 but with MyValue3 return
     @Test
@@ -2878,7 +2878,6 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class CircularValue2 {
-        @Strict
         @NullRestricted
         CircularValue1 val;
 
@@ -2916,7 +2915,6 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class CircularValue4 {
-        @Strict
         @NullRestricted
         CircularValue3 val;
 
@@ -2942,7 +2940,6 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class CircularValue5 {
-        @Strict
         @NullRestricted
         CircularValue6 val;
         int x;
@@ -3015,19 +3012,15 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class MyValue104 {
-        @Strict
         @NullRestricted
         static MyValue105 field1 = new MyValue105();
 
-        @Strict
         @NullRestricted
         MyValue105 field2;
 
-        @Strict
         @NullRestricted
         static MyValueEmpty field3 = new MyValueEmpty();
 
-        @Strict
         @NullRestricted
         MyValueEmpty field4;
 
@@ -3053,21 +3046,17 @@ public class TestNullableInlineTypes {
         int x = 42;
     }
 
-    @Strict
     @NullRestricted
     static MyValue104 field1 = new MyValue104();
 
-    @Strict
     @NullRestricted
-    MyValue104 field2 = new MyValue104();
+    MyValue104 field2;
 
-    @Strict
     @NullRestricted
     static MyValueEmpty field3 = new MyValueEmpty();
 
-    @Strict
     @NullRestricted
-    MyValueEmpty field4 = new MyValueEmpty();
+    MyValueEmpty field4;
 
     @Test
     void test105(MyValue104 arg) {

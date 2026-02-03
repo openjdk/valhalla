@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Arm Limited. All rights reserved.
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import jdk.test.lib.Utils;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -48,14 +47,15 @@ import jdk.internal.vm.annotation.Strict;
 
 public class TestInlineFieldNonFlattened {
     static class MyClass {
-        @Strict
         @NullRestricted
-        public final MyValue v1 = new MyValue(5);
+        public final MyValue v1;
 
         public MyValue v2;
 
         public MyClass(MyValue v) {
             v2 = v;
+            v1 = new MyValue(5);
+            super();
         }
     }
 

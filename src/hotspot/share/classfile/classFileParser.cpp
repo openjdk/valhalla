@@ -1461,6 +1461,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                              CHECK);
         }
         _fields_annotations->at_put(n, parsed_annotations.field_annotations());
+        parsed_annotations.set_field_annotations(nullptr);
         if (parsed_annotations.has_annotation(AnnotationCollector::_jdk_internal_NullRestricted)) {
           if (!Signature::has_envelope(sig)) {
             Exceptions::fthrow(
@@ -1468,14 +1469,22 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
               vmSymbols::java_lang_ClassFormatError(),
               "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s with signature %s (primitive types can never be null)",
               class_name()->as_C_string(), name->as_C_string(), sig->as_C_string());
+            return;
           }
-          const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
-          if (!is_strict) {
+          if (!supports_inline_types()) {
             Exceptions::fthrow(
               THREAD_AND_LOCATION,
               vmSymbols::java_lang_ClassFormatError(),
-              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s which doesn't have the @jdk.internal.vm.annotation.Strict annotation",
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s in non-preview class file",
               class_name()->as_C_string(), name->as_C_string());
+            return;
+          }
+
+          if ((flags & JVM_ACC_STRICT) == 0) {
+            // Inject STRICT_INIT and validate in context
+            const jint patched_flags = flags | JVM_ACC_STRICT;
+            verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
+            access_flags.set_flags(patched_flags);
           }
           is_null_restricted = true;
         }
@@ -5548,8 +5557,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
 
     typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
-    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
     typeArrayHandle map_h(THREAD, map);
+    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
+
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
     acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {

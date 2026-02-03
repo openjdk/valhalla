@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@ package runtime.valhalla.inlinetypes;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -780,10 +779,8 @@ public class InlineTypeArray {
 
     @LooselyConsistentValue
     static value class MyPoint {
-        @Strict
         @NullRestricted
         MyInt x;
-        @Strict
         @NullRestricted
         MyInt y;
 
@@ -805,7 +802,6 @@ public class InlineTypeArray {
         static MyPoint create(int x, int y) {
             return new MyPoint(x, y);
         }
-        @Strict
         @NullRestricted
         static final MyPoint ORIGIN = create(0);
     }

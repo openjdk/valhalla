@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1464,8 +1464,8 @@ final class ValueObjectMethods {
      * @return the hashCode of the object
      */
     private static int valueObjectHashCodeAlt(Object obj) {
-        if (VERBOSE) {
-            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj);
+        if (VERBOSE && obj != null) {
+            System.out.println("valueObjectHashCodeAlt: obj.getClass:" + obj.getClass().getName());
         }
         // This method assumes a is not null and is an instance of a value class
         Class<?> type = obj.getClass();
@@ -1507,7 +1507,7 @@ final class ValueObjectMethods {
         for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
             int offset = map[i];
             Object oa = U.getReference(obj, offset);
-            result = 31 * result + Objects.hashCode(oa);
+            result = 31 * result + System.identityHashCode(oa);
         }
         return result;
     }
