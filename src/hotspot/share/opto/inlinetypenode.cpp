@@ -1595,7 +1595,9 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
 }
 
 void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
-  n->init_req(base_input++, get_oop());
+  if (in) {
+    n->init_req(base_input++, get_oop());
+  }
   if (!null_free && in) {
     n->init_req(base_input++, get_null_marker());
   }

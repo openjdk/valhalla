@@ -2891,6 +2891,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
           (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
+        _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true));
         has_scalarized = true;
         _has_inline_recv = true;
         _num_inline_args++;
@@ -4067,13 +4068,17 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     VMRegPair reg_pair = reg_pairs[reg_pos];
     oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
     InlineKlass* vk = InlineKlass::cast(holder);
-    oop res = vk->allocate_instance(CHECK_NULL);
-    // array.replace(array_oop);
-    if (array_oop == nullptr) {
-      array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
-      array = objArrayHandle(THREAD, array_oop);
+    if (*buffer != nullptr) {
+      assert((*buffer)->klass() == vk, "");
+    } else {
+      oop res = vk->allocate_instance(CHECK_NULL);
+      // array.replace(array_oop);
+      if (array_oop == nullptr) {
+        array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
+        array = objArrayHandle(THREAD, array_oop);
+      }
+      array->obj_at_put(i++, res);
     }
-    array->obj_at_put(i++, res);
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();

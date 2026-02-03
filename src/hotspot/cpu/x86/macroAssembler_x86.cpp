@@ -6312,7 +6312,6 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       break;
     }
   }
-  assert(null_check, "");
   stream.reset(sig_index, to_index);
   while (stream.next(toReg, bt)) {
     assert(toReg->is_valid(), "destination must be valid");
