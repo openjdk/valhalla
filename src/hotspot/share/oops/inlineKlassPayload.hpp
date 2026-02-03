@@ -28,6 +28,7 @@
 #include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
+#include "oops/oopHandle.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
@@ -36,6 +37,7 @@
 #include "utilities/ostream.hpp"
 
 class fieldDescriptor;
+class JavaThread;
 class outputStream;
 class ResolvedFieldEntry;
 
@@ -90,6 +92,52 @@ private:
   static inline void
   assert_pre_copy_invariants(const PayloadA& src, const PayloadB& dst,
                              LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
+
+public:
+  class Handle {
+  private:
+    using Storage = StorageImpl<::Handle>;
+
+    Storage _storage;
+
+  public:
+    Handle() = default;
+    Handle(const Handle&) = default;
+    Handle& operator=(const Handle&) = default;
+
+    inline Handle(const InlineKlassPayload& payload, JavaThread* thread);
+
+    inline oop get_holder() const;
+    inline InlineKlass* get_klass() const;
+    inline size_t get_offset() const;
+    inline LayoutKind get_layout_kind() const;
+
+    inline InlineKlassPayload operator()() const;
+  };
+
+  class OopHandle {
+  private:
+    using Storage = StorageImpl<::OopHandle>;
+
+    Storage _storage;
+
+  public:
+    OopHandle() = default;
+    OopHandle(const OopHandle&) = default;
+    OopHandle& operator=(const OopHandle&) = default;
+
+    inline OopHandle(const InlineKlassPayload& payload, OopStorage* storage);
+
+    inline oop get_holder() const;
+    inline InlineKlass* get_klass() const;
+    inline size_t get_offset() const;
+    inline LayoutKind get_layout_kind() const;
+
+    inline InlineKlassPayload operator()() const;
+  };
+
+  inline Handle get_handle(JavaThread* thread) const;
+  inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
 class BufferedInlineKlassPayload : public InlineKlassPayload {
@@ -114,6 +162,27 @@ public:
   [[nodiscard]] static inline BufferedInlineKlassPayload
   construct_from_parts(oop holder, InlineKlass* klass, size_t offset,
                        LayoutKind layout_kind);
+
+  class Handle : public InlineKlassPayload::Handle {
+  public:
+    using InlineKlassPayload::Handle::Handle;
+
+    inline BufferedInlineKlassPayload operator()() const;
+
+    inline inlineOop get_holder() const;
+  };
+
+  class OopHandle : public InlineKlassPayload::OopHandle {
+  public:
+    using InlineKlassPayload::OopHandle::OopHandle;
+
+    inline BufferedInlineKlassPayload operator()() const;
+
+    inline inlineOop get_holder() const;
+  };
+
+  inline Handle get_handle(JavaThread* thread) const;
+  inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
 class FlatArrayInlineKlassPayload;
@@ -145,6 +214,23 @@ public:
   [[nodiscard]] static inline FlatInlineKlassPayload
   construct_from_parts(oop holder, InlineKlass* klass, size_t offset,
                        LayoutKind layout_kind);
+
+  class Handle : public InlineKlassPayload::Handle {
+  public:
+    using InlineKlassPayload::Handle::Handle;
+
+    inline FlatInlineKlassPayload operator()() const;
+  };
+
+  class OopHandle : public InlineKlassPayload::OopHandle {
+  public:
+    using InlineKlassPayload::OopHandle::OopHandle;
+
+    inline FlatInlineKlassPayload operator()() const;
+  };
+
+  inline Handle get_handle(JavaThread* thread) const;
+  inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
 class FlatFieldInlineKlassPayload : public FlatInlineKlassPayload {
@@ -174,6 +260,27 @@ public:
   [[nodiscard]] static inline FlatFieldInlineKlassPayload
   construct_from_parts(instanceOop holder, InlineKlass* klass, size_t offset,
                        LayoutKind layout_kind);
+
+  class Handle : public FlatInlineKlassPayload::Handle {
+  public:
+    using FlatInlineKlassPayload::Handle::Handle;
+
+    inline FlatFieldInlineKlassPayload operator()() const;
+
+    inline instanceOop get_holder() const;
+  };
+
+  class OopHandle : public FlatInlineKlassPayload::OopHandle {
+  public:
+    using FlatInlineKlassPayload::OopHandle::OopHandle;
+
+    inline FlatFieldInlineKlassPayload operator()() const;
+
+    inline instanceOop get_holder() const;
+  };
+
+  inline Handle get_handle(JavaThread* thread) const;
+  inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
 class FlatArrayInlineKlassPayload : public FlatInlineKlassPayload {
@@ -221,6 +328,36 @@ public:
 
 private:
   inline void set_offset(size_t offset);
+
+public:
+  class Handle : public FlatInlineKlassPayload::Handle {
+  private:
+    FlatArrayInlineKlassPayload::Storage _storage;
+
+  public:
+    inline Handle(const FlatArrayInlineKlassPayload& payload,
+                  JavaThread* thread);
+
+    inline FlatArrayInlineKlassPayload operator()() const;
+
+    inline flatArrayOop get_holder() const;
+  };
+
+  class OopHandle : public FlatInlineKlassPayload::OopHandle {
+  private:
+    FlatArrayInlineKlassPayload::Storage _storage;
+
+  public:
+    inline OopHandle(const FlatArrayInlineKlassPayload& payload,
+                     OopStorage* storage);
+
+    inline FlatArrayInlineKlassPayload operator()() const;
+
+    inline flatArrayOop get_holder() const;
+  };
+
+  inline Handle get_handle(JavaThread* thread) const;
+  inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP

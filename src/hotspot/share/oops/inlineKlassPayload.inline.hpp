@@ -29,6 +29,7 @@
 #include "oops/flatArrayKlass.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/layoutKind.hpp"
+#include "oops/oopHandle.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -88,7 +89,7 @@ inline bool InlineKlassPayload::is_payload_null() const {
 }
 
 inline inlineOop InlineKlassPayload::allocate_instance(TRAPS) const {
-  Handle holder(THREAD, get_holder());
+  ::Handle holder(THREAD, get_holder());
   inlineOop res = get_klass()->allocate_instance(THREAD);
   _storage._holder = holder();
   return res;
@@ -197,6 +198,68 @@ inline void InlineKlassPayload::assert_pre_copy_invariants(
 }
 #endif // ASSERT
 
+inline InlineKlassPayload::Handle::Handle(const InlineKlassPayload& payload,
+                                          JavaThread* thread)
+    : _storage{::Handle(thread, payload.get_holder()), payload.get_klass(),
+               payload.get_offset(), payload.get_layout_kind()} {}
+
+inline oop InlineKlassPayload::Handle::get_holder() const {
+  return _storage._holder();
+}
+
+inline InlineKlass* InlineKlassPayload::Handle::get_klass() const {
+  return _storage._klass;
+}
+
+inline size_t InlineKlassPayload::Handle::get_offset() const {
+  return _storage._offset;
+}
+
+inline LayoutKind InlineKlassPayload::Handle::get_layout_kind() const {
+  return _storage._layout_kind;
+}
+
+inline InlineKlassPayload InlineKlassPayload::Handle::operator()() const {
+  return InlineKlassPayload(get_holder(), get_klass(), get_offset(),
+                            get_layout_kind());
+}
+
+inline InlineKlassPayload::OopHandle::OopHandle(
+    const InlineKlassPayload& payload, OopStorage* storage)
+    : _storage{::OopHandle(storage, payload.get_holder()), payload.get_klass(),
+               payload.get_offset(), payload.get_layout_kind()} {}
+
+inline oop InlineKlassPayload::OopHandle::get_holder() const {
+  return _storage._holder.resolve();
+}
+
+inline InlineKlass* InlineKlassPayload::OopHandle::get_klass() const {
+  return _storage._klass;
+}
+
+inline size_t InlineKlassPayload::OopHandle::get_offset() const {
+  return _storage._offset;
+}
+
+inline LayoutKind InlineKlassPayload::OopHandle::get_layout_kind() const {
+  return _storage._layout_kind;
+}
+
+inline InlineKlassPayload InlineKlassPayload::OopHandle::operator()() const {
+  return InlineKlassPayload(get_holder(), get_klass(), get_offset(),
+                            get_layout_kind());
+}
+
+inline InlineKlassPayload::Handle
+InlineKlassPayload::get_handle(JavaThread* thread) const {
+  return Handle(*this, thread);
+}
+
+inline InlineKlassPayload::OopHandle
+InlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+  return OopHandle(*this, storage);
+}
+
 template <typename PayloadA, typename PayloadB>
 inline void InlineKlassPayload::copy(const PayloadA& src, const PayloadB& dst,
                                      LayoutKind copy_layout_kind) {
@@ -253,6 +316,36 @@ BufferedInlineKlassPayload::construct_from_parts(oop holder, InlineKlass* klass,
                                                  size_t offset,
                                                  LayoutKind layout_kind) {
   return BufferedInlineKlassPayload(holder, klass, offset, layout_kind);
+}
+
+BufferedInlineKlassPayload
+BufferedInlineKlassPayload::Handle::operator()() const {
+  return construct_from_parts(get_holder(), get_klass(), get_offset(),
+                              get_layout_kind());
+}
+
+BufferedInlineKlassPayload
+BufferedInlineKlassPayload::OopHandle::operator()() const {
+  return construct_from_parts(get_holder(), get_klass(), get_offset(),
+                              get_layout_kind());
+}
+
+inline inlineOop BufferedInlineKlassPayload::Handle::get_holder() const {
+  return inlineOop(InlineKlassPayload::Handle::get_holder());
+}
+
+inline inlineOop BufferedInlineKlassPayload::OopHandle::get_holder() const {
+  return inlineOop(InlineKlassPayload::OopHandle::get_holder());
+}
+
+BufferedInlineKlassPayload::Handle
+BufferedInlineKlassPayload::get_handle(JavaThread* thread) const {
+  return Handle(*this, thread);
+}
+
+BufferedInlineKlassPayload::OopHandle
+BufferedInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+  return OopHandle(*this, storage);
 }
 
 inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
@@ -380,6 +473,26 @@ inline FlatInlineKlassPayload FlatInlineKlassPayload::construct_from_parts(
   return FlatInlineKlassPayload(holder, klass, offset, layout_kind);
 }
 
+FlatInlineKlassPayload FlatInlineKlassPayload::Handle::operator()() const {
+  return construct_from_parts(get_holder(), get_klass(), get_offset(),
+                              get_layout_kind());
+}
+
+FlatInlineKlassPayload FlatInlineKlassPayload::OopHandle::operator()() const {
+  return construct_from_parts(get_holder(), get_klass(), get_offset(),
+                              get_layout_kind());
+}
+
+FlatInlineKlassPayload::Handle
+FlatInlineKlassPayload::get_handle(JavaThread* thread) const {
+  return Handle(*this, thread);
+}
+
+FlatInlineKlassPayload::OopHandle
+FlatInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+  return OopHandle(*this, storage);
+}
+
 inline FlatFieldInlineKlassPayload::FlatFieldInlineKlassPayload(
     instanceOop holder, fieldDescriptor* field_descriptor)
     : FlatFieldInlineKlassPayload(holder, field_descriptor,
@@ -413,6 +526,36 @@ FlatFieldInlineKlassPayload::construct_from_parts(instanceOop holder,
                                                   size_t offset,
                                                   LayoutKind layout_kind) {
   return FlatFieldInlineKlassPayload(holder, klass, offset, layout_kind);
+}
+
+FlatFieldInlineKlassPayload
+FlatFieldInlineKlassPayload::Handle::operator()() const {
+  return construct_from_parts(get_holder(), get_klass(), get_offset(),
+                              get_layout_kind());
+}
+
+FlatFieldInlineKlassPayload
+FlatFieldInlineKlassPayload::OopHandle::operator()() const {
+  return construct_from_parts(get_holder(), get_klass(), get_offset(),
+                              get_layout_kind());
+}
+
+inline instanceOop FlatFieldInlineKlassPayload::Handle::get_holder() const {
+  return instanceOop(InlineKlassPayload::Handle::get_holder());
+}
+
+inline instanceOop FlatFieldInlineKlassPayload::OopHandle::get_holder() const {
+  return instanceOop(InlineKlassPayload::OopHandle::get_holder());
+}
+
+FlatFieldInlineKlassPayload::Handle
+FlatFieldInlineKlassPayload::get_handle(JavaThread* thread) const {
+  return Handle(*this, thread);
+}
+
+FlatFieldInlineKlassPayload::OopHandle
+FlatFieldInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+  return OopHandle(*this, storage);
 }
 
 inline FlatArrayInlineKlassPayload::FlatArrayInlineKlassPayload(
@@ -516,6 +659,48 @@ FlatArrayInlineKlassPayload::construct_from_parts(
   return FlatArrayInlineKlassPayload(holder, klass, offset, layout_kind,
                                      holder_klass->layout_helper(),
                                      holder_klass->element_byte_size());
+}
+
+inline FlatArrayInlineKlassPayload::Handle::Handle(
+    const FlatArrayInlineKlassPayload& payload, JavaThread* thread)
+    : FlatInlineKlassPayload::Handle(payload, thread),
+      _storage(payload._storage) {}
+
+FlatArrayInlineKlassPayload
+FlatArrayInlineKlassPayload::Handle::operator()() const {
+  return FlatArrayInlineKlassPayload(get_holder(), get_klass(), get_offset(),
+                                     get_layout_kind(), _storage._layout_helper,
+                                     _storage._element_size);
+}
+
+inline flatArrayOop FlatArrayInlineKlassPayload::Handle::get_holder() const {
+  return flatArrayOop(InlineKlassPayload::Handle::get_holder());
+}
+
+inline flatArrayOop FlatArrayInlineKlassPayload::OopHandle::get_holder() const {
+  return flatArrayOop(InlineKlassPayload::OopHandle::get_holder());
+}
+
+inline FlatArrayInlineKlassPayload::OopHandle::OopHandle(
+    const FlatArrayInlineKlassPayload& payload, OopStorage* storage)
+    : FlatInlineKlassPayload::OopHandle(payload, storage),
+      _storage(payload._storage) {}
+
+FlatArrayInlineKlassPayload
+FlatArrayInlineKlassPayload::OopHandle::operator()() const {
+  return FlatArrayInlineKlassPayload(get_holder(), get_klass(), get_offset(),
+                                     get_layout_kind(), _storage._layout_helper,
+                                     _storage._element_size);
+}
+
+FlatArrayInlineKlassPayload::Handle
+FlatArrayInlineKlassPayload::get_handle(JavaThread* thread) const {
+  return Handle(*this, thread);
+}
+
+FlatArrayInlineKlassPayload::OopHandle
+FlatArrayInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+  return OopHandle(*this, storage);
 }
 
 #endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_INLINE_HPP
