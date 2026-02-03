@@ -810,8 +810,6 @@ jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
 jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
 jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,generic-x64
 
-java/util/Collection/MOAT.java 8375086 generic-all
-
 sun/tools/jhsdb/BasicLauncherTest.java 8366806 generic-all
 sun/tools/jhsdb/HeapDumpTest.java 8366806 generic-all
 sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java 8366806 generic-all
