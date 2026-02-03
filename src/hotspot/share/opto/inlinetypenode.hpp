@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ private:
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0);
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region, GrowableArray<ciType*>& visited);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited);
   // Initialize the inline type by loading its field values from memory
   void load(GraphKit* kit, Node* base, Node* ptr, bool immutable_memory, bool trust_null_free_oop, DecoratorSet decorators, GrowableArray<ciType*>& visited);
   // Store the field values to memory
@@ -118,17 +118,12 @@ public:
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
+  ciField*      field(uint index) const;
   Node*         field_value(uint index) const;
   Node*         field_value_by_offset(int offset, bool recursive) const;
   void      set_field_value(uint index, Node* value);
   void      set_field_value_by_offset(int offset, Node* value);
-  int           field_offset(uint index) const;
   uint          field_index(int offset) const;
-  ciType*       field_type(uint index) const;
-  bool          field_is_flat(uint index) const;
-  bool          field_is_null_free(uint index) const;
-  bool          field_is_volatile(uint index) const;
-  int           field_null_marker_offset(uint index) const;
 
   // Replace InlineTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);

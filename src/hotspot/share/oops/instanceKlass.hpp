@@ -270,7 +270,7 @@ class InstanceKlass: public Klass {
   volatile ClassState _init_state;          // state of class
 
   u1              _reference_type;          // reference type
-  int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
+  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for values classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
                                             // the InlineKlass::Members that only exist for InlineKlass.
 
@@ -324,6 +324,10 @@ class InstanceKlass: public Klass {
 
   Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
+  Array<int>* _acmp_maps_array; // Metadata copy of the acmp_maps oop used in value classes.
+                                // When loading an inline klass from the CDS/AOT archive
+                                // this copy can be used to regenerate the ".acmp_maps" oop
+                                // if it is not stored in the archive.
 
   // Located here because sub-klasses can't have their own C++ fields
   address _adr_inline_klass_members;
@@ -392,8 +396,8 @@ class InstanceKlass: public Klass {
   bool has_localvariable_table() const     { return _misc_flags.has_localvariable_table(); }
   void set_has_localvariable_table(bool b) { _misc_flags.set_has_localvariable_table(b); }
 
-  bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
-  void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
+  bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
+  void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
 
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
@@ -493,6 +497,9 @@ class InstanceKlass: public Klass {
 
   Array<u2>* loadable_descriptors() const { return _loadable_descriptors; }
   void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
+
+  Array<int>* acmp_maps_array() const { return _acmp_maps_array; }
+  void set_acmp_maps_array(Array<int>* array) { _acmp_maps_array = array; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
@@ -645,6 +652,10 @@ public:
 
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
+
+  bool has_acmp_maps_offset() const {
+    return _acmp_maps_offset != 0;
+  }
 
   int acmp_maps_offset() const {
     assert(_acmp_maps_offset != 0, "Not initialized");
@@ -1061,16 +1072,14 @@ public:
 
   void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
   Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
-  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
-    _inline_layout_info_array->at_put(index, *info);
-  }
+
   InlineLayoutInfo inline_layout_info(int index) const {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->at(index);
   }
+
   InlineLayoutInfo* inline_layout_info_adr(int index) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->adr_at(index);
   }
 

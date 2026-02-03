@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  */
 public class AcmpTest {
     static record TestCase(Object a, Object b, boolean equal) {}
-
-    static final ArrayList<TestCase> testCases = new ArrayList<>();
 
     static value class IntValue {
         int value;
@@ -99,7 +97,7 @@ public class AcmpTest {
     static value record ThreeBytes(byte b0, byte b1, byte b2) {}
     static value record ThreeBytesPlusOne(ThreeBytes tb, byte b) {}
 
-    static void generateTestCases() {
+    public static void main(String[] args) {
 
         final byte[] BYTE_EDGE_CASES = {
             (byte)0, (byte)-1, (byte)1,
@@ -128,7 +126,7 @@ public class AcmpTest {
         }
         for (int i = 0; i < nestedValueValues.size(); i++) {
             for (int j = 0; j < nestedValueValues.size(); j++) {
-                testCases.add(new TestCase(nestedValueValues.get(i), nestedValueValues.get(j), i == j));
+                run(nestedValueValues.get(i), nestedValueValues.get(j), i == j);
             }
         }
 
@@ -141,7 +139,7 @@ public class AcmpTest {
         }
         for (int i = 0; i < twoLongsValues.size(); i++) {
             for (int j = 0; j < twoLongsValues.size(); j++) {
-                testCases.add(new TestCase(twoLongsValues.get(i), twoLongsValues.get(j), i == j));
+                run(twoLongsValues.get(i), twoLongsValues.get(j), i == j);
             }
         }
 
@@ -159,7 +157,7 @@ public class AcmpTest {
         }
         for (int i = 0; i < nShortIntValues.size(); i++) {
             for (int j = 0; j < nShortIntValues.size(); j++) {
-                testCases.add(new TestCase(nShortIntValues.get(i), nShortIntValues.get(j), i == j));
+                run(nShortIntValues.get(i), nShortIntValues.get(j), i == j);
             }
         }
 
@@ -181,22 +179,15 @@ public class AcmpTest {
         }
         for (int i = 0; i < threeBytesPlusOneValues.size(); i++) {
             for (int j = 0; j < threeBytesPlusOneValues.size(); j++) {
-                testCases.add(new TestCase(threeBytesPlusOneValues.get(i), threeBytesPlusOneValues.get(j), i == j));
+                run(threeBytesPlusOneValues.get(i), threeBytesPlusOneValues.get(j), i == j);
             }
         }
     }
 
-    static void runTestCases() {
-        for (TestCase t : testCases) {
-            boolean res = t.a == t.b;
-            if (res != t.equal) {
-                throw new RuntimeException("Incorrect result'" + res + "' for " + t.a + " == " + t.b);
-            }
+    static void run(Object a, Object b, boolean equal) {
+        boolean res = a == b;
+        if (res != equal) {
+            throw new RuntimeException("Incorrect result'" + res + "' for " + a + " == " + b);
         }
-    }
-
-    public static void main(String[] args) {
-        generateTestCases();
-        runTestCases();
     }
 }

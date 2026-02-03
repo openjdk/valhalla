@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
  * @run main/othervm ClassAccessFlagsRawTest
  */
 
+import java.lang.classfile.ClassFile;
 import java.lang.reflect.*;
 import java.util.Set;
 
@@ -53,9 +54,9 @@ public class ClassAccessFlagsRawTest {
         m = cl.getDeclaredMethod("getClassFileAccessFlags", new Class[0]);
         m.setAccessible(true);
 
-        testIt("SUPERset", Modifier.PUBLIC | Modifier.IDENTITY);
+        testIt("SUPERset", Modifier.PUBLIC | ClassFile.ACC_IDENTITY);
         // Because of the repurposing of ACC_SUPER into ACC_IDENTITY by JEP 401, the VM now fixes missing ACC_IDENTITY flags in old class files
-        testIt("SUPERnotset", Modifier.PUBLIC | Modifier.IDENTITY);
+        testIt("SUPERnotset", Modifier.PUBLIC | ClassFile.ACC_IDENTITY);
 
         // Test that primitive should return ACC_ABSTRACT | ACC_FINAL | ACC_PUBLIC.
         int[] arr = new int[3];
@@ -77,7 +78,7 @@ public class ClassAccessFlagsRawTest {
 
         // Test that the modifier flags return element type flags.
         flags = (int)arr.getClass().getModifiers();
-        if (flags != (Modifier.ABSTRACT | Modifier.FINAL | Modifier.PUBLIC | Modifier.IDENTITY)) {
+        if (flags != (Modifier.ABSTRACT | Modifier.FINAL | Modifier.PUBLIC | ClassFile.ACC_IDENTITY)) {
             throw new RuntimeException(
                 "expected 0x431, got 0x" + Integer.toHexString(flags) + " for primitive type");
         }
@@ -99,7 +100,7 @@ public class ClassAccessFlagsRawTest {
         // Test object array component type.
         flags = (int)m.invoke((new SUPERnotset[2]).getClass().getComponentType());
         // Because of the repurposing of ACC_SUPER into ACC_IDENTITY by JEP 401, the VM now fixes missing ACC_IDENTITY flags in old class files
-        if (flags != (Modifier.PUBLIC | Modifier.IDENTITY)) {
+        if (flags != (Modifier.PUBLIC | ClassFile.ACC_IDENTITY)) {
             throw new RuntimeException(
                 "expected 0x1, got 0x" + Integer.toHexString(flags) + " for object array");
         }

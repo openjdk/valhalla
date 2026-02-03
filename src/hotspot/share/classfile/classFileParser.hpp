@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,26 +80,28 @@ class FieldLayoutInfo : public ResourceObj {
   int _payload_alignment;
   int _payload_offset;
   int _payload_size_in_bytes;
-  int _non_atomic_size_in_bytes;
-  int _non_atomic_alignment;
-  int _atomic_layout_size_in_bytes;
-  int _nullable_layout_size_in_bytes;
+  int _null_free_non_atomic_size_in_bytes;
+  int _null_free_non_atomic_alignment;
+  int _null_free_atomic_layout_size_in_bytes;
+  int _nullable_atomic_layout_size_in_bytes;
+  int _nullable_non_atomic_layout_size_in_bytes;
   int _null_marker_offset;
   int _null_reset_value_offset;
   int _acmp_maps_offset;
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
-  bool _has_inline_fields;
+  bool _has_inlined_fields;
   bool _is_empty_inline_klass;
   FieldLayoutInfo() : oop_map_blocks(nullptr), _nonoop_acmp_map(nullptr), _oop_acmp_map(nullptr),
                       _instance_size(-1), _nonstatic_field_size(-1), _static_field_size(-1),
                       _payload_alignment(-1), _payload_offset(-1), _payload_size_in_bytes(-1),
-                      _non_atomic_size_in_bytes(-1), _non_atomic_alignment(-1),
-                      _atomic_layout_size_in_bytes(-1), _nullable_layout_size_in_bytes(-1),
+                      _null_free_non_atomic_size_in_bytes(-1), _null_free_non_atomic_alignment(-1),
+                      _null_free_atomic_layout_size_in_bytes(-1), _nullable_atomic_layout_size_in_bytes(-1),
+                      _nullable_non_atomic_layout_size_in_bytes(-1),
                       _null_marker_offset(-1), _null_reset_value_offset(-1), _acmp_maps_offset(-1),
                       _has_nonstatic_fields(false), _is_naturally_atomic(false), _must_be_atomic(false),
-                      _has_inline_fields(false), _is_empty_inline_klass(false) { }
+                      _has_inlined_fields(false), _is_empty_inline_klass(false) { }
 };
 
 // Parser for for .class files
@@ -224,7 +226,7 @@ class ClassFileParser {
   bool _has_aot_runtime_setup_method;
   bool _has_strict_static_fields;
 
-  bool _has_inline_type_fields;
+  bool _has_inlined_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _has_loosely_consistent_annotation;
@@ -246,6 +248,8 @@ class ClassFileParser {
                            const ClassInstanceInfo& cl_inst_info, TRAPS);
 
   void set_klass(InstanceKlass* instance);
+
+  void set_inline_layout_info_klass(int field_index, InlineKlass* ik, TRAPS);
 
   void set_class_bad_constant_seen(short bad_constant);
   short class_bad_constant_seen() { return  _bad_constant_seen; }
@@ -569,7 +573,7 @@ class ClassFileParser {
   bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
   bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
-  bool has_inline_fields() const { return _has_inline_type_fields; }
+  bool has_inlined_fields() const { return _has_inlined_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
   bool is_abstract() const { return _access_flags.is_abstract(); }

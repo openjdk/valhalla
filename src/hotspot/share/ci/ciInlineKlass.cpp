@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,14 @@
  *
  */
 
+#include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // Offset of the first field in the inline type
 int ciInlineKlass::payload_offset() const {
@@ -95,12 +99,12 @@ InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
 
-bool ciInlineKlass::has_non_atomic_layout() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->has_non_atomic_layout();)
+bool ciInlineKlass::has_null_free_non_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_null_free_non_atomic_layout();)
 }
 
-bool ciInlineKlass::has_atomic_layout() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->has_atomic_layout();)
+bool ciInlineKlass::has_null_free_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_null_free_atomic_layout();)
 }
 
 bool ciInlineKlass::has_nullable_atomic_layout() const {
@@ -115,9 +119,9 @@ int ciInlineKlass::null_marker_offset_in_payload() const {
 BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   VM_ENTRY_MARK
   InlineKlass* vk = get_InlineKlass();
-  assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
+  assert(!null_free || vk->has_null_free_atomic_layout(), "No null-free atomic layout available");
   assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
-  int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
+  int size = null_free ? vk->null_free_atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
   BasicType bt = T_ILLEGAL;
   if (size == sizeof(jlong)) {
     bt = T_LONG;
@@ -133,10 +137,6 @@ BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   return bt;
 }
 
-bool ciInlineKlass::must_be_atomic() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->must_be_atomic();)
-}
-
 bool ciInlineKlass::is_naturally_atomic(bool null_free) {
   return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
 }
@@ -150,4 +150,15 @@ ciConstant ciInlineKlass::get_field_map() const {
   InlineKlass* vk = get_InlineKlass();
   oop array = vk->java_mirror()->obj_field(vk->acmp_maps_offset());
   return ciConstant(T_ARRAY, CURRENT_ENV->get_object(array));
+}
+
+// All fields of this object are zero even if they are null-free. As a result, this object should
+// only be used to reset the payload of fields or array elements and should not be leaked
+// elsewhere.
+ciConstant ciInlineKlass::get_null_reset_value() {
+  assert(is_initialized(), "null_reset_value is only allocated during initialization of %s", name()->as_utf8());
+  VM_ENTRY_MARK
+  InlineKlass* vk = get_InlineKlass();
+  oop null_reset_value = vk->null_reset_value();
+  return ciConstant(T_OBJECT, CURRENT_ENV->get_object(null_reset_value));
 }

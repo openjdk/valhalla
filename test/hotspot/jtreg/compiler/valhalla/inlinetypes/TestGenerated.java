@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,6 @@ package compiler.valhalla.inlinetypes;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 @LooselyConsistentValue
 value class EmptyPrimitive {
@@ -98,6 +97,13 @@ public class TestGenerated {
     EmptyPrimitive f1 = new EmptyPrimitive();
     EmptyPrimitive f2 = new EmptyPrimitive();
 
+    public TestGenerated() {
+        f4 = new MyValue1Generated();
+        e = new MyValue4Generated();
+        test13_t = new MyValue5Generated();
+        super();
+    }
+
     void test1(EmptyPrimitive[] array) {
         for (int i = 0; i < 10; ++i) {
             f1 = array[0];
@@ -134,9 +140,8 @@ public class TestGenerated {
     }
 
     long f3;
-    @Strict
     @NullRestricted
-    MyValue1Generated f4 = new MyValue1Generated();
+    MyValue1Generated f4;
 
     void test6() {
         f3 = 123L;
@@ -207,9 +212,8 @@ public class TestGenerated {
     }
 
     MyValue4Generated[] d = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 1, new MyValue4Generated());
-    @Strict
     @NullRestricted
-    MyValue4Generated e = new MyValue4Generated();
+    MyValue4Generated e;
     byte f;
 
     byte test12() {
@@ -233,9 +237,8 @@ public class TestGenerated {
 
     int test13_iField;
     MyValue5Generated test13_c;
-    @Strict
     @NullRestricted
-    MyValue5Generated test13_t = new MyValue5Generated();
+    MyValue5Generated test13_t;
 
     void test13(MyValue5Generated[] array) {
         for (int i = 0; i < 10; ++i) {

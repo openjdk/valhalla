@@ -5791,11 +5791,6 @@ void MacroAssembler::verify_tlab() {
 #endif
 }
 
-void MacroAssembler::get_inline_type_field_klass(Register holder_klass, Register index, Register inline_klass) {
-  inline_layout_info(holder_klass, index, inline_klass);
-  ldr(inline_klass, Address(inline_klass, InlineLayoutInfo::klass_offset()));
-}
-
 void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
   assert_different_registers(holder_klass, index, layout_info);
   InlineLayoutInfo array[2];
@@ -6640,14 +6635,10 @@ void MacroAssembler::fill_words(Register base, Register cnt, Register value)
 
 // Intrinsic for
 //
-// - sun.nio.cs.ISO_8859_1.Encoder#encodeISOArray0(byte[] sa, int sp, byte[] da, int dp, int len)
-//   Encodes char[] to byte[] in ISO-8859-1
-//
-// - java.lang.StringCoding#encodeISOArray0(byte[] sa, int sp, byte[] da, int dp, int len)
-//   Encodes byte[] (containing UTF-16) to byte[] in ISO-8859-1
-//
-// - java.lang.StringCoding#encodeAsciiArray0(char[] sa, int sp, byte[] da, int dp, int len)
-//   Encodes char[] to byte[] in ASCII
+// - sun/nio/cs/ISO_8859_1$Encoder.implEncodeISOArray
+//     return the number of characters copied.
+// - java/lang/StringUTF16.compress
+//     return index of non-latin1 character if copy fails, otherwise 'len'.
 //
 // This version always returns the number of characters copied, and does not
 // clobber the 'len' register. A successful copy will complete with the post-
@@ -7270,17 +7261,17 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       b(L_notNull);
       bind(L_null);
       // Set null marker to zero to signal that the argument is null.
-      // Also set all oop fields to zero to make the GC happy.
+      // Also set all fields to zero since the runtime requires a canonical
+      // representation of a flat null.
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {
-        if (sig->at(stream.sig_index())._offset == -1 ||
-            bt == T_OBJECT || bt == T_ARRAY) {
-          if (toReg->is_stack()) {
-            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
-            str(zr, Address(sp, st_off));
-          } else {
-            mov(toReg->as_Register(), zr);
-          }
+        if (toReg->is_stack()) {
+          int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
+          str(zr, Address(sp, st_off));
+        } else if (toReg->is_FloatRegister()) {
+          mov(toReg->as_FloatRegister(), T2S, 0);
+        } else {
+          mov(toReg->as_Register(), zr);
         }
       }
       bind(L_notNull);
