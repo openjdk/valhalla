@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,16 @@
  * @bug 8349945
  * @summary Tracking of strict static fields
  * @enablePreview
+ * @modules java.base/jdk.internal.vm.annotation
  * @compile Bnoinit_BAD.jasm
  *          Brbefore_BAD.jasm
  *          Cwreflective_OK.jasm
  *          Creflbefore_BAD.jasm
  *          WriteAfterReadRefl.jasm
- * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED StrictStaticFieldsTest.java
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
+ * @compile StrictStaticFieldsTest.java
+ * @run main/othervm StrictStaticFieldsTest
  */
 
-package runtime.valhalla.inlinetypes.verifier;
 
 import java.lang.reflect.*;
 import jdk.internal.vm.annotation.Strict;
