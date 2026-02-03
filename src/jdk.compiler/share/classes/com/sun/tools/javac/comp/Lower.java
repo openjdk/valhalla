@@ -1910,7 +1910,7 @@ public class Lower extends TreeTranslator {
             staticArgs.add(witnessOf(param));
         }
 
-        return new DynamicVarSymbol(names.witness, currentClass, msym.asHandle(), witness.type,
+        return new DynamicVarSymbol(names.witness, currentMethodSym, msym.asHandle(), witness.type,
                 staticArgs.toArray(LoadableConstant[]::new));
     }
 
