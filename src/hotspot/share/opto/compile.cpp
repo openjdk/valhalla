@@ -2103,7 +2103,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
       // object.
       ciInstance* loaded_from = nullptr;
       if (FoldStableValues) {
-        const TypeOopPtr* base_type = igvn.type(loadn->base())->isa_oopptr();
+        const TypeOopPtr* base_type = igvn.type(loadn->base())->is_oopptr();
         ciObject* oop = base_type->const_oop();
         int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
 
@@ -2120,7 +2120,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
               loaded_from = fv.as_object()->as_instance();
             }
           }
-        } else if (oop != nullptr && oop->is_array()) {
+        } else if (oop != nullptr && oop->is_array() && off != Type::OffsetBot) {
           ciArray* array = oop->as_array();
           ciConstant elt = array->element_value_by_offset(off);
           const TypeAryPtr* aryptr = base_type->is_aryptr();
