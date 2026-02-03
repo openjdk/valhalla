@@ -26,8 +26,18 @@
  * @bug 8372268
  * @summary [lworld] Keep buffer oop on scalarized calls
  * @enablePreview
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=TestBufferLost::test1 -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:-TieredCompilation ${test.main.class}
+ * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
+ *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
+ *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileOnly=*TestBufferLost*::*Callee
+ *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:-TieredCompilation ${test.main.class}
+ * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost*::*Callee
+ *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:-TieredCompilation ${test.main.class}
+ * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
+ *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
+ *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileCommand=dontinline,*::*Callee
+ *                   -Xbatch -XX:-TieredCompilation ${test.main.class}
  */
+
 
 package compiler.valhalla.inlinetypes;
 
@@ -38,15 +48,31 @@ public class TestBufferLost {
 
     // TODO we need more tests cases with more variants (virtual calls etc.)
 
-    static value class MyValue {
+
+    interface I {
+        void test5Callee(MyValue val);
+    }
+    
+    static value class MyValue implements I {
         long a = 1;
         long b = 2;
         long c = 3;
         long d = 4;
         long e = 5;
+
+        void test4Callee() {
+            VAL = this;
+        }
+
+        public void test5Callee(MyValue val) {
+            VAL = val;
+        }
     }
 
     static MyValue VAL = new MyValue();
+    static MyValue VAL2 = new MyValue();
+    static MyValue VAL3 = new MyValue();
+    static I INT = new MyValue();
 
     public static void test1Callee(MyValue val) {
         // This will buffer again if the scalarized arg does not contain the buffer oop
@@ -66,10 +92,32 @@ public class TestBufferLost {
         VAL = test2Callee();
     }
 
+    public static void test3Callee(MyValue val1, MyValue val2, MyValue val3) {
+        // This will buffer again if the scalarized arg does not contain the buffer oop
+        VAL = val1;
+        VAL2 = val2;
+        VAL3 = val3;
+    }
+
+    public static void test3() {
+        test3Callee(VAL, VAL2, VAL3);
+    }
+
+    public static void test4() {
+        VAL.test4Callee();
+    }
+
+    public static void test5() {
+        INT.test5Callee(VAL);
+    }
+
     public static void main(String[] args) {
         for (int i = 0; i < 10_000_000; ++i) {
-            test1();
-            test2();
+            // test1();
+            // test2();
+            //test3();
+            //test4();
+            test5();
         }
 
         MemoryMXBean mem = ManagementFactory.getMemoryMXBean();
