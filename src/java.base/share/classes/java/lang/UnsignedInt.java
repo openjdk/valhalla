@@ -38,7 +38,7 @@ public final class /* value */ UnsignedInt  {
     // Currently *not* extending java.lang.Number, and, for now, *not*
     // implementing Serializable. Might implement Comparable<UnsignedInt>.
 
-    private static Integral<UnsignedInt> INT = new Integral<UnsignedInt>() {
+    private static final Integral<UnsignedInt> INT = new Integral<UnsignedInt>() {
         public UnsignedInt add(UnsignedInt addend, UnsignedInt augend) {
             return UnsignedInt.add(addend, augend);
         }
