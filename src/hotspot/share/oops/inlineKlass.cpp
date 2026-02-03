@@ -100,8 +100,8 @@ address InlineKlass::calculate_members_address() const {
   return end_of_instance_klass();
 }
 
-BufferedInlineKlassPayload InlineKlass::null_payload() const {
-  return BufferedInlineKlassPayload(null_reset_value(), const_cast<InlineKlass*>(this));
+BufferedValuePayload InlineKlass::null_payload() const {
+  return BufferedValuePayload(null_reset_value(), const_cast<InlineKlass*>(this));
 }
 
 inlineOop InlineKlass::null_reset_value() const {

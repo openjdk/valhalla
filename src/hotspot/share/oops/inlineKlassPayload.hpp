@@ -101,26 +101,25 @@ public:
   inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
-class BufferedInlineKlassPayload : public ValuePayload {
+class BufferedValuePayload : public ValuePayload {
 protected:
   using ValuePayload::ValuePayload;
 
 public:
-  BufferedInlineKlassPayload() = default;
-  BufferedInlineKlassPayload(const BufferedInlineKlassPayload&) = default;
-  BufferedInlineKlassPayload&
-  operator=(const BufferedInlineKlassPayload&) = default;
+  BufferedValuePayload() = default;
+  BufferedValuePayload(const BufferedValuePayload&) = default;
+  BufferedValuePayload& operator=(const BufferedValuePayload&) = default;
 
-  explicit inline BufferedInlineKlassPayload(inlineOop buffer);
-  inline BufferedInlineKlassPayload(inlineOop buffer, InlineKlass* klass);
+  explicit inline BufferedValuePayload(inlineOop buffer);
+  inline BufferedValuePayload(inlineOop buffer, InlineKlass* klass);
 
   inline inlineOop get_holder() const;
 
   [[nodiscard]] inline inlineOop make_private_buffer(TRAPS);
 
-  inline void copy_to(const BufferedInlineKlassPayload& dst);
+  inline void copy_to(const BufferedValuePayload& dst);
 
-  [[nodiscard]] static inline BufferedInlineKlassPayload
+  [[nodiscard]] static inline BufferedValuePayload
   construct_from_parts(oop holder, InlineKlass* klass, ptrdiff_t offset,
                        LayoutKind layout_kind);
 
@@ -146,8 +145,8 @@ public:
   FlatInlineKlassPayload(const FlatInlineKlassPayload&) = default;
   FlatInlineKlassPayload& operator=(const FlatInlineKlassPayload&) = default;
 
-  [[nodiscard]] inline bool copy_to(BufferedInlineKlassPayload& dst);
-  inline void copy_from_non_null(BufferedInlineKlassPayload& src);
+  [[nodiscard]] inline bool copy_to(BufferedValuePayload& dst);
+  inline void copy_from_non_null(BufferedValuePayload& src);
 
   inline void copy_to(const FlatFieldInlineKlassPayload& dst);
 
@@ -300,20 +299,20 @@ public:
   inline ValuePayload operator()() const;
 };
 
-class BufferedInlineKlassPayload::Handle : public ValuePayload::Handle {
+class BufferedValuePayload::Handle : public ValuePayload::Handle {
 public:
   using ValuePayload::Handle::Handle;
 
-  inline BufferedInlineKlassPayload operator()() const;
+  inline BufferedValuePayload operator()() const;
 
   inline inlineOop get_holder() const;
 };
 
-class BufferedInlineKlassPayload::OopHandle : public ValuePayload::OopHandle {
+class BufferedValuePayload::OopHandle : public ValuePayload::OopHandle {
 public:
   using ValuePayload::OopHandle::OopHandle;
 
-  inline BufferedInlineKlassPayload operator()() const;
+  inline BufferedValuePayload operator()() const;
 
   inline inlineOop get_holder() const;
 };

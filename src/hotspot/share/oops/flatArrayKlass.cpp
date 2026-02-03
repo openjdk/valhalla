@@ -292,7 +292,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         flatArrayHandle dah(THREAD, da);
 
         inlineOop buffer = vk->allocate_instance(CHECK);
-        BufferedInlineKlassPayload buf_payload(buffer);
+        BufferedValuePayload buf_payload(buffer);
 
         // We have already checked that src_pos and dst_pos are valid indices.
         FlatArrayInlineKlassPayload src_payload(sah(), src_pos, fsk);
