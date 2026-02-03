@@ -1932,6 +1932,8 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
 
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
+  assert(oop_off_1 == -1 || oop_off_1 == 0 || oop_off_1 == 4, "invalid layout for %s, first oop at offset %d", vk->name()->as_utf8(), oop_off_1);
+  assert(oop_off_2 == -1 || oop_off_2 == 4, "invalid layout for %s, second oop at offset %d", vk->name()->as_utf8(), oop_off_2);
   BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   if (!UseG1GC || oop_off_1 == -1) {
