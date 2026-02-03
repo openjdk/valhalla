@@ -94,47 +94,8 @@ private:
                              LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
 
 public:
-  class Handle {
-  private:
-    using Storage = StorageImpl<::Handle>;
-
-    Storage _storage;
-
-  public:
-    Handle() = default;
-    Handle(const Handle&) = default;
-    Handle& operator=(const Handle&) = default;
-
-    inline Handle(const InlineKlassPayload& payload, JavaThread* thread);
-
-    inline oop get_holder() const;
-    inline InlineKlass* get_klass() const;
-    inline ptrdiff_t get_offset() const;
-    inline LayoutKind get_layout_kind() const;
-
-    inline InlineKlassPayload operator()() const;
-  };
-
-  class OopHandle {
-  private:
-    using Storage = StorageImpl<::OopHandle>;
-
-    Storage _storage;
-
-  public:
-    OopHandle() = default;
-    OopHandle(const OopHandle&) = default;
-    OopHandle& operator=(const OopHandle&) = default;
-
-    inline OopHandle(const InlineKlassPayload& payload, OopStorage* storage);
-
-    inline oop get_holder() const;
-    inline InlineKlass* get_klass() const;
-    inline ptrdiff_t get_offset() const;
-    inline LayoutKind get_layout_kind() const;
-
-    inline InlineKlassPayload operator()() const;
-  };
+  class Handle;
+  class OopHandle;
 
   inline Handle get_handle(JavaThread* thread) const;
   inline OopHandle get_oop_handle(OopStorage* storage) const;
@@ -163,23 +124,8 @@ public:
   construct_from_parts(oop holder, InlineKlass* klass, ptrdiff_t offset,
                        LayoutKind layout_kind);
 
-  class Handle : public InlineKlassPayload::Handle {
-  public:
-    using InlineKlassPayload::Handle::Handle;
-
-    inline BufferedInlineKlassPayload operator()() const;
-
-    inline inlineOop get_holder() const;
-  };
-
-  class OopHandle : public InlineKlassPayload::OopHandle {
-  public:
-    using InlineKlassPayload::OopHandle::OopHandle;
-
-    inline BufferedInlineKlassPayload operator()() const;
-
-    inline inlineOop get_holder() const;
-  };
+  class Handle;
+  class OopHandle;
 
   inline Handle get_handle(JavaThread* thread) const;
   inline OopHandle get_oop_handle(OopStorage* storage) const;
@@ -215,19 +161,8 @@ public:
   construct_from_parts(oop holder, InlineKlass* klass, ptrdiff_t offset,
                        LayoutKind layout_kind);
 
-  class Handle : public InlineKlassPayload::Handle {
-  public:
-    using InlineKlassPayload::Handle::Handle;
-
-    inline FlatInlineKlassPayload operator()() const;
-  };
-
-  class OopHandle : public InlineKlassPayload::OopHandle {
-  public:
-    using InlineKlassPayload::OopHandle::OopHandle;
-
-    inline FlatInlineKlassPayload operator()() const;
-  };
+  class Handle;
+  class OopHandle;
 
   inline Handle get_handle(JavaThread* thread) const;
   inline OopHandle get_oop_handle(OopStorage* storage) const;
@@ -261,23 +196,8 @@ public:
   construct_from_parts(instanceOop holder, InlineKlass* klass, ptrdiff_t offset,
                        LayoutKind layout_kind);
 
-  class Handle : public FlatInlineKlassPayload::Handle {
-  public:
-    using FlatInlineKlassPayload::Handle::Handle;
-
-    inline FlatFieldInlineKlassPayload operator()() const;
-
-    inline instanceOop get_holder() const;
-  };
-
-  class OopHandle : public FlatInlineKlassPayload::OopHandle {
-  public:
-    using FlatInlineKlassPayload::OopHandle::OopHandle;
-
-    inline FlatFieldInlineKlassPayload operator()() const;
-
-    inline instanceOop get_holder() const;
-  };
+  class Handle;
+  class OopHandle;
 
   inline Handle get_handle(JavaThread* thread) const;
   inline OopHandle get_oop_handle(OopStorage* storage) const;
@@ -331,34 +251,133 @@ private:
   inline void set_offset(ptrdiff_t offset);
 
 public:
-  class Handle : public FlatInlineKlassPayload::Handle {
-  private:
-    FlatArrayInlineKlassPayload::Storage _storage;
-
-  public:
-    inline Handle(const FlatArrayInlineKlassPayload& payload,
-                  JavaThread* thread);
-
-    inline FlatArrayInlineKlassPayload operator()() const;
-
-    inline flatArrayOop get_holder() const;
-  };
-
-  class OopHandle : public FlatInlineKlassPayload::OopHandle {
-  private:
-    FlatArrayInlineKlassPayload::Storage _storage;
-
-  public:
-    inline OopHandle(const FlatArrayInlineKlassPayload& payload,
-                     OopStorage* storage);
-
-    inline FlatArrayInlineKlassPayload operator()() const;
-
-    inline flatArrayOop get_holder() const;
-  };
+  class Handle;
+  class OopHandle;
 
   inline Handle get_handle(JavaThread* thread) const;
   inline OopHandle get_oop_handle(OopStorage* storage) const;
+};
+
+class InlineKlassPayload::Handle {
+private:
+  using Storage = StorageImpl<::Handle>;
+
+  Storage _storage;
+
+public:
+  Handle() = default;
+  Handle(const Handle&) = default;
+  Handle& operator=(const Handle&) = default;
+
+  inline Handle(const InlineKlassPayload& payload, JavaThread* thread);
+
+  inline oop get_holder() const;
+  inline InlineKlass* get_klass() const;
+  inline ptrdiff_t get_offset() const;
+  inline LayoutKind get_layout_kind() const;
+
+  inline InlineKlassPayload operator()() const;
+};
+
+class InlineKlassPayload::OopHandle {
+private:
+  using Storage = StorageImpl<::OopHandle>;
+
+  Storage _storage;
+
+public:
+  OopHandle() = default;
+  OopHandle(const OopHandle&) = default;
+  OopHandle& operator=(const OopHandle&) = default;
+
+  inline OopHandle(const InlineKlassPayload& payload, OopStorage* storage);
+
+  inline oop get_holder() const;
+  inline InlineKlass* get_klass() const;
+  inline ptrdiff_t get_offset() const;
+  inline LayoutKind get_layout_kind() const;
+
+  inline InlineKlassPayload operator()() const;
+};
+
+class BufferedInlineKlassPayload::Handle : public InlineKlassPayload::Handle {
+public:
+  using InlineKlassPayload::Handle::Handle;
+
+  inline BufferedInlineKlassPayload operator()() const;
+
+  inline inlineOop get_holder() const;
+};
+
+class BufferedInlineKlassPayload::OopHandle
+    : public InlineKlassPayload::OopHandle {
+public:
+  using InlineKlassPayload::OopHandle::OopHandle;
+
+  inline BufferedInlineKlassPayload operator()() const;
+
+  inline inlineOop get_holder() const;
+};
+
+class FlatInlineKlassPayload::Handle : public InlineKlassPayload::Handle {
+public:
+  using InlineKlassPayload::Handle::Handle;
+
+  inline FlatInlineKlassPayload operator()() const;
+};
+
+class FlatInlineKlassPayload::OopHandle : public InlineKlassPayload::OopHandle {
+public:
+  using InlineKlassPayload::OopHandle::OopHandle;
+
+  inline FlatInlineKlassPayload operator()() const;
+};
+
+class FlatFieldInlineKlassPayload::Handle
+    : public FlatInlineKlassPayload::Handle {
+public:
+  using FlatInlineKlassPayload::Handle::Handle;
+
+  inline FlatFieldInlineKlassPayload operator()() const;
+
+  inline instanceOop get_holder() const;
+};
+
+class FlatFieldInlineKlassPayload::OopHandle
+    : public FlatInlineKlassPayload::OopHandle {
+public:
+  using FlatInlineKlassPayload::OopHandle::OopHandle;
+
+  inline FlatFieldInlineKlassPayload operator()() const;
+
+  inline instanceOop get_holder() const;
+};
+
+class FlatArrayInlineKlassPayload::Handle
+    : public FlatInlineKlassPayload::Handle {
+private:
+  FlatArrayInlineKlassPayload::Storage _storage;
+
+public:
+  inline Handle(const FlatArrayInlineKlassPayload& payload, JavaThread* thread);
+
+  inline FlatArrayInlineKlassPayload operator()() const;
+
+  inline flatArrayOop get_holder() const;
+};
+
+class FlatArrayInlineKlassPayload::OopHandle
+    : public FlatInlineKlassPayload::OopHandle {
+private:
+  FlatArrayInlineKlassPayload::Storage _storage;
+
+public:
+  inline OopHandle(const FlatArrayInlineKlassPayload& payload,
+                   OopStorage* storage);
+
+  inline FlatArrayInlineKlassPayload operator()() const;
+
+  inline flatArrayOop get_holder() const;
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
