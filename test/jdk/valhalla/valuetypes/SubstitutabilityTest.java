@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @run junit/othervm SubstitutabilityTest
- * @run junit/othervm -Xshare:off -XX:+UseAltSubstitutabilityMethod SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
@@ -36,7 +35,6 @@ import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -56,9 +54,9 @@ public class SubstitutabilityTest {
     }
 
     static value class Line {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p1;
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p2;
 
         Line(Point p1, Point p2) {
@@ -73,7 +71,7 @@ public class SubstitutabilityTest {
     // contains null-reference and null-restricted fields
     static value class MyValue {
         MyValue2 v1;
-        @NullRestricted  @Strict
+        @NullRestricted
         MyValue2 v2;
         public MyValue(MyValue2 v1, MyValue2 v2) {
             this.v1 = v1;

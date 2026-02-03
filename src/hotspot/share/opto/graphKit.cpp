@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1556,8 +1556,7 @@ Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
   }
   Node *if_f = _gvn.transform(new IfFalseNode(iff));
   Node *frame = _gvn.transform(new ParmNode(C->start(), TypeFunc::FramePtr));
-  Node* halt = _gvn.transform(new HaltNode(if_f, frame, "unexpected null in intrinsic"));
-  C->root()->add_req(halt);
+  halt(if_f, frame, "unexpected null in intrinsic");
   Node *if_t = _gvn.transform(new IfTrueNode(iff));
   set_control(if_t);
   return cast_not_null(value, do_replace_in_map);
@@ -1881,11 +1880,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
 
 Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
   assert(elem_vk->maybe_flat_in_array(), "no flat array for %s", elem_vk->name()->as_utf8());
-  if (!elem_vk->has_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
+  if (!elem_vk->has_null_free_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, true, false);
-  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_null_free_non_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, true, true);
-  } else if (!elem_vk->has_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+  } else if (!elem_vk->has_null_free_atomic_layout() && !elem_vk->has_null_free_non_atomic_layout()) {
     return cast_to_flat_array_exact(array, elem_vk, false, true);
   }
 
@@ -1941,14 +1940,26 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   uint nargs = domain->cnt();
   int arg_num = 0;
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
-    Node* arg = argument(i-TypeFunc::Parms);
+    uint arg_idx = i - TypeFunc::Parms;
+    Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
     // TODO 8284443 A static call to a mismatched method should still be scalarized
     if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
-        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        // There are 2 cases in which the argument has not been scalarized
+        if (_gvn.type(arg)->is_zero_type()) {
+          arg = InlineTypeNode::make_null(_gvn, t->inline_klass());
+        } else {
+          // During parsing, a method is called with an abstract (or j.l.Object) receiver, the
+          // receiver is a non-scalarized oop. Later on, IGVN reveals that the receiver must be a
+          // value object. The method is devirtualized, and replaced with a direct call with a
+          // scalarized receiver instead.
+          assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
+          assert(C->inlining_incrementally() || C->strength_reduction(), "must be during devirtualization of calls");
+          assert(!is_Parse(), "must be during devirtualization of calls");
+          arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
+        }
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -2318,6 +2329,12 @@ void GraphKit::increment_counter(Node* counter_addr) {
   store_to_memory(ctrl, counter_addr, incr, T_LONG, MemNode::unordered);
 }
 
+void GraphKit::halt(Node* ctrl, Node* frameptr, const char* reason, bool generate_code_in_product) {
+  Node* halt = new HaltNode(ctrl, frameptr, reason
+                            PRODUCT_ONLY(COMMA generate_code_in_product));
+  halt = _gvn.transform(halt);
+  root()->add_req(halt);
+}
 
 //------------------------------uncommon_trap----------------------------------
 // Bail out to the interpreter in mid-method.  Implemented by calling the
@@ -2440,11 +2457,15 @@ Node* GraphKit::uncommon_trap(int trap_request,
   // The debug info is the only real input to this call.
 
   // Halt-and-catch fire here.  The above call should never return!
-  HaltNode* halt = new HaltNode(control(), frameptr(), "uncommon trap returned which should never happen"
-                                                       PRODUCT_ONLY(COMMA /*reachable*/false));
-  _gvn.set_type_bottom(halt);
-  root()->add_req(halt);
-
+  // We only emit code for the HaltNode in debug, which is enough for
+  // verifying correctness. In product, we don't want to emit it so
+  // that we can save on code space. HaltNode often get folded because
+  // the compiler can prove that the unreachable path is dead. But we
+  // cannot generally expect that for uncommon traps, which are often
+  // reachable and occasionally taken.
+  halt(control(), frameptr(),
+       "uncommon trap returned which should never happen",
+       false /* don't emit code in product */);
   stop_and_kill_map();
   return call;
 }
@@ -3883,12 +3904,12 @@ Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
 }
 
 Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
-  assert(vk->has_atomic_layout() || vk->has_non_atomic_layout(), "Can't be null-free and flat");
+  assert(vk->has_null_free_atomic_layout() || vk->has_null_free_non_atomic_layout(), "Can't be null-free and flat");
 
   // TODO 8350865 Add a stress flag to always access atomic if layout exists?
-  if (!vk->has_non_atomic_layout()) {
+  if (!vk->has_null_free_non_atomic_layout()) {
     return intcon(1); // Always atomic
-  } else if (!vk->has_atomic_layout()) {
+  } else if (!vk->has_null_free_atomic_layout()) {
     return intcon(0); // Never atomic
   }
 
@@ -3951,6 +3972,7 @@ Node* GraphKit::insert_mem_bar(int opcode, Node* precedent) {
   mb->init_req(TypeFunc::Control, control());
   mb->init_req(TypeFunc::Memory,  reset_memory());
   Node* membar = _gvn.transform(mb);
+  record_for_igvn(membar);
   set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
   set_all_memory_call(membar);
   return membar;
@@ -3980,6 +4002,7 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
     mb->set_req(TypeFunc::Memory, memory(alias_idx));
   }
   Node* membar = _gvn.transform(mb);
+  record_for_igvn(membar);
   set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
   if (alias_idx == Compile::AliasIdxBot) {
     merged_memory()->set_base_memory(_gvn.transform(new ProjNode(membar, TypeFunc::Memory)));

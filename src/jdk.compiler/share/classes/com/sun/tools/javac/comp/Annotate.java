@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -381,16 +381,6 @@ public class Annotate {
                     && toAnnotate.kind == TYP
                     && types.isSameType(c.type, syms.migratedValueClassType)) {
                 toAnnotate.flags_field |= Flags.MIGRATED_VALUE_CLASS;
-            }
-
-            if (!c.type.isErroneous()
-                    && toAnnotate.kind == VAR
-                    && toAnnotate.owner.kind == TYP
-                    && types.isSameType(c.type, syms.strictType)) {
-                preview.checkSourceLevel(pos.get(c), Feature.VALUE_CLASSES);
-                toAnnotate.flags_field |= Flags.STRICT;
-                // temporary hack to indicate that a class has at least one strict field
-                toAnnotate.owner.flags_field |= Flags.HAS_STRICT;
             }
 
             if (!c.type.isErroneous()
@@ -1125,6 +1115,7 @@ public class Annotate {
             for (List<JCAnnotation> dimAnnos : tree.dimAnnotations)
                 enterTypeAnnotations(dimAnnos, env, sym, false);
             scan(tree.elemtype);
+            scan(tree.dims);
             scan(tree.elems);
         }
 

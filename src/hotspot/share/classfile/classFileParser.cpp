@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1461,6 +1461,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                              CHECK);
         }
         _fields_annotations->at_put(n, parsed_annotations.field_annotations());
+        parsed_annotations.set_field_annotations(nullptr);
         if (parsed_annotations.has_annotation(AnnotationCollector::_jdk_internal_NullRestricted)) {
           if (!Signature::has_envelope(sig)) {
             Exceptions::fthrow(
@@ -1468,14 +1469,22 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
               vmSymbols::java_lang_ClassFormatError(),
               "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s with signature %s (primitive types can never be null)",
               class_name()->as_C_string(), name->as_C_string(), sig->as_C_string());
+            return;
           }
-          const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
-          if (!is_strict) {
+          if (!supports_inline_types()) {
             Exceptions::fthrow(
               THREAD_AND_LOCATION,
               vmSymbols::java_lang_ClassFormatError(),
-              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s which doesn't have the @jdk.internal.vm.annotation.Strict annotation",
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s in non-preview class file",
               class_name()->as_C_string(), name->as_C_string());
+            return;
+          }
+
+          if ((flags & JVM_ACC_STRICT) == 0) {
+            // Inject STRICT_INIT and validate in context
+            const jint patched_flags = flags | JVM_ACC_STRICT;
+            verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
+            access_flags.set_flags(patched_flags);
           }
           is_null_restricted = true;
         }
@@ -5514,10 +5523,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_payload_alignment(_layout_info->_payload_alignment);
     vk->set_payload_offset(_layout_info->_payload_offset);
     vk->set_payload_size_in_bytes(_layout_info->_payload_size_in_bytes);
-    vk->set_non_atomic_size_in_bytes(_layout_info->_non_atomic_size_in_bytes);
-    vk->set_non_atomic_alignment(_layout_info->_non_atomic_alignment);
-    vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
-    vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
+    vk->set_null_free_non_atomic_size_in_bytes(_layout_info->_null_free_non_atomic_size_in_bytes);
+    vk->set_null_free_non_atomic_alignment(_layout_info->_null_free_non_atomic_alignment);
+    vk->set_null_free_atomic_size_in_bytes(_layout_info->_null_free_atomic_layout_size_in_bytes);
+    vk->set_nullable_atomic_size_in_bytes(_layout_info->_nullable_atomic_layout_size_in_bytes);
+    vk->set_nullable_non_atomic_size_in_bytes(_layout_info->_nullable_non_atomic_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
@@ -5544,18 +5554,30 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     // per oop field, containing the offset of the field.
     int nonoop_acmp_map_size = _layout_info->_nonoop_acmp_map->length() * 2;
     int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
-    typeArrayOop map = oopFactory::new_intArray(nonoop_acmp_map_size + oop_acmp_map_size + 1, CHECK);
+    int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
+
+    typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
     typeArrayHandle map_h(THREAD, map);
+    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
+
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
+    acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
       map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
       map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+
+      // Also store acmp maps as metadata for regeneration when using dynamic archive or AOT training data.
+      acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
+      acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
     }
     int oop_map_start = nonoop_acmp_map_size + 1;
     for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
       map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+      acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
     }
+    assert(acmp_maps_array->length() == map->length(), "sanity");
     ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
+    ik->set_acmp_maps_array(acmp_maps_array);
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);

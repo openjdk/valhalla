@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import static compiler.lib.ir_framework.IRNode.ALLOC;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -656,12 +655,12 @@ public class TestValueClasses {
 
     @Run(test = "test16")
     public void test16_verifier() {
-        Asserts.assertEQ(test16(0, false), null);
-        Asserts.assertEQ(test16(1, false).hash(), MyValueClass2.createWithFieldsInline(rI, rD).hash());
-        Asserts.assertEQ(test16(1, true), null);
-        Asserts.assertEQ(test16(2, false), null);
-        Asserts.assertEQ(test16(3, false).hash(), MyValueClass2.createWithFieldsInline(rI, rD).hash());
-        Asserts.assertEQ(test16(3, true), null);
+        Asserts.assertEQ(null, test16(0, false));
+        Asserts.assertEQ(MyValueClass2.createWithFieldsInline(rI, rD), test16(1, false));
+        Asserts.assertEQ(null, test16(1, true));
+        Asserts.assertEQ(null, test16(2, false));
+        Asserts.assertEQ(MyValueClass2.createWithFieldsInline(rI, rD), test16(3, false));
+        Asserts.assertEQ(null, test16(3, true));
     }
 
     @LooselyConsistentValue
@@ -674,7 +673,6 @@ public class TestValueClasses {
     }
 
     static value class MyValue17 {
-        @Strict
         @NullRestricted
         MyPrimitive17 flattened;
 
