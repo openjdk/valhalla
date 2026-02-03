@@ -1394,12 +1394,14 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   const InjectedField* const injected = JavaClasses::get_injected(_class_name,
                                                                   &num_injected);
 
-  // two more slots are required for inline classes:
-  //   - one for the static field with a reference to the pre-allocated default value
-  //   - one for the field the JVM injects when detecting an empty inline class
-  // one more slot is required for both abstract value class and inline classes:
-  //   - one for the field map for acmp/hash, includes nonstatic fields inherited from
-  //     superclasses or declared by the current class, computed recursively
+  // Two more slots are required for inline classes:
+  //   - The static field ".null_reset" which carries the nullable flat layout
+  //     representation of null, added below
+  //   - The nonstatic field ".empty" the JVM injects when detecting an empty
+  //     inline class, added in FieldLayoutBuilder::compute_inline_class_layout
+  // One more slot is required for both abstract value class and inline classes:
+  //   - The the static field ".acmp_maps" for acmp and identity hash, tracks
+  //     nonstatic fields both inherited or declared, added below
   const int total_fields = length + num_injected + (is_inline_type ? 2 : 0)
                            + (is_value_class ? 1 : 0);
 
@@ -1593,7 +1595,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
   if (!access_flags().is_identity_class() && !access_flags().is_interface()
       && _class_name != vmSymbols::java_lang_Object()) {
-    // Acmp map required for abstract and concrete value classes
+    // Acmp map ".acmp_maps" required for abstract and concrete value classes
     FieldInfo::FieldFlags fflags2(0);
     fflags2.update_injected(true);
     fflags2.update_stable(true);
