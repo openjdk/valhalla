@@ -31,6 +31,7 @@ import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
@@ -129,20 +130,17 @@ public class NullChecksWriter extends TreeTranslator {
     }
 
     Env<AttrContext> env;
-    ClassSymbol currentClass;
 
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         if (allowNullRestrictedTypes) {
             try {
                 this.make = make;
                 this.env = env;
-                this.currentClass = (ClassSymbol) TreeInfo.symbolFor(cdef);
                 return translate(cdef);
             } finally {
                 // note that recursive invocations of this method fail hard
                 this.make = null;
                 this.env = null;
-                this.currentClass = null;
             }
         }
         return cdef;
@@ -200,10 +198,10 @@ public class NullChecksWriter extends TreeTranslator {
 
     // where
         private void identSelectVisitHelper(JCTree tree) {
-            if (needsUseSiteNullCheck(tree, currentClass) &&
+            if (needsUseSiteNullCheck(tree) &&
                 checkNulls) {
                 /* we are accessing a non-nullable field declared in another
-                 * class
+                 * compilation unit
                  */
                 result = attr.makeNullCheck((JCExpression) tree, true);
             }
@@ -254,29 +252,39 @@ public class NullChecksWriter extends TreeTranslator {
 
     @Override
     public void visitApply(JCMethodInvocation tree) {
-        Symbol.MethodSymbol msym = (Symbol.MethodSymbol) TreeInfo.symbolFor(tree.meth);
-        if (useSiteNullChecks.generateChecksForMethods) {
+        MethodSymbol msym = (MethodSymbol) TreeInfo.symbolFor(tree.meth);
+        boolean canBeOverriden = (msym.flags_field & (Flags.PRIVATE | Flags.STATIC | Flags.FINAL)) == 0 &&
+                !msym.owner.isFinal();
+        if (useSiteNullChecks.generateChecksForMethods &&
+                hasNonNullArgs(msym) &&
+                canBeOverriden) {
             tree.args = newArgs(msym, tree.args);
         }
         super.visitApply(tree);
         result = tree;
-        if (useSiteNullChecks.generateChecksForMethods) {
-            if (types.isNonNullable(msym.type.asMethodType().restype)) {
-                result = attr.makeNullCheck(tree, true);
-            }
+        if (useSiteNullChecks.generateChecksForMethods &&
+                types.isNonNullable(msym.type.asMethodType().restype) &&
+                canBeOverriden) {
+            result = attr.makeNullCheck(tree, true);
         }
     }
 
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (useSiteNullChecks.generateChecksForMethods) {
-            tree.args = newArgs((Symbol.MethodSymbol) tree.constructor, tree.args);
+        if (useSiteNullChecks.generateChecksForMethods &&
+                hasNonNullArgs((MethodSymbol) tree.constructor) &&
+                !isInThisSameCompUnit(tree.constructor)) {
+            tree.args = newArgs((MethodSymbol) tree.constructor, tree.args);
         }
         super.visitNewClass(tree);
         result = tree;
     }
 
-    private List<JCExpression> newArgs(Symbol.MethodSymbol msym, List<JCExpression> actualArgs) {
+    private boolean hasNonNullArgs(MethodSymbol msym) {
+        return msym.type.asMethodType().argtypes.stream().anyMatch(argType -> types.isNonNullable(argType));
+    }
+
+    private List<JCExpression> newArgs(MethodSymbol msym, List<JCExpression> actualArgs) {
         // skip signature polymorphic methods they won't have null restricted arguments
         if ((msym.flags_field & Flags.SIGNATURE_POLYMORPHIC) != 0) {
             return actualArgs;
@@ -329,13 +337,27 @@ public class NullChecksWriter extends TreeTranslator {
         }
     }
 
-    public boolean needsUseSiteNullCheck(JCTree tree, ClassSymbol currentClass) {
+    private boolean needsUseSiteNullCheck(JCTree tree) {
+        return needsUseSiteNullCheck(tree, env);
+    }
+
+    public boolean needsUseSiteNullCheck(JCTree tree, Env<AttrContext> env) {
         Symbol sym = TreeInfo.symbolFor(tree);
         return sym != null &&
                 useSiteNullChecks.generateChecksForFields &&
                 sym.owner.kind == TYP &&
                 sym.kind == VAR &&
                 types.isNonNullable(sym.type) &&
-                sym.owner != currentClass;
+                !isInThisSameCompUnit(sym, env);
     }
+
+    // where
+        private boolean isInThisSameCompUnit(Symbol sym) {
+            return isInThisSameCompUnit(sym, env);
+        }
+
+        private boolean isInThisSameCompUnit(Symbol sym, Env<AttrContext> env) {
+            return env.toplevel.getTypeDecls().stream()
+                    .anyMatch(tree -> TreeInfo.symbolFor(tree) == sym.outermostClass());
+        }
 }

@@ -37,9 +37,13 @@
 import java.util.*;
 
 import java.io.IOException;
+import java.lang.classfile.*;
+import java.lang.classfile.attribute.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import com.sun.tools.javac.util.Assert;
 
 import toolbox.TestRunner;
 import toolbox.ToolBox;
@@ -338,14 +342,18 @@ public class RuntimeNullChecks extends TestRunner {
             "-XDuseSiteNullChecks=methods+fields"
     };
 
-    private void testHelper(Path base,
+    /* returns the path to the output folder in case the caller wants to analyze the produced class files
+     */
+    private Path testHelper(Path base,
                             String testCode,
                             boolean shouldFail,
                             Class<?> expectedError) throws Exception {
-        testHelper(base, testCode, shouldFail, expectedError, PREVIEW);
+        return testHelper(base, testCode, shouldFail, expectedError, PREVIEW);
     }
 
-    private void testHelper(Path base,
+    /* returns the path to the output folder in case the caller wants to analyze the produced class files
+     */
+    private Path testHelper(Path base,
                             String testCode,
                             boolean shouldFail,
                             Class<?> expectedError,
@@ -387,6 +395,7 @@ public class RuntimeNullChecks extends TestRunner {
                     .classArgs("Test")
                     .run(Task.Expect.SUCCESS);
         }
+        return out;
     }
 
     @Test
@@ -450,9 +459,12 @@ public class RuntimeNullChecks extends TestRunner {
         }
     }
 
+    static final String nullCheckInvocation =
+            "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]";
+
     @Test
     public void testUseSideChecksForMethods(Path base) throws Exception {
-        String[] testCases = new String[] {
+        String src =
                 """
                 class Test {
                     class Inner {
@@ -467,7 +479,24 @@ public class RuntimeNullChecks extends TestRunner {
                         inner.m(null);
                     }
                 }
-                """,
+                """;
+        String expectedInstSequence =
+                "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]" +
+                        "Invoke[OP=INVOKEVIRTUAL, m=Test$Inner.m(Ljava/lang/Object;)Ljava/lang/Object;]";
+        Path out;
+        for (String[] options : new String[][] {PREVIEW, USE_SITE_CHECKS_FOR_METHODS_ONLY, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS}) {
+            out = testHelper(base, src, true, NullPointerException.class, options);
+            if (!checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+                throw new AssertionError("was expecting a null check before Inner::m invocation");
+            }
+        }
+        out = testHelper(base, src, false, null, NO_USE_SITE_CHECKS);
+        if (checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+            throw new AssertionError("was not expecting a null check before Inner::m invocation");
+        }
+
+        // null checks in user site for returns
+        src =
                 """
                 class Test {
                     class Inner {
@@ -482,44 +511,101 @@ public class RuntimeNullChecks extends TestRunner {
                         inner.m(null);
                     }
                 }
-                """,
+                """;
+        expectedInstSequence =
+                "Invoke[OP=INVOKEVIRTUAL, m=Test$Inner.m(Ljava/lang/Object;)Ljava/lang/Object;]" +
+                        "UnboundStackInstruction[op=DUP]" +
+                        "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]";
+        for (String[] options : new String[][] {PREVIEW, USE_SITE_CHECKS_FOR_METHODS_ONLY, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS}) {
+            out = testHelper(base, src, true, NullPointerException.class, options);
+            if (!checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+                List<CodeElement> foundSequence = readInstructions(out.resolve("Test.class"), "main");
+                String found = "";
+                for (CodeElement ce : foundSequence) {
+                    found += ce.toString() + "\n";
+                }
+                throw new AssertionError("was expecting a null check after Inner::m invocation, found: \n" + found);
+            }
+        }
+        out = testHelper(base, src, false, null, NO_USE_SITE_CHECKS);
+        if (checkInstructionsSequence(out.resolve("Test.class"), "main", expectedInstSequence)) {
+            throw new AssertionError("was not expecting a null check after Inner::m invocation");
+        }
+
+        String[] testCases2 = new String[] {
                 """
                 class Test {
                     class Inner {
-                        Object m(Object! arg, Object... args) { return null; }
-                    }
-                    class Inner2 extends Inner {
-                        @Override
-                        String m(Object arg, Object... args) { return null; }
+                        private Object m(Object! arg) { return null; }
                     }
                     public static void main(String... args) {
-                        Inner inner = new Test().new Inner2();
-                        inner.m(null, null);
+                        Inner inner = new Test().new Inner();
+                        inner.m(null);
                     }
                 }
                 """,
                 """
                 class Test {
                     class Inner {
-                        Object! m(Object arg, Object... args) { return ""; }
-                    }
-                    class Inner2 extends Inner {
-                        @Override
-                        String m(Object arg, Object... args) { return null; }
+                        final Object m(Object! arg) { return null; }
                     }
                     public static void main(String... args) {
-                        Inner inner = new Test().new Inner2();
-                        inner.m(null, null);
+                        Inner inner = new Test().new Inner();
+                        inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    static class Inner {
+                        static Object m(Object! arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner.m(null);
+                    }
+                }
+                """,
+                """
+                class Test {
+                    final class Inner {
+                        Object m(Object! arg) { return null; }
+                    }
+                    public static void main(String... args) {
+                        Inner inner = new Test().new Inner();
+                        inner.m(null);
                     }
                 }
                 """
         };
-        for (String code : testCases) {
-            testHelper(base, code, true, NullPointerException.class);
-            testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_ONLY);
-            testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
-            testHelper(base, code, false, null, NO_USE_SITE_CHECKS);
+        for (String code : testCases2) {
+            out = testHelper(base, code, true, NullPointerException.class, USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS);
+            if (checkInstructionsSequence(out.resolve("Test.class"), "main", nullCheckInvocation)) {
+                throw new AssertionError("an invocation to Checks::nullCheck was not expected");
+            }
         }
+    }
+
+    private boolean checkInstructionsSequence(Path path, String methodName, String sequence) throws Exception {
+        List<CodeElement> instructions = readInstructions(path, methodName);
+        String foundSequence = "";
+        for (CodeElement ce : instructions) {
+            foundSequence += ce;
+        }
+        return foundSequence.contains(sequence);
+    }
+
+    private List<CodeElement> readInstructions(Path path, String methodName) throws Exception {
+        ClassModel classFile = ClassFile.of().parse(path);
+        List<CodeElement> result = new ArrayList<>();
+        for (MethodModel method: classFile.methods()) {
+            if (method.methodName().stringValue().equals(methodName)) {
+                CodeAttribute codeAttr = method.findAttribute(Attributes.code()).orElse(null);
+                for (CodeElement ce : codeAttr.elementList()) {
+                    result.add(ce);
+                }
+            }
+        }
+        return result;
     }
 
     @Test
@@ -671,6 +757,65 @@ public class RuntimeNullChecks extends TestRunner {
     }
 
     @Test
+    public void testUseSideChecksForFields(Path base) throws Exception {
+        // separate compilation
+        String ASrc1 =
+                """
+                package pkg;
+                public class A {
+                    String! a;
+                    public A() {
+                        this.a = "test";
+                        super();
+                    }
+                }
+                """;
+        String ASrc2 =
+                """
+                package pkg;
+                public class A {
+                    String a;
+                    public A() {
+                        this.a = null;
+                        super();
+                    }
+                }
+                """;
+        String testSrc =
+                """
+                package pkg;
+                class Test {
+                    public static void main(String... args) {
+                        A a = new A();
+                        System.out.println(a.a.toString());
+                    }
+                }
+                """;
+        Path out;
+        String sequenceWithNullCheck =
+                "Field[OP=GETFIELD, field=pkg/A.a:Ljava/lang/String;]" +
+                "UnboundStackInstruction[op=DUP]" +
+                "Invoke[OP=INVOKESTATIC, m=java/lang/runtime/Checks.nullCheck(Ljava/lang/Object;)V]" +
+                        "Invoke[OP=INVOKEVIRTUAL, m=java/lang/String.toString()Ljava/lang/String;]";
+        for (String[] options : new String[][] {USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS, PREVIEW}) {
+            out = testUseSiteForFieldsSeparateCompilationHelper(base, ASrc1, ASrc2, testSrc, true, options);
+            if (!checkInstructionsSequence(out.resolve("pkg").resolve("Test.class"), "main", sequenceWithNullCheck)) {
+                throw new AssertionError("was expecting a null check before String::toString invocation");
+            }
+        }
+
+        String sequenceWithoutNullCheck =
+                "Field[OP=GETFIELD, field=pkg/A.a:Ljava/lang/String;]" +
+                        "Invoke[OP=INVOKEVIRTUAL, m=java/lang/String.toString()Ljava/lang/String;]";
+        for (String[] options : new String[][] {USE_SITE_CHECKS_FOR_METHODS_ONLY, NO_USE_SITE_CHECKS}) {
+            out = testUseSiteForFieldsSeparateCompilationHelper(base, ASrc1, ASrc2, testSrc, false, options);
+            if (!checkInstructionsSequence(out.resolve("pkg").resolve("Test.class"), "main", sequenceWithoutNullCheck)) {
+                throw new AssertionError("was expecting a null check before String::toString invocation");
+            }
+        }
+    }
+
+    @Test
     public void testUseSideChecksForFieldsSepCompilation(Path base) throws Exception {
         testUseSiteForFieldsSeparateCompilationHelper(base,
                 """
@@ -701,7 +846,7 @@ public class RuntimeNullChecks extends TestRunner {
                         System.out.println(a.a.toString());
                     }
                 }
-                """);
+                """, true, PREVIEW);
         testUseSiteForFieldsSeparateCompilationHelper(base,
                 """
                 package pkg;
@@ -732,7 +877,7 @@ public class RuntimeNullChecks extends TestRunner {
                         System.out.println(a.value);
                     }
                 }
-                """);
+                """, true, PREVIEW);
         testUseSiteForFieldsSeparateCompilationHelper(base,
                 """
                 package pkg;
@@ -763,14 +908,23 @@ public class RuntimeNullChecks extends TestRunner {
                         System.out.println(a.value);
                     }
                 }
-                """);
+                """, true, PREVIEW);
     }
 
-    private void testUseSiteForFieldsSeparateCompilationHelper(
+    private Path testUseSiteForFieldsSeparateCompilationHelper(
             Path base,
             String code1,
             String code2,
-            String testCode) throws Exception {
+            String testCode,
+            boolean shouldFailDueToNullCheck,
+            String[] options) throws Exception {
+        /* this method compiles code1 + testCode and executes the class in testCode,
+         * there shouldn't be any NPE during this first execution.
+         * Then it compiles only code2, without testCode and then executes again the class in testCode
+         * this time it expects a NPE.
+         * Depeding on argument `shouldFailDueToNullCheck` the NPE is expected, or not, to be produced
+         * by an invocation to java.lang.runtime.Checks::nullCheck
+         */
         Path src = base.resolve("src");
         Path pkg = src.resolve("pkg");
         Path ASrc = pkg.resolve("A");
@@ -785,11 +939,10 @@ public class RuntimeNullChecks extends TestRunner {
         // this compilation will generate null checks in Test before accessing field A.a
         new JavacTask(tb)
                 .outdir(out)
-                .options(USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS) // equivalent to just using PREVIEW options
+                .options(options)
                 .files(findJavaFiles(pkg))
                 .run();
 
-        // let's execute to check that it's producing the NPE
         System.err.println("running, this test should pass");
         String output = new JavaTask(tb)
                 .classpath(out.toString())
@@ -807,7 +960,7 @@ public class RuntimeNullChecks extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
-                .options(USE_SITE_CHECKS_FOR_METHODS_AND_FIELDS) // equivalent to just using PREVIEW options
+                .options(options)
                 .files(findJavaFiles(ASrc))
                 .run();
 
@@ -821,9 +974,96 @@ public class RuntimeNullChecks extends TestRunner {
                 .getOutput(Task.OutputKind.STDERR);
 
         // we need to check that the NPE is due to an invocation to j.l.r.Checks::nullCheck
-        if (!output.contains("java.lang.NullPointerException") &&
-                !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
-            throw new AssertionError("unexpected output: " + output);
+        if (shouldFailDueToNullCheck) {
+            if (!output.contains("java.lang.NullPointerException") &&
+                    !output.contains("java.base/java.lang.runtime.Checks.nullCheck")) {
+                throw new AssertionError("unexpected output: " + output);
+            }
+        } else {
+            if (!output.startsWith("Exception in thread \"main\" java.lang.NullPointerException: Cannot invoke \"String.toString()\" because \"<local1>.a\" is null")) {
+                throw new AssertionError("unexpected output: " + output);
+            }
+        }
+        return out;
+    }
+
+    private Path compile(Path base,
+                         String code,
+                         String className,
+                         String pakageName,
+                         String[] options) throws Exception {
+        Path src = base.resolve("src");
+        Path pkg = pakageName != null ? src.resolve("pakageName") : src;
+        Path ASrc = pkg.resolve(className);
+
+        tb.writeJavaFiles(ASrc, code);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .options(options) // equivalent to just using PREVIEW options
+                .files(findJavaFiles(pkg))
+                .run();
+        return out;
+    }
+
+    @Test
+    public void testTypeCasts(Path base) throws Exception {
+        String[] testCases = new String[] {
+                """
+                class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object o = (String!)(Object!) s; // NPE, cast
+                    }
+                }
+                """,
+                """
+                import java.io.*;
+                class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object o = (String!)(CharSequence!)(Serializable!) s; // NPE, cast
+                    }
+                }
+                """,
+                """
+                class Test {
+                    class OtherClass {
+                        Object! m() {
+                            return "";
+                        }
+                    }
+                    public static void main(String... args) {
+                        OtherClass oc = new Test().new OtherClass();
+                        String! s = (String!)oc.m();
+                    }
+                }
+                """,
+                """
+                import java.io.*;
+                class Test {
+                    public static void main(String... args) {
+                        Object s = null;
+                        Object! o = (String)(CharSequence)(Serializable!) s;
+                    }
+                }
+                """
+        };
+        for (String testCase : testCases) {
+            Path out = compile(base, testCase, "Test", null, PREVIEW);
+            List<CodeElement> instructions = readInstructions(out.resolve("Test.class"), "main");
+            int numberOfNullChecks = 0;
+            for (CodeElement ce : instructions) {
+                if (ce.toString().equals(nullCheckInvocation)) {
+                    numberOfNullChecks++;
+                }
+            }
+            if (numberOfNullChecks != 1) {
+                throw new AssertionError("was expecting only one invocation to Checks::nullCheck");
+            }
         }
     }
 }
