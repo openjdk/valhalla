@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@
 #include "memory/allocation.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomicAccess.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -239,9 +238,9 @@ void G1ParScanThreadState::do_partial_array(PartialArrayState* state, bool stole
   G1SkipCardMarkSetter x(&_scanner, dest_attr.is_new_survivor());
   // Process claimed task.
   assert(to_array->is_refArray(), "Must be");
-  refArrayOop(to_array)->oop_iterate_range(&_scanner,
-                              checked_cast<int>(claim._start),
-                              checked_cast<int>(claim._end));
+  refArrayOop(to_array)->oop_iterate_elements_range(&_scanner,
+                                                    checked_cast<int>(claim._start),
+                                                    checked_cast<int>(claim._end));
 }
 
 MAYBE_INLINE_EVACUATION
@@ -262,7 +261,7 @@ void G1ParScanThreadState::start_partial_objarray(oop from_obj,
   // klass, as it will already be handled by processing the built-in
   // module.
   assert(to_array->is_refArray(), "Must be");
-  refArrayOop(to_array)->oop_iterate_range(&_scanner, 0, checked_cast<int>(initial_chunk_size));
+  refArrayOop(to_array)->oop_iterate_elements_range(&_scanner, 0, checked_cast<int>(initial_chunk_size));
 }
 
 MAYBE_INLINE_EVACUATION

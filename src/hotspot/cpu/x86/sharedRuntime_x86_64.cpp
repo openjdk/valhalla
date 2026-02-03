@@ -2180,7 +2180,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   int vep_offset = ((intptr_t)__ pc()) - start;
 
-  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+  if (method->needs_clinit_barrier()) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     Label L_skip_barrier;
     Register klass = r10;
     __ mov_metadata(klass, method->method_holder()); // InstanceKlass*
