@@ -1382,7 +1382,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   assert(nullptr == _fields_annotations, "invariant");
   assert(nullptr == _fields_type_annotations, "invariant");
 
+  // "inline type" means concrete value class
   bool is_inline_type = !class_access_flags.is_identity_class() && !class_access_flags.is_abstract();
+  // "value class" can be either abstract or concrete value class
   bool is_value_class = !class_access_flags.is_identity_class() && !class_access_flags.is_interface();
   cfs->guarantee_more(2, CHECK);  // length
   const u2 length = cfs->get_u2_fast();
@@ -1393,8 +1395,11 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                                                   &num_injected);
 
   // two more slots are required for inline classes:
-  // one for the static field with a reference to the pre-allocated default value
-  // one for the field the JVM injects when detecting an empty inline class
+  //   - one for the static field with a reference to the pre-allocated default value
+  //   - one for the field the JVM injects when detecting an empty inline class
+  // one more slot is required for both abstract value class and inline classes:
+  //   - one for the field map for acmp/hash, includes nonstatic fields inherited from
+  //     superclasses or declared by the current class, computed recursively
   const int total_fields = length + num_injected + (is_inline_type ? 2 : 0)
                            + (is_value_class ? 1 : 0);
 
