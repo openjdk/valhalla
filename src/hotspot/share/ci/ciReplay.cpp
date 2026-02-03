@@ -899,7 +899,7 @@ class CompileReplay : public StackObj {
       guarantee(false, "invalid array_properties: %d, fall back to DEFAULT", array_properties);
     }
 
-    return obj_array_klass->klass_with_properties(array_properties, THREAD);
+    return obj_array_klass->klass_with_properties(array_properties, false, THREAD);
   }
 
   // instanceKlass <name>
