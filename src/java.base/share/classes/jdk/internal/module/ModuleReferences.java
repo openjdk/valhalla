@@ -36,9 +36,11 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -60,7 +62,7 @@ import sun.net.www.ParseUtil;
  */
 
 class ModuleReferences {
-    private ModuleReferences() { }
+    private ModuleReferences() {}
 
     /**
      * Creates a ModuleReference to a possibly-patched module
@@ -71,13 +73,13 @@ class ModuleReferences {
                                              ModulePatcher patcher,
                                              HashSupplier hasher) {
         ModuleReference mref = new ModuleReferenceImpl(attrs.descriptor(),
-                                                       uri,
-                                                       supplier,
-                                                       null,
-                                                       attrs.target(),
-                                                       attrs.recordedHashes(),
-                                                       hasher,
-                                                       attrs.moduleResolution());
+                uri,
+                supplier,
+                null,
+                attrs.target(),
+                attrs.recordedHashes(),
+                hasher,
+                attrs.moduleResolution());
         if (patcher != null)
             mref = patcher.patchIfNeeded(mref);
 
@@ -101,7 +103,7 @@ class ModuleReferences {
         HashSupplier hasher = new HashSupplier() {
             @Override
             public byte[] generate(String algorithm) {
-              return ModuleHashes.computeHash(supplier, algorithm);
+                return ModuleHashes.computeHash(supplier, algorithm);
             }
         };
         return newModule(attrs, uri, supplier, patcher, hasher);
@@ -142,7 +144,7 @@ class ModuleReferences {
         private final Lock writeLock = lock.writeLock();
         private boolean closed;
 
-        SafeCloseModuleReader() { }
+        SafeCloseModuleReader() {}
 
         /**
          * Returns a URL to  resource. This method is invoked by the find
@@ -238,9 +240,9 @@ class ModuleReferences {
         static JarFile newJarFile(String path) {
             try {
                 return new JarFile(new File(path),
-                                   true,                       // verify
-                                   ZipFile.OPEN_READ,
-                                   JarFile.runtimeVersion());
+                        true,                       // verify
+                        ZipFile.OPEN_READ,
+                        JarFile.runtimeVersion());
             } catch (IOException ioe) {
                 throw new UncheckedIOException(ioe);
             }
@@ -434,20 +436,20 @@ class ModuleReferences {
         @Override
         public Stream<String> list() throws IOException {
             ensureOpen();
-            return previewDir == null
-                    ? list(dir).sorted()
-                    : Stream.concat(list(dir), list(previewDir)).sorted().distinct();
-        }
-
-        private Stream<String> list(Path dir) throws IOException {
-            List<String> names;
-            try (Stream<Path> files = Files.walk(dir, Integer.MAX_VALUE)) {
-                names = files
-                        .map(f -> Resources.toResourceName(dir, f))
-                        .filter(s -> !s.isEmpty())
-                        .toList();
+            LinkedHashSet<String> names = new LinkedHashSet<>();
+            collectNames(dir, names);
+            if (previewDir != null) {
+                collectNames(previewDir, names);
             }
             return names.stream();
+        }
+
+        private void collectNames(Path dir, Set<String> dest) throws IOException {
+            try (Stream<Path> files = Files.walk(dir, Integer.MAX_VALUE)) {
+                files.map(f -> Resources.toResourceName(dir, f))
+                        .filter(s -> !s.isEmpty())
+                        .forEach(dest::add);
+            }
         }
 
         @Override
