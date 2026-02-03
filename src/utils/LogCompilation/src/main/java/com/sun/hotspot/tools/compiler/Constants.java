@@ -40,6 +40,7 @@ interface Constants {
     static final int  JVM_ACC_INTERFACE     = 0x0200;  /* class is an interface */
     static final int  JVM_ACC_ABSTRACT      = 0x0400;  /* no definition provided */
     static final int  JVM_ACC_STRICT        = 0x0800;  /* strict floating point */
+    static final int  JVM_ACC_STRICT_INIT   = 0x0800;  /* strict field initialization */
     static final int  JVM_ACC_SYNTHETIC     = 0x1000;  /* compiler-generated class, method or field */
     static final int  JVM_ACC_ANNOTATION    = 0x2000;  /* annotation type */
     static final int  JVM_ACC_ENUM          = 0x4000;  /* field is declared as element of enum */

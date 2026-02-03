@@ -209,6 +209,18 @@ public final class Modifier {
         return (mod & STRICT) != 0;
     }
 
+      /**
+     * Return {@code true} if the integer argument includes the
+     * {@code strict_init} modifier, {@code false} otherwise.
+     *
+     * @param   mod a set of modifiers
+     * @return {@code true} if {@code mod} includes the
+     * {@code strict_init} modifier; {@code false} otherwise.
+     */
+    public static boolean isStrictInit(int mod) {
+        return (mod & STRICT_INIT) != 0;
+    }
+
     /**
      * Return a string describing the access modifier flags in
      * the specified modifier. For example:
@@ -367,6 +379,13 @@ public final class Modifier {
      */
     public static final int STRICT           = 0x00000800;
 
+    /**
+     * The {@code int} value representing the {@code strict_init}
+     * modifier.
+     * @see AccessFlag#STRICT_INIT
+     */
+    public static final int STRICT_INIT      = 0x00000800;
+
     // Bits not (yet) exposed in the public API either because they
     // have different meanings for fields and methods and there is no
     // way to distinguish between the two in this class, or because
@@ -436,7 +455,7 @@ public final class Modifier {
     private static final int FIELD_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.STATIC         | Modifier.FINAL        | Modifier.TRANSIENT |
-        Modifier.VOLATILE;
+        Modifier.VOLATILE       | Modifier.STRICT_INIT;
 
     /**
      * The Java source modifiers that can be applied to a method or constructor parameter.

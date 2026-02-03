@@ -51,7 +51,7 @@ public class AccessFlags implements /* imports */ ClassConstants {
   public boolean isAnnotation  () { return (flags & JVM_ACC_ANNOTATION  ) != 0; }
   public boolean isInterface   () { return (flags & JVM_ACC_INTERFACE   ) != 0; }
   public boolean isAbstract    () { return (flags & JVM_ACC_ABSTRACT    ) != 0; }
-  public boolean isStrict      () { return (flags & JVM_ACC_STRICT      ) != 0; }
+  public boolean isStrict      () { return (flags & JVM_ACC_STRICT_INIT ) != 0; }
   public boolean isSynthetic   () { return (flags & JVM_ACC_SYNTHETIC   ) != 0; }
 
   public long getValue         () { return flags; }

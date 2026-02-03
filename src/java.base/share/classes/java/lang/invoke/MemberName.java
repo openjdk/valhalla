@@ -393,6 +393,10 @@ final class MemberName implements Member, Cloneable {
     public boolean isStrict() {
         return Modifier.isStrict(flags);
     }
+     /** Utility method to query the modifier flags of this member. */
+    public boolean isStrictInit() {
+        return Modifier.isStrictInit(flags);
+    }
     /** Utility method to query whether this member or its defining class is final. */
     public boolean canBeStaticallyBound() {
         return Modifier.isFinal(flags | clazz.getModifiers());

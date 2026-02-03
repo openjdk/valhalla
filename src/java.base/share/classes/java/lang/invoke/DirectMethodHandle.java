@@ -388,7 +388,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         // the barrier must remain. We can detect this simply by checking if initialization
         // is still needed.
         boolean initializingStill = UNSAFE.shouldBeInitialized(defc);
-        if (initializingStill && member.isStrict()) {
+        if (initializingStill && member.isStrictInit()) {
             // while <clinit> is running, we track access to strict static fields
             UNSAFE.notifyStrictStaticAccess(defc, staticOffset(this), member.isSetter());
         }
