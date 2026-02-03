@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,11 @@
 
 package jdk.internal.module;
 
+import jdk.internal.jmod.JmodFile;
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.module.ModuleHashes.HashSupplier;
+import sun.net.www.ParseUtil;
+
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
@@ -47,10 +52,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
-
-import jdk.internal.jmod.JmodFile;
-import jdk.internal.module.ModuleHashes.HashSupplier;
-import sun.net.www.ParseUtil;
 
 
 /**
@@ -123,7 +124,9 @@ class ModuleReferences {
     static ModuleReference newExplodedModule(ModuleInfo.Attributes attrs,
                                              ModulePatcher patcher,
                                              Path dir) {
-        Supplier<ModuleReader> supplier = () -> new ExplodedModuleReader(dir);
+        // TODO: Add check to restrict to core JDK modules.
+        boolean previewMode = PreviewFeatures.isEnabled();
+        Supplier<ModuleReader> supplier = () -> new ExplodedModuleReader(dir, previewMode);
         return newModule(attrs, dir.toUri(), supplier, patcher, null);
     }
 
@@ -366,10 +369,13 @@ class ModuleReferences {
      */
     static class ExplodedModuleReader implements ModuleReader {
         private final Path dir;
+        private final Path previewDir;
         private volatile boolean closed;
 
-        ExplodedModuleReader(Path dir) {
+        ExplodedModuleReader(Path dir, boolean previewMode) {
             this.dir = dir;
+            Path preview = dir.resolve("META-INF", "preview");
+            this.previewDir = (previewMode && Files.isDirectory(preview)) ? preview : null;
         }
 
         /**
@@ -379,10 +385,20 @@ class ModuleReferences {
             if (closed) throw new IOException("ModuleReader is closed");
         }
 
+        private Path toFilePath(String name) throws IOException {
+            if (previewDir != null) {
+                Path previewPath = Resources.toFilePath(previewDir, name);
+                if (previewPath != null && Files.exists(previewPath)) {
+                    return previewPath;
+                }
+            }
+            return Resources.toFilePath(dir, name);
+        }
+
         @Override
         public Optional<URI> find(String name) throws IOException {
             ensureOpen();
-            Path path = Resources.toFilePath(dir, name);
+            Path path = toFilePath(name);
             if (path != null) {
                 try {
                     return Optional.of(path.toUri());
@@ -397,7 +413,7 @@ class ModuleReferences {
         @Override
         public Optional<InputStream> open(String name) throws IOException {
             ensureOpen();
-            Path path = Resources.toFilePath(dir, name);
+            Path path = toFilePath(name);
             if (path != null) {
                 return Optional.of(Files.newInputStream(path));
             } else {
@@ -408,7 +424,7 @@ class ModuleReferences {
         @Override
         public Optional<ByteBuffer> read(String name) throws IOException {
             ensureOpen();
-            Path path = Resources.toFilePath(dir, name);
+            Path path = toFilePath(name);
             if (path != null) {
                 return Optional.of(ByteBuffer.wrap(Files.readAllBytes(path)));
             } else {
@@ -419,9 +435,20 @@ class ModuleReferences {
         @Override
         public Stream<String> list() throws IOException {
             ensureOpen();
-            return Files.walk(dir, Integer.MAX_VALUE)
+            return previewDir == null
+                    ? list(dir).sorted()
+                    : Stream.concat(list(dir), list(previewDir)).sorted().distinct();
+        }
+
+        private Stream<String> list(Path dir) throws IOException {
+            List<String> names;
+            try (Stream<Path> files = Files.walk(dir, Integer.MAX_VALUE)) {
+                names = files
                         .map(f -> Resources.toResourceName(dir, f))
-                        .filter(s -> s.length() > 0);
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+            }
+            return names.stream();
         }
 
         @Override
