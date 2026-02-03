@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,8 @@ import java.lang.annotation.*;
 
 /**
  * A null-restricted field is a field that does not store {@code null}.
- * The type of the field is expected to be a value class type with the
- * {@link Strict} annotation. The field must be initialized according
- * to the strict fields rules, and attempts to write {@code null}
+ * The field must be initialized according to the strict field initialization
+ * rules, and attempts to write {@code null}
  * to the field will throw an exception.
  * <p>
  * The HotSpot VM uses this annotation to enable flattened encodings for the

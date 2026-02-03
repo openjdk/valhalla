@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -455,7 +455,7 @@ public class Gen extends JCTree.Visitor {
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
                 else if ((block.flags & SYNTHETIC) == 0) {
-                    if (c.isValueClass() || c.hasStrict()) {
+                    if (c.isValueClass()) {
                         initBlocks.append(block);
                     } else {
                         initCode.append(block);
@@ -589,7 +589,7 @@ public class Gen extends JCTree.Visitor {
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
-            if (allowValueClasses & (md.sym.owner.isValueClass() || md.sym.owner.hasStrict() || ((md.sym.owner.flags_field & RECORD) != 0))) {
+            if (allowValueClasses & (md.sym.owner.isValueClass() || ((md.sym.owner.flags_field & RECORD) != 0))) {
                 rewriteInitializersIfNeeded(md, inits);
                 md.body.stats = inits.appendList(md.body.stats);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));

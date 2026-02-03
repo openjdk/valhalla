@@ -304,12 +304,12 @@ class FieldLayoutBuilder : public ResourceObj {
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _has_nonstatic_fields;
-  bool _has_inline_type_fields;
+  bool _has_inlineable_fields;
+  bool _has_inlined_fields;
   bool _is_contended;
   bool _super_ends_with_oop;
   bool _is_inline_type;
   bool _is_abstract_value;
-  bool _has_flattening_information;
   bool _is_empty_inline_class;
 
   FieldGroup* get_or_create_contended_group(int g);
