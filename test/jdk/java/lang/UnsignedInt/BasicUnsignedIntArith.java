@@ -98,31 +98,13 @@ public class BasicUnsignedIntArith {
                                    UnsignedInt.remainder(op1_U, op2_U),
                                    Integer.remainderUnsigned(op1, op2), "%");
                 } else {
-
-                    // TODO: migrate these two try-catch statements to
-                    // method calls once lambda's work.
-                    // expectDivideByZero(op1_U, op2_U, () -> op1_U / op2_U); // Verify error :-(
-                    // expectDivideByZero(op1_U, op2_U, () -> op1_U % op2_U); // Verify error :-(
-                    try {
-                        UnsignedInt quotient = op1_U / op2_U;
-                        System.err.println("Missing arithmetic exception for divide by zero: " +
-                                           op1_U + " / " + op2_U);
-                        errors++;
-                    } catch(ArithmeticException ae) {
-                        ; // expected
-                    }
-
-                    try {
-                        UnsignedInt quotient = op1_U % op2_U;
-                        System.err.println("Missing arithmetic exception for divide by zero: " +
-                                           op1_U + " % " + op2_U);
-                        errors++;
-                    } catch(ArithmeticException ae) {
-                        ; // expected
-                    }
-
+                    // Division
+                    errors += expectDivideByZero(op1_U, op2_U, () -> op1_U / op2_U);
                     errors += expectDivideByZero(op1_U, op2_U,
                                                  () -> UnsignedInt.divide(op1_U, op2_U));
+
+                    // Remainder
+                    errors += expectDivideByZero(op1_U, op2_U, () -> op1_U % op2_U);
                     errors += expectDivideByZero(op1_U, op2_U,
                                                  () -> UnsignedInt.remainder(op1_U, op2_U));
                 }
