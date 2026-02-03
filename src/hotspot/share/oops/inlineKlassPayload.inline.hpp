@@ -348,7 +348,7 @@ inline instanceOop FlatFieldInlineKlassPayload::get_holder() const {
   return instanceOop(ValuePayload::get_holder());
 }
 
-inline void FlatInlineKlassPayload::copy_from_helper(ValuePayload& src) {
+inline void FlatValuePayload::copy_from_helper(ValuePayload& src) {
   // Copy from BUFFERED to FLAT, null marker fix may be required.
   if (has_null_marker()) {
     // The FLAT payload has a null mark. So make sure that buffered is marked as
@@ -359,7 +359,7 @@ inline void FlatInlineKlassPayload::copy_from_helper(ValuePayload& src) {
   copy(src, *this, get_layout_kind());
 }
 
-inline bool FlatInlineKlassPayload::copy_to(BufferedValuePayload& dst) {
+inline bool FlatValuePayload::copy_to(BufferedValuePayload& dst) {
   // Copy from FLAT to BUFFERED, null marker fix may be required.
 
   // Copy the payload to the buffered object.
@@ -378,22 +378,19 @@ inline bool FlatInlineKlassPayload::copy_to(BufferedValuePayload& dst) {
   return !dst.is_payload_null();
 }
 
-inline void
-FlatInlineKlassPayload::copy_from_non_null(BufferedValuePayload& src) {
+inline void FlatValuePayload::copy_from_non_null(BufferedValuePayload& src) {
   copy_from_helper(src);
 }
 
-inline void
-FlatInlineKlassPayload::copy_to(const FlatFieldInlineKlassPayload& dst) {
+inline void FlatValuePayload::copy_to(const FlatFieldInlineKlassPayload& dst) {
   copy(*this, dst, get_layout_kind());
 }
 
-inline void
-FlatInlineKlassPayload::copy_to(const FlatArrayInlineKlassPayload& dst) {
+inline void FlatValuePayload::copy_to(const FlatArrayInlineKlassPayload& dst) {
   copy(*this, dst, get_layout_kind());
 }
 
-inline inlineOop FlatInlineKlassPayload::read(TRAPS) {
+inline inlineOop FlatValuePayload::read(TRAPS) {
   switch (get_layout_kind()) {
   case LayoutKind::NULLABLE_ATOMIC_FLAT:
   case LayoutKind::NULLABLE_NON_ATOMIC_FLAT: {
@@ -418,8 +415,7 @@ inline inlineOop FlatInlineKlassPayload::read(TRAPS) {
   }
 }
 
-inline void
-FlatInlineKlassPayload::write_without_nullability_check(inlineOop obj) {
+inline void FlatValuePayload::write_without_nullability_check(inlineOop obj) {
   if (obj == nullptr) {
     assert(has_null_marker(), "Null is not allowed");
 
@@ -450,7 +446,7 @@ FlatInlineKlassPayload::write_without_nullability_check(inlineOop obj) {
   }
 }
 
-inline void FlatInlineKlassPayload::write(inlineOop obj, TRAPS) {
+inline void FlatValuePayload::write(inlineOop obj, TRAPS) {
   if (obj == nullptr && !has_null_marker()) {
     // This payload does not have a null marker and cannot represent a null
     // value.
@@ -459,28 +455,28 @@ inline void FlatInlineKlassPayload::write(inlineOop obj, TRAPS) {
   write_without_nullability_check(obj);
 }
 
-inline FlatInlineKlassPayload FlatInlineKlassPayload::construct_from_parts(
+inline FlatValuePayload FlatValuePayload::construct_from_parts(
     oop holder, InlineKlass* klass, ptrdiff_t offset, LayoutKind layout_kind) {
-  return FlatInlineKlassPayload(holder, klass, offset, layout_kind);
+  return FlatValuePayload(holder, klass, offset, layout_kind);
 }
 
-FlatInlineKlassPayload FlatInlineKlassPayload::Handle::operator()() const {
+FlatValuePayload FlatValuePayload::Handle::operator()() const {
   return construct_from_parts(get_holder(), get_klass(), get_offset(),
                               get_layout_kind());
 }
 
-FlatInlineKlassPayload FlatInlineKlassPayload::OopHandle::operator()() const {
+FlatValuePayload FlatValuePayload::OopHandle::operator()() const {
   return construct_from_parts(get_holder(), get_klass(), get_offset(),
                               get_layout_kind());
 }
 
-FlatInlineKlassPayload::Handle
-FlatInlineKlassPayload::get_handle(JavaThread* thread) const {
+FlatValuePayload::Handle
+FlatValuePayload::get_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
-FlatInlineKlassPayload::OopHandle
-FlatInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
+FlatValuePayload::OopHandle
+FlatValuePayload::get_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
@@ -552,7 +548,7 @@ FlatFieldInlineKlassPayload::get_oop_handle(OopStorage* storage) const {
 inline FlatArrayInlineKlassPayload::FlatArrayInlineKlassPayload(
     flatArrayOop holder, InlineKlass* klass, ptrdiff_t offset,
     LayoutKind layout_kind, jint layout_helper, int element_size)
-    : FlatInlineKlassPayload(holder, klass, offset, layout_kind),
+    : FlatValuePayload(holder, klass, offset, layout_kind),
       _storage{layout_helper, element_size} {}
 
 inline flatArrayOop FlatArrayInlineKlassPayload::get_holder() const {
@@ -651,8 +647,7 @@ FlatArrayInlineKlassPayload::construct_from_parts(
 
 inline FlatArrayInlineKlassPayload::Handle::Handle(
     const FlatArrayInlineKlassPayload& payload, JavaThread* thread)
-    : FlatInlineKlassPayload::Handle(payload, thread),
-      _storage(payload._storage) {}
+    : FlatValuePayload::Handle(payload, thread), _storage(payload._storage) {}
 
 FlatArrayInlineKlassPayload
 FlatArrayInlineKlassPayload::Handle::operator()() const {
@@ -671,7 +666,7 @@ inline flatArrayOop FlatArrayInlineKlassPayload::OopHandle::get_holder() const {
 
 inline FlatArrayInlineKlassPayload::OopHandle::OopHandle(
     const FlatArrayInlineKlassPayload& payload, OopStorage* storage)
-    : FlatInlineKlassPayload::OopHandle(payload, storage),
+    : FlatValuePayload::OopHandle(payload, storage),
       _storage(payload._storage) {}
 
 FlatArrayInlineKlassPayload

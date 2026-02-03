@@ -291,10 +291,8 @@ public:
     for (int i = 0; i < _entries.length(); i++) {
       EXCEPTION_MARK;
       Entry& entry = _entries.at(i);
-      FlatInlineKlassPayload payload =
-          FlatInlineKlassPayload::construct_from_parts(
-              entry.holder(), entry.inline_klass, entry.offset,
-              entry.layout_kind);
+      FlatValuePayload payload = FlatValuePayload::construct_from_parts(
+          entry.holder(), entry.inline_klass, entry.offset, entry.layout_kind);
       oop obj = payload.read(JavaThread::current());
 
       if (HAS_PENDING_EXCEPTION) {
