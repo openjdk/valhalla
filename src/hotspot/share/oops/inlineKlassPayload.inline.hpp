@@ -41,28 +41,31 @@
 inline InlineKlassPayload::InlineKlassPayload(oop holder, InlineKlass* klass,
                                               size_t offset,
                                               LayoutKind layout_kind)
-    : _holder(holder), _klass(klass), _offset(offset),
-      _layout_kind(layout_kind) {
+    : _storage{holder, klass, offset, layout_kind} {
   assert_post_construction_invariants();
 }
 
-inline void InlineKlassPayload::set_offset(size_t offset) { _offset = offset; }
+inline void InlineKlassPayload::set_offset(size_t offset) {
+  _storage._offset = offset;
+}
 
-inline oop InlineKlassPayload::get_holder() const { return _holder; }
+inline oop InlineKlassPayload::get_holder() const { return _storage._holder; }
 
-inline InlineKlass* InlineKlassPayload::get_klass() const { return _klass; }
+inline InlineKlass* InlineKlassPayload::get_klass() const {
+  return _storage._klass;
+}
 
 inline size_t InlineKlassPayload::get_offset() const {
-  precond(_offset != BAD_OFFSET);
-  return _offset;
+  precond(_storage._offset != BAD_OFFSET);
+  return _storage._offset;
 }
 
 inline LayoutKind InlineKlassPayload::get_layout_kind() const {
-  return _layout_kind;
+  return _storage._layout_kind;
 }
 
 inline address InlineKlassPayload::get_address() const {
-  return cast_from_oop<address>(get_holder()) + _offset;
+  return cast_from_oop<address>(get_holder()) + _storage._offset;
 }
 
 inline bool InlineKlassPayload::has_null_marker() const {
@@ -85,9 +88,9 @@ inline bool InlineKlassPayload::is_payload_null() const {
 }
 
 inline inlineOop InlineKlassPayload::allocate_instance(TRAPS) const {
-  Handle holder(THREAD, _holder);
-  inlineOop res = _klass->allocate_instance(THREAD);
-  _holder = holder();
+  Handle holder(THREAD, get_holder());
+  inlineOop res = get_klass()->allocate_instance(THREAD);
+  _storage._holder = holder();
   return res;
 }
 
@@ -116,10 +119,10 @@ void InlineKlassPayload::print_on(outputStream* st) const {
   {
     st->print_cr("--- offset ---");
     StreamIndentor si(st);
-    st->print_cr("_offset: %zu", _offset);
+    st->print_cr("_offset: %zu", _storage._offset);
   }
   {
-    const LayoutKind layout_kind = _layout_kind;
+    const LayoutKind layout_kind = get_layout_kind();
     st->print_cr("--- layout_kind ---");
     StreamIndentor si(st);
     st->print_cr("_layout_kind: %u", (uint32_t)layout_kind);
@@ -416,18 +419,18 @@ inline FlatArrayInlineKlassPayload::FlatArrayInlineKlassPayload(
     flatArrayOop holder, InlineKlass* klass, size_t offset,
     LayoutKind layout_kind, jint layout_helper, int element_size)
     : FlatInlineKlassPayload(holder, klass, offset, layout_kind),
-      _layout_helper(layout_helper), _element_size(element_size) {}
+      _storage{layout_helper, element_size} {}
 
 inline flatArrayOop FlatArrayInlineKlassPayload::get_holder() const {
   return flatArrayOop(InlineKlassPayload::get_holder());
 }
 
 inline void FlatArrayInlineKlassPayload::set_index(int index) {
-  set_offset(get_holder()->value_offset(index, _layout_helper));
+  set_offset(get_holder()->value_offset(index, _storage._layout_helper));
 }
 
 inline void FlatArrayInlineKlassPayload::advance_index(int delta) {
-  set_offset(this->get_offset() + delta * ssize_t(_element_size));
+  set_offset(this->get_offset() + delta * ssize_t(_storage._element_size));
 }
 
 inline void FlatArrayInlineKlassPayload::next_element() { advance_index(1); }
@@ -443,15 +446,17 @@ inline void FlatArrayInlineKlassPayload::set_offset(size_t offset) {
   // base offset is allowed. However we treat these as terminal states, and set
   // the offset to a BAD_OFFSET in debug builds.
 
-  assert(flatArrayOopDesc::base_offset_in_bytes() >= (size_t)_element_size,
+  const int element_size = _storage._element_size;
+
+  assert(flatArrayOopDesc::base_offset_in_bytes() >= (size_t)element_size,
          "These asserts assumes that the largest element is smaller than the "
          "base offset. %zu >= %zu",
-         flatArrayOopDesc::base_offset_in_bytes(), (size_t)_element_size);
+         flatArrayOopDesc::base_offset_in_bytes(), (size_t)element_size);
   const int length = get_holder()->length();
   const ssize_t min_offset = (ssize_t)flatArrayOopDesc::base_offset_in_bytes() -
-                             (length == 0 ? 0 : _element_size);
+                             (length == 0 ? 0 : element_size);
   const ssize_t max_offset =
-      flatArrayOopDesc::base_offset_in_bytes() + length * _element_size;
+      flatArrayOopDesc::base_offset_in_bytes() + length * element_size;
   assert(min_offset <= (ssize_t)offset && (ssize_t)offset <= max_offset,
          "Offset out-ouf-bounds: %zd <= %zd <= %zd", min_offset,
          (ssize_t)offset, max_offset);

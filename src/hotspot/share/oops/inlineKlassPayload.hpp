@@ -41,10 +41,16 @@ class ResolvedFieldEntry;
 
 class InlineKlassPayload {
 private:
-  mutable oop _holder;
-  InlineKlass* _klass;
-  size_t _offset;
-  LayoutKind _layout_kind;
+  template <typename Holder> struct StorageImpl {
+    mutable Holder _holder;
+    InlineKlass* _klass;
+    size_t _offset;
+    LayoutKind _layout_kind;
+  };
+
+  using Storage = StorageImpl<oop>;
+
+  Storage _storage;
 
 protected:
   static constexpr size_t BAD_OFFSET = ~0u;
@@ -172,8 +178,10 @@ public:
 
 class FlatArrayInlineKlassPayload : public FlatInlineKlassPayload {
 private:
-  jint _layout_helper;
-  int _element_size;
+  struct Storage {
+    jint _layout_helper;
+    int _element_size;
+  } _storage;
 
 protected:
   using FlatInlineKlassPayload::FlatInlineKlassPayload;
