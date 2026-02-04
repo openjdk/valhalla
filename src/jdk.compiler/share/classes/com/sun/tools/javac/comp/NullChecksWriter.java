@@ -25,14 +25,11 @@
 
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.*;
@@ -73,7 +70,6 @@ public class NullChecksWriter extends TreeTranslator {
     private final Types types;
     private TreeMaker make;
     private final Attr attr;
-    private final Symtab syms;
     /** are null restricted types allowed?
       */
     private final boolean allowNullRestrictedTypes;
@@ -86,7 +82,6 @@ public class NullChecksWriter extends TreeTranslator {
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         attr = Attr.instance(context);
-        syms = Symtab.instance(context);
         Preview preview = Preview.instance(context);
         Source source = Source.instance(context);
         allowNullRestrictedTypes = (!preview.isPreview(Source.Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
@@ -156,16 +151,6 @@ public class NullChecksWriter extends TreeTranslator {
         if (tree.init != null) {
             if (types.isNonNullable(tree.sym.type)) {
                 tree.init = attr.makeNullCheck(tree.init, true);
-            }
-        }
-        // temporary hack, this is only to test null restriction in the VM for fields of a value class type
-        if (tree.sym.owner.kind == TYP &&
-                tree.sym.type.isValueClass() &&
-                types.isNonNullable(tree.sym.type)) {
-            List<Attribute.Compound> rawAttrs = tree.sym.getRawAttributes();
-            if (rawAttrs.isEmpty() || !rawAttrs.stream().anyMatch(ac -> ac.type.tsym == syms.nullRestrictedType.tsym)) {
-                Attribute.Compound ac = new Attribute.Compound(syms.nullRestrictedType, List.nil());
-                tree.sym.appendAttributes(List.of(ac));
             }
         }
         result = tree;

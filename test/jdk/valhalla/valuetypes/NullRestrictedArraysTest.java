@@ -37,7 +37,6 @@ import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -67,8 +66,7 @@ public class NullRestrictedArraysTest {
     static class T {
         String s;
         Value obj;  // can be null
-        @NullRestricted
-        Value value;
+        Value! value;
 
         T() {
             value = new Value();

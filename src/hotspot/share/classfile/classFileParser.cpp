@@ -1416,7 +1416,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
     if (!supports_inline_types()) {
-      recognized_modifiers &= ~JVM_ACC_STRICT;
+      recognized_modifiers &= ~(JVM_ACC_STRICT | JVM_ACC_NULL_CHECKED);
     }
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
@@ -4613,6 +4613,7 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   const bool is_transient = (flags & JVM_ACC_TRANSIENT) != 0;
   const bool is_enum      = (flags & JVM_ACC_ENUM)      != 0;
   const bool is_strict    = (flags & JVM_ACC_STRICT)    != 0;
+  const bool is_null_checked = (flags & JVM_ACC_NULL_CHECKED) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
   const bool is_interface = class_access_flags.is_interface();
@@ -4646,6 +4647,9 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
         if (!is_identity_class && !is_static && (!is_strict || !is_final)) {
           is_illegal = true;
           error_msg = "value class fields must be either non-static final and strict, or static";
+        } else if (is_null_checked && !is_strict) {
+          is_illegal = true;
+          error_msg = "null-checked fields must be strictly initialized";
         }
       }
     }
@@ -6313,6 +6317,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
+              // bworld: Make null checked concrete value fields inlined
+              if (fieldinfo.access_flags().is_null_checked()) {
+                _temp_field_info->adr_at(fieldinfo.index())->field_flags_addr()->update_null_free_inline_type(true);
+                log_info(class, preload)("Marking field %s of class %s as null restricted "
+                         "(cause: ACC_NULL_CHECKED) succeeded",
+                         fieldinfo.name(klass->constants())->as_C_string(), _class_name->as_C_string());
+              }
               set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
               log_info(class, preload)("Preloading of class %s during loading of class %s "
                                        "(cause: field type in LoadableDescriptors attribute) succeeded",
