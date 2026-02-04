@@ -647,7 +647,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       }
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() && t->isa_aryptr()) {
       // Speculate on varargs Object array being the default array refined type
-      const TypeAryPtr* spec_type = (t->speculative() != nullptr) ? t->speculative()->is_aryptr() : t->remove_speculative()->is_aryptr();
+      const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
       ciSignature* method_signature = method()->signature();
       ciType* parm_citype = method_signature->type_at(method_signature->count() - 1);
       if (!parm_citype->is_obj_array_klass()) {
