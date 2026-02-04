@@ -53,6 +53,7 @@ private:
   using Storage = StorageImpl<oop>;
 
   Storage _storage;
+  DEBUG_ONLY(bool _is_raw;)
 
 protected:
   static constexpr ptrdiff_t BAD_OFFSET = -1;
@@ -63,7 +64,8 @@ protected:
 
   // Constructed from parts
   inline ValuePayload(oop holder, InlineKlass* klass, ptrdiff_t offset,
-                      LayoutKind layout_kind);
+                      LayoutKind layout_kind
+                          DEBUG_ONLY(COMMA bool is_raw = false));
 
   inline void set_offset(ptrdiff_t offset);
   inlineOop allocate_instance(TRAPS) const;
@@ -75,6 +77,7 @@ protected:
   inline void mark_as_null();
 
 private:
+  DEBUG_ONLY(inline bool is_raw() const;)
   inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
   inline void assert_post_construction_invariants() const NOT_DEBUG_RETURN;
   static inline void
@@ -97,6 +100,14 @@ public:
 
   inline Handle get_handle(JavaThread* thread) const;
   inline OopHandle get_oop_handle(OopStorage* storage) const;
+};
+
+class RawValuePayload : public ValuePayload {
+public:
+  RawValuePayload() = default;
+
+  inline RawValuePayload(address payload_address, InlineKlass* klass,
+                         LayoutKind layout_kind);
 };
 
 class BufferedValuePayload : public ValuePayload {

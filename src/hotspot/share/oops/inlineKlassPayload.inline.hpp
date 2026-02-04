@@ -39,9 +39,11 @@
 #include "utilities/ostream.hpp"
 #include "utilities/vmError.hpp"
 
-inline ValuePayload::ValuePayload(oop holder, InlineKlass* klass,
-                                  ptrdiff_t offset, LayoutKind layout_kind)
-    : _storage{holder, klass, offset, layout_kind} {
+inline ValuePayload::ValuePayload(
+    oop holder, InlineKlass* klass, ptrdiff_t offset,
+    LayoutKind layout_kind DEBUG_ONLY(COMMA bool is_raw))
+    : _storage{holder, klass, offset,
+               layout_kind} DEBUG_ONLY(COMMA _is_raw(is_raw)) {
   assert_post_construction_invariants();
 }
 
@@ -100,6 +102,8 @@ inline void ValuePayload::mark_as_null() {
 }
 
 #ifdef ASSERT
+bool ValuePayload::is_raw() const { return _is_raw; }
+
 void ValuePayload::print_on(outputStream* st) const {
   {
     oop holder = get_holder();
@@ -144,7 +148,7 @@ inline void ValuePayload::assert_post_construction_invariants() const {
     st->cr();
   });
 
-  postcond(get_holder() != nullptr);
+  postcond(is_raw() || get_holder() != nullptr);
   postcond(get_klass()->is_layout_supported(get_layout_kind()));
   postcond(get_layout_kind() != LayoutKind::REFERENCE &&
            get_layout_kind() != LayoutKind::UNKNOWN);
@@ -217,7 +221,8 @@ inline LayoutKind ValuePayload::get_layout_kind() const {
 }
 
 inline address ValuePayload::get_address() const {
-  return cast_from_oop<address>(get_holder()) + _storage._offset;
+  return reinterpret_cast<address>(cast_from_oop<intptr_t>(get_holder()) +
+                                   _storage._offset);
 }
 
 inline bool ValuePayload::has_null_marker() const {
@@ -549,13 +554,21 @@ inline ValuePayload ValuePayload::OopHandle::operator()() const {
 }
 
 inline ValuePayload::Handle ValuePayload::get_handle(JavaThread* thread) const {
+  precond(!is_raw());
   return Handle(*this, thread);
 }
 
 inline ValuePayload::OopHandle
 ValuePayload::get_oop_handle(OopStorage* storage) const {
+  precond(!is_raw());
   return OopHandle(*this, storage);
 }
+
+inline RawValuePayload::RawValuePayload(address payload_address,
+                                        InlineKlass* klass,
+                                        LayoutKind layout_kind)
+    : ValuePayload(nullptr, klass, reinterpret_cast<ptrdiff_t>(payload_address),
+                   layout_kind DEBUG_ONLY(COMMA true /* is_raw */)) {}
 
 BufferedValuePayload BufferedValuePayload::Handle::operator()() const {
   return construct_from_parts(get_holder(), get_klass(), get_offset(),
