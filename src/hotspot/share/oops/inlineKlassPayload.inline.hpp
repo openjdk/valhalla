@@ -64,26 +64,23 @@ inline void ValuePayload::copy(const ValuePayload& src, const ValuePayload& dst,
 
   InlineKlass* const klass = src.get_klass();
 
-  const auto value_copy = [&](const auto& src) {
-    HeapAccess<>::value_copy(src.get_address(), dst.get_address(), klass,
-                             copy_layout_kind);
-  };
-
   switch (copy_layout_kind) {
   case LayoutKind::NULLABLE_ATOMIC_FLAT:
   case LayoutKind::NULLABLE_NON_ATOMIC_FLAT: {
     if (src.is_payload_null()) {
-      // copy null_reset value to dest
-      value_copy(klass->null_payload());
+      HeapAccess<>::value_store_null(dst.get_address(), klass,
+                                     copy_layout_kind);
     } else {
-      value_copy(src);
+      HeapAccess<>::value_copy(src.get_address(), dst.get_address(), klass,
+                               copy_layout_kind);
     }
   } break;
   case LayoutKind::BUFFERED:
   case LayoutKind::NULL_FREE_ATOMIC_FLAT:
   case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
     if (!klass->is_empty_inline_type()) {
-      value_copy(src);
+      HeapAccess<>::value_copy(src.get_address(), dst.get_address(), klass,
+                               copy_layout_kind);
     }
   } break;
   default:
@@ -326,27 +323,8 @@ inline inlineOop FlatValuePayload::read(TRAPS) {
 inline void FlatValuePayload::write_without_nullability_check(inlineOop obj) {
   if (obj == nullptr) {
     assert(has_null_marker(), "Null is not allowed");
-
-    // Writing null to a nullable flat field/element is usually done by copying
-    // the null payload to the payload that the null marker and all potential
-    // oops are reset to "zeros". However, the null payload is allocated during
-    // class initialization. If the current value of the field is null, it is
-    // possible that the class of the field has not been initialized yet and
-    // thus the null payload might not be available yet.
-    // Writing null over an already null value should not trigger class
-    // initialization. The solution is to detect null being written over null
-    // cases and return immediately (writing null over null is a no-op from a
-    // field modification point of view)
-    if (is_payload_null()) {
-      return;
-    }
-
-    // Copy the null payload
-    BufferedValuePayload null_payload = get_klass()->null_payload();
-
-    // Use copy directly as copy_from_non_null assumes the buffered value is
-    // non-null regardless of the null marker.
-    copy(null_payload, *this, get_layout_kind());
+    HeapAccess<>::value_store_null(get_address(), get_klass(),
+                                   get_layout_kind());
   } else {
     // Copy the obj payload
     BufferedValuePayload obj_payload(obj);
