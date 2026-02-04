@@ -646,7 +646,13 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
         replace_in_map(parm, vt);
       }
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
-      // Speculate on varargs Object array being the default array refined type
+      // Speculate on varargs Object array being the default array refined type. The assumption is
+      // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
+      // translate the call so that the caller will create a new default array of Object, put o1,
+      // o2, o3 into the newly created array, then invoke the method test. This only makes sense if
+      // the method we are parsing is the top-level method of the compilation unit. Otherwise, if
+      // it is truly called according to our assumption, we must know the exact type of the
+      // argument because the allocation happens inside the compilation unit.
       const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
       ciSignature* method_signature = method()->signature();
       ciType* parm_citype = method_signature->type_at(method_signature->count() - 1);
