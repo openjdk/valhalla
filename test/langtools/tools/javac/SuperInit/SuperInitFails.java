@@ -307,4 +307,24 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             }
         }
     }
+
+    static class Inner12 {
+        static final boolean check = true;
+        Inner12() {}
+        Inner12(int a) {
+            boolean b = Inner12.this.check; //compilation error expected here
+            this();
+        }
+    }
+
+    static class Inner13 {
+        static final boolean check = true;
+        class Inner13_1 {
+            Inner13_1(int a) {
+                boolean b = Inner13.this.check;
+                this();
+            }
+            Inner13_1() {}
+        }
+    }
 }
