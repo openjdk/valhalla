@@ -274,7 +274,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return a string representation of this {@code Class} object.
      */
-    public String toString() {
+    public String! toString() {
         String kind = isInterface() ? "interface " : isPrimitive() ? "" : "class ";
         return kind.concat(getName());
     }
@@ -313,7 +313,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 1.8
      */
-    public String toGenericString() {
+    public String! toGenericString() {
         if (isPrimitive()) {
             return toString();
         } else {
@@ -377,7 +377,7 @@ public final class Class<T> implements java.io.Serializable,
         }
     }
 
-    private void addSealingInfo(int modifiers, StringBuilder sb) {
+    private void addSealingInfo(int modifiers, StringBuilder! sb) {
         // A class can be final XOR sealed XOR non-sealed.
         if (Modifier.isFinal(modifiers)) {
             return; // no-op
@@ -395,7 +395,7 @@ public final class Class<T> implements java.io.Serializable,
         }
     }
 
-    private boolean hasSealedAncestor(Class<?> clazz) {
+    private boolean hasSealedAncestor(Class<?>! clazz) {
         // From JLS 8.1.1.2:
         // "It is a compile-time error if a class has a sealed direct
         // superclass or a sealed direct superinterface, and is not
@@ -420,7 +420,7 @@ public final class Class<T> implements java.io.Serializable,
         return false;
     }
 
-    static String typeVarBounds(TypeVariable<?> typeVar) {
+    static String! typeVarBounds(TypeVariable<?>! typeVar) {
         Type[] bounds = typeVar.getBounds();
         if (bounds.length == 1 && bounds[0].equals(Object.class)) {
             return typeVar.getName();
@@ -474,7 +474,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 12.4 Initialization of Classes and Interfaces
      */
     @CallerSensitive
-    public static Class<?> forName(String className)
+    public static Class<?>! forName(String! className)
                 throws ClassNotFoundException {
         Class<?> caller = Reflection.getCallerClass();
         return forName(className, caller);
@@ -482,7 +482,7 @@ public final class Class<T> implements java.io.Serializable,
 
     // Caller-sensitive adapter method for reflective invocation
     @CallerSensitiveAdapter
-    private static Class<?> forName(String className, Class<?> caller)
+    private static Class<?>! forName(String! className, Class<?> caller)
             throws ClassNotFoundException {
         validateClassNameLength(className);
         ClassLoader loader = (caller == null) ? ClassLoader.getSystemClassLoader()
@@ -565,7 +565,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 13.1 The Form of a Binary
      * @since     1.2
      */
-    public static Class<?> forName(String name, boolean initialize, ClassLoader loader)
+    public static Class<?>! forName(String! name, boolean initialize, ClassLoader loader)
         throws ClassNotFoundException
     {
         validateClassNameLength(name);
@@ -612,7 +612,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 12.3 Linking of Classes and Interfaces
      * @since 9
      */
-    public static Class<?> forName(Module module, String name) {
+    public static Class<?> forName(Module! module, String! name) {
         Objects.requireNonNull(module);
         Objects.requireNonNull(name);
         if (!ModifiedUtf.isValidLengthInConstantPool(name)) {
@@ -687,7 +687,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 15.8.2 Class Literals
      * @since 22
      */
-    public static Class<?> forPrimitiveName(String primitiveName) {
+    public static Class<?> forPrimitiveName(String! primitiveName) {
         return switch(primitiveName) {
         // Integral types
         case "int"     -> int.class;
@@ -756,7 +756,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     @Deprecated(since="9")
-    public T newInstance()
+    public T! newInstance()
         throws InstantiationException, IllegalAccessException
     {
         // Constructor lookup
@@ -787,7 +787,7 @@ public final class Class<T> implements java.io.Serializable,
         } catch (InvocationTargetException e) {
             Unsafe.getUnsafe().throwException(e.getTargetException());
             // Not reached
-            return null;
+            throw new InternalError();
         }
     }
 
@@ -850,6 +850,7 @@ public final class Class<T> implements java.io.Serializable,
      *            type {@code cls} can be assigned to objects of this class
      * @since     1.1
      */
+    // TODO Can't bang native method
     @IntrinsicCandidate
     public native boolean isAssignableFrom(Class<?> cls);
 
@@ -1015,7 +1016,7 @@ public final class Class<T> implements java.io.Serializable,
      *          represented by this {@code Class} object.
      * @jls 13.1 The Form of a Binary
      */
-    public String getName() {
+    public String! getName() {
         String name = this.name;
         return name != null ? name : initClassName();
     }
@@ -1061,6 +1062,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 9
      */
+    // TODO can't bang, called in early boot
     public Module getModule() {
         return module;
     }
@@ -1102,7 +1104,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
-    public TypeVariable<Class<T>>[] getTypeParameters() {
+    public TypeVariable<Class<T>>[]! getTypeParameters() {
         ClassRepository info = getGenericInfo();
         if (info != null)
             return (TypeVariable<Class<T>>[])info.getTypeParameters();
@@ -1215,7 +1217,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 9
      * @jls 6.7 Fully Qualified Names and Canonical Names
      */
-    public String getPackageName() {
+    public String! getPackageName() {
         String pn = this.packageName;
         if (pn == null) {
             Class<?> c = isArray() ? elementType() : this;
@@ -1278,12 +1280,12 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return an array of interfaces directly implemented by this class
      */
-    public Class<?>[] getInterfaces() {
+    public Class<?>[]! getInterfaces() {
         // defensively copy before handing over to user code
         return getInterfaces(true);
     }
 
-    private Class<?>[] getInterfaces(boolean cloneArray) {
+    private Class<?>[]! getInterfaces(boolean cloneArray) {
         ReflectionData<T> rd = reflectionData();
         Class<?>[] interfaces = rd.interfaces;
         if (interfaces == null) {
@@ -1344,7 +1346,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return an array of interfaces directly implemented by this class
      * @since 1.5
      */
-    public Type[] getGenericInterfaces() {
+    public Type[]! getGenericInterfaces() {
         ClassRepository info = getGenericInfo();
         return (info == null) ?  getInterfaces() : info.getSuperInterfaces();
     }
@@ -1451,7 +1453,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jvms 4.7.6 The InnerClasses Attribute
      * @since 20
      */
-    public Set<AccessFlag> accessFlags() {
+    public Set<AccessFlag>! accessFlags() {
         // Location.CLASS allows SUPER and AccessFlag.MODULE which
         // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
         // and STATIC, which are not allowed on Location.CLASS.
@@ -1562,7 +1564,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     private static final class EnclosingMethodInfo {
-        private final Class<?> enclosingClass;
+        private final Class<?>! enclosingClass;
         private final String name;
         private final String descriptor;
 
@@ -1594,6 +1596,7 @@ public final class Class<T> implements java.io.Serializable,
             this.enclosingClass = (Class<?>)enclosingInfo[0];
             this.name = (String)enclosingInfo[1];
             this.descriptor = (String)enclosingInfo[2];
+            super();
         }
 
         boolean isPartial() {
@@ -1742,7 +1745,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the simple name of the underlying class
      * @since 1.5
      */
-    public String getSimpleName() {
+    public String! getSimpleName() {
         ReflectionData<T> rd = reflectionData();
         String simpleName = rd.simpleName;
         if (simpleName == null) {
@@ -1751,7 +1754,7 @@ public final class Class<T> implements java.io.Serializable,
         return simpleName;
     }
 
-    private String getSimpleName0() {
+    private String! getSimpleName0() {
         if (isArray()) {
             return getComponentType().getSimpleName().concat("[]");
         }
@@ -1769,7 +1772,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return an informative string for the name of this class or interface
      * @since 1.8
      */
-    public String getTypeName() {
+    public String! getTypeName() {
         if (isArray()) {
             try {
                 Class<?> cl = this;
@@ -1946,7 +1949,7 @@ public final class Class<T> implements java.io.Serializable,
      *         members of this class
      * @since 1.1
      */
-    public Class<?>[] getClasses() {
+    public Class<?>[]! getClasses() {
         List<Class<?>> list = new ArrayList<>();
         Class<?> currentClass = Class.this;
         while (currentClass != null) {
@@ -1991,7 +1994,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.2 Class Members
      * @jls 8.3 Field Declarations
      */
-    public Field[] getFields() {
+    public Field[]! getFields() {
         return copyFields(privateGetPublicFields());
     }
 
@@ -2069,7 +2072,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.4 Method Declarations
      * @since 1.1
      */
-    public Method[] getMethods() {
+    public Method[]! getMethods() {
         return copyMethods(privateGetPublicMethods());
     }
 
@@ -2098,7 +2101,7 @@ public final class Class<T> implements java.io.Serializable,
      * @see #getDeclaredConstructors()
      * @since 1.1
      */
-    public Constructor<?>[] getConstructors() {
+    public Constructor<?>[]! getConstructors() {
         return copyConstructors(privateGetDeclaredConstructors(true));
     }
 
@@ -2137,7 +2140,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.2 Class Members
      * @jls 8.3 Field Declarations
      */
-    public Field getField(String name) throws NoSuchFieldException {
+    public Field! getField(String! name) throws NoSuchFieldException {
         Objects.requireNonNull(name);
         Field field = getField0(name);
         if (field == null) {
@@ -2234,7 +2237,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.4 Method Declarations
      * @since 1.1
      */
-    public Method getMethod(String name, Class<?>... parameterTypes)
+    public Method! getMethod(String! name, Class<?>... parameterTypes)
             throws NoSuchMethodException {
         Objects.requireNonNull(name);
         Method method = getMethod0(name, parameterTypes);
@@ -2270,7 +2273,7 @@ public final class Class<T> implements java.io.Serializable,
      * @see #getDeclaredConstructor(Class[])
      * @since 1.1
      */
-    public Constructor<T> getConstructor(Class<?>... parameterTypes)
+    public Constructor<T>! getConstructor(Class<?>... parameterTypes)
             throws NoSuchMethodException {
         return getReflectionFactory().copyConstructor(
             getConstructor0(parameterTypes, Member.PUBLIC));
@@ -2293,7 +2296,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.1
      * @jls 8.5 Member Class and Interface Declarations
      */
-    public Class<?>[] getDeclaredClasses() {
+    public Class<?>[]! getDeclaredClasses() {
         return getDeclaredClasses0();
     }
 
@@ -2320,7 +2323,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.2 Class Members
      * @jls 8.3 Field Declarations
      */
-    public Field[] getDeclaredFields() {
+    public Field[]! getDeclaredFields() {
         return copyFields(privateGetDeclaredFields(false));
     }
 
@@ -2402,7 +2405,7 @@ public final class Class<T> implements java.io.Serializable,
      * programming language and JVM modeling in core reflection</a>
      * @since 1.1
      */
-    public Method[] getDeclaredMethods() {
+    public Method[]! getDeclaredMethods() {
         return copyMethods(privateGetDeclaredMethods(false));
     }
 
@@ -2427,7 +2430,7 @@ public final class Class<T> implements java.io.Serializable,
      * @see #getConstructors()
      * @jls 8.8 Constructor Declarations
      */
-    public Constructor<?>[] getDeclaredConstructors() {
+    public Constructor<?>[]! getDeclaredConstructors() {
         return copyConstructors(privateGetDeclaredConstructors(false));
     }
 
@@ -2451,7 +2454,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.2 Class Members
      * @jls 8.3 Field Declarations
      */
-    public Field getDeclaredField(String name) throws NoSuchFieldException {
+    public Field! getDeclaredField(String! name) throws NoSuchFieldException {
         Objects.requireNonNull(name);
         Field field = searchFields(privateGetDeclaredFields(false), name);
         if (field == null) {
@@ -2492,7 +2495,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 8.4 Method Declarations
      * @since 1.1
      */
-    public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
+    public Method! getDeclaredMethod(String! name, Class<?>... parameterTypes)
             throws NoSuchMethodException {
         Objects.requireNonNull(name);
         Method method = searchMethods(privateGetDeclaredMethods(false), name, parameterTypes);
@@ -2512,7 +2515,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the list of {@code Method} objects for the public methods of
      *         this class matching the specified name and parameters
      */
-    List<Method> getDeclaredPublicMethods(String name, Class<?>... parameterTypes) {
+    List<Method>! getDeclaredPublicMethods(String! name, Class<?>... parameterTypes) {
         Method[] methods = privateGetDeclaredMethods(/* publicOnly */ true);
         ReflectionFactory factory = getReflectionFactory();
         List<Method> result = new ArrayList<>();
@@ -2537,7 +2540,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the {@code Method} object for the method found from this class matching
      * the specified name and parameters, or null if not found
      */
-    Method findMethod(boolean publicOnly, String name, Class<?>... parameterTypes) {
+    Method findMethod(boolean publicOnly, String! name, Class<?>... parameterTypes) {
         PublicMethods.MethodList res = getMethodsRecursive(name, parameterTypes, true, publicOnly);
         return res == null ? null : getReflectionFactory().copyMethod(res.getMostSpecific());
     }
@@ -2564,7 +2567,7 @@ public final class Class<T> implements java.io.Serializable,
      * @see #getConstructor(Class[])
      * @since 1.1
      */
-    public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
+    public Constructor<T>! getDeclaredConstructor(Class<?>... parameterTypes)
             throws NoSuchMethodException {
         return getReflectionFactory().copyConstructor(
             getConstructor0(parameterTypes, Member.DECLARED));
@@ -2623,7 +2626,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since  1.1
      */
     @CallerSensitive
-    public InputStream getResourceAsStream(String name) {
+    public InputStream getResourceAsStream(String! name) {
         name = resolveName(name);
 
         Module thisModule = getModule();
@@ -2716,7 +2719,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since  1.1
      */
     @CallerSensitive
-    public URL getResource(String name) {
+    public URL getResource(String! name) {
         name = resolveName(name);
 
         Module thisModule = getModule();
@@ -2756,7 +2759,7 @@ public final class Class<T> implements java.io.Serializable,
      * the module. For other callers, then the package needs to be open to
      * the caller.
      */
-    private boolean isOpenToCaller(String name, Class<?> caller) {
+    private boolean isOpenToCaller(String! name, Class<?> caller) {
         // assert getModule().isNamed();
         Module thisModule = getModule();
         Module callerModule = (caller != null) ? caller.getModule() : null;
@@ -2780,7 +2783,7 @@ public final class Class<T> implements java.io.Serializable,
 
     /** Holder for the protection domain returned when the internal domain is null */
     private static class Holder {
-        private static final ProtectionDomain allPermDomain;
+        private static final ProtectionDomain! allPermDomain;
         static {
             Permissions perms = new Permissions();
             perms.add(new AllPermission());
@@ -2796,7 +2799,7 @@ public final class Class<T> implements java.io.Serializable,
      * @see java.security.ProtectionDomain
      * @since 1.2
      */
-    public ProtectionDomain getProtectionDomain() {
+    public ProtectionDomain! getProtectionDomain() {
         if (protectionDomain == null) {
             return Holder.allPermDomain;
         } else {
@@ -2814,7 +2817,7 @@ public final class Class<T> implements java.io.Serializable,
      * Add a package name prefix if the name is not absolute. Remove leading "/"
      * if name is absolute
      */
-    private String resolveName(String name) {
+    private String! resolveName(String! name) {
         if (!name.startsWith("/")) {
             String baseName = getPackageName();
             if (!baseName.isEmpty()) {
@@ -2905,7 +2908,7 @@ public final class Class<T> implements java.io.Serializable,
     private transient volatile int classRedefinedCount;
 
     // Lazily create and cache ReflectionData
-    private ReflectionData<T> reflectionData() {
+    private ReflectionData<T>! reflectionData() {
         SoftReference<ReflectionData<T>> reflectionData = this.reflectionData;
         int classRedefinedCount = this.classRedefinedCount;
         ReflectionData<T> rd;
@@ -2919,7 +2922,7 @@ public final class Class<T> implements java.io.Serializable,
         return newReflectionData(reflectionData, classRedefinedCount);
     }
 
-    private ReflectionData<T> newReflectionData(SoftReference<ReflectionData<T>> oldReflectionData,
+    private ReflectionData<T>! newReflectionData(SoftReference<ReflectionData<T>> oldReflectionData,
                                                 int classRedefinedCount) {
         while (true) {
             ReflectionData<T> rd = new ReflectionData<>(classRedefinedCount);
@@ -2945,7 +2948,7 @@ public final class Class<T> implements java.io.Serializable,
     private transient volatile ClassRepository genericInfo;
 
     // accessor for factory
-    private GenericsFactory getFactory() {
+    private GenericsFactory! getFactory() {
         // create scope and factory
         return CoreReflectionFactory.make(this, ClassScope.make(this));
     }
@@ -2985,7 +2988,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns an array of "root" fields. These Field objects must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyField.
-    private Field[] privateGetDeclaredFields(boolean publicOnly) {
+    private Field[]! privateGetDeclaredFields(boolean publicOnly) {
         Field[] res;
         ReflectionData<T> rd = reflectionData();
         res = publicOnly ? rd.declaredPublicFields : rd.declaredFields;
@@ -3003,7 +3006,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns an array of "root" fields. These Field objects must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyField.
-    private Field[] privateGetPublicFields() {
+    private Field[]! privateGetPublicFields() {
         Field[] res;
         ReflectionData<T> rd = reflectionData();
         res = rd.publicFields;
@@ -3032,7 +3035,7 @@ public final class Class<T> implements java.io.Serializable,
         return res;
     }
 
-    private static void addAll(Collection<Field> c, Field[] o) {
+    private static void addAll(Collection<Field>! c, Field[]! o) {
         for (Field f : o) {
             c.add(f);
         }
@@ -3048,7 +3051,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns an array of "root" constructors. These Constructor
     // objects must NOT be propagated to the outside world, but must
     // instead be copied via ReflectionFactory.copyConstructor.
-    private Constructor<T>[] privateGetDeclaredConstructors(boolean publicOnly) {
+    private Constructor<T>[]! privateGetDeclaredConstructors(boolean publicOnly) {
         Constructor<T>[] res;
         ReflectionData<T> rd = reflectionData();
         res = publicOnly ? rd.publicConstructors : rd.declaredConstructors;
@@ -3078,7 +3081,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns an array of "root" methods. These Method objects must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyMethod.
-    private Method[] privateGetDeclaredMethods(boolean publicOnly) {
+    private Method[]! privateGetDeclaredMethods(boolean publicOnly) {
         Method[] res;
         ReflectionData<T> rd = reflectionData();
         res = publicOnly ? rd.declaredPublicMethods : rd.declaredMethods;
@@ -3096,7 +3099,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns an array of "root" methods. These Method objects must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyMethod.
-    private Method[] privateGetPublicMethods() {
+    private Method[]! privateGetPublicMethods() {
         Method[] res;
         ReflectionData<T> rd = reflectionData();
         res = rd.publicMethods;
@@ -3136,7 +3139,7 @@ public final class Class<T> implements java.io.Serializable,
     //
 
     // This method does not copy the returned Field object!
-    private static Field searchFields(Field[] fields, String name) {
+    private static Field searchFields(Field[]! fields, String! name) {
         for (Field field : fields) {
             if (field.getName().equals(name)) {
                 return field;
@@ -3148,7 +3151,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns a "root" Field object. This Field object must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyField.
-    private Field getField0(String name) {
+    private Field getField0(String! name) {
         // Note: the intent is that the search algorithm this routine
         // uses be equivalent to the ordering imposed by
         // privateGetPublicFields(). It fetches only the declared
@@ -3181,8 +3184,8 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // This method does not copy the returned Method object!
-    private static Method searchMethods(Method[] methods,
-                                        String name,
+    private static Method searchMethods(Method[]! methods,
+                                        String! name,
                                         Class<?>[] parameterTypes)
     {
         ReflectionFactory fact = getReflectionFactory();
@@ -3199,12 +3202,12 @@ public final class Class<T> implements java.io.Serializable,
         return res;
     }
 
-    private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
+    private static final Class<?>[]! EMPTY_CLASS_ARRAY = new Class<?>[0];
 
     // Returns a "root" Method object. This Method object must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyMethod.
-    private Method getMethod0(String name, Class<?>[] parameterTypes) {
+    private Method getMethod0(String! name, Class<?>[] parameterTypes) {
         PublicMethods.MethodList res = getMethodsRecursive(
             name,
             parameterTypes == null ? EMPTY_CLASS_ARRAY : parameterTypes,
@@ -3215,7 +3218,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns a list of "root" Method objects. These Method objects must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyMethod.
-    private PublicMethods.MethodList getMethodsRecursive(String name,
+    private PublicMethods.MethodList getMethodsRecursive(String! name,
                                                          Class<?>[] parameterTypes,
                                                          boolean includeStatic,
                                                          boolean publicOnly) {
@@ -3250,7 +3253,7 @@ public final class Class<T> implements java.io.Serializable,
     // Returns a "root" Constructor object. This Constructor object must NOT
     // be propagated to the outside world, but must instead be copied
     // via ReflectionFactory.copyConstructor.
-    private Constructor<T> getConstructor0(Class<?>[] parameterTypes,
+    private Constructor<T>! getConstructor0(Class<?>[] parameterTypes,
                                         int which) throws NoSuchMethodException
     {
         ReflectionFactory fact = getReflectionFactory();
@@ -3290,7 +3293,7 @@ public final class Class<T> implements java.io.Serializable,
         return true;
     }
 
-    private static Field[] copyFields(Field[] arg) {
+    private static Field[]! copyFields(Field[]! arg) {
         Field[] out = new Field[arg.length];
         ReflectionFactory fact = getReflectionFactory();
         for (int i = 0; i < arg.length; i++) {
@@ -3299,7 +3302,7 @@ public final class Class<T> implements java.io.Serializable,
         return out;
     }
 
-    private static Method[] copyMethods(Method[] arg) {
+    private static Method[]! copyMethods(Method[]! arg) {
         Method[] out = new Method[arg.length];
         ReflectionFactory fact = getReflectionFactory();
         for (int i = 0; i < arg.length; i++) {
@@ -3308,7 +3311,7 @@ public final class Class<T> implements java.io.Serializable,
         return out;
     }
 
-    private static <U> Constructor<U>[] copyConstructors(Constructor<U>[] arg) {
+    private static <U> Constructor<U>[]! copyConstructors(Constructor<U>[]! arg) {
         Constructor<U>[] out = arg.clone();
         ReflectionFactory fact = getReflectionFactory();
         for (int i = 0; i < out.length; i++) {
@@ -3335,7 +3338,7 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Helper method to get the method name from arguments.
      */
-    private String methodToString(String name, Class<?>[] argTypes) {
+    private String! methodToString(String! name, Class<?>[] argTypes) {
         return getName() + '.' + name +
                 ((argTypes == null || argTypes.length == 0) ?
                 "()" :
@@ -3366,7 +3369,7 @@ public final class Class<T> implements java.io.Serializable,
      * @see java.io.ObjectStreamClass
      */
     @java.io.Serial
-    private static final ObjectStreamField[] serialPersistentFields =
+    private static final ObjectStreamField[]! serialPersistentFields =
         new ObjectStreamField[0];
 
 
@@ -3465,7 +3468,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // Fetches the factory for reflective objects
-    private static ReflectionFactory getReflectionFactory() {
+    private static ReflectionFactory! getReflectionFactory() {
         var factory = reflectionFactory;
         if (factory != null) {
             return factory;
@@ -3533,7 +3536,7 @@ public final class Class<T> implements java.io.Serializable,
      * efficiently.  Note that the map is returned by this method is
      * created lazily on first use.  Typically it won't ever get created.
      */
-    Map<String, T> enumConstantDirectory() {
+    Map<String, T>! enumConstantDirectory() {
         Map<String, T> directory = enumConstantDirectory;
         if (directory == null) {
             T[] universe = getEnumConstantsShared();
@@ -3570,7 +3573,7 @@ public final class Class<T> implements java.io.Serializable,
         return (T) obj;
     }
 
-    private String cannotCastMsg(Object obj) {
+    private String! cannotCastMsg(Object! obj) {
         return "Cannot cast " + obj.getClass().getName() + " to " + getName();
     }
 
@@ -3597,7 +3600,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
-    public <U> Class<? extends U> asSubclass(Class<U> clazz) {
+    public <U> Class<? extends U>! asSubclass(Class<U>! clazz) {
         if (clazz.isAssignableFrom(this))
             return (Class<? extends U>) this;
         else
@@ -3613,7 +3616,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     @SuppressWarnings("unchecked")
-    public <A extends Annotation> A getAnnotation(Class<A> annotationClass) {
+    public <A extends Annotation> A getAnnotation(Class<A>! annotationClass) {
         Objects.requireNonNull(annotationClass);
 
         return (A) annotationData().annotations.get(annotationClass);
@@ -3624,7 +3627,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @Override
-    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent(Class<? extends Annotation>! annotationClass) {
         return GenericDeclaration.super.isAnnotationPresent(annotationClass);
     }
 
@@ -3636,7 +3639,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.8
      */
     @Override
-    public <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationClass) {
+    public <A extends Annotation> A[]! getAnnotationsByType(Class<A>! annotationClass) {
         Objects.requireNonNull(annotationClass);
 
         AnnotationData annotationData = annotationData();
@@ -3653,7 +3656,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @Override
-    public Annotation[] getAnnotations() {
+    public Annotation[]! getAnnotations() {
         return AnnotationParser.toArray(annotationData().annotations);
     }
 
@@ -3666,7 +3669,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     @SuppressWarnings("unchecked")
-    public <A extends Annotation> A getDeclaredAnnotation(Class<A> annotationClass) {
+    public <A extends Annotation> A getDeclaredAnnotation(Class<A>! annotationClass) {
         Objects.requireNonNull(annotationClass);
 
         return (A) annotationData().declaredAnnotations.get(annotationClass);
@@ -3680,7 +3683,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.8
      */
     @Override
-    public <A extends Annotation> A[] getDeclaredAnnotationsByType(Class<A> annotationClass) {
+    public <A extends Annotation> A[]! getDeclaredAnnotationsByType(Class<A>! annotationClass) {
         Objects.requireNonNull(annotationClass);
 
         return AnnotationSupport.getDirectlyAndIndirectlyPresent(annotationData().declaredAnnotations,
@@ -3695,24 +3698,25 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     @Override
-    public Annotation[] getDeclaredAnnotations()  {
+    public Annotation[]! getDeclaredAnnotations()  {
         return AnnotationParser.toArray(annotationData().declaredAnnotations);
     }
 
     // annotation data that might get invalidated when JVM TI RedefineClasses() is called
     private static class AnnotationData {
-        final Map<Class<? extends Annotation>, Annotation> annotations;
-        final Map<Class<? extends Annotation>, Annotation> declaredAnnotations;
+        final Map<Class<? extends Annotation>, Annotation>! annotations;
+        final Map<Class<? extends Annotation>, Annotation>! declaredAnnotations;
 
         // Value of classRedefinedCount when we created this AnnotationData instance
         final int redefinedCount;
 
-        AnnotationData(Map<Class<? extends Annotation>, Annotation> annotations,
-                       Map<Class<? extends Annotation>, Annotation> declaredAnnotations,
+        AnnotationData(Map<Class<? extends Annotation>, Annotation>! annotations,
+                       Map<Class<? extends Annotation>, Annotation>! declaredAnnotations,
                        int redefinedCount) {
             this.annotations = annotations;
             this.declaredAnnotations = declaredAnnotations;
             this.redefinedCount = redefinedCount;
+            super();
         }
     }
 
@@ -3720,7 +3724,7 @@ public final class Class<T> implements java.io.Serializable,
     @SuppressWarnings("UnusedDeclaration")
     private transient volatile AnnotationData annotationData;
 
-    private AnnotationData annotationData() {
+    private AnnotationData! annotationData() {
         while (true) { // retry loop
             AnnotationData annotationData = this.annotationData;
             int classRedefinedCount = this.classRedefinedCount;
@@ -3738,7 +3742,7 @@ public final class Class<T> implements java.io.Serializable,
         }
     }
 
-    private AnnotationData createAnnotationData(int classRedefinedCount) {
+    private AnnotationData! createAnnotationData(int classRedefinedCount) {
         Map<Class<? extends Annotation>, Annotation> declaredAnnotations =
             AnnotationParser.parseAnnotations(getRawAnnotations(), getConstantPool(), this);
         Class<?> superClass = getSuperclass();
@@ -3783,7 +3787,7 @@ public final class Class<T> implements java.io.Serializable,
         return annotationType;
     }
 
-    Map<Class<? extends Annotation>, Annotation> getDeclaredAnnotationMap() {
+    Map<Class<? extends Annotation>, Annotation>! getDeclaredAnnotationMap() {
         return annotationData().declaredAnnotations;
     }
 
@@ -3854,7 +3858,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return an array representing the superinterfaces
      * @since 1.8
      */
-    public AnnotatedType[] getAnnotatedInterfaces() {
+    public AnnotatedType[]! getAnnotatedInterfaces() {
         return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
     }
 
@@ -3887,7 +3891,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jvms 4.7.29 The {@code NestMembers} Attribute
      * @jvms 5.4.4 Access Control
      */
-    public Class<?> getNestHost() {
+    public Class<?>! getNestHost() {
         if (isPrimitive() || isArray()) {
             return this;
         }
@@ -3906,7 +3910,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 11
      */
-    public boolean isNestmateOf(Class<?> c) {
+    public boolean isNestmateOf(Class<?>! c) {
         Objects.requireNonNull(c);
         if (this == c) {
             return true;
@@ -3959,7 +3963,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jvms 4.7.28 The {@code NestHost} Attribute
      * @jvms 4.7.29 The {@code NestMembers} Attribute
      */
-    public Class<?>[] getNestMembers() {
+    public Class<?>[]! getNestMembers() {
         if (isPrimitive() || isArray()) {
             return new Class<?>[] { this };
         }
@@ -4020,7 +4024,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 12
      */
     @Override
-    public String descriptorString() {
+    public String! descriptorString() {
         if (isPrimitive())
             return Wrapper.forPrimitiveType(this).basicTypeString();
 
@@ -4071,7 +4075,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 12
      */
     @Override
-    public Class<?> arrayType() {
+    public Class<?>! arrayType() {
         try {
             return Array.newInstance(this, 0).getClass();
         } catch (IllegalArgumentException iae) {
@@ -4088,7 +4092,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 12
      */
     @Override
-    public Optional<ClassDesc> describeConstable() {
+    public Optional<ClassDesc>! describeConstable() {
         Class<?> c = isArray() ? elementType() : this;
         return c.isHidden() ? Optional.empty()
                             : Optional.of(ConstantUtils.classDesc(this));
@@ -4218,7 +4222,7 @@ public final class Class<T> implements java.io.Serializable,
      }
 
     // Validates the length of the class name and throws an exception if it exceeds the maximum allowed length.
-    private static void validateClassNameLength(String name) throws ClassNotFoundException {
+    private static void validateClassNameLength(String! name) throws ClassNotFoundException {
         if (!ModifiedUtf.isValidLengthInConstantPool(name)) {
             throw new ClassNotFoundException(
                     "Class name length exceeds limit of "

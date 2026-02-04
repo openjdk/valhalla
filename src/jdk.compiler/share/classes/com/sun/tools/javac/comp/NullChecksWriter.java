@@ -225,6 +225,9 @@ public class NullChecksWriter extends TreeTranslator {
             ListBuffer<JCStatement> paramNullChecks = new ListBuffer<>();
             for (JCVariableDecl param : tree.params) {
                 if (types.isNonNullable(param.sym.type)) {
+                    if (tree.body == null) {
+                        System.out.println(tree.name + " " + tree.sym.owner.getQualifiedName());
+                    }
                     paramNullChecks.add(make.at(tree.body.pos())
                             .Exec(attr.makeNullCheck(make.at(tree.body.pos()).Ident(param), true)));
                 }
