@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -157,18 +156,22 @@ public value class InlineWithJni {
 
     // Container with null-restricted fields (potentially flattened)
     static class Container1 {
-        @Strict
         @NullRestricted
-        SmallValue sv = new SmallValue();
-        @Strict
+        SmallValue sv;
         @NullRestricted
-        MediumValue mv = new MediumValue();
-        @Strict
+        MediumValue mv;
         @NullRestricted
-        BigValue bv = new BigValue();
-        @Strict
+        BigValue bv;
         @NullRestricted
-        ValueWithOop vwo = new ValueWithOop();
+        ValueWithOop vwo;
+
+        Container1() {
+            sv = new SmallValue();
+            mv = new MediumValue();
+            bv = new BigValue();
+            vwo = new ValueWithOop();
+            super();
+        }
     }
 
     static String getFieldSignature(Class c, String name) {

@@ -72,4 +72,13 @@ inline void refArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   obj_at_put(index, value);
 }
 
+template <typename OopClosureType>
+void refArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
+  if (UseCompressedOops) {
+    ((RefArrayKlass*)klass())->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+  } else {
+    ((RefArrayKlass*)klass())->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+  }
+}
+
 #endif // SHARE_OOPS_REFARRAYOOP_INLINE_HPP

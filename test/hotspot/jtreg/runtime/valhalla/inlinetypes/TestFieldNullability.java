@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 
@@ -62,14 +61,18 @@ public class TestFieldNullability {
 
     static class TestIdentityClass {
         MyValue nullableField;
-        @Strict
         @NullRestricted
-        MyValue nullfreeField = new MyValue();       // flattened
+        MyValue nullfreeField;       // flattened
         MyValue nullField;
-        @Strict
         @NullRestricted
-        MyBigValue nullfreeBigField = new MyBigValue(); // not flattened
+        MyBigValue nullfreeBigField; // not flattened
         MyBigValue nullBigField;
+
+        TestIdentityClass() {
+            nullfreeField = new MyValue();
+            nullfreeBigField = new MyBigValue();
+            super();
+        }
     }
 
     public static void main(String[] args) {

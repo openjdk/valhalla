@@ -384,16 +384,6 @@ public class Annotate {
             }
 
             if (!c.type.isErroneous()
-                    && toAnnotate.kind == VAR
-                    && toAnnotate.owner.kind == TYP
-                    && types.isSameType(c.type, syms.strictType)) {
-                preview.checkSourceLevel(pos.get(c), Feature.VALUE_CLASSES);
-                toAnnotate.flags_field |= Flags.STRICT;
-                // temporary hack to indicate that a class has at least one strict field
-                toAnnotate.owner.flags_field |= Flags.HAS_STRICT;
-            }
-
-            if (!c.type.isErroneous()
                     && types.isSameType(c.type, syms.restrictedType)) {
                 toAnnotate.flags_field |= Flags.RESTRICTED;
             }

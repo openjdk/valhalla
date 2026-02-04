@@ -73,17 +73,4 @@ void ObjArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, Me
   ShouldNotReachHere();
 }
 
-// Like oop_oop_iterate but only iterates over a specified range and only used
-// for objArrayOops.
-template <typename T, class OopClosureType>
-void ObjArrayKlass::oop_oop_iterate_range(objArrayOop a, OopClosureType* closure, int start, int end) {
-  ShouldNotReachHere();
-}
-
-// Placed here to resolve include cycle between objArrayKlass.inline.hpp and objArrayOop.inline.hpp
-template <typename OopClosureType>
-void objArrayOopDesc::oop_iterate_range(OopClosureType* blk, int start, int end) {
-  ShouldNotReachHere();
-}
-
 #endif // SHARE_OOPS_OBJARRAYKLASS_INLINE_HPP

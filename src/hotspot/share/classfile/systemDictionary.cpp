@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -950,7 +950,9 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
                                                InstanceKlass* ik,
                                                PackageEntry* pkg_entry,
                                                Handle class_loader) {
-  assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
+
+  assert(!ModuleEntryTable::javabase_moduleEntry()->is_patched(),
+         "Cannot use sharing if java.base is patched");
 
   // (1) Check if we are loading into the same loader as in dump time.
 
@@ -1026,7 +1028,7 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
       // Is the module loaded from the same location as during dump time?
       visible = mod_entry->shared_path_index() == scp_index;
       if (visible) {
-        assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
+        assert(!mod_entry->is_patched(), "cannot load archived classes for patched module");
       }
     } else {
       // During dump time, this class was in a named module, but at run time, this class should be
@@ -1196,7 +1198,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inline_type_fields()) {
+  if (ik->has_inlined_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) continue;
 
@@ -1211,8 +1213,8 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else if (Signature::has_envelope(sig)) {
-          // Pending exceptions are cleared so we can fail silently
-          try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
+        // Pending exceptions are cleared so we can fail silently
+        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.lang.reflect.Field;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 
 /*
@@ -54,7 +53,6 @@ public class EmptyInlineTest {
 
     @LooselyConsistentValue
     static value class EmptyField {
-        @Strict
         @NullRestricted
         EmptyInline empty;
 
@@ -72,9 +70,13 @@ public class EmptyInlineTest {
         // inline field would be placed between the int and the Object
         // fields, along with some padding.
         Object o;
-        @Strict
         @NullRestricted
-        EmptyInline empty = new EmptyInline();
+        EmptyInline empty;
+
+        WithEmptyField() {
+            empty = new EmptyInline();
+            super();
+        }
     }
 
     public static void main(String[] args) {

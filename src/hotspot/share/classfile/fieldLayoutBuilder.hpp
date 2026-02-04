@@ -244,7 +244,7 @@ class FieldLayout : public ResourceObj {
   void shift_fields(int shift);
   LayoutRawBlock* find_null_marker();
   void remove_null_marker();
-  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields);
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields, bool dummy_field_is_reused_as_null_marker);
 };
 
 
@@ -304,12 +304,12 @@ class FieldLayoutBuilder : public ResourceObj {
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _has_nonstatic_fields;
-  bool _has_inline_type_fields;
+  bool _has_inlineable_fields;
+  bool _has_inlined_fields;
   bool _is_contended;
   bool _super_ends_with_oop;
   bool _is_inline_type;
   bool _is_abstract_value;
-  bool _has_flattening_information;
   bool _is_empty_inline_class;
 
   FieldGroup* get_or_create_contended_group(int g);

@@ -838,8 +838,8 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseAtomicValueFlattening, true,                             \
           "Allow the JVM to flatten some atomic values")                    \
                                                                             \
-  product(bool, UseNullableNonAtomicValueFlattening, false,                 \
-           "Allow the JVM to flatten some strict final non-static fields")  \
+  product(bool, UseNullableNonAtomicValueFlattening, true,                  \
+          "Allow the JVM to flatten some strict final non-static fields")   \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
@@ -2055,10 +2055,6 @@ const int ObjectAlignmentInBytes = 8;
   develop(uint, BinarySearchThreshold, 16,                                  \
           "Minimal number of elements in a sorted collection to prefer"     \
           "binary search over simple linear search." )                      \
-                                                                            \
-  product(bool, UseAltSubstitutabilityMethod, true,                         \
-          "Use alternate version of the isSubstitutable method to "         \
-          "compare value class instances")                                  \
 
 // end of RUNTIME_FLAGS
 
