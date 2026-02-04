@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1285,10 +1285,11 @@ LEAF(Invoke, StateSplit)
   Values*         _args;
   BasicTypeList*  _signature;
   ciMethod*       _target;
+  ciType*         _return_type;
 
  public:
   // creation
-  Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
+  Invoke(Bytecodes::Code code, ciType* return_type, Value recv, Values* args,
          ciMethod* target, ValueStack* state_before);
 
   // accessors
