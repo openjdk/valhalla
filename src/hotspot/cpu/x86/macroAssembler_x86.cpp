@@ -2388,13 +2388,13 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_checked_shift);
   jcc(Assembler::notEqual, is_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_checked_shift);
   jcc(Assembler::equal, not_null_free_inline_type);
 }
 

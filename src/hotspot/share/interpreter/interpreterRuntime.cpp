@@ -815,7 +815,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   entry->set_flags(info.access_flags().is_volatile(),
                    info.access_flags().is_final(),
                    info.is_flat(),
-                   info.is_null_free_inline_type(),
+                   info.is_null_checked(),
                    info.has_null_marker());
 
   entry->fill_in(info.field_holder(), info.offset(),

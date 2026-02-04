@@ -152,7 +152,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
          "slice of address and input slice don't match");
 
   Node* ld = nullptr;
-  if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
+  if (field->is_null_free() && field_klass->is_inlinetype() && field_klass->as_inline_klass()->is_empty()) {
     // Loading from a field of an empty inline type. Just return the default instance.
     ld = InlineTypeNode::make_all_zero(_gvn, field_klass->as_inline_klass());
   } else if (field->is_flat()) {

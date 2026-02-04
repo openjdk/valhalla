@@ -118,7 +118,7 @@ class FieldStreamBase : public StackObj {
   }
 
   bool is_null_free_inline_type() {
-    return field()->field_flags().is_null_free_inline_type();
+    return field()->is_null_free_inline_type();
   }
 
   bool is_flat() const {

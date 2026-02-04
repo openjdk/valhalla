@@ -873,7 +873,7 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   if (fd->is_trusted_final()) {
     flags |= TRUSTED_FINAL;
   }
-  if (fd->is_null_free_inline_type()) {
+  if (fd->is_null_checked()) {
     flags |= NULL_RESTRICTED;
   }
   java_lang_reflect_Field::set_flags(rh(), flags);

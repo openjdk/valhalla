@@ -67,7 +67,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   InlineLayoutInfo* inline_field_info = inline_layout_info_array->adr_at(field_info.index());
   InlineKlass* vk = inline_field_info->klass();
 
-  if (field_info.field_flags().is_null_free_inline_type()) {
+  if (field_info.is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
     if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
       if (vk->is_naturally_atomic() && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
@@ -95,7 +95,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 }
 
 static bool field_is_inlineable(FieldInfo fieldinfo, LayoutKind lk, Array<InlineLayoutInfo>* ili) {
-  if (fieldinfo.field_flags().is_null_free_inline_type()) {
+  if (fieldinfo.is_null_free_inline_type()) {
     // A null-free inline type is always inlineable
     return true;
   }

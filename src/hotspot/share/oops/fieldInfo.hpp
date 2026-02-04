@@ -208,6 +208,8 @@ class FieldInfo {
   void set_generic_signature_index(u2 index) { _generic_signature_index = index; }
   u2 contention_group() const                { return _contention_group; }
 
+  bool is_null_free_inline_type() const      { return _field_flags.is_null_free_inline_type(); }
+
   bool is_contended() const {
     return _field_flags.is_contended();
   }

@@ -6271,7 +6271,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       FieldInfo fieldinfo = *it;
       if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
       Symbol* sig = fieldinfo.signature(cp);
-      if (fieldinfo.field_flags().is_null_free_inline_type()) {
+      if (fieldinfo.is_null_free_inline_type()) {
         // Pre-load classes of null-free fields that are candidate for flattening
         TempNewSymbol s = Signature::strip_envelope(sig);
         if (s == _class_name) {

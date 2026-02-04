@@ -1955,7 +1955,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
       InstanceKlass *ik = InstanceKlass::cast(k);
       fieldDescriptor fd;
       ik->find_field_from_offset(offset, false, &fd);
-      if (fd.is_null_free_inline_type()) {
+      if (fd.is_null_checked()) {
         THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted field");
       }
     }

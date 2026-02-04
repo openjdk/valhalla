@@ -1898,7 +1898,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (field->is_null_free()) {
         null_check(val);
       }
-      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty() && (!method()->is_class_initializer() || field->is_flat())) {
+      if (field->is_null_free() && field->type()->is_loaded() && field->type()->is_inlinetype() && field->type()->as_inline_klass()->is_empty() && (!method()->is_class_initializer() || field->is_flat())) {
         // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
         break;
       }
@@ -2090,7 +2090,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
 
-      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
+      if (field->is_null_free() && field->type()->is_loaded() && field->type()->is_inlinetype() && field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
         // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
         null_check(obj);
         null_check(val);

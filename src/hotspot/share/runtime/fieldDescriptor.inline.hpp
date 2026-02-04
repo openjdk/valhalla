@@ -72,7 +72,9 @@ inline BasicType fieldDescriptor::field_type() const {
 }
 
 inline bool fieldDescriptor::is_flat()  const  { return field().field_flags().is_flat(); }
-inline bool fieldDescriptor::is_null_free_inline_type() const { return field().field_flags().is_null_free_inline_type(); }
+inline bool fieldDescriptor::is_null_free_inline_type() const { return field().is_null_free_inline_type(); }
+// Is null checked, but is not necessary an inline type
+inline bool fieldDescriptor::is_null_checked() const { return field().is_null_free_inline_type(); }
 inline bool fieldDescriptor::has_null_marker() const { return field().field_flags().has_null_marker(); }
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP

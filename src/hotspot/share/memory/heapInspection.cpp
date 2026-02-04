@@ -536,14 +536,14 @@ private:
   int _index;
   InstanceKlass* _holder;
   AccessFlags _access_flags;
-  FieldInfo::FieldFlags _field_flags;
+  bool _null_free_inline_type;
  public:
   FieldDesc() : _name(nullptr), _signature(nullptr), _offset(-1), _index(-1), _holder(nullptr),
-                _access_flags(AccessFlags()), _field_flags(FieldInfo::FieldFlags((u4)0)) { }
+                _access_flags(AccessFlags()), _null_free_inline_type(false) { }
 
   FieldDesc(fieldDescriptor& fd) : _name(fd.name()), _signature(fd.signature()), _offset(fd.offset()),
                                    _index(fd.index()), _holder(fd.field_holder()),
-                                   _access_flags(fd.access_flags()), _field_flags(fd.field_flags()) { }
+                                   _access_flags(fd.access_flags()), _null_free_inline_type(fd.is_null_free_inline_type()) { }
 
   const Symbol* name() { return _name;}
   const Symbol* signature() { return _signature; }
@@ -551,7 +551,7 @@ private:
   int index() const { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  bool is_null_free_inline_type() const { return _field_flags.is_null_free_inline_type(); }
+  bool is_null_free_inline_type() const { return _null_free_inline_type; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
