@@ -318,6 +318,9 @@ public:
       Raw::value_copy(src, dst, md, lk);
     }
 
+    static void value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk) {
+      Raw::value_store_null(dst, md, lk);
+    }
   };
 };
 

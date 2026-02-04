@@ -167,6 +167,10 @@ namespace AccessInternal {
     Copy::copy_value_content(src, dst, length);
   }
 
+  void value_store_null(void* dst, size_t length) {
+    Copy::clear_value_content(dst, length);
+  }
+
 #ifdef ASSERT
   void check_access_thread_state() {
     if (VMError::is_error_reported() || DebuggingContext::is_enabled()) {

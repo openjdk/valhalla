@@ -336,4 +336,10 @@ inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, Inlin
   AccessInternal::value_copy_internal(src, dst, static_cast<size_t>(md->layout_size_in_bytes(lk)));
 }
 
+template <DecoratorSet decorators>
+inline void RawAccessBarrier<decorators>::value_store_null(void* dst, InlineKlass* md, LayoutKind lk) {
+  assert(is_aligned(dst, md->layout_alignment(lk)), "Unaligned value_store_null");
+  AccessInternal::value_store_null(dst, static_cast<size_t>(md->layout_size_in_bytes(lk)));
+}
+
 #endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

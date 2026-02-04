@@ -26,6 +26,7 @@
 #include "utilities/align.hpp"
 #include "utilities/byteswap.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/debug.hpp"
 
 
 // Copy bytes; larger units are filled atomically if everything is aligned.
@@ -91,6 +92,44 @@ void Copy::copy_value_content(const void* from, void* to, size_t size) {
 }
 
 #undef COPY_ALIGNED_SEGMENT
+
+template <typename T>
+static void clear_value_content_helper(uintptr_t* to_cursor_addr, size_t* remaining_bytes_addr) {
+  uintptr_t& to_cursor = *to_cursor_addr;
+  size_t& remaining_bytes = *remaining_bytes_addr;
+
+  if (to_cursor % sizeof(T) == 0 && remaining_bytes >= sizeof(T)) {
+    const size_t copy_bytes = align_down(remaining_bytes, sizeof(T));
+    Copy::fill_to_memory_atomic((void*)to_cursor, copy_bytes);
+    to_cursor += copy_bytes;
+    remaining_bytes -= copy_bytes;
+  }
+}
+
+void Copy::clear_value_content(void* to, size_t size) {
+  // The alignment of the containing object must satisfy the alignment of all
+  // its fields, as such we can safely copy atomically starting at the largest
+  // atomic size which the payloads are aligned to. Any trailing payload smaller
+  // than this atomic size must have a lower alignment requirement. This
+  // property holds recursively down to the smallest atomic size.
+  uintptr_t to_cursor = uintptr_t(to);
+  size_t remaining_bytes = size;
+
+  // Clear jlong alignend segments
+  clear_value_content_helper<jlong>(&to_cursor, &remaining_bytes);
+
+  // Clear jint alignend segments
+  clear_value_content_helper<jint>(&to_cursor, &remaining_bytes);
+
+  // Clear jshort alignend segments
+  clear_value_content_helper<jshort>(&to_cursor, &remaining_bytes);
+
+  // Clear remaining bytes
+  clear_value_content_helper<jbyte>(&to_cursor, &remaining_bytes);
+
+  postcond(remaining_bytes == 0);
+  postcond(to_cursor - size == uintptr_t(to));
+}
 
 class CopySwap : AllStatic {
 public:

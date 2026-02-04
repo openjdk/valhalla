@@ -344,6 +344,20 @@ inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_co
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_clear_one(zpointer* dst) {
+  if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value) {
+    return OopCopyResult::failed_check_null;
+  }
+
+  // Store barrier and color null
+  store_barrier_heap_without_healing(dst);
+
+  AtomicAccess::store(dst, color_null());
+
+  return OopCopyResult::ok;
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
 inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass) {
   const zaddress obj = oop_copy_one_barriers(dst, src);
 
@@ -457,6 +471,15 @@ static inline void copy_primitive_payload(const void* src, const void* dst, cons
   copied_bytes += payload_size_bytes;
 }
 
+static inline void clear_primitive_payload(const void* dst, const size_t payload_size_bytes, size_t& copied_bytes) {
+  if (payload_size_bytes == 0) {
+    return;
+  }
+  void* dst_payload = (void*)(address(dst) + copied_bytes);
+  Copy::fill_to_memory_atomic(dst_payload, payload_size_bytes);
+  copied_bytes += payload_size_bytes;
+}
+
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
   if (md->contains_oops()) {
@@ -493,6 +516,44 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
     copy_primitive_payload(src, dst, size_in_bytes - copied_bytes, copied_bytes);
   } else {
     Raw::value_copy_in_heap(src, dst, md, lk);
+  }
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk) {
+  if (md->contains_oops()) {
+    // Iterate over each oop map, performing:
+    //   1) possibly raw clear for any primitive payload before each map
+    //   2) store barrier and clear for each oop
+    //   3) possibly raw clear for any primitive payload trailer
+
+    // dst may not be oops, need offset to adjust oop map offset
+    const address dst_oop_addr_offset = ((address) dst) - md->payload_offset();
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    const OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+    size_t size_in_bytes = md->layout_size_in_bytes(lk);
+    size_t copied_bytes = 0;
+    while (map != end) {
+      zpointer *dst_p = (zpointer*)(dst_oop_addr_offset + map->offset());
+      const uintptr_t oop_offset = uintptr_t(dst_p) - uintptr_t(dst);
+
+      // Clear any leading primitive payload before every cluster of oops
+      assert(copied_bytes < oop_offset || copied_bytes == oop_offset, "Negative sized leading payload segment");
+      clear_primitive_payload(dst, oop_offset - copied_bytes, copied_bytes);
+
+      // Clear a cluster of oops
+      for (const zpointer* const dst_end = dst_p + map->count(); dst_p < dst_end; dst_p++) {
+        oop_clear_one(dst_p);
+        copied_bytes += sizeof(zpointer);
+      }
+      map++;
+    }
+
+    // Clear trailing primitive payload after potential oops
+    assert(copied_bytes < size_in_bytes || copied_bytes == size_in_bytes, "Negative sized trailing payload segment");
+    clear_primitive_payload(dst, size_in_bytes - copied_bytes, copied_bytes);
+  } else {
+    Raw::value_store_null(dst, md, lk);
   }
 }
 

@@ -227,6 +227,11 @@ public:
     AccessInternal::value_copy<decorators>(src, dst, md, lk);
   }
 
+  static inline void value_store_null(void* dst, InlineKlass* md, LayoutKind lk) {
+    verify_heap_value_decorators<IN_HEAP>();
+    AccessInternal::value_store_null<decorators>(dst, md, lk);
+  }
+
   // Primitive accesses
   template <typename P>
   static inline P load(P* addr) {

@@ -29,6 +29,7 @@
 
 #include "gc/shared/barrierSet.inline.hpp"
 #include "gc/shared/barrierSetConfig.inline.hpp"
+#include "oops/accessBackend.hpp"
 #include "oops/accessBackend.inline.hpp"
 
 // This file outlines the last 2 steps of the template pipeline of accesses going through
@@ -207,6 +208,13 @@ namespace AccessInternal {
     }
   };
 
+  template <class GCBarrierType, DecoratorSet decorators>
+  struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_STORE_NULL, decorators>: public AllStatic {
+    static void access_barrier(void* dst, InlineKlass* md, LayoutKind lk) {
+      GCBarrierType::value_store_null_in_heap(dst, md, lk);
+    }
+  };
+
   // Resolving accessors with barriers from the barrier set happens in two steps.
   // 1. Expand paths with runtime-decorators, e.g. is UseCompressedOops on or off.
   // 2. Expand paths for each BarrierSet available in the system.
@@ -360,6 +368,13 @@ namespace AccessInternal {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_COPY>::resolve_barrier();
     _value_copy_func = function;
     function(src, dst, md,lk);
+  }
+
+  template <DecoratorSet decorators, typename T>
+  void RuntimeDispatch<decorators, T, BARRIER_VALUE_STORE_NULL>::value_store_null_init(void* dst, InlineKlass* md, LayoutKind lk) {
+    func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_STORE_NULL>::resolve_barrier();
+    _value_store_null_func = function;
+    function(dst, md,lk);
   }
 }
 

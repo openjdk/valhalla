@@ -128,6 +128,7 @@ public:
     }
 
     static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk);
+    static void value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk);
   };
 };
 
