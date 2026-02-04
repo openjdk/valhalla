@@ -47,9 +47,6 @@ import java.lang.annotation.*;
  * <p>
  * <b>This annotation will be removed in the future, and is subject to
  * behavioral change without replacement or notice.</b>
- * <p>
- * This annotation is only recognized on classes from the boot and platform
- * class loaders and is ignored elsewhere.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
