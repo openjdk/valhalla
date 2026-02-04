@@ -1409,7 +1409,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // After parsing all fields, data are stored in a UNSIGNED5 compressed stream.
   _temp_field_info = new GrowableArray<FieldInfo>(total_fields);
 
-  int instance_fields_count = 0;
   ResourceMark rm(THREAD);
   for (int n = 0; n < length; n++) {
     // access_flags, name_index, descriptor_index, attributes_count
@@ -1439,7 +1438,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       signature_index, CHECK);
     const Symbol* const sig = cp->symbol_at(signature_index);
     verify_legal_field_signature(name, sig, CHECK);
-    if (!access_flags.is_static()) instance_fields_count++;
 
     u2 constantvalue_index = 0;
     bool is_synthetic = false;
