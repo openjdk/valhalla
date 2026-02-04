@@ -288,6 +288,10 @@ class markWord {
     return mask_bits(value() >> hash_shift, hash_mask);
   }
 
+  bool has_hash() const {
+    return hash() != no_hash;
+  }
+
   bool has_no_hash() const {
     return hash() == no_hash;
   }
