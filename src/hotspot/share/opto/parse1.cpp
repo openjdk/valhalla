@@ -645,7 +645,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);
       }
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() && t->isa_aryptr()) {
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
       // Speculate on varargs Object array being the default array refined type
       const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
       ciSignature* method_signature = method()->signature();
