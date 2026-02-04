@@ -3903,7 +3903,6 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
     WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
-    WARN_IF_NOT_DEFAULT_FLAG(UseAltSubstitutabilityMethod);
 #ifdef ASSERT
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(StressCallingConvention);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PreloadClasses);

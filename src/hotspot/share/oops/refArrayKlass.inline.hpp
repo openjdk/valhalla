@@ -39,13 +39,23 @@
 template <typename T, class OopClosureType>
 void RefArrayKlass::oop_oop_iterate_elements(refArrayOop a,
                                              OopClosureType *closure) {
-  T *p = (T *)a->base();
-  T *const end = p + a->length();
+  oop_oop_iterate_elements_range<T>(a, closure, 0, a->length());
+}
 
-  for (; p < end; p++) {
+// Like oop_oop_iterate but only iterates over a specified range and only used
+// for refArrayOops.
+template <typename T, class OopClosureType>
+void RefArrayKlass::oop_oop_iterate_elements_range(refArrayOop a, OopClosureType* closure, int start, int end) {
+  T* base        = (T*)a->base();
+  T* p           = base + start;
+  T* const end_p = base + end;
+
+  assert(a->klass()->is_refArray_klass(), "must be refArray");
+  for (;p < end_p; ++p) {
     Devirtualizer::do_oop(closure, p);
   }
 }
+
 
 template <typename T, class OopClosureType>
 void RefArrayKlass::oop_oop_iterate_elements_bounded(refArrayOop a,
@@ -99,32 +109,6 @@ void RefArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType *closure,
   }
 
   oop_oop_iterate_elements_bounded<T>(a, closure, mr.start(), mr.end());
-}
-
-// Like oop_oop_iterate but only iterates over a specified range and only used
-// for objArrayOops.
-template <typename T, class OopClosureType>
-void RefArrayKlass::oop_oop_iterate_range(refArrayOop a,
-                                          OopClosureType *closure, int start,
-                                          int end) {
-  T *low = (T *)a->base() + start;
-  T *high = (T *)a->base() + end;
-
-  oop_oop_iterate_elements_bounded<T>(a, closure, low, high);
-}
-
-// Placed here to resolve include cycle between objArrayKlass.inline.hpp and
-// objArrayOop.inline.hpp
-template <typename OopClosureType>
-void refArrayOopDesc::oop_iterate_range(OopClosureType *blk, int start,
-                                        int end) {
-  if (UseCompressedOops) {
-    ((RefArrayKlass *)klass())
-        ->oop_oop_iterate_range<narrowOop>(this, blk, start, end);
-  } else {
-    ((RefArrayKlass *)klass())
-        ->oop_oop_iterate_range<oop>(this, blk, start, end);
-  }
 }
 
 #endif // SHARE_OOPS_REFARRAYKLASS_INLINE_HPP

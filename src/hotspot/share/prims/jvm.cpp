@@ -117,9 +117,6 @@
 #if INCLUDE_MANAGEMENT
 #include "services/finalizerService.hpp"
 #endif
-#ifdef LINUX
-#include "osContainer_linux.hpp"
-#endif
 
 #include <errno.h>
 
@@ -635,11 +632,9 @@ JVM_LEAF(jboolean, JVM_IsUseContainerSupport(void))
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsContainerized(void))
-#ifdef LINUX
-  if (OSContainer::is_containerized()) {
+  if (os::is_containerized()) {
     return JNI_TRUE;
   }
-#endif
   return JNI_FALSE;
 JVM_END
 
@@ -786,8 +781,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     JavaCallArguments args;
     Handle ho(THREAD, obj);
     args.push_oop(ho);
-    methodHandle method(THREAD, UseAltSubstitutabilityMethod
-            ? Universe::value_object_hash_codeAlt_method() : Universe::value_object_hash_code_method());
+    methodHandle method(THREAD, Universe::value_object_hash_code_method());
     JavaCalls::call(&result, method, &args, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
