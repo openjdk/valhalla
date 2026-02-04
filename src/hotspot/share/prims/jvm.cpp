@@ -770,10 +770,10 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   }
   oop obj = JNIHandles::resolve_non_null(handle);
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
+    markWord old_mark = obj->mark();
     // Check if mark word contains hash code already
-    intptr_t hash = obj->mark().hash();
-    if (hash != markWord::no_hash) {
-      return checked_cast<jint>(hash);
+    if (old_mark.has_hash()) {
+      return checked_cast<jint>(old_mark.hash());
     }
 
     // Compute hash by calling ValueObjectMethods.valueObjectHashCode
@@ -790,17 +790,35 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
         THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
       }
     }
-    hash = result.get_jint();
 
-    // Store hash in the mark word
-    markWord old_mark, new_mark, test;
+    // The generated identity hash is invariantly immutable. We divide into two cases:
+    // 1. No oops: the identity hash is computed from the immutable fields, no
+    //    matter when this is called the same identity hash code is expected.
+    // 2. Oops: the above still applies, but the oops' identity hash code must
+    //    be used as the polymorphic hashCode may change due to mutability.
+    const intptr_t identity_hash = checked_cast<intptr_t>(result.get_jint());
+    markWord new_mark = old_mark.copy_set_hash(identity_hash);
+    guarantee(new_mark.has_hash(), "a value object's identity hash may not be zero");
+
+    // We now have to set the hash via CAS. It's possible that this will race
+    // other threads. By our invariant of immutability, when there is a
+    // race, the identity hash code is going to be one of the following:
+    // a) 0, another thread updated other markWord bits; b) identity_hash set
+    // by another thread; or c) identity_hash set by the current thread.
+    // When the hash is 0, a retry is possible. A nonzero identity hash code
+    // that is not the identity_hash computed earlier indicates a violation
+    // of the invariant.
+    bool retry;
     do {
-      old_mark = ho->mark();
-      new_mark = old_mark.copy_set_hash(hash);
-      test = ho->cas_set_mark(new_mark, old_mark);
-    } while (test != old_mark);
+      markWord cas_result = ho->cas_set_mark(new_mark, old_mark);
+      assert(cas_result.has_no_hash() || cas_result.hash() == identity_hash,
+            "identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
+            identity_hash,
+            cas_result.hash());
+      retry = cas_result.has_no_hash();
+    } while (retry);
 
-    return checked_cast<jint>(new_mark.hash());
+    return checked_cast<jint>(identity_hash);
   } else {
     return checked_cast<jint>(ObjectSynchronizer::FastHashCode(THREAD, obj));
   }
