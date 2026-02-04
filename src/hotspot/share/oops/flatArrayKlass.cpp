@@ -295,8 +295,8 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         BufferedValuePayload buf_payload(buffer);
 
         // We have already checked that src_pos and dst_pos are valid indices.
-        FlatArrayInlineKlassPayload src_payload(sah(), src_pos, fsk);
-        FlatArrayInlineKlassPayload dst_payload(dah(), dst_pos, fdk);
+        FlatArrayPayload src_payload(sah(), src_pos, fsk);
+        FlatArrayPayload dst_payload(dah(), dst_pos, fdk);
 
         const bool need_null_check =
             LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) &&

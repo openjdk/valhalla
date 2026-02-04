@@ -72,7 +72,7 @@ inline oop flatArrayOopDesc::obj_at(int index) const {
 
 inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayInlineKlassPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
+  FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
   return payload.read(THREAD);
 }
 
@@ -108,7 +108,7 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
 
-  FlatArrayInlineKlassPayload payload(flatArrayOop(this), index, faklass);
+  FlatArrayPayload payload(flatArrayOop(this), index, faklass);
   // The value and klass has already been checked for null compatibility.
   payload.write_without_nullability_check(inlineOop(value));
 }

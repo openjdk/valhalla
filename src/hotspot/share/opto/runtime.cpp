@@ -372,7 +372,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
       // represented by all zeros. A newly allocated null-free array is already
       // initialised with all zeros and has no null markers. So the payload copy
       // can be elided.
-      FlatArrayInlineKlassPayload payload(array, 0, fak);
+      FlatArrayPayload payload(array, 0, fak);
       for (int i = 0; i < len; i++) {
         payload.write_without_nullability_check(inlineOop(h_init_val()));
         payload.next_element();

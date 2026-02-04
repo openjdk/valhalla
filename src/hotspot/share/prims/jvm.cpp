@@ -465,8 +465,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
            "Failed to throw the IllegalArgumentException");
     if (copy_len != 0) {
       int start = MIN2(from, org_length - 1);
-      FlatArrayInlineKlassPayload src_payload(flatArrayOop(oh()), start, fak);
-      FlatArrayInlineKlassPayload dst_payload(dst, 0, fak);
+      FlatArrayPayload src_payload(flatArrayOop(oh()), start, fak);
+      FlatArrayPayload dst_payload(dst, 0, fak);
       int end = to < oh()->length() ? to : oh()->length();
       for (int i = from; i < end; i++) {
         // Copy a value

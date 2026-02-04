@@ -131,7 +131,7 @@ public:
 };
 
 class FlatFieldPayload;
-class FlatArrayInlineKlassPayload;
+class FlatArrayPayload;
 
 class FlatValuePayload : public ValuePayload {
 protected:
@@ -150,7 +150,7 @@ public:
 
   inline void copy_to(const FlatFieldPayload& dst);
 
-  inline void copy_to(const FlatArrayInlineKlassPayload& dst);
+  inline void copy_to(const FlatArrayPayload& dst);
 
   [[nodiscard]] inline inlineOop read(TRAPS);
   inline void write_without_nullability_check(inlineOop obj);
@@ -201,7 +201,7 @@ public:
   inline OopHandle get_oop_handle(OopStorage* storage) const;
 };
 
-class FlatArrayInlineKlassPayload : public FlatValuePayload {
+class FlatArrayPayload : public FlatValuePayload {
 private:
   struct Storage {
     jint _layout_helper;
@@ -211,28 +211,26 @@ private:
 protected:
   using FlatValuePayload::FlatValuePayload;
 
-  inline FlatArrayInlineKlassPayload(flatArrayOop holder, InlineKlass* klass,
-                                     ptrdiff_t offset, LayoutKind layout_kind,
-                                     jint layout_helper, int element_size);
+  inline FlatArrayPayload(flatArrayOop holder, InlineKlass* klass,
+                          ptrdiff_t offset, LayoutKind layout_kind,
+                          jint layout_helper, int element_size);
 
 public:
-  FlatArrayInlineKlassPayload() = default;
-  FlatArrayInlineKlassPayload(const FlatArrayInlineKlassPayload&) = default;
-  FlatArrayInlineKlassPayload&
-  operator=(const FlatArrayInlineKlassPayload&) = default;
+  FlatArrayPayload() = default;
+  FlatArrayPayload(const FlatArrayPayload&) = default;
+  FlatArrayPayload& operator=(const FlatArrayPayload&) = default;
 
-  explicit inline FlatArrayInlineKlassPayload(flatArrayOop holder);
-  inline FlatArrayInlineKlassPayload(flatArrayOop holder,
-                                     FlatArrayKlass* klass);
+  explicit inline FlatArrayPayload(flatArrayOop holder);
+  inline FlatArrayPayload(flatArrayOop holder, FlatArrayKlass* klass);
 
-  inline FlatArrayInlineKlassPayload(flatArrayOop holder, int index);
-  inline FlatArrayInlineKlassPayload(flatArrayOop holder, int index,
-                                     FlatArrayKlass* klass);
+  inline FlatArrayPayload(flatArrayOop holder, int index);
+  inline FlatArrayPayload(flatArrayOop holder, int index,
+                          FlatArrayKlass* klass);
 
-  [[nodiscard]] static inline FlatArrayInlineKlassPayload
+  [[nodiscard]] static inline FlatArrayPayload
   construct_from_parts(flatArrayOop holder, InlineKlass* klass,
                        ptrdiff_t offset, LayoutKind layout_kind);
-  [[nodiscard]] static inline FlatArrayInlineKlassPayload
+  [[nodiscard]] static inline FlatArrayPayload
   construct_from_parts(flatArrayOop holder, InlineKlass* klass,
                        ptrdiff_t offset, LayoutKind layout_kind,
                        FlatArrayKlass* holder_klass);
@@ -348,28 +346,26 @@ public:
   inline instanceOop get_holder() const;
 };
 
-class FlatArrayInlineKlassPayload::Handle : public FlatValuePayload::Handle {
+class FlatArrayPayload::Handle : public FlatValuePayload::Handle {
 private:
-  FlatArrayInlineKlassPayload::Storage _storage;
+  FlatArrayPayload::Storage _storage;
 
 public:
-  inline Handle(const FlatArrayInlineKlassPayload& payload, JavaThread* thread);
+  inline Handle(const FlatArrayPayload& payload, JavaThread* thread);
 
-  inline FlatArrayInlineKlassPayload operator()() const;
+  inline FlatArrayPayload operator()() const;
 
   inline flatArrayOop get_holder() const;
 };
 
-class FlatArrayInlineKlassPayload::OopHandle
-    : public FlatValuePayload::OopHandle {
+class FlatArrayPayload::OopHandle : public FlatValuePayload::OopHandle {
 private:
-  FlatArrayInlineKlassPayload::Storage _storage;
+  FlatArrayPayload::Storage _storage;
 
 public:
-  inline OopHandle(const FlatArrayInlineKlassPayload& payload,
-                   OopStorage* storage);
+  inline OopHandle(const FlatArrayPayload& payload, OopStorage* storage);
 
-  inline FlatArrayInlineKlassPayload operator()() const;
+  inline FlatArrayPayload operator()() const;
 
   inline flatArrayOop get_holder() const;
 };
