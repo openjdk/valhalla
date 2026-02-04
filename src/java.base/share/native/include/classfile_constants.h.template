@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ enum {
     JVM_ACC_VARARGS       = 0x0080,
     JVM_ACC_NATIVE        = 0x0100,
     JVM_ACC_INTERFACE     = 0x0200,
+    JVM_ACC_NULL_CHECKED  = 0x0200,
     JVM_ACC_ABSTRACT      = 0x0400,
     JVM_ACC_PRIMITIVE     = 0x0800,
     JVM_ACC_STRICT        = 0x0800,
@@ -73,6 +74,7 @@ enum {
 #define JVM_ACC_VARARGS_BIT       7
 #define JVM_ACC_NATIVE_BIT        8
 #define JVM_ACC_INTERFACE_BIT     9
+#define JVM_ACC_NULL_CHECKED_BIT  9
 #define JVM_ACC_ABSTRACT_BIT      10
 #define JVM_ACC_STRICT_BIT        11
 #define JVM_ACC_SYNTHETIC_BIT     12

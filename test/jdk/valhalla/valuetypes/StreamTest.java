@@ -28,7 +28,6 @@
  * @run junit/othervm StreamTest
  */
 
-import jdk.internal.vm.annotation.NullRestricted;
 
 import java.util.Arrays;
 import java.util.List;
@@ -60,8 +59,7 @@ public class StreamTest {
 
     static value class Value {
         int i;
-        @NullRestricted
-        Point p;
+        Point! p;
         Point nullable;
         List<X> list;
         Value(int i, Point/* Point! */ p, Point np, List<X> list) {

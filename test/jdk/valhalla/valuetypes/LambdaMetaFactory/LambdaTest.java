@@ -31,7 +31,6 @@
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
-import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -48,8 +47,7 @@ public class LambdaTest {
     }
 
     static value class Value {
-        @NullRestricted
-        V v;
+        V! v;
         Value(V v) {
             this.v = v;
         }
