@@ -3247,13 +3247,13 @@ public class ClassReader {
         }
         utf8validation = majorVersion < V48.major ? Convert.Validation.PREJDK14 : Convert.Validation.STRICT;
 
-        if (previewClassFile) {
-            if (!preview.isEnabled()) {
-                log.error(preview.disabledError(currentClassFile, majorVersion));
-            } else {
-                preview.warnPreview(c.classfile, majorVersion);
-            }
-        }
+        // if (previewClassFile) {
+        //     if (!preview.isEnabled()) {
+        //         log.error(preview.disabledError(currentClassFile, majorVersion));
+        //     } else {
+        //         preview.warnPreview(c.classfile, majorVersion);
+        //     }
+        // }
 
         poolReader = new PoolReader(this, names, syms);
         bp = poolReader.readPool(buf, bp);

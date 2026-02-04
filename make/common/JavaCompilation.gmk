@@ -46,7 +46,8 @@ TARGET_RELEASE_BOOTJDK := -source $(OLDEST_BOOT_JDK_VERSION) \
 # Create classes that can be used in (or be a part of) the new jdk we're
 # building
 TARGET_RELEASE_NEWJDK := -source $(JDK_SOURCE_TARGET_VERSION) \
-    -target $(JDK_SOURCE_TARGET_VERSION)
+    -target $(JDK_SOURCE_TARGET_VERSION) \
+    --enable-preview
 
 # Create classes that can be used in JDK 8, for legacy support
 TARGET_RELEASE_JDK8 := --release 8
@@ -220,6 +221,7 @@ define SetupJavaCompilationBody
       $1_TARGET_RELEASE := $$(TARGET_RELEASE_NEWJDK)
     endif
   else ifeq ($$($1_COMPILER), interim)
+    $1_DISABLED_WARNINGS += initialization preview
     # Use java server if it is enabled, and the user does not want a specialized
     # class path.
     ifeq ($$(ENABLE_JAVAC_SERVER)+$$($1_CLASSPATH), true+)
