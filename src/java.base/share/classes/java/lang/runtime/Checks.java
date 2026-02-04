@@ -31,7 +31,7 @@ import jdk.internal.vm.annotation.ForceInline;
  * This class consists of {@code static} utility methods for checking
  * if any of their arguments is {@code null}.
  *
- * @since valhalla
+ * @since Valhalla
  */
 public final class Checks {
     private Checks() {
