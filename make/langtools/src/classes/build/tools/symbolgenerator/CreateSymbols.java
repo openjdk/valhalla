@@ -195,6 +195,12 @@ public class CreateSymbols {
      */
     private static final String PREVIEW_VERSION = "@";
 
+    /**
+     * Transient support for @jdk.internal.vm.annotation.NullRestricted, which javac inserts into compiled
+     * user classes, and hence need to be included in the ct.sym.
+     */
+    private static final Set<String> TRANSIENT_EXTRA_CLASSES = Set.of("jdk/internal/vm/annotation/NullRestricted");
+
     //<editor-fold defaultstate="collapsed" desc="ct.sym construction">
     /**Create sig files for ct.sym reading the classes description from the directory that contains
      * {@code ctDescriptionFile}, using the file as a recipe to create the sigfiles.
@@ -222,10 +228,12 @@ public class CreateSymbols {
                                            .collect(Collectors.toSet());
 
         loadVersionClassesFromDirectory(data.classes, data.modules, moduleClassPath,
-                                        includedModules, currentVersion, previousVersion);
+                                        includedModules, currentVersion, previousVersion,
+                                        TRANSIENT_EXTRA_CLASSES);
 
         loadVersionClassesFromDirectory(data.classes, data.modules, moduleClassPath,
-                includedModules, PREVIEW_VERSION, currentVersion);
+                includedModules, PREVIEW_VERSION, currentVersion,
+                TRANSIENT_EXTRA_CLASSES);
 
         stripNonExistentAnnotations(data);
         splitHeaders(data.classes);
@@ -1328,7 +1336,8 @@ public class CreateSymbols {
                                     Path modulesDirectory,
                                     Set<String> includedModules,
                                     String version,
-                                    String baseline) {
+                                    String baseline,
+                                    Set<String> transientExtraClasses) {
         Map<String, ModuleDescription> currentVersionModules =
                 new HashMap<>();
         ClassList currentVersionClasses = new ClassList();
@@ -1336,6 +1345,7 @@ public class CreateSymbols {
         Set<String> includes = new HashSet<>();
         ExcludeIncludeList currentEIList = new ExcludeIncludeList(includes,
                 privateIncludes,
+                transientExtraClasses,
                 Collections.emptySet());
 
         try {
@@ -1378,7 +1388,7 @@ public class CreateSymbols {
                 }
             }
 
-            List<String> pendingExtraClasses = new ArrayList<>();
+            List<String> pendingExtraClasses = new ArrayList<>(transientExtraClasses);
 
             for (ExportedDir exported : pendingExportedDirectories) {
                 try (DirectoryStream<Path> ds = Files.newDirectoryStream(exported.exportedDir())) {
@@ -2466,16 +2476,23 @@ public class CreateSymbols {
     public static class ExcludeIncludeList {
         public final Set<String> includeList;
         public final Set<String> privateIncludeList;
+        public final Set<String> transientExtraIncludedClasses;
         public final Set<String> excludeList;
 
         protected ExcludeIncludeList(Set<String> includeList, Set<String> excludeList) {
-            this(includeList, Set.of(), excludeList);
+            this(includeList, Set.of(), Set.of(), excludeList);
         }
 
         protected ExcludeIncludeList(Set<String> includeList, Set<String> privateIncludeList,
                                      Set<String> excludeList) {
+            this(includeList, privateIncludeList, Set.of(), excludeList);
+        }
+
+        protected ExcludeIncludeList(Set<String> includeList, Set<String> privateIncludeList,
+                                     Set<String> transientExtraIncludedClasses, Set<String> excludeList) {
             this.includeList = includeList;
             this.privateIncludeList = privateIncludeList;
+            this.transientExtraIncludedClasses = transientExtraIncludedClasses;
             this.excludeList = excludeList;
         }
 
@@ -2497,7 +2514,8 @@ public class CreateSymbols {
 
         public boolean accepts(String className, boolean includePrivateClasses) {
             return (matches(includeList, className) ||
-                    (includePrivateClasses && matches(privateIncludeList, className))) &&
+                    (includePrivateClasses && matches(privateIncludeList, className)) ||
+                    matches(transientExtraIncludedClasses, className)) &&
                    !matches(excludeList, className);
         }
 
