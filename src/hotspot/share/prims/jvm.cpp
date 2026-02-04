@@ -770,10 +770,10 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   }
   oop obj = JNIHandles::resolve_non_null(handle);
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
-    markWord old_mark = obj->mark();
+    const intptr_t obj_identity_hash = obj->mark().hash();
     // Check if mark word contains hash code already
-    if (old_mark.has_hash()) {
-      return checked_cast<jint>(old_mark.hash());
+    if (obj_identity_hash != markWord::no_hash) {
+      return checked_cast<jint>(obj_identity_hash);
     }
 
     // Compute hash by calling ValueObjectMethods.valueObjectHashCode
@@ -797,26 +797,24 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     // 2. Oops: the above still applies, but the oops' identity hash code must
     //    be used as the polymorphic hashCode may change due to mutability.
     const intptr_t identity_hash = checked_cast<intptr_t>(result.get_jint());
-    markWord new_mark = old_mark.copy_set_hash(identity_hash);
-    guarantee(new_mark.has_hash(), "a value object's identity hash may not be zero");
 
     // We now have to set the hash via CAS. It's possible that this will race
     // other threads. By our invariant of immutability, when there is a
     // race, the identity hash code is going to be one of the following:
     // a) 0, another thread updated other markWord bits; b) identity_hash set
     // by another thread; or c) identity_hash set by the current thread.
-    // When the hash is 0, a retry is possible. A nonzero identity hash code
-    // that is not the identity_hash computed earlier indicates a violation
-    // of the invariant.
-    bool retry;
+    // A nonzero identity hash code that is not the identity_hash computed
+    // earlier indicates a violation of the invariant.
+    markWord current_mark, old_mark;
     do {
-      markWord cas_result = ho->cas_set_mark(new_mark, old_mark);
-      assert(cas_result.has_no_hash() || cas_result.hash() == identity_hash,
-            "identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
+      markWord new_mark = current_mark.copy_set_hash(identity_hash);
+      current_mark = ho->mark();
+      old_mark = ho->cas_set_mark(new_mark, current_mark);
+      assert(old_mark.has_no_hash() || old_mark.hash() != new_mark.hash(),
+            "CAS identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
             identity_hash,
-            cas_result.hash());
-      retry = cas_result.has_no_hash();
-    } while (retry);
+            old_mark.hash());
+    } while (old_mark != current_mark);
 
     return checked_cast<jint>(identity_hash);
   } else {
