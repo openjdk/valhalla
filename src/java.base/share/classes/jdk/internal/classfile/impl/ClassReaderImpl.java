@@ -74,8 +74,8 @@ public final class ClassReaderImpl
         if (classfileLength < 4 || readInt(0) != 0xCAFEBABE) {
             throw new IllegalArgumentException("Bad magic number");
         }
-        int version = readU2(6);
-        if (version > ClassFile.latestMajorVersion()) {
+        int version = readInt(4);
+        if ((version & 0xFFFF) > ClassFile.latestMajorVersion()) {
             throw new IllegalArgumentException("Unsupported class file version: " + version);
         }
         this.version = version;
