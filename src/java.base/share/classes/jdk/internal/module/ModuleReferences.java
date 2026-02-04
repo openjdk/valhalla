@@ -51,7 +51,6 @@ import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
 import jdk.internal.jmod.JmodFile;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.module.ModuleHashes.HashSupplier;
 import sun.net.www.ParseUtil;
 
@@ -124,9 +123,8 @@ class ModuleReferences {
      */
     static ModuleReference newExplodedModule(ModuleInfo.Attributes attrs,
                                              ModulePatcher patcher,
+                                             boolean previewMode,
                                              Path dir) {
-        // TODO: Add check to restrict to core JDK modules.
-        boolean previewMode = PreviewFeatures.isEnabled();
         Supplier<ModuleReader> supplier = () -> new ExplodedModuleReader(dir, previewMode);
         return newModule(attrs, dir.toUri(), supplier, patcher, null);
     }
