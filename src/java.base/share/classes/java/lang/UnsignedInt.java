@@ -153,18 +153,17 @@ public final class /* value */ UnsignedInt  {
      */
     public static final UnsignedInt MAX_VALUE = valueOf(0xffff_ffff);
 
-    // Consider these in the future.
-//     /**
-//      * The number of bits used to represent an unsigned {@code int} value in two's
-//      * complement binary form.
-//      */
-//     public static final int SIZE = Integer.SIZE;
+     /**
+      * The number of bits that can be stored in an unsigned {@code
+      * int} value in two's complement binary form, {@value}.
+      */
+     public static final int SIZE = Integer.SIZE;
 
-//     /**
-//      * The number of bytes used to represent an unsigned {@code int}
-//      * value in two's complement binary form.
-//      */
-//     public static final int BYTES = SIZE / Byte.SIZE;
+     /**
+      * The number of bytes that can be stored in an unsigned {@code
+      * int} value in two's complement binary form, {@value}.
+      */
+     public static final int BYTES = SIZE / Byte.SIZE;
 
     /**
      * The bits of the unsigned value.
