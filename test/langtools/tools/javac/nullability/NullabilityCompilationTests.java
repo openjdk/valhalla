@@ -502,6 +502,22 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                interface I {
+                                    void m(String! s); // should no crash javac
+                                }
+                                """,
+                                Result.Clean,
+                                ""),
+                        new DiagAndCode(
+                                """
+                                abstract class A {
+                                    abstract void m(String! s); // should no crash javac
+                                }
+                                """,
+                                Result.Clean,
                                 "")
                 )
         );

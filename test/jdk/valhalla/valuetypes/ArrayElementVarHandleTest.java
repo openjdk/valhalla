@@ -33,7 +33,6 @@
 import java.lang.invoke.*;
 import java.util.stream.Stream;
 
-import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -50,10 +49,8 @@ public class ArrayElementVarHandleTest {
     }
 
     static value class Line {
-        @NullRestricted
-        Point p1;
-        @NullRestricted
-        Point p2;
+        Point! p1;
+        Point! p2;
 
         Line(Point p1, Point p2) {
             this.p1 = p1;
