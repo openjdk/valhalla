@@ -781,6 +781,7 @@ public:
   void set_has_reserved_stack_access() { constMethod()->set_reserved_stack_access(); }
 
   bool is_scalarized_arg(int idx) const;
+  bool is_scalarized_buffer_arg(int idx) const;
 
   bool c1_needs_stack_repair() const { return constMethod()->c1_needs_stack_repair(); }
   void set_c1_needs_stack_repair() { constMethod()->set_c1_needs_stack_repair(); }

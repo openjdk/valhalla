@@ -1985,6 +1985,63 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   return some_allocations;
 }
 
+bool Compile::only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn) {
+  ResourceMark rm;
+  Unique_Node_List wq;
+  wq.push(result_cast);
+  Node_List calls;
+  for (uint i = 0; i < wq.size(); ++i) {
+    Node* n = wq.at(i);
+    for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++) {
+      Node* u = n->fast_out(j);
+      if (u->is_Phi()) {
+        wq.push(u);
+      } else if (u->is_InlineType() && u->as_InlineType()->get_oop() == n) {
+        wq.push(u);
+      } else if (u->is_CallJava()) {
+        CallJavaNode* call = u->as_CallJava();
+        uint nargs = call->tf()->domain_cc()->cnt();
+        for (uint k = TypeFunc::Parms; k < nargs; k++) {
+          Node* in = call->in(k);
+          if (in == n && !call->method()->is_scalarized_buffer_arg(k - TypeFunc::Parms)) {
+            return false;
+          }
+        }
+        calls.push(call);
+      } else if (u->Opcode() == Op_EncodeP) {
+        wq.push(u);
+      } else if (u->is_AddP()) {
+        wq.push(u);
+      } else if (u->is_Store() && u->in(MemNode::Address) == n) {
+        // storing to the buffer is fine
+      } else if (u->is_SafePoint()) {
+        SafePointNode* sfpt = u->as_SafePoint();
+        int input = u->find_edge(n);
+        JVMState* jvms = sfpt->jvms();
+        if (jvms != nullptr) {
+          if (input < (int)jvms->debug_start()) {
+            return false;
+          }
+        }
+      } else {
+        return false;
+      }
+    }
+  }
+  for (uint i = 0; i < calls.size(); ++i) {
+    CallJavaNode* call = calls.at(i)->as_CallJava();
+    uint nargs = call->tf()->domain_cc()->cnt();
+    for (uint k = TypeFunc::Parms; k < nargs; k++) {
+      Node* in = call->in(k);
+      if (wq.member(in)) {
+        assert(call->method()->is_scalarized_buffer_arg(k - TypeFunc::Parms), "");
+        igvn.replace_input_of(call, k, igvn.zerocon(T_OBJECT));
+      }
+    }
+  }
+  return true;
+}
+
 void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Make sure that the return value does not keep an otherwise unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
@@ -2006,6 +2063,21 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       }
     }
   }
+  for (int i = 0; i < C->macro_count(); ++i) {
+    Node* macro_node = C->macro_node(i);
+    if (macro_node->Opcode() == Op_Allocate) {
+      AllocateNode* allocate = macro_node->as_Allocate();
+      Node* result_cast = allocate->result_cast();
+      if (result_cast != nullptr) {
+        const Type* result_type = igvn.type(result_cast);
+        if (result_type->is_inlinetypeptr()) {
+          if (only_used_as_buffer_at_calls(result_cast, igvn)) {
+          }
+        }
+      }
+    }
+  }
+
   if (_inline_type_nodes.length() == 0) {
     // keep the graph canonical
     igvn.optimize();
