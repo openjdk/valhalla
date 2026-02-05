@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,11 +50,12 @@ class AccessFlags {
   bool is_protected   () const         { return (_flags & JVM_ACC_PROTECTED   ) != 0; }
   bool is_static      () const         { return (_flags & JVM_ACC_STATIC      ) != 0; }
   bool is_final       () const         { return (_flags & JVM_ACC_FINAL       ) != 0; }
-  bool is_strict      () const         { return (_flags & JVM_ACC_STRICT      ) != 0; }
+  bool is_strict      () const         { return (_flags & JVM_ACC_STRICT_INIT ) != 0; }
   bool is_synchronized() const         { return (_flags & JVM_ACC_SYNCHRONIZED) != 0; }
   bool is_volatile    () const         { return (_flags & JVM_ACC_VOLATILE    ) != 0; }
   bool is_transient   () const         { return (_flags & JVM_ACC_TRANSIENT   ) != 0; }
   bool is_native      () const         { return (_flags & JVM_ACC_NATIVE      ) != 0; }
+  bool is_null_checked() const         { return (_flags & JVM_ACC_NULL_CHECKED) != 0; }
   bool is_interface   () const         { return (_flags & JVM_ACC_INTERFACE   ) != 0; }
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
   bool has_vararg     () const         { return (_flags & JVM_ACC_VARARGS     ) != 0; }

@@ -1217,4 +1217,16 @@ public class TestLWorldProfiling {
             test41(array, new Test40Inline());
         }
     }
+
+    @Test
+    static long test42(Long... v) {
+        return v[0];
+    }
+
+    @Run(test = "test42")
+    @Warmup(10000)
+    public void test42_verifier() {
+        Long[] arg = (Long[])ValueClass.newNullRestrictedNonAtomicArray(Long.class, 1, 0L);
+        test42(arg);
+    }
 }

@@ -261,6 +261,18 @@ public enum AccessFlag {
               List.of(Map.entry(RELEASE_0, Location.SET_CLASS))),
 
     /**
+     * The access flag {@code ACC_NULL_CHECKED}, with a mask value of
+     * <code>{@value "0x%01x" ClassFile#ACC_NULL_CHECKED}</code>.
+     *
+     * @jvms TBD
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective=true)
+    NULL_CHECKED(ACC_NULL_CHECKED, false,
+            Location.SET_FIELD,
+            List.of(Map.entry(latest(), Location.EMPTY_SET))),
+
+    /**
      * The access flag {@code ACC_ABSTRACT}, corresponding to the
      * source modifier {@link Modifier#ABSTRACT abstract}, with a mask
      * value of <code>{@value "0x%04x" Modifier#ABSTRACT}</code>.
@@ -282,18 +294,6 @@ public enum AccessFlag {
     STRICT(Modifier.STRICT, true, Location.EMPTY_SET,
            List.of(Map.entry(RELEASE_16, Location.SET_METHOD),
                    Map.entry(RELEASE_1, Location.EMPTY_SET))),
-
-    /**
-     * The access flag {@code ACC_NULL_CHECKED}, with a mask value of
-     * <code>{@value "0x%01x" ClassFile#ACC_NULL_CHECKED}</code>.
-     *
-     * @jvms TBD
-     * @since Valhalla
-     */
-    @PreviewFeature(feature = PreviewFeature.Feature.NULL_RESTRICTION, reflective=true)
-    NULL_CHECKED(ACC_NULL_CHECKED, false,
-            Location.SET_FIELD,
-            List.of(Map.entry(latest(), Location.EMPTY_SET))),
 
     /**
      * The access flag {@code ACC_STRICT_INIT}, with a mask value of

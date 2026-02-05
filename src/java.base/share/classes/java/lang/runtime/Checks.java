@@ -25,14 +25,16 @@
 
 package java.lang.runtime;
 
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.vm.annotation.ForceInline;
 
 /**
  * This class consists of {@code static} utility methods for checking
  * if any of their arguments is {@code null}.
  *
- * @since valhalla
+ * @since Valhalla
  */
+@PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 public final class Checks {
     private Checks() {
         throw new AssertionError("can't instantiate java.lang.runtime.Checks");
