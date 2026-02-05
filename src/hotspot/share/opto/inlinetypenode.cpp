@@ -1518,7 +1518,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
 
 InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
-  if (!in || true) {
+  if (!in || multi->is_Start()) {
     // Keep track of the oop. The returned inline type might already be buffered.
     Node* oop = nullptr;
     if (multi->is_Start()) {
@@ -1526,6 +1526,9 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
     } else {
       oop = kit->gvn().transform(new ProjNode(multi, base_input++));
     }
+    vt->set_oop(kit->gvn(), oop);
+  } else {
+    Node* oop = multi->as_Call()->in(base_input++);
     vt->set_oop(kit->gvn(), oop);
   }
   GrowableArray<ciType*> visited;
@@ -1594,8 +1597,8 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.longcon((jlong)bits);
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
-  if (in) {
+void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free, bool root) {
+  if (root) {
     n->init_req(base_input++, get_oop());
   }
   if (!null_free && in) {

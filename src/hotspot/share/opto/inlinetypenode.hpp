@@ -153,7 +153,7 @@ public:
   }
   static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
   // Pass inline type as fields at a call or return
-  void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true);
+  void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true, bool root = false);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIdealLoop* phase);

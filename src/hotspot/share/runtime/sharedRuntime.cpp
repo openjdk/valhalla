@@ -4017,7 +4017,7 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* current) {
 // buffers for all inline type arguments. Allocate an object array to
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
-oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS) {
+oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, bool from_c1, TRAPS) {
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
 
@@ -4027,7 +4027,10 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
                        RegisterMap::WalkContinuation::skip);
   frame stubFrame = THREAD->last_frame();
   frame callerFrame = stubFrame.sender(&reg_map2);
-  Handle(current, callerFrame.retrieve_receiver(&reg_map2));
+  if (from_c1) {
+    callerFrame = callerFrame.sender(&reg_map2);
+  }
+  // Handle(current, callerFrame.retrieve_receiver(&reg_map2));
   int arg_size;
   const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
   assert(sig != nullptr, "sig should never be null");
@@ -4077,8 +4080,9 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
         array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
         array = objArrayHandle(THREAD, array_oop);
       }
-      array->obj_at_put(i++, res);
+      array->obj_at_put(i, res);
     }
+    i++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
@@ -4114,8 +4118,9 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
           array = objArrayHandle(THREAD, array_oop);
         }
         oop res = vk->allocate_instance(CHECK_NULL);
-        array->obj_at_put(i++, res);
+        array->obj_at_put(i, res);
       }
+      i++;
     }
     if (bt != T_VOID) {
       arg_num++;
@@ -4126,7 +4131,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
 
 JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method* callee_method, bool allocate_receiver))
   methodHandle callee(current, callee_method);
-  oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, CHECK);
+  oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, false, CHECK);
   current->set_vm_result_oop(array);
   current->set_vm_result_metadata(callee()); // TODO: required to keep callee live?
 JRT_END

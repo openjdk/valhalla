@@ -1965,7 +1965,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
         }
       }
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(this, call, idx, true, !t->maybe_null());
+      vt->pass_fields(this, call, idx, true, !t->maybe_null(), true);
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
