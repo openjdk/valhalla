@@ -29,8 +29,7 @@ package java.lang;
  * An implementation of complex numbers using "textbook" algorithms
  * for the arithmetic operations and using {@code double} values for
  * the {@linkplain real() real} and {@linkplain #imag() imaginary}
- * components. This class is intended only for prototyping and
- * <em>not</em> intended for production use.
+ * components.
  *
  * <p>For explanatory purposes, in the discussions below of the semantics
  * of arithmetic methods, two complex numbers
@@ -44,12 +43,56 @@ package java.lang;
  * projection method}, infinities (complex plane vs Riemann sphere),
  * branch cuts, component-wise vs norm-wise error, specific algorithms
  * used subject to change, etc.
+ *
+ * This class is intended only for prototyping and
+ * <em>not</em> intended for production use.
  */
-@Deprecated(forRemoval=true)
+// @Deprecated(forRemoval=true)
+// @SuppressWarnings("removal") // Usages from ComplexPolarTextbook
 @jdk.internal.ValueBased
-public final class /*value record*/ ComplexTextbook  {
+public final /* value */ class ComplexTextbook  {
     // This type should be Numerical, but *not* Orderable since
     // complex numbers are not an ordered field.
+
+    /**
+     * Witness for the {@code Numerical} interface.
+     */
+    public static final __witness Numerical<ComplexTextbook> NUM =
+        new Numerical<ComplexTextbook>() {
+
+        public ComplexTextbook add(ComplexTextbook addend,
+                                   ComplexTextbook augend) {
+            return ComplexTextbook.add(addend, augend);
+        }
+
+        public ComplexTextbook subtract(ComplexTextbook minuend,
+                                        ComplexTextbook subtrahend) {
+            return ComplexTextbook.subtract(minuend, subtrahend);
+        }
+
+        public ComplexTextbook multiply(ComplexTextbook multiplier,
+                                        ComplexTextbook multiplicand) {
+            return ComplexTextbook.multiply(multiplier, multiplicand);
+        }
+
+        public ComplexTextbook divide(ComplexTextbook dividend,
+                                      ComplexTextbook divisor) {
+            return ComplexTextbook.divide(dividend, divisor);
+        }
+
+        public ComplexTextbook remainder(ComplexTextbook dividend,
+                                         ComplexTextbook divisor) {
+            return ComplexTextbook.remainder( dividend,  divisor);
+        }
+
+        public ComplexTextbook plus(ComplexTextbook operand) {
+            return ComplexTextbook.plus(operand);
+        }
+
+        public ComplexTextbook negate(ComplexTextbook operand) {
+            return ComplexTextbook.negate( operand);
+        }
+    };
 
     /**
      * The real component of the complex number.
@@ -135,6 +178,18 @@ public final class /*value record*/ ComplexTextbook  {
      */
     public static ComplexTextbook valueOf(double real) {
         return new ComplexTextbook(real, 0.0);
+    }
+
+    /**
+     * {@return a complex number using real and imaginary components from a complex
+     * number using polar coordinates}
+     *
+     * @param cPolar a complex number using polar coordinates
+     */
+    public static ComplexTextbook valueOf(ComplexPolarTextbook cPolar) {
+        double r = cPolar.r();
+        double theta = cPolar.theta();
+        return valueOf(r * StrictMath.cos(theta), r * StrictMath.sin(theta));
     }
 
     /**
@@ -354,16 +409,14 @@ public final class /*value record*/ ComplexTextbook  {
     }
 
     /**
-     * {@return the complex conjugate of the argument}
+     * {@return the conjugate of the complex number}
      *
      * @implSpec
      * The conjugate is equivalent to
      * <i>a</i>&nbsp;+&nbsp;&minus;<i>i</i>&middot;<i>b</i>
-     *
-     * @param c a complex number
      */
-    public static ComplexTextbook conj(ComplexTextbook c) {
-        return valueOf(c.real, -c.imag);
+    public ComplexTextbook conj() {
+        return valueOf(this.real, -this.imag);
     }
 
     // Utility methods
