@@ -221,16 +221,18 @@ public class NullChecksWriter extends TreeTranslator {
     public void visitMethodDef(JCMethodDecl tree) {
         Type prevRetType = returnType;
         try {
-            returnType = tree.sym.type.getReturnType();
-            ListBuffer<JCStatement> paramNullChecks = new ListBuffer<>();
-            for (JCVariableDecl param : tree.params) {
-                if (types.isNonNullable(param.sym.type)) {
-                    paramNullChecks.add(make.at(tree.body.pos())
-                            .Exec(attr.makeNullCheck(make.at(tree.body.pos()).Ident(param), true)));
+            if (tree.body != null) {
+                returnType = tree.sym.type.getReturnType();
+                ListBuffer<JCStatement> paramNullChecks = new ListBuffer<>();
+                for (JCVariableDecl param : tree.params) {
+                    if (types.isNonNullable(param.sym.type)) {
+                        paramNullChecks.add(make.at(tree.body.pos())
+                                .Exec(attr.makeNullCheck(make.at(tree.body.pos()).Ident(param), true)));
+                    }
                 }
-            }
-            if (!paramNullChecks.isEmpty()) {
-                tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
+                if (!paramNullChecks.isEmpty()) {
+                    tree.body.stats = tree.body.stats.prependList(paramNullChecks.toList());
+                }
             }
             super.visitMethodDef(tree);
             result = tree;
