@@ -90,7 +90,7 @@ class refArrayOopDesc : public objArrayOopDesc {
 public:
   // special iterators for index ranges, returns size of object
   template <typename OopClosureType>
-  void oop_iterate_range(OopClosureType* blk, int start, int end);
+  void oop_iterate_elements_range(OopClosureType* blk, int start, int end);
 };
 
 // See similar requirement for oopDesc.

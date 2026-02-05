@@ -3251,10 +3251,6 @@ bool LibraryCallKit::inline_arrayLayout() {
 //   int offset = c._klass._acmp_maps_offset;
 //   return (int[])c.obj_field(offset);
 bool LibraryCallKit::inline_getFieldMap() {
-  if (!UseAltSubstitutabilityMethod) {
-    return false;
-  }
-
   Node* mirror = argument(1);
   Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -341,7 +341,7 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   JavaCallArguments args;
   args.push_oop(ha);
   args.push_oop(hb);
-  methodHandle method(current, UseAltSubstitutabilityMethod ?  Universe::is_substitutableAlt_method() : Universe::is_substitutable_method());
+  methodHandle method(current, Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
   if (HAS_PENDING_EXCEPTION) {
