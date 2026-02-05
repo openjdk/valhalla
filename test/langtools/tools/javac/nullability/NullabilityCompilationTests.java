@@ -518,7 +518,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
-                                ""),
+                                "")
                 )
         );
     }
