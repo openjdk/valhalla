@@ -2124,7 +2124,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
           ciArray* array = oop->as_array();
           ciConstant elt = array->element_value_by_offset(off);
           const TypeAryPtr* aryptr = base_type->is_aryptr();
-          if (aryptr->is_stable() && is_reference_type(elt.basic_type()) && elt.as_object()->is_instance()) {
+          if (aryptr->is_stable() && aryptr->is_atomic() && is_reference_type(elt.basic_type()) && elt.as_object()->is_instance()) {
             loaded_from = elt.as_object()->as_instance();
           }
         }

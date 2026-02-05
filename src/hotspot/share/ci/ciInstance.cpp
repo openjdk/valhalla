@@ -62,21 +62,21 @@ ciType* ciInstance::java_mirror_type() {
 // ------------------------------------------------------------------
 // ciInstance::field_value_impl
 ciConstant ciInstance::field_value_impl(ciField* field) {
-  BasicType field_btype = field->type()->basic_type();
+  BasicType field_bt = field->type()->basic_type();
   int offset = field->offset_in_bytes();
-  ciConstant value = check_constant_value_cache(offset, field_btype);
+  ciConstant value = check_constant_value_cache(offset, field_bt);
   if (value.is_valid()) {
     return value;
   }
   VM_ENTRY_MARK;
   oop obj = get_oop();
   assert(obj != nullptr, "bad oop");
-  switch(field_btype) {
-    case T_BYTE:    value = ciConstant(field_btype, obj->byte_field(offset)); break;
-    case T_CHAR:    value = ciConstant(field_btype, obj->char_field(offset)); break;
-    case T_SHORT:   value = ciConstant(field_btype, obj->short_field(offset)); break;
-    case T_BOOLEAN: value = ciConstant(field_btype, obj->bool_field(offset)); break;
-    case T_INT:     value = ciConstant(field_btype, obj->int_field(offset)); break;
+  switch(field_bt) {
+    case T_BYTE:    value = ciConstant(field_bt, obj->byte_field(offset)); break;
+    case T_CHAR:    value = ciConstant(field_bt, obj->char_field(offset)); break;
+    case T_SHORT:   value = ciConstant(field_bt, obj->short_field(offset)); break;
+    case T_BOOLEAN: value = ciConstant(field_bt, obj->bool_field(offset)); break;
+    case T_INT:     value = ciConstant(field_bt, obj->int_field(offset)); break;
     case T_FLOAT:   value = ciConstant(obj->float_field(offset)); break;
     case T_DOUBLE:  value = ciConstant(obj->double_field(offset)); break;
     case T_LONG:    value = ciConstant(obj->long_field(offset)); break;
@@ -90,7 +90,7 @@ ciConstant ciInstance::field_value_impl(ciField* field) {
           CLEAR_PENDING_EXCEPTION;
           return ciConstant();
         }
-        value = ciConstant(field_btype, CURRENT_ENV->get_object(res));
+        value = ciConstant(field_bt, CURRENT_ENV->get_object(res));
       } else {
         oop o = obj->obj_field(offset);
 
@@ -102,15 +102,15 @@ ciConstant ciInstance::field_value_impl(ciField* field) {
         // information about the object's class (which is exact) or length.
 
         if (o == nullptr) {
-          value = ciConstant(field_btype, ciNullObject::make());
+          value = ciConstant(field_bt, ciNullObject::make());
         } else {
-          value = ciConstant(field_btype, CURRENT_ENV->get_object(o));
+          value = ciConstant(field_bt, CURRENT_ENV->get_object(o));
         }
       }
       break;
     }
     default:
-      fatal("no field value: %s", type2name(field_btype));
+      fatal("no field value: %s", type2name(field_bt));
   }
   add_to_constant_value_cache(offset, value);
   return value;
