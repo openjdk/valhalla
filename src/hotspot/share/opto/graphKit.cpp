@@ -3590,12 +3590,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
   const Type* obj_type = _gvn.type(obj);
-  if (obj_type->is_inlinetypeptr() && !obj_type->maybe_null() && klass_ptr_type->klass_is_exact() && obj_type->inline_klass() == klass_ptr_type->exact_klass(true)) {
-    // TODO remnant to support old makePrivateBuffer generic cast, we can probably remove this now
-    return obj;
-  }
-
-  // Else it must be a non-larval object
   obj = cast_to_non_larval(obj);
 
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
