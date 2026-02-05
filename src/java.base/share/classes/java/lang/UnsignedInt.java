@@ -258,6 +258,26 @@ public final class /* value */ UnsignedInt  {
     }
 
     /**
+     * {@return whether or not the argument is an unsigned integer
+     * equal to this one}
+     *
+     * @param o the object to compare to
+     */
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof UnsignedInt that &&
+            this.value == that.value;
+    }
+
+    /**
+     * Returns a hash code for this {@code UnsignedInt}.
+     */
+    @Override
+    public int hashCode() {
+        return this.value;
+    }
+
+    /**
      * {@return a string representing the unsigned argument in the
      * specified radix}
      *

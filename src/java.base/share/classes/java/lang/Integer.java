@@ -2035,7 +2035,7 @@ public final class Integer extends Number
      */
     @jdk.internal.MigratedValueClass
     @jdk.internal.ValueBased
-    public final static class /* value */ ExactInt  {
+    public final static /* value */ class ExactInt  {
         // NOTE: set of superinterfaces may be expanded in the future.
 
         private static final Integral<ExactInt> INT = new Integral<ExactInt>() {
@@ -2214,7 +2214,7 @@ public final class Integer extends Number
          * {@return a string representing the value}
          */
         @Override
-            public String toString() {
+        public String toString() {
             return toString(this);
         }
 
@@ -2246,6 +2246,26 @@ public final class Integer extends Number
          */
         public static String toString(ExactInt x, int radix) {
             return Integer.toString(x.value, radix);
+        }
+
+        /**
+         * {@return whether or not the argument is an exact integer
+         * equal to this one}
+         *
+         * @param o the object to compare to
+         */
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof ExactInt that &&
+                this.value == that.value;
+        }
+
+        /**
+         * Returns a hash code for this {@code ExactInt}.
+         */
+        @Override
+        public int hashCode() {
+            return this.value;
         }
 
         /**
