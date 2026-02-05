@@ -36,6 +36,16 @@
  *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
  *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileCommand=dontinline,*::*Callee
  *                   -Xbatch -XX:-TieredCompilation ${test.main.class}
+ * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
+ *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
+ *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileOnly=*TestBufferLost*::*Callee
+ *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:TieredStopAtLevel=1 ${test.main.class}
+ * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost*::*Callee
+ *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:TieredStopAtLevel=1 ${test.main.class}
+ * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
+ *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
+ *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileCommand=dontinline,*::*Callee
+ *                   -Xbatch -XX:TieredStopAtLevel=1 ${test.main.class}
  */
 
 
@@ -50,8 +60,11 @@ public class TestBufferLost {
 
 
     interface I {
-        void test5Callee(MyValue val);
+        default void test5Callee(MyValue val) {
+            VAL = val;
+        }
     }
+
     
     static value class MyValue implements I {
         long a = 1;
@@ -69,10 +82,31 @@ public class TestBufferLost {
         }
     }
 
+    static class C1 implements I {
+        public void test5Callee(MyValue val) {
+            VAL = val;
+        }
+    }
+
+    static class C2 implements I {
+        public void test5Callee(MyValue val) {
+            VAL = val;
+        }
+    }
+
+    static class C3 implements I {
+        public void test5Callee(MyValue val) {
+            VAL = val;
+        }
+    }
+    
     static MyValue VAL = new MyValue();
     static MyValue VAL2 = new MyValue();
     static MyValue VAL3 = new MyValue();
-    static I INT = new MyValue();
+    static I INT;
+    static C1 c1 = new C1();
+    static C2 c2 = new C2();
+    static C3 c3 = new C3();
 
     public static void test1Callee(MyValue val) {
         // This will buffer again if the scalarized arg does not contain the buffer oop
@@ -107,8 +141,8 @@ public class TestBufferLost {
         VAL.test4Callee();
     }
 
-    public static void test5() {
-        INT.test5Callee(VAL);
+    public static void test5(I i) {
+        i.test5Callee(VAL);
     }
 
     public static void main(String[] args) {
@@ -117,7 +151,10 @@ public class TestBufferLost {
             // test2();
             //test3();
             //test4();
-            test5();
+            test5(c1);
+            test5(c2);
+            test5(c3);
+            test5(VAL);
         }
 
         MemoryMXBean mem = ManagementFactory.getMemoryMXBean();
