@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -311,6 +311,18 @@ public class RuntimeNullChecks extends TestRunner {
                 }
                 class Other {
                     public static String! str = "";
+                }
+                """,
+                // Mix and match of yes/no null check
+                """
+                class Test {
+                    void work(String! a, int b, boolean c) {
+                    }
+                    public static void main(String... args) {
+                    }
+                    public void run(Test t, String[] args, int a, boolean b) {
+                        t.work(args[0], a, b);
+                    }
                 }
                 """
         }) {
