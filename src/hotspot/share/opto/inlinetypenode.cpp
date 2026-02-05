@@ -656,7 +656,7 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
   for (uint i = 0; i < field_count(); i++) {
     ciType* ft = field(i)->type();
     Node* fv = field_value(i);
-    if (fv->is_InlineType()) {
+    if (ft->is_inlinetype() && fv->is_InlineType()) {
       // Check recursively
       if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;

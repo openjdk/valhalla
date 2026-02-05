@@ -44,16 +44,33 @@ public class TestAcmpCyclicInlineType {
         }
     }
 
+    static value class ObjectHolder {
+        Object o;
+        int v;
+
+        ObjectHolder(Object o, int v) {
+            this.o = o;
+            this.v = v;
+        }
+    }
+
     public static void main(String[] args) {
         Node prev = new Node(null, 0);
         Node n1 = new Node(prev, 0);
         Node n2 = new Node(prev, 1);
         for (int i = 0; i < 20000; i++) {
-            compare(n1, n2);
+            compareNode(n1, n2);
+            compareObjectHolder(1, n1);
         }
     }
 
-    static boolean compare(Node n1, Node n2) {
+    static boolean compareNode(Node n1, Node n2) {
         return n1 == n2;
+    }
+
+    static boolean compareObjectHolder(Integer o1, Node o2) {
+        ObjectHolder h1 = new ObjectHolder(o1, 0);
+        ObjectHolder h2 = new ObjectHolder(o2, 0);
+        return h1 == h2;
     }
 }
