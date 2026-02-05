@@ -94,7 +94,7 @@ public final value class Bfloat16
     extends Number
     implements Comparable<Bfloat16> {
 
-    private static StandardFloatingPoint<Bfloat16> SFP = new StandardFloatingPoint<Bfloat16>() {
+    private static final StandardFloatingPoint<Bfloat16> SFP = new StandardFloatingPoint<Bfloat16>() {
         public Bfloat16 add(Bfloat16 addend, Bfloat16 augend) {
             return Bfloat16.add(addend, augend);
         }
