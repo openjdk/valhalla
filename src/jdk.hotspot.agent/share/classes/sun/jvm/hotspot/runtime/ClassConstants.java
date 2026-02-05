@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,6 +93,7 @@ public interface ClassConstants
     public static final long JVM_ACC_INTERFACE    = 0x0200; /* class is an interface */
     public static final long JVM_ACC_ABSTRACT     = 0x0400; /* no definition provided */
     public static final long JVM_ACC_STRICT       = 0x0800; /* strict floating point */
+    public static final long JVM_ACC_STRICT_INIT  = 0x0800; /* strict field initialization */
     public static final long JVM_ACC_SYNTHETIC    = 0x1000; /* compiler-generated class, method or field */
     public static final long JVM_ACC_ANNOTATION   = 0x2000; /* annotation type */
     public static final long JVM_ACC_ENUM         = 0x4000; /* field is declared as element of enum */
@@ -117,6 +118,7 @@ public interface ClassConstants
                                                                 JVM_ACC_VOLATILE |
                                                                 JVM_ACC_TRANSIENT |
                                                                 JVM_ACC_ENUM |
+                                                                JVM_ACC_STRICT_INIT |
                                                                 JVM_ACC_SYNTHETIC);
 
     public static final long JVM_RECOGNIZED_METHOD_MODIFIERS  = (JVM_ACC_PUBLIC |
