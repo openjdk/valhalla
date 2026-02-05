@@ -1442,9 +1442,13 @@ public class Types {
                     }
                     return tMap.isEmpty();
                 }
-                return t.tsym == s.tsym
+                boolean equal = t.tsym == s.tsym
                     && visit(t.getEnclosingType(), s.getEnclosingType())
                     && sameTypeArguments(t.getTypeArguments(), s.getTypeArguments());
+                if (equal && warnStack.nonEmpty() && hasNarrowerNullability(s, t)) {
+                    warnStack.head.warn(LintCategory.NULL);
+                }
+                return equal;
             }
 
             abstract boolean sameTypeArguments(List<Type> ts, List<Type> ss);
@@ -2880,7 +2884,17 @@ public class Types {
      * @return true if t is a subsignature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
+        return isSubSignature(t, s, noWarnings);
+    }
+
+    public boolean isSubSignature(Type t, Type s, Warner warn) {
+        try {
+            warnStack = warnStack.prepend(warn);
+            return hasSameArgs(t, s, true) ||
+                   hasSameArgs(t, erasure(s), true);
+        } finally {
+            warnStack = warnStack.tail;
+        }
     }
 
     /**
@@ -4382,18 +4396,34 @@ public class Types {
     public boolean returnTypeSubstitutable(Type r1,
                                            Type r2, Type r2res,
                                            Warner warner) {
-        if (isSameType(r1.getReturnType(), r2res))
+        boolean hasNarrowerNullability = hasNarrowerNullability(r2res, r1.getReturnType());
+        if (isSameType(r1.getReturnType(), r2res)) {
+            if (hasNarrowerNullability) {
+                warner.warn(LintCategory.NULL);
+            }
             return true;
+        }
         if (r1.getReturnType().isPrimitive() || r2res.isPrimitive())
             return false;
 
-        if (hasSameArgs(r1, r2))
-            return covariantReturnType(r1.getReturnType(), r2res, warner);
-        if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner))
+        if (hasSameArgs(r1, r2)) {
+            boolean result = covariantReturnType(r1.getReturnType(), r2res, warner);
+            if (result && hasNarrowerNullability) {
+                warner.warn(LintCategory.NULL);
+            }
+        }
+        if (isSubtypeUnchecked(r1.getReturnType(), r2res, warner)) {
+            if (hasNarrowerNullability) {
+                warner.warn(LintCategory.NULL);
+            }
             return true;
+        }
         if (!isSubtype(r1.getReturnType(), erasure(r2res)))
             return false;
         warner.warn(LintCategory.UNCHECKED);
+        if (hasNarrowerNullability) {
+            warner.warn(LintCategory.NULL);
+        }
         return true;
     }
 
@@ -5558,7 +5588,7 @@ public class Types {
      * Does t have narrower nullability than s?
      */
     public boolean hasNarrowerNullability(Type t, Type s) {
-        if (s == null || t == null || isNullUnspecified(t) || isNullUnspecified(s)) {
+        if (s == null || t == null) {
             return false;
         }
         return t.getNullMarker().ordinal() < s.getNullMarker().ordinal();

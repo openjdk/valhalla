@@ -1872,6 +1872,14 @@ public class Check {
         overrideWarner.clear();
         boolean resultTypesOK =
             types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
+        if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
+            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
+        }
+        overrideWarner.remove(LintCategory.NULL);
+        types.isSubSignature(mt, ot, overrideWarner);
+        if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
+            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
+        }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),

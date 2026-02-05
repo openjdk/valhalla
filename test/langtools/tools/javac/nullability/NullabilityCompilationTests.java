@@ -201,7 +201,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testSuspiciousNullnessConversions () {
+    void testLintWarnings() {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -293,7 +293,50 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.suspicious.nullness.conversion",
-                                1)
+                                1),
+
+                        // override warnings
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    String! m(String s) { return ""; }
+                                }
+                                class Sub extends Test {
+                                    @Override
+                                    String m(String s) { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.return.type.is.null.restricted",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    String m(String! s) { return ""; }
+                                }
+                                class Sub extends Test {
+                                    @Override
+                                    String m(String s) { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.argument.type.is.null.restricted",
+                                1),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Test {
+                                    // in this case there is no warning because when we erase List<String>!
+                                    // the null marker is lost
+                                    String m(List<String>! s) { return ""; }
+                                }
+                                class Sub extends Test {
+                                    @Override
+                                    String m(List s) { return null; }
+                                }
+                                """,
+                                Result.Clean,
+                                "")
                 )
         );
     }
