@@ -25,6 +25,7 @@
 
 package java.lang.runtime;
 
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.vm.annotation.ForceInline;
 
 /**
@@ -33,6 +34,7 @@ import jdk.internal.vm.annotation.ForceInline;
  *
  * @since Valhalla
  */
+@PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 public final class Checks {
     private Checks() {
         throw new AssertionError("can't instantiate java.lang.runtime.Checks");
