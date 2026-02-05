@@ -796,7 +796,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     //    matter when this is called the same identity hash code is expected.
     // 2. Oops: the above still applies, but the oops' identity hash code must
     //    be used as the polymorphic hashCode may change due to mutability.
-    const intptr_t identity_hash = checked_cast<intptr_t>(result.get_jint());
+    const intptr_t identity_hash = result.get_jint();
 
     // We now have to set the hash via CAS. It's possible that this will race
     // other threads. By our invariant of immutability, when there is a
@@ -807,12 +807,12 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     // earlier indicates a violation of the invariant.
     markWord current_mark, old_mark;
     do {
-      markWord new_mark = current_mark.copy_set_hash(identity_hash);
       current_mark = ho->mark();
+      markWord new_mark = current_mark.copy_set_hash(identity_hash);
       old_mark = ho->cas_set_mark(new_mark, current_mark);
-      assert(old_mark.has_no_hash() || old_mark.hash() != new_mark.hash(),
+      assert(old_mark.has_no_hash() || old_mark.hash() == new_mark.hash(),
             "CAS identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
-            identity_hash,
+            new_mark.hash(),
             old_mark.hash());
     } while (old_mark != current_mark);
 
