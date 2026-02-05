@@ -255,7 +255,7 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayou
   _super_min_align_required(-1),
   _null_reset_value_offset(-1),
   _acmp_maps_offset(-1),
-  _super_has_fields(false),
+  _super_has_nonstatic_fields(false),
   _has_inherited_fields(false) {}
 
 void FieldLayout::initialize_static_layout() {
@@ -282,9 +282,9 @@ void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass, b
     _start = _blocks;
     insert(first_empty_block(), new LayoutRawBlock(LayoutRawBlock::RESERVED, instanceOopDesc::base_offset_in_bytes()));
   } else {
-    reconstruct_layout(super_klass, _super_has_fields, super_ends_with_oop);
+    reconstruct_layout(super_klass, _super_has_nonstatic_fields, super_ends_with_oop);
     fill_holes(super_klass);
-    if ((!super_klass->has_contended_annotations()) || !_super_has_fields) {
+    if ((!super_klass->has_contended_annotations()) || !_super_has_nonstatic_fields) {
       _start = _blocks;  // start allocating fields from the first empty block
     } else {
       _start = _last;    // append fields at the end of the reconstructed layout
@@ -460,8 +460,8 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   return block;
 }
 
-void FieldLayout::reconstruct_layout(const InstanceKlass* ik, bool& has_instance_fields, bool& ends_with_oop) {
-  has_instance_fields = ends_with_oop = false;
+void FieldLayout::reconstruct_layout(const InstanceKlass* ik, bool& has_nonstatic_fields, bool& ends_with_oop) {
+  has_nonstatic_fields = ends_with_oop = false;
   if (ik->is_abstract() && !ik->is_identity_class()) {
     _super_alignment = type2aelembytes(BasicType::T_LONG);
   }
@@ -473,7 +473,7 @@ void FieldLayout::reconstruct_layout(const InstanceKlass* ik, bool& has_instance
       BasicType type = Signature::basic_type(fs.signature());
       // distinction between static and non-static fields is missing
       if (fs.access_flags().is_static()) continue;
-      has_instance_fields = true;
+      has_nonstatic_fields = true;
       _has_inherited_fields = true;
       if (_super_first_field_offset == -1 || fs.offset() < _super_first_field_offset) {
         _super_first_field_offset = fs.offset();
@@ -667,20 +667,29 @@ void FieldLayout::remove_null_marker() {
   ShouldNotReachHere(); // if we reach this point, the null marker was not found!
 }
 
-void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields) {
+void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields, bool dummy_field_is_reused_as_null_marker) {
   ResourceMark rm;
   LayoutRawBlock* b = _blocks;
   while(b != _last) {
     switch(b->block_kind()) {
       case LayoutRawBlock::REGULAR: {
         FieldInfo* fi = _field_info->adr_at(b->field_index());
-        output->print_cr(" @%d %s %d/%d \"%s\" %s",
-                         b->offset(),
-                         "REGULAR",
-                         b->size(),
-                         b->alignment(),
-                         fi->name(_cp)->as_C_string(),
-                         fi->signature(_cp)->as_C_string());
+        output->print(" @%d %s %d/%d \"%s\" %s",
+                      b->offset(),
+                      "REGULAR",
+                      b->size(),
+                      b->alignment(),
+                      fi->name(_cp)->as_C_string(),
+                      fi->signature(_cp)->as_C_string());
+
+        if (dummy_field_is_reused_as_null_marker) {
+          const bool is_dummy_field = fi->name(_cp)->fast_compare(vmSymbols::symbol_at(VM_SYMBOL_ENUM_NAME(empty_marker_name))) == 0;
+          if (is_dummy_field) {
+            output->print(" (reused as null-marker)");
+          }
+        }
+
+        output->cr();
         break;
       }
       case LayoutRawBlock::FLAT: {
@@ -782,7 +791,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _nullable_atomic_layout_size_in_bytes(-1),
   _nullable_non_atomic_layout_size_in_bytes(-1),
   _fields_size_sum(0),
-  _declared_non_static_fields_count(0),
+  _declared_nonstatic_fields_count(0),
   _has_non_naturally_atomic_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(must_be_atomic),
@@ -928,7 +937,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
       group = _static_fields;
     } else {
       _has_nonstatic_fields = true;
-      _declared_non_static_fields_count++;
+      _declared_nonstatic_fields_count++;
       group = _root_group;
     }
     assert(group != nullptr, "invariant");
@@ -1075,25 +1084,16 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   // Test if the concrete inline class is an empty class (no instance fields)
   // and insert a dummy field if needed
   if (!_is_abstract_value) {
-    bool declares_non_static_fields = false;
-    for (GrowableArrayIterator<FieldInfo> it = _field_info->begin(); it != _field_info->end(); ++it) {
-      FieldInfo fieldinfo = *it;
+    bool declares_nonstatic_fields = false;
+    for (FieldInfo fieldinfo : *_field_info) {
       if (!fieldinfo.access_flags().is_static()) {
-        declares_non_static_fields = true;
+        declares_nonstatic_fields = true;
         break;
       }
     }
-    if (!declares_non_static_fields) {
-      bool has_inherited_fields = false;
-      const InstanceKlass* super = _super_klass;
-      while(super != nullptr) {
-        if (super->has_nonstatic_fields()) {
-          has_inherited_fields = true;
-          break;
-        }
-        super = super->super() == nullptr ? nullptr : InstanceKlass::cast(super->super());
-      }
 
+    if (!declares_nonstatic_fields) {
+      bool has_inherited_fields = _super_klass != nullptr && _super_klass->has_nonstatic_fields();
       if (!has_inherited_fields) {
         // Inject ".empty" dummy field
         _is_empty_inline_class = true;
@@ -1116,7 +1116,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   assert(_layout->start()->block_kind() == LayoutRawBlock::RESERVED, "Unexpected");
 
-  if (!_layout->super_has_fields()) {
+  if (!_layout->super_has_nonstatic_fields()) {
     // No inherited fields, the layout must be empty except for the RESERVED block
     // PADDING is inserted if needed to ensure the correct alignment of the payload.
     if (_is_abstract_value && _has_nonstatic_fields) {
@@ -1176,8 +1176,8 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   }
 
   // Determining if the value class is naturally atomic:
-  if ((!_layout->super_has_fields() && _declared_non_static_fields_count <= 1 && !_has_non_naturally_atomic_fields)
-      || (_layout->super_has_fields() && _super_klass->is_naturally_atomic() && _declared_non_static_fields_count == 0)) {
+  if ((!_layout->super_has_nonstatic_fields() && _declared_nonstatic_fields_count <= 1 && !_has_non_naturally_atomic_fields)
+      || (_layout->super_has_nonstatic_fields() && _super_klass->is_naturally_atomic() && _declared_nonstatic_fields_count == 0)) {
         _is_naturally_atomic = true;
   }
 
@@ -1612,9 +1612,10 @@ void FieldLayoutBuilder::epilogue() {
       st.print_cr("Layout of class %s@%p", _classname->as_C_string(), _loader_data);
     }
     st.print_cr("Instance fields:");
-    _layout->print(&st, false, _super_klass, _inline_layout_info_array);
+    const bool dummy_field_is_reused_as_null_marker = _is_empty_inline_class && _null_marker_offset != -1;
+    _layout->print(&st, false, _super_klass, _inline_layout_info_array, dummy_field_is_reused_as_null_marker);
     st.print_cr("Static fields:");
-    _static_layout->print(&st, true, nullptr, _inline_layout_info_array);
+    _static_layout->print(&st, true, nullptr, _inline_layout_info_array, false);
     st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
       st.print_cr("First field offset = %d", _payload_offset);

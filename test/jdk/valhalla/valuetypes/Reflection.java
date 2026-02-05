@@ -57,8 +57,7 @@ public class Reflection {
 
     @LooselyConsistentValue
     static value class Value {
-        @NullRestricted
-        V v1;
+        V! v1;
         V v2;
         Value(V v1, V v2) {
             this.v1 = v1;
@@ -96,6 +95,11 @@ public class Reflection {
         Method m = Value.class.getDeclaredMethod("newValue", V.class, V.class);
         Throwable t = assertThrows(InvocationTargetException.class, () -> m.invoke(null, new Object[] {null, null}));
         assertEquals(NullPointerException.class, t.getCause().getClass());
+
+        Field v1 = assertDoesNotThrow(() -> Value.class.getDeclaredField("v1"));
+        Field v2 = assertDoesNotThrow(() -> Value.class.getDeclaredField("v2"));
+        assertTrue(ValueClass.isNullRestrictedField(v1));
+        assertFalse(ValueClass.isNullRestrictedField(v2));
     }
 
     static Stream<Arguments> arrays() {

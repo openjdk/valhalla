@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,26 +25,47 @@
 package jdk.internal.classfile.impl;
 
 import java.lang.classfile.AccessFlags;
+import java.lang.classfile.ClassFile;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Set;
+
+import jdk.internal.misc.VM;
 
 public final class AccessFlagsImpl extends AbstractElement
         implements AccessFlags {
 
     private final AccessFlag.Location location;
     private final int flagsMask;
+    private final ClassFileFormatVersion formatVersion;
     private Set<AccessFlag> flags;
 
     public AccessFlagsImpl(AccessFlag.Location location, AccessFlag... flags) {
         this.location = location;
         this.flagsMask = Util.flagsToBits(location, flags);
         this.flags = Set.of(flags);
+        this.formatVersion = ClassFileFormatVersion.latest();
     }
 
     public AccessFlagsImpl(AccessFlag.Location location, int mask) {
+        this(location, mask, ClassFileFormatVersion.latest());
+    }
+
+    public AccessFlagsImpl(AccessFlag.Location location, int mask, int version) {
+        int major = version & 0xFFFF;
+        int minor = version >>> Character.SIZE;
+
+        ClassFileFormatVersion cffv = minor == ClassFile.PREVIEW_MINOR_VERSION
+                ? ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES // Try to guess for older preview features
+                : VM.isSupportedClassFileVersion(major, minor) ? ClassFileFormatVersion.fromMajor(major)
+                                                               : ClassFileFormatVersion.latest(); // Fallback
+        this(location, mask, cffv);
+    }
+
+    private AccessFlagsImpl(AccessFlag.Location location, int mask, ClassFileFormatVersion version) {
         this.location = location;
         this.flagsMask = Util.checkFlags(mask);
+        this.formatVersion = version;
     }
 
     @Override
@@ -55,7 +76,7 @@ public final class AccessFlagsImpl extends AbstractElement
     @Override
     public Set<AccessFlag> flags() {
         if (flags == null)
-            flags = AccessFlag.maskToAccessFlags(flagsMask, location, ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
+            flags = AccessFlag.maskToAccessFlags(flagsMask, location, formatVersion);
         return flags;
     }
 
