@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@ public class BasicFloat16ArithTests {
         checkFiniteness();
         checkMinMax();
         checkArith();
+        checkOrderable();
         checkSqrt();
         checkGetExponent();
         checkUlp();
@@ -154,6 +155,15 @@ public class BasicFloat16ArithTests {
         checkFloat16(NaN,                 NaNf,            "NaN");
     }
 
+    private static void checkBoolean(Float16 op1, Float16 op2, boolean result, boolean expected, String operator) {
+        if (result != expected) {
+            throwRE(String.format("Didn't get expected value for " +
+                                  "%s %s %s %nexpected %b, got %b%n",
+                                  op1, operator, op2,
+                                  expected, result));
+        }
+    }
+
     private static void checkInt(int value, int expected, String message) {
         if (value != expected) {
             throwRE(String.format("Didn't get expected value for %s;%nexpected %d, got %d",
@@ -185,10 +195,16 @@ public class BasicFloat16ArithTests {
 
         for(var testCase : testCases) {
             float arg =      testCase[0];
+            Float16 argF16 = valueOfExact(arg);
             float expected = testCase[1];
             Float16 result =  negate(valueOfExact(arg));
+            Float16 resultOp =  -argF16;
 
             if (Float.compare(expected, result.floatValue()) != 0) {
+                checkFloat16(result, expected, "negate(" + arg + ")");
+            }
+
+            if (Float.compare(expected, resultOp.floatValue()) != 0) {
                 checkFloat16(result, expected, "negate(" + arg + ")");
             }
         }
@@ -314,7 +330,8 @@ public class BasicFloat16ArithTests {
 
     /*
      * Cursory checks to make sure correct operation is being called
-     * with arguments in proper order.
+     * with arguments in proper order for both two-argument methods
+     * and binary operators of the Numerical interface.
      */
     private static void checkArith() {
         float   a   = 1.0f;
@@ -323,32 +340,104 @@ public class BasicFloat16ArithTests {
         float   b   = 2.0f;
         Float16 b16 = valueOfExact(b);
 
+        // Addition
         if (add(a16, b16).floatValue() != (a + b)) {
             throwRE("failure with " + a16 + " + " + b16);
         }
+        if ((a16 + b16).floatValue() != (a + b)) { // check + operator
+            throwRE("failure with " + a16 + " + " + b16);
+        }
+
         if (add(b16, a16).floatValue() != (b + a)) {
             throwRE("failure with " + b16 + " + " + a16);
         }
+        if ((b16 + a16).floatValue() != (b + a)) { // check + operator
+            throwRE("failure with " + b16 + " + " + a16);
+        }
 
+        // Subtraction
         if (subtract(a16, b16).floatValue() != (a - b)) {
             throwRE("failure with " + a16 + " - " + b16);
         }
+        if ((a16 - b16).floatValue() != (a - b)) { // check - operator
+            throwRE("failure with " + a16 + " - " + b16);
+        }
+
         if (subtract(b16, a16).floatValue() != (b - a)) {
             throwRE("failure with " + b16 + " - " + a16);
         }
+        if ((b16 - a16).floatValue() != (b - a)) { // check - operator
+            throwRE("failure with " + b16 + " - " + a16);
+        }
 
+        // Multiplication
         if (multiply(a16, b16).floatValue() != (a * b)) {
             throwRE("failure with " + a16 + " * " + b16);
         }
+        if ((a16 * b16).floatValue() != (a * b)) { // check * operator
+            throwRE("failure with " + a16 + " * " + b16);
+        }
+
         if (multiply(b16, a16).floatValue() != (b * a)) {
             throwRE("failure with " + b16 + " * " + a16);
         }
+        if ((b16 * a16).floatValue() != (b * a)) { // check * operator
+            throwRE("failure with " + b16 + " * " + a16);
+        }
 
+        // Division
         if (divide(a16, b16).floatValue() != (a / b)) {
             throwRE("failure with " + a16 + " / " + b16);
         }
+        if ((a16 / b16).floatValue() != (a / b)) { // check / operator
+            throwRE("failure with " + a16 + " / " + b16);
+        }
+
         if (divide(b16, a16).floatValue() != (b / a)) {
             throwRE("failure with " + b16 + " / " + a16);
+        }
+        if ((b16 / a16).floatValue() != (b / a)) { // check / operator
+            throwRE("failure with " + b16 + " / " + a16);
+        }
+
+        return;
+    }
+
+    /*
+     * Cursory checks to make sure the ordered comparison operators
+     * are behaving as expected.
+     */
+    private static void checkOrderable() {
+        float[] testCases = {NaNf,
+                             -InfinityF,
+                             -1.0f,
+                             -0.0f,
+                             +0.0f,
+                             1.0f,
+                             InfinityF};
+
+        for (float op1_f : testCases) {
+            for (float op2_f : testCases) {
+
+                Float16 op1_f16 = valueOfExact(op1_f);
+                Float16 op2_f16 = valueOfExact(op2_f);
+
+                checkBoolean(op1_f16,  op2_f16,
+                             op1_f16 < op2_f16,
+                             op1_f   < op2_f,  "<");
+
+                checkBoolean(op1_f16,   op2_f16,
+                             op1_f16 <= op2_f16,
+                             op1_f   <= op2_f, "<=");
+
+                checkBoolean(op1_f16,   op2_f16,
+                             op1_f16 >  op2_f16,
+                             op1_f   >  op2_f, ">");
+
+                checkBoolean(op1_f16,   op2_f16,
+                             op1_f16 >= op2_f16,
+                             op1_f   >= op2_f, ">=");
+            }
         }
         return;
     }

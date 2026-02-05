@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,9 +101,105 @@ import jdk.internal.vm.vector.Float16Math;
 // expected to be aligned with Value Classes and Object as described in
 // JEP-401 (https://openjdk.org/jeps/401).
 @jdk.internal.ValueBased
-public final class Float16
+public final /* value */ class Float16
     extends Number
     implements Comparable<Float16> {
+
+    private static final StandardFloatingPoint<Float16> SFP = new StandardFloatingPoint<Float16>() {
+        public Float16 add(Float16 addend, Float16 augend) {
+            return Float16.add(addend, augend);
+        }
+
+        @Override
+        public Float16 subtract(Float16 minuend, Float16 subtrahend) {
+            return Float16.subtract(minuend, subtrahend);
+        }
+
+        public Float16 multiply(Float16 multiplier, Float16 multiplicand) {
+            return Float16.multiply(multiplier, multiplicand);
+        }
+
+        public Float16 remainder(Float16 dividend, Float16 divisor) {
+            throw new UnsupportedOperationException("tbd");
+        }
+
+        public Float16 negate(Float16 operand) {
+            return Float16.negate(operand);
+        }
+
+        public Float16 divide(Float16 dividend, Float16 divisor) {
+            return Float16.divide(dividend, divisor);
+        }
+
+        @Override
+        public boolean equalsStd(Float16 op1, Float16 op2) {
+            return op1.floatValue() == op2.floatValue();
+        }
+
+        @Override
+        public boolean lessThan(Float16 op1, Float16 op2) {
+            return op1.floatValue() < op2.floatValue();
+        }
+
+        // If the following three methods are commented out, the default
+        // implementations in StandardFloatingPoint will be used.
+        //          @Override
+        //          public boolean lessThanEqual(Float16 op1, Float16 op2) {
+        //              return op1.floatValue() <= op2.floatValue();
+        //          }
+
+        //          @Override
+        //          public boolean greaterThan(Float16 op1, Float16 op2) {
+        //              return op1.floatValue() > op2.floatValue();
+        //          }
+
+        //          @Override
+        //          public boolean greaterThanEqual(Float16 op1, Float16 op2) {
+        //              return op1.floatValue() >= op2.floatValue();
+        //          }
+
+        public Float16 min(Float16 op1, Float16 op2) {
+            return Float16.min(op1, op2);
+        }
+
+        public Float16 max(Float16 op1, Float16 op2) {
+            return Float16.max(op1, op2);
+        }
+
+        public Float16 sqrt(Float16 radicand) {
+            return Float16.sqrt(radicand);
+        }
+
+        public Float16 fma(Float16 a, Float16 b, Float16 c) {
+            return Float16.fma(a, b, c);
+        }
+
+        public boolean isNaN(Float16 operand) {
+            return Float16.isNaN(operand);
+        }
+
+        public boolean isInfinite(Float16 operand) {
+            return Float16.isInfinite(operand);
+        }
+
+        public Float16 ulp(Float16 operand) {
+            return Float16.ulp(operand);
+        }
+
+        public String toHexString(Float16 operand) {
+            return Float16.toHexString(operand);
+        }
+    };
+
+    /**
+     * Witness for the {@code Numerical} interface.
+     */
+    public __witness Numerical<Float16> NUM = SFP;
+
+    /**
+     * Witness for the {@code Orderable} interface.
+     */
+    public __witness Orderable<Float16> ORD = SFP;
 
     /**
      * Primitive {@code short} field to hold the bits of the {@code Float16}.
