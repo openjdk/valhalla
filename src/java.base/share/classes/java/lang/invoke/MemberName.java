@@ -390,7 +390,7 @@ final class MemberName implements Member, Cloneable {
     public boolean isFinal() {
         return Modifier.isFinal(flags);
     }
-     /** Utility method to query the modifier flags of this member. */
+     /** Utility method to query the ACC_STRICT_INIT flag of this member. */
     public boolean isStrictInit() {
         return (flags & ClassFile.ACC_STRICT_INIT) != 0;
     }
