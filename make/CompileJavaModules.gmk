@@ -123,6 +123,7 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     JAVAC_FLAGS := \
         $(DOCLINT) \
         $(JAVAC_FLAGS) \
+        --source $(JDK_SOURCE_TARGET_VERSION) --target $(JDK_SOURCE_TARGET_VERSION) --enable-preview \
         --module-source-path $(MODULESOURCEPATH) \
         --module-path $(MODULEPATH) \
         --system none, \
