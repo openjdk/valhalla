@@ -203,15 +203,15 @@ namespace AccessInternal {
 
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_COPY, decorators>: public AllStatic {
-    static void access_barrier(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-      GCBarrierType::value_copy_in_heap(src, dst, md, lk);
+    static void access_barrier(const ValuePayload& src, const ValuePayload& dst) {
+      GCBarrierType::value_copy_in_heap(src, dst);
     }
   };
 
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_STORE_NULL, decorators>: public AllStatic {
-    static void access_barrier(void* dst, InlineKlass* md, LayoutKind lk) {
-      GCBarrierType::value_store_null_in_heap(dst, md, lk);
+    static void access_barrier(const ValuePayload& dst) {
+      GCBarrierType::value_store_null_in_heap(dst);
     }
   };
 
@@ -364,17 +364,17 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators, typename T>
-  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(const ValuePayload& src, const ValuePayload& dst) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_COPY>::resolve_barrier();
     _value_copy_func = function;
-    function(src, dst, md,lk);
+    function(src, dst);
   }
 
   template <DecoratorSet decorators, typename T>
-  void RuntimeDispatch<decorators, T, BARRIER_VALUE_STORE_NULL>::value_store_null_init(void* dst, InlineKlass* md, LayoutKind lk) {
+  void RuntimeDispatch<decorators, T, BARRIER_VALUE_STORE_NULL>::value_store_null_init(const ValuePayload& dst) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_STORE_NULL>::resolve_barrier();
     _value_store_null_func = function;
-    function(dst, md,lk);
+    function(dst);
   }
 }
 

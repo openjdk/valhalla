@@ -24,13 +24,18 @@
 
 #include "gc/shared/barrierSetRuntime.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "utilities/macros.hpp"
 
-JRT_LEAF(void, BarrierSetRuntime::value_copy(void* src, void* dst, InlineLayoutInfo* li))
-  HeapAccess<>::value_copy(src, dst, li->klass(), li->kind());
+JRT_LEAF(void, BarrierSetRuntime::value_copy(address src, address dst, InlineLayoutInfo* li))
+  RawValuePayload src_payload(src, li->klass(), li->kind());
+  RawValuePayload dst_payload(dst, li->klass(), li->kind());
+  HeapAccess<>::value_copy(src_payload, dst_payload);
 JRT_END
 
-JRT_LEAF(void, BarrierSetRuntime::value_copy_is_dest_uninitialized(void* src, void* dst, InlineLayoutInfo* li))
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, li->klass(), li->kind());
+JRT_LEAF(void, BarrierSetRuntime::value_copy_is_dest_uninitialized(address src, address dst, InlineLayoutInfo* li))
+  RawValuePayload src_payload(src, li->klass(), li->kind());
+  RawValuePayload dst_payload(dst, li->klass(), li->kind());
+  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src_payload, dst_payload);
 JRT_END

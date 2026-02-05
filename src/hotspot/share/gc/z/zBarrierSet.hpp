@@ -152,8 +152,8 @@ public:
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk);
-    static void value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk);
+    static void value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst);
+    static void value_store_null_in_heap(const ValuePayload& dst);
 
     //
     // Not in heap

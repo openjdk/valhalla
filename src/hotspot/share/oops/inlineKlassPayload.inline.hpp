@@ -68,19 +68,16 @@ inline void ValuePayload::copy(const ValuePayload& src, const ValuePayload& dst,
   case LayoutKind::NULLABLE_ATOMIC_FLAT:
   case LayoutKind::NULLABLE_NON_ATOMIC_FLAT: {
     if (src.is_payload_null()) {
-      HeapAccess<>::value_store_null(dst.get_address(), klass,
-                                     copy_layout_kind);
+      HeapAccess<>::value_store_null(dst);
     } else {
-      HeapAccess<>::value_copy(src.get_address(), dst.get_address(), klass,
-                               copy_layout_kind);
+      HeapAccess<>::value_copy(src, dst);
     }
   } break;
   case LayoutKind::BUFFERED:
   case LayoutKind::NULL_FREE_ATOMIC_FLAT:
   case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
     if (!klass->is_empty_inline_type()) {
-      HeapAccess<>::value_copy(src.get_address(), dst.get_address(), klass,
-                               copy_layout_kind);
+      HeapAccess<>::value_copy(src, dst);
     }
   } break;
   default:
@@ -149,8 +146,8 @@ inline void ValuePayload::assert_post_construction_invariants() const {
   postcond(get_klass()->is_layout_supported(get_layout_kind()));
   postcond(get_layout_kind() != LayoutKind::REFERENCE &&
            get_layout_kind() != LayoutKind::UNKNOWN);
-  postcond((get_holder()->klass() == get_klass()) ==
-           (get_layout_kind() == LayoutKind::BUFFERED));
+  postcond(is_raw() || (get_holder()->klass() == get_klass()) ==
+                           (get_layout_kind() == LayoutKind::BUFFERED));
 }
 
 inline void
@@ -201,6 +198,9 @@ ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
   precond(src_has_copy_layout || dst_has_copy_layout);
   precond(copy_layout_size_in_bytes <= src_layout_size_in_bytes);
   precond(copy_layout_size_in_bytes <= dst_layout_size_in_bytes);
+  precond(LayoutKindHelper::get_copy_layout(src.get_layout_kind(),
+                                            dst.get_layout_kind()) ==
+          copy_layout_kind);
 }
 #endif // ASSERT
 
@@ -323,8 +323,7 @@ inline inlineOop FlatValuePayload::read(TRAPS) {
 inline void FlatValuePayload::write_without_nullability_check(inlineOop obj) {
   if (obj == nullptr) {
     assert(has_null_marker(), "Null is not allowed");
-    HeapAccess<>::value_store_null(get_address(), get_klass(),
-                                   get_layout_kind());
+    HeapAccess<>::value_store_null(*this);
   } else {
     // Copy the obj payload
     BufferedValuePayload obj_payload(obj);

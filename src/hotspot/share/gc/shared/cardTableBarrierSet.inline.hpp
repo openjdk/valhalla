@@ -31,8 +31,10 @@
 #include "gc/shared/cardTable.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.hpp"
+#include "utilities/debug.hpp"
 
 template <DecoratorSet decorators, typename T>
 inline void CardTableBarrierSet::write_ref_field_post(T* field) {
@@ -164,14 +166,16 @@ clone_in_heap(oop src, oop dst, size_t size) {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT>::
-value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
+  precond(src.get_klass() == dst.get_klass());
+  const InlineKlass* md = src.get_klass();
   if (!md->contains_oops()) {
     // If we do not have oops in the flat array, we can just do a raw copy.
-    Raw::value_copy(src, dst, md, lk);
+    Raw::value_copy(src, dst);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
     // src/dst aren't oops, need offset to adjust oop map offset
-    const address dst_oop_addr_offset = ((address) dst) - md->payload_offset();
+    const address dst_oop_addr_offset = (dst.get_address()) - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
     // Pre-barriers...
@@ -187,7 +191,7 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
       map++;
     }
 
-    Raw::value_copy(src, dst, md, lk);
+    Raw::value_copy(src, dst);
 
     // Post-barriers...
     map = md->start_of_nonstatic_oop_maps();
@@ -202,14 +206,15 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT>::
-value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk) {
+value_store_null_in_heap(const ValuePayload& dst) {
+  const InlineKlass* md = dst.get_klass();
   if (!md->contains_oops()) {
     // If we do not have oops in the flat array, we can just do a raw clear.
-    Raw::value_store_null(dst, md, lk);
+    Raw::value_store_null(dst);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
     // dst isn't oops, need offset to adjust oop map offset
-    const address dst_oop_addr_offset = ((address) dst) - md->payload_offset();
+    const address dst_oop_addr_offset = (dst.get_address()) - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
     // Pre-barriers...
@@ -225,7 +230,7 @@ value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk) {
       map++;
     }
 
-    Raw::value_store_null(dst, md, lk);
+    Raw::value_store_null(dst);
 
     // Post-barriers...
     map = md->start_of_nonstatic_oop_maps();

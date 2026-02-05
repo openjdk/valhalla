@@ -32,6 +32,8 @@
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/inlineKlassPayload.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/orderAccess.hpp"
@@ -331,15 +333,26 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
 }
 
 template <DecoratorSet decorators>
-inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-  assert(is_aligned(src, md->layout_alignment(lk)) && is_aligned(dst, md->layout_alignment(lk)), "Unaligned value_copy");
-  AccessInternal::value_copy_internal(src, dst, static_cast<size_t>(md->layout_size_in_bytes(lk)));
+inline void RawAccessBarrier<decorators>::value_copy(const ValuePayload& src, const ValuePayload& dst) {
+  precond(src.get_klass() == dst.get_klass());
+
+  const InlineKlass* klass = src.get_klass();
+  const LayoutKind copy_layout = LayoutKindHelper::get_copy_layout(
+      src.get_layout_kind(), dst.get_layout_kind());
+  const int size = klass->layout_size_in_bytes(copy_layout);
+
+  AccessInternal::value_copy_internal(src.get_address(), dst.get_address(),
+                                      static_cast<size_t>(size));
 }
 
 template <DecoratorSet decorators>
-inline void RawAccessBarrier<decorators>::value_store_null(void* dst, InlineKlass* md, LayoutKind lk) {
-  assert(is_aligned(dst, md->layout_alignment(lk)), "Unaligned value_store_null");
-  AccessInternal::value_store_null(dst, static_cast<size_t>(md->layout_size_in_bytes(lk)));
+inline void RawAccessBarrier<decorators>::value_store_null(const ValuePayload& dst) {
+  address dst_addr = dst.get_address();
+  const LayoutKind lk = dst.get_layout_kind();
+  const InlineKlass* klass = dst.get_klass();
+  const int size = klass->layout_size_in_bytes(lk);
+
+  AccessInternal::value_store_null(dst_addr, static_cast<size_t>(size));
 }
 
 #endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

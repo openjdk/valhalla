@@ -314,12 +314,12 @@ public:
       Raw::clone(src, dst, size);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-      Raw::value_copy(src, dst, md, lk);
+    static void value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
+      Raw::value_copy(src, dst);
     }
 
-    static void value_store_null_in_heap(void* dst, InlineKlass* md, LayoutKind lk) {
-      Raw::value_store_null(dst, md, lk);
+    static void value_store_null_in_heap(const ValuePayload& dst) {
+      Raw::value_store_null(dst);
     }
   };
 };

@@ -34,6 +34,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/access.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/flatArrayKlass.hpp"
@@ -260,43 +261,40 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       FlatArrayKlass* fdk = FlatArrayKlass::cast(dk);
       InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       flatArrayOop da = flatArrayOop(d);
-      int src_incr = fsk->element_byte_size();
-      int dst_incr = fdk->element_byte_size();
+
+      // We have already checked that src_pos and dst_pos are valid indices.
+      FlatArrayPayload src_payload(sa, src_pos, fsk);
+      FlatArrayPayload dst_payload(da, dst_pos, fdk);
 
       if (fsk->layout_kind() == fdk->layout_kind()) {
-        assert(src_incr == dst_incr, "Must be");
+        // Because source and destination have the same layout, we do not have
+        // to worry about null checks and atomicity problems and can call the
+        // AccessAPI directly.
+        int index_delta;
         if (needs_backwards_copy(sa, src_pos, da, dst_pos, length)) {
-          address dst = (address) da->value_at_addr(dst_pos + length - 1, fdk->layout_helper());
-          address src = (address) sa->value_at_addr(src_pos + length - 1, fsk->layout_helper());
-          for (int i = 0; i < length; i++) {
-            // because source and destination have the same layout, bypassing the InlineKlass copy methods
-            // and call AccessAPI directly
-            HeapAccess<>::value_copy(src, dst, vk, fsk->layout_kind());
-            dst -= dst_incr;
-            src -= src_incr;
-          }
+          index_delta = -1;
+          src_payload.advance_index(length - 1);
+          dst_payload.advance_index(length - 1);
         } else {
-          // source and destination share same layout, direct copy from array to array is possible
-          address dst = (address) da->value_at_addr(dst_pos, fdk->layout_helper());
-          address src = (address) sa->value_at_addr(src_pos, fsk->layout_helper());
-          for (int i = 0; i < length; i++) {
-            // because source and destination have the same layout, bypassing the InlineKlass copy methods
-            // and call AccessAPI directly
-            HeapAccess<>::value_copy(src, dst, vk, fsk->layout_kind());
-            dst += dst_incr;
-            src += src_incr;
-          }
+          index_delta = 1;
+        }
+
+        for (int i = 0; i < length; i++) {
+          HeapAccess<>::value_copy(src_payload, dst_payload);
+          src_payload.advance_index(index_delta);
+          dst_payload.advance_index(index_delta);
         }
       } else {
-        flatArrayHandle sah(THREAD, sa);
-        flatArrayHandle dah(THREAD, da);
+        FlatArrayPayload::Handle src_payload_handle =
+            src_payload.get_handle(THREAD);
+        FlatArrayPayload::Handle dst_payload_handle =
+            dst_payload.get_handle(THREAD);
 
         inlineOop buffer = vk->allocate_instance(CHECK);
         BufferedValuePayload buf_payload(buffer);
 
-        // We have already checked that src_pos and dst_pos are valid indices.
-        FlatArrayPayload src_payload(sah(), src_pos, fsk);
-        FlatArrayPayload dst_payload(dah(), dst_pos, fdk);
+        src_payload = src_payload_handle();
+        dst_payload = dst_payload_handle();
 
         const bool need_null_check =
             LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) &&
