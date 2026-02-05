@@ -567,7 +567,7 @@ extern "C" void ps();
 void Runtime1::buffer_inline_args_impl(JavaThread* current, Method* m, bool allocate_receiver) {
   JavaThread* THREAD = current;
   methodHandle method(current, m); // We are inside the verified_entry or verified_inline_ro_entry of this method.
-  oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, CHECK);
+  oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, true, CHECK);
   current->set_vm_result_oop(obj);
 }
 
