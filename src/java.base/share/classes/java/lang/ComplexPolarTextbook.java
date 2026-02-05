@@ -39,9 +39,10 @@ package java.lang;
  * calculations used to compute the magnitude and angle components of the result.
  *
  * @apiNote
- * TODO: Discuss issues and limitations.
+ * TODO: Discuss issues and limitations. Is a method needed to
+ * normalize zeros as well as infinities?
  *
- * This class is intended only for prototyping and
+ * <p>This class is intended only for prototyping and
  * <em>not</em> intended for production use.
  */
 // @Deprecated(forRemoval=true)
@@ -300,7 +301,7 @@ public final /* value */ class ComplexPolarTextbook  {
      * @implSpec
      * The computed product is calculated as
      * (<i>r</i><sub>1</sub>&middot;<i>r</i><sub>2</sub> &ang;
-     * &theta;<sub>1</sub>+&theta;<sub>2</sub>)
+     * &theta;<sub>1</sub> + &theta;<sub>2</sub>)
      *
      * @param multiplier the first operand
      * @param multiplicand the second operand
@@ -322,7 +323,7 @@ public final /* value */ class ComplexPolarTextbook  {
      * @implSpec
      * The computed quotient is calculated as
      * (<i>r</i><sub>1</sub>/<i>r</i><sub>2</sub> &ang;
-     * &theta;<sub>1</sub>&minus;&theta;<sub>2</sub>)
+     * &theta;<sub>1</sub> &minus; &theta;<sub>2</sub>)
      *
      * @param dividend the value to be divided
      * @param divisor the value being divided by
