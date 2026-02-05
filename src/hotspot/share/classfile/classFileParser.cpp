@@ -1416,7 +1416,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
     if (!supports_inline_types()) {
-      recognized_modifiers &= ~JVM_ACC_STRICT;
+      recognized_modifiers &= ~JVM_ACC_STRICT_INIT;
     }
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
@@ -1485,9 +1485,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
             return;
           }
 
-          if ((flags & JVM_ACC_STRICT) == 0) {
+          if ((flags & JVM_ACC_STRICT_INIT) == 0) {
             // Inject STRICT_INIT and validate in context
-            const jint patched_flags = flags | JVM_ACC_STRICT;
+            const jint patched_flags = flags | JVM_ACC_STRICT_INIT;
             verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
             access_flags.set_flags(patched_flags);
           }
@@ -4604,15 +4604,15 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
-  const bool is_public    = (flags & JVM_ACC_PUBLIC)    != 0;
-  const bool is_protected = (flags & JVM_ACC_PROTECTED) != 0;
-  const bool is_private   = (flags & JVM_ACC_PRIVATE)   != 0;
-  const bool is_static    = (flags & JVM_ACC_STATIC)    != 0;
-  const bool is_final     = (flags & JVM_ACC_FINAL)     != 0;
-  const bool is_volatile  = (flags & JVM_ACC_VOLATILE)  != 0;
-  const bool is_transient = (flags & JVM_ACC_TRANSIENT) != 0;
-  const bool is_enum      = (flags & JVM_ACC_ENUM)      != 0;
-  const bool is_strict    = (flags & JVM_ACC_STRICT)    != 0;
+  const bool is_public    = (flags & JVM_ACC_PUBLIC)      != 0;
+  const bool is_protected = (flags & JVM_ACC_PROTECTED)   != 0;
+  const bool is_private   = (flags & JVM_ACC_PRIVATE)     != 0;
+  const bool is_static    = (flags & JVM_ACC_STATIC)      != 0;
+  const bool is_final     = (flags & JVM_ACC_FINAL)       != 0;
+  const bool is_volatile  = (flags & JVM_ACC_VOLATILE)    != 0;
+  const bool is_transient = (flags & JVM_ACC_TRANSIENT)   != 0;
+  const bool is_enum      = (flags & JVM_ACC_ENUM)        != 0;
+  const bool is_strict    = (flags & JVM_ACC_STRICT_INIT) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
   const bool is_interface = class_access_flags.is_interface();
