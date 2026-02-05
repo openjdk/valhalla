@@ -50,5 +50,5 @@ public interface GenericArrayType extends Type {
      *     underlying array type's component type refers to a
      *     parameterized type that cannot be instantiated for any reason
      */
-    Type getGenericComponentType();
+    Type! getGenericComponentType();
 }

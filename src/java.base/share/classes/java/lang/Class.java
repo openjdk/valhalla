@@ -850,9 +850,8 @@ public final class Class<T> implements java.io.Serializable,
      *            type {@code cls} can be assigned to objects of this class
      * @since     1.1
      */
-    // TODO Can't bang native method
     @IntrinsicCandidate
-    public native boolean isAssignableFrom(Class<?> cls);
+    public native boolean isAssignableFrom(Class<?>! cls);
 
 
     /**

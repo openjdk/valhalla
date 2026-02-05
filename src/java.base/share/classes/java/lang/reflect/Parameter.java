@@ -121,10 +121,10 @@ public final class Parameter implements AnnotatedElement {
      * information.
      */
     @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder();
-        final Type type = getParameterizedType();
-        final String typename = type.getTypeName();
+    public String! toString() {
+        final StringBuilder! sb = new StringBuilder();
+        final Type! type = getParameterizedType();
+        final String! typename = type.getTypeName();
 
         sb.append(Modifier.toString(getModifiers() & Modifier.parameterModifiers() ));
 
@@ -145,7 +145,7 @@ public final class Parameter implements AnnotatedElement {
     /**
      * {@return the {@code Executable} declaring this parameter}
      */
-    public Executable getDeclaringExecutable() {
+    public Executable! getDeclaringExecutable() {
         return executable;
     }
 
@@ -171,7 +171,7 @@ public final class Parameter implements AnnotatedElement {
      * @jvms 4.7.24 The MethodParameters Attribute
      * @since 20
      */
-    public Set<AccessFlag> accessFlags() {
+    public Set<AccessFlag>! accessFlags() {
         return AccessibleObject.reflectionFactory.parseAccessFlags(getModifiers(),
                 AccessFlag.Location.METHOD_PARAMETER, getDeclaringExecutable().getDeclaringClass());
     }
@@ -188,7 +188,7 @@ public final class Parameter implements AnnotatedElement {
      *         file or synthesized if the class file does not provide
      *         a name.
      */
-    public String getName() {
+    public String! getName() {
         // Note: empty strings as parameter names are now outlawed.
         // The .isEmpty() is for compatibility with current JVM
         // behavior.  It may be removed at some point.
@@ -211,7 +211,7 @@ public final class Parameter implements AnnotatedElement {
      * @return a {@code Type} object identifying the parameterized
      * type of the parameter represented by this object
      */
-    public Type getParameterizedType() {
+    public Type! getParameterizedType() {
         Type tmp = parameterTypeCache;
         if (null == tmp) {
             tmp = executable.getAllGenericParameterTypes()[index];
@@ -231,7 +231,7 @@ public final class Parameter implements AnnotatedElement {
      * @return a {@code Class} object identifying the declared
      * type of the parameter represented by this object
      */
-    public Class<?> getType() {
+    public Class<?>! getType() {
         Class<?> tmp = parameterClassCache;
         if (null == tmp) {
             tmp = executable.getSharedParameterTypes()[index];
@@ -248,7 +248,7 @@ public final class Parameter implements AnnotatedElement {
      *         to specify the type of the formal parameter represented by this
      *         Parameter
      */
-    public AnnotatedType getAnnotatedType() {
+    public AnnotatedType! getAnnotatedType() {
         // no caching for now
         return executable.getAnnotatedParameterTypes()[index];
     }
@@ -304,8 +304,7 @@ public final class Parameter implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
 
@@ -317,9 +316,7 @@ public final class Parameter implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
-
+    public <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotationClass) {
         return AnnotationSupport.getDirectlyAndIndirectlyPresent(declaredAnnotations(), annotationClass);
     }
 
@@ -329,7 +326,7 @@ public final class Parameter implements AnnotatedElement {
      * declaration annotations.
      */
     @Override
-    public Annotation[] getDeclaredAnnotations() {
+    public Annotation[]! getDeclaredAnnotations() {
         return executable.getParameterAnnotations()[index];
     }
 
@@ -341,7 +338,7 @@ public final class Parameter implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getDeclaredAnnotation(Class<T>! annotationClass) {
         // Only annotations on classes are inherited, for all other
         // objects getDeclaredAnnotation is the same as
         // getAnnotation.
@@ -356,7 +353,7 @@ public final class Parameter implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
+    public <T extends Annotation> T[]! getDeclaredAnnotationsByType(Class<T>! annotationClass) {
         // Only annotations on classes are inherited, for all other
         // objects getDeclaredAnnotations is the same as
         // getAnnotations.
@@ -369,13 +366,13 @@ public final class Parameter implements AnnotatedElement {
      * declaration annotations.
      */
     @Override
-    public Annotation[] getAnnotations() {
+    public Annotation[]! getAnnotations() {
         return getDeclaredAnnotations();
     }
 
     private transient Map<Class<? extends Annotation>, Annotation> declaredAnnotations;
 
-    private synchronized Map<Class<? extends Annotation>, Annotation> declaredAnnotations() {
+    private synchronized Map<Class<? extends Annotation>, Annotation>! declaredAnnotations() {
         if(null == declaredAnnotations) {
             declaredAnnotations = new HashMap<>();
             for (Annotation a : getDeclaredAnnotations())

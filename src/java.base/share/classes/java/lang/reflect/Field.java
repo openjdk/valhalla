@@ -101,14 +101,14 @@ class Field extends AccessibleObject implements Member {
     private String getGenericSignature() {return signature;}
 
     // Accessor for factory
-    private GenericsFactory getFactory() {
+    private GenericsFactory! getFactory() {
         Class<?> c = getDeclaringClass();
         // create scope and factory
         return CoreReflectionFactory.make(c, ClassScope.make(c));
     }
 
     // Accessor for generic info repository
-    private FieldRepository getGenericInfo() {
+    private FieldRepository! getGenericInfo() {
         var genericInfo = this.genericInfo;
         if (genericInfo == null) {
             var root = this.root;
@@ -150,7 +150,7 @@ class Field extends AccessibleObject implements Member {
      * ReflectAccess) which returns a copy of this Field. The copy's
      * "root" field points to this Field.
      */
-    Field copy() {
+    Field! copy() {
         // This routine enables sharing of FieldAccessor objects
         // among Field objects which refer to the same underlying
         // method in the VM. (All of this contortion is only necessary
@@ -161,7 +161,7 @@ class Field extends AccessibleObject implements Member {
         if (this.root != null)
             throw new IllegalArgumentException("Can not copy a non-root Field");
 
-        Field res = new Field(clazz, name, type, modifiers, flags, slot, signature, annotations);
+        Field! res = new Field(clazz, name, type, modifiers, flags, slot, signature, annotations);
         res.root = this;
         // Might as well eagerly propagate this if already present
         res.fieldAccessor = fieldAccessor;
@@ -212,14 +212,14 @@ class Field extends AccessibleObject implements Member {
      * that declares the field represented by this {@code Field} object.
      */
     @Override
-    public Class<?> getDeclaringClass() {
+    public Class<?>! getDeclaringClass() {
         return clazz;
     }
 
     /**
      * Returns the name of the field represented by this {@code Field} object.
      */
-    public String getName() {
+    public String! getName() {
         return name;
     }
 
@@ -247,7 +247,7 @@ class Field extends AccessibleObject implements Member {
      * @since 20
      */
     @Override
-    public Set<AccessFlag> accessFlags() {
+    public Set<AccessFlag>! accessFlags() {
         return reflectionFactory.parseAccessFlags(getModifiers(), AccessFlag.Location.FIELD, getDeclaringClass());
     }
 
@@ -287,7 +287,7 @@ class Field extends AccessibleObject implements Member {
      * @return a {@code Class} object identifying the declared
      * type of the field represented by this object
      */
-    public Class<?> getType() {
+    public Class<?>! getType() {
         return type;
     }
 
@@ -315,7 +315,7 @@ class Field extends AccessibleObject implements Member {
      *     that cannot be instantiated for any reason
      * @since 1.5
      */
-    public Type getGenericType() {
+    public Type! getGenericType() {
         if (getGenericSignature() != null)
             return getGenericInfo().getGenericType();
         else
@@ -368,7 +368,7 @@ class Field extends AccessibleObject implements Member {
      * @return a string describing this {@code Field}
      * @jls 8.3.1 Field Modifiers
      */
-    public String toString() {
+    public String! toString() {
         int mod = getModifiers() & Modifier.fieldModifiers();
         return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
             + getType().getTypeName() + " "
@@ -377,7 +377,7 @@ class Field extends AccessibleObject implements Member {
     }
 
     @Override
-    String toShortString() {
+    String! toShortString() {
         return "field " + getDeclaringClass().getTypeName() + "." + getName();
     }
 
@@ -401,7 +401,7 @@ class Field extends AccessibleObject implements Member {
      * @since 1.5
      * @jls 8.3.1 Field Modifiers
      */
-    public String toGenericString() {
+    public String! toGenericString() {
         int mod = getModifiers() & Modifier.fieldModifiers();
         Type fieldType = getGenericType();
         return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
@@ -1282,12 +1282,12 @@ class Field extends AccessibleObject implements Member {
                     modifiers);
     }
 
-    private FieldAccessor getFieldAccessor() {
+    private FieldAccessor! getFieldAccessor() {
         FieldAccessor a = fieldAccessor;
         return (a != null) ? a : acquireFieldAccessor();
     }
 
-    private FieldAccessor getOverrideFieldAccessor() {
+    private FieldAccessor! getOverrideFieldAccessor() {
         FieldAccessor a = overrideFieldAccessor;
         return (a != null) ? a : acquireOverrideFieldAccessor();
     }
@@ -1296,7 +1296,7 @@ class Field extends AccessibleObject implements Member {
     // (though not efficient) to generate more than one FieldAccessor
     // for a given Field. However, avoiding synchronization will
     // probably make the implementation more scalable.
-    private FieldAccessor acquireFieldAccessor() {
+    private FieldAccessor! acquireFieldAccessor() {
         // First check to see if one has been created yet, and take it
         // if so
         Field root = this.root;
@@ -1311,7 +1311,7 @@ class Field extends AccessibleObject implements Member {
         return tmp;
     }
 
-    private FieldAccessor acquireOverrideFieldAccessor() {
+    private FieldAccessor! acquireOverrideFieldAccessor() {
         // First check to see if one has been created yet, and take it
         // if so
         Field root = this.root;
@@ -1328,7 +1328,7 @@ class Field extends AccessibleObject implements Member {
 
     // Sets the fieldAccessor for this Field object and
     // (recursively) its root
-    private void setFieldAccessor(FieldAccessor accessor) {
+    private void setFieldAccessor(FieldAccessor! accessor) {
         fieldAccessor = accessor;
         // Propagate up
         Field root = this.root;
@@ -1339,7 +1339,7 @@ class Field extends AccessibleObject implements Member {
 
     // Sets the overrideFieldAccessor for this Field object and
     // (recursively) its root
-    private void setOverrideFieldAccessor(FieldAccessor accessor) {
+    private void setOverrideFieldAccessor(FieldAccessor! accessor) {
         overrideFieldAccessor = accessor;
         // Propagate up
         Field root = this.root;
@@ -1371,8 +1371,7 @@ class Field extends AccessibleObject implements Member {
      * @since 1.5
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
 
@@ -1383,9 +1382,7 @@ class Field extends AccessibleObject implements Member {
      * @since 1.8
      */
     @Override
-    public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
-
+    public <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotationClass) {
         return AnnotationSupport.getDirectlyAndIndirectlyPresent(declaredAnnotations(), annotationClass);
     }
 
@@ -1393,13 +1390,13 @@ class Field extends AccessibleObject implements Member {
      * {@inheritDoc}
      */
     @Override
-    public Annotation[] getDeclaredAnnotations()  {
+    public Annotation[]! getDeclaredAnnotations()  {
         return AnnotationParser.toArray(declaredAnnotations());
     }
 
     private transient volatile Map<Class<? extends Annotation>, Annotation> declaredAnnotations;
 
-    private Map<Class<? extends Annotation>, Annotation> declaredAnnotations() {
+    private Map<Class<? extends Annotation>, Annotation>! declaredAnnotations() {
         Map<Class<? extends Annotation>, Annotation> declAnnos;
         if ((declAnnos = declaredAnnotations) == null) {
             synchronized (this) {
@@ -1421,7 +1418,7 @@ class Field extends AccessibleObject implements Member {
         return declAnnos;
     }
 
-    private native byte[] getTypeAnnotationBytes0();
+    private native byte[]! getTypeAnnotationBytes0();
 
     /**
      * Returns an AnnotatedType object that represents the use of a type to specify
@@ -1431,7 +1428,7 @@ class Field extends AccessibleObject implements Member {
      *
      * @since 1.8
      */
-    public AnnotatedType getAnnotatedType() {
+    public AnnotatedType! getAnnotatedType() {
         return TypeAnnotationParser.buildAnnotatedType(getTypeAnnotationBytes0(),
                                                        SharedSecrets.getJavaLangAccess().
                                                            getConstantPool(getDeclaringClass()),
@@ -1452,7 +1449,7 @@ class Field extends AccessibleObject implements Member {
     /**
      * Attempts to set a final field.
      */
-    private void setFinal(Class<?> caller, Object obj, FieldSetter setter) throws IllegalAccessException {
+    private void setFinal(Class<?> caller, Object obj, FieldSetter! setter) throws IllegalAccessException {
         if (obj != null && isFinalInstanceInNormalClass()) {
             preSetFinal(caller, false);
             setter.setFieldValue();
@@ -1479,8 +1476,7 @@ class Field extends AccessibleObject implements Member {
      * in a normal class.
      * @throws IllegalAccessException if not allowed
      */
-    void checkAllowedToUnreflectFinalSetter(Class<?> caller) throws IllegalAccessException {
-        Objects.requireNonNull(caller);
+    void checkAllowedToUnreflectFinalSetter(Class<?>! caller) throws IllegalAccessException {
         preSetFinal(caller, true);
         postSetFinal(caller, true);
     }
@@ -1586,7 +1582,7 @@ class Field extends AccessibleObject implements Member {
     /**
      * Returns the Module to use for access checks with the given caller.
      */
-    private Module moduleToCheck(Class<?> caller) {
+    private Module! moduleToCheck(Class<?> caller) {
         if (caller != null) {
             return caller.getModule();
         } else {
@@ -1599,7 +1595,7 @@ class Field extends AccessibleObject implements Member {
      * Returns the warning message to print when this final field is mutated by
      * the given possibly-null caller.
      */
-    private String finalFieldMutationWarning(Class<?> caller, boolean unreflect) {
+    private String! finalFieldMutationWarning(Class<?> caller, boolean unreflect) {
         assert Modifier.isFinal(modifiers);
         String source;
         if (caller != null) {
@@ -1626,7 +1622,7 @@ class Field extends AccessibleObject implements Member {
      * mutated because the declaring class is in a package that is not "deeply accessible"
      * to the caller.
      */
-    private String notAccessibleToCallerMessage(Class<?> caller, boolean unreflect) {
+    private String! notAccessibleToCallerMessage(Class<?> caller, boolean unreflect) {
         String exportsOrOpens = Modifier.isPublic(modifiers)
                 && Modifier.isPublic(clazz.getModifiers()) ? "exports" : "opens";
         return String.format("%s, %s does not explicitly \"%s\" package %s to %s",
@@ -1642,7 +1638,7 @@ class Field extends AccessibleObject implements Member {
      * final field cannot be mutated because the caller module is not allowed
      * to mutate final fields.
      */
-    private String callerNotAllowedToMutateMessage(Class<?> caller, boolean unreflect) {
+    private String! callerNotAllowedToMutateMessage(Class<?> caller, boolean unreflect) {
         if (caller != null) {
             return String.format("%s, %s is not allowed to mutate final fields",
                     cannotSetFieldMessage(caller, unreflect),
@@ -1656,21 +1652,21 @@ class Field extends AccessibleObject implements Member {
      * Returns the message for an IllegalAccessException when a field is not
      * accessible to a JNI attached thread.
      */
-    private String notAccessibleToNoCallerMessage(boolean unreflect) {
+    private String! notAccessibleToNoCallerMessage(boolean unreflect) {
         return cannotSetFieldMessage("JNI attached thread with no caller frame cannot", unreflect);
     }
 
     /**
      * Returns a message to indicate that the caller cannot set/unreflect this final field.
      */
-    private String cannotSetFieldMessage(Class<?> caller, boolean unreflect) {
+    private String! cannotSetFieldMessage(Class<?> caller, boolean unreflect) {
         return cannotSetFieldMessage(caller + " (in " + caller.getModule() + ") cannot", unreflect);
     }
 
     /**
      * Returns a message to indicate that a field cannot be set/unreflected.
      */
-    private String cannotSetFieldMessage(String prefix, boolean unreflect) {
+    private String! cannotSetFieldMessage(String! prefix, boolean unreflect) {
         if (unreflect) {
             return prefix + " unreflect final field " + clazz.getName() + "." + name
                     + " (in " + clazz.getModule() + ") for mutation";

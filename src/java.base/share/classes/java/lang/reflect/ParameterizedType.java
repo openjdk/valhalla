@@ -63,7 +63,7 @@ public interface ParameterizedType extends Type {
      *     be instantiated for any reason
      * @since 1.5
      */
-    Type[] getActualTypeArguments();
+    Type[]! getActualTypeArguments();
 
     /**
      * {@return the {@code Type} object representing the class or interface
@@ -77,7 +77,7 @@ public interface ParameterizedType extends Type {
      *
      * @since 1.5
      */
-    Type getRawType();
+    Type! getRawType();
 
     /**
      * Returns a {@code Type} object representing the type that this type

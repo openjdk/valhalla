@@ -77,14 +77,14 @@ public final class Constructor<T> extends Executable {
 
     // Generics infrastructure
     // Accessor for factory
-    private GenericsFactory getFactory() {
+    private GenericsFactory! getFactory() {
         // create scope and factory
         return CoreReflectionFactory.make(this, ConstructorScope.make(this));
     }
 
     // Accessor for generic info repository
     @Override
-    ConstructorRepository getGenericInfo() {
+    ConstructorRepository! getGenericInfo() {
         var genericInfo = this.genericInfo;
         if (genericInfo == null) {
             var root = this.root;
@@ -141,11 +141,11 @@ public final class Constructor<T> extends Executable {
      * ReflectAccess) which returns a copy of this Constructor. The copy's
      * "root" field points to this Constructor.
      */
-    Constructor<T> copy() {
+    Constructor<T>! copy() {
         if (this.root != null)
             throw new IllegalArgumentException("Can not copy a non-root Constructor");
 
-        Constructor<T> res = new Constructor<>(clazz,
+        Constructor<T>! res = new Constructor<>(clazz,
                                                parameterTypes,
                                                exceptionTypes, modifiers, slot,
                                                signature,
@@ -159,7 +159,7 @@ public final class Constructor<T> extends Executable {
     }
 
     // Creates a new root constructor with a custom accessor for serialization hooks.
-    Constructor<T> newWithAccessor(ConstructorAccessor accessor) {
+    Constructor<T>! newWithAccessor(ConstructorAccessor! accessor) {
         var res = new Constructor<>(clazz, parameterTypes, exceptionTypes, modifiers, slot,
                 signature, annotations, parameterAnnotations);
         res.constructorAccessor = accessor;
@@ -212,7 +212,7 @@ public final class Constructor<T> extends Executable {
      * declares the constructor represented by this object.
      */
     @Override
-    public Class<T> getDeclaringClass() {
+    public Class<T>! getDeclaringClass() {
         return clazz;
     }
 
@@ -221,7 +221,7 @@ public final class Constructor<T> extends Executable {
      * the binary name of the constructor's declaring class.
      */
     @Override
-    public String getName() {
+    public String! getName() {
         return getDeclaringClass().getName();
     }
 
@@ -241,7 +241,7 @@ public final class Constructor<T> extends Executable {
      */
     @Override
     @SuppressWarnings("unchecked")
-    public TypeVariable<Constructor<T>>[] getTypeParameters() {
+    public TypeVariable<Constructor<T>>[]! getTypeParameters() {
       if (getSignature() != null) {
         return (TypeVariable<Constructor<T>>[])getGenericInfo().getTypeParameters();
       } else
@@ -250,12 +250,12 @@ public final class Constructor<T> extends Executable {
 
 
     @Override
-    Class<?>[] getSharedParameterTypes() {
+    Class<?>[]! getSharedParameterTypes() {
         return parameterTypes;
     }
 
     @Override
-    Class<?>[] getSharedExceptionTypes() {
+    Class<?>[]! getSharedExceptionTypes() {
         return exceptionTypes;
     }
 
@@ -263,7 +263,7 @@ public final class Constructor<T> extends Executable {
      * {@inheritDoc}
      */
     @Override
-    public Class<?>[] getParameterTypes() {
+    public Class<?>[]! getParameterTypes() {
         return parameterTypes.length == 0 ? parameterTypes : parameterTypes.clone();
     }
 
@@ -289,7 +289,7 @@ public final class Constructor<T> extends Executable {
      * {@inheritDoc}
      */
     @Override
-    public Class<?>[] getExceptionTypes() {
+    public Class<?>[]! getExceptionTypes() {
         return exceptionTypes.length == 0 ? exceptionTypes : exceptionTypes.clone();
     }
 
@@ -301,7 +301,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    public Type[] getGenericExceptionTypes() {
+    public Type[]! getGenericExceptionTypes() {
         return super.getGenericExceptionTypes();
     }
 
@@ -353,7 +353,7 @@ public final class Constructor<T> extends Executable {
      * @jls 8.8.3 Constructor Modifiers
      * @jls 8.9.2 Enum Body Declarations
      */
-    public String toString() {
+    public String! toString() {
         return sharedToString(Modifier.constructorModifiers(),
                               false,
                               parameterTypes,
@@ -361,12 +361,12 @@ public final class Constructor<T> extends Executable {
     }
 
     @Override
-    void specificToStringHeader(StringBuilder sb) {
+    void specificToStringHeader(StringBuilder! sb) {
         sb.append(getDeclaringClass().getTypeName());
     }
 
     @Override
-    String toShortString() {
+    String! toShortString() {
         StringBuilder sb = new StringBuilder("constructor ");
         sb.append(getDeclaringClass().getTypeName());
         sb.append('(');
@@ -416,12 +416,12 @@ public final class Constructor<T> extends Executable {
      * @jls 8.9.2 Enum Body Declarations
      */
     @Override
-    public String toGenericString() {
+    public String! toGenericString() {
         return sharedToGenericString(Modifier.constructorModifiers(), false);
     }
 
     @Override
-    void specificToGenericStringHeader(StringBuilder sb) {
+    void specificToGenericStringHeader(StringBuilder! sb) {
         specificToStringHeader(sb);
     }
 
@@ -475,7 +475,7 @@ public final class Constructor<T> extends Executable {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    public T newInstance(Object ... initargs)
+    public T! newInstance(Object ... initargs)
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
@@ -484,7 +484,7 @@ public final class Constructor<T> extends Executable {
     }
 
     /* package-private */
-    T newInstanceWithCaller(Object[] args, boolean checkAccess, Class<?> caller)
+    T! newInstanceWithCaller(Object[] args, boolean checkAccess, Class<?> caller)
         throws InstantiationException, IllegalAccessException,
                InvocationTargetException
     {
@@ -529,7 +529,7 @@ public final class Constructor<T> extends Executable {
     // ConstructorAccessor for a given Constructor. However, avoiding
     // synchronization will probably make the implementation more
     // scalable.
-    private ConstructorAccessor acquireConstructorAccessor() {
+    private ConstructorAccessor! acquireConstructorAccessor() {
 
         // First check to see if one has been created yet, and take it
         // if so.
@@ -560,7 +560,7 @@ public final class Constructor<T> extends Executable {
 
     // Sets the ConstructorAccessor for this Constructor object and
     // (recursively) its root
-    void setConstructorAccessor(ConstructorAccessor accessor) {
+    void setConstructorAccessor(ConstructorAccessor! accessor) {
         constructorAccessor = accessor;
         // Propagate up
         Constructor<?> root = this.root;
@@ -573,7 +573,7 @@ public final class Constructor<T> extends Executable {
         return slot;
     }
 
-    String getSignature() {
+    String! getSignature() {
         return signature;
     }
 
@@ -593,7 +593,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         return super.getAnnotation(annotationClass);
     }
 
@@ -602,7 +602,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    public Annotation[] getDeclaredAnnotations()  {
+    public Annotation[]! getDeclaredAnnotations()  {
         return super.getDeclaredAnnotations();
     }
 
@@ -611,12 +611,12 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    public Annotation[][] getParameterAnnotations() {
+    public Annotation[][]! getParameterAnnotations() {
         return sharedGetParameterAnnotations(parameterTypes, parameterAnnotations);
     }
 
     @Override
-    boolean handleParameterNumberMismatch(int resultLength, Class<?>[] parameterTypes) {
+    boolean handleParameterNumberMismatch(int resultLength, Class<?>[]! parameterTypes) {
         int numParameters = parameterTypes.length;
         Class<?> declaringClass = getDeclaringClass();
         if (declaringClass.isEnum()) {
@@ -644,7 +644,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.8
      */
     @Override
-    public AnnotatedType getAnnotatedReturnType() {
+    public AnnotatedType! getAnnotatedReturnType() {
         return getAnnotatedReturnType0(getDeclaringClass());
     }
 

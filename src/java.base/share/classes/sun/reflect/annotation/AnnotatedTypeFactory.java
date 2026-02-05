@@ -280,8 +280,8 @@ public final class AnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotatedType getAnnotatedGenericComponentType() {
-            Type t = getComponentType();
+        public AnnotatedType! getAnnotatedGenericComponentType() {
+            Type! t = getComponentType();
             return AnnotatedTypeFactory.buildAnnotatedType(t,
                     nestingForType(t, getLocation().pushArray()),
                     getTypeAnnotations(),
@@ -293,7 +293,7 @@ public final class AnnotatedTypeFactory {
             return null;
         }
 
-        private Type getComponentType() {
+        private Type! getComponentType() {
             Type t = getType();
             if (t instanceof Class<?> c) {
                 return c.getComponentType();

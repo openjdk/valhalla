@@ -31,6 +31,7 @@ import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -288,7 +289,8 @@ public class NullChecksWriter extends TreeTranslator {
             newArgs.add(actualArgsTmp.head);
             actualArgsTmp = actualArgsTmp.tail;
         }
-        int noOfArgsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
+        int oldNoOfArgsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
+        int noOfArgsToCheck = oldNoOfArgsToCheck;
         while (noOfArgsToCheck-- > 0) {
             Type formalArgType = declaredArgTypes.head;
             if (types.isNonNullable(formalArgType)) {
@@ -297,6 +299,7 @@ public class NullChecksWriter extends TreeTranslator {
                 newArgs.add(actualArgsTmp.head);
             }
             actualArgsTmp = actualArgsTmp.tail;
+            declaredArgTypes = declaredArgTypes.tail;
         }
         /* now add the last vararg argument if applicable, no checks are needed here as varargs can't be
          * null restricted. Also note that at this point the vararg arguments have already been translated

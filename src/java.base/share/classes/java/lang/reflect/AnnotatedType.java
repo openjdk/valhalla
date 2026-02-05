@@ -85,7 +85,7 @@ public interface AnnotatedType extends AnnotatedElement {
      *
      * @return the type this annotated type represents
      */
-    public Type getType();
+    public Type! getType();
 
     /**
      * {@inheritDoc}
@@ -95,7 +95,7 @@ public interface AnnotatedType extends AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    <T extends Annotation> T getAnnotation(Class<T> annotationClass);
+    <T extends Annotation> T getAnnotation(Class<T>! annotationClass);
 
     /**
      * {@inheritDoc}
@@ -103,7 +103,7 @@ public interface AnnotatedType extends AnnotatedElement {
      * annotations.
      */
     @Override
-    Annotation[] getAnnotations();
+    Annotation[]! getAnnotations();
 
     /**
      * {@inheritDoc}
@@ -111,5 +111,5 @@ public interface AnnotatedType extends AnnotatedElement {
      * annotations.
      */
     @Override
-    Annotation[] getDeclaredAnnotations();
+    Annotation[]! getDeclaredAnnotations();
 }

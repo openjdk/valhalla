@@ -287,7 +287,7 @@ public interface AnnotatedElement {
      *     type is present on this element, else false
      * @throws NullPointerException if the given annotation class is null
      */
-    default boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
+    default boolean isAnnotationPresent(Class<? extends Annotation>! annotationClass) {
         return getAnnotation(annotationClass) != null;
     }
 
@@ -302,7 +302,7 @@ public interface AnnotatedElement {
      *     present on this element, else null
      * @throws NullPointerException if the given annotation class is null
      */
-    <T extends Annotation> T getAnnotation(Class<T> annotationClass);
+    <T extends Annotation> T getAnnotation(Class<T>! annotationClass);
 
     /**
      * Returns annotations that are <em>present</em> on this element.
@@ -315,7 +315,7 @@ public interface AnnotatedElement {
      *
      * @return annotations present on this element
      */
-    Annotation[] getAnnotations();
+    Annotation[]! getAnnotations();
 
     /**
      * Returns annotations that are <em>associated</em> with this element.
@@ -352,7 +352,7 @@ public interface AnnotatedElement {
      * @throws NullPointerException if the given annotation class is null
      * @since 1.8
      */
-    default <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
+    default <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotationClass) {
          /*
           * Definition of associated: directly or indirectly present OR
           * neither directly nor indirectly present AND the element is
@@ -396,10 +396,9 @@ public interface AnnotatedElement {
      * @throws NullPointerException if the given annotation class is null
      * @since 1.8
      */
-    default <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
-         Objects.requireNonNull(annotationClass);
+    default <T extends Annotation> T getDeclaredAnnotation(Class<T>! annotationClass) {
          // Loop over all directly-present annotations looking for a matching one
-         for (Annotation annotation : getDeclaredAnnotations()) {
+         for (Annotation! annotation : getDeclaredAnnotations()) {
              if (annotationClass.equals(annotation.annotationType())) {
                  // More robust to do a dynamic cast at runtime instead
                  // of compile-time only.
@@ -453,8 +452,7 @@ public interface AnnotatedElement {
      * @throws NullPointerException if the given annotation class is null
      * @since 1.8
      */
-    default <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
+    default <T extends Annotation> T[]! getDeclaredAnnotationsByType(Class<T>! annotationClass) {
         return AnnotationSupport.
             getDirectlyAndIndirectlyPresent(Arrays.stream(getDeclaredAnnotations()).
                                             collect(Collectors.toMap(Annotation::annotationType,
@@ -476,5 +474,5 @@ public interface AnnotatedElement {
      *
      * @return annotations directly present on this element
      */
-    Annotation[] getDeclaredAnnotations();
+    Annotation[]! getDeclaredAnnotations();
 }

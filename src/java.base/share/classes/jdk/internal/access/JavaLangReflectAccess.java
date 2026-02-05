@@ -35,46 +35,46 @@ public interface JavaLangReflectAccess {
      * Creates a new root constructor from the original one, with
      * a custom accessor. Used by serialization hooks.
      */
-    <T> Constructor<T> newConstructorWithAccessor(Constructor<T> original, ConstructorAccessor accessor);
+    <T> Constructor<T>! newConstructorWithAccessor(Constructor<T>! original, ConstructorAccessor! accessor);
 
     /** Gets the byte[] that encodes TypeAnnotations on an Executable. */
-    public byte[] getExecutableTypeAnnotationBytes(Executable ex);
+    public byte[] getExecutableTypeAnnotationBytes(Executable! ex);
 
     /** Gets the shared array of parameter types of an Executable. */
-    public Class<?>[] getExecutableSharedParameterTypes(Executable ex);
+    public Class<?>[]! getExecutableSharedParameterTypes(Executable! ex);
 
     /** Gets the shared array of exception types of an Executable. */
-    public Class<?>[] getExecutableSharedExceptionTypes(Executable ex);
+    public Class<?>[]! getExecutableSharedExceptionTypes(Executable! ex);
 
     // Copying routines, needed to quickly fabricate new Field,
     // Method, and Constructor objects from templates
 
     /** Makes a "child" copy of a Method */
-    public Method      copyMethod(Method arg);
+    public Method!      copyMethod(Method! arg);
 
     /** Makes a "child" copy of a Field */
-    public Field       copyField(Field arg);
+    public Field!       copyField(Field! arg);
 
     /** Makes a "child" copy of a Constructor */
-    public <T> Constructor<T> copyConstructor(Constructor<T> arg);
+    public <T> Constructor<T>! copyConstructor(Constructor<T>! arg);
 
     /** Gets the root of the given AccessibleObject object; null if arg is the root */
-    public <T extends AccessibleObject> T getRoot(T obj);
+    public <T extends AccessibleObject> T getRoot(T! obj);
 
     /** Tests if this is a trusted final field */
-    public boolean isTrustedFinalField(Field f);
+    public boolean isTrustedFinalField(Field! f);
 
 
     /** Tests if this is a null-restricted field */
-    public boolean isNullRestrictedField(Field f);
+    public boolean isNullRestrictedField(Field! f);
 
     /** Returns a new instance created by the given constructor with access check */
-    public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
+    public <T> T! newInstance(Constructor<T>! ctor, Object[] args, Class<?> caller)
         throws IllegalAccessException, InstantiationException, InvocationTargetException;
 
     /**
      * Check that the caller is allowed to unreflect for mutation a final instance field
      * in a class that is not a record or hidden class.
      */
-    void checkAllowedToUnreflectFinalSetter(Class<?> caller, Field f) throws IllegalAccessException;
+    void checkAllowedToUnreflectFinalSetter(Class<?>! caller, Field! f) throws IllegalAccessException;
 }
