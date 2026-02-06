@@ -468,26 +468,6 @@ UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj,
   vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, lk, CHECK);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
-  oop v = JNIHandles::resolve_non_null(value);
-  assert(v->is_inline_type(), "must be an inline type instance");
-  Handle vh(THREAD, v);
-  InlineKlass* vk = InlineKlass::cast(v->klass());
-  instanceOop new_value = vk->allocate_instance(CHECK_NULL);
-  vk->copy_payload_to_addr(vk->payload_addr(vh()), vk->payload_addr(new_value), LayoutKind::BUFFERED);
-  markWord mark = new_value->mark();
-  new_value->set_mark(mark.enter_larval_state());
-  return JNIHandles::make_local(THREAD, new_value);
-} UNSAFE_END
-
-UNSAFE_ENTRY(jobject, Unsafe_FinishPrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
-  oop v = JNIHandles::resolve(value);
-  assert(v->mark().is_larval_state(), "must be a larval value");
-  markWord mark = v->mark();
-  v->set_mark(mark.exit_larval_state());
-  return JNIHandles::make_local(THREAD, v);
-} UNSAFE_END
-
 UNSAFE_ENTRY(jobject, Unsafe_GetReferenceVolatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) {
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
@@ -1165,8 +1145,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "newSpecialArray",      CC "(" CLS "II)[" OBJ,    FN_PTR(Unsafe_NewSpecialArray)},
     {CC "getFlatValue",         CC "(" OBJ "JI" CLS ")" OBJ, FN_PTR(Unsafe_GetFlatValue)},
     {CC "putFlatValue",         CC "(" OBJ "JI" CLS OBJ ")V", FN_PTR(Unsafe_PutFlatValue)},
-    {CC "makePrivateBuffer",     CC "(" OBJ ")" OBJ,      FN_PTR(Unsafe_MakePrivateBuffer)},
-    {CC "finishPrivateBuffer",   CC "(" OBJ ")" OBJ,      FN_PTR(Unsafe_FinishPrivateBuffer)},
     {CC "valueHeaderSize",       CC "(" CLS ")J",         FN_PTR(Unsafe_ValueHeaderSize)},
 
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},

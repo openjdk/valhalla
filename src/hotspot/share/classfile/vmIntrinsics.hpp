@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -766,8 +766,6 @@ class methodHandle;
   do_name(getDouble_name,"getDouble")           do_name(putDouble_name,"putDouble")                                     \
   do_name(getValue_name,"getValue")             do_name(putValue_name,"putValue")                                       \
   do_name(getFlatValue_name,"getFlatValue")     do_name(putFlatValue_name,"putFlatValue")                               \
-  do_name(makePrivateBuffer_name,"makePrivateBuffer")                                                                   \
-  do_name(finishPrivateBuffer_name,"finishPrivateBuffer")                                                               \
                                                                                                                         \
   do_intrinsic(_getReference,       jdk_internal_misc_Unsafe,     getReference_name, getReference_signature,     F_RN)  \
   do_intrinsic(_getBoolean,         jdk_internal_misc_Unsafe,     getBoolean_name, getBoolean_signature,         F_RN)  \
@@ -789,9 +787,6 @@ class methodHandle;
   do_intrinsic(_putFloat,           jdk_internal_misc_Unsafe,     putFloat_name, putFloat_signature,             F_RN)  \
   do_intrinsic(_putDouble,          jdk_internal_misc_Unsafe,     putDouble_name, putDouble_signature,           F_RN)  \
   do_intrinsic(_putFlatValue,       jdk_internal_misc_Unsafe,     putFlatValue_name, putFlatValue_signature,     F_RN)  \
-                                                                                                                        \
-  do_intrinsic(_makePrivateBuffer,  jdk_internal_misc_Unsafe,     makePrivateBuffer_name, object_object_signature, F_RN)   \
-  do_intrinsic(_finishPrivateBuffer,  jdk_internal_misc_Unsafe,   finishPrivateBuffer_name, object_object_signature, F_RN) \
                                                                                                                         \
   do_name(getReferenceVolatile_name,"getReferenceVolatile")   do_name(putReferenceVolatile_name,"putReferenceVolatile") \
   do_name(getBooleanVolatile_name,"getBooleanVolatile")       do_name(putBooleanVolatile_name,"putBooleanVolatile")     \
