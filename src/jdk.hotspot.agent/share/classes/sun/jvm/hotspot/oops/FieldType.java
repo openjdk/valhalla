@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,7 @@ public class FieldType {
        case '[':
            break;   // Ok. signature char known
        default:
-         Assert.that(false, "Unknown char in field signature \"" + signature.asString() + "\": " + this.first);
+         this.first = 'V'; // It's a value type.
        }
     }
   }
