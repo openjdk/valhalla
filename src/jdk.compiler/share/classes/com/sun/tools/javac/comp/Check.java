@@ -1871,28 +1871,25 @@ public class Check {
 
         overrideWarner.clear();
         boolean resultTypesOK =
-            types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
-        if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
-        }
-        overrideWarner.remove(LintCategory.NULL);
-        boolean isSubsignature = types.isSubSignature(mt, ot, overrideWarner);
+                types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
+        boolean isSubsignature = types.isSubSignature(mt, ot);
         if (isSubsignature) {
-            if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
-            } else {
-                /* it could be that the arguments were erased and we get no warning because they lost the
-                 * nullability info after erasure, we need to double check
-                 */
-                List<Type> mtArgs = mt.getParameterTypes();
-                List<Type> otArgs = ot.getParameterTypes();
-                while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
-                    if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
-                        warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
-                        break;
-                    }
-                    mtArgs = mtArgs.tail;
-                    otArgs = otArgs.tail;
+            /* it could be that the arguments were erased and we get no warning because they lost the
+             * nullability info after erasure, we need to double check
+             */
+            List<Type> mtArgs = mt.getParameterTypes();
+            List<Type> otArgs = ot.getParameterTypes();
+            while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
+                if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
+                    warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
+                    break;
+                }
+                mtArgs = mtArgs.tail;
+                otArgs = otArgs.tail;
+            }
+            if (resultTypesOK) {
+                if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                    warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
                 }
             }
         }
