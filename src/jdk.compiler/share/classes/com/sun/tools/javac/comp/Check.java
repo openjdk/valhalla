@@ -1896,7 +1896,7 @@ public class Check {
             while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
                 if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
                     warnNullableTypes(preciseArgPositions ? params.head.vartype : treeForPos,
-                            LintWarnings.ArgumentTypeIsNullRestricted(
+                            LintWarnings.IncompatibleNullRestrictions(
                                     Fragments.ArgumentTypeNullabilityMismatch(mtArgs.head, otArgs.head)));
                 }
                 mtArgs = mtArgs.tail;
@@ -1906,7 +1906,7 @@ public class Check {
                 }
             }
             if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                warnNullableTypes(returnPos, LintWarnings.ArgumentTypeIsNullRestricted(
+                warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
                         Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
             }
         }

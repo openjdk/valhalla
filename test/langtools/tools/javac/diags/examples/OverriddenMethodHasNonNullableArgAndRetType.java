@@ -23,8 +23,9 @@
 
 // key: compiler.note.preview.filename
 // key: compiler.note.preview.recompile
-// key: compiler.warn.argument.type.is.null.restricted
-// key: compiler.warn.return.type.is.null.restricted
+// key: compiler.warn.incompatible.null.restrictions
+// key: compiler.misc.argument.type.nullability.mismatch
+// key: compiler.misc.return.type.nullability.mismatch
 // options: -Xlint:null --enable-preview -source ${jdk.version}
 
 class OverriddenMethodHasNonNullableArgAndRetType {
