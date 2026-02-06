@@ -45,6 +45,10 @@ import java.util.List;
 
 public class PreviewAutoSuppress extends TestRunner {
 
+    private static final String SPEC_VERSION = System.getProperty(
+            "java.specification.version",
+            "<missing java.specification.version>");
+
     protected ToolBox tb;
 
     PreviewAutoSuppress() {
@@ -94,7 +98,7 @@ public class PreviewAutoSuppress extends TestRunner {
 
         // As of Valhalla, j.l.Record is a preview class
         List<String> expected =
-                List.of("- compiler.warn.preview.feature.use.classfile: Record.class, " + specVersion(),
+                List.of("- compiler.warn.preview.feature.use.classfile: Record.class, " + SPEC_VERSION,
                         "Outer.java:3:5: compiler.warn.preview.feature.use.plural: (compiler.misc.feature.records)",
                         "Outer.java:3:5: compiler.warn.preview.feature.use.plural: (compiler.misc.feature.records)",
                         "3 warnings");
@@ -213,15 +217,6 @@ public class PreviewAutoSuppress extends TestRunner {
             } else if (!preview && cf.minorVersion() != 0) {
                 throw new IllegalStateException("Expected minor version == 0 but got: " + cf.minorVersion());
             }
-        }
-    }
-
-    private static int specVersion() {
-        String verStr = System.getProperty("java.specification.version", "");
-        try {
-            return Integer.parseInt(verStr);
-        } catch (NumberFormatException e) {
-            throw new RuntimeException("Cannot parse value of 'java.specification.version': " + verStr);
         }
     }
 }
