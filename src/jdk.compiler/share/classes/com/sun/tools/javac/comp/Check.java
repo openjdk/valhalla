@@ -1896,10 +1896,7 @@ public class Check {
             while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
                 if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
                     warnNullableTypes(preciseArgPositions ? params.head.vartype : treeForPos,
-                            LintWarnings.ArgumentTypeIsNullRestricted);
-                    if (!preciseArgPositions) {
-                        break;
-                    }
+                            LintWarnings.ArgumentTypeIsNullRestricted(mtArgs.head, otArgs.head));
                 }
                 mtArgs = mtArgs.tail;
                 otArgs = otArgs.tail;
@@ -1908,7 +1905,7 @@ public class Check {
                 }
             }
             if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                warnNullableTypes(returnPos, LintWarnings.ReturnTypeIsNullRestricted);
+                warnNullableTypes(returnPos, LintWarnings.ReturnTypeIsNullRestricted(mt.getReturnType(), ot.getReturnType()));
             }
         }
         if (!resultTypesOK) {
