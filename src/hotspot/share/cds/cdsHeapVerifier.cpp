@@ -93,6 +93,18 @@
 //     initialization; this string is never changed during -Xshare:dump.
 // [D] Simple caches whose value doesn't matter.
 // [E] Other cases (see comments in-line below).
+//
+// LIMITATION:
+//
+// CDSHeapVerifier can only check for problems with object identity. In the example above,
+// if the Bar type has identity, the program's correctness requires that the identity
+// of Foo.bar and Bar.bar to be equal. This requirement can be checked by CDSHeapVerifier.
+//
+// However, if Bar does not have identity (e.g., it's a value class, or is a primitive type),
+// the program's correctness no longer requires that the identity of Foo.bar and Bar.bar
+// to be equal (since they don't have an identity anymore). While the program's
+// correctness may still have certain assumptions about Foo.bar and Bar.bar (such as the
+// internal fields of these two values), such assumptions cannot be checked by CDSHeapVerifier.
 
 CDSHeapVerifier::CDSHeapVerifier() : _archived_objs(0), _problems(0)
 {
@@ -156,7 +168,7 @@ CDSHeapVerifier::CDSHeapVerifier() : _archived_objs(0), _problems(0)
 
 # undef ADD_EXCL
 
-  if (CDSConfig::is_initing_classes_at_dump_time()) {
+  if (CDSConfig::is_dumping_aot_linked_classes()) {
     add_shared_secret_accessors();
   }
   ClassLoaderDataGraph::classes_do(this);
@@ -291,6 +303,14 @@ public:
             return;
           }
         }
+      }
+
+      if (!field_type->is_identity_class()) {
+        // See comment of LIMITATION above
+        // Any concrete value class will have a field ".null_reset" which holds an
+        // all-zero instance of the value class so it will not change between
+        // dump time and runtime.
+        return;
       }
 
       if (fd->is_final() && java_lang_String::is_instance(static_obj_field) && fd->has_initial_value()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "ci/ciFlatArray.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciReplay.hpp"
 #include "classfile/javaClasses.hpp"
 #include "code/aotCodeCache.hpp"
@@ -69,6 +71,7 @@
 #include "opto/memnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/mulnode.hpp"
+#include "opto/multnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
@@ -82,6 +85,7 @@
 #include "opto/type.hpp"
 #include "opto/vector.hpp"
 #include "opto/vectornode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -613,7 +617,9 @@ void Compile::print_ideal_ir(const char* phase_name) {
   if (_output == nullptr) {
     ss.print_cr("AFTER: %s", phase_name);
     // Print out all nodes in ascending order of index.
-    root()->dump_bfs(MaxNodeLimit, nullptr, "+S$", &ss);
+    // It is important that we traverse both inputs and outputs of nodes,
+    // so that we reach all nodes that are connected to Root.
+    root()->dump_bfs(MaxNodeLimit, nullptr, "-+S$", &ss);
   } else {
     // Dump the node blockwise if we have a scheduling
     _output->print_scheduling(&ss);
@@ -662,6 +668,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _allow_macro_nodes(true),
       _inlining_progress(false),
       _inlining_incrementally(false),
+      _strength_reduction(false),
       _do_cleanup(false),
       _has_reserved_stack_access(target->has_reserved_stack_access()),
       _has_circular_inline_type(false),
@@ -1388,19 +1395,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
   // Array pointers need some flattening
   const TypeAryPtr* ta = tj->isa_aryptr();
-  if (ta && ta->is_stable()) {
-    // Erase stability property for alias analysis.
-    tj = ta = ta->cast_to_stable(false);
-  }
-  if (ta && ta->is_not_flat()) {
-    // Erase not flat property for alias analysis.
-    tj = ta = ta->cast_to_not_flat(false);
-  }
-  if (ta && ta->is_not_null_free()) {
-    // Erase not null free property for alias analysis.
-    tj = ta = ta->cast_to_not_null_free(false);
-  }
-
   if( ta && is_known_inst ) {
     if ( offset != Type::OffsetBot &&
          offset > arrayOopDesc::length_offset_in_bytes() ) {
@@ -1411,78 +1405,51 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
               with_offset(offset);
     }
   } else if (ta) {
-    // For arrays indexed by constant indices, we flatten the alias
-    // space to include all of the array body.  Only the header, klass
-    // and array length can be accessed un-aliased.
-    // For flat inline type array, each field has its own slice so
-    // we must include the field offset.
-    if( offset != Type::OffsetBot ) {
-      if( ta->const_oop() ) { // MethodData* or Method*
-        offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = ta->
-                remove_speculative()->
-                cast_to_ptr_type(ptr)->
-                cast_to_exactness(false)->
-                with_offset(offset);
-      } else if( offset == arrayOopDesc::length_offset_in_bytes() ) {
-        // range is OK as-is.
-        tj = ta = TypeAryPtr::RANGE;
-      } else if( offset == oopDesc::klass_offset_in_bytes() ) {
-        tj = TypeInstPtr::KLASS; // all klass loads look alike
-        ta = TypeAryPtr::RANGE; // generic ignored junk
-        ptr = TypePtr::BotPTR;
-      } else if( offset == oopDesc::mark_offset_in_bytes() ) {
-        tj = TypeInstPtr::MARK;
-        ta = TypeAryPtr::RANGE; // generic ignored junk
-        ptr = TypePtr::BotPTR;
-      } else {                  // Random constant offset into array body
-        offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = ta->
-                remove_speculative()->
-                cast_to_ptr_type(ptr)->
-                cast_to_exactness(false)->
-                with_offset(offset);
-      }
+    // Common slices
+    if (offset == arrayOopDesc::length_offset_in_bytes()) {
+      return TypeAryPtr::RANGE;
+    } else if (offset == oopDesc::klass_offset_in_bytes()) {
+      return TypeInstPtr::KLASS;
+    } else if (offset == oopDesc::mark_offset_in_bytes()) {
+      return TypeInstPtr::MARK;
     }
-    // Arrays of fixed size alias with arrays of unknown size.
-    if (ta->size() != TypeInt::POS) {
-      const TypeAry *tary = TypeAry::make(ta->elem(), TypeInt::POS);
-      tj = ta = ta->
-              remove_speculative()->
-              cast_to_ptr_type(ptr)->
-              with_ary(tary)->
-              cast_to_exactness(false);
+
+    // Remove size and stability
+    const TypeAry* normalized_ary = TypeAry::make(ta->elem(), TypeInt::POS, false, ta->is_flat(), ta->is_not_flat(), ta->is_not_null_free(), ta->is_atomic());
+    // Remove ptr, const_oop, and offset
+    if (ta->elem() == Type::BOTTOM) {
+      // Bottom array (meet of int[] and byte[] for example), accesses to it will be done with
+      // Unsafe. This should alias with all arrays. For now just leave it as it is (this is
+      // incorrect, see JDK-8331133).
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, normalized_ary, nullptr, false, Type::Offset::bottom);
+    } else if (ta->elem()->make_oopptr() != nullptr) {
+      // Object arrays, keep field_offset
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, normalized_ary, nullptr, ta->klass_is_exact(), Type::Offset::bottom, Type::Offset(ta->field_offset()));
+    } else {
+      // Primitive arrays
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, normalized_ary, ta->exact_klass(), true, Type::Offset::bottom);
     }
-    // Arrays of known objects become arrays of unknown objects.
-    if (ta->elem()->isa_narrowoop() && ta->elem() != TypeNarrowOop::BOTTOM) {
-      const TypeAry *tary = TypeAry::make(TypeNarrowOop::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), ta->field_offset());
-    }
-    if (ta->elem()->isa_oopptr() && ta->elem() != TypeInstPtr::BOTTOM) {
-      const TypeAry *tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), ta->field_offset());
-    }
-    // Initially all flattened array accesses share a single slice
-    if (ta->is_flat() && ta->elem() != TypeInstPtr::BOTTOM && _flat_accesses_share_alias) {
-      const TypeAry* tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size(), /* stable= */ false, /* flat= */ true);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
-    }
+
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
     // cannot be distinguished by bytecode alone.
     if (ta->elem() == TypeInt::BOOL) {
-      const TypeAry *tary = TypeAry::make(TypeInt::BYTE, ta->size());
-      ciKlass* aklass = ciTypeArrayKlass::make(T_BYTE);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,aklass,false,Type::Offset(offset), ta->field_offset());
+      tj = ta = TypeAryPtr::BYTES;
     }
-    // During the 2nd round of IterGVN, NotNull castings are removed.
-    // Make sure the Bottom and NotNull variants alias the same.
-    // Also, make sure exact and non-exact variants alias the same.
-    if (ptr == TypePtr::NotNull || ta->klass_is_exact() || ta->speculative() != nullptr) {
-      tj = ta = ta->
-              remove_speculative()->
-              cast_to_ptr_type(TypePtr::BotPTR)->
-              cast_to_exactness(false)->
-              with_offset(offset);
+
+    // All arrays of references share the same slice
+    if (!ta->is_flat() && ta->elem()->make_oopptr() != nullptr) {
+      const TypeAry* tary = TypeAry::make(TypeInstPtr::BOTTOM, TypeInt::POS, false, false, true, true, true);
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, tary, nullptr, false, Type::Offset::bottom);
+    }
+
+    if (ta->is_flat()) {
+      if (_flat_accesses_share_alias) {
+        // Initially all flattened array accesses share a single slice
+        tj = ta = TypeAryPtr::INLINES;
+      } else {
+        // Flat accesses are always exact
+        tj = ta = ta->cast_to_exactness(true);
+      }
     }
   }
 
@@ -1791,8 +1758,6 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       }
       if (flat->offset() == in_bytes(Klass::super_check_offset_offset()))
         alias_type(idx)->set_rewritable(false);
-      if (flat->offset() == in_bytes(Klass::access_flags_offset()))
-        alias_type(idx)->set_rewritable(false);
       if (flat->offset() == in_bytes(Klass::misc_flags_offset()))
         alias_type(idx)->set_rewritable(false);
       if (flat->offset() == in_bytes(Klass::java_mirror_offset()))
@@ -1801,6 +1766,12 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         alias_type(idx)->set_rewritable(false);
       if (flat->offset() == in_bytes(Klass::secondary_super_cache_offset()))
         alias_type(idx)->set_rewritable(false);
+    }
+
+    if (flat->isa_instklassptr()) {
+      if (flat->offset() == in_bytes(InstanceKlass::access_flags_offset())) {
+        alias_type(idx)->set_rewritable(false);
+      }
     }
     // %%% (We would like to finalize JavaThread::threadObj_offset(),
     // but the base pointer type is not distinctive enough to identify
@@ -2036,6 +2007,8 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
     }
   }
   if (_inline_type_nodes.length() == 0) {
+    // keep the graph canonical
+    igvn.optimize();
     return;
   }
   // Scalarize inline types in safepoint debug info.
@@ -2122,7 +2095,42 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
     Node* n = _flat_access_nodes.at(i);
     assert(n != nullptr, "unexpected nullptr");
     if (n->is_LoadFlat()) {
-      n->as_LoadFlat()->expand_atomic(igvn);
+      LoadFlatNode* loadn = n->as_LoadFlat();
+      // Expending a flat load atomically means that we get a chunk of memory spanning multiple fields
+      // that we chop with bitwise operations. That is too subtle for some optimizations, especially
+      // constant folding when fields are constant. But if the flattened field being accessed is read-only
+      // then no concurrent writes can happen and non-atomic loads are fine, allowing better optimizations.
+      // A way for fields to be read-only is to be stable and already initialized. Here, we check if the
+      // field being accessed is stable, and if the null marker of the field/array element is non-zero.
+      // If so, we know that the stable value was initialized away from the default value (null), and
+      // that we can assume it's read-only, so can the load can be performed non-atomically.
+      bool non_atomic_is_fine = false;
+      if (FoldStableValues) {
+        const TypeOopPtr* base_type = igvn.type(loadn->base())->isa_oopptr();
+        ciObject* oop = base_type->const_oop();
+        ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
+        ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
+        int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
+
+        if (holder != nullptr) {
+          ciKlass* klass = holder->klass();
+          ciInstanceKlass* iklass = klass->as_instance_klass();
+          const ciField* field = iklass->get_non_flat_field_by_offset(off);
+          ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
+          ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
+          non_atomic_is_fine = field->is_stable() && cst.is_valid() && cst.as_boolean();
+        } else if (array != nullptr) {
+          const TypeAryPtr* aryptr = base_type->is_aryptr();
+          ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
+          non_atomic_is_fine = aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+        }
+      }
+
+      if (non_atomic_is_fine) {
+        loadn->expand_non_atomic(igvn);
+      } else {
+        loadn->expand_atomic(igvn);
+      }
     } else {
       n->as_StoreFlat()->expand_atomic(igvn);
     }
@@ -2133,6 +2141,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
 }
 
 void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
+  DEBUG_ONLY(igvn.verify_empty_worklist(nullptr));
   if (!_has_flat_accesses) {
     return;
   }
@@ -2176,228 +2185,275 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
     }
   }
 
-  if (memnodes.size() > 0) {
-    _flat_accesses_share_alias = false;
+  _flat_accesses_share_alias = false;
 
-    // We are going to change the slice for the flat array
-    // accesses so we need to clear the cache entries that refer to
-    // them.
-    for (uint i = 0; i < AliasCacheSize; i++) {
-      AliasCacheEntry* ace = &_alias_cache[i];
-      if (ace->_adr_type != nullptr &&
-          ace->_adr_type->is_flat()) {
-        ace->_adr_type = nullptr;
-        ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the nullptr adr_type resolves to AliasIdxTop
-      }
+  // We are going to change the slice for the flat array
+  // accesses so we need to clear the cache entries that refer to
+  // them.
+  for (uint i = 0; i < AliasCacheSize; i++) {
+    AliasCacheEntry* ace = &_alias_cache[i];
+    if (ace->_adr_type != nullptr &&
+        ace->_adr_type->is_flat()) {
+      ace->_adr_type = nullptr;
+      ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the nullptr adr_type resolves to AliasIdxTop
+    }
+  }
+
+#ifdef ASSERT
+  for (uint i = 0; i < memnodes.size(); i++) {
+    Node* m = memnodes.at(i);
+    const TypePtr* adr_type = m->adr_type();
+    m->as_Mem()->set_adr_type(adr_type);
+  }
+#endif // ASSERT
+
+  int start_alias = num_alias_types(); // Start of new aliases
+  Node_Stack stack(0);
+#ifdef ASSERT
+  VectorSet seen(Thread::current()->resource_area());
+#endif
+  // Now let's fix the memory graph so each flat array access
+  // is moved to the right slice. Start from the MergeMem nodes.
+  uint last = unique();
+  for (uint i = 0; i < mergememnodes.size(); i++) {
+    MergeMemNode* current = mergememnodes.at(i)->as_MergeMem();
+    if (current->outcnt() == 0) {
+      // This node is killed by a previous iteration
+      continue;
     }
 
-    // Find what aliases we are going to add
-    int start_alias = num_alias_types()-1;
-    int stop_alias = 0;
-
-    for (uint i = 0; i < memnodes.size(); i++) {
-      Node* m = memnodes.at(i);
-      const TypePtr* adr_type = nullptr;
-      adr_type = m->adr_type();
-#ifdef ASSERT
-      m->as_Mem()->set_adr_type(adr_type);
-#endif
-      int idx = get_alias_index(adr_type);
-      start_alias = MIN2(start_alias, idx);
-      stop_alias = MAX2(stop_alias, idx);
-    }
-
-    assert(stop_alias >= start_alias, "should have expanded aliases");
-
-    Node_Stack stack(0);
-#ifdef ASSERT
-    VectorSet seen(Thread::current()->resource_area());
-#endif
-    // Now let's fix the memory graph so each flat array access
-    // is moved to the right slice. Start from the MergeMem nodes.
-    uint last = unique();
-    for (uint i = 0; i < mergememnodes.size(); i++) {
-      MergeMemNode* current = mergememnodes.at(i)->as_MergeMem();
-      Node* n = current->memory_at(index);
-      MergeMemNode* mm = nullptr;
-      do {
-        // Follow memory edges through memory accesses, phis and
-        // narrow membars and push nodes on the stack. Once we hit
-        // bottom memory, we pop element off the stack one at a
-        // time, in reverse order, and move them to the right slice
-        // by changing their memory edges.
-        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::INLINES) {
-          assert(!seen.test_set(n->_idx), "");
-          // Uses (a load for instance) will need to be moved to the
-          // right slice as well and will get a new memory state
-          // that we don't know yet. The use could also be the
-          // backedge of a loop. We put a place holder node between
-          // the memory node and its uses. We replace that place
-          // holder with the correct memory state once we know it,
-          // i.e. when nodes are popped off the stack. Using the
-          // place holder make the logic work in the presence of
-          // loops.
-          if (n->outcnt() > 1) {
-            Node* place_holder = nullptr;
-            assert(!n->has_out_with(Op_Node), "");
-            for (DUIterator k = n->outs(); n->has_out(k); k++) {
-              Node* u = n->out(k);
-              if (u != current && u->_idx < last) {
-                bool success = false;
-                for (uint l = 0; l < u->req(); l++) {
-                  if (!stack.is_empty() && u == stack.node() && l == stack.index()) {
-                    continue;
-                  }
-                  Node* in = u->in(l);
-                  if (in == n) {
-                    if (place_holder == nullptr) {
-                      place_holder = new Node(1);
-                      place_holder->init_req(0, n);
-                    }
-                    igvn.replace_input_of(u, l, place_holder);
-                    success = true;
-                  }
-                }
-                if (success) {
-                  --k;
-                }
-              }
-            }
-          }
-          if (n->is_Phi()) {
-            stack.push(n, 1);
-            n = n->in(1);
-          } else if (n->is_Mem()) {
-            stack.push(n, n->req());
-            n = n->in(MemNode::Memory);
-          } else {
-            assert(n->is_Proj() && n->in(0)->Opcode() == Op_MemBarCPUOrder, "");
-            stack.push(n, n->req());
-            n = n->in(0)->in(TypeFunc::Memory);
-          }
-        } else {
-          assert(n->adr_type() == TypePtr::BOTTOM || (n->Opcode() == Op_Node && n->_idx >= last) || (n->is_Proj() && n->in(0)->is_Initialize()), "");
-          // Build a new MergeMem node to carry the new memory state
-          // as we build it. IGVN should fold extraneous MergeMem
-          // nodes.
-          mm = MergeMemNode::make(n);
-          igvn.register_new_node_with_optimizer(mm);
-          while (stack.size() > 0) {
-            Node* m = stack.node();
-            uint idx = stack.index();
-            if (m->is_Mem()) {
-              // Move memory node to its new slice
-              const TypePtr* adr_type = m->adr_type();
-              int alias = get_alias_index(adr_type);
-              Node* prev = mm->memory_at(alias);
-              igvn.replace_input_of(m, MemNode::Memory, prev);
-              mm->set_memory_at(alias, m);
-            } else if (m->is_Phi()) {
-              // We need as many new phis as there are new aliases
-              igvn.replace_input_of(m, idx, mm);
-              if (idx == m->req()-1) {
-                Node* r = m->in(0);
-                for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
-                  const TypePtr* adr_type = get_adr_type(j);
-                  if (!adr_type->isa_aryptr() || !adr_type->is_flat() || j == (uint)index) {
-                    continue;
-                  }
-                  Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
-                  igvn.register_new_node_with_optimizer(phi);
-                  for (uint k = 1; k < m->req(); k++) {
-                    phi->init_req(k, m->in(k)->as_MergeMem()->memory_at(j));
-                  }
-                  mm->set_memory_at(j, phi);
-                }
-                Node* base_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
-                igvn.register_new_node_with_optimizer(base_phi);
-                for (uint k = 1; k < m->req(); k++) {
-                  base_phi->init_req(k, m->in(k)->as_MergeMem()->base_memory());
-                }
-                mm->set_base_memory(base_phi);
-              }
-            } else {
-              // This is a MemBarCPUOrder node from
-              // Parse::array_load()/Parse::array_store(), in the
-              // branch that handles flat arrays hidden under
-              // an Object[] array. We also need one new membar per
-              // new alias to keep the unknown access that the
-              // membars protect properly ordered with accesses to
-              // known flat array.
-              assert(m->is_Proj(), "projection expected");
-              Node* ctrl = m->in(0)->in(TypeFunc::Control);
-              igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
-              for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
-                const TypePtr* adr_type = get_adr_type(j);
-                if (!adr_type->isa_aryptr() || !adr_type->is_flat() || j == (uint)index) {
+    Node* n = current->memory_at(index);
+    MergeMemNode* mm = nullptr;
+    do {
+      // Follow memory edges through memory accesses, phis and
+      // narrow membars and push nodes on the stack. Once we hit
+      // bottom memory, we pop element off the stack one at a
+      // time, in reverse order, and move them to the right slice
+      // by changing their memory edges.
+      if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() ||
+          (n->adr_type() == TypeAryPtr::INLINES && !n->is_NarrowMemProj())) {
+        assert(!seen.test_set(n->_idx), "");
+        // Uses (a load for instance) will need to be moved to the
+        // right slice as well and will get a new memory state
+        // that we don't know yet. The use could also be the
+        // backedge of a loop. We put a place holder node between
+        // the memory node and its uses. We replace that place
+        // holder with the correct memory state once we know it,
+        // i.e. when nodes are popped off the stack. Using the
+        // place holder make the logic work in the presence of
+        // loops.
+        if (n->outcnt() > 1) {
+          Node* place_holder = nullptr;
+          assert(!n->has_out_with(Op_Node), "");
+          for (DUIterator k = n->outs(); n->has_out(k); k++) {
+            Node* u = n->out(k);
+            if (u != current && u->_idx < last) {
+              bool success = false;
+              for (uint l = 0; l < u->req(); l++) {
+                if (!stack.is_empty() && u == stack.node() && l == stack.index()) {
                   continue;
                 }
-                MemBarNode* mb = new MemBarCPUOrderNode(this, j, nullptr);
-                igvn.register_new_node_with_optimizer(mb);
-                Node* mem = mm->memory_at(j);
-                mb->init_req(TypeFunc::Control, ctrl);
-                mb->init_req(TypeFunc::Memory, mem);
-                ctrl = new ProjNode(mb, TypeFunc::Control);
-                igvn.register_new_node_with_optimizer(ctrl);
-                mem = new ProjNode(mb, TypeFunc::Memory);
-                igvn.register_new_node_with_optimizer(mem);
-                mm->set_memory_at(j, mem);
+                Node* in = u->in(l);
+                if (in == n) {
+                  if (place_holder == nullptr) {
+                    place_holder = new Node(1);
+                    place_holder->init_req(0, n);
+                  }
+                  igvn.replace_input_of(u, l, place_holder);
+                  success = true;
+                }
               }
-              igvn.replace_node(m->in(0)->as_Multi()->proj_out(TypeFunc::Control), ctrl);
-            }
-            if (idx < m->req()-1) {
-              idx += 1;
-              stack.set_index(idx);
-              n = m->in(idx);
-              break;
-            }
-            // Take care of place holder nodes
-            if (m->has_out_with(Op_Node)) {
-              Node* place_holder = m->find_out_with(Op_Node);
-              if (place_holder != nullptr) {
-                Node* mm_clone = mm->clone();
-                igvn.register_new_node_with_optimizer(mm_clone);
-                Node* hook = new Node(1);
-                hook->init_req(0, mm);
-                igvn.replace_node(place_holder, mm_clone);
-                hook->destruct(&igvn);
+              if (success) {
+                --k;
               }
-              assert(!m->has_out_with(Op_Node), "place holder should be gone now");
             }
-            stack.pop();
           }
         }
-      } while(stack.size() > 0);
-      // Fix the memory state at the MergeMem we started from
-      igvn.rehash_node_delayed(current);
-      for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
-        const TypePtr* adr_type = get_adr_type(j);
-        if (!adr_type->isa_aryptr() || !adr_type->is_flat()) {
-          continue;
+        if (n->is_Phi()) {
+          stack.push(n, 1);
+          n = n->in(1);
+        } else if (n->is_Mem()) {
+          stack.push(n, n->req());
+          n = n->in(MemNode::Memory);
+        } else {
+          assert(n->is_Proj() && n->in(0)->Opcode() == Op_MemBarCPUOrder, "");
+          stack.push(n, n->req());
+          n = n->in(0)->in(TypeFunc::Memory);
         }
-        current->set_memory_at(j, mm);
+      } else {
+        assert(n->adr_type() == TypePtr::BOTTOM || (n->Opcode() == Op_Node && n->_idx >= last) || n->is_NarrowMemProj(), "");
+        // Build a new MergeMem node to carry the new memory state
+        // as we build it. IGVN should fold extraneous MergeMem
+        // nodes.
+        if (n->is_NarrowMemProj()) {
+          // We need 1 NarrowMemProj for each slice of this array
+          InitializeNode* init = n->in(0)->as_Initialize();
+          AllocateNode* alloc = init->allocation();
+          Node* klass_node = alloc->in(AllocateNode::KlassNode);
+          const TypeAryKlassPtr* klass_type = klass_node->bottom_type()->isa_aryklassptr();
+          assert(klass_type != nullptr, "must be an array");
+          assert(klass_type->klass_is_exact(), "must be an exact klass");
+          ciArrayKlass* klass = klass_type->exact_klass()->as_array_klass();
+          assert(klass->is_flat_array_klass(), "must be a flat array");
+          ciInlineKlass* elem_klass = klass->element_klass()->as_inline_klass();
+          const TypeAryPtr* oop_type = klass_type->as_instance_type()->is_aryptr();
+          assert(oop_type->klass_is_exact(), "must be an exact klass");
+
+          Node* base = alloc->in(TypeFunc::Memory);
+          assert(base->bottom_type() == Type::MEMORY, "the memory input of AllocateNode must be a memory");
+          assert(base->adr_type() == TypePtr::BOTTOM, "the memory input of AllocateNode must be a bottom memory");
+          // Must create a MergeMem with base as the base memory, do not clone if base is a
+          // MergeMem because it may not be processed yet
+          mm = MergeMemNode::make(nullptr);
+          mm->set_base_memory(base);
+          for (int j = 0; j < elem_klass->nof_nonstatic_fields(); j++) {
+            int field_offset = elem_klass->nonstatic_field_at(j)->offset_in_bytes() - elem_klass->payload_offset();
+            const TypeAryPtr* field_ptr = oop_type->with_offset(Type::OffsetBot)->with_field_offset(field_offset);
+            int field_alias_idx = get_alias_index(field_ptr);
+            assert(field_ptr == get_adr_type(field_alias_idx), "must match");
+            Node* new_proj = new NarrowMemProjNode(init, field_ptr);
+            igvn.register_new_node_with_optimizer(new_proj);
+            mm->set_memory_at(field_alias_idx, new_proj);
+          }
+          if (!klass->is_elem_null_free()) {
+            int nm_offset = elem_klass->null_marker_offset_in_payload();
+            const TypeAryPtr* nm_ptr = oop_type->with_offset(Type::OffsetBot)->with_field_offset(nm_offset);
+            int nm_alias_idx = get_alias_index(nm_ptr);
+            assert(nm_ptr == get_adr_type(nm_alias_idx), "must match");
+            Node* new_proj = new NarrowMemProjNode(init, nm_ptr);
+            igvn.register_new_node_with_optimizer(new_proj);
+            mm->set_memory_at(nm_alias_idx, new_proj);
+          }
+
+          // Replace all uses of the old NarrowMemProj with the correct state
+          MergeMemNode* new_n = MergeMemNode::make(mm);
+          igvn.register_new_node_with_optimizer(new_n);
+          igvn.replace_node(n, new_n);
+        } else {
+          // Must create a MergeMem with n as the base memory, do not clone if n is a MergeMem
+          // because it may not be processed yet
+          mm = MergeMemNode::make(nullptr);
+          mm->set_base_memory(n);
+        }
+
+        igvn.register_new_node_with_optimizer(mm);
+        while (stack.size() > 0) {
+          Node* m = stack.node();
+          uint idx = stack.index();
+          if (m->is_Mem()) {
+            // Move memory node to its new slice
+            const TypePtr* adr_type = m->adr_type();
+            int alias = get_alias_index(adr_type);
+            Node* prev = mm->memory_at(alias);
+            igvn.replace_input_of(m, MemNode::Memory, prev);
+            mm->set_memory_at(alias, m);
+          } else if (m->is_Phi()) {
+            // We need as many new phis as there are new aliases
+            Node* new_phi_in = MergeMemNode::make(mm);
+            igvn.register_new_node_with_optimizer(new_phi_in);
+            igvn.replace_input_of(m, idx, new_phi_in);
+            if (idx == m->req()-1) {
+              Node* r = m->in(0);
+              for (int j = start_alias; j < num_alias_types(); j++) {
+                const TypePtr* adr_type = get_adr_type(j);
+                if (!adr_type->isa_aryptr() || !adr_type->is_flat()) {
+                  continue;
+                }
+                Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
+                igvn.register_new_node_with_optimizer(phi);
+                for (uint k = 1; k < m->req(); k++) {
+                  phi->init_req(k, m->in(k)->as_MergeMem()->memory_at(j));
+                }
+                mm->set_memory_at(j, phi);
+              }
+              Node* base_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
+              igvn.register_new_node_with_optimizer(base_phi);
+              for (uint k = 1; k < m->req(); k++) {
+                base_phi->init_req(k, m->in(k)->as_MergeMem()->base_memory());
+              }
+              mm->set_base_memory(base_phi);
+            }
+          } else {
+            // This is a MemBarCPUOrder node from
+            // Parse::array_load()/Parse::array_store(), in the
+            // branch that handles flat arrays hidden under
+            // an Object[] array. We also need one new membar per
+            // new alias to keep the unknown access that the
+            // membars protect properly ordered with accesses to
+            // known flat array.
+            assert(m->is_Proj(), "projection expected");
+            Node* ctrl = m->in(0)->in(TypeFunc::Control);
+            igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
+            for (int j = start_alias; j < num_alias_types(); j++) {
+              const TypePtr* adr_type = get_adr_type(j);
+              if (!adr_type->isa_aryptr() || !adr_type->is_flat()) {
+                continue;
+              }
+              MemBarNode* mb = new MemBarCPUOrderNode(this, j, nullptr);
+              igvn.register_new_node_with_optimizer(mb);
+              Node* mem = mm->memory_at(j);
+              mb->init_req(TypeFunc::Control, ctrl);
+              mb->init_req(TypeFunc::Memory, mem);
+              ctrl = new ProjNode(mb, TypeFunc::Control);
+              igvn.register_new_node_with_optimizer(ctrl);
+              mem = new ProjNode(mb, TypeFunc::Memory);
+              igvn.register_new_node_with_optimizer(mem);
+              mm->set_memory_at(j, mem);
+            }
+            igvn.replace_node(m->in(0)->as_Multi()->proj_out(TypeFunc::Control), ctrl);
+          }
+          if (idx < m->req()-1) {
+            idx += 1;
+            stack.set_index(idx);
+            n = m->in(idx);
+            break;
+          }
+          // Take care of place holder nodes
+          if (m->has_out_with(Op_Node)) {
+            Node* place_holder = m->find_out_with(Op_Node);
+            if (place_holder != nullptr) {
+              Node* mm_clone = mm->clone();
+              igvn.register_new_node_with_optimizer(mm_clone);
+              Node* hook = new Node(1);
+              hook->init_req(0, mm);
+              igvn.replace_node(place_holder, mm_clone);
+              hook->destruct(&igvn);
+            }
+            assert(!m->has_out_with(Op_Node), "place holder should be gone now");
+          }
+          stack.pop();
+        }
       }
-      current->set_memory_at(index, current->base_memory());
+    } while(stack.size() > 0);
+    // Fix the memory state at the MergeMem we started from
+    igvn.rehash_node_delayed(current);
+    for (int j = start_alias; j < num_alias_types(); j++) {
+      const TypePtr* adr_type = get_adr_type(j);
+      if (!adr_type->isa_aryptr() || !adr_type->is_flat()) {
+        continue;
+      }
+      current->set_memory_at(j, mm);
     }
-    igvn.optimize();
+    current->set_memory_at(index, current->base_memory());
   }
-  print_method(PHASE_SPLIT_INLINES_ARRAY, 2);
+  igvn.optimize();
+
 #ifdef ASSERT
-  if (!_flat_accesses_share_alias) {
-    wq.clear();
-    wq.push(root());
-    for (uint i = 0; i < wq.size(); i++) {
-      Node* n = wq.at(i);
-      assert(n->adr_type() != TypeAryPtr::INLINES, "should have been removed from the graph");
-      for (uint j = 0; j < n->req(); j++) {
-        Node* m = n->in(j);
-        if (m != nullptr) {
-          wq.push(m);
-        }
+  wq.clear();
+  wq.push(root());
+  for (uint i = 0; i < wq.size(); i++) {
+    Node* n = wq.at(i);
+    assert(n->adr_type() != TypeAryPtr::INLINES, "should have been removed from the graph");
+    for (uint j = 0; j < n->req(); j++) {
+      Node* m = n->in(j);
+      if (m != nullptr) {
+        wq.push(m);
       }
     }
   }
 #endif
+
+  print_method(PHASE_SPLIT_INLINES_ARRAY, 2);
 }
 
 void Compile::record_for_merge_stores_igvn(Node* n) {
@@ -2745,6 +2801,7 @@ void Compile::process_late_inline_calls_no_inline(PhaseIterGVN& igvn) {
   // Tracking and verification of modified nodes is disabled by setting "_modified_nodes == nullptr"
   // as if "inlining_incrementally() == true" were set.
   assert(inlining_incrementally() == false, "not allowed");
+  set_strength_reduction(true);
 #ifdef ASSERT
   Unique_Node_List* modified_nodes = _modified_nodes;
   _modified_nodes = nullptr;
@@ -2762,6 +2819,7 @@ void Compile::process_late_inline_calls_no_inline(PhaseIterGVN& igvn) {
     inline_incrementally_cleanup(igvn);
   }
   DEBUG_ONLY( _modified_nodes = modified_nodes; )
+  set_strength_reduction(false);
 }
 
 bool Compile::optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode) {
@@ -3967,10 +4025,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
 
   case Op_AddP: {               // Assert sane base pointers
     Node *addp = n->in(AddPNode::Address);
-    assert( !addp->is_AddP() ||
-            addp->in(AddPNode::Base)->is_top() || // Top OK for allocation
-            addp->in(AddPNode::Base) == n->in(AddPNode::Base),
-            "Base pointers must match (addp %u)", addp->_idx );
+    assert(n->as_AddP()->address_input_has_same_base(), "Base pointers must match (addp %u)", addp->_idx );
 #ifdef _LP64
     if ((UseCompressedOops || UseCompressedClassPointers) &&
         addp->Opcode() == Op_ConP &&
@@ -5144,7 +5199,7 @@ Node* Compile::constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* 
     // node from floating above the range check during loop optimizations. Otherwise, the
     // ConvI2L node may be eliminated independently of the range check, causing the data path
     // to become TOP while the control path is still there (although it's unreachable).
-    value = new CastIINode(ctrl, value, itype, carry_dependency ? ConstraintCastNode::StrongDependency : ConstraintCastNode::RegularDependency, true /* range check dependency */);
+    value = new CastIINode(ctrl, value, itype, carry_dependency ? ConstraintCastNode::DependencyType::NonFloatingNarrowing : ConstraintCastNode::DependencyType::FloatingNarrowing, true /* range check dependency */);
     value = phase->transform(value);
   }
   const TypeLong* ltype = TypeLong::make(itype->_lo, itype->_hi, itype->_widen);
@@ -5573,27 +5628,6 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
     igvn.check_no_speculative_types();
 #endif
   }
-}
-
-Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
-  const TypeInstPtr* ta = phase->type(a)->isa_instptr();
-  const TypeInstPtr* tb = phase->type(b)->isa_instptr();
-  if (!EnableValhalla || ta == nullptr || tb == nullptr ||
-      ta->is_zero_type() || tb->is_zero_type() ||
-      !ta->can_be_inline_type() || !tb->can_be_inline_type()) {
-    // Use old acmp if one operand is null or not an inline type
-    return new CmpPNode(a, b);
-  } else if (ta->is_inlinetypeptr() || tb->is_inlinetypeptr()) {
-    // We know that one operand is an inline type. Therefore,
-    // new acmp will only return true if both operands are nullptr.
-    // Check if both operands are null by or'ing the oops.
-    a = phase->transform(new CastP2XNode(nullptr, a));
-    b = phase->transform(new CastP2XNode(nullptr, b));
-    a = phase->transform(new OrXNode(a, b));
-    return new CmpXNode(a, phase->MakeConX(0));
-  }
-  // Use new acmp
-  return nullptr;
 }
 
 // Auxiliary methods to support randomized stressing/fuzzing.

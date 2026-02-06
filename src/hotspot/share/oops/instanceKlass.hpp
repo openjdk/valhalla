@@ -58,7 +58,7 @@ class RecordComponent;
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
 //    [EMBEDDED implementor of the interface] only exist for interface
-//    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
+//    [EMBEDDED InlineKlass::Members] only if is an InlineKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -138,28 +138,6 @@ class OopMapBlock {
 
 struct JvmtiCachedClassFileData;
 
-class SigEntry;
-
-class InlineKlassFixedBlock {
-  friend class InlineKlass;
-
-  Array<SigEntry>* _extended_sig;
-  Array<VMRegPair>* _return_regs;
-  address _pack_handler;
-  address _pack_handler_jobject;
-  address _unpack_handler;
-  int _null_reset_value_offset;
-  int _payload_offset;           // offset of the begining of the payload in a heap buffered instance
-  int _payload_size_in_bytes;    // size of payload layout
-  int _payload_alignment;        // alignment required for payload
-  int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
-  int _non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
-  int _atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
-  int _nullable_size_in_bytes;   // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
-  int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
-                                 // payload_offset must be subtracted to get the offset from the beginning of the payload
-};
-
 class InlineLayoutInfo : public MetaspaceObj {
   InlineKlass* _klass;
   LayoutKind _kind;
@@ -188,8 +166,8 @@ class InlineLayoutInfo : public MetaspaceObj {
   void metaspace_pointers_do(MetaspaceClosure* it);
   MetaspaceObj::Type type() const { return InlineLayoutInfoType; }
 
-  static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
-  static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
+  static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
+  static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
 };
 
 class InstanceKlass: public Klass {
@@ -291,10 +269,12 @@ class InstanceKlass: public Klass {
   // _idnum_allocated_count.
   volatile ClassState _init_state;          // state of class
 
-  u1              _reference_type;                // reference type
-  int             _acmp_maps_offset;        // offset to injected static field storing acmp_maps for values classes
+  u1              _reference_type;          // reference type
+  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for values classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
-                                            // the InlineKlassFixedBlock that only exist for InlineKlass.
+                                            // the InlineKlass::Members that only exist for InlineKlass.
+
+  AccessFlags        _access_flags;    // Access flags. The class/interface distinction is stored here.
 
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
@@ -344,9 +324,13 @@ class InstanceKlass: public Klass {
 
   Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
+  Array<int>* _acmp_maps_array; // Metadata copy of the acmp_maps oop used in value classes.
+                                // When loading an inline klass from the CDS/AOT archive
+                                // this copy can be used to regenerate the ".acmp_maps" oop
+                                // if it is not stored in the archive.
 
-  // Located here because sub-klasses can't have their own explicit fields
-  InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
+  // Located here because sub-klasses can't have their own C++ fields
+  address _adr_inline_klass_members;
 
   // embedded Java vtable follows here
   // embedded Java itables follows here
@@ -376,6 +360,22 @@ class InstanceKlass: public Klass {
   // Sets finalization state
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
 
+  // Access flags
+  AccessFlags access_flags() const         { return _access_flags;  }
+  void set_access_flags(AccessFlags flags) { _access_flags = flags; }
+
+  bool is_public() const                { return _access_flags.is_public(); }
+  bool is_final() const                 { return _access_flags.is_final(); }
+  bool is_interface() const override    { return _access_flags.is_interface(); }
+  bool is_abstract() const override     { return _access_flags.is_abstract(); }
+  bool is_synthetic() const             { return _access_flags.is_synthetic(); }
+  void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
+  bool is_identity_class() const override { return _access_flags.is_identity_class(); }
+
+  static ByteSize access_flags_offset() { return byte_offset_of(InstanceKlass, _access_flags); }
+
+  void set_is_cloneable();
+
   // Quick checks for the loader that defined this class (without switching on this->class_loader())
   bool defined_by_boot_loader() const      { return _misc_flags.defined_by_boot_loader(); }
   bool defined_by_platform_loader() const  { return _misc_flags.defined_by_platform_loader(); }
@@ -396,8 +396,8 @@ class InstanceKlass: public Klass {
   bool has_localvariable_table() const     { return _misc_flags.has_localvariable_table(); }
   void set_has_localvariable_table(bool b) { _misc_flags.set_has_localvariable_table(b); }
 
-  bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
-  void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
+  bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
+  void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
 
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
@@ -480,7 +480,7 @@ class InstanceKlass: public Klass {
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
-  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
+  int field_null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -497,6 +497,9 @@ class InstanceKlass: public Klass {
 
   Array<u2>* loadable_descriptors() const { return _loadable_descriptors; }
   void set_loadable_descriptors(Array<u2>* c) { _loadable_descriptors = c; }
+
+  Array<int>* acmp_maps_array() const { return _acmp_maps_array; }
+  void set_acmp_maps_array(Array<int>* array) { _acmp_maps_array = array; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
@@ -631,8 +634,8 @@ public:
   bool is_marked_dependent() const         { return _misc_flags.is_marked_dependent(); }
   void set_is_marked_dependent(bool value) { _misc_flags.set_is_marked_dependent(value); }
 
-  static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
-  static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
+  static ByteSize kind_offset() { return byte_offset_of(InstanceKlass, _kind); }
+  static ByteSize misc_flags_offset() { return byte_offset_of(InstanceKlass, _misc_flags); }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const override;  // means that initialize should be called
@@ -650,11 +653,16 @@ public:
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
 
+  bool has_acmp_maps_offset() const {
+    return _acmp_maps_offset != 0;
+  }
+
   int acmp_maps_offset() const {
     assert(_acmp_maps_offset != 0, "Not initialized");
     return _acmp_maps_offset;
   }
   void set_acmp_maps_offset(int offset) { _acmp_maps_offset = offset; }
+  static ByteSize acmp_maps_offset_offset() { return byte_offset_of(InstanceKlass, _acmp_maps_offset); }
 
   // this class cp index
   u2 this_class_index() const             { return _this_class_index; }
@@ -976,8 +984,8 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
-  static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
-  static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
+  static ByteSize inline_layout_info_array_offset() { return byte_offset_of(InstanceKlass, _inline_layout_info_array); }
+  static ByteSize adr_inline_klass_members_offset() { return byte_offset_of(InstanceKlass, _adr_inline_klass_members); }
 
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;
@@ -1040,25 +1048,13 @@ public:
   // Sizing (in words)
   static int header_size() { return sizeof(InstanceKlass) / wordSize; }
 
-  static int size(int vtable_length, int itable_length,
+  static int size(int vtable_length,
+                  int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface,
-                  bool is_inline_type) {
-    return align_metadata_size(header_size() +
-           vtable_length +
-           itable_length +
-           nonstatic_oop_map_size +
-           (is_interface ? (int)sizeof(Klass*) / wordSize : 0) +
-           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) / wordSize : 0));
-  }
+                  bool is_inline_type);
 
-  int size() const override           { return size(vtable_length(),
-                                               itable_length(),
-                                               nonstatic_oop_map_size(),
-                                               is_interface(),
-                                               is_inline_klass());
-  }
-
+  int size() const override;
 
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
@@ -1076,16 +1072,14 @@ public:
 
   void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
   Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
-  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
-    _inline_layout_info_array->at_put(index, *info);
-  }
+
   InlineLayoutInfo inline_layout_info(int index) const {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->at(index);
   }
+
   InlineLayoutInfo* inline_layout_info_adr(int index) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->adr_at(index);
   }
 
@@ -1093,7 +1087,7 @@ public:
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
 
   // Use this to return the size of an instance in heap words:
-  virtual int size_helper() const {
+  int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
 

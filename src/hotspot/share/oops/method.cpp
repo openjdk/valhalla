@@ -413,7 +413,7 @@ Symbol* Method::klass_name() const {
 void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(aot)("Iter(Method): %p", this);
 
-  if (!method_holder()->is_rewritten() || CDSConfig::is_valhalla_preview()) {
+  if (!method_holder()->is_rewritten() || Arguments::is_valhalla_enabled()) {
     it->push(&_constMethod, MetaspaceClosure::_writable);
   } else {
     it->push(&_constMethod);
@@ -1386,6 +1386,8 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
       THROW_MSG_NULL(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
     }
   }
+
+  assert(!mh->has_scalarized_args() || adapter->get_sig_cc() != nullptr, "sigcc should not be null here");
 
   mh->set_adapter_entry(adapter);
   return adapter->get_c2i_entry();

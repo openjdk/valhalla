@@ -45,6 +45,8 @@
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/runtime.hpp"
+#include "opto/subtypenode.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -116,7 +118,7 @@ void Parse::array_load(BasicType bt) {
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
           ciInlineKlass* vk = element_ptr->inline_klass();
-          Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+          Node* flat_array = cast_to_flat_array(array, vk);
           Node* vt = InlineTypeNode::make_from_flat_array(this, vk, flat_array, array_index);
           ideal.set(res, vt);
         } else {
@@ -229,14 +231,13 @@ void Parse::array_store(BasicType bt) {
       array = cast;
     }
 
-    if (!array_type->is_flat() && array_type->is_null_free()) {
-      // Store to non-flat null-free inline type array (elements can never be null)
+    if (array_type->is_null_free() && elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
+      // Array of null-free empty inline type, there is only 1 state for the elements
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
-      if (elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
-        // Ignore empty inline stores, array is already initialized.
-        return;
-      }
-    } else if (!array_type->is_not_flat()) {
+      return;
+    }
+
+    if (!array_type->is_not_flat()) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseArrayFlattening && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
@@ -267,7 +268,7 @@ void Parse::array_store(BasicType bt) {
 
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+            Node* flat_array = cast_to_flat_array(array, vk);
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
@@ -1994,7 +1995,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               speculative_ptr_kind(tinput) == ProfileNeverNull &&
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
-  assert(!stopped(), "null input should have been caught earlier");
   return cast;
 }
 
@@ -2103,7 +2103,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     record_profile_for_speculation(right, right_type, right_ptr);
   }
 
-  if (!EnableValhalla) {
+  if (!Arguments::is_valhalla_enabled()) {
     Node* cmp = CmpP(left, right);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);
@@ -2118,25 +2118,16 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
-    if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_null_marker())->is_zero_type())) {
-      // Null checking a scalarized but nullable inline type. Check the null marker
-      // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_null_marker(), intcon(0));
-      do_if(btest, cmp);
-      return;
-    } else {
-      PreserveReexecuteState preexecs(this);
-      inc_sp(2);
-      jvms()->set_should_reexecute(true);
-      left = left->as_InlineType()->buffer(this)->get_oop();
-    }
+    PreserveReexecuteState preexecs(this);
+    inc_sp(2);
+    jvms()->set_should_reexecute(true);
+    left = left->as_InlineType()->buffer(this);
   }
   if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    right = right->as_InlineType()->buffer(this)->get_oop();
+    right = right->as_InlineType()->buffer(this);
   }
 
   // First, do a normal pointer comparison
@@ -2246,30 +2237,35 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Pointers are not equal, check if first operand is non-null
   Node* ne_region = new RegionNode(6);
-  Node* null_ctl;
+  Node* null_ctl = nullptr;
+  Node* not_null_left = nullptr;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
   ne_region->init_req(1, null_ctl);
 
-  // First operand is non-null, check if it is an inline type
-  Node* is_value = inline_type_test(not_null_right);
-  IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
-  Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-  ne_region->init_req(2, not_value);
-  set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+  if (!stopped()) {
+    // First operand is non-null, check if it is an inline type
+    Node* is_value = inline_type_test(not_null_right);
+    IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+    Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
+    ne_region->init_req(2, not_value);
+    set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
 
-  // The first operand is an inline type, check if the second operand is non-null
-  Node* not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
-  ne_region->init_req(3, null_ctl);
+    // The first operand is an inline type, check if the second operand is non-null
+    not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
+    ne_region->init_req(3, null_ctl);
 
-  // Check if both operands are of the same class.
-  Node* kls_left = load_object_klass(not_null_left);
-  Node* kls_right = load_object_klass(not_null_right);
-  Node* kls_cmp = CmpP(kls_left, kls_right);
-  Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-  IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-  Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-  set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-  ne_region->init_req(4, kls_ne);
+    if (!stopped()) {
+      // Check if both operands are of the same class.
+      Node* kls_left = load_object_klass(not_null_left);
+      Node* kls_right = load_object_klass(not_null_right);
+      Node* kls_cmp = CmpP(kls_left, kls_right);
+      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+      ne_region->init_req(4, kls_ne);
+    }
+  }
 
   if (stopped()) {
     record_for_igvn(ne_region);
@@ -2304,7 +2300,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   kill_dead_locals();
   ciSymbol* subst_method_name = UseAltSubstitutabilityMethod ? ciSymbols::isSubstitutableAlt_name() : ciSymbols::isSubstitutable_name();
   ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(subst_method_name, ciSymbols::object_object_boolean_signature());
-  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
+  CallStaticJavaNode* call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
   call->init_req(TypeFunc::Parms+1, not_null_right);
@@ -2457,6 +2453,11 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
     return;
   }
 
+  if (c->is_FlatArrayCheck()) {
+    maybe_add_predicate_after_if(path);
+    return;
+  }
+
   Node* val = c->in(1);
   Node* con = c->in(2);
   const Type* tcon = _gvn.type(con);
@@ -2513,41 +2514,111 @@ static Node* extract_obj_from_klass_load(PhaseGVN* gvn, Node* n) {
   return obj;
 }
 
+// Matches exact and inexact type check IR shapes during parsing.
+// On successful match, returns type checked object node and its type after successful check
+// as out parameters.
+static bool match_type_check(PhaseGVN& gvn,
+                             BoolTest::mask btest,
+                             Node* con, const Type* tcon,
+                             Node* val, const Type* tval,
+                             Node** obj, const TypeOopPtr** cast_type) { // out-parameters
+  // Look for opportunities to sharpen the type of a node whose klass is compared with a constant klass.
+  // The constant klass being tested against can come from many bytecode instructions (implicitly or explicitly),
+  // and also from profile data used by speculative casts.
+  if (btest == BoolTest::eq && tcon->isa_klassptr()) {
+    // Found:
+    //   Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq])
+    // or the narrowOop equivalent.
+    (*obj) = extract_obj_from_klass_load(&gvn, val);
+    (*cast_type) = tcon->isa_klassptr()->as_instance_type();
+    return true; // found
+  }
+
+  // Match an instanceof check.
+  // During parsing its IR shape is not canonicalized yet.
+  //
+  //             obj superklass
+  //              |    |
+  //           SubTypeCheck
+  //                |
+  //               Bool [eq] / [ne]
+  //                |
+  //                If
+  //               / \
+  //              T   F
+  //               \ /
+  //              Region
+  //                 \  ConI ConI
+  //                  \  |  /
+  //          val ->    Phi  ConI  <- con
+  //                     \  /
+  //                     CmpI
+  //                      |
+  //                    Bool [btest]
+  //                      |
+  //
+  if (tval->isa_int() && val->is_Phi() && val->in(0)->as_Region()->is_diamond()) {
+    RegionNode* diamond = val->in(0)->as_Region();
+    IfNode* if1 = diamond->in(1)->in(0)->as_If();
+    BoolNode* b1 = if1->in(1)->isa_Bool();
+    if (b1 != nullptr && b1->in(1)->isa_SubTypeCheck()) {
+      assert(b1->_test._test == BoolTest::eq ||
+             b1->_test._test == BoolTest::ne, "%d", b1->_test._test);
+
+      ProjNode* success_proj = if1->proj_out(b1->_test._test == BoolTest::eq ? 1 : 0);
+      int idx = diamond->find_edge(success_proj);
+      assert(idx == 1 || idx == 2, "");
+      Node* vcon = val->in(idx);
+
+      assert(val->find_edge(con) > 0, "");
+      if ((btest == BoolTest::eq && vcon == con) || (btest == BoolTest::ne && vcon != con)) {
+        SubTypeCheckNode* sub = b1->in(1)->as_SubTypeCheck();
+        Node* obj_or_subklass = sub->in(SubTypeCheckNode::ObjOrSubKlass);
+        Node* superklass = sub->in(SubTypeCheckNode::SuperKlass);
+
+        if (gvn.type(obj_or_subklass)->isa_oopptr()) {
+          const TypeKlassPtr* klass_ptr_type = gvn.type(superklass)->is_klassptr();
+          const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
+
+          (*obj) = obj_or_subklass;
+          (*cast_type) = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
+          return true; // found
+        }
+      }
+    }
+  }
+  return false; // not found
+}
+
 void Parse::sharpen_type_after_if(BoolTest::mask btest,
                                   Node* con, const Type* tcon,
                                   Node* val, const Type* tval) {
-  // Look for opportunities to sharpen the type of a node
-  // whose klass is compared with a constant klass.
-  if (btest == BoolTest::eq && tcon->isa_klassptr()) {
-    Node* obj = extract_obj_from_klass_load(&_gvn, val);
-    const TypeOopPtr* con_type = tcon->isa_klassptr()->as_instance_type();
-    if (obj != nullptr && (con_type->isa_instptr() || con_type->isa_aryptr())) {
-       // Found:
-       //   Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq])
-       // or the narrowOop equivalent.
-       const Type* obj_type = _gvn.type(obj);
-       const TypeOopPtr* tboth = obj_type->join_speculative(con_type)->isa_oopptr();
-       if (tboth != nullptr && tboth->klass_is_exact() && tboth != obj_type &&
-           tboth->higher_equal(obj_type)) {
-          // obj has to be of the exact type Foo if the CmpP succeeds.
-          int obj_in_map = map()->find_edge(obj);
-          JVMState* jvms = this->jvms();
-          if (obj_in_map >= 0 &&
-              (jvms->is_loc(obj_in_map) || jvms->is_stk(obj_in_map))) {
-            TypeNode* ccast = new CheckCastPPNode(control(), obj, tboth);
-            const Type* tcc = ccast->as_Type()->type();
-            assert(tcc != obj_type && tcc->higher_equal(obj_type), "must improve");
-            // Delay transform() call to allow recovery of pre-cast value
-            // at the control merge.
-            _gvn.set_type_bottom(ccast);
-            record_for_igvn(ccast);
-            if (tboth->is_inlinetypeptr()) {
-              ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass());
-            }
-            // Here's the payoff.
-            replace_in_map(obj, ccast);
-          }
-       }
+  Node* obj = nullptr;
+  const TypeOopPtr* cast_type = nullptr;
+  // Insert a cast node with a narrowed type after a successful type check.
+  if (match_type_check(_gvn, btest, con, tcon, val, tval,
+                       &obj, &cast_type)) {
+    assert(obj != nullptr && cast_type != nullptr, "missing type check info");
+    const Type* obj_type = _gvn.type(obj);
+    const TypeOopPtr* tboth = obj_type->join_speculative(cast_type)->isa_oopptr();
+    if (tboth != nullptr && tboth != obj_type && tboth->higher_equal(obj_type)) {
+      int obj_in_map = map()->find_edge(obj);
+      JVMState* jvms = this->jvms();
+      if (obj_in_map >= 0 &&
+          (jvms->is_loc(obj_in_map) || jvms->is_stk(obj_in_map))) {
+        TypeNode* ccast = new CheckCastPPNode(control(), obj, tboth);
+        const Type* tcc = ccast->as_Type()->type();
+        assert(tcc != obj_type && tcc->higher_equal(obj_type), "must improve");
+        // Delay transform() call to allow recovery of pre-cast value
+        // at the control merge.
+        _gvn.set_type_bottom(ccast);
+        record_for_igvn(ccast);
+        if (tboth->is_inlinetypeptr()) {
+          ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass());
+        }
+        // Here's the payoff.
+        replace_in_map(obj, ccast);
+      }
     }
   }
 

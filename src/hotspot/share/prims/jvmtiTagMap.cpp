@@ -1368,7 +1368,7 @@ void IterateThroughHeapObjectClosure::visit_object(const JvmtiHeapwalkObject& ob
 
   // If the object has flat fields, report them as heap objects.
   if (obj.klass()->is_instance_klass()) {
-    if (InstanceKlass::cast(obj.klass())->has_inline_type_fields()) {
+    if (InstanceKlass::cast(obj.klass())->has_inlined_fields()) {
       visit_flat_fields(obj);
       // check if iteration has been halted
       if (is_iteration_aborted()) {
@@ -1541,8 +1541,10 @@ void JvmtiTagMap::flush_object_free_events() {
   assert_not_at_safepoint();
   if (env()->is_enabled(JVMTI_EVENT_OBJECT_FREE)) {
     {
+      // The other thread can block for safepoints during event callbacks, so ensure we
+      // are safepoint-safe while waiting.
+      ThreadBlockInVM tbivm(JavaThread::current());
       MonitorLocker ml(lock(), Mutex::_no_safepoint_check_flag);
-      // If another thread is posting events, let it finish
       while (_posting_events) {
         ml.wait();
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -407,12 +407,12 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags() & STRICT) != 0;
     }
 
-    public boolean isStrictInstance() {
-        return (flags() & STRICT) != 0 && (flags() & STATIC) == 0;
+    public boolean isSynthetic() {
+        return (flags() & SYNTHETIC) != 0;
     }
 
-    public boolean hasStrict() {
-        return (flags() & HAS_STRICT) != 0;
+    public boolean isStrictInstance() {
+        return (flags() & STRICT) != 0 && (flags() & STATIC) == 0;
     }
 
     public boolean isInterface() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@
 #include "gc/parallel/psStringDedup.hpp"
 #include "gc/parallel/psYoungGen.hpp"
 #include "gc/shared/classUnloadingContext.hpp"
+#include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/fullGCForwarding.inline.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
@@ -83,6 +84,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -933,6 +935,17 @@ void PSParallelCompact::summary_phase(bool should_do_max_compaction)
   }
 }
 
+void PSParallelCompact::report_object_count_after_gc() {
+  GCTraceTime(Debug, gc, phases) tm("Report Object Count", &_gc_timer);
+  // The heap is compacted, all objects are iterable. However there may be
+  // filler objects in the heap which we should ignore.
+  class SkipFillerObjectClosure : public BoolObjectClosure {
+  public:
+    bool do_object_b(oop obj) override { return !CollectedHeap::is_filler_object(obj); }
+  } cl;
+  _gc_tracer.report_object_count_after_gc(&cl, &ParallelScavengeHeap::heap()->workers());
+}
+
 bool PSParallelCompact::invoke(bool clear_all_soft_refs, bool should_do_max_compaction) {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
   assert(Thread::current() == (Thread*)VMThread::vm_thread(),
@@ -1027,6 +1040,8 @@ bool PSParallelCompact::invoke(bool clear_all_soft_refs, bool should_do_max_comp
     }
 
     heap->print_heap_change(pre_gc_values);
+
+    report_object_count_after_gc();
 
     // Track memory usage and detect low memory
     MemoryService::track_memory_usage();
@@ -1275,10 +1290,6 @@ void PSParallelCompact::marking_phase(ParallelOldTracer *gc_tracer) {
     }
   }
 
-  {
-    GCTraceTime(Debug, gc, phases) tm("Report Object Count", &_gc_timer);
-    _gc_tracer.report_object_count_after_gc(is_alive_closure(), &ParallelScavengeHeap::heap()->workers());
-  }
 #if TASKQUEUE_STATS
   ParCompactionManager::print_and_reset_taskqueue_stats();
 #endif
@@ -1477,7 +1488,7 @@ void PSParallelCompact::forward_to_new_addr() {
     static bool should_preserve_mark(oop obj, HeapWord* end_addr) {
       size_t remaining_words = pointer_delta(end_addr, cast_from_oop<HeapWord*>(obj));
 
-      if (EnableValhalla && !safe_to_read_header(remaining_words)) {
+      if (Arguments::is_valhalla_enabled() && !safe_to_read_header(remaining_words)) {
         // When using Valhalla, it might be necessary to preserve the Valhalla-
         // specific bits in the markWord. If the entire object header is
         // copied, the correct markWord (with the appropriate Valhalla bits)
@@ -1871,8 +1882,7 @@ void PSParallelCompact::verify_filler_in_dense_prefix() {
       oop obj = cast_to_oop(cur_addr);
       oopDesc::verify(obj);
       if (!mark_bitmap()->is_marked(cur_addr)) {
-        Klass* k = cast_to_oop(cur_addr)->klass();
-        assert(k == Universe::fillerArrayKlass() || k == vmClasses::FillerObject_klass(), "inv");
+        assert(CollectedHeap::is_filler_object(cast_to_oop(cur_addr)), "inv");
       }
       cur_addr += obj->size();
     }
@@ -2159,7 +2169,7 @@ static markWord safe_mark_word_prototype(HeapWord* cur_addr, HeapWord* end_addr)
   // compaction completes.
   size_t remaining_words = pointer_delta(end_addr, cur_addr);
 
-  if (UseCompactObjectHeaders || (EnableValhalla && safe_to_read_header(remaining_words))) {
+  if (UseCompactObjectHeaders || (Arguments::is_valhalla_enabled() && safe_to_read_header(remaining_words))) {
     return cast_to_oop(cur_addr)->klass()->prototype_header();
   } else {
     return markWord::prototype();

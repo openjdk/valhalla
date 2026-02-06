@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,7 +157,9 @@
 
 #define JAVA_26_VERSION                   70
 
-#define CONSTANT_CLASS_DESCRIPTORS        70
+#define JAVA_27_VERSION                   71
+
+#define CONSTANT_CLASS_DESCRIPTORS        71
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -1459,6 +1461,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                              CHECK);
         }
         _fields_annotations->at_put(n, parsed_annotations.field_annotations());
+        parsed_annotations.set_field_annotations(nullptr);
         if (parsed_annotations.has_annotation(AnnotationCollector::_jdk_internal_NullRestricted)) {
           if (!Signature::has_envelope(sig)) {
             Exceptions::fthrow(
@@ -1466,14 +1469,22 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
               vmSymbols::java_lang_ClassFormatError(),
               "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s with signature %s (primitive types can never be null)",
               class_name()->as_C_string(), name->as_C_string(), sig->as_C_string());
+            return;
           }
-          const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
-          if (!is_strict) {
+          if (!supports_inline_types()) {
             Exceptions::fthrow(
               THREAD_AND_LOCATION,
               vmSymbols::java_lang_ClassFormatError(),
-              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s which doesn't have the @jdk.internal.vm.annotation.Strict annotation",
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s in non-preview class file",
               class_name()->as_C_string(), name->as_C_string());
+            return;
+          }
+
+          if ((flags & JVM_ACC_STRICT) == 0) {
+            // Inject STRICT_INIT and validate in context
+            const jint patched_flags = flags | JVM_ACC_STRICT;
+            verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
+            access_flags.set_flags(patched_flags);
           }
           is_null_restricted = true;
         }
@@ -2265,7 +2276,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
     return nullptr;
   }
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     if (((flags & JVM_ACC_SYNCHRONIZED) == JVM_ACC_SYNCHRONIZED)
         && ((flags & JVM_ACC_STATIC) == 0 )
         && !_access_flags.is_identity_class()) {
@@ -3769,7 +3780,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
               permitted_subclasses_attribute_start = cfs->current();
               permitted_subclasses_attribute_length = attribute_length;
             }
-            if (EnableValhalla && tag == vmSymbols::tag_loadable_descriptors()) {
+            if (Arguments::is_valhalla_enabled() && tag == vmSymbols::tag_loadable_descriptors()) {
               if (parsed_loadable_descriptors_attribute) {
                 classfile_parse_error("Multiple LoadableDescriptors attributes in class file %s", CHECK);
                 return;
@@ -4168,9 +4179,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 70.65535 and later
-  return _major_version > JAVA_26_VERSION ||
-         (_major_version == JAVA_26_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 71.65535 and later
+  return _major_version > JAVA_27_VERSION ||
+         (_major_version == JAVA_27_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5512,17 +5523,18 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_payload_alignment(_layout_info->_payload_alignment);
     vk->set_payload_offset(_layout_info->_payload_offset);
     vk->set_payload_size_in_bytes(_layout_info->_payload_size_in_bytes);
-    vk->set_non_atomic_size_in_bytes(_layout_info->_non_atomic_size_in_bytes);
-    vk->set_non_atomic_alignment(_layout_info->_non_atomic_alignment);
-    vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
-    vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
+    vk->set_null_free_non_atomic_size_in_bytes(_layout_info->_null_free_non_atomic_size_in_bytes);
+    vk->set_null_free_non_atomic_alignment(_layout_info->_null_free_non_atomic_alignment);
+    vk->set_null_free_atomic_size_in_bytes(_layout_info->_null_free_atomic_layout_size_in_bytes);
+    vk->set_nullable_atomic_size_in_bytes(_layout_info->_nullable_atomic_layout_size_in_bytes);
+    vk->set_nullable_non_atomic_size_in_bytes(_layout_info->_nullable_non_atomic_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
     vk->initialize_calling_convention(CHECK);
   }
 
-  if (EnableValhalla && !access_flags().is_identity_class() && !access_flags().is_interface()
+  if (Arguments::is_valhalla_enabled() && !access_flags().is_identity_class() && !access_flags().is_interface()
       && _class_name != vmSymbols::java_lang_Object() && UseAltSubstitutabilityMethod) {
     // Both abstract and concrete value classes need a field map for acmp
     ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
@@ -5542,18 +5554,30 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     // per oop field, containing the offset of the field.
     int nonoop_acmp_map_size = _layout_info->_nonoop_acmp_map->length() * 2;
     int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
-    typeArrayOop map = oopFactory::new_intArray(nonoop_acmp_map_size + oop_acmp_map_size + 1, CHECK);
+    int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
+
+    typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
     typeArrayHandle map_h(THREAD, map);
+    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
+
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
+    acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
       map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
       map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+
+      // Also store acmp maps as metadata for regeneration when using dynamic archive or AOT training data.
+      acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
+      acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
     }
     int oop_map_start = nonoop_acmp_map_size + 1;
     for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
       map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+      acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
     }
+    assert(acmp_maps_array->length() == map->length(), "sanity");
     ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
+    ik->set_acmp_maps_array(acmp_maps_array);
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
@@ -5680,7 +5704,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_aot_runtime_setup_method(false),
   _has_strict_static_fields(false),
-  _has_inline_type_fields(false),
+  _has_inlined_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
   _has_loosely_consistent_annotation(false),
@@ -6121,7 +6145,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       return;
     }
 
-    if (EnableValhalla) {
+    if (Arguments::is_valhalla_enabled()) {
       check_identity_and_value_modifiers(this, _super_klass, CHECK);
     }
 
@@ -6136,8 +6160,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                   _class_name->as_klass_external_name()));
   }
 
-  // Determining is the class allows tearing or not (default is not)
-  if (EnableValhalla && !_access_flags.is_identity_class()) {
+  // Determining if the class allows tearing or not (default is not)
+  if (Arguments::is_valhalla_enabled() && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
       // Conditions above are not sufficient to determine atomicity requirements,
@@ -6190,7 +6214,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                           interf->class_in_module_of_loader()));
       }
 
-      if (EnableValhalla) {
+      if (Arguments::is_valhalla_enabled()) {
         // Check modifiers and set carries_identity_modifier/carries_value_modifier flags
         check_identity_and_value_modifiers(this, InstanceKlass::cast(interf), CHECK);
       }
@@ -6235,10 +6259,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   assert(_parsed_annotations != nullptr, "invariant");
 
-  if (EnableValhalla) {
-    _inline_layout_info_array = MetadataFactory::new_array<InlineLayoutInfo>(_loader_data,
-                                                   java_fields_count(),
-                                                   CHECK);
+  if (Arguments::is_valhalla_enabled()) {
     for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
       FieldInfo fieldinfo = *it;
       if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
@@ -6266,8 +6287,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         }
         assert(klass != nullptr, "Sanity check");
         InstanceKlass::check_can_be_annotated_with_NullRestricted(klass, _class_name, CHECK);
-        InlineKlass* vk = InlineKlass::cast(klass);
-        _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
+        set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
         log_info(class, preload)("Preloading of class %s during loading of class %s "
                                  "(cause: null-free non-static field) succeeded",
                                  s->as_C_string(), _class_name->as_C_string());
@@ -6280,29 +6300,32 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                    "Cause: field type in LoadableDescriptors attribute",
                                    name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
-          Klass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
-                                                                 Handle(THREAD, loader),
-                                                                 false, THREAD);
+          InstanceKlass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
+                                                                         Handle(THREAD, loader),
+                                                                         false, THREAD);
+
+          assert((klass == nullptr) == HAS_PENDING_EXCEPTION, "Must be the same");
+
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
-              _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+              set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
               log_info(class, preload)("Preloading of class %s during loading of class %s "
                                        "(cause: field type in LoadableDescriptors attribute) succeeded",
                                        name->as_C_string(), _class_name->as_C_string());
             } else {
-              // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
+              // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log this
               log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                          "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
-                                          name->as_C_string(), _class_name->as_C_string());
+                                       "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
+                                       name->as_C_string(), _class_name->as_C_string());
             }
           } else {
             log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                        "(cause: field type in LoadableDescriptors attribute) failed : %s",
-                                        name->as_C_string(), _class_name->as_C_string(),
-                                        PENDING_EXCEPTION->klass()->name()->as_C_string());
-          }
-          // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not impact loading of current class
-          if (HAS_PENDING_EXCEPTION) {
+                                     "(cause: field type in LoadableDescriptors attribute) failed : %s",
+                                     name->as_C_string(), _class_name->as_C_string(),
+                                     PENDING_EXCEPTION->klass()->name()->as_C_string());
+
+            // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
+            // impact loading of current class.
             CLEAR_PENDING_EXCEPTION;
           }
         } else {
@@ -6312,7 +6335,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           oop loader = loader_data()->class_loader();
           InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
           if (klass != nullptr && klass->is_inline_klass()) {
-            _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+            set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
             log_info(class, preload)("Preloading of class %s during loading of class %s "
                                      "(cause: field type not in LoadableDescriptors attribute) succeeded",
                                      name->as_C_string(), _class_name->as_C_string());
@@ -6328,7 +6351,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       access_flags().is_abstract() && !access_flags().is_identity_class() && !access_flags().is_interface(),
       _must_be_atomic, _layout_info, _inline_layout_info_array);
   lb.build_layout();
-  _has_inline_type_fields = _layout_info->_has_inline_fields;
+  _has_inlined_fields = _layout_info->_has_inlined_fields;
+
+  // If it turned out that we didn't inline any of the fields, we deallocate
+  // the array of InlineLayoutInfo since it isn't needed, and so it isn't
+  // transferred to the allocated InstanceKlass.
+  if (_inline_layout_info_array != nullptr && !_layout_info->_has_inlined_fields) {
+    MetadataFactory::free_array<InlineLayoutInfo>(_loader_data, _inline_layout_info_array);
+    _inline_layout_info_array = nullptr;
+  }
 
   int injected_fields_count = _temp_field_info->length() - _java_fields_count;
   _fieldinfo_stream =
@@ -6370,6 +6401,21 @@ void ClassFileParser::set_klass(InstanceKlass* klass) {
 #endif
 
   _klass = klass;
+}
+
+void ClassFileParser::set_inline_layout_info_klass(int field_index, InlineKlass* ik, TRAPS) {
+  assert(field_index >= 0 && field_index < java_fields_count(), "IOOB: 0 <= %d < %d", field_index, (int)java_fields_count());
+
+  // The array of InlineLayoutInfo is allocated on demand. This way the array is
+  // never allocated for an InstanceKlass which has no need for this information.
+  if (_inline_layout_info_array == nullptr) {
+    _inline_layout_info_array = MetadataFactory::new_array<InlineLayoutInfo>(_loader_data,
+                                                                             java_fields_count(),
+                                                                             CHECK);
+  }
+
+  // Set the Klass for the field's index
+  _inline_layout_info_array->adr_at(field_index)->set_klass(ik);
 }
 
 void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {

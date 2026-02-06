@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -135,24 +135,6 @@ public final class Modifier {
      */
     public static boolean isSynchronized(int mod) {
         return (mod & SYNCHRONIZED) != 0;
-    }
-
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code identity} modifier, {@code false} otherwise.
-     *
-     * @apiNote {@code isIdentity} should only be called with the modifiers
-     * of a {@linkplain Class#getModifiers() class}.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code identity} modifier; {@code false} otherwise.
-     *
-     * @since Valhalla
-     */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public static boolean isIdentity(int mod) {
-        return (mod & IDENTITY) != 0;
     }
 
     /**
@@ -344,15 +326,6 @@ public final class Modifier {
     public static final int SYNCHRONIZED     = 0x00000020;
 
     /**
-     * The {@code int} value representing the {@code ACC_IDENTITY}
-     * modifier.
-     *
-     * @since Valhalla
-     */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public static final int IDENTITY         = 0x00000020;
-
-    /**
      * The {@code int} value representing the {@code volatile}
      * modifier.
      * @see AccessFlag#VOLATILE
@@ -429,7 +402,7 @@ public final class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.IDENTITY       | Modifier.STRICT;
+        Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.

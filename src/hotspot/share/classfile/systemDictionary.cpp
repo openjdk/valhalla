@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,6 +54,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
@@ -214,7 +215,15 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
       bool created = false;
       ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader, created);
       if (created && Arguments::enable_preview()) {
-        add_migrated_value_classes(cld);
+        if (CDSConfig::is_using_aot_linked_classes() && java_system_loader() == nullptr) {
+          // We are inside AOTLinkedClassBulkLoader::preload_classes().
+          //
+          // AOTLinkedClassBulkLoader will automatically initiate the loading of all archived
+          // public classes from the boot loader into platform/system loaders, so there's
+          // no need to call add_migrated_value_classes().
+        } else {
+          add_migrated_value_classes(cld);
+        }
       }
       return cld;
     }
@@ -941,7 +950,9 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
                                                InstanceKlass* ik,
                                                PackageEntry* pkg_entry,
                                                Handle class_loader) {
-  assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
+
+  assert(!ModuleEntryTable::javabase_moduleEntry()->is_patched(),
+         "Cannot use sharing if java.base is patched");
 
   // (1) Check if we are loading into the same loader as in dump time.
 
@@ -1017,7 +1028,7 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
       // Is the module loaded from the same location as during dump time?
       visible = mod_entry->shared_path_index() == scp_index;
       if (visible) {
-        assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
+        assert(!mod_entry->is_patched(), "cannot load archived classes for patched module");
       }
     } else {
       // During dump time, this class was in a named module, but at run time, this class should be
@@ -1187,7 +1198,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inline_type_fields()) {
+  if (ik->has_inlined_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) continue;
 
@@ -1202,8 +1213,8 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else if (Signature::has_envelope(sig)) {
-          // Pending exceptions are cleared so we can fail silently
-          try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
+        // Pending exceptions are cleared so we can fail silently
+        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
   }
@@ -1978,7 +1989,7 @@ Symbol* SystemDictionary::find_resolution_error(const constantPoolHandle& pool, 
 
 void SystemDictionary::add_nest_host_error(const constantPoolHandle& pool,
                                            int which,
-                                           const char* message) {
+                                           const stringStream& message) {
   {
     MutexLocker ml(Thread::current(), SystemDictionary_lock);
     ResolutionErrorEntry* entry = ResolutionErrorTable::find_entry(pool, which);
@@ -1987,14 +1998,19 @@ void SystemDictionary::add_nest_host_error(const constantPoolHandle& pool,
       // constant pool index. In this case resolution succeeded but there's an error in this nest host
       // that we use the table to record.
       assert(pool->resolved_klass_at(which) != nullptr, "klass should be resolved if there is no entry");
-      ResolutionErrorTable::add_entry(pool, which, message);
+      ResolutionErrorTable::add_entry(pool, which, message.as_string(true /* on C-heap */));
     } else {
       // An existing entry means we had a true resolution failure (LinkageError) with our nest host, but we
       // still want to add the error message for the higher-level access checks to report. We should
       // only reach here under the same error condition, so we can ignore the potential race with setting
-      // the message, and set it again.
-      assert(entry->nest_host_error() == nullptr || strcmp(entry->nest_host_error(), message) == 0, "should be the same message");
-      entry->set_nest_host_error(message);
+      // the message.
+      const char* nhe = entry->nest_host_error();
+      if (nhe == nullptr) {
+        entry->set_nest_host_error(message.as_string(true /* on C-heap */));
+      } else {
+        DEBUG_ONLY(const char* msg = message.base();)
+        assert(strcmp(nhe, msg) == 0, "New message %s, differs from original %s", msg, nhe);
+      }
     }
   }
 }
@@ -2291,9 +2307,10 @@ static bool is_always_visible_class(oop mirror) {
     return true; // primitive array
   }
   assert(klass->is_instance_klass(), "%s", klass->external_name());
-  return klass->is_public() &&
-         (InstanceKlass::cast(klass)->is_same_class_package(vmClasses::Object_klass()) ||       // java.lang
-          InstanceKlass::cast(klass)->is_same_class_package(vmClasses::MethodHandle_klass()));  // java.lang.invoke
+  InstanceKlass* ik = InstanceKlass::cast(klass);
+  return ik->is_public() &&
+         (ik->is_same_class_package(vmClasses::Object_klass()) ||       // java.lang
+          ik->is_same_class_package(vmClasses::MethodHandle_klass()));  // java.lang.invoke
 }
 
 // Find or construct the Java mirror (java.lang.Class instance) for

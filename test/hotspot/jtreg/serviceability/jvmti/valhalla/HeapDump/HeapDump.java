@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @requires vm.debug
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation java.base/jdk.internal.value
@@ -39,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.Enumeration;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
@@ -97,9 +97,8 @@ value class TestClass {
     // nullable value
     public Value nullableValue = new Value(1);
     // null restricted value
-    @Strict
     @NullRestricted
-    public Value nullRestrictedValue = new Value(11);
+    public Value nullRestrictedValue;
     // null value
     public Value nullValue = null;
     // value object with reference
@@ -114,6 +113,8 @@ value class TestClass {
     public static Value staticValue = new Value(31);
 
     public TestClass() {
+        nullRestrictedValue = new Value(11);
+        super();
     }
 
     static Value[] createNullableArray(int seed) {
@@ -149,9 +150,9 @@ public class HeapDump {
         try {
             theApp = new HeapDumpTarg();
 
-            LingeredApp.startApp(theApp, "--enable-preview",
-                                 "-XX:+UnlockDiagnosticVMOptions",
-                                 "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
+            // -XX:+PrintInlineLayout is debug-only arg
+            LingeredApp.startApp(theApp, "--enable-preview", "-XX:+UnlockDiagnosticVMOptions",
+                                "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
                                  "--add-modules=java.base",
                                  "--add-exports=java.base/jdk.internal.value=ALL-UNNAMED");
 

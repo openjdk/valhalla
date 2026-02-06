@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,9 +57,6 @@ bool CDSConfig::_old_cds_flags_used = false;
 bool CDSConfig::_new_aot_flags_used = false;
 bool CDSConfig::_disable_heap_dumping = false;
 bool CDSConfig::_is_at_aot_safepoint = false;
-
-bool CDSConfig::_module_patching_disables_cds = false;
-bool CDSConfig::_java_base_module_patching_disables_cds = false;
 
 const char* CDSConfig::_default_archive_path = nullptr;
 const char* CDSConfig::_input_static_archive_path = nullptr;
@@ -147,8 +144,8 @@ const char* CDSConfig::default_archive_path() {
       tmp.print_raw("_coh");
     }
 #endif
-    if (is_valhalla_preview()) {
-      tmp.print_raw("_valhalla");
+    if (Arguments::is_valhalla_enabled()) {
+      tmp.print_raw("_preview");
     }
     tmp.print_raw(".jsa");
     _default_archive_path = os::strdup(tmp.base());
@@ -305,7 +302,7 @@ void CDSConfig::ergo_init_classic_archive_paths() {
 }
 
 void CDSConfig::check_internal_module_property(const char* key, const char* value) {
-  if (Arguments::is_incompatible_cds_internal_module_property(key) && !Arguments::patching_migrated_classes(key, value)) {
+  if (Arguments::is_incompatible_cds_internal_module_property(key)) {
     stop_using_optimized_module_handling();
     aot_log_info(aot)("optimized module handling: disabled due to incompatible property: %s=%s", key, value);
   }
@@ -338,11 +335,13 @@ static const char* find_any_unsupported_module_option() {
   // directly specified in the command-line.
   static const char* unsupported_module_properties[] = {
     "jdk.module.limitmods",
-    "jdk.module.upgrade.path"
+    "jdk.module.upgrade.path",
+    "jdk.module.patch.0"
   };
   static const char* unsupported_module_options[] = {
     "--limit-modules",
-    "--upgrade-module-path"
+    "--upgrade-module-path",
+    "--patch-module"
   };
 
   assert(ARRAY_SIZE(unsupported_module_properties) == ARRAY_SIZE(unsupported_module_options), "must be");
@@ -365,12 +364,6 @@ void CDSConfig::check_unsupported_dumping_module_options() {
   if (option != nullptr) {
     vm_exit_during_initialization("Cannot use the following option when dumping the shared archive", option);
   }
-
-  if (module_patching_disables_cds()) {
-    vm_exit_during_initialization(
-            "Cannot use the following option when dumping the shared archive", "--patch-module");
-  }
-
   // Check for an exploded module build in use with -Xshare:dump.
   if (!Arguments::has_jimage()) {
     vm_exit_during_initialization("Dumping the shared archive is not supported with an exploded module build");
@@ -399,16 +392,6 @@ bool CDSConfig::has_unsupported_runtime_module_options() {
     }
     return true;
   }
-
-  if (module_patching_disables_cds()) {
-    if (RequireSharedSpaces) {
-      warning("CDS is disabled when the %s option is specified.", "--patch-module");
-    } else {
-      log_info(cds)("CDS is disabled when the %s option is specified.", "--patch-module");
-    }
-    return true;
-  }
-
   return false;
 }
 
@@ -643,7 +626,7 @@ void CDSConfig::ergo_init_aot_paths() {
   }
 }
 
-bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
+bool CDSConfig::check_vm_args_consistency(bool patch_mod_javabase, bool mode_flag_cmd_line) {
   assert(!_cds_ergo_initialize_started, "This is called earlier than CDSConfig::ergo_initialize()");
 
   check_aot_flags();
@@ -718,7 +701,7 @@ bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
     }
   }
 
-  if (is_using_archive() && java_base_module_patching_disables_cds() && module_patching_disables_cds()) {
+  if (is_using_archive() && patch_mod_javabase) {
     Arguments::no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
   }
   if (is_using_archive() && has_unsupported_runtime_module_options()) {
@@ -975,10 +958,6 @@ bool CDSConfig::are_vm_options_incompatible_with_dumping_heap() {
 }
 
 bool CDSConfig::is_dumping_heap() {
-  if (is_valhalla_preview()) {
-    // Not working yet -- e.g., HeapShared::oop_hash() needs to be implemented for value oops
-    return false;
-  }
   if (!(is_dumping_classic_static_archive() || is_dumping_final_static_archive())
       || are_vm_options_incompatible_with_dumping_heap()
       || _disable_heap_dumping) {
@@ -1051,23 +1030,19 @@ void CDSConfig::set_has_aot_linked_classes(bool has_aot_linked_classes) {
   _has_aot_linked_classes |= has_aot_linked_classes;
 }
 
-bool CDSConfig::is_initing_classes_at_dump_time() {
-  return is_dumping_heap() && is_dumping_aot_linked_classes();
-}
-
 bool CDSConfig::is_dumping_invokedynamic() {
   // Requires is_dumping_aot_linked_classes(). Otherwise the classes of some archived heap
   // objects used by the archive indy callsites may be replaced at runtime.
   return AOTInvokeDynamicLinking && is_dumping_aot_linked_classes() && is_dumping_heap();
 }
 
-// When we are dumping aot-linked classes and we are able to write archived heap objects, we automatically
-// enable the archiving of MethodHandles. This will in turn enable the archiving of MethodTypes and hidden
+// When we are dumping aot-linked classes, we automatically enable the archiving of MethodHandles.
+// This will in turn enable the archiving of MethodTypes and hidden
 // classes that are used in the implementation of MethodHandles.
 // Archived MethodHandles are required for higher-level optimizations such as AOT resolution of invokedynamic
 // and dynamic proxies.
 bool CDSConfig::is_dumping_method_handles() {
-  return is_initing_classes_at_dump_time();
+  return is_dumping_aot_linked_classes();
 }
 
 #endif // INCLUDE_CDS_JAVA_HEAP

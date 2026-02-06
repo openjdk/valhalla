@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -849,7 +849,10 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
     if (is_oop) {
       __ push(r13);
       __ push(rbx);
+      // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep it valid.
+      __ push(to.base());
       __ store_heap_oop(to, val, rscratch1, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      __ pop(to.base());
       __ pop(rbx);
       __ pop(r13);
     } else {
@@ -918,7 +921,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types.
       // Allocate the buffers here with a runtime call.
-      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, /*save_vectors*/ false);
+      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, /*save_wide_vectors*/ false);
 
       frame_complete = __ offset();
 
@@ -2177,7 +2180,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   int vep_offset = ((intptr_t)__ pc()) - start;
 
-  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+  if (method->needs_clinit_barrier()) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     Label L_skip_barrier;
     Register klass = r10;
     __ mov_metadata(klass, method->method_holder()); // InstanceKlass*
@@ -3825,7 +3829,6 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     VMReg r_1 = pair.first();
-    VMReg r_2 = pair.second();
     Address to(rax, off);
     if (bt == T_FLOAT) {
       __ movflt(to, r_1->as_XMMRegister());
@@ -3835,7 +3838,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       Register val = r_1->as_Register();
       assert_different_registers(to.base(), val, r14, r13, rbx, rscratch1);
       if (is_reference_type(bt)) {
-        __ store_heap_oop(to, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        // store_heap_oop transitively calls oop_store_at which corrupts to.base(). We need to keep rax valid.
+        __ mov(rbx, rax);
+        Address to_with_rbx(rbx, off);
+        __ store_heap_oop(to_with_rbx, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
       }
@@ -3843,7 +3849,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     j++;
   }
   assert(j == regs->length(), "missed a field?");
-  if (vk->has_nullable_atomic_layout()) {
+  if (vk->supports_nullable_layouts()) {
     // Set the null marker
     __ movb(Address(rax, vk->null_marker_offset()), 1);
   }
@@ -3856,7 +3862,8 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   __ testptr(rax, rax);
   __ jcc(Assembler::notZero, not_null);
 
-  // Return value is null. Zero oop registers to make the GC happy.
+  // Return value is null. Zero all registers because the runtime requires a canonical
+  // representation of a flat null.
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
@@ -3870,10 +3877,13 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       }
       continue;
     }
-    if (bt == T_OBJECT || bt == T_ARRAY) {
-      VMRegPair pair = regs->at(j);
-      VMReg r_1 = pair.first();
-      __ xorq(r_1->as_Register(), r_1->as_Register());
+
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    if (r_1->is_XMMRegister()) {
+      __ xorps(r_1->as_XMMRegister(), r_1->as_XMMRegister());
+    } else {
+      __ xorl(r_1->as_Register(), r_1->as_Register());
     }
     j++;
   }

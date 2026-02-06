@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -515,12 +515,6 @@ public class Flags {
     @Use({FlagTarget.CLASS})
     @CustomToStringValue("non-sealed")
     public static final long NON_SEALED = 1L<<63;  // part of ExtendedStandardFlags, cannot be reused
-
-    /**
-     * Flag to indicate that a class has at least one strict field
-     */
-    @Use({FlagTarget.CLASS})
-    public static final long HAS_STRICT = 1L<<52; // ClassSymbols, temporary hack
 
     /**
      * Flag to indicate that a field is strict

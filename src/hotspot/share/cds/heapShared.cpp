@@ -209,8 +209,14 @@ static bool is_subgraph_root_class_of(ArchivableStaticFieldInfo fields[], Instan
 }
 
 bool HeapShared::is_subgraph_root_class(InstanceKlass* ik) {
-  return is_subgraph_root_class_of(archive_subgraph_entry_fields, ik) ||
-         is_subgraph_root_class_of(fmg_archive_subgraph_entry_fields, ik);
+  assert(CDSConfig::is_dumping_heap(), "dump-time only");
+  if (!CDSConfig::is_dumping_aot_linked_classes()) {
+    // Legacy CDS archive support (to be deprecated)
+    return is_subgraph_root_class_of(archive_subgraph_entry_fields, ik) ||
+           is_subgraph_root_class_of(fmg_archive_subgraph_entry_fields, ik);
+  } else {
+    return false;
+  }
 }
 
 oop HeapShared::CachedOopInfo::orig_referrer() const {
@@ -810,6 +816,25 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
     assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
   }
 
+  Klass* k = java_lang_Class::as_Klass(orig_mirror);
+  if (k != nullptr && k->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(k);
+
+    if (ik->is_inline_klass() && ik->is_initialized()) {
+      // Only concrete value classes need the null_reset field
+      InlineKlass* ilk = InlineKlass::cast(k);
+      if (ilk->supports_nullable_layouts()) {
+        scratch_m->obj_field_put(ilk->null_reset_value_offset(), ilk->null_reset_value());
+      }
+    }
+
+    if (ik->has_acmp_maps_offset()) {
+      int maps_offset = ik->acmp_maps_offset();
+      oop maps = orig_mirror->obj_field(maps_offset);
+      scratch_m->obj_field_put(maps_offset, maps);
+    }
+  }
+
   if (CDSConfig::is_dumping_aot_linked_classes()) {
     java_lang_Class::set_module(scratch_m, java_lang_Class::module(orig_mirror));
     java_lang_Class::set_protection_domain(scratch_m, java_lang_Class::protection_domain(orig_mirror));
@@ -935,12 +960,16 @@ void HeapShared::scan_java_class(Klass* orig_k) {
 void HeapShared::archive_subgraphs() {
   assert(CDSConfig::is_dumping_heap(), "must be");
 
-  archive_object_subgraphs(archive_subgraph_entry_fields,
-                           false /* is_full_module_graph */);
+  if (!CDSConfig::is_dumping_aot_linked_classes()) {
+    archive_object_subgraphs(archive_subgraph_entry_fields,
+                             false /* is_full_module_graph */);
+    if (CDSConfig::is_dumping_full_module_graph()) {
+      archive_object_subgraphs(fmg_archive_subgraph_entry_fields,
+                               true /* is_full_module_graph */);
+    }
+  }
 
   if (CDSConfig::is_dumping_full_module_graph()) {
-    archive_object_subgraphs(fmg_archive_subgraph_entry_fields,
-                             true /* is_full_module_graph */);
     Modules::verify_archived_modules();
   }
 }
@@ -1296,8 +1325,10 @@ void HeapShared::resolve_classes(JavaThread* current) {
   if (!is_archived_heap_in_use()) {
     return; // nothing to do
   }
-  resolve_classes_for_subgraphs(current, archive_subgraph_entry_fields);
-  resolve_classes_for_subgraphs(current, fmg_archive_subgraph_entry_fields);
+  if (!CDSConfig::is_using_aot_linked_classes()) {
+    resolve_classes_for_subgraphs(current, archive_subgraph_entry_fields);
+    resolve_classes_for_subgraphs(current, fmg_archive_subgraph_entry_fields);
+  }
 }
 
 void HeapShared::resolve_classes_for_subgraphs(JavaThread* current, ArchivableStaticFieldInfo fields[]) {
@@ -1739,13 +1770,13 @@ bool HeapShared::walk_one_object(PendingOopStack* stack, int level, KlassSubGrap
     }
   }
 
-  if (CDSConfig::is_initing_classes_at_dump_time()) {
+  if (CDSConfig::is_dumping_aot_linked_classes()) {
     if (java_lang_Class::is_instance(orig_obj)) {
       orig_obj = scratch_java_mirror(orig_obj);
       assert(orig_obj != nullptr, "must be archived");
     }
   } else if (java_lang_Class::is_instance(orig_obj) && subgraph_info != _dump_time_special_subgraph) {
-    // Without CDSConfig::is_initing_classes_at_dump_time(), we only allow archived objects to
+    // Without CDSConfig::is_dumping_aot_linked_classes(), we only allow archived objects to
     // point to the mirrors of (1) j.l.Object, (2) primitive classes, and (3) box classes. These are initialized
     // very early by HeapShared::init_box_classes().
     if (orig_obj == vmClasses::Object_klass()->java_mirror()
@@ -1813,9 +1844,9 @@ bool HeapShared::walk_one_object(PendingOopStack* stack, int level, KlassSubGrap
     orig_obj->oop_iterate(&pusher);
   }
 
-  if (CDSConfig::is_initing_classes_at_dump_time()) {
-    // The classes of all archived enum instances have been marked as aot-init,
-    // so there's nothing else to be done in the production run.
+  if (CDSConfig::is_dumping_aot_linked_classes()) {
+    // The enum klasses are archived with aot-initialized mirror.
+    // See AOTClassInitializer::can_archive_initialized_mirror().
   } else {
     // This is legacy support for enum classes before JEP 483 -- we cannot rerun
     // the enum's <clinit> in the production run, so special handling is needed.
@@ -1954,7 +1985,7 @@ void HeapShared::verify_reachable_objects_from(oop obj) {
 #endif
 
 void HeapShared::check_special_subgraph_classes() {
-  if (CDSConfig::is_initing_classes_at_dump_time()) {
+  if (CDSConfig::is_dumping_aot_linked_classes()) {
     // We can have aot-initialized classes (such as Enums) that can reference objects
     // of arbitrary types. Currently, we trust the JEP 483 implementation to only
     // aot-initialize classes that are "safe".
@@ -1969,7 +2000,8 @@ void HeapShared::check_special_subgraph_classes() {
     for (int i = 0; i < num; i++) {
       Klass* subgraph_k = klasses->at(i);
       Symbol* name = subgraph_k->name();
-      if (subgraph_k->is_instance_klass() &&
+
+      if (subgraph_k->is_identity_class() &&
           name != vmSymbols::java_lang_Class() &&
           name != vmSymbols::java_lang_String() &&
           name != vmSymbols::java_lang_ArithmeticException() &&
@@ -2141,9 +2173,11 @@ void HeapShared::init_subgraph_entry_fields(ArchivableStaticFieldInfo fields[],
 void HeapShared::init_subgraph_entry_fields(TRAPS) {
   assert(CDSConfig::is_dumping_heap(), "must be");
   _dump_time_subgraph_info_table = new (mtClass)DumpTimeKlassSubGraphInfoTable();
-  init_subgraph_entry_fields(archive_subgraph_entry_fields, CHECK);
-  if (CDSConfig::is_dumping_full_module_graph()) {
-    init_subgraph_entry_fields(fmg_archive_subgraph_entry_fields, CHECK);
+  if (!CDSConfig::is_dumping_aot_linked_classes()) {
+    init_subgraph_entry_fields(archive_subgraph_entry_fields, CHECK);
+    if (CDSConfig::is_dumping_full_module_graph()) {
+      init_subgraph_entry_fields(fmg_archive_subgraph_entry_fields, CHECK);
+    }
   }
 }
 
@@ -2259,12 +2293,6 @@ void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
   for (int i = 0; fields[i].valid(); ) {
     ArchivableStaticFieldInfo* info = &fields[i];
     const char* klass_name = info->klass_name;
-
-    if (CDSConfig::is_valhalla_preview() && strcmp(klass_name, "jdk/internal/module/ArchivedModuleGraph") == 0) {
-      // FIXME -- ArchivedModuleGraph doesn't work when java.base is patched with valhalla classes.
-      i++;
-      continue;
-    }
 
     start_recording_subgraph(info->klass, klass_name, is_full_module_graph);
 

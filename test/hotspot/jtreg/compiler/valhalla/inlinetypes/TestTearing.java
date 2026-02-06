@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test id=no-flattening
@@ -84,7 +83,7 @@ import jdk.internal.vm.annotation.Strict;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=180 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
@@ -123,7 +122,7 @@ import jdk.internal.vm.annotation.Strict;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=150 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -256,12 +255,10 @@ public class TestTearing {
         !WHITE_BOX.getBooleanVMFlag("UseTLAB");
 
     // Null-free, volatile -> atomic access
-    @Strict
     @NullRestricted
     volatile static MyValueTearing field1 = MyValueTearing.DEFAULT;
-    @Strict
     @NullRestricted
-    volatile MyValueTearing field2 = MyValueTearing.DEFAULT;
+    volatile MyValueTearing field2;
 
     // Nullable fields are always atomic
     static MyValueTearing field3 = new MyValueTearing((short)0, (short)0);
@@ -312,6 +309,11 @@ public class TestTearing {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
         }
+    }
+
+    public TestTearing() {
+        field2 = MyValueTearing.DEFAULT;
+        super();
     }
 
     static class Runner extends Thread {

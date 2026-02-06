@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -809,6 +809,7 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   develop(uintx, PreallocatedOutOfMemoryErrorCount, 4,                      \
           "Number of OutOfMemoryErrors preallocated with backtrace")        \
+          range(0, 1024)                                                    \
                                                                             \
   product(bool, UseXMMForArrayCopy, false,                                  \
           "Use SSE2 MOVQ instruction for Arraycopy")                        \
@@ -836,6 +837,9 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, UseAtomicValueFlattening, true,                             \
           "Allow the JVM to flatten some atomic values")                    \
+                                                                            \
+  product(bool, UseNullableNonAtomicValueFlattening, true,                  \
+          "Allow the JVM to flatten some strict final non-static fields")   \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
@@ -1396,6 +1400,7 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(int, SpecTrapLimitExtraEntries,  3, EXPERIMENTAL,                 \
           "Extra method data trap entries for speculation")                 \
+          range(0, 100)                                                     \
                                                                             \
   product(double, InlineFrequencyRatio, 0.25, DIAGNOSTIC,                   \
           "Ratio of call site execution to caller method invocation")       \
@@ -1976,9 +1981,6 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product(bool, EnableValhalla, true,                                       \
-          "Enable experimental Valhalla features")                          \
-                                                                            \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \
           "Pass each inline type field as an argument at calls")            \
                                                                             \
@@ -2054,7 +2056,7 @@ const int ObjectAlignmentInBytes = 8;
           "Minimal number of elements in a sorted collection to prefer"     \
           "binary search over simple linear search." )                      \
                                                                             \
-  product(bool, UseAltSubstitutabilityMethod, false,                        \
+  product(bool, UseAltSubstitutabilityMethod, true,                         \
           "Use alternate version of the isSubstitutable method to "         \
           "compare value class instances")                                  \
 

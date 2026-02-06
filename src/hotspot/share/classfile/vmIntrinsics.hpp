@@ -429,18 +429,18 @@ class methodHandle;
                                                                                                                         \
   do_class(java_lang_StringCoding,        "java/lang/StringCoding")                                                     \
   do_intrinsic(_countPositives,     java_lang_StringCoding, countPositives_name, countPositives_signature, F_S)         \
-   do_name(     countPositives_name,                       "countPositives0")                                           \
+   do_name(     countPositives_name,                       "countPositives")                                            \
    do_signature(countPositives_signature,                  "([BII)I")                                                   \
                                                                                                                         \
   do_class(sun_nio_cs_iso8859_1_Encoder,  "sun/nio/cs/ISO_8859_1$Encoder")                                              \
   do_intrinsic(_encodeISOArray,     sun_nio_cs_iso8859_1_Encoder, encodeISOArray_name, encodeISOArray_signature, F_S)   \
-   do_name(     encodeISOArray_name,                             "encodeISOArray0")                                     \
+   do_name(     encodeISOArray_name,                             "implEncodeISOArray")                                  \
    do_signature(encodeISOArray_signature,                        "([CI[BII)I")                                          \
                                                                                                                         \
   do_intrinsic(_encodeByteISOArray,     java_lang_StringCoding, encodeISOArray_name, indexOfI_signature,         F_S)   \
                                                                                                                         \
   do_intrinsic(_encodeAsciiArray,       java_lang_StringCoding, encodeAsciiArray_name, encodeISOArray_signature, F_S)   \
-   do_name(     encodeAsciiArray_name,                           "encodeAsciiArray0")                                   \
+   do_name(     encodeAsciiArray_name,                           "implEncodeAsciiArray")                                \
                                                                                                                         \
   do_class(java_math_BigInteger,                      "java/math/BigInteger")                                           \
   do_intrinsic(_multiplyToLen,      java_math_BigInteger, multiplyToLen_name, multiplyToLen_signature, F_S)             \
@@ -709,10 +709,13 @@ class methodHandle;
   do_intrinsic(_arrayInstanceBaseOffset,  jdk_internal_misc_Unsafe,     arrayInstanceBaseOffset_name, arrayProperties_signature, F_RN) \
    do_name(     arrayInstanceBaseOffset_name,                           "arrayInstanceBaseOffset0")                              \
    do_signature(arrayProperties_signature,                              "([Ljava/lang/Object;)I")                                \
-  do_intrinsic(_arrayInstanceIndexScale,  jdk_internal_misc_Unsafe,     _arrayInstanceIndexScale_name, arrayProperties_signature, F_RN) \
-   do_name(    _arrayInstanceIndexScale_name,                           "arrayInstanceIndexScale0")                              \
-  do_intrinsic(_arrayLayout,  jdk_internal_misc_Unsafe,                 _arrayLayout_name, arrayProperties_signature, F_RN)      \
-   do_name(    _arrayLayout_name,                                       "arrayLayout0")                                          \
+  do_intrinsic(_arrayInstanceIndexScale,  jdk_internal_misc_Unsafe,     arrayInstanceIndexScale_name, arrayProperties_signature, F_RN) \
+   do_name(     arrayInstanceIndexScale_name,                           "arrayInstanceIndexScale0")                              \
+  do_intrinsic(_arrayLayout,              jdk_internal_misc_Unsafe,     arrayLayout_name, arrayProperties_signature, F_RN)       \
+   do_name(     arrayLayout_name,                                       "arrayLayout0")                                          \
+  do_intrinsic(_getFieldMap,              jdk_internal_misc_Unsafe,     getFieldMap_name, getFieldMap_signature, F_RN)           \
+   do_name(     getFieldMap_name,                                       "getFieldMap0")                                          \
+   do_signature(getFieldMap_signature,                                  "(Ljava/lang/Class;)[I")                                 \
                                                                                                                         \
   /* Custom branch frequencies profiling support for JSR292 */                                                          \
   do_class(java_lang_invoke_MethodHandleImpl,               "java/lang/invoke/MethodHandleImpl")                        \

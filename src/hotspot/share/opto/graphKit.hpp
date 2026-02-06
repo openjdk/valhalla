@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -660,7 +660,8 @@ class GraphKit : public Phase {
                               const TypeInt* sizetype = nullptr,
                               // Optional control dependency (for example, on range check)
                               Node* ctrl = nullptr);
-  Node* cast_to_flat_array(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_not_null_free, bool is_atomic);
+  Node* cast_to_flat_array(Node* array, ciInlineKlass* elem_vk);
+  Node* cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic);
 
   // Return a load of array element at idx.
   Node* load_array_element(Node* ary, Node* idx, const TypeAryPtr* arytype, bool set_ctrl);
@@ -730,6 +731,8 @@ class GraphKit : public Phase {
   // helper functions for statistics
   void increment_counter(address counter_addr);   // increment a debug counter
   void increment_counter(Node*   counter_addr);   // increment a debug counter
+
+  void halt(Node* ctrl, Node* frameptr, const char* reason, bool generate_code_in_product = true);
 
   // Bail out to the interpreter right now
   // The optional klass is the one causing the trap.

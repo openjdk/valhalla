@@ -582,7 +582,7 @@ void InterpreterMacroAssembler::load_resolved_klass_at_index(Register klass,
 //      Rsub_klass: subklass
 //
 // Kills:
-//      rcx, rdi
+//      rcx
 void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
                                                   Label& ok_is_subtype,
                                                   bool profile) {
@@ -590,13 +590,11 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
   assert(Rsub_klass != r14, "r14 holds locals");
   assert(Rsub_klass != r13, "r13 holds bcp");
   assert(Rsub_klass != rcx, "rcx holds 2ndary super array length");
-  assert(Rsub_klass != rdi, "rdi holds 2ndary super array scan ptr");
 
   // Profile the not-null value's klass.
   if (profile) {
-    profile_typecheck(rcx, Rsub_klass, rdi); // blows rcx, reloads rdi
+    profile_typecheck(rcx, Rsub_klass); // blows rcx
   }
-
   // Do the check.
   check_klass_subtype(Rsub_klass, rax, rcx, ok_is_subtype); // blows rcx
 }
@@ -1081,7 +1079,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
 #else
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rdi, rax, rscratch1);
-    movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
     movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
     // Unpack handler can be null if inline type is not scalarizable in returns
     testptr(rdi, rdi);
@@ -1154,50 +1152,10 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, Register tmp2, Register obj) {
-  Label alloc_failed, slow_path, done;
-  const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
-  const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
-  assert_different_registers(obj, entry, tmp1, tmp2, dst_temp, r8, r9);
-
-  // If the field is nullable, jump to slow path
-  load_unsigned_byte(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())));
-  testl(tmp1, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
-  jcc(Assembler::equal, slow_path);
-
-  // Grap the inline field klass
-  const Register field_klass = tmp1;
-  load_unsigned_short(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
-
-  movptr(tmp1, Address(entry, ResolvedFieldEntry::field_holder_offset()));
-  get_inline_type_field_klass(tmp1, tmp2, field_klass);
-
-  // allocate buffer
-  push(obj);  // push object being read from
-  allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
-
-  // Have an oop instance buffer, copy into it
-  load_unsigned_short(r9, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
-  movptr(r8, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-  inline_layout_info(r8, r9, r8); // holder, index, info => InlineLayoutInfo into r8
-
-  payload_addr(obj, dst_temp, field_klass);
-  pop(alloc_temp);             // restore object being read from
-  load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
-  lea(tmp2, Address(alloc_temp, tmp2));
-  // call_VM_leaf, clobbers a few regs, save restore new obj
-  push(obj);
-  flat_field_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, r8);
-  pop(obj);
-  jmp(done);
-
-  bind(alloc_failed);
-  pop(obj);
-  bind(slow_path);
+void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
   get_vm_result_oop(obj);
-  bind(done);
 }
 
 void InterpreterMacroAssembler::write_flat_field(Register entry, Register tmp1, Register tmp2,
@@ -1538,7 +1496,6 @@ void InterpreterMacroAssembler::profile_final_call(Register mdp) {
 
 void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
                                                      Register mdp,
-                                                     Register reg2,
                                                      bool receiver_can_be_null) {
   if (ProfileInterpreter) {
     Label profile_continue;
@@ -1558,139 +1515,13 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
     }
 
     // Record the receiver type.
-    record_klass_in_profile(receiver, mdp, reg2);
+    profile_receiver_type(receiver, mdp, 0);
     bind(skip_receiver_profile);
 
     // The method data pointer needs to be updated to reflect the new target.
     update_mdp_by_constant(mdp, in_bytes(VirtualCallData::virtual_call_data_size()));
     bind(profile_continue);
   }
-}
-
-// This routine creates a state machine for updating the multi-row
-// type profile at a virtual call site (or other type-sensitive bytecode).
-// The machine visits each row (of receiver/count) until the receiver type
-// is found, or until it runs out of rows.  At the same time, it remembers
-// the location of the first empty row.  (An empty row records null for its
-// receiver, and can be allocated for a newly-observed receiver type.)
-// Because there are two degrees of freedom in the state, a simple linear
-// search will not work; it must be a decision tree.  Hence this helper
-// function is recursive, to generate the required tree structured code.
-// It's the interpreter, so we are trading off code space for speed.
-// See below for example code.
-void InterpreterMacroAssembler::record_klass_in_profile_helper(Register receiver, Register mdp,
-                                                               Register reg2, int start_row,
-                                                               Label& done) {
-  if (TypeProfileWidth == 0) {
-    increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
-  } else {
-    record_item_in_profile_helper(receiver, mdp, reg2, 0, done, TypeProfileWidth,
-                                  &VirtualCallData::receiver_offset, &VirtualCallData::receiver_count_offset);
-  }
-}
-
-void InterpreterMacroAssembler::record_item_in_profile_helper(Register item, Register mdp, Register reg2, int start_row,
-                                                              Label& done, int total_rows,
-                                                              OffsetFunction item_offset_fn,
-                                                              OffsetFunction item_count_offset_fn) {
-  int last_row = total_rows - 1;
-  assert(start_row <= last_row, "must be work left to do");
-  // Test this row for both the item and for null.
-  // Take any of three different outcomes:
-  //   1. found item => increment count and goto done
-  //   2. found null => keep looking for case 1, maybe allocate this cell
-  //   3. found something else => keep looking for cases 1 and 2
-  // Case 3 is handled by a recursive call.
-  for (int row = start_row; row <= last_row; row++) {
-    Label next_test;
-    bool test_for_null_also = (row == start_row);
-
-    // See if the item is item[n].
-    int item_offset = in_bytes(item_offset_fn(row));
-    test_mdp_data_at(mdp, item_offset, item,
-                     (test_for_null_also ? reg2 : noreg),
-                     next_test);
-    // (Reg2 now contains the item from the CallData.)
-
-    // The item is item[n].  Increment count[n].
-    int count_offset = in_bytes(item_count_offset_fn(row));
-    increment_mdp_data_at(mdp, count_offset);
-    jmp(done);
-    bind(next_test);
-
-    if (test_for_null_also) {
-      // Failed the equality check on item[n]...  Test for null.
-      testptr(reg2, reg2);
-      if (start_row == last_row) {
-        // The only thing left to do is handle the null case.
-        Label found_null;
-        jccb(Assembler::zero, found_null);
-        // Item did not match any saved item and there is no empty row for it.
-        // Increment total counter to indicate polymorphic case.
-        increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
-        jmp(done);
-        bind(found_null);
-        break;
-      }
-      Label found_null;
-      // Since null is rare, make it be the branch-taken case.
-      jcc(Assembler::zero, found_null);
-
-      // Put all the "Case 3" tests here.
-      record_item_in_profile_helper(item, mdp, reg2, start_row + 1, done, total_rows,
-                                    item_offset_fn, item_count_offset_fn);
-
-      // Found a null.  Keep searching for a matching item,
-      // but remember that this is an empty (unused) slot.
-      bind(found_null);
-    }
-  }
-
-  // In the fall-through case, we found no matching item, but we
-  // observed the item[start_row] is null.
-
-  // Fill in the item field and increment the count.
-  int item_offset = in_bytes(item_offset_fn(start_row));
-  set_mdp_data_at(mdp, item_offset, item);
-  int count_offset = in_bytes(item_count_offset_fn(start_row));
-  movl(reg2, DataLayout::counter_increment);
-  set_mdp_data_at(mdp, count_offset, reg2);
-  if (start_row > 0) {
-    jmp(done);
-  }
-}
-
-// Example state machine code for three profile rows:
-//   // main copy of decision tree, rooted at row[1]
-//   if (row[0].rec == rec) { row[0].incr(); goto done; }
-//   if (row[0].rec != nullptr) {
-//     // inner copy of decision tree, rooted at row[1]
-//     if (row[1].rec == rec) { row[1].incr(); goto done; }
-//     if (row[1].rec != nullptr) {
-//       // degenerate decision tree, rooted at row[2]
-//       if (row[2].rec == rec) { row[2].incr(); goto done; }
-//       if (row[2].rec != nullptr) { count.incr(); goto done; } // overflow
-//       row[2].init(rec); goto done;
-//     } else {
-//       // remember row[1] is empty
-//       if (row[2].rec == rec) { row[2].incr(); goto done; }
-//       row[1].init(rec); goto done;
-//     }
-//   } else {
-//     // remember row[0] is empty
-//     if (row[1].rec == rec) { row[1].incr(); goto done; }
-//     if (row[2].rec == rec) { row[2].incr(); goto done; }
-//     row[0].init(rec); goto done;
-//   }
-//   done:
-
-void InterpreterMacroAssembler::record_klass_in_profile(Register receiver, Register mdp, Register reg2) {
-  assert(ProfileInterpreter, "must be profiling");
-  Label done;
-
-  record_klass_in_profile_helper(receiver, mdp, reg2, 0, done);
-
-  bind (done);
 }
 
 void InterpreterMacroAssembler::profile_ret(Register return_bci,
@@ -1752,7 +1583,7 @@ void InterpreterMacroAssembler::profile_null_seen(Register mdp) {
 }
 
 
-void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass, Register reg2) {
+void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -1765,7 +1596,7 @@ void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass, 
       mdp_delta = in_bytes(VirtualCallData::virtual_call_data_size());
 
       // Record the object type.
-      record_klass_in_profile(klass, mdp, reg2);
+      profile_receiver_type(klass, mdp, 0);
     }
     update_mdp_by_constant(mdp, mdp_delta);
 
@@ -1880,7 +1711,7 @@ void InterpreterMacroAssembler::profile_multiple_element_types(Register mdp, Reg
     load_klass(tmp, element, rscratch1);
 
     // Record the object type.
-    record_klass_in_profile(tmp, mdp, tmp2);
+    profile_receiver_type(tmp, mdp, 0);
 
     bind(done);
 

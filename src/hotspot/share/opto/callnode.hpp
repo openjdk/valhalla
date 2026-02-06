@@ -777,6 +777,7 @@ public:
   virtual uint match_edge(uint idx) const;
 
   bool is_call_to_arraycopystub() const;
+  bool is_call_to_multianewarray_stub() const;
 
   virtual void copy_call_debug_info(PhaseIterGVN* phase, SafePointNode* sfpt) {}
 
@@ -976,9 +977,8 @@ protected:
   TupleNode* make_tuple_of_input_state_and_top_return_values(const Compile* C) const;
 
 public:
-  CallLeafPureNode(const TypeFunc* tf, address addr, const char* name,
-                   const TypePtr* adr_type)
-      : CallLeafNode(tf, addr, name, adr_type) {
+  CallLeafPureNode(const TypeFunc* tf, address addr, const char* name)
+      : CallLeafNode(tf, addr, name, nullptr) {
     init_class_id(Class_CallLeafPure);
   }
   int Opcode() const override;

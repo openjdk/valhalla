@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/methodCounters.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/vm_version.hpp"
@@ -1649,9 +1650,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
     ciInlineKlass* vk = field->type()->as_inline_klass();
 
 #ifdef ASSERT
-    bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
-    bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
-    assert(needs_atomic_access, "No atomic access required");
+    assert(field->is_atomic(), "No atomic access required %s.%s", field->holder()->name()->as_utf8(), field->name()->as_utf8());
     // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
     assert(!vk->contains_oops() || !UseZGC, "ZGC does not support embedded oops in flat fields");
 #endif
@@ -2097,9 +2096,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   if (field->is_flat()) {
     ciInlineKlass* vk = field->type()->as_inline_klass();
 #ifdef ASSERT
-    bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
-    bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
-    assert(needs_atomic_access, "No atomic access required");
+    assert(field->is_atomic(), "No atomic access required");
     assert(x->state_before() != nullptr, "Needs state before");
 #endif
 
@@ -3008,7 +3005,7 @@ void LIRGenerator::do_Base(Base* x) {
 
   // Check if we need a membar at the beginning of the java.lang.Object
   // constructor to satisfy the memory model for strict fields.
-  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  if (Arguments::is_valhalla_enabled() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     __ membar_storestore();
   }
 

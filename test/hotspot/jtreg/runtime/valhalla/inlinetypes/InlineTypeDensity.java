@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import com.sun.jdi.NativeMethodException;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
@@ -163,10 +162,8 @@ public class InlineTypeDensity {
 
     @LooselyConsistentValue
     static value class LocalDateTimeValue implements LocalDateTime {
-        @Strict
         @NullRestricted
         LocalDateValue date;
-        @Strict
         @NullRestricted
         LocalTimeValue time;
 

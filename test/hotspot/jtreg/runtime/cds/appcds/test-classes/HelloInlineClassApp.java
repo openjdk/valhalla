@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,13 @@
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 public class HelloInlineClassApp {
+
+    public HelloInlineClassApp() {
+        point = new Point(0, 0);
+        super();
+    }
 
     @LooselyConsistentValue
     static value class Point {
@@ -62,11 +66,9 @@ public class HelloInlineClassApp {
         Point p1 = new Point(1,1);
     }
 
-    @Strict
     @NullRestricted
-    Point point = new Point(0, 0);
+    Point point;
 
-    @Strict
     @NullRestricted
     static Rectangle rectangle = new Rectangle();
 

@@ -3366,6 +3366,7 @@ void AdapterHandlerEntry::remove_unshareable_info() {
 #endif // ASSERT
    _adapter_blob = nullptr;
    _linked = false;
+   _sig_cc = nullptr;
 }
 
 class CopyAdapterTableToArchive : StackObj {
@@ -3446,9 +3447,24 @@ void AdapterHandlerEntry::link() {
       log_warning(aot)("Failed to link AdapterHandlerEntry (fp=%s) to its code in the AOT code cache", _fingerprint->as_basic_args_string());
       generate_code = true;
     }
+
+    if (get_sig_cc() == nullptr) {
+      // Calling conventions have to be regenerated at runtime and are accessed through method adapters,
+      // which are archived in the AOT code cache. If the adapters are not regenerated, the
+      // calling conventions should be regenerated here.
+      CompiledEntrySignature ces;
+      ces.initialize_from_fingerprint(_fingerprint);
+      if (ces.has_scalarized_args()) {
+        // Save a C heap allocated version of the scalarized signature and store it in the adapter
+        GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
+        heap_sig->appendAll(ces.sig_cc());
+        set_sig_cc(heap_sig);
+      }
+    }
   } else {
     generate_code = true;
   }
+
   if (generate_code) {
     CompiledEntrySignature ces;
     ces.initialize_from_fingerprint(_fingerprint);
@@ -3842,7 +3858,7 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *current) )
                   RegisterMap::WalkContinuation::skip);
   frame sender = fr.sender(&map);
   if (sender.is_interpreted_frame()) {
-    current->push_cont_fastpath(sender.sp());
+    current->push_cont_fastpath(sender.unextended_sp());
   }
 
   return buf;

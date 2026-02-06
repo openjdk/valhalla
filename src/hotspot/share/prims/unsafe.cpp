@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -373,7 +373,7 @@ UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsafe, jobject 
   oop f = JNIHandles::resolve_non_null(o);
   Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
   int slot = java_lang_reflect_Field::slot(f);
-  return InstanceKlass::cast(k)->null_marker_offset(slot);
+  return InstanceKlass::cast(k)->field_null_marker_offset(slot);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jint, Unsafe_ArrayLayout(JNIEnv *env, jobject unsafe, jarray array)) {
@@ -424,7 +424,7 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is abstract");
   }
   LayoutKind lk = static_cast<LayoutKind>(layoutKind);
-  if (lk <= LayoutKind::REFERENCE || lk >= LayoutKind::UNKNOWN) {
+  if (lk <= LayoutKind::REFERENCE || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT || lk >= LayoutKind::UNKNOWN) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Invalid layout kind");
   }
   InlineKlass* vk = InlineKlass::cast(klass);
@@ -465,7 +465,7 @@ UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj,
   assert_and_log_unsafe_value_access(base, offset, vk);
   LayoutKind lk = (LayoutKind)layoutKind;
   oop v = JNIHandles::resolve(value);
-  vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, lk, true, CHECK);
+  vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, lk, CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
@@ -473,7 +473,7 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   assert(v->is_inline_type(), "must be an inline type instance");
   Handle vh(THREAD, v);
   InlineKlass* vk = InlineKlass::cast(v->klass());
-  instanceOop new_value = vk->allocate_instance_buffer(CHECK_NULL);
+  instanceOop new_value = vk->allocate_instance(CHECK_NULL);
   vk->copy_payload_to_addr(vk->payload_addr(vh()), vk->payload_addr(new_value), LayoutKind::BUFFERED, false);
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());

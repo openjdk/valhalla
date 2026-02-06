@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import compiler.lib.ir_framework.Test;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -56,19 +55,21 @@ value class Point {
 
 @LooselyConsistentValue
 value class Rectangle {
-    @Strict
     @NullRestricted
     Point p0 = new Point();
-    @Strict
     @NullRestricted
     Point p1 = new Point();
 }
 
 class NamedRectangle {
-    @Strict
     @NullRestricted
-    Rectangle rect = new Rectangle();
+    Rectangle rect;
     String name = "";
+
+    NamedRectangle() {
+        rect = new Rectangle();
+        super();
+    }
 
     static int getP1X(NamedRectangle nr) {
         return nr.rect
@@ -217,17 +218,14 @@ public class TestGetfieldChains {
     @LooselyConsistentValue
     static value class EmptyContainer1 {
         int i = 0;
-        @Strict
         @NullRestricted
         EmptyType1 et = new EmptyType1();
     }
 
     @LooselyConsistentValue
     static value class Container1 {
-        @Strict
         @NullRestricted
         EmptyContainer1 container0 = new EmptyContainer1();
-        @Strict
         @NullRestricted
         EmptyContainer1 container1 = new EmptyContainer1();
     }
@@ -259,6 +257,10 @@ public class TestGetfieldChains {
     // Same as test6/test7 but not null-free and EmptyContainer2 with only one field
 
     static value class EmptyType2 { }
+
+    // TODO 8376254: C1 bailouts if the type of the nullable flat field is uninitialized
+    static final EmptyType2 LOAD_EMPTY_TYPE_2 = new EmptyType2();
+    static final EmptyContainer2 LOAD_EMPTY_CONTAINER_2 = new EmptyContainer2();
 
     static value class EmptyContainer2 {
         EmptyType2 et = null;

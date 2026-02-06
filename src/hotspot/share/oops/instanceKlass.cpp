@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -333,12 +333,11 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
       ss.print("Nest host resolution of %s with host %s failed: ",
                this->external_name(), target_host_class);
       java_lang_Throwable::print(PENDING_EXCEPTION, &ss);
-      const char* msg = ss.as_string(true /* on C-heap */);
       constantPoolHandle cph(THREAD, constants());
-      SystemDictionary::add_nest_host_error(cph, _nest_host_index, msg);
+      SystemDictionary::add_nest_host_error(cph, _nest_host_index, ss);
       CLEAR_PENDING_EXCEPTION;
 
-      log_trace(class, nestmates)("%s", msg);
+      log_trace(class, nestmates)("%s", ss.base());
     } else {
       // A valid nest-host is an instance class in the current package that lists this
       // class as a nest member. If any of these conditions are not met the class is
@@ -377,10 +376,9 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
                  k->external_name(),
                  k->class_loader_data()->loader_name_and_id(),
                  error);
-        const char* msg = ss.as_string(true /* on C-heap */);
         constantPoolHandle cph(THREAD, constants());
-        SystemDictionary::add_nest_host_error(cph, _nest_host_index, msg);
-        log_trace(class, nestmates)("%s", msg);
+        SystemDictionary::add_nest_host_error(cph, _nest_host_index, ss);
+        log_trace(class, nestmates)("%s", ss.base());
       }
     }
   } else {
@@ -597,20 +595,32 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
-  _adr_inlineklass_fixed_block(nullptr)
+  _acmp_maps_array(nullptr),
+  _adr_inline_klass_members(nullptr)
 {
   set_vtable_length(parser.vtable_size());
   set_access_flags(parser.access_flags());
   if (parser.is_hidden()) set_is_hidden();
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-  if (parser.has_inline_fields()) {
-    set_has_inline_type_fields();
+  if (parser.has_inlined_fields()) {
+    set_has_inlined_fields();
   }
 
   assert(nullptr == _methods, "underlying memory not zeroed?");
   assert(is_instance_klass(), "is layout incorrect?");
   assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
+}
+
+void InstanceKlass::set_is_cloneable() {
+  if (name() == vmSymbols::java_lang_invoke_MemberName()) {
+    assert(is_final(), "no subclasses allowed");
+    // MemberName cloning should not be intrinsified and always happen in JVM_Clone.
+  } else if (reference_type() != REF_NONE) {
+    // Reference cloning should not be intrinsified and always happen in JVM_Clone.
+  } else {
+    set_is_cloneable_fast();
+  }
 }
 
 void InstanceKlass::deallocate_methods(ClassLoaderData* loader_data,
@@ -797,6 +807,11 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_loadable_descriptors(nullptr);
 
+  if (acmp_maps_array() != nullptr) {
+    MetadataFactory::free_array<int>(loader_data, acmp_maps_array());
+  }
+  set_acmp_maps_array(nullptr);
+
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->in_aot_cache()) {
     MetadataFactory::free_metadata(loader_data, annotations());
@@ -837,6 +852,28 @@ bool InstanceKlass::is_enum_subclass() const {
 
 bool InstanceKlass::should_be_initialized() const {
   return !is_initialized();
+}
+
+// Static size helper
+int InstanceKlass::size(int vtable_length,
+                        int itable_length,
+                        int nonstatic_oop_map_size,
+                        bool is_interface,
+                        bool is_inline_type) {
+  return align_metadata_size(header_size() +
+         vtable_length +
+         itable_length +
+         nonstatic_oop_map_size +
+         (is_interface ? (int)sizeof(Klass*) / wordSize : 0) +
+         (is_inline_type ? (int)sizeof(InlineKlass::Members) / wordSize : 0));
+}
+
+int InstanceKlass::size() const {
+  return size(vtable_length(),
+              itable_length(),
+              nonstatic_oop_map_size(),
+              is_interface(),
+              is_inline_klass());
 }
 
 klassItable InstanceKlass::itable() const {
@@ -1099,7 +1136,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     interk->link_class_impl(CHECK_false);
   }
 
-  if (EnableValhalla) {
+  if (Arguments::is_valhalla_enabled()) {
     // Aggressively preloading all classes from the LoadableDescriptors attribute
     // so inline classes can be scalarized in the calling conventions computed below
     load_classes_from_loadable_descriptors_attribute(this, THREAD);
@@ -1432,7 +1469,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
-      if (vk->has_nullable_atomic_layout()) {
+      if (vk->supports_nullable_layouts()) {
         oop val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);
@@ -2171,7 +2208,7 @@ void InstanceKlass::methods_do(void f(Method* method)) {
 
 
 void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
       cl->do_field(&fd);
@@ -2181,7 +2218,7 @@ void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
 
 
 void InstanceKlass::do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle mirror, TRAPS) {
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
       f(&fd, mirror, CHECK);
@@ -2928,6 +2965,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
   it->push(&_loadable_descriptors);
+  it->push(&_acmp_maps_array, MetaspaceClosure::_writable);
   it->push(&_record_components);
   it->push(&_inline_layout_info_array, MetaspaceClosure::_writable);
 }
@@ -3100,6 +3138,18 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 
   // restore constant pool resolved references
   constants()->restore_unshareable_info(CHECK);
+
+  // Restore acmp_maps java array from the version stored in metadata.
+  // if it cannot be found in the archive
+  if (Arguments::is_valhalla_enabled() && has_acmp_maps_offset() && java_mirror()->obj_field(_acmp_maps_offset) == nullptr) {
+    int acmp_maps_size = _acmp_maps_array->length();
+    typeArrayOop map = oopFactory::new_intArray(acmp_maps_size, CHECK);
+    typeArrayHandle map_h(THREAD, map);
+    for (int i = 0; i < acmp_maps_size; i++) {
+      map_h->int_at_put(i, _acmp_maps_array->at(i));
+    }
+    java_mirror()->obj_field_put(_acmp_maps_offset, map_h());
+  }
 
   if (array_klasses() != nullptr) {
     // To get a consistent list of classes we need MultiArray_lock to ensure

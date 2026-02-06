@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,9 +117,6 @@
 #if INCLUDE_MANAGEMENT
 #include "services/finalizerService.hpp"
 #endif
-#ifdef LINUX
-#include "osContainer_linux.hpp"
-#endif
 
 #include <errno.h>
 
@@ -231,6 +228,19 @@ extern void trace_class_resolution(Klass* to_class) {
 
 // java.lang.System //////////////////////////////////////////////////////////////////////
 
+JVM_ENTRY(jboolean, JVM_AOTEndRecording(JNIEnv *env))
+#if INCLUDE_CDS
+  if (CDSConfig::is_dumping_preimage_static_archive()) {
+    if (!AOTMetaspace::preimage_static_archive_dumped()) {
+      AOTMetaspace::dump_static_archive(THREAD);
+      return JNI_TRUE;
+    }
+  }
+  return JNI_FALSE;
+#else
+  return JNI_FALSE;
+#endif // INCLUDE_CDS
+JVM_END
 
 JVM_LEAF(jlong, JVM_CurrentTimeMillis(JNIEnv *env, jclass ignored))
   return os::javaTimeMillis();
@@ -622,11 +632,9 @@ JVM_LEAF(jboolean, JVM_IsUseContainerSupport(void))
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsContainerized(void))
-#ifdef LINUX
-  if (OSContainer::is_containerized()) {
+  if (os::is_containerized()) {
     return JNI_TRUE;
   }
-#endif
   return JNI_FALSE;
 JVM_END
 
@@ -761,22 +769,39 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     return 0;
   }
   oop obj = JNIHandles::resolve_non_null(handle);
-  if (EnableValhalla && obj->klass()->is_inline_klass()) {
-      JavaValue result(T_INT);
-      JavaCallArguments args;
-      Handle ho(THREAD, obj);
-      args.push_oop(ho);
-      methodHandle method(THREAD, UseAltSubstitutabilityMethod
-              ? Universe::value_object_hash_codeAlt_method() : Universe::value_object_hash_code_method());
-      JavaCalls::call(&result, method, &args, THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-        if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
-        }
+  if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
+    // Check if mark word contains hash code already
+    intptr_t hash = obj->mark().hash();
+    if (hash != markWord::no_hash) {
+      return checked_cast<jint>(hash);
+    }
+
+    // Compute hash by calling ValueObjectMethods.valueObjectHashCode
+    JavaValue result(T_INT);
+    JavaCallArguments args;
+    Handle ho(THREAD, obj);
+    args.push_oop(ho);
+    methodHandle method(THREAD, UseAltSubstitutabilityMethod
+            ? Universe::value_object_hash_codeAlt_method() : Universe::value_object_hash_code_method());
+    JavaCalls::call(&result, method, &args, THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
+        Handle e(THREAD, PENDING_EXCEPTION);
+        CLEAR_PENDING_EXCEPTION;
+        THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
       }
-      return result.get_jint();
+    }
+    hash = result.get_jint();
+
+    // Store hash in the mark word
+    markWord old_mark, new_mark, test;
+    do {
+      old_mark = ho->mark();
+      new_mark = old_mark.copy_set_hash(hash);
+      test = ho->cas_set_mark(new_mark, old_mark);
+    } while (test != old_mark);
+
+    return checked_cast<jint>(new_mark.hash());
   } else {
     return checked_cast<jint>(ObjectSynchronizer::FastHashCode(THREAD, obj));
   }
@@ -1360,21 +1385,11 @@ JVM_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
   return k->is_hidden();
 JVM_END
 
-class ScopedValueBindingsResolver {
-public:
-  InstanceKlass* Carrier_klass;
-  ScopedValueBindingsResolver(JavaThread* THREAD) {
-    Klass *k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_ScopedValue_Carrier(), true, THREAD);
-    Carrier_klass = InstanceKlass::cast(k);
-  }
-};
 
 JVM_ENTRY(jobject, JVM_FindScopedValueBindings(JNIEnv *env, jclass cls))
   ResourceMark rm(THREAD);
   GrowableArray<Handle>* local_array = new GrowableArray<Handle>(12);
   JvmtiVMObjectAllocEventCollector oam;
-
-  static ScopedValueBindingsResolver resolver(THREAD);
 
   // Iterate through Java frames
   vframeStream vfst(thread);
@@ -1388,7 +1403,7 @@ JVM_ENTRY(jobject, JVM_FindScopedValueBindings(JNIEnv *env, jclass cls))
     InstanceKlass* holder = method->method_holder();
     if (name == vmSymbols::runWith_method_name()) {
       if (holder == vmClasses::Thread_klass()
-          || holder == resolver.Carrier_klass) {
+          || holder == vmClasses::ScopedValue_Carrier_klass()) {
         loc = 1;
       }
     }
@@ -3377,7 +3392,7 @@ JVM_LEAF(jboolean, JVM_IsPreviewEnabled(void))
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsValhallaEnabled(void))
-  return EnableValhalla ? JNI_TRUE : JNI_FALSE;
+  return Arguments::is_valhalla_enabled() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
 JVM_LEAF(jboolean, JVM_IsContinuationsSupported(void))

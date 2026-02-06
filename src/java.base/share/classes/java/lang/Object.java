@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  *      <div class="preview-comment">
  *          When preview features are enabled, subclasses of {@code java.lang.Object} can be either
  *          an {@linkplain Class#isIdentity identity class} or a {@linkplain Class#isValue value class}.
- *          See {@jls The Java Language Specification 8.1.1.5 Value Classes}.
+ *          See The Java Language Specification {@jls value-objects-8.1.1.5 Value Classes}.
  *          Use of value class instances for synchronization, mutexes, or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,12 @@
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueForceEarlyReturn -XX:+EnableValhalla ValueForceEarlyReturn
+ * @run main/othervm/native -agentlib:ValueForceEarlyReturn ValueForceEarlyReturn
  */
 
 import java.util.Objects;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 public class ValueForceEarlyReturn {
 
@@ -49,7 +48,6 @@ public class ValueForceEarlyReturn {
 
     private static value class ValueHolder {
         public ValueClass f1;
-        @Strict
         @NullRestricted
         public ValueClass f2;
 

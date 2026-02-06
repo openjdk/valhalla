@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -99,13 +98,17 @@ public class QuickeningTest {
     }
 
     static class Parent {
-    Point nfp;       /* Not flattenable inline field */
-    @Strict
-    @NullRestricted
-    Point fp = new Point(1, 2);         /* Flattenable and flattened inline field */
-    @Strict
-    @NullRestricted
-    JumboInline fj = new JumboInline(3L, 4L);    /* Flattenable not flattened inline field */
+        Point nfp;       /* Not flattenable inline field */
+        @NullRestricted
+        Point fp;         /* Flattenable and flattened inline field */
+        @NullRestricted
+        JumboInline fj;    /* Flattenable not flattened inline field */
+
+        Parent() {
+            fp = new Point(1, 2);
+            fj = new JumboInline(3L, 4L);
+            super();
+        }
 
         public void setNfp(Point p) { nfp = p; }
         public void setFp(Point p) { fp = p; }
@@ -115,12 +118,16 @@ public class QuickeningTest {
     static class Child extends Parent {
         // This class inherited fields from the Parent class
         Point nfp2;      /* Not flattenable inline field */
-        @Strict
         @NullRestricted
-        Point fp2 = new Point(5, 6);        /* Flattenable and flattened inline field */
-        @Strict
+        Point fp2;        /* Flattenable and flattened inline field */
         @NullRestricted
-        JumboInline fj2 = new JumboInline(7L, 8L);   /* Flattenable not flattened inline field */
+        JumboInline fj2;   /* Flattenable not flattened inline field */
+
+        Child() {
+            fp2 = new Point(5, 6);
+            fj2 = new JumboInline(7L, 8L);
+            super();
+        }
 
         public void setNfp2(Point p) { nfp2 = p; }
         public void setFp2(Point p)  { fp2 = p; }
@@ -130,10 +137,8 @@ public class QuickeningTest {
     @LooselyConsistentValue
     static value class Value {
         final Point nfp;       /* Not flattenable inline field */
-        @Strict
         @NullRestricted
         final Point fp;         /* Flattenable and flattened inline field */
-        @Strict
         @NullRestricted
         final JumboInline fj;    /* Flattenable not flattened inline field */
 

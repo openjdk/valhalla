@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1194,7 +1194,7 @@ public class Attr extends JCTree.Visitor {
                     if (!TreeInfo.hasAnyConstructorCall(tree)) {
                         JCStatement supCall = make.at(tree.body.pos).Exec(make.Apply(List.nil(),
                                 make.Ident(names._super), make.Idents(List.nil())));
-                        if (allowValueClasses && (owner.isValueClass() || owner.hasStrict() || ((owner.flags_field & RECORD) != 0))) {
+                        if (allowValueClasses && (owner.isValueClass() || ((owner.flags_field & RECORD) != 0))) {
                             tree.body.stats = tree.body.stats.append(supCall);
                         } else {
                             tree.body.stats = tree.body.stats.prepend(supCall);
@@ -1415,7 +1415,7 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
-        boolean isInstanceField(JCTree tree) {
+        private boolean isInstanceField(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
             return (sym != null &&
                     !sym.isStatic() &&
@@ -1545,7 +1545,7 @@ public class Attr extends JCTree.Visitor {
                             } else {
                                 if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
                                     reportPrologueError(tree, sym);
-                                } else if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR) {
+                                } else if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR && isInstanceField(tree)) {
                                     localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
                                 }
                                 /* we do nothing in warnings only mode, as in that mode we are simulating what
@@ -6024,12 +6024,16 @@ public class Attr extends JCTree.Visitor {
                 chk.validateRepeatable(c, repeatable, cbPos);
             }
         } else {
-            // Check that all extended classes and interfaces
-            // are compatible (i.e. no two define methods with same arguments
-            // yet different return types).  (JLS 8.4.8.3)
-            chk.checkCompatibleSupertypes(tree.pos(), c.type);
-            chk.checkDefaultMethodClashes(tree.pos(), c.type);
-            chk.checkPotentiallyAmbiguousOverloads(tree, c.type);
+            try {
+                // Check that all extended classes and interfaces
+                // are compatible (i.e. no two define methods with same arguments
+                // yet different return types).  (JLS 8.4.8.3)
+                chk.checkCompatibleSupertypes(tree.pos(), c.type);
+                chk.checkDefaultMethodClashes(tree.pos(), c.type);
+                chk.checkPotentiallyAmbiguousOverloads(tree, c.type);
+            } catch (CompletionFailure cf) {
+                chk.completionError(tree.pos(), cf);
+            }
         }
 
         // Check that class does not import the same parameterized interface

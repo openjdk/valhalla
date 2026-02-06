@@ -37,7 +37,7 @@ class Creflbefore_BAD {
     }
 }
 */
-identity class Creflbefore_BAD version 70:65535
+identity class Creflbefore_BAD version 71:65535
 {
   @-jdk/internal/vm/annotation/Strict { }
   strict static Field F1__STRICT:"Ljava/lang/String;";

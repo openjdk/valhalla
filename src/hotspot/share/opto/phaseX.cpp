@@ -762,26 +762,36 @@ bool PhaseGVN::is_dominator_helper(Node *d, Node *n, bool linear_only) {
 //------------------------------dead_loop_check--------------------------------
 // Check for a simple dead loop when a data node references itself directly
 // or through an other data node excluding cons and phis.
-void PhaseGVN::dead_loop_check( Node *n ) {
-  // Phi may reference itself in a loop
-  if (n != nullptr && !n->is_dead_loop_safe() && !n->is_CFG()) {
-    // Do 2 levels check and only data inputs.
-    bool no_dead_loop = true;
-    uint cnt = n->req();
-    for (uint i = 1; i < cnt && no_dead_loop; i++) {
-      Node *in = n->in(i);
-      if (in == n) {
-        no_dead_loop = false;
-      } else if (in != nullptr && !in->is_dead_loop_safe()) {
-        uint icnt = in->req();
-        for (uint j = 1; j < icnt && no_dead_loop; j++) {
-          if (in->in(j) == n || in->in(j) == in)
-            no_dead_loop = false;
-        }
+void PhaseGVN::dead_loop_check(Node* n) {
+  // Phi may reference itself in a loop.
+  if (n == nullptr || n->is_dead_loop_safe() || n->is_CFG()) {
+    return;
+  }
+
+  // Do 2 levels check and only data inputs.
+  for (uint i = 1; i < n->req(); i++) {
+    Node* in = n->in(i);
+    if (in == n) {
+      n->dump_bfs(100, nullptr, "");
+      fatal("Dead loop detected, node references itself: %s (%d)",
+            n->Name(), n->_idx);
+    }
+
+    if (in == nullptr || in->is_dead_loop_safe()) {
+      continue;
+    }
+    for (uint j = 1; j < in->req(); j++) {
+      if (in->in(j) == n) {
+        n->dump_bfs(100, nullptr, "");
+        fatal("Dead loop detected, node input references current node: %s (%d) -> %s (%d)",
+              in->Name(), in->_idx, n->Name(), n->_idx);
+      }
+      if (in->in(j) == in) {
+        n->dump_bfs(100, nullptr, "");
+        fatal("Dead loop detected, node input references itself: %s (%d)",
+              in->Name(), in->_idx);
       }
     }
-    if (!no_dead_loop) { n->dump_bfs(100, nullptr, ""); }
-    assert(no_dead_loop, "dead loop detected");
   }
 }
 
@@ -1029,7 +1039,7 @@ void PhaseIterGVN::optimize() {
   // max_live_nodes_increase_per_iteration in between checks. If this
   // assumption does not hold, there is a risk that we exceed the max node
   // limit in between checks and trigger an assert during node creation.
-  const int max_live_nodes_increase_per_iteration = NodeLimitFudgeFactor * 3;
+  const int max_live_nodes_increase_per_iteration = NodeLimitFudgeFactor * 5;
 
   uint loop_count = 0;
   // Pull from worklist and transform the node. If the node has changed,
@@ -1076,7 +1086,8 @@ void PhaseIterGVN::verify_optimize() {
 
   if (is_verify_Value() ||
       is_verify_Ideal() ||
-      is_verify_Identity()) {
+      is_verify_Identity() ||
+      is_verify_invariants()) {
     ResourceMark rm;
     Unique_Node_List worklist;
     bool failure = false;
@@ -1088,6 +1099,7 @@ void PhaseIterGVN::verify_optimize() {
       if (is_verify_Ideal())    { failure |= verify_Ideal_for(n, false); }
       if (is_verify_Ideal())    { failure |= verify_Ideal_for(n, true); }
       if (is_verify_Identity()) { failure |= verify_Identity_for(n); }
+      if (is_verify_invariants()) { failure |= verify_node_invariants_for(n); }
       // traverse all inputs and outputs
       for (uint i = 0; i < n->req(); i++) {
         if (n->in(i) != nullptr) {
@@ -1102,7 +1114,7 @@ void PhaseIterGVN::verify_optimize() {
     // We should either make sure that these nodes are properly added back to the IGVN worklist
     // in PhaseIterGVN::add_users_to_worklist to update them again or add an exception
     // in the verification code above if that is not possible for some reason (like Load nodes).
-    assert(!failure, "Missed optimization opportunity in PhaseIterGVN");
+    assert(!failure, "Missed optimization opportunity/broken graph in PhaseIterGVN");
   }
 
   verify_empty_worklist(nullptr);
@@ -2058,6 +2070,21 @@ bool PhaseIterGVN::verify_Identity_for(Node* n) {
   tty->print_cr("%s", ss.as_string());
   return true;
 }
+
+// Some other verifications that are not specific to a particular transformation.
+bool PhaseIterGVN::verify_node_invariants_for(const Node* n) {
+  if (n->is_AddP()) {
+    if (!n->as_AddP()->address_input_has_same_base()) {
+      stringStream ss; // Print as a block without tty lock.
+      ss.cr();
+      ss.print_cr("Base pointers must match for AddP chain:");
+      n->dump_bfs(2, nullptr, "", &ss);
+      tty->print_cr("%s", ss.as_string());
+      return true;
+    }
+  }
+  return false;
+}
 #endif
 
 /**
@@ -2638,6 +2665,15 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
       }
     }
   }
+  // Check for Max/Min(A, Max/Min(B, C)) where A == B or A == C
+  if (use->is_MinMax()) {
+    for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
+      Node* u = use->fast_out(i2);
+      if (u->Opcode() == use->Opcode()) {
+        worklist.push(u);
+      }
+    }
+  }
   auto enqueue_init_mem_projs = [&](ProjNode* proj) {
     add_users_to_worklist0(proj, worklist);
   };
@@ -2671,8 +2707,18 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
   if (use_op == Op_CastP2X) {
     for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
       Node* u = use->fast_out(i2);
+      // TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
       if (u->Opcode() == Op_AndX) {
         worklist.push(u);
+      }
+      // Search for CmpL(OrL(CastP2X(..), CastP2X(..)), 0L)
+      if (u->Opcode() == Op_OrL) {
+        for (DUIterator_Fast i3max, i3 = u->fast_outs(i3max); i3 < i3max; i3++) {
+          Node* cmp = u->fast_out(i3);
+          if (cmp->Opcode() == Op_CmpL) {
+            worklist.push(cmp);
+          }
+        }
       }
     }
   }
@@ -3102,6 +3148,7 @@ void PhaseCCP::push_counted_loop_phi(Unique_Node_List& worklist, Node* parent, c
   }
 }
 
+// TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
 void PhaseCCP::push_cast(Unique_Node_List& worklist, const Node* use) {
   uint use_op = use->Opcode();
   if (use_op == Op_CastP2X) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
+import jdk.test.whitebox.WhiteBox;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
@@ -138,10 +138,14 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 @ForceCompileClassInitializer
 public class TestBasicFunctionality {
 
+    public TestBasicFunctionality() {
+        val3 = MyValue1.createWithFieldsInline(rI, rL);
+        super();
+    }
+
     public static void main(String[] args) {
         InlineTypes.getFramework()
                    .addScenarios(InlineTypes.DEFAULT_SCENARIOS[Integer.parseInt(args[0])])
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -379,7 +383,8 @@ static MyValue1 tmp = null;
     // Test loop with uncommon trap referencing a value object
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {SCOPE_OBJECT, ">= 1", LOAD_OF_ANY_KLASS, "<= 12"}) // TODO 8227588 (loads should be removed)
+        failOn = LOAD_OF_ANY_KLASS,
+        counts = {SCOPE_OBJECT, ">= 1"})
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 10, MyValue1.DEFAULT);
@@ -404,6 +409,10 @@ static MyValue1 tmp = null;
 
     @Run(test = "test12")
     public void test12_verifier(RunInfo info) {
+        // Disable OSR compilation prevents the method from getting recompiled because the IR rules
+        // expect all loads moved into the uncommon trap, which is not the case when the method get
+        // recompiled and the path that was unreached before is now compiled
+        WhiteBox.getWhiteBox().makeMethodNotCompilable(info.getTest(), CompLevel.C2.getValue(), true);
         long result = test12(info.isWarmUp());
         Asserts.assertEQ(result, info.isWarmUp() ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
@@ -589,13 +598,10 @@ static MyValue1 tmp = null;
     // Value class fields in regular object
     MyValue1 val1;
     MyValue2 val2;
-    @Strict
     @NullRestricted
-    final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
-    @Strict
+    final MyValue1 val3;
     @NullRestricted
     static MyValue1 val4 = MyValue1.DEFAULT;
-    @Strict
     @NullRestricted
     static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -643,7 +649,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(result, val5.hash() + val5.v3.hash());
     }
 
-    // Test aconst_init
+    // Test value class initialization
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test23() {
@@ -657,7 +663,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(result, MyValue2.createDefaultInline().hash());
     }
 
-    // Test aconst_init
+    // Test value class initialization
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test24() {
@@ -702,9 +708,13 @@ static MyValue1 tmp = null;
     }
 
     class TestClass27 {
-        @Strict
         @NullRestricted
-        public MyValue1 v = MyValue1.DEFAULT;
+        public MyValue1 v;
+
+        TestClass27() {
+            v = MyValue1.DEFAULT;
+            super();
+        }
     }
 
     // Test allocation elimination of unused object with initialized value class field
@@ -725,10 +735,8 @@ static MyValue1 tmp = null;
         test27(!info.isWarmUp(), info.getTest());
     }
 
-    @Strict
     @NullRestricted
     static MyValue3 staticVal3 = MyValue3.DEFAULT;
-    @Strict
     @NullRestricted
     static MyValue3 staticVal3_copy = MyValue3.DEFAULT;
 
@@ -982,7 +990,6 @@ static MyValue1 tmp = null;
     value class Test37Value1 {
         double d = 0;
         float f = 0;
-        @Strict
         @NullRestricted
         Test37Value2 v = new Test37Value2();
     }
@@ -1005,7 +1012,6 @@ static MyValue1 tmp = null;
         public Test38Value(int i) { this.i = i; }
     }
 
-    @Strict
     @NullRestricted
     static Test38Value test38Field = new Test38Value(0);
 
@@ -1039,7 +1045,6 @@ static MyValue1 tmp = null;
 
     static int test39A1[][] = new int[400][400];
     static double test39A2[] = new double[400];
-    @Strict
     @NullRestricted
     static Test39Value test39Val = new Test39Value(0, 0);
 
@@ -1219,7 +1224,6 @@ static MyValue1 tmp = null;
 
     static value class MyValue45ValueHolder {
         @NullRestricted
-        @Strict
         MyValue45 v;
 
         MyValue45ValueHolder(Integer v) {
@@ -1229,11 +1233,11 @@ static MyValue1 tmp = null;
 
     static class MyValue45Holder {
         @NullRestricted
-        @Strict
         MyValue45 v;
 
         MyValue45Holder(Integer v) {
             this.v = new MyValue45(v);
+            super();
         }
     }
 
@@ -1280,7 +1284,6 @@ static MyValue1 tmp = null;
 
     static value class MyValue47Holder {
         @NullRestricted
-        @Strict
         MyValue47 v;
 
         MyValue47Holder(int v) {
@@ -1292,11 +1295,11 @@ static MyValue1 tmp = null;
 
     static class MyValue47HolderHolder {
         @NullRestricted
-        @Strict
         MyValue47Holder v;
 
         MyValue47HolderHolder(MyValue47Holder v) {
             this.v = v;
+            super();
         }
     }
 

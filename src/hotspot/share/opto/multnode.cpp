@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,7 +152,10 @@ const TypePtr *ProjNode::adr_type() const {
       // Jumping over Tuples: the i-th projection of a Tuple is the i-th input of the Tuple.
       ctrl = ctrl->in(_con);
     }
-    if (ctrl == nullptr)  return nullptr; // node is dead
+    // node is dead or we are in the process of removing a dead subgraph
+    if (ctrl == nullptr || ctrl->is_top()) {
+      return nullptr;
+    }
     const TypePtr* adr_type = ctrl->adr_type();
     #ifdef ASSERT
     if (!VMError::is_error_reported() && !Node::in_dump())
@@ -260,12 +263,7 @@ CallStaticJavaNode* ProjNode::is_uncommon_trap_if_pattern(Deoptimization::DeoptR
     // Not a projection of an If or variation of a dead If node.
     return nullptr;
   }
-  return other_if_proj()->is_uncommon_trap_proj(reason);
-}
-
-ProjNode* ProjNode::other_if_proj() const {
-  assert(_con == 0 || _con == 1, "not an if?");
-  return in(0)->as_If()->proj_out(1-_con);
+  return as_IfProj()->other_if_proj()->is_uncommon_trap_proj(reason);
 }
 
 NarrowMemProjNode::NarrowMemProjNode(InitializeNode* src, const TypePtr* adr_type)

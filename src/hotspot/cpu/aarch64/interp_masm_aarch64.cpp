@@ -222,48 +222,8 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-void InterpreterMacroAssembler::read_flat_field(Register entry,
-                                                Register field_index, Register field_offset,
-                                                Register temp, Register obj) {
-  Label failed_alloc, slow_path, done;
-  const Register src = field_offset;
-  const Register alloc_temp = r10;
-  const Register dst_temp   = field_index;
-  const Register layout_info = temp;
-  assert_different_registers(obj, entry, field_index, field_offset, temp, alloc_temp, rscratch1);
-
-  load_unsigned_byte(temp, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())));
-  // If the field is nullable, jump to slow path
-  tbz(temp, ResolvedFieldEntry::is_null_free_inline_type_shift, slow_path);
-
-  // Grab the inline field klass
-  ldr(rscratch1, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-  inline_layout_info(rscratch1, field_index, layout_info);
-
-  const Register field_klass = dst_temp;
-  ldr(field_klass, Address(layout_info, in_bytes(InlineLayoutInfo::klass_offset())));
-
-  // allocate buffer
-  push(obj); // save holder
-  allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, failed_alloc);
-
-  // Have an oop instance buffer, copy into it
-  payload_address(obj, dst_temp, field_klass);  // danger, uses rscratch1
-  pop(alloc_temp);             // restore holder
-  lea(src, Address(alloc_temp, field_offset));
-  // call_VM_leaf, clobbers a few regs, save restore new obj
-  push(obj);
-  flat_field_copy(IS_DEST_UNINITIALIZED, src, dst_temp, layout_info);
-  pop(obj);
-  b(done);
-
-  bind(failed_alloc);
-  pop(obj);
-  bind(slow_path);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
-          obj, entry);
-
-  bind(done);
+void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field), obj, entry);
   membar(Assembler::StoreStore);
 }
 
@@ -771,7 +731,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
 
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
-    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
     ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
     // Unpack handler can be null if inline type is not scalarizable in returns
     cbz(rscratch1, skip);
