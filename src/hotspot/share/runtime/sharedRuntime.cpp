@@ -3004,11 +3004,11 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     // Upper bound on stack arguments to avoid hitting the argument limit and
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
-    if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 300) {
+    if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 75) {
       return; // Success
     }
-    tty->print_cr("XXX %d", MAX2(_args_on_stack_cc, _args_on_stack_cc_ro));
-    ShouldNotReachHere();
+    // tty->print_cr("XXX %d", MAX2(_args_on_stack_cc, _args_on_stack_cc_ro));
+    // ShouldNotReachHere();
   }
 
   // No scalarized args
