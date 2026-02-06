@@ -401,6 +401,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
           if (entry._null_marker) {
             tty->print(" (null marker)");
           }
+          if (entry._vt_oop) {
+            tty->print(" (VT OOP)");
+          }
           tty->print_cr("");
         }
       }
