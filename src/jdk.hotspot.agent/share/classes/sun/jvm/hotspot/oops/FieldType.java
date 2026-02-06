@@ -50,7 +50,7 @@ public class FieldType {
        case '[':
            break;   // Ok. signature char known
        default:
-         this.first = '\0'; // It's a value type.
+         Assert.that(false, "Unknown char in field signature \"" + signature.asString() + "\": " + this.first);
        }
     }
   }
