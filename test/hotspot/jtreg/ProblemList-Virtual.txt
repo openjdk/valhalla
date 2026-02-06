@@ -76,5 +76,3 @@ vmTestbase/nsk/jdi/VMOutOfMemoryException/VMOutOfMemoryException001/VMOutOfMemor
 # Fails because resume of a virtual thread is not enough to allow the virtual thread
 # to make progress when all other threads are currently suspended.
 vmTestbase/nsk/jdi/ThreadReference/isSuspended/issuspended002/TestDescription.java 8338713 generic-all
-
-compiler/ciReplay/TestInliningProtectionDomain.java 8374954 generic-all

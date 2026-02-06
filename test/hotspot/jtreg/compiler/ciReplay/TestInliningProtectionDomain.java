@@ -92,9 +92,9 @@ class ProtectionDomainTestCompiledBefore {
         bar();
     }
 
-    // Thread should be resolved for the protection domain of this class because the separate compilation of bar() in
+    // Record should be resolved for the protection domain of this class because the separate compilation of bar() in
     // the normal run will resolve all classes in the signature. Inlining succeeds.
-    private static Thread bar() {
+    private static Record bar() {
         InliningFoo.foo();
         return null;
     }
@@ -111,10 +111,10 @@ class ProtectionDomainTestNoOtherCompilationPublic {
         bar(); // Not compiled before separately
     }
 
-    // Thread should be resolved for the protection domain of this class because getDeclaredMethods is called in normal run
+    // Record should be resolved for the protection domain of this class because getDeclaredMethods is called in normal run
     // when validating main() method. In this process, all public methods of this class are visited and its signature classes
     // are resolved. Inlining of bar() succeeds.
-    public static Thread bar() {
+    public static Record bar() {
         InliningFoo.foo();
         return null;
     }
@@ -131,12 +131,12 @@ class ProtectionDomainTestNoOtherCompilationPrivate {
         bar(); // Not compiled before separately
     }
 
-    // Thread should be unresolved for the protection domain of this class even though getDeclaredMethods is called in normal
+    // Record should be unresolved for the protection domain of this class even though getDeclaredMethods is called in normal
     // run when validating main() method. In this process, only public methods of this class are visited and its signature
     // classes are resolved. Since this method is private, the signature classes are not resolved for this protection domain.
     // Inlining of bar() should fail in normal run with "unresolved signature classes". Therefore, replay compilation should
     // also not inline bar().
-    private static Thread bar() {
+    private static Record bar() {
         InliningFoo.foo();
         return null;
     }
