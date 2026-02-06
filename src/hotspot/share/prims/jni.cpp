@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2024 Red Hat, Inc.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -1807,6 +1807,18 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
   return ret;
 JNI_END
 
+static void log_debug_if_read_strict_instance_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
+  if (log_is_enabled(Debug, jni)) {
+    fieldDescriptor fd;
+    bool found = ik->find_field_from_offset(offset, false, &fd);
+    assert(found, "bad field offset");
+    assert(!fd.is_static(), "static/instance mismatch");
+    if (fd.is_strict()) {
+      ResourceMark rm(current);
+      log_debug(jni)("%s read strict instance field %s.%s (initialization not guaranteed)", func_name, ik->external_name(), fd.name()->as_C_string());
+    }
+  }
+}
 
 JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID))
   HOTSPOT_JNI_GETOBJECTFIELD_ENTRY(env, obj, (uintptr_t) fieldID);
@@ -1835,6 +1847,7 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
+  log_debug_if_read_strict_instance_field(THREAD, "GetObjectField", InstanceKlass::cast(k), offset);
   return ret;
 JNI_END
 
@@ -1858,6 +1871,7 @@ JNI_ENTRY_NO_PRESERVE(Return, jni_Get##Result##Field(JNIEnv *env, jobject obj, j
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false); \
   } \
   ret = o->Fieldname##_field(offset); \
+  log_debug_if_read_strict_instance_field(THREAD, "Get<Type>Field", InstanceKlass::cast(k), offset); \
   return ret; \
 JNI_END
 
@@ -1912,20 +1926,7 @@ address jni_GetDoubleField_addr() {
   return (address)jni_GetDoubleField;
 }
 
-static void log_debug_if_final_static_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
-  if (log_is_enabled(Debug, jni)) {
-    fieldDescriptor fd;
-    bool found = ik->find_field_from_offset(offset, true, &fd);
-    assert(found, "bad field offset");
-    assert(fd.is_static(), "static/instance mismatch");
-    if (fd.is_final() && !fd.is_mutable_static_final()) {
-      ResourceMark rm(current);
-      log_debug(jni)("%s mutated final static field %s.%s", func_name, ik->external_name(), fd.name()->as_C_string());
-    }
-  }
-}
-
-static void log_debug_if_final_instance_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
+static void log_debug_if_write_final_instance_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
   if (log_is_enabled(Debug, jni)) {
     fieldDescriptor fd;
     bool found = ik->find_field_from_offset(offset, false, &fd);
@@ -1971,7 +1972,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     oop v = JNIHandles::resolve(value);
     vklass->write_value_to_addr(v, ((char*)(oopDesc*)o) + offset, li->kind(), CHECK);
   }
-  log_debug_if_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
+  log_debug_if_write_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
 
@@ -1994,7 +1995,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_Set##Result##Field(JNIEnv *env, jobject obj, jfi
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, SigType, (jvalue *)&field_value); \
   } \
   o->Fieldname##_field_put(offset, value); \
-  log_debug_if_final_instance_field(thread, "Set<Type>Field", InstanceKlass::cast(k), offset); \
+  log_debug_if_write_final_instance_field(thread, "Set<Type>Field", InstanceKlass::cast(k), offset); \
   ReturnProbe; \
 JNI_END
 
@@ -2095,6 +2096,18 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
   return ret;
 JNI_END
 
+static void log_debug_if_read_strict_static_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
+  if (log_is_enabled(Debug, jni)) {
+    fieldDescriptor fd;
+    bool found = ik->find_field_from_offset(offset, true, &fd);
+    assert(found, "bad field offset");
+    assert(fd.is_static(), "static/instance mismatch");
+    if (fd.is_strict() && fd.is_strict_static_unset()) {
+      ResourceMark rm(current);
+      log_debug(jni)("%s read strict static field %s.%s before write", func_name, ik->external_name(), fd.name()->as_C_string());
+    }
+  }
+}
 
 JNI_ENTRY(jobject, jni_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID))
   HOTSPOT_JNI_GETSTATICOBJECTFIELD_ENTRY(env, clazz, (uintptr_t) fieldID);
@@ -2110,6 +2123,7 @@ JNI_ENTRY(jobject, jni_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID 
   }
   jobject ret = JNIHandles::make_local(THREAD, id->holder()->java_mirror()->obj_field(id->offset()));
   HOTSPOT_JNI_GETSTATICOBJECTFIELD_RETURN(ret);
+  log_debug_if_read_strict_static_field(THREAD, "GetStaticObjectField", id->holder(), id->offset());
   return ret;
 JNI_END
 
@@ -2133,6 +2147,7 @@ JNI_ENTRY(Return, jni_GetStatic##Result##Field(JNIEnv *env, jclass clazz, jfield
     JvmtiExport::jni_GetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true); \
   } \
   ret = id->holder()->java_mirror()-> Fieldname##_field (id->offset()); \
+  log_debug_if_read_strict_static_field(THREAD, "GetStatic<Type>Field", id->holder(), id->offset()); \
   return ret;\
 JNI_END
 
@@ -2154,6 +2169,24 @@ DEFINE_GETSTATICFIELD(jfloat,   float,  Float
 DEFINE_GETSTATICFIELD(jdouble,  double, Double
                       , HOTSPOT_JNI_GETSTATICDOUBLEFIELD_ENTRY(env, clazz, (uintptr_t) fieldID),  HOTSPOT_JNI_GETSTATICDOUBLEFIELD_RETURN()         )
 
+static void log_debug_if_write_final_static_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
+  if (log_is_enabled(Debug, jni)) {
+    fieldDescriptor fd;
+    bool found = ik->find_field_from_offset(offset, true, &fd);
+    assert(found, "bad field offset");
+    assert(fd.is_static(), "static/instance mismatch");
+    if (fd.is_final()) {
+      if (fd.is_strict() && !fd.is_strict_static_unread()) {
+        ResourceMark rm(current);
+        log_debug(jni)("%s mutated strict final static field %s.%s after read", func_name, ik->external_name(), fd.name()->as_C_string());
+      } else if(!fd.is_mutable_static_final()) {
+        ResourceMark rm(current);
+        log_debug(jni)("%s mutated final static field %s.%s", func_name, ik->external_name(), fd.name()->as_C_string());
+      }
+    }
+  }
+}
+
 JNI_ENTRY(void, jni_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID, jobject value))
  HOTSPOT_JNI_SETSTATICOBJECTFIELD_ENTRY(env, clazz, (uintptr_t) fieldID, value);
   JNIid* id = jfieldIDWorkaround::from_static_jfieldID(fieldID);
@@ -2166,7 +2199,7 @@ JNI_ENTRY(void, jni_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fie
     JvmtiExport::jni_SetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
   id->holder()->java_mirror()->obj_field_put(id->offset(), JNIHandles::resolve(value));
-  log_debug_if_final_static_field(THREAD, "SetStaticObjectField", id->holder(), id->offset());
+  log_debug_if_write_final_static_field(THREAD, "SetStaticObjectField", id->holder(), id->offset());
   HOTSPOT_JNI_SETSTATICOBJECTFIELD_RETURN();
 JNI_END
 
@@ -2188,7 +2221,7 @@ JNI_ENTRY(void, jni_SetStatic##Result##Field(JNIEnv *env, jclass clazz, jfieldID
     JvmtiExport::jni_SetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true, SigType, (jvalue *)&field_value); \
   } \
   id->holder()->java_mirror()-> Fieldname##_field_put (id->offset(), value); \
-  log_debug_if_final_static_field(THREAD, "SetStatic<Type>Field", id->holder(), id->offset()); \
+  log_debug_if_write_final_static_field(THREAD, "SetStatic<Type>Field", id->holder(), id->offset()); \
   ReturnProbe;\
 JNI_END
 

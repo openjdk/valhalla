@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,8 +75,9 @@ class fieldDescriptor {
   jdouble double_initial_value()  const;
   oop string_initial_value(TRAPS) const;
 
-  // Unset strict static
+  // Strict static status
   inline bool is_strict_static_unset()   const;
+  inline bool is_strict_static_unread()  const;
 
   // Field signature type
   inline BasicType field_type() const;

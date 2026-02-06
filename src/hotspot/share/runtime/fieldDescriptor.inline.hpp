@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,11 @@ inline int fieldDescriptor::initial_value_index()       const    { return field(
 inline bool fieldDescriptor::is_strict_static_unset() const {
   return (is_strict() && is_static() &&
           field_holder()->field_status(index()).is_strict_static_unset());
+}
+
+inline bool fieldDescriptor::is_strict_static_unread() const {
+  return (is_strict() && is_static() &&
+          field_holder()->field_status(index()).is_strict_static_unread());
 }
 
 inline void fieldDescriptor::set_is_field_access_watched(const bool value) {
