@@ -24,7 +24,6 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -61,7 +60,6 @@ public class TestScalarReplaceFlatFields {
     }
 
     static class Holder {
-        @Strict
         @NullRestricted
         V1 v1;
         V1 v2;
@@ -100,4 +98,7 @@ public class TestScalarReplaceFlatFields {
                 .addScenarios(InlineTypes.DEFAULT_SCENARIOS)
                 .start();
     }
+
+    // TODO 8376254: C1 bailouts if the type of the nullable flat field is uninitialized
+    static final V0 LOAD_V0 = new V0(0, 0);
 }

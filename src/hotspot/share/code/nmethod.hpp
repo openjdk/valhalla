@@ -860,7 +860,7 @@ public:
   const char* state() const;
 
   bool inlinecache_check_contains(address addr) const {
-    return (addr >= code_begin() && addr < verified_entry_point());
+    return (addr >= code_begin() && (addr < verified_entry_point() || addr < verified_inline_entry_point()));
   }
 
   void preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map, OopClosure* f);

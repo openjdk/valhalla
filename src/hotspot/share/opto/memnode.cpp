@@ -167,8 +167,11 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
 
   Node* base_uncasted = base->uncast();
   if (base_uncasted->is_Proj()) {
-    MultiNode* multi = base_uncasted->in(0)->as_Multi();
-    if (multi->is_Allocate()) {
+    Node* multi = base_uncasted->in(0);
+    if (multi->is_top()) {
+      // The pointer dies, make the memory die, too
+      return multi;
+    } else if (multi->is_Allocate()) {
       base_local = base_uncasted->as_Proj();
       return nullptr;
     } else if (multi->is_Call()) {
@@ -182,7 +185,7 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
         return nullptr;
       } else {
         // Use the start memory otherwise
-        return multi->proj_out(TypeFunc::Memory);
+        return multi->as_Start()->proj_out(TypeFunc::Memory);
       }
     }
   }

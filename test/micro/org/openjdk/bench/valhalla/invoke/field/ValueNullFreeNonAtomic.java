@@ -24,7 +24,6 @@ package org.openjdk.bench.valhalla.invoke.field;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.CompilerControl;
@@ -109,7 +108,6 @@ public class ValueNullFreeNonAtomic {
     }
 
     public static class ValWrapper {
-        @Strict
         @NullRestricted
         final ValueInt0 f;
 

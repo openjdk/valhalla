@@ -23,10 +23,8 @@
  */
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 public class WithInlinedField {
-  @Strict
   @NullRestricted
   Point p;
 

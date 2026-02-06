@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2936,13 +2936,17 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
                 if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
-                  super_method->set_mismatch();
-                  MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                   JavaThread* thread = JavaThread::current();
                   HandleMark hm(thread);
                   methodHandle mh(thread, super_method);
                   DeoptimizationScope deopt_scope;
-                  CodeCache::mark_for_deoptimization(&deopt_scope, mh());
+                  {
+                    // Keep the lock scope minimal. Prevent interference with other
+                    // dependency checks by setting mismatch and marking within the lock.
+                    MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
+                    super_method->set_mismatch();
+                    CodeCache::mark_for_deoptimization(&deopt_scope, mh());
+                  }
                   deopt_scope.deoptimize_marked();
                 }
               }

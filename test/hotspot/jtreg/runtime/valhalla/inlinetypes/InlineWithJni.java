@@ -35,7 +35,6 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -157,16 +156,12 @@ public value class InlineWithJni {
 
     // Container with null-restricted fields (potentially flattened)
     static class Container1 {
-        @Strict
         @NullRestricted
         SmallValue sv;
-        @Strict
         @NullRestricted
         MediumValue mv;
-        @Strict
         @NullRestricted
         BigValue bv;
-        @Strict
         @NullRestricted
         ValueWithOop vwo;
 
