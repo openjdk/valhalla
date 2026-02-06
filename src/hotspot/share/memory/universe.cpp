@@ -518,7 +518,7 @@ void Universe::genesis(TRAPS) {
     oak->append_to_sibling_list();
 
     // Create a RefArrayKlass (which is the default) and initialize.
-    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, false, THREAD);
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
     _objectArrayKlass = rak;
   }
 
@@ -790,7 +790,7 @@ bool Universe::is_out_of_memory_error_class_metaspace(oop ex_obj) {
 // Setup preallocated OutOfMemoryError errors
 void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
   InstanceKlass* ik = vmClasses::OutOfMemoryError_klass();
-  refArrayOop ra = oopFactory::new_refArray(ik, _oom_count, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+  refArrayOop ra = oopFactory::new_default_refArray(ik, _oom_count, CHECK);
   refArrayHandle oom_array(THREAD, ra);
 
   for (int i = 0; i < _oom_count; i++) {
@@ -824,7 +824,7 @@ void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
 
   // Setup the array of errors that have preallocated backtrace
   int len = (StackTraceInThrowable) ? (int)PreallocatedOutOfMemoryErrorCount : 0;
-  refArrayOop instance = oopFactory::new_refArray(ik, len, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+  refArrayOop instance = oopFactory::new_default_refArray(ik, len, CHECK);
   _preallocated_out_of_memory_error_array = OopHandle(vm_global(), instance);
   refArrayHandle preallocated_oom_array(THREAD, instance);
 

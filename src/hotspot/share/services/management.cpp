@@ -1443,10 +1443,9 @@ JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
   // last flag entry is always null, so subtract 1
   int nFlags = (int) JVMFlag::numFlags - 1;
   // allocate a temp array
-  refArrayOop r = oopFactory::new_refArray(vmClasses::String_klass(),
-                                           nFlags,
-                                           ArrayKlass::ArrayProperties::DEFAULT,
-                                           CHECK_NULL);
+  refArrayOop r = oopFactory::new_default_refArray(vmClasses::String_klass(),
+                                                   nFlags,
+                                                   CHECK_NULL);
   refArrayHandle flags_ah(THREAD, r);
   int num_entries = 0;
   for (int i = 0; i < nFlags; i++) {
@@ -1465,10 +1464,9 @@ JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
 
   if (num_entries < nFlags) {
     // Return array of right length
-    refArrayOop res = oopFactory::new_refArray(vmClasses::String_klass(),
-                                               num_entries,
-                                               ArrayKlass::ArrayProperties::DEFAULT,
-                                               CHECK_NULL);
+    refArrayOop res = oopFactory::new_default_refArray(vmClasses::String_klass(),
+                                                       num_entries,
+                                                       CHECK_NULL);
     for(int i = 0; i < num_entries; i++) {
       res->obj_at_put(i, flags_ah->obj_at(i));
     }

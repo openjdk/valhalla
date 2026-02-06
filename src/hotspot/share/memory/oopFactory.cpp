@@ -120,18 +120,24 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 
 refArrayOop oopFactory::new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS) {
   ArrayKlass* array_type = klass->array_klass(CHECK_NULL);
-  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_with_properties(properties, true, CHECK_NULL);
-  // Cast below must pass because klass_with_properties() was called with force_refarray == true
+  ArrayDescription ad(Klass::RefArrayKlassKind, properties, LayoutKind::REFERENCE);
+  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_from_description(ad, CHECK_NULL);
+  // Cast below must pass because the array description required a RefArrayKlass
   RefArrayKlass* rak = RefArrayKlass::cast(oak);
-  oop array = rak->allocate_instance(length, properties, THREAD);
+  oop array = rak->allocate_instance(length, properties, CHECK_NULL);
   return refArrayOopDesc::cast(array);
 }
+
+refArrayOop oopFactory::new_default_refArray(Klass* klass, int length, TRAPS) {
+  return new_refArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+}
+
 
 flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
 
   ArrayKlass* array_type = klass->array_klass(CHECK_NULL);
-  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_with_properties(props, false, CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_with_properties(props, CHECK_NULL);
 
   assert(oak->is_flatArray_klass(), "Expected to be");
   assert(FlatArrayKlass::cast(oak)->layout_kind() == lk, "Unexpected layout kind");

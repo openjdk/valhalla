@@ -990,7 +990,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
 
   if (!HeapShared::is_too_large_to_archive(single_array_size)) {
     // The entire table can fit in a single array
-    refArrayOop array = oopFactory::new_refArray(vmClasses::Object_klass(), total, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    refArrayOop array = oopFactory::new_default_refArray(vmClasses::Object_klass(), total, CHECK);
     _shared_strings_array = OopHandle(Universe::vm_global(), array);
     log_info(aot)("string table array (single level) length = %d", total);
   } else {
@@ -1007,7 +1007,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
       AOTMetaspace::unrecoverable_writing_error();
     }
 
-    refArrayOop primary = oopFactory::new_refArray(vmClasses::Object_klass(), primary_array_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    refArrayOop primary = oopFactory::new_default_refArray(vmClasses::Object_klass(), primary_array_length, CHECK);
     objArrayHandle primaryHandle(THREAD, primary);
     _shared_strings_array = OopHandle(Universe::vm_global(), primary);
 
@@ -1021,7 +1021,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
       }
       total -= len;
 
-      refArrayOop secondary = oopFactory::new_refArray(vmClasses::Object_klass(), len, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+      refArrayOop secondary = oopFactory::new_default_refArray(vmClasses::Object_klass(), len, CHECK);
       primaryHandle()->obj_at_put(i, secondary);
 
       log_info(aot)("string table array (secondary)[%d] length = %d", i, len);

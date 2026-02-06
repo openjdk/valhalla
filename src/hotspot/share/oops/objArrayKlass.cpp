@@ -175,10 +175,10 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
   return obj->is_flatArray() ? flatArrayOop(obj)->object_size(layout_helper()) : refArrayOop(obj)->object_size();
 }
 
-ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties, bool force_refarray) {
+ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
   // TODO FIXME: the layout selection should take the array size in consideration
   // to avoid creation of arrays too big to be handled by the VM. See JDK-8233189
-  if (!UseArrayFlattening || force_refarray || element->is_array_klass() || element->is_identity_class()|| element->is_abstract()) {
+  if (!UseArrayFlattening || element->is_array_klass() || element->is_identity_class()|| element->is_abstract()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
   InlineKlass* vk = InlineKlass::cast(element);
@@ -217,10 +217,9 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
   }
 }
 
-ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
-  assert(ArrayKlass::is_null_restricted(props) || !ArrayKlass::is_non_atomic(props), "only null-restricted array can be non-atomic");
+ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription ad, TRAPS) {
+  assert(ArrayKlass::is_null_restricted(ad._properties) || !ArrayKlass::is_non_atomic(ad._properties), "only null-restricted array can be non-atomic");
   ObjArrayKlass* ak = nullptr;
-  ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props, false);
   switch (ad._kind) {
     case Klass::RefArrayKlassKind: {
       ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
@@ -239,7 +238,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayPr
 
 objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  ObjArrayKlass* ak = klass_with_properties(props, false, THREAD);
+  ObjArrayKlass* ak = klass_with_properties(props, THREAD);
   size_t size = 0;
   switch(ak->kind()) {
     case Klass::RefArrayKlassKind:
@@ -263,7 +262,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
-  ObjArrayKlass* oak = klass_with_properties(ArrayProperties::DEFAULT, rank > 1, CHECK_NULL);
+  ObjArrayKlass* oak = klass_with_properties(ArrayProperties::DEFAULT, CHECK_NULL);
   assert(oak->is_refArray_klass() || oak->is_flatArray_klass(), "Must be");
   objArrayOop array = oak->allocate_instance(length, ArrayProperties::DEFAULT, CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
@@ -403,10 +402,20 @@ PackageEntry* ObjArrayKlass::package() const {
   return bottom_klass()->package();
 }
 
-ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties props, bool force_refarray, TRAPS) {
+ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
   assert(props != ArrayProperties::INVALID, "Sanity check");
-  ArrayDescription ad = array_layout_selection(element_klass(), props, force_refarray);
-  props = ad._properties;
+  ArrayDescription ad = array_layout_selection(element_klass(), props);
+
+  return klass_from_description(ad, THREAD);
+}
+
+ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription adesc, TRAPS) {
+
+#ifdef ASSERT
+  element_klass()->validate_array_description(adesc);
+#endif // ASSERT
+
+  ArrayKlass::ArrayProperties props = adesc._properties;
 
   if (properties() == props) {
     assert(is_refArray_klass() || is_flatArray_klass(), "Must be a concrete array klass");
@@ -423,10 +432,11 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
       if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayKlass::ArrayProperties::DEFAULT) {
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
-        first = allocate_klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+        ArrayDescription ad = array_layout_selection(element_klass(), ArrayKlass::ArrayProperties::DEFAULT);
+        first = allocate_klass_from_description(ad, THREAD);
         release_set_next_refined_klass(first);
       }
-      ak = allocate_klass_with_properties(props, THREAD);
+      ak = allocate_klass_from_description(adesc, THREAD);
       first->release_set_next_refined_klass(ak);
     }
   }
@@ -434,7 +444,7 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
   ak = next_refined_array_klass();
   assert(ak != nullptr, "should be set");
   THREAD->check_possible_safepoint();
-  return ak->klass_with_properties(props, false, THREAD);
+  return ak->klass_from_description(adesc, THREAD);
 }
 
 

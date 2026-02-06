@@ -160,7 +160,7 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined
       assert(element_klass->is_inlinetype(), "Only value class arrays can be non-atomic");
       props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
     }
-    array = ObjArrayKlass::cast(array)->klass_with_properties(props, false, THREAD);
+    array = ObjArrayKlass::cast(array)->klass_with_properties(props, THREAD);
     if (array->is_flatArray_klass()) {
       return CURRENT_THREAD_ENV->get_flat_array_klass(array);
     } else {

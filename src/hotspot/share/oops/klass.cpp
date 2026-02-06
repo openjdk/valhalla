@@ -593,6 +593,39 @@ GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots,
   return nullptr;
 }
 
+#ifdef ASSERT
+void Klass::validate_array_description(ArrayDescription ad) {
+  if (is_identity_class() || is_array_klass() || is_interface() ||
+      (is_instance_klass() && InstanceKlass::cast(this)->access_flags().is_abstract())) {
+    assert(ad._layout_kind == LayoutKind::REFERENCE, "Cannot support flattening");
+    assert(ad._kind == KlassKind::RefArrayKlassKind, "Must be a reference array");
+  } else {
+    assert(is_inline_klass(), "Must be");
+    InlineKlass* ik = InlineKlass::cast(this);
+    switch(ad._layout_kind) {
+      case LayoutKind::BUFFERED:
+        fatal("Invalid layout for an array");
+        break;
+      case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+        assert(ik->has_null_free_atomic_layout(), "Sanity check");
+        break;
+      case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+        assert(ik->has_null_free_non_atomic_layout(), "Sanity check");
+        break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+        assert(ik->has_nullable_atomic_layout(), "Sanity check");
+        break;
+      case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+        assert(ik->has_nullable_non_atomic_layout(), "Sanity check)");
+        break;
+      case LayoutKind::REFERENCE:
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+  }
+}
+#endif // ASSERT
 
 // subklass links.  Used by the compiler (and vtable initialization)
 // May be cleaned concurrently, so must use the Compile_lock.

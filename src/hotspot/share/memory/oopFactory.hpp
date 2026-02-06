@@ -60,6 +60,7 @@ class oopFactory: AllStatic {
 
   // Factory forcing the creation of a reference array
   static refArrayOop     new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
+  static refArrayOop     new_default_refArray(Klass* klass, int length, TRAPS);
 
   // Value arrays...
   // LWorld:

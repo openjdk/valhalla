@@ -63,7 +63,6 @@ ciConstant ciArray::element_value_impl(BasicType elembt,
   case T_OBJECT:
     {
       if (ary->is_refArray()) {
-        assert(ary->is_objArray(), "");
         refArrayOop refary = refArrayOopDesc::cast(ary);
         oop elem = refary->obj_at(index);
         return ciConstant(elembt, CURRENT_ENV->get_object(elem));

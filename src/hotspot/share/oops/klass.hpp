@@ -58,6 +58,7 @@ class klassVtable;
 class ModuleEntry;
 class PackageEntry;
 class vtableEntry;
+class ArrayDescription;
 
 class Klass : public Metadata {
 
@@ -618,6 +619,10 @@ public:
   // These will return null instead of allocating on the heap:
   virtual ArrayKlass* array_klass_or_null(int rank) = 0;
   virtual ArrayKlass* array_klass_or_null() = 0;
+
+#ifdef ASSERT
+  void validate_array_description(ArrayDescription ad);
+#endif // ASSERT
 
   virtual oop protection_domain() const = 0;
 

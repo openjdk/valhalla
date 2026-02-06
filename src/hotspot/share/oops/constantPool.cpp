@@ -222,14 +222,14 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
 
     // Create Java array for holding resolved strings, methodHandles,
     // methodTypes, invokedynamic and invokehandle appendix objects, etc.
-    refArrayOop stom = oopFactory::new_refArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    refArrayOop stom = oopFactory::new_default_refArray(vmClasses::Object_klass(), map_length, CHECK);
     HandleMark hm(THREAD);
     Handle refs_handle (THREAD, stom);  // must handleize.
     set_resolved_references(loader_data->add_handle(refs_handle));
 
     // Create a "scratch" copy of the resolved references array to archive
     if (CDSConfig::is_dumping_heap()) {
-      refArrayOop scratch_references = oopFactory::new_refArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+      refArrayOop scratch_references = oopFactory::new_default_refArray(vmClasses::Object_klass(), map_length, CHECK);
       HeapShared::add_scratch_resolved_references(this, scratch_references);
     }
   }

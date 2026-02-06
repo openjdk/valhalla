@@ -177,6 +177,7 @@ public:
   ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) {
     _kind = k;
     _layout_kind = lk;
+    assert(lk == LayoutKind::REFERENCE || k != Klass::KlassKind::RefArrayKlassKind, "Sanity check");
 
     if (lk == LayoutKind::REFERENCE || LayoutKindHelper::is_atomic_flat(lk)) {
       p = (ArrayKlass::ArrayProperties) (p &~ ArrayKlass::NON_ATOMIC);
