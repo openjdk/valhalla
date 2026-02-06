@@ -1872,8 +1872,7 @@ public class Check {
         overrideWarner.clear();
         boolean resultTypesOK =
                 types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
-        boolean isSubsignature = types.isSubSignature(mt, ot);
-        if (isSubsignature) {
+        if (resultTypesOK) {
             /* it could be that the arguments were erased and we get no warning because they lost the
              * nullability info after erasure, we need to double check
              */
