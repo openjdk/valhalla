@@ -172,9 +172,12 @@ public class HtmlLinkFactory {
                             linkInfo.label(label).skipPreview(true);
                         }
                         link.add(getClassLink(linkInfo));
+                        addNullRestriction(typevariable);
                     } else {
                         // No need to link method type parameters.
                         link.add(utils.getTypeName(typevariable, false));
+
+                        addNullRestriction(typevariable);
                     }
 
                     if (linkInfo.showTypeBounds()) {

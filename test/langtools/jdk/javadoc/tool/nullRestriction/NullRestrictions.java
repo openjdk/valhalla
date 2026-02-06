@@ -54,11 +54,14 @@ public class NullRestrictions extends JavadocTester {
         tb.writeJavaFiles(src, """
             package p;
             import java.util.*;
-            public class C {
+            public class C<TV> {
                 public List<String>! getList(Integer! idx) {
                     return null;
                 }
-                public String[]! getArray(Integer! idx) {
+                public String[]! getArray(TV! tidx) {
+                    return null;
+                }
+                public <MethodTV> void run(MethodTV! t) {
                     return null;
                 }
             }""");
@@ -73,6 +76,8 @@ public class NullRestrictions extends JavadocTester {
         checkOutput("p/C.html", true,
                 "<code>java.lang.String[]!</code>",
                 "(java.lang.Integer!&nbsp;idx)",
+                ">TV</a>!&nbsp;tidx)",
+                "(MethodTV!&nbsp;t)",
                 "<code>java.util.List<wbr>&lt;java.lang.String&gt;!</code>");
     }
 }
