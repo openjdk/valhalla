@@ -1876,18 +1876,39 @@ public class Check {
             /* at this point we know that the methods override each other so we can directly compare
              * the nullability of the arguments and the return type
              */
+            // let's see how precise we can be
+            List<JCVariableDecl> params = null;
+            boolean preciseArgPositions = false;
+            JCTree treeForPos = TreeInfo.diagnosticPositionFor(m, tree).getTree();
+            JCTree returnPos = treeForPos;
+            if (treeForPos instanceof JCMethodDecl methodDecl) {
+                preciseArgPositions = true;
+                returnPos = methodDecl.restype;
+                params = methodDecl.params;
+            } else if (treeForPos instanceof JCLambda lambda) {
+                preciseArgPositions = true;
+                params = lambda.params;
+            } else {
+                // do nothing, this is generally generated code, like FlagsEnum etc
+            }
             List<Type> mtArgs = mt.getParameterTypes();
             List<Type> otArgs = ot.getParameterTypes();
             while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
                 if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
-                    warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
-                    break;
+                    warnNullableTypes(preciseArgPositions ? params.head.vartype : treeForPos,
+                            LintWarnings.ArgumentTypeIsNullRestricted);
+                    if (!preciseArgPositions) {
+                        break;
+                    }
                 }
                 mtArgs = mtArgs.tail;
                 otArgs = otArgs.tail;
+                if (preciseArgPositions) {
+                    params = params.tail;
+                }
             }
             if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
+                warnNullableTypes(returnPos, LintWarnings.ReturnTypeIsNullRestricted);
             }
         }
         if (!resultTypesOK) {
