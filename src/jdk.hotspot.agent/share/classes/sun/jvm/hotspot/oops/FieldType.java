@@ -50,7 +50,7 @@ public class FieldType {
        case '[':
            break;   // Ok. signature char known
        default:
-         this.first = 'V'; // It's a value type.
+         this.first = '\0'; // It's a value type.
        }
     }
   }
