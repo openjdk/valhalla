@@ -5709,7 +5709,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_aot_runtime_setup_method(false),
   _has_strict_static_fields(false),
-  _has_inlined_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
   _has_loosely_consistent_annotation(false),
@@ -6356,7 +6355,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       access_flags().is_abstract() && !access_flags().is_identity_class() && !access_flags().is_interface(),
       _must_be_atomic, _layout_info, _inline_layout_info_array);
   lb.build_layout();
-  _has_inlined_fields = _layout_info->_has_inlined_fields;
 
   // If it turned out that we didn't inline any of the fields, we deallocate
   // the array of InlineLayoutInfo since it isn't needed, and so it isn't
