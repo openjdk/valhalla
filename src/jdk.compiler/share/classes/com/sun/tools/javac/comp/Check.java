@@ -1873,8 +1873,8 @@ public class Check {
         boolean resultTypesOK =
             types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
         if (resultTypesOK) {
-            /* it could be that the arguments were erased and we get no warning because they lost the
-             * nullability info after erasure, we need to double check
+            /* at this point we know that the methods override each other so we can directly compare
+             * the nullability of the arguments and the return type
              */
             List<Type> mtArgs = mt.getParameterTypes();
             List<Type> otArgs = ot.getParameterTypes();
@@ -1886,10 +1886,8 @@ public class Check {
                 mtArgs = mtArgs.tail;
                 otArgs = otArgs.tail;
             }
-            if (resultTypesOK) {
-                if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                    warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
-                }
+            if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
             }
         }
         if (!resultTypesOK) {
