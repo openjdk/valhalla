@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,11 +40,11 @@ public final class FieldImpl
         extends AbstractElement
         implements FieldModel, WritableField {
 
-    private final ClassReader reader;
+    private final ClassReaderImpl reader;
     private final int startPos, endPos, attributesPos;
     private List<Attribute<?>> attributes;
 
-    public FieldImpl(ClassReader reader, int startPos, int endPos, int attributesPos) {
+    public FieldImpl(ClassReaderImpl reader, int startPos, int endPos, int attributesPos) {
         this.reader = reader;
         this.startPos = startPos;
         this.endPos = endPos;
@@ -53,7 +53,7 @@ public final class FieldImpl
 
     @Override
     public AccessFlags flags() {
-        return new AccessFlagsImpl(AccessFlag.Location.FIELD, fieldFlags());
+        return new AccessFlagsImpl(AccessFlag.Location.FIELD, fieldFlags(), reader.classFileVersion());
     }
 
     @Override

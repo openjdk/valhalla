@@ -25,10 +25,10 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
-#include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/inlineKlass.hpp"
+#include "oops/array.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "runtime/signature.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 // Offset of the first field in the inline type
