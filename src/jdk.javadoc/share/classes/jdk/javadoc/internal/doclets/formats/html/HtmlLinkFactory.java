@@ -46,6 +46,7 @@ import javax.lang.model.util.SimpleTypeVisitor14;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyles;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
+import jdk.javadoc.internal.doclets.toolkit.WorkArounds;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
@@ -133,6 +134,8 @@ public class HtmlLinkFactory {
                         } else {
                             link.add("[]");
                         }
+
+                        addNullRestriction(currentType);
                     }
                     return link;
                 }
@@ -169,9 +172,12 @@ public class HtmlLinkFactory {
                             linkInfo.label(label).skipPreview(true);
                         }
                         link.add(getClassLink(linkInfo));
+                        addNullRestriction(typevariable);
                     } else {
                         // No need to link method type parameters.
                         link.add(utils.getTypeName(typevariable, false));
+
+                        addNullRestriction(typevariable);
                     }
 
                     if (linkInfo.showTypeBounds()) {
@@ -211,7 +217,14 @@ public class HtmlLinkFactory {
                     if (linkInfo.showTypeParameters()) {
                         link.add(getTypeParameterLinks(linkInfo));
                     }
+                    addNullRestriction(linkInfo.getType());
                     return link;
+                }
+
+                private void addNullRestriction(TypeMirror type) {
+                    if (WorkArounds.nullRestricted(type)) {
+                        link.add(Text.of("!"));
+                    }
                 }
             };
             return linkVisitor.visit(linkInfo.getType(), linkInfo);
