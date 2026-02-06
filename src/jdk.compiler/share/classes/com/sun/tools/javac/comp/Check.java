@@ -1876,9 +1876,25 @@ public class Check {
             warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ReturnTypeIsNullRestricted);
         }
         overrideWarner.remove(LintCategory.NULL);
-        types.isSubSignature(mt, ot, overrideWarner);
-        if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
-            warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
+        boolean isSubsignature = types.isSubSignature(mt, ot, overrideWarner);
+        if (isSubsignature) {
+            if (overrideWarner.hasNonSilentLint(LintCategory.NULL)) {
+                warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
+            } else {
+                /* it could be that the arguments were erased and we get no warning because they lost the
+                 * nullability info after erasure, we need to double check
+                 */
+                List<Type> mtArgs = mt.getParameterTypes();
+                List<Type> otArgs = ot.getParameterTypes();
+                while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
+                    if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
+                        warnNullableTypes(TreeInfo.diagnosticPositionFor(m, tree), LintWarnings.ArgumentTypeIsNullRestricted);
+                        break;
+                    }
+                    mtArgs = mtArgs.tail;
+                    otArgs = otArgs.tail;
+                }
+            }
         }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {

@@ -335,8 +335,9 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                     String m(List s) { return null; }
                                 }
                                 """,
-                                Result.Clean,
-                                "")
+                                Result.Warning,
+                                "compiler.warn.argument.type.is.null.restricted",
+                                1)
                 )
         );
     }
