@@ -1173,6 +1173,62 @@ bool CallStaticJavaNode::cmp( const Node &n ) const {
   return CallJavaNode::cmp(call);
 }
 
+// Tries to replace the runtime call to the substitutability test emitted by acmp
+// with a field-wise comparison if (at least) one operand is of a known value class.
+Node* CallStaticJavaNode::replace_is_substitutable(PhaseIterGVN* igvn) {
+  // Get the one operand that is a value object
+  Node* left = in(TypeFunc::Parms);
+  Node* right = in(TypeFunc::Parms + 1);
+  if (left->is_top() || right->is_top() || (!left->is_InlineType() && !right->is_InlineType())) {
+    return nullptr;
+  }
+  if (!left->is_InlineType()) {
+    swap(left, right);
+  }
+  InlineTypeNode* vt = left->as_InlineType();
+
+  // Check if the field layout can be optimized
+  if (!vt->can_emit_substitutability_check(right)) {
+    return nullptr;
+  }
+  Node* ctrl = control();
+  RegionNode* region = new RegionNode(1);
+  Node* phi = new PhiNode(region, TypeInt::POS);
+
+  Node* base = right;
+  Node* ptr = right;
+  if (!base->is_InlineType()) {
+    // Parse time checks guarantee that both operands are non-null and have the same type
+    base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
+    ptr = base;
+  }
+  // Emit IR for field-wise comparison
+  vt->check_substitutability(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
+
+  // Equals
+  region->add_req(ctrl);
+  phi->add_req(igvn->intcon(1));
+
+  ctrl = igvn->register_new_node_with_optimizer(region);
+  Node* res = igvn->register_new_node_with_optimizer(phi);
+
+  // Kill exception projections and return a tuple that will replace the call
+  CallProjections* projs = extract_projections(false /*separate_io_proj*/);
+  if (projs->fallthrough_catchproj != nullptr) {
+    igvn->replace_node(projs->fallthrough_catchproj, ctrl);
+  }
+  if (projs->catchall_memproj != nullptr) {
+    igvn->replace_node(projs->catchall_memproj, igvn->C->top());
+  }
+  if (projs->catchall_ioproj != nullptr) {
+    igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
+  }
+  if (projs->catchall_catchproj != nullptr) {
+    igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
+  }
+  return TupleNode::make(tf()->range_cc(), ctrl, i_o(), memory(), frameptr(), returnadr(), res);
+}
+
 Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (can_reshape && uncommon_trap_request() != 0) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
@@ -1184,58 +1240,14 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
   }
 
-  // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
-  if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
-      (method()->name() == ciSymbols::isSubstitutable_name())) {
-    Node* left = in(TypeFunc::Parms);
-    Node* right = in(TypeFunc::Parms + 1);
-    if (!left->is_top() && !right->is_top() && (left->is_InlineType() || right->is_InlineType())) {
-      if (!left->is_InlineType()) {
-        swap(left, right);
-      }
-      InlineTypeNode* vt = left->as_InlineType();
-
-      // Check if the field layout can be optimized
-      if (vt->can_emit_substitutability_check(right)) {
-        PhaseIterGVN* igvn = phase->is_IterGVN();
-
-        Node* ctrl = control();
-        RegionNode* region = new RegionNode(1);
-        Node* phi = new PhiNode(region, TypeInt::POS);
-
-        Node* base = right;
-        Node* ptr = right;
-        if (!base->is_InlineType()) {
-          // Parse time checks guarantee that both operands are non-null and have the same type
-          base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
-          ptr = base;
-        }
-        // Emit IR for field-wise comparison
-        vt->check_substitutability(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
-
-        // Equals
-        region->add_req(ctrl);
-        phi->add_req(igvn->intcon(1));
-
-        ctrl = igvn->register_new_node_with_optimizer(region);
-        Node* res = igvn->register_new_node_with_optimizer(phi);
-
-        // Kill exception projections and return a tuple that will replace the call
-        CallProjections* projs = extract_projections(false /*separate_io_proj*/);
-        if (projs->fallthrough_catchproj != nullptr) {
-          igvn->replace_node(projs->fallthrough_catchproj, ctrl);
-        }
-        if (projs->catchall_memproj != nullptr) {
-          igvn->replace_node(projs->catchall_memproj, igvn->C->top());
-        }
-        if (projs->catchall_ioproj != nullptr) {
-          igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
-        }
-        if (projs->catchall_catchproj != nullptr) {
-          igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
-        }
-        return TupleNode::make(tf()->range_cc(), ctrl, i_o(), memory(), frameptr(), returnadr(), res);
-      }
+  // Check if this is a runtime call to the substitutability test
+  // emitted by acmp and try to replace it by a field-wise comparison.
+  if (can_reshape && !control()->is_top() && method() != nullptr &&
+      method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
+      method()->name() == ciSymbols::isSubstitutable_name()) {
+    Node* res = replace_is_substitutable(phase->is_IterGVN());
+    if (res != nullptr) {
+      return res;
     }
   }
 

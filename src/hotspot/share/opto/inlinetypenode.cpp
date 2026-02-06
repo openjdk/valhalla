@@ -612,26 +612,19 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
 // Adds a check between val1 and val2. Jumps to 'region' if check passes and optionally sets the corresponding phi input to false.
 static void acmp_val_guard(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2) {
   Node* cmp = nullptr;
-  switch (bt) {
-  case T_FLOAT:
-    val1 = igvn->register_new_node_with_optimizer(new MoveF2INode(val1));
-    val2 = igvn->register_new_node_with_optimizer(new MoveF2INode(val2));
-    // Fall-through to the int case
-  case T_BOOLEAN:
-  case T_CHAR:
-  case T_BYTE:
-  case T_SHORT:
-  case T_INT:
+  if (is_single_word_type(bt)) {
+    if (bt == T_FLOAT) {
+      val1 = igvn->register_new_node_with_optimizer(new MoveF2INode(val1));
+      val2 = igvn->register_new_node_with_optimizer(new MoveF2INode(val2));
+    }
     cmp = igvn->register_new_node_with_optimizer(new CmpINode(val1, val2));
-    break;
-  case T_DOUBLE:
-    val1 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val1));
-    val2 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val2));
-    // Fall-through to the long case
-  case T_LONG:
+  } else if (is_double_word_type(bt)) {
+    if (bt == T_DOUBLE) {
+      val1 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val1));
+      val2 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val2));
+    }
     cmp = igvn->register_new_node_with_optimizer(new CmpLNode(val1, val2));
-    break;
-  default:
+  } else {
     assert(is_reference_type(bt), "must be");
     cmp = igvn->register_new_node_with_optimizer(new CmpPNode(val1, val2));
   }

@@ -745,6 +745,10 @@ inline bool is_double_word_type(BasicType t) {
   return (t == T_DOUBLE || t == T_LONG);
 }
 
+inline bool is_single_word_type(BasicType t) {
+  return is_subword_type(t) || t == T_INT || t == T_FLOAT;
+}
+
 inline bool is_reference_type(BasicType t, bool include_narrow_oop = false) {
   assert(t != T_FLAT_ELEMENT, "");  // Strong assert to detect misuses of T_FLAT_ELEMENT
   return (t == T_OBJECT || t == T_ARRAY || (include_narrow_oop && t == T_NARROWOOP));
