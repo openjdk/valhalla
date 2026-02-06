@@ -40,6 +40,8 @@ class flatArrayOopDesc : public objArrayOopDesc {
   void*  base() const;
   void* value_at_addr(int index, jint lh) const;
 
+  inline static flatArrayOop cast(oop o);
+
   inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;
   inline jboolean null_marker_of_obj_at(int index) const;

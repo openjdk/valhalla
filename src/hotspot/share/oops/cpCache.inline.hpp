@@ -46,10 +46,10 @@ inline ConstantPoolCache::ConstantPoolCache(const intStack& invokedynamic_refere
   CDS_JAVA_HEAP_ONLY(_archived_references_index = -1;)
 }
 
-inline objArrayOop ConstantPoolCache::resolved_references() {
+inline refArrayOop ConstantPoolCache::resolved_references() {
   oop obj = _resolved_references.resolve();
   assert(obj == nullptr || obj->is_refArray(), "should be refArray");
-  return (objArrayOop)obj;
+  return obj == nullptr ? nullptr : refArrayOopDesc::cast(obj);
 }
 
 inline ResolvedFieldEntry* ConstantPoolCache::resolved_field_entry_at(int field_index) const {

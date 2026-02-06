@@ -39,6 +39,8 @@ inline bool is_oop_type<arrayOop>(oop theOop) { return theOop->is_array(); }
 template<>
 inline bool is_oop_type<objArrayOop>(oop theOop) { return theOop->is_objArray(); }
 template<>
+inline bool is_oop_type<refArrayOop>(oop theOop) { return theOop->is_refArray(); }
+template<>
 inline bool is_oop_type<typeArrayOop>(oop theOop) { return theOop->is_typeArray(); }
 
 template<typename R>
