@@ -2000,7 +2000,7 @@ bool Compile::only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn
         wq.push(u);
       } else if (u->is_CallJava()) {
         CallJavaNode* call = u->as_CallJava();
-        if (call->method()->get_Method()->mismatch()) {
+        if (call->method() != nullptr && call->method()->get_Method()->mismatch()) {
           return false;
         }
         uint nargs = call->tf()->domain_cc()->cnt();

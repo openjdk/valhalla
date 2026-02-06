@@ -36,16 +36,6 @@
  *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
  *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileCommand=dontinline,*::*Callee
  *                   -Xbatch -XX:-TieredCompilation ${test.main.class}
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
- *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
- *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileOnly=*TestBufferLost*::*Callee
- *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:TieredStopAtLevel=1 ${test.main.class}
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost*::*Callee
- *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:TieredStopAtLevel=1 ${test.main.class}
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
- *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
- *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileCommand=dontinline,*::*Callee
- *                   -Xbatch -XX:TieredStopAtLevel=1 ${test.main.class}
  */
 
 
@@ -147,10 +137,10 @@ public class TestBufferLost {
 
     public static void main(String[] args) {
         for (int i = 0; i < 10_000_000; ++i) {
-            // test1();
-            // test2();
-            //test3();
-            //test4();
+            test1();
+            test2();
+            test3();
+            test4();
             test5(c1);
             test5(c2);
             test5(c3);
