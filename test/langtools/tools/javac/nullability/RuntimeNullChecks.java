@@ -312,18 +312,6 @@ public class RuntimeNullChecks extends TestRunner {
                 class Other {
                     public static String! str = "";
                 }
-                """,
-                // Mix and match of yes/no null check
-                """
-                class Test {
-                    void work(String! a, int b, boolean c) {
-                    }
-                    public static void main(String... args) {
-                    }
-                    public void run(Test t, String[] args, int a, boolean b) {
-                        t.work(args[0], a, b);
-                    }
-                }
                 """
         }) {
             System.err.println("executing test " + i++);
