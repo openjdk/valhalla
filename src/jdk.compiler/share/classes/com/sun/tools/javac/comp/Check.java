@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1905,7 +1906,12 @@ public class Check {
                                 return result;
                             }
                         };
-                checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), positionsSupplier, false);
+                checkArgsNullability(
+                        mt.getParameterTypes(),
+                        ot.getParameterTypes(),
+                        positionsSupplier,
+                        (overridingArg, overriddenArg) -> Fragments.ArgumentTypeNullabilityMismatch(overridingArg, overriddenArg)
+                );
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
                     warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
                             Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
@@ -1966,15 +1972,15 @@ public class Check {
         }
     }
 
-    public void checkArgsNullability(List<Type> overridingArgs, List<Type> overriddenArgs, Supplier<JCTree> positions, boolean lambda) {
+    public void checkArgsNullability(List<Type> overridingArgs,
+                                     List<Type> overriddenArgs,
+                                     Supplier<JCTree> positions,
+                                     BiFunction<Type, Type, Fragment> fragmentFunc) {
         while (overridingArgs.nonEmpty() && overriddenArgs.nonEmpty()) {
             if (types.hasNarrowerNullability(overriddenArgs.head, overridingArgs.head)) {
                 warnNullableTypes(positions.get(),
-                        lambda ?
                         LintWarnings.IncompatibleNullRestrictions(
-                                Fragments.LambdaArgumentTypeNullabilityMismatch(overridingArgs.head, overriddenArgs.head)) :
-                        LintWarnings.IncompatibleNullRestrictions(
-                                Fragments.ArgumentTypeNullabilityMismatch(overridingArgs.head, overriddenArgs.head)));
+                                fragmentFunc.apply(overridingArgs.head, overriddenArgs.head)));
             }
             overridingArgs = overridingArgs.tail;
             overriddenArgs = overriddenArgs.tail;

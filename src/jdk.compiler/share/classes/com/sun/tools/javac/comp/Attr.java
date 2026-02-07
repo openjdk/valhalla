@@ -4021,7 +4021,7 @@ public class Attr extends JCTree.Visitor {
                                 return result;
                             }
                         },
-                        true
+                        (overridingArg, overriddenArg) -> Fragments.LambdaArgumentTypeNullabilityMismatch(overridingArg, overriddenArg)
                 );
             }
         }
