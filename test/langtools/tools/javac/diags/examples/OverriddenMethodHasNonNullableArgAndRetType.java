@@ -26,6 +26,7 @@
 // key: compiler.warn.incompatible.null.restrictions
 // key: compiler.misc.argument.type.nullability.mismatch
 // key: compiler.misc.return.type.nullability.mismatch
+// key: compiler.misc.lambda.argument.type.nullability.mismatch
 // options: -Xlint:null --enable-preview -source ${jdk.version}
 
 class OverriddenMethodHasNonNullableArgAndRetType {
@@ -36,4 +37,8 @@ class OverriddenMethodHasNonNullableArgAndRetType {
         @Override
         String m(String s) { return null; }
     }
+    interface I {
+        void m(String! s);
+    }
+    I i = (String s) -> {};
 }

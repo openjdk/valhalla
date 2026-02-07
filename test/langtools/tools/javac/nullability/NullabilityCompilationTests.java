@@ -337,6 +337,18 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
+                                1),
+                        new DiagAndCode(
+                                """
+                                interface I {
+                                    void m(String! s);
+                                }
+                                class Test {
+                                    I i = (String s) -> {};
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
                                 1)
                 )
         );

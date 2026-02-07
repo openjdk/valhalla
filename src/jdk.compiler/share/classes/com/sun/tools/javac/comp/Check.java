@@ -1885,11 +1885,8 @@ public class Check {
                 preciseArgPositions = true;
                 returnPos = methodDecl.restype;
                 params = methodDecl.params;
-            } else if (treeForPos instanceof JCLambda lambda) {
-                preciseArgPositions = true;
-                params = lambda.params;
             } else {
-                // do nothing, this is generally generated code, like FlagsEnum etc
+                // do nothing, this is generally generated code, like FlagsEnum, a lambda expression, etc
             }
             List<Type> mtArgs = mt.getParameterTypes();
             List<Type> otArgs = ot.getParameterTypes();
