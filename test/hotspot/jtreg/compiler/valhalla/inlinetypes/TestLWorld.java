@@ -5233,7 +5233,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ALLOC})
     public boolean test183(Integer o1, Value181 o2) {
         // The only intersection is null
         return getter(new Value181(o1)) == getter(new Value181(o2));
@@ -5249,7 +5249,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ALLOC})
     @IR(counts = {IRNode.CMP_P, "1"})
     public boolean test184(MyClass152 o1, Object o2) {
         // One side is not a value object
@@ -5267,7 +5267,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ALLOC})
     public boolean test185(MyValue152 o1, Object o2) {
         // One side is a value object
         return getter(new Value181(o1)) == getter(new Value181(o2));

@@ -1185,50 +1185,14 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
   }
 
-  // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
-  if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
-      (method()->name() == ciSymbols::isSubstitutable_name())) {
-    PhaseIterGVN& igvn = *phase->is_IterGVN();
-
-    // Delay IGVN during macro expansion
-    assert(!igvn.delay_transform(), "must not delay during Ideal");
-    igvn.set_delay_transform(true);
-
-    // Prepare to inline, clone the jvms
-    JVMState* jvms = this->jvms()->clone_shallow(phase->C);
-    assert(jvms->map()->next_exception() == nullptr, "this call does not throw");
-    SafePointNode* map = new SafePointNode(req(), jvms);
-    igvn.register_new_node_with_optimizer(map);
-    for (uint i = 0; i < req(); i++) {
-      map->init_req(i, in(i));
-    }
-    MergeMemNode* mem = MergeMemNode::make(map->memory());
-    igvn.register_new_node_with_optimizer(mem);
-    map->set_memory(mem);
-    jvms->set_map(map);
-    GraphKit kit(jvms, &igvn);
-
-    Node* left = in(TypeFunc::Parms);
-    Node* right = in(TypeFunc::Parms + 1);
-    Node* replace = InlineTypeNode::emit_substitutability_check(&kit, left, right);
-    igvn.set_delay_transform(false);
-
-    if (replace != nullptr) {
-      // Kill exception projections and return a tuple that will replace the call
-      CallProjections* projs = extract_projections(false /*separate_io_proj*/);
-      if (projs->fallthrough_catchproj != nullptr) {
-        igvn.replace_node(projs->fallthrough_catchproj, kit.control());
-      }
-      if (projs->catchall_memproj != nullptr) {
-        igvn.replace_node(projs->catchall_memproj, igvn.C->top());
-      }
-      if (projs->catchall_ioproj != nullptr) {
-        igvn.replace_node(projs->catchall_ioproj, igvn.C->top());
-      }
-      if (projs->catchall_catchproj != nullptr) {
-        igvn.replace_node(projs->catchall_catchproj, igvn.C->top());
-      }
-      return TupleNode::make(tf()->range_cc(), igvn.C->top(), kit.i_o(), kit.reset_memory(), kit.frameptr(), kit.returnadr(), replace);
+  // Try to replace the runtime call to the substitutability test emitted by acmp if we can reason
+  // about the operands
+  if (can_reshape && !control()->is_top() && method() != nullptr &&
+      method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
+      method()->name() == ciSymbols::isSubstitutable_name()) {
+    Node* res = replace_is_substitutable(phase->is_IterGVN());
+    if (res != nullptr) {
+      return res;
     }
   }
 
@@ -1418,6 +1382,52 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
   return true;
 }
 
+// Try to replace a runtime call to the substitutability test by either a simple pointer comparison
+// if either operand is not a value object, or comparing their fields if either operand is an
+// object of a known value type
+Node* CallStaticJavaNode::replace_is_substitutable(PhaseIterGVN* igvn) {
+  // Delay IGVN during macro expansion
+  assert(!igvn->delay_transform(), "must not delay during Ideal");
+  igvn->set_delay_transform(true);
+
+  // Prepare to inline, clone the jvms
+  JVMState* jvms = this->jvms()->clone_shallow(igvn->C);
+  assert(jvms->map()->next_exception() == nullptr, "this call does not throw");
+  SafePointNode* map = new SafePointNode(req(), jvms);
+  igvn->register_new_node_with_optimizer(map);
+  for (uint i = 0; i < req(); i++) {
+    map->init_req(i, in(i));
+  }
+  MergeMemNode* mem = MergeMemNode::make(map->memory());
+  igvn->register_new_node_with_optimizer(mem);
+  map->set_memory(mem);
+  jvms->set_map(map);
+  GraphKit kit(jvms, igvn);
+
+  Node* left = in(TypeFunc::Parms);
+  Node* right = in(TypeFunc::Parms + 1);
+  Node* replace = InlineTypeNode::emit_substitutability_check(&kit, left, right);
+  igvn->set_delay_transform(false);
+  if (replace == nullptr) {
+    return nullptr;
+  }
+
+  // Kill exception projections and return a tuple that will replace the call
+  CallProjections* projs = extract_projections(false /*separate_io_proj*/);
+  if (projs->fallthrough_catchproj != nullptr) {
+    igvn->replace_node(projs->fallthrough_catchproj, kit.control());
+  }
+  if (projs->catchall_memproj != nullptr) {
+    igvn->replace_node(projs->catchall_memproj, igvn->C->top());
+  }
+  if (projs->catchall_ioproj != nullptr) {
+    igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
+  }
+  if (projs->catchall_catchproj != nullptr) {
+    igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
+  }
+  return TupleNode::make(tf()->range_cc(), igvn->C->top(), kit.i_o(), kit.reset_memory(), kit.frameptr(), kit.returnadr(), replace);
+}
 
 #ifndef PRODUCT
 void CallStaticJavaNode::dump_spec(outputStream *st) const {

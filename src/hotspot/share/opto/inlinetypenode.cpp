@@ -961,7 +961,7 @@ Node* InlineTypeNode::emit_substitutability_check(GraphKit* kit, Node* lhs, Node
       }
       if (!kit->stopped()) {
         // Push the expanded InlineTypeNodes for processing later
-        worklist.push(WorklistEntry(kit->control(), field_true_region, cur_lhs_field->as_InlineType(), cur_rhs_field->as_InlineType()));          
+        worklist.push(WorklistEntry(kit->control(), field_true_region, cur_lhs_field->as_InlineType(), cur_rhs_field->as_InlineType()));
       }
 
       kit->set_control(field_true_region);
