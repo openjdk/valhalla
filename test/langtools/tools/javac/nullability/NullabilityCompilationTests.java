@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -518,7 +518,20 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Clean,
-                                "")
+                                ""),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    void work(String! a, int b, boolean c) {
+                                    }
+                                    public void run(Test t, String[] args, int a, boolean b) {
+                                        t.work(args[0], a, b);
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""
+                        )
                 )
         );
     }
