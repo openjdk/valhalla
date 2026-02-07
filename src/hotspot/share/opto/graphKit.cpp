@@ -1497,19 +1497,22 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
+  const Type* t = _gvn.type(obj);
+  const Type* t_not_null = t->join_speculative(TypePtr::NOTNULL);
+  if (t == t_not_null) {
+    return obj;
+  }
+
   if (obj->is_InlineType()) {
-    Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_null_marker(_gvn);
-    vt = _gvn.transform(vt);
+    InlineTypeNode* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
+    vt->set_null_marker(_gvn);
+    vt->set_type(t_not_null);
+    vt = _gvn.transform(vt)->as_InlineType();
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
     }
     return vt;
   }
-  const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-  // Object is already not-null?
-  if( t == t_not_null ) return obj;
 
   Node* cast = new CastPPNode(control(), obj,t_not_null);
   cast = _gvn.transform( cast );
