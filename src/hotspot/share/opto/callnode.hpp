@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -841,6 +841,7 @@ class CallStaticJavaNode : public CallJavaNode {
   virtual uint size_of() const; // Size is bigger
 
   bool remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node* ctl, Node* mem, Node* unc_arg);
+  Node* replace_is_substitutable(PhaseIterGVN* igvn);
 
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method)
