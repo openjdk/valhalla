@@ -33,10 +33,15 @@
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
+ *      jdk.compiler/com.sun.tools.javac.main
+ * @build toolbox.ToolBox toolbox.JavacTask
  * @run junit NullabilityCompilationTests
  */
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.function.Consumer;
 import java.util.List;
 import java.util.Set;
@@ -51,15 +56,23 @@ import com.sun.tools.javac.util.Assert;
 import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
 
+import toolbox.ToolBox;
+import toolbox.JavaTask;
+import toolbox.JavacTask;
+import toolbox.Task;
+
 public class NullabilityCompilationTests extends CompilationTestCase {
     private static String[] PREVIEW_OPTIONS = {
             "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
     private static String[] PREVIEW_PLUS_LINT_OPTIONS = {
             "--enable-preview", "-source", Integer.toString(Runtime.version().feature()),
-            "-Xlint:null" };
+            "-Xlint:null", "-XDrawDiagnostics" };
+
+    ToolBox tb;
 
     public NullabilityCompilationTests() {
         setDefaultFilename("Test.java");
+        tb = new ToolBox();
     }
 
     enum TestResult {
@@ -201,7 +214,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testLintWarnings() {
+    void testLintWarnings() throws Exception {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -350,6 +363,109 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 2)
                 )
         );
+
+        // some separate compilation tests
+        Path base = Paths.get(System.getProperty("user.dir")).resolve("testLintWarnings");
+        testSeparateCompilationHelper(
+                base,
+                """
+                class Super {
+                    String! m(String s) { return ""; }
+                }
+                """,
+                """
+                class Sub extends Super {
+                    @Override
+                    String m(String s) { return null; }
+                }
+                """,
+                "Sub.java:3:5: compiler.warn.incompatible.null.restrictions: (compiler.misc.return.type.nullability.mismatch: java.lang.String, java.lang.String)\n" +
+                "1 warning\n"
+        );
+        testSeparateCompilationHelper(
+                base,
+                """
+                class Super {
+                    String m(String! s, Integer! i) { return ""; }
+                }
+                """,
+                """
+                class Sub extends Super {
+                    @Override
+                    String m(String s, Integer i) { return null; }
+                }
+                """,
+                "Sub.java:3:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.String, java.lang.String)\n" +
+                "Sub.java:3:24: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer)\n" +
+                "2 warnings\n"
+        );
+        testSeparateCompilationHelper(
+                base,
+                """
+                import java.util.*;
+                class Super {
+                    String m(List<String>! s, List<Integer>! i) { return ""; }
+                }
+                """,
+                """
+                import java.util.*;
+                class Sub extends Super {
+                    @Override
+                    String m(List s, List i) { return null; }
+                }
+                """,
+                "Sub.java:4:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.String>)\n" +
+                "Sub.java:4:22: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.Integer>)\n" +
+                "2 warnings\n"
+        );
+        testSeparateCompilationHelper(
+                base,
+                """
+                interface Super {
+                    void m(String! s, Integer! i);
+                }
+                """,
+                """
+                class Sub {
+                    Super i = (String s, Integer i) -> {};
+                }
+                """,
+                "Sub.java:2:16: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.String, java.lang.String)\n" +
+                "Sub.java:2:26: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer)\n" +
+                "2 warnings\n"
+        );
+    }
+
+    private void testSeparateCompilationHelper(
+            Path base,
+            String superClass,
+            String subClass,
+            String expectedOutput) throws Exception {
+        Path src = base.resolve("src");
+
+        tb.writeJavaFiles(src, superClass);
+        tb.writeJavaFiles(src, subClass);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        // first, let's compile the super class only
+        new JavacTask(tb)
+                .outdir(out)
+                .options(PREVIEW_PLUS_LINT_OPTIONS)
+                .files(tb.findFiles("Super.java", src))
+                .run();
+
+        // now the subclass only
+        String output = new JavacTask(tb)
+                .outdir(out)
+                .classpath(out.toString())
+                .options(PREVIEW_PLUS_LINT_OPTIONS)
+                .files(tb.findFiles("Sub.java", src))
+                .run()
+                .writeAll()
+                .getOutput(Task.OutputKind.DIRECT);
+        Assert.check(output.equals(expectedOutput), "unexpected output, found:\n" + output);
     }
 
     @Test
