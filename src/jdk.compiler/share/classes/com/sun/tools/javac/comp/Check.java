@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1872,6 +1873,51 @@ public class Check {
         overrideWarner.clear();
         boolean resultTypesOK =
             types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
+        if (resultTypesOK) {
+            /* at this point we know that the methods override each other so we can directly compare
+             * the nullability of the arguments and the return type
+             */
+            // let's see how precise we can be
+            List<JCVariableDecl> params = null;
+            boolean preciseArgPositions = false;
+            JCTree treeForPos = TreeInfo.diagnosticPositionFor(m, tree).getTree();
+            JCTree returnPos = treeForPos;
+            boolean ignore = false;
+            if (treeForPos instanceof JCMethodDecl methodDecl) {
+                preciseArgPositions = true;
+                returnPos = methodDecl.restype;
+                params = methodDecl.params;
+            } else if (treeForPos instanceof JCLambda) {
+                // ignore, we already process lambdas at Attr::checkLambdaCompatible
+                ignore = true;
+            }
+            if (!ignore) {
+                final List<JCVariableDecl> paramsFinal = params;
+                Supplier<JCTree> positionsSupplier = !preciseArgPositions ?
+                        () -> treeForPos :
+                        new Supplier<>() {
+                            List<JCVariableDecl> elems = paramsFinal;
+                            @Override
+                            public JCTree get() {
+                                if (elems.tail == null)
+                                    throw new NoSuchElementException();
+                                JCTree result = elems.head.vartype;
+                                elems = elems.tail;
+                                return result;
+                            }
+                        };
+                checkArgsNullability(
+                        mt.getParameterTypes(),
+                        ot.getParameterTypes(),
+                        positionsSupplier,
+                        (overridingArg, overriddenArg) -> Fragments.ArgumentTypeNullabilityMismatch(overridingArg, overriddenArg)
+                );
+                if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                    warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
+                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
+                }
+            }
+        }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),
@@ -1925,6 +1971,22 @@ public class Check {
             checkDeprecated(() -> TreeInfo.diagnosticPositionFor(m, tree), m, other);
         }
     }
+
+    public void checkArgsNullability(List<Type> overridingArgs,
+                                     List<Type> overriddenArgs,
+                                     Supplier<JCTree> positions,
+                                     BiFunction<Type, Type, Fragment> fragmentFunc) {
+        while (overridingArgs.nonEmpty() && overriddenArgs.nonEmpty()) {
+            if (types.hasNarrowerNullability(overriddenArgs.head, overridingArgs.head)) {
+                warnNullableTypes(positions.get(),
+                        LintWarnings.IncompatibleNullRestrictions(
+                                fragmentFunc.apply(overridingArgs.head, overriddenArgs.head)));
+            }
+            overridingArgs = overridingArgs.tail;
+            overriddenArgs = overriddenArgs.tail;
+        }
+    }
+
     // where
         private boolean shouldCheckPreview(MethodSymbol m, MethodSymbol other, ClassSymbol origin) {
             if (m.owner != origin ||
