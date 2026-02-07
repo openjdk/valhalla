@@ -32,6 +32,8 @@ import jdk.internal.value.ValueClass;
 
 import java.util.Objects;
 
+import static java.lang.classfile.ClassFile.ACC_NULL_CHECKED;
+
 /**
  * The {@code Array} class provides static methods to dynamically create and
  * access Java arrays.
@@ -117,8 +119,6 @@ class Array {
         return multiNewArray(componentType, dimensions);
     }
 
-    private static final int NULL_CHECKED = 0x0200;
-
     /**
      * Creates a new array with the specified component type, modifiers, and
      * length, whose elements are copied from the provided source array.
@@ -161,7 +161,7 @@ class Array {
         int sourceLength = getLength(sourceArray);
         Objects.checkFromIndexSize(sourceOffset, length, sourceLength);
         Object newArray;
-        if ((modifiers & NULL_CHECKED) != 0 &&
+        if ((modifiers & ACC_NULL_CHECKED) != 0 &&
             length > 0 &&
             ValueClass.isConcreteValueClass(componentType)) {
             newArray = ValueClass.newNullRestrictedAtomicArray(

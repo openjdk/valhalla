@@ -1,2 +1,0 @@
-CheckNullRestrictedAttrIsUnique.java:13:9: compiler.err.cant.access: DuplicateNullRestrictedAttr, (compiler.misc.bad.class.file.header: DuplicateNullRestrictedAttr.class, (compiler.misc.attribute.must.be.unique: NullRestricted))
-1 error

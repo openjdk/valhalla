@@ -386,9 +386,6 @@ public class ClassWriter extends ClassFile {
         }
         acount += writeJavaAnnotations(sym.getRawAttributes());
         acount += writeTypeAnnotations(sym.getRawTypeAttributes(), false);
-        if (target.hasValueClasses()) {
-            acount += writeNullRestrictedIfNeeded(sym);
-        }
         return acount;
     }
 
@@ -1015,20 +1012,6 @@ public class ClassWriter extends ClassFile {
                 databuf.appendChar(poolWriter.putClass((ClassSymbol) t.tsym));
             }
             endAttr(alenIdx);
-            return 1;
-        }
-        return 0;
-    }
-
-    /** Write "NullRestricted" attribute.
-     */
-    int writeNullRestrictedIfNeeded(Symbol sym) {
-        if (allowNullRestrictedTypes && sym.kind == VAR && types.isNonNullable(sym.type) && !sym.type.hasTag(ARRAY)) {
-            int alenIdx = writeAttr(names.NullRestricted);
-            endAttr(alenIdx);
-            if (preview.isPreview(Source.Feature.VALUE_CLASSES)) {
-                preview.markUsesPreview(null);
-            }
             return 1;
         }
         return 0;

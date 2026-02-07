@@ -1364,21 +1364,6 @@ public class ClassReader {
                     }
                 }
             },
-            new AttributeReader(names.NullRestricted, V66, MEMBER_ATTRIBUTE) {
-                @Override
-                protected boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowValueClasses;
-                }
-                protected void read(Symbol sym, int attrLen) {
-                    if (sym.kind != VAR) {
-                        throw badClassFile("attribute.only.applicable.to.fields", names.NullRestricted);
-                    }
-                    if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
-                        throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
-                    }
-                    // there is no point on setting the nullness or not has it will be set while parsing the signature
-                }
-            },
         };
 
         for (AttributeReader r: readers)

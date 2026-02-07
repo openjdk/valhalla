@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8338766
- * @summary [lw5] remove option enableNullRestrictedTypes and make null-restricted types a preview feature
+ * @summary Make null-restricted types a preview feature with an access flag
  * @library /tools/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.code
@@ -34,26 +34,25 @@
  *      jdk.compiler/com.sun.tools.javac.main
  *      jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
- * @run main NullRestrictedAttrTest
- * @ignore support for the NullRestricted attribute is missing in javap, class library etc
+ * @run main ${test.main.class}
  */
 
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.FieldModel;
+import java.lang.reflect.AccessFlag;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.util.Assert;
-import com.sun.tools.classfile.ClassFile;
 
 import toolbox.TestRunner;
 import toolbox.ToolBox;
-import toolbox.JavacTask;
-import toolbox.Task;
 
-public class NullRestrictedAttrTest extends TestRunner {
+public class NullCheckedFlagTest extends TestRunner {
     ToolBox tb = new ToolBox();
 
-    public NullRestrictedAttrTest() {
+    public NullCheckedFlagTest() {
         super(System.err);
     }
 
@@ -66,7 +65,7 @@ public class NullRestrictedAttrTest extends TestRunner {
     }
 
     public static void main(String... args) throws Exception {
-        new NullRestrictedAttrTest().runTests();
+        new NullCheckedFlagTest().runTests();
     }
 
     @Test
@@ -75,7 +74,6 @@ public class NullRestrictedAttrTest extends TestRunner {
         tb.writeJavaFiles(src,
                 """
                 value class V {
-                    public implicit V();
                 }
                 class Test {
                     V! v1;
@@ -94,8 +92,10 @@ public class NullRestrictedAttrTest extends TestRunner {
                 .run()
                 .writeAll();
         Path classFilePath = classes.resolve("Test.class");
-        ClassFile classFile = ClassFile.read(classFilePath.toFile());
-        Assert.check(classFile.minor_version == 65535);
-        Assert.check(classFile.attributes.get("NullRestricted") != null);
+        ClassModel clazz = ClassFile.of().parse(classFilePath);
+        Assert.check(clazz.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION);
+        FieldModel v1 = clazz.fields().getFirst();
+        Assert.check(v1.fieldName().equalsString("v1"));
+        Assert.check(v1.flags().has(AccessFlag.NULL_CHECKED));
     }
 }
