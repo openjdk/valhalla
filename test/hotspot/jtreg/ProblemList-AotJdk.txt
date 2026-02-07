@@ -70,4 +70,3 @@ compiler/arraycopy/TestCloneWithStressReflectiveCode.java 8323727 generic-all
 #############################################################################
 
 # Valhalla failures start here:
-compiler/valhalla/inlinetypes/TestOopsInReturnConvention.java#c1 8375203 windows-x64
