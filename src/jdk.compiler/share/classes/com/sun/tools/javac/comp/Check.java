@@ -1881,29 +1881,35 @@ public class Check {
             boolean preciseArgPositions = false;
             JCTree treeForPos = TreeInfo.diagnosticPositionFor(m, tree).getTree();
             JCTree returnPos = treeForPos;
+            boolean ignore = false;
             if (treeForPos instanceof JCMethodDecl methodDecl) {
                 preciseArgPositions = true;
                 returnPos = methodDecl.restype;
                 params = methodDecl.params;
+            } else if (treeForPos instanceof JCLambda) {
+                // ignore, we already process lambdas at Attr::checkLambdaCompatible
+                ignore = true;
             }
-            final List<JCVariableDecl> paramsFinal = params;
-            Supplier<JCTree> positionsSupplier = !preciseArgPositions ?
-                    () -> treeForPos :
-                    new Supplier<>() {
-                        List<JCVariableDecl> elems = paramsFinal;
-                        @Override
-                        public JCTree get() {
-                            if (elems.tail == null)
-                                throw new NoSuchElementException();
-                            JCTree result = elems.head.vartype;
-                            elems = elems.tail;
-                            return result;
-                        }
-                    };
-            checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), positionsSupplier, false);
-            if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
-                        Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
+            if (!ignore) {
+                final List<JCVariableDecl> paramsFinal = params;
+                Supplier<JCTree> positionsSupplier = !preciseArgPositions ?
+                        () -> treeForPos :
+                        new Supplier<>() {
+                            List<JCVariableDecl> elems = paramsFinal;
+                            @Override
+                            public JCTree get() {
+                                if (elems.tail == null)
+                                    throw new NoSuchElementException();
+                                JCTree result = elems.head.vartype;
+                                elems = elems.tail;
+                                return result;
+                            }
+                        };
+                checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), positionsSupplier, false);
+                if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                    warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
+                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
+                }
             }
         }
         if (!resultTypesOK) {
