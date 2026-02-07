@@ -5282,4 +5282,21 @@ public class TestLWorld {
         Asserts.assertTrue(test185(value, value));
         Asserts.assertTrue(test185(value, new MyValue152(0)));
     }
+
+    @Test
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
+    public boolean test186(MyClass152 o1, Object o2) {
+        // One side is not a value object
+        return getter(o1) == getter(o2);
+    }
+
+    @Run(test = "test186")
+    public void test186_verifier() {
+        MyClass152 identity = new MyClass152(0);
+        Asserts.assertTrue(test186(null, null));
+        Asserts.assertFalse(test186(null, identity));
+        Asserts.assertFalse(test186(identity, 0));
+        Asserts.assertTrue(test186(identity, identity));
+        Asserts.assertFalse(test186(identity, new MyClass152(0)));
+    }
 }
