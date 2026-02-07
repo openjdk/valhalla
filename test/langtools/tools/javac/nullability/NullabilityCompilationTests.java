@@ -312,44 +312,42 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                         new DiagAndCode(
                                 """
                                 class Test {
-                                    String m(String! s) { return ""; }
+                                    String m(String! s, Integer! i) { return ""; }
                                 }
                                 class Sub extends Test {
                                     @Override
-                                    String m(String s) { return null; }
+                                    String m(String s, Integer i) { return null; }
                                 }
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                1),
+                                2),
                         new DiagAndCode(
                                 """
                                 import java.util.*;
                                 class Test {
-                                    // in this case there is no warning because when we erase List<String>!
-                                    // the null marker is lost
-                                    String m(List<String>! s) { return ""; }
+                                    String m(List<String>! s, List<Integer>! i) { return ""; }
                                 }
                                 class Sub extends Test {
                                     @Override
-                                    String m(List s) { return null; }
+                                    String m(List s, List i) { return null; }
                                 }
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                1),
+                                2),
                         new DiagAndCode(
                                 """
                                 interface I {
-                                    void m(String! s);
+                                    void m(String! s, Integer! i);
                                 }
                                 class Test {
-                                    I i = (String s) -> {};
+                                    I i = (String s, Integer i) -> {};
                                 }
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                1)
+                                2)
                 )
         );
     }
