@@ -28,6 +28,7 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementKind;
@@ -4008,16 +4009,20 @@ public class Attr extends JCTree.Visitor {
             } else if (allowNullRestrictedTypes) {
                 // ok they are equal but what about nullability?
                 List<JCVariableDecl> lambdaParams = tree.params;
-                while (argTypes.tail != null && lambdaArgTypes.tail != null) {
-                    if (types.hasNarrowerNullability(argTypes.head, lambdaArgTypes.head)) {
-                        chk.warnNullableTypes(lambdaParams.head.vartype,
-                                LintWarnings.IncompatibleNullRestrictions(
-                                    Fragments.LambdaArgumentTypeNullabilityMismatch(argTypes.head, lambdaArgTypes.head)));
-                    }
-                    argTypes = argTypes.tail;
-                    lambdaArgTypes = lambdaArgTypes.tail;
-                    lambdaParams = lambdaParams.tail;
-                }
+                chk.checkArgsNullability(lambdaArgTypes, argTypes,
+                        new Supplier<>() {
+                            List<JCVariableDecl> elems = lambdaParams;
+                            @Override
+                            public JCTree get() {
+                                if (elems.tail == null)
+                                    throw new NoSuchElementException();
+                                JCTree result = elems.head.vartype;
+                                elems = elems.tail;
+                                return result;
+                            }
+                        },
+                        true
+                );
             }
         }
 

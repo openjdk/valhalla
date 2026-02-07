@@ -1885,23 +1885,22 @@ public class Check {
                 preciseArgPositions = true;
                 returnPos = methodDecl.restype;
                 params = methodDecl.params;
-            } else {
-                // do nothing, this is generally generated code, like FlagsEnum, a lambda expression, etc
             }
-            List<Type> mtArgs = mt.getParameterTypes();
-            List<Type> otArgs = ot.getParameterTypes();
-            while (mtArgs.nonEmpty() && otArgs.nonEmpty()) {
-                if (types.hasNarrowerNullability(otArgs.head, mtArgs.head)) {
-                    warnNullableTypes(preciseArgPositions ? params.head.vartype : treeForPos,
-                            LintWarnings.IncompatibleNullRestrictions(
-                                    Fragments.ArgumentTypeNullabilityMismatch(mtArgs.head, otArgs.head)));
-                }
-                mtArgs = mtArgs.tail;
-                otArgs = otArgs.tail;
-                if (preciseArgPositions) {
-                    params = params.tail;
-                }
-            }
+            final List<JCVariableDecl> paramsFinal = params;
+            Supplier<JCTree> positionsSupplier = !preciseArgPositions ?
+                    () -> treeForPos :
+                    new Supplier<>() {
+                        List<JCVariableDecl> elems = paramsFinal;
+                        @Override
+                        public JCTree get() {
+                            if (elems.tail == null)
+                                throw new NoSuchElementException();
+                            JCTree result = elems.head.vartype;
+                            elems = elems.tail;
+                            return result;
+                        }
+                    };
+            checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), positionsSupplier, false);
             if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
                 warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
                         Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
@@ -1960,6 +1959,22 @@ public class Check {
             checkDeprecated(() -> TreeInfo.diagnosticPositionFor(m, tree), m, other);
         }
     }
+
+    public void checkArgsNullability(List<Type> overridingArgs, List<Type> overriddenArgs, Supplier<JCTree> positions, boolean lambda) {
+        while (overridingArgs.nonEmpty() && overriddenArgs.nonEmpty()) {
+            if (types.hasNarrowerNullability(overriddenArgs.head, overridingArgs.head)) {
+                warnNullableTypes(positions.get(),
+                        lambda ?
+                        LintWarnings.IncompatibleNullRestrictions(
+                                Fragments.LambdaArgumentTypeNullabilityMismatch(overridingArgs.head, overriddenArgs.head)) :
+                        LintWarnings.IncompatibleNullRestrictions(
+                                Fragments.ArgumentTypeNullabilityMismatch(overridingArgs.head, overriddenArgs.head)));
+            }
+            overridingArgs = overridingArgs.tail;
+            overriddenArgs = overriddenArgs.tail;
+        }
+    }
+
     // where
         private boolean shouldCheckPreview(MethodSymbol m, MethodSymbol other, ClassSymbol origin) {
             if (m.owner != origin ||
