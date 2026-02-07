@@ -46,7 +46,7 @@
                                         JVM_ACC_TRANSIENT | \
                                         JVM_ACC_NULL_CHECKED | \
                                         JVM_ACC_ENUM | \
-                                        JVM_ACC_STRICT | \
+                                        JVM_ACC_STRICT_INIT | \
                                         JVM_ACC_SYNTHETIC)
 
 #define JVM_RECOGNIZED_METHOD_MODIFIERS (JVM_ACC_PUBLIC | \
