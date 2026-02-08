@@ -109,6 +109,7 @@ public:
     return _value._object;
   }
 
+  static ciConstant make_zero_or_null(BasicType);
   bool is_null_or_zero() const;
 
   bool is_valid() const {
