@@ -69,7 +69,7 @@ public interface TypeVariable<D extends GenericDeclaration> extends Type, Annota
      * @return an array of {@code Type}s representing the upper
      *     bound(s) of this type variable
      */
-    Type[] getBounds();
+    Type[]! getBounds();
 
     /**
      * Returns a {@code GenericDeclaration} object representing the
@@ -79,14 +79,14 @@ public interface TypeVariable<D extends GenericDeclaration> extends Type, Annota
      *
      * @since 1.5
      */
-    D getGenericDeclaration();
+    D! getGenericDeclaration();
 
     /**
      * Returns the name of this type variable, as it occurs in the source code.
      *
      * @return the name of this type variable, as it appears in the source code
      */
-    String getName();
+    String! getName();
 
     /**
      * Returns an array of AnnotatedType objects that represent the use of
@@ -99,5 +99,5 @@ public interface TypeVariable<D extends GenericDeclaration> extends Type, Annota
      * @return an array of objects representing the upper bound(s) of the type variable
      * @since 1.8
      */
-     AnnotatedType[] getAnnotatedBounds();
+     AnnotatedType[]! getAnnotatedBounds();
 }

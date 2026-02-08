@@ -418,7 +418,7 @@ public enum ClassFileFormatVersion {
     /**
      * {@return the latest class file format version}
      */
-    public static ClassFileFormatVersion latest() {
+    public static ClassFileFormatVersion! latest() {
         return RELEASE_27;
     }
 
@@ -458,7 +458,7 @@ public enum ClassFileFormatVersion {
      * @throws IllegalArgumentException if the feature of version
      * argument is greater than the feature of the platform version.
      */
-    public static ClassFileFormatVersion valueOf(Runtime.Version rv) {
+    public static ClassFileFormatVersion! valueOf(Runtime.Version! rv) {
         // Could also implement this as a switch where a case was
         // added with each new release.
         return valueOf("RELEASE_" + rv.feature());
@@ -491,7 +491,7 @@ public enum ClassFileFormatVersion {
      * @throws IllegalArgumentException if the argument is outside of
      * the range of major class file versions
      */
-    public static ClassFileFormatVersion fromMajor(int major) {
+    public static ClassFileFormatVersion! fromMajor(int major) {
         if (major < 45  // RELEASE_0.major()
             || major > latest().major()) {
             throw new IllegalArgumentException("Out of range major class file version "

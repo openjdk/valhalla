@@ -126,7 +126,9 @@ final class CfgFile {
 
     private record Referencies(Path appModsDirectory) {
 
-        Referencies {
+        Referencies(Path appModsDirectory) {
+            this.appModsDirectory = appModsDirectory;
+            super();
             if (!appModsDirectory.startsWith(appDirectory())) {
                 throw new IllegalArgumentException();
             }

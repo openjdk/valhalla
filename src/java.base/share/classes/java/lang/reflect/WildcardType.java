@@ -58,7 +58,7 @@ public interface WildcardType extends Type {
      *     bounds refer to a parameterized type that cannot be instantiated
      *     for any reason
      */
-    Type[] getUpperBounds();
+    Type[]! getUpperBounds();
 
     /**
      * Returns an array of {@code Type} objects representing the
@@ -86,5 +86,5 @@ public interface WildcardType extends Type {
      *     bounds refer to a parameterized type that cannot be instantiated
      *     for any reason
      */
-    Type[] getLowerBounds();
+    Type[]! getLowerBounds();
 }

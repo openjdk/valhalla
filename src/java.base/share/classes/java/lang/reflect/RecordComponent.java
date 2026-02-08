@@ -67,7 +67,7 @@ public final class RecordComponent implements AnnotatedElement {
      *
      * @return the name of this record component
      */
-    public String getName() {
+    public String! getName() {
         return name;
     }
 
@@ -78,7 +78,7 @@ public final class RecordComponent implements AnnotatedElement {
      * @return a {@code Class} identifying the declared type of the component
      * represented by this record component
      */
-    public Class<?> getType() {
+    public Class<?>! getType() {
         return type;
     }
 
@@ -118,7 +118,7 @@ public final class RecordComponent implements AnnotatedElement {
      *         signature of the underlying record component refers to a parameterized
      *         type that cannot be instantiated for any reason
      */
-    public Type getGenericType() {
+    public Type! getGenericType() {
         if (getGenericSignature() != null)
             return getGenericInfo().getGenericType();
         else
@@ -126,7 +126,7 @@ public final class RecordComponent implements AnnotatedElement {
     }
 
     // Accessor for generic info repository
-    private FieldRepository getGenericInfo() {
+    private FieldRepository! getGenericInfo() {
         var genericInfo = this.genericInfo;
         // lazily initialize repository if necessary
         if (genericInfo == null) {
@@ -138,7 +138,7 @@ public final class RecordComponent implements AnnotatedElement {
     }
 
     // Accessor for factory
-    private GenericsFactory getFactory() {
+    private GenericsFactory! getFactory() {
         Class<?> c = getDeclaringRecord();
         // create scope and factory
         return CoreReflectionFactory.make(c, ClassScope.make(c));
@@ -150,7 +150,7 @@ public final class RecordComponent implements AnnotatedElement {
      *
      * @return an object representing the declared type of this record component
      */
-    public AnnotatedType getAnnotatedType() {
+    public AnnotatedType! getAnnotatedType() {
         return TypeAnnotationParser.buildAnnotatedType(typeAnnotations,
                 SharedSecrets.getJavaLangAccess().
                         getConstantPool(getDeclaringRecord()),
@@ -167,6 +167,7 @@ public final class RecordComponent implements AnnotatedElement {
      * @return a {@code Method} that represents the accessor for this record
      * component
      */
+    // TODO can be null if DNE (VM behavior)
     public Method getAccessor() {
         return accessor;
     }
@@ -178,14 +179,13 @@ public final class RecordComponent implements AnnotatedElement {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
 
     private transient volatile Map<Class<? extends Annotation>, Annotation> declaredAnnotations;
 
-    private Map<Class<? extends Annotation>, Annotation> declaredAnnotations() {
+    private Map<Class<? extends Annotation>, Annotation>! declaredAnnotations() {
         Map<Class<? extends Annotation>, Annotation> declAnnos;
         if ((declAnnos = declaredAnnotations) == null) {
             synchronized (this) {
@@ -213,7 +213,7 @@ public final class RecordComponent implements AnnotatedElement {
      * declaration annotations.
      */
     @Override
-    public Annotation[] getAnnotations() {
+    public Annotation[]! getAnnotations() {
         return getDeclaredAnnotations();
     }
 
@@ -223,7 +223,7 @@ public final class RecordComponent implements AnnotatedElement {
      * declaration annotations.
      */
     @Override
-    public Annotation[] getDeclaredAnnotations() { return AnnotationParser.toArray(declaredAnnotations()); }
+    public Annotation[]! getDeclaredAnnotations() { return AnnotationParser.toArray(declaredAnnotations()); }
 
     /**
      * Returns a string describing this record component. The format is
@@ -237,7 +237,7 @@ public final class RecordComponent implements AnnotatedElement {
      *
      * @return a string describing this record component
      */
-    public String toString() {
+    public String! toString() {
         return (getType().getTypeName() + " " + getName());
     }
 
@@ -246,7 +246,7 @@ public final class RecordComponent implements AnnotatedElement {
      *
      * @return The record class declaring this record component.
      */
-    public Class<?> getDeclaringRecord() {
+    public Class<?>! getDeclaringRecord() {
         return clazz;
     }
 }
