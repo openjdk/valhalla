@@ -612,6 +612,7 @@ public class AccessibleObject implements AnnotatedElement {
         Cache(Class<?> caller, Class<?>! target) {
             this.callerRef = new WeakReference<>(caller);
             this.targetRef = new WeakReference<>(target);
+            super();
         }
 
         boolean isCacheFor(Class<?> caller, Class<?>! refc) {
