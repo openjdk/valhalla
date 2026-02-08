@@ -575,7 +575,7 @@ public final class Constructor<T> extends Executable {
         return slot;
     }
 
-    String! getSignature() {
+    String getSignature() {
         return signature;
     }
 
