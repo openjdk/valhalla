@@ -32,7 +32,6 @@
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.file
  *      jdk.compiler/com.sun.tools.javac.main
- *      jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run main ${test.main.class}
  */
@@ -77,6 +76,7 @@ public class NullCheckedFlagTest extends TestRunner {
                 }
                 class Test {
                     V! v1;
+                    Test(V! v) { v1 = v; super(); }
                     void m(V! v) {
                         v1 = v;
                     }
