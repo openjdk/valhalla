@@ -65,7 +65,8 @@ final class ReflectAccess implements JavaLangReflectAccess {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends AccessibleObject> T getRoot(T! obj) {
+    // TODO: Cannot ! on type var directly, breaks type substitution
+    public <T extends AccessibleObject> T getRoot(T obj) {
         return (T) obj.getRoot();
     }
 
@@ -77,7 +78,8 @@ final class ReflectAccess implements JavaLangReflectAccess {
         return f.isNullRestricted();
     }
 
-    public <T> T! newInstance(Constructor<T>! ctor, Object[] args, Class<?> caller)
+    // TODO: Cannot ! on type var directly, breaks type substitution
+    public <T> T newInstance(Constructor<T>! ctor, Object[] args, Class<?> caller)
         throws IllegalAccessException, InstantiationException, InvocationTargetException
     {
         return ctor.newInstanceWithCaller(args, true, caller);
