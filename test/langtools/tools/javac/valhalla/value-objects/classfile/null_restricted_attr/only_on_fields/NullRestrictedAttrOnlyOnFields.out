@@ -1,2 +1,0 @@
-NullRestrictedAttrOnlyOnFields.java:13:9: compiler.err.cant.access: NullRestrictedOnMethod, (compiler.misc.bad.class.file.header: NullRestrictedOnMethod.class, (compiler.misc.attribute.only.applicable.to.fields: NullRestricted))
-1 error

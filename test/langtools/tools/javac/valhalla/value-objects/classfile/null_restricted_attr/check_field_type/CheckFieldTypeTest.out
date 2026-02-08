@@ -1,2 +1,0 @@
-CheckFieldTypeTest.java:13:9: compiler.err.cant.access: NullRestrictedOnPrimitive, (compiler.misc.bad.class.file.header: NullRestrictedOnPrimitive.class, (compiler.misc.attribute.not.applicable.to.field.type: NullRestricted, int))
-1 error
