@@ -63,9 +63,11 @@ protected:
   ValuePayload& operator=(const ValuePayload&) = default;
 
   // Constructed from parts
-  inline ValuePayload(oop holder, InlineKlass* klass, ptrdiff_t offset,
+  inline ValuePayload(oop holder,
+                      InlineKlass* klass,
+                      ptrdiff_t offset,
                       LayoutKind layout_kind
-                          DEBUG_ONLY(COMMA bool is_raw = false));
+                      DEBUG_ONLY(COMMA bool is_raw = false));
 
   inline void set_offset(ptrdiff_t offset);
   inlineOop allocate_instance(TRAPS) const;
@@ -85,12 +87,12 @@ private:
                              LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
 
 public:
-  inline oop get_holder() const;
-  inline InlineKlass* get_klass() const;
-  inline ptrdiff_t get_offset() const;
-  inline LayoutKind get_layout_kind() const;
+  inline oop holder() const;
+  inline InlineKlass* klass() const;
+  inline ptrdiff_t offset() const;
+  inline LayoutKind layout_kind() const;
 
-  inline address get_address() const;
+  inline ::address address() const;
 
   inline bool has_null_marker() const;
   inline bool is_payload_null() const;
@@ -98,15 +100,15 @@ public:
   class Handle;
   class OopHandle;
 
-  inline Handle get_handle(JavaThread* thread) const;
-  inline OopHandle get_oop_handle(OopStorage* storage) const;
+  inline Handle make_handle(JavaThread* thread) const;
+  inline OopHandle make_oop_handle(OopStorage* storage) const;
 };
 
 class RawValuePayload : public ValuePayload {
 public:
   RawValuePayload() = default;
 
-  inline RawValuePayload(address payload_address, InlineKlass* klass,
+  inline RawValuePayload(::address payload_address, InlineKlass* klass,
                          LayoutKind layout_kind);
 };
 
@@ -137,8 +139,8 @@ public:
   class Handle;
   class OopHandle;
 
-  inline Handle get_handle(JavaThread* thread) const;
-  inline OopHandle get_oop_handle(OopStorage* storage) const;
+  inline Handle make_handle(JavaThread* thread) const;
+  inline OopHandle make_oop_handle(OopStorage* storage) const;
 };
 
 class FlatValuePayload : public ValuePayload {
@@ -166,8 +168,8 @@ public:
   class Handle;
   class OopHandle;
 
-  inline Handle get_handle(JavaThread* thread) const;
-  inline OopHandle get_oop_handle(OopStorage* storage) const;
+  inline Handle make_handle(JavaThread* thread) const;
+  inline OopHandle make_oop_handle(OopStorage* storage) const;
 };
 
 class FlatFieldPayload : public FlatValuePayload {
@@ -200,8 +202,8 @@ public:
   class Handle;
   class OopHandle;
 
-  inline Handle get_handle(JavaThread* thread) const;
-  inline OopHandle get_oop_handle(OopStorage* storage) const;
+  inline Handle make_handle(JavaThread* thread) const;
+  inline OopHandle make_oop_handle(OopStorage* storage) const;
 };
 
 class FlatArrayPayload : public FlatValuePayload {
@@ -252,8 +254,8 @@ public:
   class Handle;
   class OopHandle;
 
-  inline Handle get_handle(JavaThread* thread) const;
-  inline OopHandle get_oop_handle(OopStorage* storage) const;
+  inline Handle make_handle(JavaThread* thread) const;
+  inline OopHandle make_oop_handle(OopStorage* storage) const;
 };
 
 class ValuePayload::Handle {

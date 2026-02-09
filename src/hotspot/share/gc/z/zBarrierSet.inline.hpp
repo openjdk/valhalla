@@ -485,10 +485,10 @@ static inline void clear_primitive_payload(const void* dst, const size_t payload
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
-  precond(src.get_klass() == dst.get_klass());
+  precond(src.klass() == dst.klass());
 
-  const LayoutKind lk = LayoutKindHelper::get_copy_layout(src.get_layout_kind(), dst.get_layout_kind());
-  const InlineKlass* md = src.get_klass();
+  const LayoutKind lk = LayoutKindHelper::get_copy_layout(src.layout_kind(), dst.layout_kind());
+  const InlineKlass* md = src.klass();
   if (md->contains_oops()) {
     assert(!LayoutKindHelper::is_atomic_flat(lk), "ZGC cannot handle atomic flat values");
 
@@ -497,11 +497,10 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
     //   2) load and store barrier for each oop
     //   3) possibly raw copy for any primitive payload trailer
 
-    // get_address() points at the payload start, the oop map offset are
-    // relative to the object header, adjust address to account for this
-    // discrepancy.
-    const address src_addr = src.get_address();
-    const address dst_addr = dst.get_address();
+    // address() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address src_addr = src.address();
+    const address dst_addr = dst.address();
     const address oop_map_adjusted_src_addr = src_addr - md->payload_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     const OopMapBlock* const end = map + md->nonstatic_oop_map_count();
@@ -534,9 +533,9 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_null_in_heap(const ValuePayload& dst) {
-  const LayoutKind lk = dst.get_layout_kind();
+  const LayoutKind lk = dst.layout_kind();
   assert(!LayoutKindHelper::is_null_free_flat(lk), "Cannot store null in null free layout");
-  const InlineKlass* md = dst.get_klass();
+  const InlineKlass* md = dst.klass();
 
   if (md->contains_oops()) {
     assert(!LayoutKindHelper::is_atomic_flat(lk), "ZGC cannot handle atomic flat values");
@@ -546,10 +545,9 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_nul
     //   2) store barrier and clear for each oop
     //   3) possibly raw clear for any primitive payload trailer
 
-    // get_address() points at the payload start, the oop map offset are
-    // relative to the object header, adjust address to account for this
-    // discrepancy.
-    const address dst_addr = dst.get_address();
+    // address() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address dst_addr = dst.address();
     const address oop_map_adjusted_dst_addr = dst_addr - md->payload_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     const OopMapBlock* const end = map + md->nonstatic_oop_map_count();

@@ -288,8 +288,8 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         // We need to allocate a buffer object to facilitate the copy between
         // the different layouts. Keep the payload in a handle so we can reload
         // the oops.
-        FlatArrayPayload::Handle src_payload_handle = src_payload.get_handle(THREAD);
-        FlatArrayPayload::Handle dst_payload_handle = dst_payload.get_handle(THREAD);
+        FlatArrayPayload::Handle src_payload_handle = src_payload.make_handle(THREAD);
+        FlatArrayPayload::Handle dst_payload_handle = dst_payload.make_handle(THREAD);
 
         inlineOop buffer = vk->allocate_instance(CHECK);
         BufferedValuePayload buf_payload(buffer);

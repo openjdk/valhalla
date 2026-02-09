@@ -334,22 +334,22 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
 
 template <DecoratorSet decorators>
 inline void RawAccessBarrier<decorators>::value_copy(const ValuePayload& src, const ValuePayload& dst) {
-  precond(src.get_klass() == dst.get_klass());
+  precond(src.klass() == dst.klass());
 
-  const InlineKlass* klass = src.get_klass();
+  const InlineKlass* klass = src.klass();
   const LayoutKind copy_layout = LayoutKindHelper::get_copy_layout(
-      src.get_layout_kind(), dst.get_layout_kind());
+      src.layout_kind(), dst.layout_kind());
   const int size = klass->layout_size_in_bytes(copy_layout);
 
-  AccessInternal::value_copy_internal(src.get_address(), dst.get_address(),
+  AccessInternal::value_copy_internal(src.address(), dst.address(),
                                       static_cast<size_t>(size));
 }
 
 template <DecoratorSet decorators>
 inline void RawAccessBarrier<decorators>::value_store_null(const ValuePayload& dst) {
-  address dst_addr = dst.get_address();
-  const LayoutKind lk = dst.get_layout_kind();
-  const InlineKlass* klass = dst.get_klass();
+  address dst_addr = dst.address();
+  const LayoutKind lk = dst.layout_kind();
+  const InlineKlass* klass = dst.klass();
   const int size = klass->layout_size_in_bytes(lk);
 
   AccessInternal::value_store_null(dst_addr, static_cast<size_t>(size));
