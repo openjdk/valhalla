@@ -47,7 +47,6 @@
 #include "oops/cpCache.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
-#include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
@@ -258,9 +257,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
-  Handle obj_h(THREAD, obj);
-  assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
-  Handle val_h(THREAD, value);
+  assert(oopDesc::is_oop_or_null(value), "Sanity check");
 
   FlatFieldPayload payload(instanceOop(obj), entry);
   payload.write(inlineOop(value), CHECK);
