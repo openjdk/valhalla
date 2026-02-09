@@ -1877,45 +1877,20 @@ public class Check {
             /* at this point we know that the methods override each other so we can directly compare
              * the nullability of the arguments and the return type
              */
-            // let's see how precise we can be
-            List<JCVariableDecl> params = null;
-            boolean preciseArgPositions = false;
-            JCTree treeForPos = TreeInfo.diagnosticPositionFor(m, tree).getTree();
-            JCTree returnPos = treeForPos;
-            boolean ignore = false;
-            if (treeForPos instanceof JCMethodDecl methodDecl) {
-                preciseArgPositions = true;
-                returnPos = methodDecl.restype;
-                params = methodDecl.params;
-            } else if (treeForPos instanceof JCLambda) {
-                // ignore, we already process lambdas at Attr::checkLambdaCompatible
-                ignore = true;
-            }
-            if (!ignore) {
-                final List<JCVariableDecl> paramsFinal = params;
-                Supplier<JCTree> positionsSupplier = !preciseArgPositions ?
-                        () -> treeForPos :
-                        new Supplier<>() {
-                            List<JCVariableDecl> elems = paramsFinal;
-                            @Override
-                            public JCTree get() {
-                                if (elems.tail == null)
-                                    throw new NoSuchElementException();
-                                JCTree result = elems.head.vartype;
-                                elems = elems.tail;
-                                return result;
-                            }
-                        };
-                checkArgsNullability(
-                        mt.getParameterTypes(),
-                        ot.getParameterTypes(),
-                        positionsSupplier,
-                        (overridingArg, overriddenArg) -> Fragments.ArgumentTypeNullabilityMismatch(overridingArg, overriddenArg)
-                );
+            JCTree theTree = TreeInfo.diagnosticPositionFor(m, tree).getTree();
+            if (theTree instanceof JCMethodDecl methodDecl) {
+                for (Pair<JCVariableDecl, Type> incompatibleParam :
+                        checkArgsNullability(methodDecl.params, ot.getParameterTypes())) {
+                    warnNullableTypes(incompatibleParam.fst.vartype,
+                            LintWarnings.IncompatibleNullRestrictions(
+                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.fst.vartype.type, incompatibleParam.snd)));
+                }
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                    warnNullableTypes(returnPos, LintWarnings.IncompatibleNullRestrictions(
+                    warnNullableTypes(methodDecl.restype, LintWarnings.IncompatibleNullRestrictions(
                             Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
                 }
+            } else if (theTree instanceof JCLambda) {
+                // ignore, we already process lambdas at Attr::checkLambdaCompatible
             }
         }
         if (!resultTypesOK) {
@@ -1972,19 +1947,17 @@ public class Check {
         }
     }
 
-    public void checkArgsNullability(List<Type> overridingArgs,
-                                     List<Type> overriddenArgs,
-                                     Supplier<JCTree> positions,
-                                     BiFunction<Type, Type, Fragment> fragmentFunc) {
-        while (overridingArgs.nonEmpty() && overriddenArgs.nonEmpty()) {
-            if (types.hasNarrowerNullability(overriddenArgs.head, overridingArgs.head)) {
-                warnNullableTypes(positions.get(),
-                        LintWarnings.IncompatibleNullRestrictions(
-                                fragmentFunc.apply(overridingArgs.head, overriddenArgs.head)));
+    public List<Pair<JCVariableDecl, Type>> checkArgsNullability(List<JCVariableDecl> overridingParams,
+                                                                 List<Type> overriddenArgs) {
+        ListBuffer<Pair<JCVariableDecl, Type>> resultLB = new ListBuffer<>();
+        while (overridingParams.nonEmpty() && overriddenArgs.nonEmpty()) {
+            if (types.hasNarrowerNullability(overriddenArgs.head, overridingParams.head.vartype.type)) {
+                resultLB.add(new Pair<>(overridingParams.head, overriddenArgs.head));
             }
-            overridingArgs = overridingArgs.tail;
+            overridingParams = overridingParams.tail;
             overriddenArgs = overriddenArgs.tail;
         }
+        return resultLB.toList();
     }
 
     // where
