@@ -769,7 +769,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
             __ mov(buf_oop, buffer->as_Register());
             // __ str(buf_oop, buffer->as_Register());
           }
-          __ br(Assembler::NE, not_null_buffer);
+          __ cbnz(buf_oop, not_null_buffer);
+          // __ br(Assembler::NE, not_null_buffer);
           // get the buffer from the just allocated pool of buffers
           int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
           __ load_heap_oop(buf_oop, Address(rscratch2, index), rscratch1, tmp2);
