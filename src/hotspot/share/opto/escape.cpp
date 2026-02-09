@@ -2568,7 +2568,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       }
       BCEscapeAnalyzer* call_analyzer = (meth !=nullptr) ? meth->get_bcea() : nullptr;
       // fall-through if not a Java method or no analyzer information
-      if (call_analyzer != nullptr) {
+      if (call_analyzer != nullptr && !meth->has_scalarized_args()) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
         for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
           int k = di.i_domain() - TypeFunc::Parms;
