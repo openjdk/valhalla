@@ -28,7 +28,6 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementKind;
@@ -4015,21 +4014,6 @@ public class Attr extends JCTree.Visitor {
                                         Fragments.LambdaArgumentTypeNullabilityMismatch(incompatibleParam.fst.vartype.type,
                                                 incompatibleParam.snd)));
                 }
-                /*List<JCVariableDecl> lambdaParams = tree.params;
-                chk.checkArgsNullability(lambdaArgTypes, argTypes,
-                        new Supplier<>() {
-                            List<JCVariableDecl> elems = lambdaParams;
-                            @Override
-                            public JCTree get() {
-                                if (elems.tail == null)
-                                    throw new NoSuchElementException();
-                                JCTree result = elems.head.vartype;
-                                elems = elems.tail;
-                                return result;
-                            }
-                        },
-                        (overridingArg, overriddenArg) -> Fragments.LambdaArgumentTypeNullabilityMismatch(overridingArg, overriddenArg)
-                );*/
             }
         }
 
