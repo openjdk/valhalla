@@ -21,6 +21,7 @@
  * questions.
  *
  */
+
 #ifndef SHARE_VM_OOPS_INLINEKLASSPAYLOAD_INLINE_HPP
 #define SHARE_VM_OOPS_INLINEKLASSPAYLOAD_INLINE_HPP
 
@@ -96,6 +97,7 @@ inline void ValuePayload::mark_as_null() {
 }
 
 #ifdef ASSERT
+
 bool ValuePayload::is_raw() const { return _is_raw; }
 
 void ValuePayload::print_on(outputStream* st) const {
@@ -135,7 +137,7 @@ void ValuePayload::print_on(outputStream* st) const {
 }
 
 inline void ValuePayload::assert_post_construction_invariants() const {
-  OnVMError on_assertion_failuire([&](outputStream* st) {
+  OnVMError on_assertion_failure([&](outputStream* st) {
     st->print_cr("=== assert_post_construction_invariants failure ===");
     StreamIndentor si(st);
     print_on(st);
@@ -144,8 +146,8 @@ inline void ValuePayload::assert_post_construction_invariants() const {
 
   postcond(is_raw() || holder() != nullptr);
   postcond(klass()->is_layout_supported(layout_kind()));
-  postcond(layout_kind() != LayoutKind::REFERENCE &&
-           layout_kind() != LayoutKind::UNKNOWN);
+  postcond(layout_kind() != LayoutKind::REFERENCE);
+  postcond(layout_kind() != LayoutKind::UNKNOWN);
   postcond(is_raw() || (holder()->klass() == klass()) ==
                            (layout_kind() == LayoutKind::BUFFERED));
 }
@@ -202,11 +204,16 @@ ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
                                             dst.layout_kind()) ==
           copy_layout_kind);
 }
+
 #endif // ASSERT
 
-inline oop ValuePayload::holder() const { return _storage._holder; }
+inline oop ValuePayload::holder() const {
+  return _storage._holder;
+}
 
-inline InlineKlass* ValuePayload::klass() const { return _storage._klass; }
+inline InlineKlass* ValuePayload::klass() const {
+  return _storage._klass;
+}
 
 inline ptrdiff_t ValuePayload::offset() const {
   precond(_storage._offset != BAD_OFFSET);
@@ -218,8 +225,10 @@ inline LayoutKind ValuePayload::layout_kind() const {
 }
 
 inline address ValuePayload::address() const {
+  // We do the pointer arithmetic in using intptr_t because the holder() is
+  // nullptr in the case of a RawValuePayload.
   return reinterpret_cast<::address>(cast_from_oop<intptr_t>(holder()) +
-                                   _storage._offset);
+                                     _storage._offset);
 }
 
 inline bool ValuePayload::has_null_marker() const {
@@ -392,17 +401,20 @@ inline flatArrayOop FlatArrayPayload::holder() const {
 }
 
 inline void FlatArrayPayload::set_index(int index) {
-  set_offset(
-      (ptrdiff_t)holder()->value_offset(index, _storage._layout_helper));
+  set_offset((ptrdiff_t)holder()->value_offset(index, _storage._layout_helper));
 }
 
 inline void FlatArrayPayload::advance_index(int delta) {
   set_offset(this->offset() + delta * _storage._element_size);
 }
 
-inline void FlatArrayPayload::next_element() { advance_index(1); }
+inline void FlatArrayPayload::next_element() {
+  advance_index(1);
+}
 
-inline void FlatArrayPayload::previous_element() { advance_index(-1); }
+inline void FlatArrayPayload::previous_element() {
+  advance_index(-1);
+}
 
 inline void FlatArrayPayload::set_offset(ptrdiff_t offset) {
 #ifdef ASSERT
