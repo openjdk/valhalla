@@ -120,10 +120,10 @@ public class ModulePath implements ModuleFinder {
      * directory on the file system by searching a sequence of directories and/or
      * packaged modules. The modules may be patched by the given ModulePatcher.
      *
-     * <p>This method is deliberately package visible to restrict any use of the
-     * preview mode flag to system modules only.
+     * <p>Preview mode is only permitted for system modules, and this method
+     * should only be called from {@link SystemModuleFinders#ofSystem()}.
      */
-    static ModuleFinder ofSystem(ModulePatcher patcher, boolean previewMode, Path moduleDir) {
+    public static ModuleFinder of(ModulePatcher patcher, boolean previewMode, Path moduleDir) {
         return new ModulePath(JarFile.runtimeVersion(), false, previewMode, patcher, moduleDir);
     }
 

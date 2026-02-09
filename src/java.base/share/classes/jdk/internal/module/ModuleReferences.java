@@ -373,8 +373,9 @@ class ModuleReferences {
 
         ExplodedModuleReader(Path dir, boolean previewMode) {
             this.dir = dir;
-            Path preview = dir.resolve("META-INF", "preview");
-            this.previewDir = (previewMode && Files.isDirectory(preview)) ? preview : null;
+            // Don't use PREVIEW_PREFIX here, as these paths may use '\'.
+            Path path = dir.resolve("META-INF", "preview");
+            this.previewDir = (previewMode && Files.isDirectory(path)) ? path : null;
         }
 
         /**
@@ -386,6 +387,9 @@ class ModuleReferences {
 
         private Path toFilePath(String name) throws IOException {
             if (previewDir != null) {
+                if (isPreviewEntry(name)) {
+                    return null;
+                }
                 Path previewPath = Resources.toFilePath(previewDir, name);
                 if (previewPath != null && Files.exists(previewPath)) {
                     return previewPath;
@@ -446,6 +450,7 @@ class ModuleReferences {
             try (Stream<Path> files = Files.walk(dir, Integer.MAX_VALUE)) {
                 files.map(f -> Resources.toResourceName(dir, f))
                         .filter(s -> !s.isEmpty())
+                        .filter(s -> previewDir == null || !isPreviewEntry(s))
                         .forEach(dest::add);
             }
         }
@@ -454,6 +459,14 @@ class ModuleReferences {
         public void close() {
             closed = true;
         }
-    }
 
+        // Names do not have a leading '/'.
+        private static final String PREVIEW_PREFIX = "META-INF/preview";
+
+        private static boolean isPreviewEntry(String name) {
+            return name.startsWith(PREVIEW_PREFIX) &&
+                    (name.length() == PREVIEW_PREFIX.length()
+                            || name.charAt(PREVIEW_PREFIX.length()) == '/');
+        }
+    }
 }

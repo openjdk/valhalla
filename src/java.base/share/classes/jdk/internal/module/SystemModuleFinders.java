@@ -205,7 +205,7 @@ public final class SystemModuleFinders {
         Path dir = Path.of(home, "modules");
         if (!Files.isDirectory(dir))
             throw new InternalError("Unable to detect the run-time image");
-        return ModulePath.ofSystem(ModuleBootstrap.patcher(), PreviewFeatures.isEnabled(), dir);
+        return ModulePath.of(ModuleBootstrap.patcher(), PreviewFeatures.isEnabled(), dir);
     }
 
     /**

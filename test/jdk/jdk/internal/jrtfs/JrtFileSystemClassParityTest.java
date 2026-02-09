@@ -27,13 +27,13 @@ import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /*
  * @test id=normal
@@ -48,23 +48,18 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
  */
 public class JrtFileSystemClassParityTest {
     private static final String CLASS_SUFFIX = ".class";
-    private static final Path MODULES_ROOT =
-            FileSystems.getFileSystem(URI.create("jrt:/")).getPath("/modules");
+    // Testing only 'java.base' is more than enough for what we're testing.
+    private static final Path JAVA_BASE =
+            FileSystems.getFileSystem(URI.create("jrt:/")).getPath("/modules/java.base");
 
     @Test
     public void testResourceAsStreamParity() throws IOException {
-        List<String> modNames;
-        try (Stream<Path> modDirs = Files.list(MODULES_ROOT)) {
-            modNames = modDirs.map(MODULES_ROOT::relativize).map(Object::toString).toList();
-        }
-        for (String modName : modNames) {
-            Path moduleInfo = MODULES_ROOT.resolve(modName, "module-info.class");
-            try (Stream<Path> classFiles = Files.walk(MODULES_ROOT.resolve(modName))
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().endsWith(".class"))
-                    .filter(p -> !p.equals(moduleInfo))) {
-                classFiles.forEach(JrtFileSystemClassParityTest::testParity);
-            }
+        Path moduleInfo = JAVA_BASE.resolve("module-info.class");
+        try (Stream<Path> classFiles = Files.walk(JAVA_BASE)
+                .filter(Files::isRegularFile)
+                .filter(p -> p.getFileName().toString().endsWith(".class"))
+                .filter(p -> !p.equals(moduleInfo))) {
+            classFiles.forEach(JrtFileSystemClassParityTest::testParity);
         }
     }
 
@@ -75,14 +70,12 @@ public class JrtFileSystemClassParityTest {
             String relPath = jrtClassFile.subpath(2, jrtClassFile.getNameCount()).toString();
             String fqn = relPath.substring(0, relPath.length() - CLASS_SUFFIX.length()).replace('/', '.');
             String baseName = fqn.substring(fqn.lastIndexOf('.') + 1);
-            Class<?> cls = Class.forName(fqn, false, null);
+            Class<?> cls = assertDoesNotThrow(() -> Class.forName(fqn, false, null), "Failed to load: " + fqn);
             byte[] classBytes;
             try (InputStream is = cls.getResourceAsStream(baseName + CLASS_SUFFIX)) {
                 classBytes = Objects.requireNonNull(is).readAllBytes();
             }
             assertArrayEquals(jrtBytes, classBytes, "Class: " + fqn);
-        } catch (ClassNotFoundException e) {
-            // Ignore
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
