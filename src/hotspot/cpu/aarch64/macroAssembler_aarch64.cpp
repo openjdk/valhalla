@@ -7238,8 +7238,9 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (sig->at(stream.sig_index())._vt_oop) {
       if (toReg->is_stack()) {
         int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
-        mov(tmp2, fromReg);
-        str(tmp2, Address(sp, st_off));
+        str(fromReg, Address(sp, st_off));
+        // mov(tmp2, fromReg);
+        // str(tmp2, Address(sp, st_off));
       } else {
         mov(toReg->as_Register(), fromReg);
       }
