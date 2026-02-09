@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -341,26 +341,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, V v);
-
-    /**
-     * Returns an object instance with a private buffered value whose layout
-     * and contents is exactly the given value instance.  The return object
-     * is in the larval state that can be updated using the unsafe put operation.
-     *
-     * @param value a value instance
-     * @param <V> the type of the given value instance
-     */
-    @IntrinsicCandidate
-    public native <V> V makePrivateBuffer(V value);
-
-    /**
-     * Exits the larval state and returns a value instance.
-     *
-     * @param value a value instance
-     * @param <V> the type of the given value instance
-     */
-    @IntrinsicCandidate
-    public native <V> V finishPrivateBuffer(V value);
 
     /**
      * Returns the header size of the given value type.
