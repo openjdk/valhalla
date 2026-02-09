@@ -52,7 +52,6 @@
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
-#include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
