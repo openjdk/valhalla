@@ -279,6 +279,8 @@ public:
 
   inline OopHandle(const ValuePayload& payload, OopStorage* storage);
 
+  inline void release(OopStorage* storage);
+
   inline oop get_holder() const;
   inline InlineKlass* get_klass() const;
   inline ptrdiff_t get_offset() const;

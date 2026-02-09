@@ -523,6 +523,10 @@ inline ValuePayload::OopHandle::OopHandle(const ValuePayload& payload,
     : _storage{::OopHandle(storage, payload.get_holder()), payload.get_klass(),
                payload.get_offset(), payload.get_layout_kind()} {}
 
+inline void ValuePayload::OopHandle::release(OopStorage* storage) {
+  return _storage._holder.release(storage);
+}
+
 inline oop ValuePayload::OopHandle::get_holder() const {
   return _storage._holder.resolve();
 }
