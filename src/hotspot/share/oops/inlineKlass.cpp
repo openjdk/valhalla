@@ -235,6 +235,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk) {
 oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS) {
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
+  assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
     case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {

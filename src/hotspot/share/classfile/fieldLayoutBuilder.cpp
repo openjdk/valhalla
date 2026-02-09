@@ -101,6 +101,7 @@ static bool field_is_inlineable(FieldInfo fieldinfo, LayoutKind lk, Array<Inline
   }
 
   if (lk != LayoutKind::REFERENCE) {
+    assert(lk != LayoutKind::BUFFERED && lk != LayoutKind::UNKNOWN, "Sanity check");
     // We've chosen a layout that isn't a normal reference
     return true;
   }
