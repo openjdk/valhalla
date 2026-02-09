@@ -58,17 +58,11 @@ class oopFactory: AllStatic {
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
   static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
-  // Factory forcing the creation of a reference array
+  // Factories to create a reference arrays
   static refArrayOop     new_refArray(Klass* klass, int length, TRAPS);
   static refArrayOop     new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
-  // Value arrays...
-  // LWorld:
-  //    - Q-type signature allocation should use this path.
-  //    - L-type signature allocation should use new_objArray
-  //
-  // Method specifically null free and possibly flat if possible
-  // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
+  // Factory to create flat arrays.
   static flatArrayOop    new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
 
   // Helper that returns a Handle
