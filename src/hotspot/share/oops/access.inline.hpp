@@ -29,7 +29,6 @@
 
 #include "gc/shared/barrierSet.inline.hpp"
 #include "gc/shared/barrierSetConfig.inline.hpp"
-#include "oops/accessBackend.hpp"
 #include "oops/accessBackend.inline.hpp"
 
 // This file outlines the last 2 steps of the template pipeline of accesses going through
