@@ -130,7 +130,7 @@ class BCEscapeAnalyzer : public ArenaObj {
 
   // The given argument does not escape globally, and may be returned.
   bool is_arg_returned(int i) const {
-    return !_conservative && _arg_returned.test(i) && !method()->is_scalarized_arg(i); }
+    return !_conservative && _arg_returned.test(i); }
 
   // True iff only input arguments are returned.
   bool is_return_local() const {
