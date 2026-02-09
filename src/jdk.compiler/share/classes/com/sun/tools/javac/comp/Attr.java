@@ -4002,8 +4002,7 @@ public class Attr extends JCTree.Visitor {
             }
 
             List<Type> argTypes = checkContext.inferenceContext().asUndetVars(descriptor.getParameterTypes());
-            List<Type> lambdaArgTypes = TreeInfo.types(tree.params);
-            if (!types.isSameTypes(argTypes, lambdaArgTypes)) {
+            if (!types.isSameTypes(argTypes, TreeInfo.types(tree.params))) {
                 checkContext.report(tree, diags.fragment(Fragments.IncompatibleArgTypesInLambda));
             } else if (allowNullRestrictedTypes) {
                 // ok they are equal but what about nullability?
