@@ -44,10 +44,8 @@ import java.nio.file.Paths;
 import java.util.List;
 
 public class PreviewAutoSuppress extends TestRunner {
-
-    private static final String SPEC_VERSION = System.getProperty(
-            "java.specification.version",
-            "<missing java.specification.version>");
+    // Major version number (e.g. '27').
+    private static final String FEATURE_VERSION = String.valueOf(Runtime.version().feature());
 
     protected ToolBox tb;
 
@@ -87,7 +85,7 @@ public class PreviewAutoSuppress extends TestRunner {
         List<String> log = new JavacTask(tb, Task.Mode.CMDLINE)
                 .outdir(classes)
                 .options("--enable-preview",
-                         "-source", String.valueOf(Runtime.version().feature()),
+                         "-source", FEATURE_VERSION,
                          "-Xlint:preview",
                          "-XDforcePreview",
                          "-XDrawDiagnostics")
@@ -98,7 +96,7 @@ public class PreviewAutoSuppress extends TestRunner {
 
         // As of Valhalla, j.l.Record is a preview class
         List<String> expected =
-                List.of("- compiler.warn.preview.feature.use.classfile: Record.class, " + SPEC_VERSION,
+                List.of("- compiler.warn.preview.feature.use.classfile: Record.class, " + FEATURE_VERSION,
                         "Outer.java:3:5: compiler.warn.preview.feature.use.plural: (compiler.misc.feature.records)",
                         "Outer.java:3:5: compiler.warn.preview.feature.use.plural: (compiler.misc.feature.records)",
                         "3 warnings");
@@ -188,7 +186,7 @@ public class PreviewAutoSuppress extends TestRunner {
                          "--add-exports", "java.base/preview.api=ALL-UNNAMED",
                          "--enable-preview",
                          "-Xlint:preview",
-                         "-source", String.valueOf(Runtime.version().feature()),
+                         "-source", FEATURE_VERSION,
                          "-XDrawDiagnostics")
                 .files(tb.findJavaFiles(testSrc))
                 .run()
