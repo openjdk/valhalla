@@ -52,34 +52,11 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
     protected final M fileManager;
 
     /**
-     * Whether the delegate is owned by this instance and should be closed when
-     * this instance is closed.
-     */
-    private final boolean shouldClose;
-
-    /**
-     * Creates a new instance of {@code ForwardingJavaFileManager} which takes
-     * ownership of the given delegate, and will close it when this instance is
-     * closed.
-     *
+     * Creates a new instance of {@code ForwardingJavaFileManager}.
      * @param fileManager delegate to this file manager
      */
     protected ForwardingJavaFileManager(M fileManager) {
-        this(fileManager, true);
-    }
-
-    /**
-     * Creates a new instance of {@code ForwardingJavaFileManager}.
-     *
-     * @param fileManager delegate to this file manager
-     * @param shouldClose whether the delegate should be closed when this
-     *     instance is closed.
-     *
-     * @since 26
-     */
-    protected ForwardingJavaFileManager(M fileManager, boolean shouldClose) {
         this.fileManager = Objects.requireNonNull(fileManager);
-        this.shouldClose = shouldClose;
     }
 
     /**
@@ -270,9 +247,7 @@ public class ForwardingJavaFileManager<M extends JavaFileManager> implements Jav
 
     @Override
     public void close() throws IOException {
-        if (shouldClose) {
-            fileManager.close();
-        }
+        fileManager.close();
     }
 
     /**
