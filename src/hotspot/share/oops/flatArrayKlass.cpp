@@ -269,7 +269,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       if (fsk->layout_kind() == fdk->layout_kind()) {
         // Because source and destination have the same layout, we do not have
         // to worry about null checks and atomicity problems and can call the
-        // AccessAPI directly.
+        // Access API directly.
         int index_delta;
         if (needs_backwards_copy(sa, src_pos, da, dst_pos, length)) {
           index_delta = -1;
@@ -285,14 +285,16 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
           dst_payload.advance_index(index_delta);
         }
       } else {
-        FlatArrayPayload::Handle src_payload_handle =
-            src_payload.get_handle(THREAD);
-        FlatArrayPayload::Handle dst_payload_handle =
-            dst_payload.get_handle(THREAD);
+        // We need to allocate a buffer object to facilitate the copy between
+        // the different layouts. Keep the payload in a handle so we can reload
+        // the oops.
+        FlatArrayPayload::Handle src_payload_handle = src_payload.get_handle(THREAD);
+        FlatArrayPayload::Handle dst_payload_handle = dst_payload.get_handle(THREAD);
 
         inlineOop buffer = vk->allocate_instance(CHECK);
         BufferedValuePayload buf_payload(buffer);
 
+        // Reload the oops from the payload handles.
         src_payload = src_payload_handle();
         dst_payload = dst_payload_handle();
 
@@ -300,6 +302,9 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
             LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) &&
             !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
 
+        // fsk->layout_kind() != fdk->layout_kind() implies that s != d, which
+        // means that the copy is disjoint and we do not need to worry about
+        // needs_backwards_copy.
         for (int i = 0; i < length; i++) {
           // Copy via buffer
           if ((need_null_check && src_payload.is_payload_null()) ||
