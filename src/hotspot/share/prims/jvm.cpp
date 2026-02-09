@@ -456,7 +456,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
   }
   if (org->is_flatArray()) {
-    assert(to >= 0 && from >= 0, "Assume this for now");
+    assert(to >= 0 && from >= 0, "Assume this for now. %d >= 0 && %d >= 0", to, from);
     int org_length = org->length();
     int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
     FlatArrayKlass* const fak = FlatArrayKlass::cast(org->klass());
