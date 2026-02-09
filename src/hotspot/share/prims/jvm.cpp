@@ -1440,7 +1440,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (iter.length() == 0) {
     // Neither an inner nor outer class
-    oop result = oopFactory::new_default_refArray(vmClasses::Class_klass(), 0, CHECK_NULL);
+    oop result = oopFactory::new_refArray(vmClasses::Class_klass(), 0, CHECK_NULL);
     return (jobjectArray)JNIHandles::make_local(THREAD, result);
   }
 
@@ -1449,7 +1449,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
   int length = iter.length();
 
   // Allocate temp. result array
-  refArrayOop r = oopFactory::new_default_refArray(vmClasses::Class_klass(), length / 4, CHECK_NULL);
+  refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length / 4, CHECK_NULL);
   refArrayHandle result(THREAD, r);
   int members = 0;
 
@@ -1479,7 +1479,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (members != length) {
     // Return array of right length
-    refArrayOop res = oopFactory::new_default_refArray(vmClasses::Class_klass(),
+    refArrayOop res = oopFactory::new_refArray(vmClasses::Class_klass(),
                                                        members,
                                                        CHECK_NULL);
     for(int i = 0; i < members; i++) {
@@ -1953,7 +1953,7 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
     log_trace(class, nestmates)(" - host has %d listed nest members", length);
 
     // nest host is first in the array so make it one bigger
-    refArrayOop r = oopFactory::new_default_refArray(vmClasses::Class_klass(),
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(),
                                                      length + 1,
                                                      CHECK_NULL);
     refArrayHandle result(THREAD, r);
@@ -2031,7 +2031,7 @@ JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
 
     log_trace(class, sealed)(" - sealed class has %d permitted subclasses", length);
 
-    refArrayOop r = oopFactory::new_default_refArray(vmClasses::Class_klass(),
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(),
                                                      length,
                                                      CHECK_NULL);
     refArrayHandle result(THREAD, r);

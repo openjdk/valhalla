@@ -59,7 +59,7 @@ class oopFactory: AllStatic {
   static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Factory forcing the creation of a reference array
-  static refArrayOop     new_default_refArray(Klass* klass, int length, TRAPS);
+  static refArrayOop     new_refArray(Klass* klass, int length, TRAPS);
   static refArrayOop     new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Value arrays...

@@ -790,7 +790,7 @@ bool Universe::is_out_of_memory_error_class_metaspace(oop ex_obj) {
 // Setup preallocated OutOfMemoryError errors
 void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
   InstanceKlass* ik = vmClasses::OutOfMemoryError_klass();
-  refArrayOop ra = oopFactory::new_default_refArray(ik, _oom_count, CHECK);
+  refArrayOop ra = oopFactory::new_refArray(ik, _oom_count, CHECK);
   refArrayHandle oom_array(THREAD, ra);
 
   for (int i = 0; i < _oom_count; i++) {
@@ -824,7 +824,7 @@ void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
 
   // Setup the array of errors that have preallocated backtrace
   int len = (StackTraceInThrowable) ? (int)PreallocatedOutOfMemoryErrorCount : 0;
-  refArrayOop instance = oopFactory::new_default_refArray(ik, len, CHECK);
+  refArrayOop instance = oopFactory::new_refArray(ik, len, CHECK);
   _preallocated_out_of_memory_error_array = OopHandle(vm_global(), instance);
   refArrayHandle preallocated_oom_array(THREAD, instance);
 

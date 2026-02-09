@@ -128,7 +128,7 @@ refArrayOop oopFactory::new_refArray(Klass* klass, int length, ArrayKlass::Array
   return refArrayOopDesc::cast(array);
 }
 
-refArrayOop oopFactory::new_default_refArray(Klass* klass, int length, TRAPS) {
+refArrayOop oopFactory::new_refArray(Klass* klass, int length, TRAPS) {
   return new_refArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 

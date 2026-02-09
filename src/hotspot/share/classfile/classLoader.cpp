@@ -989,7 +989,7 @@ refArrayOop ClassLoader::get_system_packages(TRAPS) {
   GrowableArray<PackageEntry*>* loaded_class_pkgs = pe_table->get_system_packages();
 
   // Allocate objArray and fill with java.lang.String
-  refArrayOop r = oopFactory::new_default_refArray(vmClasses::String_klass(),
+  refArrayOop r = oopFactory::new_refArray(vmClasses::String_klass(),
                                                    loaded_class_pkgs->length(),
                                                    CHECK_NULL);
   refArrayHandle result(THREAD, r);
