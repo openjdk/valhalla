@@ -197,18 +197,6 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 #############################################################################
 
 # Valhalla failures start here:
-compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
-compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
