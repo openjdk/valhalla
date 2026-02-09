@@ -763,7 +763,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           VMReg buffer = regs[next_arg_comp-ignored].first();
           if (buffer->is_stack()) {
             int ld_off = buffer->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
-            __ str(buf_oop, Address(sp, ld_off));
+            __ ldr(buf_oop, Address(sp, ld_off));
           } else {
             __ str(buf_oop, buffer->as_Register());
           }
