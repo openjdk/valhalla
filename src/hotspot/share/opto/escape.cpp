@@ -2218,14 +2218,16 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         add_java_object(call, PointsToNode::NoEscape);
         set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of call"));
       } else {
-        // Determine whether any arguments are returned.
-        const TypeTuple* d = call->tf()->domain_cc();
         bool ret_arg = false;
-        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-          if (d->field_at(i)->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
-            ret_arg = true;
-            break;
+        if (!meth->has_scalarized_args()) {
+          // Determine whether any arguments are returned.
+          const TypeTuple* d = call->tf()->domain_cc();
+          for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+            if (d->field_at(i)->isa_ptr() != nullptr &&
+                call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
+              ret_arg = true;
+              break;
+                }
           }
         }
         if (ret_arg) {
@@ -2429,7 +2431,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       }
       BCEscapeAnalyzer* call_analyzer = (meth !=nullptr) ? meth->get_bcea() : nullptr;
       // fall-through if not a Java method or no analyzer information
-      if (call_analyzer != nullptr) {
+      if (call_analyzer != nullptr && !meth->has_scalarized_args()) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
         const TypeTuple* d = call->tf()->domain_cc();
         for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
