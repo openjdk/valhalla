@@ -764,8 +764,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           if (buffer->is_stack()) {
             int ld_off = buffer->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
             __ ldr(buf_oop, Address(sp, ld_off));
+            // __ str(buf_oop, Address(sp, ld_off));
           } else {
-            __ str(buf_oop, buffer->as_Register());
+            __ mov(buf_oop, buffer->as_Register());
+            // __ str(buf_oop, buffer->as_Register());
           }
           __ br(Assembler::NE, not_null_buffer);
           // get the buffer from the just allocated pool of buffers
