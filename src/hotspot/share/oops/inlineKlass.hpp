@@ -312,11 +312,11 @@ class InlineKlass: public InstanceKlass {
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;
 
+  void print_on(outputStream* st) const override;
+
   // Verification
   void verify_on(outputStream* st) override;
   void oop_verify_on(oop obj, outputStream* st) override;
-
-  void print_on(outputStream* st) const override;
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASS_HPP

@@ -519,18 +519,6 @@ void InlineKlass::remove_unshareable_info() {
 
 #endif // CDS
 
-// Verification
-
-void InlineKlass::verify_on(outputStream* st) {
-  InstanceKlass::verify_on(st);
-  guarantee(prototype_header().is_inline_type(), "Prototype header is not inline type");
-}
-
-void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
-  InstanceKlass::oop_verify_on(obj, st);
-  guarantee(obj->mark().is_inline_type(), "Header is not inline type");
-}
-
 void InlineKlass::print_on(outputStream* st) const {
   InstanceKlass::print_on(st);
   st->print_cr("- ---- LayoutKinds:");
@@ -549,4 +537,16 @@ void InlineKlass::print_on(outputStream* st) const {
   print_layout_kind(LayoutKind::NULL_FREE_ATOMIC_FLAT);
   print_layout_kind(LayoutKind::NULLABLE_ATOMIC_FLAT);
   print_layout_kind(LayoutKind::NULLABLE_NON_ATOMIC_FLAT);
+}
+
+// Verification
+
+void InlineKlass::verify_on(outputStream* st) {
+  InstanceKlass::verify_on(st);
+  guarantee(prototype_header().is_inline_type(), "Prototype header is not inline type");
+}
+
+void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
+  InstanceKlass::oop_verify_on(obj, st);
+  guarantee(obj->mark().is_inline_type(), "Header is not inline type");
 }

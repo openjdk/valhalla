@@ -27,14 +27,12 @@
 #include "oops/inlineKlass.hpp"
 
 #include "oops/inlineKlassPayload.inline.hpp"
-#include "oops/layoutKind.hpp"
-#include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/devirtualizer.inline.hpp"
 
 inline bool InlineKlass::layout_has_null_marker(LayoutKind lk) const {
-  assert(is_layout_supported(lk), "Must do");
+  assert(is_layout_supported(lk), "Must be");
   return LayoutKindHelper::is_nullable_flat(lk) ||
          (lk == LayoutKind::BUFFERED && supports_nullable_layouts());
 }
