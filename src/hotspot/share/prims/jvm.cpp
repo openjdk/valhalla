@@ -805,10 +805,10 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     // by another thread; or c) identity_hash set by the current thread.
     // A nonzero identity hash code that is not the identity_hash computed
     // earlier indicates a violation of the invariant.
-    markWord current_mark, old_mark;
+    markWord current_mark, old_mark, new_mark;
     do {
       current_mark = ho->mark();
-      markWord new_mark = current_mark.copy_set_hash(identity_hash);
+      new_mark = current_mark.copy_set_hash(identity_hash);
       old_mark = ho->cas_set_mark(new_mark, current_mark);
       assert(old_mark.has_no_hash() || old_mark.hash() == new_mark.hash(),
             "CAS identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
@@ -816,7 +816,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
             old_mark.hash());
     } while (old_mark != current_mark);
 
-    return checked_cast<jint>(identity_hash);
+    return checked_cast<jint>(new_mark.hash());
   } else {
     return checked_cast<jint>(ObjectSynchronizer::FastHashCode(THREAD, obj));
   }
