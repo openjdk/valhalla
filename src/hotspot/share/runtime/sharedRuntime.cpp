@@ -4076,12 +4076,11 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     if (*buffer != nullptr) {
       assert((*buffer)->klass() == vk, "");
     } else {
-      oop res = vk->allocate_instance(CHECK_NULL);
-      // array.replace(array_oop);
       if (array_oop == nullptr) {
         array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
         array = objArrayHandle(THREAD, array_oop);
       }
+      oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
     }
     i++;
