@@ -27,7 +27,6 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1889,8 +1888,6 @@ public class Check {
                     warnNullableTypes(methodDecl.restype, LintWarnings.IncompatibleNullRestrictions(
                             Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
                 }
-            } else if (theTree instanceof JCLambda) {
-                // ignore, we already process lambdas at Attr::checkLambdaCompatible
             }
         }
         if (!resultTypesOK) {
