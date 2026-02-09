@@ -34,10 +34,8 @@
 #include "oops/resolvedFieldEntry.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.inline.hpp"
 #include "utilities/debug.hpp"
-#include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/vmError.hpp"
 
@@ -307,9 +305,6 @@ inline inlineOop FlatValuePayload::read(TRAPS) {
   } // Fallthrough
   case LayoutKind::NULL_FREE_ATOMIC_FLAT:
   case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
-    // Zero enters here from C++ interpreter
-    ZERO_ONLY(ThreadInVMfromJava tivmj(THREAD);)
-
     inlineOop res = allocate_instance(CHECK_NULL);
     BufferedValuePayload dst(res, get_klass());
     if (!copy_to(dst)) {
