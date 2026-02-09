@@ -7365,11 +7365,13 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     if (sig->at(stream.sig_index())._vt_oop) {
       if (fromReg->is_stack()) {
         int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
-        mov(val_obj, Address(sp, ld_off));
+        ldr(val_obj, Address(sp, ld_off));
+        // mov(val_obj, Address(sp, ld_off));
       } else {
         mov(val_obj, fromReg->as_Register());
       }
-      br(Assembler::NE, L_null);
+      cbnz(val_obj, L_null);
+      // br(Assembler::NE, L_null);
       // get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
       load_heap_oop(val_obj, Address(val_array, index), rscratch1, rscratch2);
