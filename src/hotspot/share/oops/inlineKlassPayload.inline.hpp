@@ -231,7 +231,7 @@ inline bool ValuePayload::is_payload_null() const {
          klass()->is_payload_marked_as_null(address());
 }
 
-inline inlineOop BufferedValuePayload::get_holder() const {
+inline inlineOop BufferedValuePayload::holder() const {
   return inlineOop(ValuePayload::holder());
 }
 
@@ -257,7 +257,7 @@ inline FlatFieldPayload::FlatFieldPayload(instanceOop holder, ptrdiff_t offset,
     : FlatFieldPayload(holder, inline_layout_info->klass(), offset,
                        inline_layout_info->kind()) {}
 
-inline instanceOop FlatFieldPayload::get_holder() const {
+inline instanceOop FlatFieldPayload::holder() const {
   return instanceOop(ValuePayload::holder());
 }
 
@@ -387,13 +387,13 @@ inline FlatArrayPayload::FlatArrayPayload(flatArrayOop holder,
     : FlatValuePayload(holder, klass, offset, layout_kind),
       _storage{layout_helper, element_size} {}
 
-inline flatArrayOop FlatArrayPayload::get_holder() const {
+inline flatArrayOop FlatArrayPayload::holder() const {
   return flatArrayOop(ValuePayload::holder());
 }
 
 inline void FlatArrayPayload::set_index(int index) {
   set_offset(
-      (ptrdiff_t)get_holder()->value_offset(index, _storage._layout_helper));
+      (ptrdiff_t)holder()->value_offset(index, _storage._layout_helper));
 }
 
 inline void FlatArrayPayload::advance_index(int delta) {
@@ -412,7 +412,7 @@ inline void FlatArrayPayload::set_offset(ptrdiff_t offset) {
   // offset to a BAD_OFFSET in debug builds.
 
   const ptrdiff_t element_size = _storage._element_size;
-  const ptrdiff_t length = get_holder()->length();
+  const ptrdiff_t length = holder()->length();
   const ptrdiff_t base_offset =
       (ptrdiff_t)flatArrayOopDesc::base_offset_in_bytes();
 
@@ -479,25 +479,25 @@ inline ValuePayload::Handle::Handle(const ValuePayload& payload,
     : _storage{::Handle(thread, payload.holder()), payload.klass(),
                payload.offset(), payload.layout_kind()} {}
 
-inline oop ValuePayload::Handle::get_holder() const {
+inline oop ValuePayload::Handle::holder() const {
   return _storage._holder();
 }
 
-inline InlineKlass* ValuePayload::Handle::get_klass() const {
+inline InlineKlass* ValuePayload::Handle::klass() const {
   return _storage._klass;
 }
 
-inline ptrdiff_t ValuePayload::Handle::get_offset() const {
+inline ptrdiff_t ValuePayload::Handle::offset() const {
   return _storage._offset;
 }
 
-inline LayoutKind ValuePayload::Handle::get_layout_kind() const {
+inline LayoutKind ValuePayload::Handle::layout_kind() const {
   return _storage._layout_kind;
 }
 
 inline ValuePayload ValuePayload::Handle::operator()() const {
-  return ValuePayload(get_holder(), get_klass(), get_offset(),
-                      get_layout_kind());
+  return ValuePayload(holder(), klass(), offset(),
+                      layout_kind());
 }
 
 inline ValuePayload::OopHandle::OopHandle(const ValuePayload& payload,
@@ -509,25 +509,25 @@ inline void ValuePayload::OopHandle::release(OopStorage* storage) {
   return _storage._holder.release(storage);
 }
 
-inline oop ValuePayload::OopHandle::get_holder() const {
+inline oop ValuePayload::OopHandle::holder() const {
   return _storage._holder.resolve();
 }
 
-inline InlineKlass* ValuePayload::OopHandle::get_klass() const {
+inline InlineKlass* ValuePayload::OopHandle::klass() const {
   return _storage._klass;
 }
 
-inline ptrdiff_t ValuePayload::OopHandle::get_offset() const {
+inline ptrdiff_t ValuePayload::OopHandle::offset() const {
   return _storage._offset;
 }
 
-inline LayoutKind ValuePayload::OopHandle::get_layout_kind() const {
+inline LayoutKind ValuePayload::OopHandle::layout_kind() const {
   return _storage._layout_kind;
 }
 
 inline ValuePayload ValuePayload::OopHandle::operator()() const {
-  return ValuePayload(get_holder(), get_klass(), get_offset(),
-                      get_layout_kind());
+  return ValuePayload(holder(), klass(), offset(),
+                      layout_kind());
 }
 
 inline ValuePayload::Handle ValuePayload::make_handle(JavaThread* thread) const {
@@ -548,12 +548,12 @@ inline RawValuePayload::RawValuePayload(::address payload_address,
                    layout_kind DEBUG_ONLY(COMMA true /* is_raw */)) {}
 
 BufferedValuePayload BufferedValuePayload::Handle::operator()() const {
-  return construct_from_parts(get_holder(), get_klass(), get_offset(),
-                              get_layout_kind());
+  return construct_from_parts(holder(), klass(), offset(),
+                              layout_kind());
 }
 
-inline inlineOop BufferedValuePayload::Handle::get_holder() const {
-  return inlineOop(ValuePayload::Handle::get_holder());
+inline inlineOop BufferedValuePayload::Handle::holder() const {
+  return inlineOop(ValuePayload::Handle::holder());
 }
 
 BufferedValuePayload::Handle
@@ -562,12 +562,12 @@ BufferedValuePayload::make_handle(JavaThread* thread) const {
 }
 
 BufferedValuePayload BufferedValuePayload::OopHandle::operator()() const {
-  return construct_from_parts(get_holder(), get_klass(), get_offset(),
-                              get_layout_kind());
+  return construct_from_parts(holder(), klass(), offset(),
+                              layout_kind());
 }
 
-inline inlineOop BufferedValuePayload::OopHandle::get_holder() const {
-  return inlineOop(ValuePayload::OopHandle::get_holder());
+inline inlineOop BufferedValuePayload::OopHandle::holder() const {
+  return inlineOop(ValuePayload::OopHandle::holder());
 }
 
 BufferedValuePayload::OopHandle
@@ -576,8 +576,8 @@ BufferedValuePayload::make_oop_handle(OopStorage* storage) const {
 }
 
 FlatValuePayload FlatValuePayload::Handle::operator()() const {
-  return construct_from_parts(get_holder(), get_klass(), get_offset(),
-                              get_layout_kind());
+  return construct_from_parts(holder(), klass(), offset(),
+                              layout_kind());
 }
 
 FlatValuePayload::Handle
@@ -586,8 +586,8 @@ FlatValuePayload::make_handle(JavaThread* thread) const {
 }
 
 FlatValuePayload FlatValuePayload::OopHandle::operator()() const {
-  return construct_from_parts(get_holder(), get_klass(), get_offset(),
-                              get_layout_kind());
+  return construct_from_parts(holder(), klass(), offset(),
+                              layout_kind());
 }
 
 FlatValuePayload::OopHandle
@@ -596,12 +596,12 @@ FlatValuePayload::make_oop_handle(OopStorage* storage) const {
 }
 
 FlatFieldPayload FlatFieldPayload::Handle::operator()() const {
-  return construct_from_parts(get_holder(), get_klass(), get_offset(),
-                              get_layout_kind());
+  return construct_from_parts(holder(), klass(), offset(),
+                              layout_kind());
 }
 
-inline instanceOop FlatFieldPayload::Handle::get_holder() const {
-  return instanceOop(ValuePayload::Handle::get_holder());
+inline instanceOop FlatFieldPayload::Handle::holder() const {
+  return instanceOop(ValuePayload::Handle::holder());
 }
 
 FlatFieldPayload::Handle
@@ -610,12 +610,12 @@ FlatFieldPayload::make_handle(JavaThread* thread) const {
 }
 
 FlatFieldPayload FlatFieldPayload::OopHandle::operator()() const {
-  return construct_from_parts(get_holder(), get_klass(), get_offset(),
-                              get_layout_kind());
+  return construct_from_parts(holder(), klass(), offset(),
+                              layout_kind());
 }
 
-inline instanceOop FlatFieldPayload::OopHandle::get_holder() const {
-  return instanceOop(ValuePayload::OopHandle::get_holder());
+inline instanceOop FlatFieldPayload::OopHandle::holder() const {
+  return instanceOop(ValuePayload::OopHandle::holder());
 }
 
 FlatFieldPayload::OopHandle
@@ -628,13 +628,13 @@ inline FlatArrayPayload::Handle::Handle(const FlatArrayPayload& payload,
     : FlatValuePayload::Handle(payload, thread), _storage(payload._storage) {}
 
 FlatArrayPayload FlatArrayPayload::Handle::operator()() const {
-  return FlatArrayPayload(get_holder(), get_klass(), get_offset(),
-                          get_layout_kind(), _storage._layout_helper,
+  return FlatArrayPayload(holder(), klass(), offset(),
+                          layout_kind(), _storage._layout_helper,
                           _storage._element_size);
 }
 
-inline flatArrayOop FlatArrayPayload::Handle::get_holder() const {
-  return flatArrayOop(ValuePayload::Handle::get_holder());
+inline flatArrayOop FlatArrayPayload::Handle::holder() const {
+  return flatArrayOop(ValuePayload::Handle::holder());
 }
 
 FlatArrayPayload::Handle
@@ -648,13 +648,13 @@ inline FlatArrayPayload::OopHandle::OopHandle(const FlatArrayPayload& payload,
       _storage(payload._storage) {}
 
 FlatArrayPayload FlatArrayPayload::OopHandle::operator()() const {
-  return FlatArrayPayload(get_holder(), get_klass(), get_offset(),
-                          get_layout_kind(), _storage._layout_helper,
+  return FlatArrayPayload(holder(), klass(), offset(),
+                          layout_kind(), _storage._layout_helper,
                           _storage._element_size);
 }
 
-inline flatArrayOop FlatArrayPayload::OopHandle::get_holder() const {
-  return flatArrayOop(ValuePayload::OopHandle::get_holder());
+inline flatArrayOop FlatArrayPayload::OopHandle::holder() const {
+  return flatArrayOop(ValuePayload::OopHandle::holder());
 }
 
 FlatArrayPayload::OopHandle

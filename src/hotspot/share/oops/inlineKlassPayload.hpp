@@ -126,7 +126,7 @@ public:
   explicit inline BufferedValuePayload(inlineOop buffer);
   inline BufferedValuePayload(inlineOop buffer, InlineKlass* klass);
 
-  inline inlineOop get_holder() const;
+  inline inlineOop holder() const;
 
   [[nodiscard]] inline inlineOop make_private_buffer(TRAPS);
 
@@ -193,7 +193,7 @@ public:
                           ResolvedFieldEntry* resolved_field_entry,
                           InstanceKlass* klass);
 
-  inline instanceOop get_holder() const;
+  inline instanceOop holder() const;
 
   [[nodiscard]] static inline FlatFieldPayload
   construct_from_parts(instanceOop holder, InlineKlass* klass, ptrdiff_t offset,
@@ -239,7 +239,7 @@ public:
                        ptrdiff_t offset, LayoutKind layout_kind,
                        FlatArrayKlass* holder_klass);
 
-  inline flatArrayOop get_holder() const;
+  inline flatArrayOop holder() const;
 
   inline void set_index(int index);
   inline void advance_index(int delta);
@@ -271,10 +271,10 @@ public:
 
   inline Handle(const ValuePayload& payload, JavaThread* thread);
 
-  inline oop get_holder() const;
-  inline InlineKlass* get_klass() const;
-  inline ptrdiff_t get_offset() const;
-  inline LayoutKind get_layout_kind() const;
+  inline oop holder() const;
+  inline InlineKlass* klass() const;
+  inline ptrdiff_t offset() const;
+  inline LayoutKind layout_kind() const;
 
   inline ValuePayload operator()() const;
 };
@@ -294,10 +294,10 @@ public:
 
   inline void release(OopStorage* storage);
 
-  inline oop get_holder() const;
-  inline InlineKlass* get_klass() const;
-  inline ptrdiff_t get_offset() const;
-  inline LayoutKind get_layout_kind() const;
+  inline oop holder() const;
+  inline InlineKlass* klass() const;
+  inline ptrdiff_t offset() const;
+  inline LayoutKind layout_kind() const;
 
   inline ValuePayload operator()() const;
 };
@@ -308,7 +308,7 @@ public:
 
   inline BufferedValuePayload operator()() const;
 
-  inline inlineOop get_holder() const;
+  inline inlineOop holder() const;
 };
 
 class BufferedValuePayload::OopHandle : public ValuePayload::OopHandle {
@@ -317,7 +317,7 @@ public:
 
   inline BufferedValuePayload operator()() const;
 
-  inline inlineOop get_holder() const;
+  inline inlineOop holder() const;
 };
 
 class FlatValuePayload::Handle : public ValuePayload::Handle {
@@ -340,7 +340,7 @@ public:
 
   inline FlatFieldPayload operator()() const;
 
-  inline instanceOop get_holder() const;
+  inline instanceOop holder() const;
 };
 
 class FlatFieldPayload::OopHandle : public FlatValuePayload::OopHandle {
@@ -349,7 +349,7 @@ public:
 
   inline FlatFieldPayload operator()() const;
 
-  inline instanceOop get_holder() const;
+  inline instanceOop holder() const;
 };
 
 class FlatArrayPayload::Handle : public FlatValuePayload::Handle {
@@ -361,7 +361,7 @@ public:
 
   inline FlatArrayPayload operator()() const;
 
-  inline flatArrayOop get_holder() const;
+  inline flatArrayOop holder() const;
 };
 
 class FlatArrayPayload::OopHandle : public FlatValuePayload::OopHandle {
@@ -373,7 +373,7 @@ public:
 
   inline FlatArrayPayload operator()() const;
 
-  inline flatArrayOop get_holder() const;
+  inline flatArrayOop holder() const;
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
