@@ -25,6 +25,7 @@
  * @test
  * @bug 8372268
  * @summary [lworld] Keep buffer oop on scalarized calls
+ * @requires vm.flagless
  * @enablePreview
  * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
  *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
