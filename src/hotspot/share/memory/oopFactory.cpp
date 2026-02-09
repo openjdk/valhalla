@@ -132,7 +132,6 @@ refArrayOop oopFactory::new_default_refArray(Klass* klass, int length, TRAPS) {
   return new_refArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 
-
 flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
 

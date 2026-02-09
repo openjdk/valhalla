@@ -366,10 +366,9 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     if (!HAS_PENDING_EXCEPTION && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
 #ifdef ASSERT
-      ObjArrayKlass* oak = ObjArrayKlass::cast(result->klass());
-      assert(oak->is_null_free_array_klass(), "Sanity check");
+      ObjArrayKlass* result_oak = ObjArrayKlass::cast(result->klass());
+      assert(result_oak->is_null_free_array_klass(), "Sanity check");
 #endif
-      // assert(!h_init_val.is_null(), "Cannot initialize null free array with null");
       for (int i = 0; i < len; i++) {
         ((objArrayOop)result)->obj_at_put(i, h_init_val());
       }

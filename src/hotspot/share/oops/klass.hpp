@@ -52,13 +52,13 @@
 // Forward declarations.
 template <class T> class Array;
 template <class T> class GrowableArray;
+class ArrayDescription;
 class ClassLoaderData;
 class fieldDescriptor;
 class klassVtable;
 class ModuleEntry;
 class PackageEntry;
 class vtableEntry;
-class ArrayDescription;
 
 class Klass : public Metadata {
 
@@ -620,10 +620,6 @@ public:
   virtual ArrayKlass* array_klass_or_null(int rank) = 0;
   virtual ArrayKlass* array_klass_or_null() = 0;
 
-#ifdef ASSERT
-  void validate_array_description(ArrayDescription ad);
-#endif // ASSERT
-
   virtual oop protection_domain() const = 0;
 
   oop class_loader() const;
@@ -815,6 +811,8 @@ public:
 #endif
 
   virtual void oop_verify_on(oop obj, outputStream* st);
+
+  void validate_array_description(ArrayDescription& ad) NOT_DEBUG_RETURN;
 
   // for error reporting
   static bool is_valid(Klass* k);

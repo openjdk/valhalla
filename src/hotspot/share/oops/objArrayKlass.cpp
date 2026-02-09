@@ -178,7 +178,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
   // TODO FIXME: the layout selection should take the array size in consideration
   // to avoid creation of arrays too big to be handled by the VM. See JDK-8233189
-  if (!UseArrayFlattening || element->is_array_klass() || element->is_identity_class()|| element->is_abstract()) {
+  if (!UseArrayFlattening || element->is_array_klass() || element->is_identity_class() || element->is_abstract()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
   InlineKlass* vk = InlineKlass::cast(element);
@@ -409,13 +409,11 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
   return klass_from_description(ad, THREAD);
 }
 
-ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription adesc, TRAPS) {
+ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS) {
 
-#ifdef ASSERT
-  element_klass()->validate_array_description(adesc);
-#endif // ASSERT
+  element_klass()->validate_array_description(ad);
 
-  ArrayKlass::ArrayProperties props = adesc._properties;
+  ArrayKlass::ArrayProperties props = ad._properties;
 
   if (properties() == props) {
     assert(is_refArray_klass() || is_flatArray_klass(), "Must be a concrete array klass");
@@ -432,19 +430,19 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription adesc, TRA
       if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayKlass::ArrayProperties::DEFAULT) {
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
-        ArrayDescription ad = array_layout_selection(element_klass(), ArrayKlass::ArrayProperties::DEFAULT);
-        first = allocate_klass_from_description(ad, THREAD);
+        ArrayDescription default_ad = array_layout_selection(element_klass(), ArrayKlass::ArrayProperties::DEFAULT);
+        first = allocate_klass_from_description(default_ad, THREAD);
         release_set_next_refined_klass(first);
       }
-      ak = allocate_klass_from_description(adesc, THREAD);
+      ak = allocate_klass_from_description(ad, THREAD);
       first->release_set_next_refined_klass(ak);
     }
   }
 
-  ak = next_refined_array_klass();
-  assert(ak != nullptr, "should be set");
+  ObjArrayKlass* next_ak = next_refined_array_klass();
+  assert(next_ak != nullptr, "should be set");
   THREAD->check_possible_safepoint();
-  return ak->klass_from_description(adesc, THREAD);
+  return next_ak->klass_from_description(ad, THREAD);
 }
 
 

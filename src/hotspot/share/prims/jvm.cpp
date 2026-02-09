@@ -1449,8 +1449,8 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
   int length = iter.length();
 
   // Allocate temp. result array
-  refArrayOop r = oopFactory::new_default_refArray(vmClasses::Class_klass(), length/4, CHECK_NULL);
-  refArrayHandle result (THREAD, r);
+  refArrayOop r = oopFactory::new_default_refArray(vmClasses::Class_klass(), length / 4, CHECK_NULL);
+  refArrayHandle result(THREAD, r);
   int members = 0;
 
   for (; !iter.done(); iter.next()) {
