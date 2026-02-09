@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.value.ValueClass;
 
 import java.util.Objects;
+
+import static java.lang.classfile.ClassFile.ACC_NULL_CHECKED;
 
 /**
  * The {@code Array} class provides static methods to dynamically create and
@@ -117,8 +119,6 @@ class Array {
         return multiNewArray(componentType, dimensions);
     }
 
-    private static final int NULL_CHECKED = 0x0200;
-
     /**
      * Creates a new array with the specified component type, modifiers, and
      * length, whose elements are copied from the provided source array.
@@ -161,7 +161,7 @@ class Array {
         int sourceLength = getLength(sourceArray);
         Objects.checkFromIndexSize(sourceOffset, length, sourceLength);
         Object newArray;
-        if ((modifiers & NULL_CHECKED) != 0 &&
+        if ((modifiers & ACC_NULL_CHECKED) != 0 &&
             length > 0 &&
             ValueClass.isConcreteValueClass(componentType)) {
             newArray = ValueClass.newNullRestrictedAtomicArray(
