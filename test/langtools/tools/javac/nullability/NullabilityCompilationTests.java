@@ -386,8 +386,10 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 2)
                 )
         );
+    }
 
-        // some separate compilation tests
+    @Test
+    void testLintWarningsSepCompilation() throws Exception {
         Path base = Paths.get(System.getProperty("user.dir")).resolve("testLintWarnings");
         testSeparateCompilationHelper(
                 base,
@@ -402,8 +404,10 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                     String m(String s) { return null; }
                 }
                 """,
-                "Sub.java:3:5: compiler.warn.incompatible.null.restrictions: (compiler.misc.return.type.nullability.mismatch: java.lang.String, java.lang.String)\n" +
-                "1 warning\n"
+                List.of(
+                        "Sub.java:3:5: compiler.warn.incompatible.null.restrictions: (compiler.misc.return.type.nullability.mismatch: java.lang.String, java.lang.String)",
+                        "1 warning"
+                )
         );
         testSeparateCompilationHelper(
                 base,
@@ -418,9 +422,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                     String m(String s, Integer i) { return null; }
                 }
                 """,
-                "Sub.java:3:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.String, java.lang.String)\n" +
-                "Sub.java:3:24: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer)\n" +
-                "2 warnings\n"
+                List.of(
+                        "Sub.java:3:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.String, java.lang.String)",
+                        "Sub.java:3:24: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer)",
+                        "2 warnings"
+                )
         );
         testSeparateCompilationHelper(
                 base,
@@ -437,9 +443,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                     String m(List s, List i) { return null; }
                 }
                 """,
-                "Sub.java:4:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.String>)\n" +
-                "Sub.java:4:22: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.Integer>)\n" +
-                "2 warnings\n"
+                List.of(
+                        "Sub.java:4:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.String>)",
+                        "Sub.java:4:22: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.Integer>)",
+                        "2 warnings"
+                )
         );
         testSeparateCompilationHelper(
                 base,
@@ -453,9 +461,11 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                     Super i = (String s, Integer i) -> {};
                 }
                 """,
-                "Sub.java:2:16: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.String, java.lang.String)\n" +
-                "Sub.java:2:26: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer)\n" +
-                "2 warnings\n"
+                List.of(
+                        "Sub.java:2:16: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.String, java.lang.String)",
+                        "Sub.java:2:26: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer)",
+                        "2 warnings"
+                )
         );
     }
 
@@ -463,7 +473,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
             Path base,
             String superClass,
             String subClass,
-            String expectedOutput) throws Exception {
+            List<String> expectedOutput) throws Exception {
         Path src = base.resolve("src");
 
         tb.writeJavaFiles(src, superClass);
@@ -480,15 +490,17 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 .run();
 
         // now the subclass only
-        String output = new JavacTask(tb)
+        List<String> output = new JavacTask(tb)
                 .outdir(out)
                 .classpath(out.toString())
                 .options(PREVIEW_PLUS_LINT_OPTIONS)
                 .files(tb.findFiles("Sub.java", src))
                 .run()
                 .writeAll()
-                .getOutput(Task.OutputKind.DIRECT);
-        Assert.check(output.equals(expectedOutput), "unexpected output, found:\n" + output);
+                .getOutputLines(Task.OutputKind.DIRECT);
+        tb.checkEqual(expectedOutput, output);
+        tb.cleanDirectory(out);
+        tb.cleanDirectory(src);
     }
 
     @Test
