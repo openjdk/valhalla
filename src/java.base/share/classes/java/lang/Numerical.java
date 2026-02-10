@@ -39,7 +39,7 @@ package java.lang;
  * even if the underlying algebraic properties do not hold because of
  * limitations in approximation. This includes <dfn>algebraic
  * fields</dfn> and field-like numbers as well as <dfn>algebraic
- * rings</dfn> and ring-links numbers.
+ * rings</dfn> and ring-like numbers.
  *
  * <p>For example, mathematical integers form a ring and, including
  * Euclidean division support, integers support the operations in
@@ -67,7 +67,7 @@ package java.lang;
  * <dfn>closed</dfn> over that operation. For example, built-in {@code
  * int} arithmetic is closed over add, subtract, and multiply, but is
  * <em>not</em> closed under divide since an {@code
- * ArithmeticException} is thrown on a zero divisor. Built-in
+ * ArithmeticException} is thrown on an attempt to divide by zero. Built-in
  * arithmetic on {@code float} and {@code double} is closed under all
  * of add, subtract, multiply, and divide, with infinities and NaN
  * (not-a-number) being returned for cases that would otherwise be
