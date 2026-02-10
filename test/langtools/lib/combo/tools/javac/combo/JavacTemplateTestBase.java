@@ -25,6 +25,7 @@ package tools.javac.combo;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -244,7 +245,8 @@ public abstract class JavacTemplateTestBase {
         try (StandardJavaFileManager fm = systemJavaCompiler.getStandardFileManager(null, null, null)) {
             if (classpaths.size() > 0)
                 fm.setLocation(StandardLocation.CLASS_PATH, classpaths);
-            JavacTask ct = (JavacTask) systemJavaCompiler.getTask(null, fm, diags, compileOptions, null, files);
+            StringWriter err = new StringWriter();
+            JavacTask ct = (JavacTask) systemJavaCompiler.getTask(err, fm, diags, compileOptions, null, files);
             if (generate) {
                 File destDir = new File(root, Integer.toString(counter.incrementAndGet()));
                 // @@@ Assert that this directory didn't exist, or start counter at max+1
@@ -255,6 +257,9 @@ public abstract class JavacTemplateTestBase {
             }
             else {
                 ct.call();
+                if (!err.getBuffer().isEmpty()) {
+                    fail(err.toString());
+                }
                 // Failed result will show up in diags
                 return nullDir;
             }
