@@ -463,7 +463,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     for (int i = from; i < end; i++) {
       void* src = ((flatArrayOop)oh())->value_at_addr(i, fak->layout_helper());
       void* dst = ((flatArrayOop)ah())->value_at_addr(i - from, fak->layout_helper());
-      vk->copy_payload_to_addr(src, dst, lk, false);
+      vk->copy_payload_to_addr(src, dst, lk);
     }
     array = ah();
   } else {
