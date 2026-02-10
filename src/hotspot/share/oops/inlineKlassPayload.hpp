@@ -128,8 +128,6 @@ public:
 
   inline inlineOop holder() const;
 
-  [[nodiscard]] inline inlineOop make_private_buffer(TRAPS);
-
   inline void copy_to(const BufferedValuePayload& dst);
 
   [[nodiscard]] static inline BufferedValuePayload
