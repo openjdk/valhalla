@@ -1877,15 +1877,29 @@ public class Check {
              * the nullability of the arguments and the return type
              */
             JCTree theTree = TreeInfo.diagnosticPositionFor(m, tree).getTree();
-            if (theTree instanceof JCMethodDecl methodDecl) {
-                for (Pair<JCVariableDecl, Type> incompatibleParam :
-                        checkArgsNullability(methodDecl.params, ot.getParameterTypes())) {
-                    warnNullableTypes(incompatibleParam.fst.vartype,
+            boolean preciseLocations = false;
+            List<JCVariableDecl> params = null;
+            JCTree resultTypePos = theTree;
+            if (theTree instanceof JCLambda) {
+                // ignore, we already process lambdas at Attr::checkLambdaCompatible
+            } else {
+                /* we could be dealing with a method for which we can issue the warnings with precise locations
+                 * or with a generated method, for example a record accessor, for which there is no precise
+                 * location
+                 */
+                if (theTree instanceof JCMethodDecl methodDecl) {
+                    preciseLocations = true;
+                    params = methodDecl.params;
+                    resultTypePos = methodDecl.restype;
+                }
+                for (ArgsNullabilityResult incompatibleParam :
+                        checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
+                    warnNullableTypes(preciseLocations ? incompatibleParam.position.vartype : theTree,
                             LintWarnings.IncompatibleNullRestrictions(
-                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.fst.vartype.type, incompatibleParam.snd)));
+                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
                 }
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                    warnNullableTypes(methodDecl.restype, LintWarnings.IncompatibleNullRestrictions(
+                    warnNullableTypes(resultTypePos, LintWarnings.IncompatibleNullRestrictions(
                             Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
                 }
             }
@@ -1944,15 +1958,25 @@ public class Check {
         }
     }
 
-    public List<Pair<JCVariableDecl, Type>> checkArgsNullability(List<JCVariableDecl> overridingParams,
-                                                                 List<Type> overriddenArgs) {
-        ListBuffer<Pair<JCVariableDecl, Type>> resultLB = new ListBuffer<>();
-        while (overridingParams.nonEmpty() && overriddenArgs.nonEmpty()) {
-            if (types.hasNarrowerNullability(overriddenArgs.head, overridingParams.head.vartype.type)) {
-                resultLB.add(new Pair<>(overridingParams.head, overriddenArgs.head));
+    public record ArgsNullabilityResult(Type overridingType, Type overridenType, JCVariableDecl position) {}
+    public List<ArgsNullabilityResult> checkArgsNullability(List<Type> overridingArgs,
+                                                                 List<Type> overriddenArgs,
+                                                                 List<JCVariableDecl> overridingParams) {
+        ListBuffer<ArgsNullabilityResult> resultLB = new ListBuffer<>();
+        while (overridingArgs.nonEmpty() && overriddenArgs.nonEmpty()) {
+            if (types.hasNarrowerNullability(overriddenArgs.head, overridingArgs.head)) {
+                resultLB.add(
+                        new ArgsNullabilityResult(
+                                overridingArgs.head,
+                                overriddenArgs.head,
+                                overridingParams != null ? overridingParams.head : null)
+                );
             }
-            overridingParams = overridingParams.tail;
+            overridingArgs = overridingArgs.tail;
             overriddenArgs = overriddenArgs.tail;
+            if (overridingParams != null) {
+                overridingParams = overridingParams.tail;
+            }
         }
         return resultLB.toList();
     }

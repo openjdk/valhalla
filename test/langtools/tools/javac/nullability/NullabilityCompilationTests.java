@@ -360,7 +360,18 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                2)
+                                2),
+                        new DiagAndCode(
+                                """
+                                interface Getter {
+                                    String! name();
+                                }
+                                // the generated accessor will return String not String!
+                                record R(String name) implements Getter {}
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                1)
                 )
         );
 

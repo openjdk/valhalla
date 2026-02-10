@@ -49,6 +49,7 @@ import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
 import com.sun.tools.javac.comp.Check.CheckContext;
+import com.sun.tools.javac.comp.Check.ArgsNullabilityResult;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.MatchBindingsComputer.MatchBindings;
 import com.sun.tools.javac.jvm.*;
@@ -4002,16 +4003,17 @@ public class Attr extends JCTree.Visitor {
             }
 
             List<Type> argTypes = checkContext.inferenceContext().asUndetVars(descriptor.getParameterTypes());
-            if (!types.isSameTypes(argTypes, TreeInfo.types(tree.params))) {
+            List<Type> lambdaTypes = TreeInfo.types(tree.params);
+            if (!types.isSameTypes(argTypes, lambdaTypes)) {
                 checkContext.report(tree, diags.fragment(Fragments.IncompatibleArgTypesInLambda));
             } else if (allowNullRestrictedTypes) {
                 // ok they are equal but what about nullability?
-                for (Pair<JCVariableDecl, Type> incompatibleParam :
-                        chk.checkArgsNullability(tree.params, argTypes)) {
-                            chk.warnNullableTypes(incompatibleParam.fst.vartype,
+                for (ArgsNullabilityResult incompatibleParam :
+                        chk.checkArgsNullability(lambdaTypes, argTypes, tree.params)) {
+                            chk.warnNullableTypes(incompatibleParam.position().vartype,
                                 LintWarnings.IncompatibleNullRestrictions(
-                                        Fragments.LambdaArgumentTypeNullabilityMismatch(incompatibleParam.fst.vartype.type,
-                                                incompatibleParam.snd)));
+                                        Fragments.LambdaArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
+                                                incompatibleParam.overridenType())));
                 }
             }
         }
