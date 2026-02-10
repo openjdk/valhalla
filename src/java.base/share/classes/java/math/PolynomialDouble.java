@@ -405,7 +405,8 @@ public final /* value */ class PolynomialDouble  {
          return valueOf(z);
      }
 
-    private static PolynomialDouble multiplyByScalar(double scalar, PolynomialDouble poly) {
+    private static PolynomialDouble multiplyByScalar(double scalar,
+                                                     PolynomialDouble poly) {
         return (scalar == 1.0) ?
             poly :
             valueOf(scaleArray(scalar, poly.coeffs));
@@ -431,7 +432,7 @@ public final /* value */ class PolynomialDouble  {
      * @return the quotient of the operands
      */
      public static PolynomialDouble divide(PolynomialDouble dividend,
-                             PolynomialDouble divisor) {
+                                           PolynomialDouble divisor) {
          var qr = divideAndRemainder(dividend, divisor);
          return qr[0];
      }
@@ -448,7 +449,7 @@ public final /* value */ class PolynomialDouble  {
      * @return the remainder of the operands
      */
      public static PolynomialDouble remainder(PolynomialDouble dividend,
-                                PolynomialDouble divisor) {
+                                              PolynomialDouble divisor) {
          var qr = divideAndRemainder(dividend, divisor);
          return qr[1];
      }
