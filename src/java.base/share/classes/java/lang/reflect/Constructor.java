@@ -475,8 +475,7 @@ public final class Constructor<T> extends Executable {
      */
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
-    // TODO: Cannot ! on type var directly, breaks type substitution
-    public T newInstance(Object ... initargs)
+    public T! newInstance(Object ... initargs)
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
@@ -485,8 +484,7 @@ public final class Constructor<T> extends Executable {
     }
 
     /* package-private */
-    // TODO: Cannot ! on type var directly, breaks type substitution
-    T newInstanceWithCaller(Object[] args, boolean checkAccess, Class<?> caller)
+    T! newInstanceWithCaller(Object[] args, boolean checkAccess, Class<?> caller)
         throws InstantiationException, IllegalAccessException,
                InvocationTargetException
     {

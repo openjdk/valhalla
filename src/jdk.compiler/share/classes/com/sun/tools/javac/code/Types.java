@@ -3429,8 +3429,7 @@ public class Types {
                  from.nonEmpty();
                  from = from.tail, to = to.tail) {
                 if (t.equalsIgnoreMetadata(from.head)) {
-                    return to.head.withTypeVar(t)
-                            .asNullMarked(t.getNullMarker());
+                    return to.head.withTypeVar(t);
                 }
             }
             return t;
