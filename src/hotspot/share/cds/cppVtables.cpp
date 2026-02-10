@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,11 +69,11 @@
   f(Method) \
   f(MethodData) \
   f(MethodCounters) \
-  f(ObjArrayKlass) \
   f(TypeArrayKlass) \
+  f(ObjArrayKlass) \
+  f(RefArrayKlass) \
   f(FlatArrayKlass) \
   f(InlineKlass) \
-  f(RefArrayKlass) \
   f(KlassTrainingData) \
   f(MethodTrainingData) \
   f(CompileTrainingData)
