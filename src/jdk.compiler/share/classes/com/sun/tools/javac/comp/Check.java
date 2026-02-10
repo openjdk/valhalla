@@ -1884,10 +1884,11 @@ public class Check {
                 // ignore, we already process lambdas at Attr::checkLambdaCompatible
             } else {
                 /* we could be dealing with a method for which we can issue the warnings with precise locations
-                 * or with a generated method, for example a record accessor, for which there is no precise
-                 * location
+                 * or with a generated method, for example a record accessor, for which there are no precise
+                 * locations
                  */
                 if (theTree instanceof JCMethodDecl methodDecl) {
+                    // ok we are lucky we can work with precise locations
                     preciseLocations = true;
                     params = methodDecl.params;
                     resultTypePos = methodDecl.restype;
