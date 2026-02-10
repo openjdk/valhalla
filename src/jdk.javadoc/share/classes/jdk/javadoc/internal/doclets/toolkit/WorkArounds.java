@@ -54,6 +54,8 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.tree.JCTree.JCNullableTypeExpression.NullMarker;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
 
@@ -401,5 +403,10 @@ public class WorkArounds {
      */
     public static boolean isImplicitlyDeclaredClass(Element e) {
         return e instanceof ClassSymbol c && c.isImplicit();
+    }
+
+    public static boolean nullRestricted(TypeMirror type) {
+        return type instanceof Type jcType &&
+               jcType.getNullMarker() == NullMarker.NOT_NULL;
     }
 }

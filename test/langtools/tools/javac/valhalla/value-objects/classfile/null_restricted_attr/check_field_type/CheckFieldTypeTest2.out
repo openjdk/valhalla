@@ -1,2 +1,0 @@
-CheckFieldTypeTest2.java:13:9: compiler.err.cant.access: NullRestrictedOnArray, (compiler.misc.bad.class.file.header: NullRestrictedOnArray.class, (compiler.misc.attribute.not.applicable.to.field.type: NullRestricted, java.lang.String[]))
-1 error
