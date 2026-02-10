@@ -1880,8 +1880,10 @@ public class Check {
             boolean preciseLocations = false;
             List<JCVariableDecl> params = null;
             JCTree resultTypePos = theTree;
-            if (theTree instanceof JCLambda) {
-                // ignore, we already process lambdas at Attr::checkLambdaCompatible
+            if (theTree instanceof JCLambda || theTree instanceof JCMemberReference) {
+                /* ignore, we already process lambdas at Attr::checkLambdaCompatible
+                 * and method references at Attr::checkReferenceCompatible
+                 */
             } else {
                 /* we could be dealing with a method for which we can issue the warnings with precise locations
                  * or with a generated method, for example a record accessor, for which there are no precise
