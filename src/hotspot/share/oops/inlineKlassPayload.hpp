@@ -60,7 +60,7 @@ private:
     inline StorageImpl();
     inline StorageImpl(OopOrHandle container, ptrdiff_t offset, InlineKlass* klass,
                        LayoutKind layout_kind);
-    inline StorageImpl(address addr, InlineKlass* klass,
+    inline StorageImpl(address absolute_addr, InlineKlass* klass,
                        LayoutKind layout_kind);
     inline ~StorageImpl();
     inline StorageImpl(const StorageImpl& other);

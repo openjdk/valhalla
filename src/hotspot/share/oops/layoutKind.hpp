@@ -100,26 +100,29 @@ class outputStream;
 class LayoutKindHelper : AllStatic {
  public:
   static LayoutKind get_copy_layout(LayoutKind src, LayoutKind dst) {
-    assert(src == dst || src == LayoutKind::BUFFERED ||
-               dst == LayoutKind::BUFFERED,
+    assert(src == dst || src == LayoutKind::BUFFERED || dst == LayoutKind::BUFFERED,
            "Only same or from/to BUFFERED is supported. src: %s, dst: %s",
            layout_kind_as_string(src), layout_kind_as_string(dst));
     return src == LayoutKind::BUFFERED ? dst : src;
   }
 
   static bool is_flat(LayoutKind lk) {
-    return lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT
-                 || lk == LayoutKind::NULL_FREE_ATOMIC_FLAT
-                 || lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
+    return lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT ||
+           lk == LayoutKind::NULL_FREE_ATOMIC_FLAT ||
+           lk == LayoutKind::NULLABLE_ATOMIC_FLAT ||
+           lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
   static bool is_atomic_flat(LayoutKind lk) {
-    return lk == LayoutKind::NULL_FREE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    return lk == LayoutKind::NULL_FREE_ATOMIC_FLAT ||
+           lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
   static bool is_nullable_flat(LayoutKind lk) {
-    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
+    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT ||
+           lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
   static bool is_null_free_flat(LayoutKind lk) {
-    return lk == LayoutKind::NULL_FREE_ATOMIC_FLAT || lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
+    return lk == LayoutKind::NULL_FREE_ATOMIC_FLAT ||
+           lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
   }
   static const char* layout_kind_as_string(LayoutKind lk);
 
