@@ -4010,7 +4010,8 @@ public class Attr extends JCTree.Visitor {
                 // ok they are equal but what about nullability?
                 for (ArgsNullabilityResult incompatibleParam :
                         chk.checkArgsNullability(lambdaTypes, argTypes, tree.params)) {
-                            chk.warnNullableTypes(incompatibleParam.position().vartype,
+                            chk.warnNullableTypes(incompatibleParam.position() != null ?
+                                            incompatibleParam.position().vartype : tree,
                                 LintWarnings.IncompatibleNullRestrictions(
                                         Fragments.LambdaArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
                                                 incompatibleParam.overridenType())));
