@@ -253,8 +253,8 @@ inline BufferedValuePayload::BufferedValuePayload(inlineOop buffer)
 
 inline BufferedValuePayload::BufferedValuePayload(inlineOop buffer,
                                                   InlineKlass* klass)
-    : BufferedValuePayload(buffer, klass, klass->payload_offset(),
-                           LayoutKind::BUFFERED) {}
+    : ValuePayload(buffer, klass, klass->payload_offset(),
+                   LayoutKind::BUFFERED) {}
 
 inline BufferedValuePayload BufferedValuePayload::construct_from_parts(
     oop holder, InlineKlass* klass, ptrdiff_t offset, LayoutKind layout_kind) {
@@ -263,7 +263,7 @@ inline BufferedValuePayload BufferedValuePayload::construct_from_parts(
 
 inline FlatFieldPayload::FlatFieldPayload(instanceOop holder, ptrdiff_t offset,
                                           InlineLayoutInfo* inline_layout_info)
-    : FlatFieldPayload(holder, inline_layout_info->klass(), offset,
+    : FlatValuePayload(holder, inline_layout_info->klass(), offset,
                        inline_layout_info->kind()) {}
 
 inline instanceOop FlatFieldPayload::holder() const {

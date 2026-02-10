@@ -115,7 +115,7 @@ public:
 class BufferedValuePayload : public ValuePayload {
   friend class FlatValuePayload;
 
-protected:
+private:
   using ValuePayload::ValuePayload;
 
 public:
