@@ -1947,7 +1947,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
     // TODO 8284443 A static call to a mismatched method should still be scalarized
-    if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
+    if (t->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         // There are 2 cases in which the argument has not been scalarized

@@ -2219,15 +2219,13 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of call"));
       } else {
         bool ret_arg = false;
-        if (!meth->has_scalarized_args()) {
-          // Determine whether any arguments are returned.
-          const TypeTuple* d = call->tf()->domain_cc();
-          for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-            if (d->field_at(i)->isa_ptr() != nullptr &&
-                call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
-              ret_arg = true;
-              break;
-                }
+        // Determine whether any arguments are returned.
+        const TypeTuple* d = call->tf()->domain_sig();
+        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+          if (d->field_at(i)->isa_ptr() != nullptr &&
+              call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
+            ret_arg = true;
+            break;
           }
         }
         if (ret_arg) {
@@ -2431,13 +2429,21 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       }
       BCEscapeAnalyzer* call_analyzer = (meth !=nullptr) ? meth->get_bcea() : nullptr;
       // fall-through if not a Java method or no analyzer information
-      if (call_analyzer != nullptr && !meth->has_scalarized_args()) {
+      if (call_analyzer != nullptr) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
-        const TypeTuple* d = call->tf()->domain_cc();
-        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-          const Type* at = d->field_at(i);
+        const TypeTuple* d = call->tf()->domain_sig();
+        for (uint i = TypeFunc::Parms, input = TypeFunc::Parms; i < d->cnt(); i++) {
           int k = i - TypeFunc::Parms;
-          Node* arg = call->in(i);
+          const Type* t = d->field_at(i);
+          if (t->is_inlinetypeptr() && !meth->mismatch() && meth->is_scalarized_arg(k)) {
+            for (ExtendedSignature sig_cc = ExtendedSignature(meth->get_sig_cc(), SigEntryFilter()); !sig_cc.at_end(); ++sig_cc) {
+              input += type2size[(*sig_cc)._bt];
+            }
+            continue;
+          }
+          input++;
+          const Type* at = d->field_at(i);
+          Node* arg = call->in(input);
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
           if (at->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(k)) {
