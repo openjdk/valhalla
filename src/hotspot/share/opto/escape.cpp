@@ -2109,6 +2109,83 @@ bool ConnectionGraph::add_final_edges_unsafe_access(Node* n, uint opcode) {
   return false;
 }
 
+class DomainIterator : public StackObj {
+private:
+  const TypeTuple* _domain;
+  const TypeTuple* _domain_cc;
+  const GrowableArray<SigEntry>* _sig_cc;
+
+  uint _i_domain;
+  uint _i_domain_cc;
+  int _i_sig_cc;
+  uint _depth;
+
+  void next_helper() {
+    if (_sig_cc == nullptr) {
+      return;
+    }
+    while (_i_sig_cc < _sig_cc->length()) {
+      BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
+      if (bt == T_METADATA) {
+        _depth++;
+      } else if (bt == T_VOID && (_sig_cc->at(_i_sig_cc-1)._bt != T_LONG && _sig_cc->at(_i_sig_cc-1)._bt != T_DOUBLE)) {
+        _depth--;
+        if (_depth == 0) {
+          _i_domain++;
+        }
+      } else {
+        return;
+      }
+      _i_sig_cc++;
+    }
+  }
+
+public:
+
+  DomainIterator(CallJavaNode* call) :
+    _domain(call->tf()->domain_sig()),
+    _domain_cc(call->tf()->domain_cc()),
+    _sig_cc(call->method()->get_sig_cc()),
+    _i_domain(TypeFunc::Parms),
+    _i_domain_cc(TypeFunc::Parms),
+    _i_sig_cc(0),
+    _depth(0) {
+    next_helper();
+  }
+
+  bool has_next() const {
+    assert(_sig_cc == nullptr || (_i_sig_cc < _sig_cc->length()) == (_i_domain < _domain->cnt()), "");
+    assert((_i_domain < _domain->cnt()) == (_i_domain_cc < _domain_cc->cnt()), "");
+    return _i_domain < _domain->cnt();
+  }
+
+  void next() {
+    assert(_depth != 0 || _domain->field_at(_i_domain) == _domain_cc->field_at(_i_domain_cc), "");
+    _i_sig_cc++;
+    if (_depth == 0) {
+      _i_domain++;
+    }
+    _i_domain_cc++;
+    next_helper();
+  }
+
+  uint i_domain() const {
+    return _i_domain;
+  }
+
+  uint i_domain_cc() const {
+    return _i_domain_cc;
+  }
+
+  const Type* current_domain() const {
+    return _domain->field_at(_i_domain);
+  }
+
+  const Type* current_domain_cc() const {
+    return _domain_cc->field_at(_i_domain_cc);
+  }
+};
+
 void ConnectionGraph::add_call_node(CallNode* call) {
   assert(call->returns_pointer() || call->tf()->returns_inline_type_as_fields(), "only for call which returns pointer");
   uint call_idx = call->_idx;
@@ -2220,10 +2297,9 @@ void ConnectionGraph::add_call_node(CallNode* call) {
       } else {
         bool ret_arg = false;
         // Determine whether any arguments are returned.
-        const TypeTuple* d = call->tf()->domain_sig();
-        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-          if (d->field_at(i)->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
+        for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
+          if (di.current_domain_cc()->isa_ptr() != nullptr &&
+              call_analyzer->is_arg_returned(di.i_domain() - TypeFunc::Parms)) {
             ret_arg = true;
             break;
           }
@@ -2431,19 +2507,10 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       // fall-through if not a Java method or no analyzer information
       if (call_analyzer != nullptr) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
-        const TypeTuple* d = call->tf()->domain_sig();
-        for (uint i = TypeFunc::Parms, input = TypeFunc::Parms; i < d->cnt(); i++) {
-          int k = i - TypeFunc::Parms;
-          const Type* t = d->field_at(i);
-          if (t->is_inlinetypeptr() && !meth->mismatch() && meth->is_scalarized_arg(k)) {
-            for (ExtendedSignature sig_cc = ExtendedSignature(meth->get_sig_cc(), SigEntryFilter()); !sig_cc.at_end(); ++sig_cc) {
-              input += type2size[(*sig_cc)._bt];
-            }
-            continue;
-          }
-          input++;
-          const Type* at = d->field_at(i);
-          Node* arg = call->in(input);
+        for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
+          int k = di.i_domain() - TypeFunc::Parms;
+          const Type* at = di.current_domain_cc();
+          Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
           if (at->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(k)) {
