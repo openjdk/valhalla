@@ -804,8 +804,6 @@ java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-
 
 java/net/CookieHandler/B6644726.java                            8365811 generic-all
 
-jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
-
 jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
 jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,generic-x64
 

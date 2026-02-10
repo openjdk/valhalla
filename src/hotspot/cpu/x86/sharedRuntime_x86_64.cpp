@@ -878,7 +878,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
-  if (requires_clinit_barrier && VM_Version::supports_fast_class_init_checks()) {
+  if (requires_clinit_barrier) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     Label L_skip_barrier;
     Register method = rbx;
 
