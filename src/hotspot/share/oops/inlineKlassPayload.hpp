@@ -43,17 +43,47 @@ class ResolvedFieldEntry;
 
 class ValuePayload {
 private:
-  template <typename Holder> struct StorageImpl {
-    mutable Holder _holder;
+  template <typename OopOrHandle> class StorageImpl {
+  private:
+    union {
+      struct {
+        mutable OopOrHandle _container;
+        ptrdiff_t _offset;
+      };
+      address _absolute_addr;
+    };
     InlineKlass* _klass;
-    ptrdiff_t _offset;
     LayoutKind _layout_kind;
+    bool _uses_absolute_addr;
+
+  public:
+    inline StorageImpl();
+    inline StorageImpl(OopOrHandle container, ptrdiff_t offset, InlineKlass* klass,
+                       LayoutKind layout_kind);
+    inline StorageImpl(address addr, InlineKlass* klass,
+                       LayoutKind layout_kind);
+    inline ~StorageImpl();
+    inline StorageImpl(const StorageImpl& other);
+    inline StorageImpl& operator=(const StorageImpl& other);
+
+    inline OopOrHandle& container() const;
+
+    inline ptrdiff_t& offset();
+    inline ptrdiff_t offset() const;
+
+    inline address& absolute_addr();
+    inline address absolute_addr() const;
+
+    InlineKlass* klass() const;
+
+    LayoutKind layout_kind() const;
+
+    inline bool uses_absolute_addr() const;
   };
 
   using Storage = StorageImpl<oop>;
 
   Storage _storage;
-  DEBUG_ONLY(bool _is_raw;)
 
 protected:
   static constexpr ptrdiff_t BAD_OFFSET = -1;
@@ -63,11 +93,15 @@ protected:
   ValuePayload& operator=(const ValuePayload&) = default;
 
   // Constructed from parts
-  inline ValuePayload(oop holder,
-                      InlineKlass* klass,
+  inline ValuePayload(oop container,
                       ptrdiff_t offset,
-                      LayoutKind layout_kind
-                      DEBUG_ONLY(COMMA bool is_raw = false));
+                      InlineKlass* klass,
+                      LayoutKind layout_kind);
+
+  // Raw constructor
+  inline ValuePayload(address absolute_addr,
+                      InlineKlass* klass,
+                      LayoutKind layout_kind);
 
   inline void set_offset(ptrdiff_t offset);
   inlineOop allocate_instance(TRAPS) const;
@@ -78,8 +112,9 @@ protected:
   inline void mark_as_non_null();
   inline void mark_as_null();
 
+  inline bool uses_absolute_addr() const;
+
 private:
-  DEBUG_ONLY(inline bool is_raw() const;)
   inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
   inline void assert_post_construction_invariants() const NOT_DEBUG_RETURN;
   static inline void
@@ -87,12 +122,12 @@ private:
                              LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
 
 public:
-  inline oop holder() const;
+  inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
 
-  inline ::address address() const;
+  inline address addr() const;
 
   inline bool has_null_marker() const;
   inline bool is_payload_null() const;
@@ -108,7 +143,7 @@ class RawValuePayload : public ValuePayload {
 public:
   RawValuePayload() = default;
 
-  inline RawValuePayload(::address payload_address, InlineKlass* klass,
+  inline RawValuePayload(address absolute_addr, InlineKlass* klass,
                          LayoutKind layout_kind);
 };
 
@@ -116,6 +151,7 @@ class BufferedValuePayload : public ValuePayload {
   friend class FlatValuePayload;
 
 private:
+  // Inherit ValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
   using ValuePayload::ValuePayload;
 
 public:
@@ -126,13 +162,9 @@ public:
   explicit inline BufferedValuePayload(inlineOop buffer);
   inline BufferedValuePayload(inlineOop buffer, InlineKlass* klass);
 
-  inline inlineOop holder() const;
+  inline inlineOop container() const;
 
   inline void copy_to(const BufferedValuePayload& dst);
-
-  [[nodiscard]] static inline BufferedValuePayload
-  construct_from_parts(oop holder, InlineKlass* klass, ptrdiff_t offset,
-                       LayoutKind layout_kind);
 
   class Handle;
   class OopHandle;
@@ -143,6 +175,7 @@ public:
 
 class FlatValuePayload : public ValuePayload {
 protected:
+  // Inherit ValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
   using ValuePayload::ValuePayload;
 
 public:
@@ -160,7 +193,7 @@ public:
   inline void write(inlineOop obj, TRAPS);
 
   [[nodiscard]] static inline FlatValuePayload
-  construct_from_parts(oop holder, InlineKlass* klass, ptrdiff_t offset,
+  construct_from_parts(oop container, ptrdiff_t offset, InlineKlass* klass,
                        LayoutKind layout_kind);
 
   class Handle;
@@ -172,30 +205,27 @@ public:
 
 class FlatFieldPayload : public FlatValuePayload {
 private:
+  // Inherit FlatValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
   using FlatValuePayload::FlatValuePayload;
 
-  inline FlatFieldPayload(instanceOop holder, ptrdiff_t offset,
+  inline FlatFieldPayload(instanceOop container, ptrdiff_t offset,
                           InlineLayoutInfo* inline_layout_info);
 
 public:
   FlatFieldPayload() = default;
 
-  inline FlatFieldPayload(instanceOop holder,
+  inline FlatFieldPayload(instanceOop container,
                           fieldDescriptor* field_descriptor);
-  inline FlatFieldPayload(instanceOop holder, fieldDescriptor* field_descriptor,
+  inline FlatFieldPayload(instanceOop container, fieldDescriptor* field_descriptor,
                           InstanceKlass* klass);
 
-  inline FlatFieldPayload(instanceOop holder,
+  inline FlatFieldPayload(instanceOop container,
                           ResolvedFieldEntry* resolved_field_entry);
-  inline FlatFieldPayload(instanceOop holder,
+  inline FlatFieldPayload(instanceOop container,
                           ResolvedFieldEntry* resolved_field_entry,
                           InstanceKlass* klass);
 
-  inline instanceOop holder() const;
-
-  [[nodiscard]] static inline FlatFieldPayload
-  construct_from_parts(instanceOop holder, InlineKlass* klass, ptrdiff_t offset,
-                       LayoutKind layout_kind);
+  inline instanceOop container() const;
 
   class Handle;
   class OopHandle;
@@ -211,10 +241,8 @@ private:
     int _element_size;
   } _storage;
 
-  using FlatValuePayload::FlatValuePayload;
-
-  inline FlatArrayPayload(flatArrayOop holder, InlineKlass* klass,
-                          ptrdiff_t offset, LayoutKind layout_kind,
+  inline FlatArrayPayload(flatArrayOop container, ptrdiff_t offset,
+                          InlineKlass* klass, LayoutKind layout_kind,
                           jint layout_helper, int element_size);
 
 public:
@@ -222,22 +250,14 @@ public:
   FlatArrayPayload(const FlatArrayPayload&) = default;
   FlatArrayPayload& operator=(const FlatArrayPayload&) = default;
 
-  explicit inline FlatArrayPayload(flatArrayOop holder);
-  inline FlatArrayPayload(flatArrayOop holder, FlatArrayKlass* klass);
+  explicit inline FlatArrayPayload(flatArrayOop container);
+  inline FlatArrayPayload(flatArrayOop container, FlatArrayKlass* klass);
 
-  inline FlatArrayPayload(flatArrayOop holder, int index);
-  inline FlatArrayPayload(flatArrayOop holder, int index,
+  inline FlatArrayPayload(flatArrayOop container, int index);
+  inline FlatArrayPayload(flatArrayOop container, int index,
                           FlatArrayKlass* klass);
 
-  [[nodiscard]] static inline FlatArrayPayload
-  construct_from_parts(flatArrayOop holder, InlineKlass* klass,
-                       ptrdiff_t offset, LayoutKind layout_kind);
-  [[nodiscard]] static inline FlatArrayPayload
-  construct_from_parts(flatArrayOop holder, InlineKlass* klass,
-                       ptrdiff_t offset, LayoutKind layout_kind,
-                       FlatArrayKlass* holder_klass);
-
-  inline flatArrayOop holder() const;
+  inline flatArrayOop container() const;
 
   inline void set_index(int index);
   inline void advance_index(int delta);
@@ -269,7 +289,7 @@ public:
 
   inline Handle(const ValuePayload& payload, JavaThread* thread);
 
-  inline oop holder() const;
+  inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
@@ -292,7 +312,7 @@ public:
 
   inline void release(OopStorage* storage);
 
-  inline oop holder() const;
+  inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
@@ -306,7 +326,7 @@ public:
 
   inline BufferedValuePayload operator()() const;
 
-  inline inlineOop holder() const;
+  inline inlineOop container() const;
 };
 
 class BufferedValuePayload::OopHandle : public ValuePayload::OopHandle {
@@ -315,7 +335,7 @@ public:
 
   inline BufferedValuePayload operator()() const;
 
-  inline inlineOop holder() const;
+  inline inlineOop container() const;
 };
 
 class FlatValuePayload::Handle : public ValuePayload::Handle {
@@ -338,7 +358,7 @@ public:
 
   inline FlatFieldPayload operator()() const;
 
-  inline instanceOop holder() const;
+  inline instanceOop container() const;
 };
 
 class FlatFieldPayload::OopHandle : public FlatValuePayload::OopHandle {
@@ -347,7 +367,7 @@ public:
 
   inline FlatFieldPayload operator()() const;
 
-  inline instanceOop holder() const;
+  inline instanceOop container() const;
 };
 
 class FlatArrayPayload::Handle : public FlatValuePayload::Handle {
@@ -359,7 +379,7 @@ public:
 
   inline FlatArrayPayload operator()() const;
 
-  inline flatArrayOop holder() const;
+  inline flatArrayOop container() const;
 };
 
 class FlatArrayPayload::OopHandle : public FlatValuePayload::OopHandle {
@@ -371,7 +391,7 @@ public:
 
   inline FlatArrayPayload operator()() const;
 
-  inline flatArrayOop holder() const;
+  inline flatArrayOop container() const;
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP

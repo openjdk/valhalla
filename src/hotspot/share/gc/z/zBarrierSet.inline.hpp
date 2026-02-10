@@ -497,10 +497,10 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
     //   2) load and store barrier for each oop
     //   3) possibly raw copy for any primitive payload trailer
 
-    // address() points at the payload start, the oop map offset are relative to
+    // addr() points at the payload start, the oop map offset are relative to
     // the object header, adjust address to account for this discrepancy.
-    const address src_addr = src.address();
-    const address dst_addr = dst.address();
+    const address src_addr = src.addr();
+    const address dst_addr = dst.addr();
     const address oop_map_adjusted_src_addr = src_addr - md->payload_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     const OopMapBlock* const end = map + md->nonstatic_oop_map_count();
@@ -545,9 +545,9 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_nul
     //   2) store barrier and clear for each oop
     //   3) possibly raw clear for any primitive payload trailer
 
-    // address() points at the payload start, the oop map offset are relative to
+    // addr() points at the payload start, the oop map offset are relative to
     // the object header, adjust address to account for this discrepancy.
-    const address dst_addr = dst.address();
+    const address dst_addr = dst.addr();
     const address oop_map_adjusted_dst_addr = dst_addr - md->payload_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     const OopMapBlock* const end = map + md->nonstatic_oop_map_count();

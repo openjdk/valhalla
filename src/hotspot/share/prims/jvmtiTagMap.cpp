@@ -292,7 +292,7 @@ public:
       EXCEPTION_MARK;
       Entry& entry = _entries.at(i);
       FlatValuePayload payload = FlatValuePayload::construct_from_parts(
-          entry.holder(), entry.inline_klass, entry.offset, entry.layout_kind);
+          entry.holder(), entry.offset, entry.inline_klass, entry.layout_kind);
       oop obj = payload.read(JavaThread::current());
 
       if (HAS_PENDING_EXCEPTION) {

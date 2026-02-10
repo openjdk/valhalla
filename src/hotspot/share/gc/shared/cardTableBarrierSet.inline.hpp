@@ -175,9 +175,9 @@ value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
     Raw::value_copy(src, dst);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
-    // address() points at the payload start, the oop map offset are relative to
+    // addr() points at the payload start, the oop map offset are relative to
     // the object header, adjust address to account for this discrepancy.
-    const address oop_map_adjusted_dst_addr = (dst.address()) - md->payload_offset();
+    const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
     // Pre-barriers...
@@ -215,9 +215,9 @@ value_store_null_in_heap(const ValuePayload& dst) {
     Raw::value_store_null(dst);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
-    // address() points at the payload start, the oop map offset are relative to
+    // addr() points at the payload start, the oop map offset are relative to
     // the object header, adjust address to account for this discrepancy.
-    const address oop_map_adjusted_dst_addr = (dst.address()) - md->payload_offset();
+    const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
     // Pre-barriers...
