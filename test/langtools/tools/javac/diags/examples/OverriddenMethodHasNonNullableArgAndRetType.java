@@ -27,6 +27,7 @@
 // key: compiler.misc.argument.type.nullability.mismatch
 // key: compiler.misc.return.type.nullability.mismatch
 // key: compiler.misc.lambda.argument.type.nullability.mismatch
+// key: compiler.misc.method.reference.argument.type.nullability.mismatch
 // options: -Xlint:null --enable-preview -source ${jdk.version}
 
 class OverriddenMethodHasNonNullableArgAndRetType {
@@ -41,4 +42,20 @@ class OverriddenMethodHasNonNullableArgAndRetType {
         void m(String! s);
     }
     I i = (String s) -> {};
+
+    interface MathFunc {
+        Integer operate(Integer! a, Integer! b);
+    }
+
+    class Impl {
+        public Integer add(Integer a, Integer b) {
+            return a + b;
+        }
+    }
+
+    class MethRefTest {
+        void m(Impl impl) {
+            MathFunc mathFunc = impl::add;
+        }
+    }
 }

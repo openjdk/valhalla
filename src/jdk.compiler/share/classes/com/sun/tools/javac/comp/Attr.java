@@ -4316,6 +4316,15 @@ public class Attr extends JCTree.Visitor {
             if (!checkExConstraints(refType.getThrownTypes(), descriptor.getThrownTypes(), inferenceContext)) {
                 log.error(tree, Errors.IncompatibleThrownTypesInMref(refType.getThrownTypes()));
             }
+            if (allowNullRestrictedTypes && incompatibleReturnType == null) {
+                for (ArgsNullabilityResult incompatibleParam :
+                        chk.checkArgsNullability(refType.asMethodType().argtypes, descriptor.asMethodType().argtypes, null)) {
+                    chk.warnNullableTypes(tree,
+                            LintWarnings.IncompatibleNullRestrictions(
+                                    Fragments.MethodReferenceArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
+                                            incompatibleParam.overridenType())));
+                }
+            }
         }
     }
 

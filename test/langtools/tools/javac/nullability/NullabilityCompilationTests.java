@@ -371,7 +371,26 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                1)
+                                1),
+                        new DiagAndCode(
+                                """
+                                interface MathFunc {
+                                    Integer operate(Integer! a, Integer! b);
+                                }
+                                class Impl {
+                                    public Integer add(Integer a, Integer b) {
+                                        return a + b;
+                                    }
+                                }
+                                class MethRefTest {
+                                    void m(Impl impl) {
+                                        MathFunc mathFunc = impl::add;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2)
                 )
         );
 
