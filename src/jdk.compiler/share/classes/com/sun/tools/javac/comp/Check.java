@@ -1897,7 +1897,7 @@ public class Check {
                 }
                 for (ArgsNullabilityResult incompatibleParam :
                         checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
-                    warnNullableTypes(preciseLocations ? incompatibleParam.position.vartype : theTree,
+                    warnNullableTypes(incompatibleParam.position != null ? incompatibleParam.position.vartype : theTree,
                             LintWarnings.IncompatibleNullRestrictions(
                                     Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
                 }
