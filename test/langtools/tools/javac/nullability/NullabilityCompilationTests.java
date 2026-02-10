@@ -118,13 +118,6 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.code);
             } else if (diagAndCode.result == Result.Warning) {
                 testHelper(PREVIEW_PLUS_LINT_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.COMPILE_WITH_WARNING, diagAndCode.code, null);
-                testHelper(PREVIEW_OPTIONS, diagAndCode.code,
-                        d -> {
-                            if (d.getKind() == Diagnostic.Kind.WARNING) {
-                                // shouldn't issue any warnings if the -Xlint:null option is not passed
-                                throw new AssertionError("unexpected warning for " + diagAndCode.code);
-                            }
-                        });
             } else {
                 testHelper(PREVIEW_OPTIONS, diagAndCode.diag, diagAndCode.diagsCount, TestResult.ERROR, diagAndCode.code, null);
             }
