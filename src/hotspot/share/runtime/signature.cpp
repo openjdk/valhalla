@@ -679,8 +679,8 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset) {
-  sig->append(SigEntry(bt, offset, name, false, false));
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset, bool null_marker, bool vt_oop) {
+  sig->append(SigEntry(bt, offset, name, null_marker, vt_oop));
   if (bt == T_LONG || bt == T_DOUBLE) {
     sig->append(SigEntry(T_VOID, offset, name, false, false)); // Longs and doubles take two stack slots
   }

@@ -590,7 +590,7 @@ class SigEntry {
   SigEntry(BasicType bt, int offset, Symbol* name, bool null_marker, bool vt_oop)
     : _bt(bt), _offset(offset), _name(name), _null_marker(null_marker), _vt_oop(vt_oop) {}
 
-  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name = nullptr, int offset = -1);
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name = nullptr, int offset = -1, bool null_marker = false, bool vt_oop = false);
   static void add_null_marker(GrowableArray<SigEntry>* sig, Symbol* name, int offset);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
