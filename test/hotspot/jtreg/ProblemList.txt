@@ -223,7 +223,6 @@ runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904
 
 serviceability/sa/ClhsdbCDSCore.java   8377324 generic-all
 serviceability/sa/TestPrintMdo.java    8377324 generic-all
-serviceability/sa/ClhsdbDumpclass.java 8377325 generic-all
 
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
