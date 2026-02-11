@@ -2109,6 +2109,16 @@ bool ConnectionGraph::add_final_edges_unsafe_access(Node* n, uint opcode) {
   return false;
 }
 
+// Iterate over the domains for the scalarized and non scalarized calling conventions: Only move to the next element
+// in the non scalarized calling convention once all elements of the scalarized calling convention for that parameter
+// have been iterated over. So (ignoring hidden arguments such as the null marker) iterating over:
+// value class MyValue {
+//   int f1;
+//   float f2;
+// }
+// void m(Object o, MyValue v, int i)
+// produces the pairs:
+// (Object, Object), (Myvalue, int), (MyValue, float), (int, int)
 class DomainIterator : public StackObj {
 private:
   const TypeTuple* _domain;
@@ -2154,13 +2164,13 @@ public:
   }
 
   bool has_next() const {
-    assert(_sig_cc == nullptr || (_i_sig_cc < _sig_cc->length()) == (_i_domain < _domain->cnt()), "");
-    assert((_i_domain < _domain->cnt()) == (_i_domain_cc < _domain_cc->cnt()), "");
+    assert(_sig_cc == nullptr || (_i_sig_cc < _sig_cc->length()) == (_i_domain < _domain->cnt()), "should reach end in sync");
+    assert((_i_domain < _domain->cnt()) == (_i_domain_cc < _domain_cc->cnt()), "should reach end in sync");
     return _i_domain < _domain->cnt();
   }
 
   void next() {
-    assert(_depth != 0 || _domain->field_at(_i_domain) == _domain_cc->field_at(_i_domain_cc), "");
+    assert(_depth != 0 || _domain->field_at(_i_domain) == _domain_cc->field_at(_i_domain_cc), "should produce same non scalarized elements");
     _i_sig_cc++;
     if (_depth == 0) {
       _i_domain++;
