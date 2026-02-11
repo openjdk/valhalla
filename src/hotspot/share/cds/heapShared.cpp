@@ -1062,6 +1062,9 @@ void KlassSubGraphInfo::add_subgraph_object_klass(Klass* orig_k) {
       // to the list.
       return;
     }
+    if (orig_k->is_flatArray_klass()) {
+      _subgraph_object_klasses->append_if_missing(FlatArrayKlass::cast(orig_k)->element_klass());
+    }
   } else {
     assert(orig_k->is_typeArray_klass(), "must be");
     // Primitive type arrays are created early during Universe::genesis.
@@ -1500,7 +1503,7 @@ HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAP
 
     Array<Klass*>* klasses = record->subgraph_object_klasses();
 
-    if (do_init) {
+    if (do_init && klasses != nullptr) {
       // All the classes of the oops in this subgraph are in the klasses array.
       // Link them first in case any of the oops are used in the <clinit> methods
       // invoked in the rest of this function.
@@ -1848,10 +1851,6 @@ bool HeapShared::walk_one_object(PendingOopStack* stack, int level, KlassSubGrap
 
   Klass *orig_k = orig_obj->klass();
   subgraph_info->add_subgraph_object_klass(orig_k);
-  if (orig_obj->is_flatArray()) {
-    FlatArrayKlass* orig_fak = FlatArrayKlass::cast(orig_k);
-    subgraph_info->add_subgraph_object_klass(orig_fak->element_klass());
-  }
 
   {
     // Find all the oops that are referenced by orig_obj, push them onto the stack
