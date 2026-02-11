@@ -31,7 +31,6 @@ import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -289,8 +288,7 @@ public class NullChecksWriter extends TreeTranslator {
             newArgs.add(actualArgsTmp.head);
             actualArgsTmp = actualArgsTmp.tail;
         }
-        int oldNoOfArgsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
-        int noOfArgsToCheck = oldNoOfArgsToCheck;
+        int noOfArgsToCheck = msym.isVarArgs() ? declaredArgSize - 1 : declaredArgSize;
         while (noOfArgsToCheck-- > 0) {
             Type formalArgType = declaredArgTypes.head;
             if (types.isNonNullable(formalArgType)) {
