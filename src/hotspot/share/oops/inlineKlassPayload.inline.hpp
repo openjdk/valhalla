@@ -504,7 +504,7 @@ inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
                                           fieldDescriptor* field_descriptor,
                                           InstanceKlass* klass)
     : FlatFieldPayload(container,
-                       klass->field_offset(field_descriptor->index()),
+                       field_descriptor->offset(),
                        klass->inline_layout_info_adr(field_descriptor->index())) {
   postcond(container->klass() == klass);
 }
