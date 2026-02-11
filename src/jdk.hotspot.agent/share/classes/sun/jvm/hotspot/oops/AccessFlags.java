@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ public class AccessFlags implements /* imports */ ClassConstants {
   public boolean isAnnotation  () { return (flags & JVM_ACC_ANNOTATION  ) != 0; }
   public boolean isInterface   () { return (flags & JVM_ACC_INTERFACE   ) != 0; }
   public boolean isAbstract    () { return (flags & JVM_ACC_ABSTRACT    ) != 0; }
-  public boolean isStrict      () { return (flags & JVM_ACC_STRICT      ) != 0; }
+  public boolean isStrict      () { return (flags & JVM_ACC_STRICT_INIT ) != 0; }
   public boolean isSynthetic   () { return (flags & JVM_ACC_SYNTHETIC   ) != 0; }
 
   public long getValue         () { return flags; }

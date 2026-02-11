@@ -1497,19 +1497,22 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
+  const Type* t = _gvn.type(obj);
+  const Type* t_not_null = t->join_speculative(TypePtr::NOTNULL);
+  if (t == t_not_null) {
+    return obj;
+  }
+
   if (obj->is_InlineType()) {
-    Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_null_marker(_gvn);
-    vt = _gvn.transform(vt);
+    InlineTypeNode* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
+    vt->set_null_marker(_gvn);
+    vt->set_type(t_not_null);
+    vt = _gvn.transform(vt)->as_InlineType();
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
     }
     return vt;
   }
-  const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-  // Object is already not-null?
-  if( t == t_not_null ) return obj;
 
   Node* cast = new CastPPNode(control(), obj,t_not_null);
   cast = _gvn.transform( cast );
@@ -3590,19 +3593,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
   const Type* obj_type = _gvn.type(obj);
-  if (obj_type->is_inlinetypeptr() && !obj_type->maybe_null() && klass_ptr_type->klass_is_exact() && obj_type->inline_klass() == klass_ptr_type->exact_klass(true)) {
-    // Special case: larval inline objects must not be scalarized. They are also generally not
-    // allowed to participate in most operations except as the first operand of putfield, or as an
-    // argument to a constructor invocation with it being a receiver, Unsafe::putXXX with it being
-    // the first argument, or Unsafe::finishPrivateBuffer. This allows us to aggressively scalarize
-    // value objects in all other places. This special case comes from the limitation of the Java
-    // language, Unsafe::makePrivateBuffer returns an Object that is checkcast-ed to the concrete
-    // value type. We must do this first because C->static_subtype_check may do nothing when
-    // StressReflectiveCode is set.
-    return obj;
-  }
-
-  // Else it must be a non-larval object
   obj = cast_to_non_larval(obj);
 
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
