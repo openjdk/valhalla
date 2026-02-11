@@ -297,6 +297,7 @@ public class NullChecksWriter extends TreeTranslator {
                 newArgs.add(actualArgsTmp.head);
             }
             actualArgsTmp = actualArgsTmp.tail;
+            declaredArgTypes = declaredArgTypes.tail;
         }
         /* now add the last vararg argument if applicable, no checks are needed here as varargs can't be
          * null restricted. Also note that at this point the vararg arguments have already been translated
