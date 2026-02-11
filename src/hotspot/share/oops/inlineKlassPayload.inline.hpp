@@ -312,19 +312,30 @@ ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
     }
   });
 
-  precond(src.klass() == dst.klass());
+  const InlineKlass* const src_klass = src.klass();
+  const InlineKlass* const dst_klass = dst.klass();
 
-  const bool src_or_dst_is_buffered = src.layout_kind() == LayoutKind::BUFFERED ||
-                                      dst.layout_kind() == LayoutKind::BUFFERED;
+  precond(src_klass == dst_klass);
+
+  const bool src_is_buffered = src.layout_kind() == LayoutKind::BUFFERED;
+  const bool dst_is_buffered = dst.layout_kind() == LayoutKind::BUFFERED;
   const bool src_and_dst_same_layout_kind = src.layout_kind() == dst.layout_kind();
   const bool src_has_copy_layout = src.layout_kind() == copy_layout_kind;
   const bool dst_has_copy_layout = dst.layout_kind() == copy_layout_kind;
 
-  precond(src_or_dst_is_buffered || src_and_dst_same_layout_kind);
+  precond(src_is_buffered || dst_is_buffered || src_and_dst_same_layout_kind);
   precond(src_has_copy_layout || dst_has_copy_layout);
 
-  const int src_layout_size_in_bytes = src.klass()->layout_size_in_bytes(src.layout_kind());
-  const int dst_layout_size_in_bytes = dst.klass()->layout_size_in_bytes(dst.layout_kind());
+  if (src_is_buffered) {
+    oop container = src.uses_absolute_addr()
+        ? cast_to_oop(src.addr() - src_klass->payload_offset())
+        : src.container();
+
+    precond(container != src_klass->null_reset_value());
+  }
+
+  const int src_layout_size_in_bytes = src_klass->layout_size_in_bytes(src.layout_kind());
+  const int dst_layout_size_in_bytes = dst_klass->layout_size_in_bytes(dst.layout_kind());
   const int copy_layout_size_in_bytes =
       src_has_copy_layout
           ? src_layout_size_in_bytes

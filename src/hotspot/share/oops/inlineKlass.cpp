@@ -100,15 +100,11 @@ address InlineKlass::calculate_members_address() const {
   return end_of_instance_klass();
 }
 
-BufferedValuePayload InlineKlass::null_payload() const {
-  return BufferedValuePayload(null_reset_value(), const_cast<InlineKlass*>(this));
-}
-
-inlineOop InlineKlass::null_reset_value() const {
+oop InlineKlass::null_reset_value() const {
   assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
   assert(val != nullptr, "Sanity check");
-  return inlineOop(val);
+  return val;
 }
 
 void InlineKlass::set_null_reset_value(oop val) {
