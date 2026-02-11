@@ -416,7 +416,7 @@ inline bool FlatValuePayload::copy_to(BufferedValuePayload& dst) {
   return true;
 }
 
-inline void FlatValuePayload::copy_from_non_null(BufferedValuePayload& src) {
+inline void FlatValuePayload::copy_from(BufferedValuePayload& src) {
   // Copy from BUFFERED to FLAT, null marker fix may be required.
 
   if (has_null_marker()) {
@@ -464,7 +464,7 @@ inline void FlatValuePayload::write_without_nullability_check(inlineOop obj) {
   } else {
     // Copy the obj payload
     BufferedValuePayload obj_payload(obj);
-    copy_from_non_null(obj_payload);
+    copy_from(obj_payload);
   }
 }
 

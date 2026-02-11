@@ -184,7 +184,7 @@ public:
   FlatValuePayload& operator=(const FlatValuePayload&) = default;
 
   [[nodiscard]] inline bool copy_to(BufferedValuePayload& dst);
-  inline void copy_from_non_null(BufferedValuePayload& src);
+  inline void copy_from(BufferedValuePayload& src);
 
   inline void copy_to(const FlatValuePayload& dst);
 

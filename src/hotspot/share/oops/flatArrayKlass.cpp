@@ -313,7 +313,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
                    "Should only occur if we need a null check");
             THROW(vmSymbols::java_lang_NullPointerException());
           }
-          dst_payload.copy_from_non_null(buf_payload);
+          dst_payload.copy_from(buf_payload);
 
           // Advance to next element
           src_payload.next_element();
