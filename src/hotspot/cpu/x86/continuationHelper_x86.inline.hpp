@@ -103,7 +103,13 @@ inline intptr_t** ContinuationHelper::Frame::callee_link_address(const frame& f)
 }
 
 inline address* ContinuationHelper::Frame::return_pc_address(const frame& f) {
-  return (address*)(f.real_fp() - 1);
+  nmethod* nm = f.cb()->as_nmethod_or_null();
+  if (nm != nullptr && nm->needs_stack_repair()) {
+    intptr_t* real_frame_size_addr = f.unextended_sp() + nm->frame_size() - frame::sender_sp_offset - 1;
+    return (address*)(f.unextended_sp() + (*real_frame_size_addr / wordSize) + 1);
+  } else {
+    return (address*)(f.real_fp() - 1);
+  }
 }
 
 inline address* ContinuationHelper::InterpretedFrame::return_pc_address(const frame& f) {
@@ -122,8 +128,8 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return *pc_addr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool callee_augmented) {
-  address* pc_addr = &(((address*) (callee_augmented ? f.unextended_sp() : f.sp()))[-1]);
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+  address* pc_addr = &(((address*) f.sp())[-1]);
   *pc_addr = pc;
 }
 

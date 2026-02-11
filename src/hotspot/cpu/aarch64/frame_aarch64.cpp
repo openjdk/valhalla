@@ -625,16 +625,24 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
       ret_pc_loc = fp() + return_addr_offset;
       fp_loc = fp();
     } else {
-      ret_pc_loc = real_fp() - return_addr_offset;
-      fp_loc = real_fp() - sender_sp_offset;
       if (cb()->is_nmethod() && cb()->as_nmethod_or_null()->needs_stack_repair()) {
-        values.describe(frame_no, fp_loc - 1, err_msg("fsize for #%d", frame_no), 1);
+        values.describe(frame_no, real_fp() - sender_sp_offset - 1, err_msg("fsize for #%d", frame_no), 1);
       }
+      frame::CompiledFramePointers cfp = compiled_frame_details();
+      ret_pc_loc = (intptr_t*)cfp.sender_pc_addr;
+      fp_loc = (intptr_t*)cfp.saved_fp_addr;
     }
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
       Continuation::is_return_barrier_entry(ret_pc) ? "return address (return barrier)" : "return address");
     values.describe(-1, fp_loc, "saved fp", 0); // "unowned" as value belongs to sender
+
+    intptr_t* ret_pc_loc2 = real_fp() - return_addr_offset;
+    if (ret_pc_loc2 != ret_pc_loc) {
+      intptr_t* fp_loc2 = real_fp() - sender_sp_offset;
+      values.describe(frame_no, ret_pc_loc2, "return address copy #2");
+      values.describe(-1, fp_loc2, "saved fp copy #2", 0);
+    }
   }
 }
 #endif

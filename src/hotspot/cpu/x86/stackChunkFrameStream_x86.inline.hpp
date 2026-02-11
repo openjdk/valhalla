@@ -74,7 +74,7 @@ inline frame StackChunkFrameStream<frame_kind>::to_frame() const {
 template <ChunkFrames frame_kind>
 inline address StackChunkFrameStream<frame_kind>::get_pc() const {
   assert(!is_done(), "");
-  return *(address*)((_callee_augmented ? _unextended_sp : _sp) - 1);
+  return *(address*)(_sp - 1);
 }
 
 template <ChunkFrames frame_kind>

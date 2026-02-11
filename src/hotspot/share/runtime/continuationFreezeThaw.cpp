@@ -2127,7 +2127,7 @@ private:
 
   inline void before_thaw_java_frame(const frame& hf, const frame& caller, bool bottom, int num_frame);
   inline void after_thaw_java_frame(const frame& f, bool bottom);
-  inline void patch(frame& f, const frame& caller, bool bottom, bool augmented = false);
+  inline void patch(frame& f, const frame& caller, bool bottom);
   void clear_bitmap_bits(address start, address end);
 
   NOINLINE void recurse_thaw_interpreted_frame(const frame& hf, frame& caller, int num_frames, bool is_top);
@@ -2635,7 +2635,7 @@ inline void ThawBase::after_thaw_java_frame(const frame& f, bool bottom) {
 #endif
 }
 
-inline void ThawBase::patch(frame& f, const frame& caller, bool bottom, bool augmented) {
+inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
   assert(!bottom || caller.fp() == _cont.entryFP(), "");
   if (bottom) {
     ContinuationHelper::Frame::patch_pc(caller, _cont.is_empty() ? caller.pc()
@@ -2643,7 +2643,7 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom, bool aug
   } else if (caller.is_compiled_frame()){
     // caller might have been deoptimized during thaw but we've overwritten the return address when copying f from the heap.
     // If the caller is not deoptimized, pc is unchanged.
-    ContinuationHelper::Frame::patch_pc(caller, caller.raw_pc(), augmented /*callee_augmented*/);
+    ContinuationHelper::Frame::patch_pc(caller, caller.raw_pc());
   }
 
   patch_pd(f, caller);
@@ -2890,7 +2890,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   // yet laid out in the stack, and so the original_pc is not stored in it.
   // As a result, f.is_deoptimized_frame() is always false and we must test hf to know if the frame is deoptimized.
   frame f = new_stack_frame<ContinuationHelper::CompiledFrame>(hf, caller, is_bottom_frame, augmented ? fsize - hf.cb()->frame_size() : 0);
-  assert(f.cb()->frame_size() == (int)(caller.sp() - f.sp()), "");
+  assert((int)(caller.sp() - f.sp()) == (augmented ? fsize : f.cb()->frame_size()), "");
 
   intptr_t* const stack_frame_top = f.sp();
   intptr_t* const heap_frame_top = hf.unextended_sp();
@@ -2906,7 +2906,7 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
 
   copy_from_chunk(from, to, sz); // copying good oops because we invoked barriers above
 
-  patch(f, caller, is_bottom_frame, augmented);
+  patch(f, caller, is_bottom_frame);
 
   // f.is_deoptimized_frame() is always false and we must test hf.is_deoptimized_frame() (see comment above)
   assert(!f.is_deoptimized_frame(), "");
