@@ -26,13 +26,14 @@
  * @test
  * @summary Test archived flat arrays
  * @requires vm.cds.write.archived.java.heap
+ * @requires vm.debug
  * @library /test/jdk/lib/testlibrary /test/lib /test/hotspot/jtreg/runtime/cds/appcds
  * @enablePreview
  * @modules java.base/jdk.internal.value
  * @compile ArchivedFlatArrayApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar archived_flat_array.jar ArchivedFlatArrayApp
- *                                                                                  ArchivedFlatArrayApp2
- *                                                                                  ArchivedFlatArrayApp2$CharPair
+ *                                                                                  ArchivedFlatArrayApp$ArchivedData
+ *                                                                                  ArchivedFlatArrayApp$CharPair
  * @run main/othervm ArchivedFlatArrayTest
  */
 
@@ -44,7 +45,6 @@ public class ArchivedFlatArrayTest {
 
     static String appJar = ClassFileInstaller.getJarPath("archived_flat_array.jar");
     static String mainClass = "ArchivedFlatArrayApp";
-    static String mainClass2 = "ArchivedFlatArrayApp2";
 
     public static void test(String className, String[] classlist) throws Exception {
         String[] suffix = TestCommon.list("--enable-preview",
@@ -56,7 +56,7 @@ public class ArchivedFlatArrayTest {
 
         OutputAnalyzer output = TestCommon.dump(appJar, classlist, suffix);
         output.shouldHaveExitValue(0);
-        output.shouldContain("Archived field " + className +"::archivedObjects");
+        output.shouldContain("Archived field " + className + "::archivedObjects");
 
         output = TestCommon.exec(appJar, TestCommon.concat(suffix, className));
         output.shouldHaveExitValue(0);
@@ -65,7 +65,6 @@ public class ArchivedFlatArrayTest {
     }
 
     public static void main(String[] args) throws Exception {
-        test(mainClass, TestCommon.list(mainClass));
-        test(mainClass, TestCommon.list(mainClass2, "ArchivedFlatArrayApp$CharPair"));
+        test(mainClass, TestCommon.list(mainClass, "ArchivedFlatArrayApp$ArchivedData", "ArchivedFlatArrayApp$CharPair"));
     }
 }

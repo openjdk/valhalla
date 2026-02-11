@@ -22,58 +22,27 @@
  *
  */
 
+import java.util.Arrays;
 import jdk.internal.value.ValueClass;
 
 public class ArchivedFlatArrayApp {
-    static Object[] archivedObjects;
-    static {
-    if (archivedObjects == null) {
-        System.out.println("Not archived");
-        archivedObjects = new Integer[3];
-        archivedObjects[0] = new Integer(0);
-        archivedObjects[1] = new Integer(1);
-        archivedObjects[2] = new Integer(2);
-    } else {
-        System.out.println("Initialized from CDS");
+
+    // Check that arrays of both migrated value
+    // classes and custom value classes are archived
+    public static class ArchivedData {
+        Integer[] intArray;
+        CharPair[] charPairArray;
     }
 
-      for (Object o : archivedObjects) {
-        System.out.println(o);
-      }
-    }
-
-    public static void main(String[] args) {
-        if (!ValueClass.isFlatArray(archivedObjects)) {
-            throw new RuntimeException("Should be flat");
-        }
-
-        System.out.println("PASSED");
-    }
-}
-
-class ArchivedFlatArrayApp2 {
-    public static CharPair[] archivedObjects;
-    static {
-        if (archivedObjects == null) {
-            System.out.println("Not archived");
-            archivedObjects = new CharPair[3];
-            archivedObjects[0] = new CharPair('a', 'b');
-            archivedObjects[1] = new CharPair('c', 'd');
-            archivedObjects[2] = new CharPair('e', 'f');
-        } else {
-            System.out.println("Initialized from CDS");
-        }
-
-        for (Object o : archivedObjects) {
-            System.out.println(o);
-        }
-    }
-
-    public static value class CharPair {
+    public static value class CharPair implements Comparable<CharPair> {
         char c0, c1;
 
         public String toString() {
             return "(" + c0 + ", " + c1 + ")";
+        }
+
+        public int compareTo(CharPair o) {
+            return (c0 - o.c0) - (c1 - o.c1);
         }
 
         public CharPair(char c0, char c1) {
@@ -82,11 +51,67 @@ class ArchivedFlatArrayApp2 {
         }
     }
 
-    public static void main(String[] args) {
-        if (!ValueClass.isFlatArray(archivedObjects)) {
-            throw new RuntimeException("Should be flat");
+    static ArchivedData archivedObjects;
+    static boolean restored;
+    static {
+        if (archivedObjects == null) {
+            restored = false;
+            System.out.println("Not archived");
+            archivedObjects = new ArchivedData();
+
+            archivedObjects.intArray = new Integer[3];
+            archivedObjects.intArray[0] = new Integer(0);
+            archivedObjects.intArray[1] = new Integer(1);
+            archivedObjects.intArray[2] = new Integer(2);
+
+            archivedObjects.charPairArray = new CharPair[3];
+            archivedObjects.charPairArray[0] = new CharPair('a', 'b');
+            archivedObjects.charPairArray[1] = new CharPair('c', 'd');
+            archivedObjects.charPairArray[2] = new CharPair('e', 'f');
+        } else {
+            restored = true;
+            System.out.println("Initialized from CDS");
+            System.out.println("intArray " + archivedObjects.intArray);
+            System.out.println("charPairArray " + archivedObjects.charPairArray);
         }
 
-        System.out.println("PASSED");
+        for (Integer i : archivedObjects.intArray) {
+            System.out.println(i);
+        }
+
+        for (CharPair c : archivedObjects.charPairArray) {
+            System.out.println(c);
+        }
+    }
+
+    public static void main(String[] args) {
+        if (!ValueClass.isFlatArray(archivedObjects.intArray)) {
+            throw new RuntimeException("Integer array should be flat");
+        }
+
+        if (!ValueClass.isFlatArray(archivedObjects.intArray)) {
+            throw new RuntimeException("CharPair array should be flat");
+        }
+
+        if (restored) {
+            // Ensure archived arrays are restored properly
+            Integer[] runtimeIntArray = new Integer[3];
+            runtimeIntArray[0] = new Integer(0);
+            runtimeIntArray[1] = new Integer(1);
+            runtimeIntArray[2] = new Integer(2);
+
+            CharPair[] runtimeCharPairArray = new CharPair[3];
+            runtimeCharPairArray[0] = new CharPair('a', 'b');
+            runtimeCharPairArray[1] = new CharPair('c', 'd');
+            runtimeCharPairArray[2] = new CharPair('e', 'f');
+
+            if (Arrays.compare(archivedObjects.intArray, runtimeIntArray) != 0) {
+                throw new RuntimeException("Integer array not restored correctly");
+            }
+
+            if (Arrays.compare(archivedObjects.charPairArray, runtimeCharPairArray) != 0) {
+                throw new RuntimeException("CharPair array not restored correctly");
+            }
+        }
     }
 }
