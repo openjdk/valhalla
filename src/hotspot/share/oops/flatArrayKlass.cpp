@@ -298,22 +298,22 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         src_payload = src_payload_handle();
         dst_payload = dst_payload_handle();
 
-        const bool need_null_check =
-            LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) &&
-            !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
+        const bool dst_is_null_restricted = !LayoutKindHelper::is_nullable_flat(dst_payload.layout_kind());
 
         // fsk->layout_kind() != fdk->layout_kind() implies that s != d, which
         // means that the copy is disjoint and we do not need to worry about
         // needs_backwards_copy.
         for (int i = 0; i < length; i++) {
           // Copy via buffer
-          if ((need_null_check && src_payload.is_payload_null()) ||
-              !src_payload.copy_to(buf_payload)) {
-            assert(need_null_check,
-                   "Should only occur if we need a null check");
-            THROW(vmSymbols::java_lang_NullPointerException());
+          if (src_payload.is_payload_null() || !src_payload.copy_to(buf_payload)) {
+            // The source payload is null. Nothing to copy.
+            if (dst_is_null_restricted) {
+              // The destination does not support null.
+              THROW(vmSymbols::java_lang_NullPointerException());
+            }
+          } else {
+            dst_payload.copy_from(buf_payload);
           }
-          dst_payload.copy_from(buf_payload);
 
           // Advance to next element
           src_payload.next_element();
