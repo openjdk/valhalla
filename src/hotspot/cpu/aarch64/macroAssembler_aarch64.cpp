@@ -7239,8 +7239,6 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       if (toReg->is_stack()) {
         int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
         str(fromReg, Address(sp, st_off));
-        // mov(tmp2, fromReg);
-        // str(tmp2, Address(sp, st_off));
       } else {
         mov(toReg->as_Register(), fromReg);
       }
@@ -7366,12 +7364,10 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       if (fromReg->is_stack()) {
         int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
         ldr(val_obj, Address(sp, ld_off));
-        // mov(val_obj, Address(sp, ld_off));
       } else {
         mov(val_obj, fromReg->as_Register());
       }
       cbnz(val_obj, L_null);
-      // br(Assembler::NE, L_null);
       // get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
       load_heap_oop(val_obj, Address(val_array, index), rscratch1, rscratch2);
