@@ -1498,11 +1498,24 @@ HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAP
       log_info(aot, heap)("%s subgraph %s ", do_init ? "init" : "resolve", k->external_name());
     }
 
+    Array<Klass*>* klasses = record->subgraph_object_klasses();
+
+    if (do_init) {
+      // All the classes of the oops in this subgraph are in the klasses array.
+      // Link them first in case any of the oops are used in the <clinit> methods
+      // invoked in the rest of this function.
+      for (int i = 0; i < klasses->length(); i++) {
+        Klass* klass = klasses->at(i);
+        if (klass->in_aot_cache() && klass->is_instance_klass()) {
+          InstanceKlass::cast(klass)->link_class(CHECK_NULL);
+        }
+      }
+    }
+
     resolve_or_init(k, do_init, CHECK_NULL);
 
     // Load/link/initialize the klasses of the objects in the subgraph.
     // nullptr class loader is used.
-    Array<Klass*>* klasses = record->subgraph_object_klasses();
     if (klasses != nullptr) {
       for (int i = 0; i < klasses->length(); i++) {
         Klass* klass = klasses->at(i);
@@ -1835,6 +1848,10 @@ bool HeapShared::walk_one_object(PendingOopStack* stack, int level, KlassSubGrap
 
   Klass *orig_k = orig_obj->klass();
   subgraph_info->add_subgraph_object_klass(orig_k);
+  if (orig_obj->is_flatArray()) {
+    FlatArrayKlass* orig_fak = FlatArrayKlass::cast(orig_k);
+    subgraph_info->add_subgraph_object_klass(orig_fak->element_klass());
+  }
 
   {
     // Find all the oops that are referenced by orig_obj, push them onto the stack

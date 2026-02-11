@@ -31,6 +31,8 @@
  * @modules java.base/jdk.internal.value
  * @compile ArchivedFlatArrayApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar archived_flat_array.jar ArchivedFlatArrayApp
+ *                                                                                  ArchivedFlatArrayApp2
+ *                                                                                  ArchivedFlatArrayApp2$CharPair
  * @run main/othervm ArchivedFlatArrayTest
  */
 
@@ -40,31 +42,30 @@ import jdk.test.lib.helpers.ClassFileInstaller;
 
 public class ArchivedFlatArrayTest {
 
-    public static void main(String[] args) throws Exception {
-        String appJar = ClassFileInstaller.getJarPath("archived_flat_array.jar");
-        String mainClass = "ArchivedFlatArrayApp";
+    static String appJar = ClassFileInstaller.getJarPath("archived_flat_array.jar");
+    static String mainClass = "ArchivedFlatArrayApp";
+    static String mainClass2 = "ArchivedFlatArrayApp2";
 
-        OutputAnalyzer output = TestCommon.dump(appJar,
-                                                TestCommon.list("ArchivedFlatArrayApp"),
-                                                "--enable-preview",
-                                                "-Xbootclasspath/a:" + appJar,
-                                                "-XX:ArchiveHeapTestClass=ArchivedFlatArrayApp",
-                                                "--add-exports",
-                                                "java.base/jdk.internal.value=ALL-UNNAMED",
-                                                "-Xlog:aot+heap");
-        output.shouldHaveExitValue(0);
-        output.shouldContain("Archived field ArchivedFlatArrayApp::archivedObjects");
+    public static void test(String className, String[] classlist) throws Exception {
+        String[] suffix = TestCommon.list("--enable-preview",
+                                          "-Xbootclasspath/a:" + appJar,
+                                          "-XX:ArchiveHeapTestClass=" + className,
+                                          "--add-exports",
+                                          "java.base/jdk.internal.value=ALL-UNNAMED",
+                                          "-Xlog:aot+heap");
 
-        output = TestCommon.exec(appJar,
-                                "--enable-preview",
-                                "-Xbootclasspath/a:" + appJar,
-                                "-XX:ArchiveHeapTestClass=ArchivedFlatArrayApp",
-                                "--add-exports",
-                                "java.base/jdk.internal.value=ALL-UNNAMED",
-                                "-Xlog:aot+heap",
-                                mainClass);
+        OutputAnalyzer output = TestCommon.dump(appJar, classlist, suffix);
         output.shouldHaveExitValue(0);
-        output.shouldContain("init subgraph ArchivedFlatArrayApp");
+        output.shouldContain("Archived field " + className +"::archivedObjects");
+
+        output = TestCommon.exec(appJar, TestCommon.concat(suffix, className));
+        output.shouldHaveExitValue(0);
+        output.shouldContain("init subgraph " + className);
         output.shouldContain("Initialized from CDS");
+    }
+
+    public static void main(String[] args) throws Exception {
+        test(mainClass, TestCommon.list(mainClass));
+        test(mainClass, TestCommon.list(mainClass2, "ArchivedFlatArrayApp$CharPair"));
     }
 }

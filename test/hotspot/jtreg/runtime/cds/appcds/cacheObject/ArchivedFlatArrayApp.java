@@ -25,28 +25,68 @@
 import jdk.internal.value.ValueClass;
 
 public class ArchivedFlatArrayApp {
-    static Integer[] archivedObjects;
+    static Object[] archivedObjects;
     static {
-      if (archivedObjects == null) {
+    if (archivedObjects == null) {
         System.out.println("Not archived");
         archivedObjects = new Integer[3];
-        archivedObjects[0] = new Integer(1);
-        archivedObjects[1] = new Integer(2);
-        archivedObjects[2] = new Integer(3);
-      } else {
+        archivedObjects[0] = new Integer(0);
+        archivedObjects[1] = new Integer(1);
+        archivedObjects[2] = new Integer(2);
+    } else {
         System.out.println("Initialized from CDS");
-      }
+    }
 
-      for (Integer i : archivedObjects) {
-        System.out.println(i);
+      for (Object o : archivedObjects) {
+        System.out.println(o);
       }
     }
 
     public static void main(String[] args) {
-      if (!ValueClass.isFlatArray(archivedObjects)) {
-        throw new RuntimeException("Should be flat");
-      }
+        if (!ValueClass.isFlatArray(archivedObjects)) {
+            throw new RuntimeException("Should be flat");
+        }
 
-      System.out.println("PASSED");
+        System.out.println("PASSED");
+    }
+}
+
+class ArchivedFlatArrayApp2 {
+    public static CharPair[] archivedObjects;
+    static {
+        if (archivedObjects == null) {
+            System.out.println("Not archived");
+            archivedObjects = new CharPair[3];
+            archivedObjects[0] = new CharPair('a', 'b');
+            archivedObjects[1] = new CharPair('c', 'd');
+            archivedObjects[2] = new CharPair('e', 'f');
+        } else {
+            System.out.println("Initialized from CDS");
+        }
+
+        for (Object o : archivedObjects) {
+            System.out.println(o);
+        }
+    }
+
+    public static value class CharPair {
+        char c0, c1;
+
+        public String toString() {
+            return "(" + c0 + ", " + c1 + ")";
+        }
+
+        public CharPair(char c0, char c1) {
+            this.c0 = c0;
+            this.c1 = c1;
+        }
+    }
+
+    public static void main(String[] args) {
+        if (!ValueClass.isFlatArray(archivedObjects)) {
+            throw new RuntimeException("Should be flat");
+        }
+
+        System.out.println("PASSED");
     }
 }
