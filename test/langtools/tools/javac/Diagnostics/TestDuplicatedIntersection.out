@@ -1,0 +1,4 @@
+TestDuplicatedIntersection.java:29:9: compiler.err.cant.apply.symbol: kindname.method, g, java.lang.String, java.util.List<compiler.misc.captured.type: 1>,java.util.List<compiler.misc.captured.type: 2>, kindname.class, TestDuplicatedIntersection, (compiler.misc.arg.length.mismatch)
+- compiler.misc.where.description.captured.1: compiler.misc.captured.type: 1,compiler.misc.captured.type: 2,{(compiler.misc.where.captured.1: compiler.misc.captured.type: 1, compiler.misc.intersection.type: 1, compiler.misc.type.null, ? extends compiler.misc.intersection.type: 1),(compiler.misc.where.captured.1: compiler.misc.captured.type: 2, compiler.misc.intersection.type: 1, compiler.misc.type.null, ? extends compiler.misc.intersection.type: 1)}
+- compiler.misc.where.description.intersection: compiler.misc.intersection.type: 1,{(compiler.misc.where.intersection: compiler.misc.intersection.type: 1, java.lang.Object,TestDuplicatedIntersection.S1,TestDuplicatedIntersection.S2)}
+1 error

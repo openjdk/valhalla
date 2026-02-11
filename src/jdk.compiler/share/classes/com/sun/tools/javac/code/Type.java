@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2152,6 +2152,12 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public Type baseType() {
             return (inst == null) ? this : inst.baseType();
+        }
+
+        @Override
+        public Type asNullMarked(NullMarker nullMarker) {
+            // Null marker does not participate in inference
+            return this;
         }
 
         public Type getInst() {

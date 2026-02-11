@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1362,21 +1362,6 @@ public class ClassReader {
                         }
                         ((ClassSymbol)sym).setPermittedSubclasses(subtypes.toList());
                     }
-                }
-            },
-            new AttributeReader(names.NullRestricted, V66, MEMBER_ATTRIBUTE) {
-                @Override
-                protected boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowValueClasses;
-                }
-                protected void read(Symbol sym, int attrLen) {
-                    if (sym.kind != VAR) {
-                        throw badClassFile("attribute.only.applicable.to.fields", names.NullRestricted);
-                    }
-                    if (sym.type.isPrimitive() || sym.type.hasTag(TypeTag.ARRAY)) {
-                        throw badClassFile("attribute.not.applicable.to.field.type", names.NullRestricted, sym.type);
-                    }
-                    // there is no point on setting the nullness or not has it will be set while parsing the signature
                 }
             },
         };

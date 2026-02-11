@@ -300,12 +300,12 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
               THROW(vmSymbols::java_lang_NullPointerException());
             }
           }
-          vk->copy_payload_to_addr(src, vk->payload_addr(buffer), fsk->layout_kind(), true);
+          vk->copy_payload_to_addr(src, vk->payload_addr(buffer), fsk->layout_kind());
           if (vk->has_nullable_atomic_layout()) {
             // Setting null marker to not zero for non-nullable source layouts
             vk->mark_payload_as_non_null(vk->payload_addr(buffer));
           }
-          vk->copy_payload_to_addr(vk->payload_addr(buffer), dst, fdk->layout_kind(), true);
+          vk->copy_payload_to_addr(vk->payload_addr(buffer), dst, fdk->layout_kind());
           dst += dst_incr;
           src += src_incr;
         }
