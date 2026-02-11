@@ -3045,6 +3045,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       if (value_object_count == 0) {
         SigEntry::add_entry(_sig, bt_to_add);
       }
+      assert(long_prev_offset != 0, "");
       SigEntry::add_entry(_sig_cc, bt_to_add, nullptr, long_prev_offset);
       SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
     }
@@ -3081,7 +3082,8 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       case T_OBJECT:
       case T_ARRAY:
         assert(value_object_count > 0, "must be value object field");
-        SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
+        assert(offset != 0 || (bt == T_OBJECT && prev_bt == T_METADATA), "");
+        SigEntry::add_entry(_sig_cc, bt, nullptr, offset, false, offset == 0);
         SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
         break;
       case T_METADATA:
