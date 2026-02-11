@@ -22,7 +22,7 @@
  */
 
 /**
- * @test 
+ * @test
  * @bug 8377480
  * @summary [lworld] incorrect execution due to EA pointer comparison optimization at scalarized call
  * @library /test/lib /
@@ -62,7 +62,7 @@ public class TestOptimizePtrCompare {
             this.o = o;
         }
     }
-    
+
     @Test
     @IR(failOn = {IRNode.CMP_P})
     public static void test2() {

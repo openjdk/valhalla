@@ -22,7 +22,7 @@
  */
 
 /**
- * @test 
+ * @test
  * @bug 8377480
  * @summary [lworld] incorrect execution due to EA pointer comparison optimization at scalarized call
  * @enablePreview
@@ -65,5 +65,5 @@ public class TestEAScalarizedArg {
             throw new RuntimeException("execution failed");
         }
     }
-    
+
 }
