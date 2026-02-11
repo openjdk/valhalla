@@ -531,6 +531,21 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Clean,
                                 ""
+                        ),
+                        new DiagAndCode(
+                                """
+                                interface Access {
+                                    <T extends java.lang.constant.Constable> T getRoot(T! obj);
+                                }
+                                class Test {
+                                    Access access;
+                                    void work(String obj) {
+                                        String root = access.getRoot(obj);
+                                    }
+                                }
+                                """,
+                                Result.Clean,
+                                ""
                         )
                 )
         );

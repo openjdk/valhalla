@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3429,7 +3429,9 @@ public class Types {
                  from.nonEmpty();
                  from = from.tail, to = to.tail) {
                 if (t.equalsIgnoreMetadata(from.head)) {
-                    return to.head.withTypeVar(t);
+                    // Null marker is preserved when type variable is substituted
+                    return to.head.withTypeVar(t)
+                            .asNullMarked(t.getNullMarker());
                 }
             }
             return t;
