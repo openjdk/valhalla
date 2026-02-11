@@ -343,11 +343,12 @@ JRT_END
  * On some architectures/platforms it should be possible to do this implicitly
  */
 #undef CHECK_NULL
-#define CHECK_NULL(obj_)                                                                         \
-        if ((obj_) == nullptr) {                                                                    \
-          VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), nullptr);                      \
-        }                                                                                        \
+#define CHECK_NULL_MSG(obj_, msg)                                              \
+        if ((obj_) == nullptr) {                                               \
+          VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), (msg));   \
+        }                                                                      \
         VERIFY_OOP(obj_)
+#define CHECK_NULL(obj_) CHECK_NULL_MSG(obj_, nullptr)
 
 #define VMdoubleConstZero() 0.0
 #define VMdoubleConstOne() 1.0
@@ -2675,6 +2676,10 @@ run:
 
         int field_offset = entry->field_offset();
         oop val = STACK_OBJECT(-1);
+
+        if (entry->is_null_free_inline_type()) {
+          CHECK_NULL_MSG(val, "Value is null");
+        }
 
         if (entry->is_flat()) {
           CALL_VM(InterpreterRuntime::write_flat_field(THREAD, obj, val, entry), handle_exception);
