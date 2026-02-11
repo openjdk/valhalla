@@ -1445,7 +1445,10 @@ nmethod::nmethod(const nmethod &nm) : CodeBlob(nm._name, nm._kind, nm._size, nm.
 
   auto relocate_address = [&nm, this](address old_addr) -> address {
     if (old_addr == nullptr) return nullptr;
-    return old_addr - (address) &nm + (address) this;
+    address new_addr = old_addr - (address) &nm + (address) this;
+    assert(new_addr >= code_begin() && new_addr < code_end(),
+           "relocated address must be within code bounds");
+    return new_addr;
   };
 
   _osr_entry_point              = relocate_address(nm._osr_entry_point);
