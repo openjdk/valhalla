@@ -45,8 +45,7 @@ package java.lang;
  *
  * @param <IT> The integral type
  */
-public interface Integral<IT>
-    extends Numerical<IT>, Orderable<IT> {
+public interface Integral<IT> extends OrderedNumerical<IT> {
 
     /**
      * {@return the AND of the two operands, binary operator "{@code &}"}

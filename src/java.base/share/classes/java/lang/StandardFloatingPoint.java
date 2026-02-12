@@ -38,8 +38,7 @@ package java.lang;
  *
  * @param <SFP> The standard floating-point type
  */
-public interface StandardFloatingPoint<SFP>
-    extends Numerical<SFP>, Orderable<SFP> {
+public interface StandardFloatingPoint<SFP> extends OrderedNumerical<SFP> {
 
     /**
      * {@inheritDoc Numerical}
