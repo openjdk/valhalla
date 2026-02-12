@@ -365,7 +365,7 @@ public class Util {
                 public Object[] toArray()         { return s.toArray(); }
                 public <T> T[] toArray(T[] a)     { return s.toArray(a); }
                 public String toString()          { return s.toString(); }
-                public Iterator<E> iterator()     { return s.iterator(); }
+                public Iterator<E>! iterator()     { return s.iterator(); }
                 public boolean equals(Object o)   { return s.equals(o); }
                 public int hashCode()             { return s.hashCode(); }
                 public void clear()               { s.clear(); }

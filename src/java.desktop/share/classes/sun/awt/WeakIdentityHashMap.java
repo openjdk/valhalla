@@ -109,7 +109,7 @@ class WeakIdentityHashMap<K, V> implements Map<K, V> {
     public Set<K> keySet() {
         return new AbstractSet<K>() {
             @Override
-            public Iterator<K> iterator() {
+            public Iterator<K>! iterator() {
                 return new Iterator<K>() {
                     private K next;
                     Iterator<WeakKey<K>> iterator = getMap().keySet().iterator();
@@ -152,8 +152,8 @@ class WeakIdentityHashMap<K, V> implements Map<K, V> {
     public Set<Entry<K, V>> entrySet() {
         return new AbstractSet<Entry<K, V>>() {
             @Override
-            public Iterator<Entry<K, V>> iterator() {
-                final Iterator<Entry<WeakKey<K>, V>> iterator = getMap().entrySet().iterator();
+            public Iterator<Entry<K, V>>! iterator() {
+                final Iterator<Entry<WeakKey<K>, V>>! iterator = getMap().entrySet().iterator();
                 return new Iterator<Entry<K, V>>() {
                     @Override
                     public boolean hasNext() {

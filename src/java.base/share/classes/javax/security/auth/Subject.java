@@ -1006,7 +1006,7 @@ public final class Subject implements java.io.Serializable {
             return elements.size();
         }
 
-        public Iterator<E> iterator() {
+        public Iterator<E>! iterator() {
             final LinkedList<E> list = elements;
             return new Iterator<>() {
                 final ListIterator<E> i = list.listIterator(0);
@@ -1302,7 +1302,7 @@ public final class Subject implements java.io.Serializable {
         }
 
         @Override
-        public Iterator<T> iterator() {
+        public Iterator<T>! iterator() {
             return set.iterator();
         }
 

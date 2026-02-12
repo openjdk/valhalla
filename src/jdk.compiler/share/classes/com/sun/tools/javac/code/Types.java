@@ -5559,7 +5559,7 @@ public class Types {
      * Does t have narrower nullability than s?
      */
     public boolean hasNarrowerNullability(Type t, Type s) {
-        if (s == null || t == null || isNullUnspecified(t) || isNullUnspecified(s)) {
+        if (s == null || t == null) {
             return false;
         }
         return t.getNullMarker().ordinal() < s.getNullMarker().ordinal();

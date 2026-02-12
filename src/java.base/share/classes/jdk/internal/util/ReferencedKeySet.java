@@ -117,7 +117,7 @@ public final class ReferencedKeySet<T> extends AbstractSet<T> {
     }
 
     @Override
-    public Iterator<T> iterator() {
+    public Iterator<T>! iterator() {
         return map.keySet().iterator();
     }
 

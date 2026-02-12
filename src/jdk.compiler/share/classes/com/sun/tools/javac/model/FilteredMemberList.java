@@ -69,6 +69,7 @@ public class FilteredMemberList extends AbstractList<Symbol> {
     }
 
     // A more efficient implementation than AbstractList's.
+    @SuppressWarnings("null")
     public Iterator<Symbol> iterator() {
         return scope.getSymbols(t -> !unwanted(t), NON_RECURSIVE).iterator();
     }

@@ -763,7 +763,7 @@ public final class XSModelImpl extends AbstractList<XSNamespaceItem> implements 
         return getLength();
     }
 
-    public Iterator<XSNamespaceItem> iterator() {
+    public Iterator<XSNamespaceItem>! iterator() {
         return listIterator0(0);
     }
 

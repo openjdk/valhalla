@@ -33,10 +33,15 @@
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
+ *      jdk.compiler/com.sun.tools.javac.main
+ * @build toolbox.ToolBox toolbox.JavacTask
  * @run junit NullabilityCompilationTests
  */
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.function.Consumer;
 import java.util.List;
 import java.util.Set;
@@ -51,15 +56,23 @@ import com.sun.tools.javac.util.Assert;
 import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
 
+import toolbox.ToolBox;
+import toolbox.JavaTask;
+import toolbox.JavacTask;
+import toolbox.Task;
+
 public class NullabilityCompilationTests extends CompilationTestCase {
     private static String[] PREVIEW_OPTIONS = {
             "--enable-preview", "-source", Integer.toString(Runtime.version().feature())};
     private static String[] PREVIEW_PLUS_LINT_OPTIONS = {
             "--enable-preview", "-source", Integer.toString(Runtime.version().feature()),
-            "-Xlint:null" };
+            "-Xlint:null", "-XDrawDiagnostics" };
+
+    ToolBox tb;
 
     public NullabilityCompilationTests() {
         setDefaultFilename("Test.java");
+        tb = new ToolBox();
     }
 
     enum TestResult {
@@ -201,7 +214,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
     }
 
     @Test
-    void testSuspiciousNullnessConversions () {
+    void testLintWarnings() throws Exception {
         testList(
                 List.of(
                         new DiagAndCode(
@@ -293,9 +306,208 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.suspicious.nullness.conversion",
-                                1)
+                                1),
+
+                        // override warnings
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    String! m(String s) { return ""; }
+                                }
+                                class Sub extends Test {
+                                    @Override
+                                    String m(String s) { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                1),
+                        new DiagAndCode(
+                                """
+                                class Test {
+                                    String m(String! s, Integer! i) { return ""; }
+                                }
+                                class Sub extends Test {
+                                    @Override
+                                    String m(String s, Integer i) { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2),
+                        new DiagAndCode(
+                                """
+                                import java.util.*;
+                                class Test {
+                                    String m(List<String>! s, List<Integer>! i) { return ""; }
+                                }
+                                class Sub extends Test {
+                                    @Override
+                                    String m(List s, List i) { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2),
+                        new DiagAndCode(
+                                """
+                                interface I {
+                                    void m(String! s, Integer! i);
+                                }
+                                class Test {
+                                    I i = (String s, Integer i) -> {};
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2),
+                        new DiagAndCode(
+                                """
+                                interface Getter {
+                                    String! name();
+                                }
+                                // the generated accessor will return String not String!
+                                record R(String name) implements Getter {}
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                1),
+                        new DiagAndCode(
+                                """
+                                interface MathFunc {
+                                    Integer operate(Integer! a, Integer! b);
+                                }
+                                class Impl {
+                                    public Integer add(Integer a, Integer b) {
+                                        return a + b;
+                                    }
+                                }
+                                class MethRefTest {
+                                    void m(Impl impl) {
+                                        MathFunc mathFunc = impl::add;
+                                    }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2)
                 )
         );
+    }
+
+    @Test
+    void testLintWarningsSepCompilation() throws Exception {
+        Path base = Paths.get(System.getProperty("user.dir")).resolve("testLintWarnings");
+        testSeparateCompilationHelper(
+                base,
+                """
+                class Super {
+                    String! m(String s) { return ""; }
+                }
+                """,
+                """
+                class Sub extends Super {
+                    @Override
+                    String m(String s) { return null; }
+                }
+                """,
+                List.of(
+                        "Sub.java:3:5: compiler.warn.incompatible.null.restrictions: (compiler.misc.return.type.nullability.mismatch: java.lang.String, java.lang.String!)",
+                        "1 warning"
+                )
+        );
+        testSeparateCompilationHelper(
+                base,
+                """
+                class Super {
+                    String m(String! s, Integer! i) { return ""; }
+                }
+                """,
+                """
+                class Sub extends Super {
+                    @Override
+                    String m(String s, Integer i) { return null; }
+                }
+                """,
+                List.of(
+                        "Sub.java:3:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.String, java.lang.String!)",
+                        "Sub.java:3:24: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer!)",
+                        "2 warnings"
+                )
+        );
+        testSeparateCompilationHelper(
+                base,
+                """
+                import java.util.*;
+                class Super {
+                    String m(List<String>! s, List<Integer>! i) { return ""; }
+                }
+                """,
+                """
+                import java.util.*;
+                class Sub extends Super {
+                    @Override
+                    String m(List s, List i) { return null; }
+                }
+                """,
+                List.of(
+                        "Sub.java:4:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.String>!)",
+                        "Sub.java:4:22: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.Integer>!)",
+                        "2 warnings"
+                )
+        );
+        testSeparateCompilationHelper(
+                base,
+                """
+                interface Super {
+                    void m(String! s, Integer! i);
+                }
+                """,
+                """
+                class Sub {
+                    Super i = (String s, Integer i) -> {};
+                }
+                """,
+                List.of(
+                        "Sub.java:2:16: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.String, java.lang.String!)",
+                        "Sub.java:2:26: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer!)",
+                        "2 warnings"
+                )
+        );
+    }
+
+    private void testSeparateCompilationHelper(
+            Path base,
+            String superClass,
+            String subClass,
+            List<String> expectedOutput) throws Exception {
+        Path src = base.resolve("src");
+
+        tb.writeJavaFiles(src, superClass);
+        tb.writeJavaFiles(src, subClass);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        // first, let's compile the super class only
+        new JavacTask(tb)
+                .outdir(out)
+                .options(PREVIEW_PLUS_LINT_OPTIONS)
+                .files(tb.findFiles("Super.java", src))
+                .run();
+
+        // now the subclass only
+        List<String> output = new JavacTask(tb)
+                .outdir(out)
+                .classpath(out.toString())
+                .options(PREVIEW_PLUS_LINT_OPTIONS)
+                .files(tb.findFiles("Sub.java", src))
+                .run()
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+        tb.checkEqual(expectedOutput, output);
+        tb.cleanDirectory(out);
+        tb.cleanDirectory(src);
     }
 
     @Test

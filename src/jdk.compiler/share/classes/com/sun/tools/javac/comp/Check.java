@@ -1872,6 +1872,41 @@ public class Check {
         overrideWarner.clear();
         boolean resultTypesOK =
             types.returnTypeSubstitutable(mt, ot, otres, overrideWarner);
+        if (resultTypesOK) {
+            /* at this point we know that the methods override each other so we can directly compare
+             * the nullability of the arguments and the return type
+             */
+            JCTree theTree = TreeInfo.diagnosticPositionFor(m, tree).getTree();
+            boolean preciseLocations = false;
+            List<JCVariableDecl> params = null;
+            JCTree resultTypePos = theTree;
+            if (theTree instanceof JCLambda || theTree instanceof JCMemberReference) {
+                /* ignore, we already process lambdas at Attr::checkLambdaCompatible
+                 * and method references at Attr::checkReferenceCompatible
+                 */
+            } else {
+                /* we could be dealing with a method for which we can issue the warnings with precise locations
+                 * or with a generated method, for example a record accessor, for which there are no precise
+                 * locations
+                 */
+                if (theTree instanceof JCMethodDecl methodDecl) {
+                    // ok we are lucky we can work with precise locations
+                    preciseLocations = true;
+                    params = methodDecl.params;
+                    resultTypePos = methodDecl.restype;
+                }
+                for (ArgsNullabilityResult incompatibleParam :
+                        checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
+                    warnNullableTypes(incompatibleParam.position != null ? incompatibleParam.position.vartype : theTree,
+                            LintWarnings.IncompatibleNullRestrictions(
+                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
+                }
+                if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                    warnNullableTypes(resultTypePos, LintWarnings.IncompatibleNullRestrictions(
+                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
+                }
+            }
+        }
         if (!resultTypesOK) {
             if ((m.flags() & STATIC) != 0 && (other.flags() & STATIC) != 0) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),
@@ -1925,6 +1960,30 @@ public class Check {
             checkDeprecated(() -> TreeInfo.diagnosticPositionFor(m, tree), m, other);
         }
     }
+
+    public record ArgsNullabilityResult(Type overridingType, Type overridenType, JCVariableDecl position) {}
+    public List<ArgsNullabilityResult> checkArgsNullability(List<Type> overridingArgs,
+                                                                 List<Type> overriddenArgs,
+                                                                 List<JCVariableDecl> overridingParams) {
+        ListBuffer<ArgsNullabilityResult> resultLB = new ListBuffer<>();
+        while (overridingArgs.nonEmpty() && overriddenArgs.nonEmpty()) {
+            if (types.hasNarrowerNullability(overriddenArgs.head, overridingArgs.head)) {
+                resultLB.add(
+                        new ArgsNullabilityResult(
+                                overridingArgs.head,
+                                overriddenArgs.head,
+                                overridingParams != null ? overridingParams.head : null)
+                );
+            }
+            overridingArgs = overridingArgs.tail;
+            overriddenArgs = overriddenArgs.tail;
+            if (overridingParams != null) {
+                overridingParams = overridingParams.tail;
+            }
+        }
+        return resultLB.toList();
+    }
+
     // where
         private boolean shouldCheckPreview(MethodSymbol m, MethodSymbol other, ClassSymbol origin) {
             if (m.owner != origin ||
