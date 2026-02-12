@@ -248,7 +248,7 @@ public final class PrinterStateReasons
             return result;
         }
 
-        public Iterator<PrinterStateReason> iterator() {
+        public Iterator<PrinterStateReason>! iterator() {
             return new PrinterStateReasonSetIterator(mySeverity,
                                                      myEntrySet.iterator());
         }

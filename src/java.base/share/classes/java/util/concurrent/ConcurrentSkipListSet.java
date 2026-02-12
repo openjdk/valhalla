@@ -274,7 +274,7 @@ public class ConcurrentSkipListSet<E>
      *
      * @return an iterator over the elements in this set in ascending order
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return m.navigableKeySet().iterator();
     }
 

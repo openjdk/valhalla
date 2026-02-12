@@ -106,7 +106,7 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
             action.accept(e);
     }
 
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return descendingIterator(base);
     }
 
@@ -260,7 +260,7 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
             return tail == null || cmp.compare(e, tail) < 0;
         }
 
-        public Iterator<E> iterator() {
+        public Iterator<E>! iterator() {
             return new Iterator<>() {
                 E cache = null;
                 boolean dead = false;

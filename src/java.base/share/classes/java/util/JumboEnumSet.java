@@ -91,7 +91,7 @@ final class JumboEnumSet<E extends Enum<E>> extends EnumSet<E> {
      *
      * @return an iterator over the elements contained in this set
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return new EnumSetIterator<>();
     }
 

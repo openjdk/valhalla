@@ -309,7 +309,7 @@ final class LazyCollections {
                 super();
             }
 
-            @Override public Iterator<Entry<K, V>> iterator() { return LazyMapIterator.of(map); }
+            @Override public Iterator<Entry<K, V>>! iterator() { return LazyMapIterator.of(map); }
             @Override public int                   size() { return map.size(); }
             @Override public int                   hashCode() { return map.hashCode(); }
 
@@ -402,7 +402,7 @@ final class LazyCollections {
                 super();
             }
 
-            @Override public Iterator<V> iterator() { return map.new ValueIterator(); }
+            @Override public Iterator<V>! iterator() { return map.new ValueIterator(); }
             @Override public int         size() { return map.size(); }
             @Override public boolean     isEmpty() { return map.isEmpty(); }
             @Override public boolean     contains(Object v) { return map.containsValue(v); }

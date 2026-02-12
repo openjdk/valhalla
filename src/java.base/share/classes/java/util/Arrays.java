@@ -4295,7 +4295,7 @@ public final class Arrays {
         }
 
         @Override
-        public Iterator<E> iterator() {
+        public Iterator<E>! iterator() {
             return new ArrayItr<>(a);
         }
     }

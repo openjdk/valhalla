@@ -1340,7 +1340,7 @@ public class TreeMap<K,V>
     // View class support
 
     class Values extends AbstractCollection<V> {
-        public Iterator<V> iterator() {
+        public Iterator<V>! iterator() {
             return new ValueIterator(getFirstEntry());
         }
 
@@ -1372,7 +1372,7 @@ public class TreeMap<K,V>
     }
 
     class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        public Iterator<Map.Entry<K,V>> iterator() {
+        public Iterator<Map.Entry<K,V>>! iterator() {
             return new EntryIterator(getFirstEntry());
         }
 
@@ -1429,7 +1429,7 @@ public class TreeMap<K,V>
         private final NavigableMap<E, ?> m;
         KeySet(NavigableMap<E,?> map) { m = map; }
 
-        public Iterator<E> iterator() {
+        public Iterator<E>! iterator() {
             if (m instanceof TreeMap)
                 return ((TreeMap<E,?>)m).keyIterator();
             else
@@ -2261,7 +2261,7 @@ public class TreeMap<K,V>
         }
 
         final class AscendingEntrySetView extends EntrySetView {
-            public Iterator<Map.Entry<K,V>> iterator() {
+            public Iterator<Map.Entry<K,V>>! iterator() {
                 return new SubMapEntryIterator(absLowest(), absHighFence());
             }
         }
@@ -2349,7 +2349,7 @@ public class TreeMap<K,V>
         }
 
         final class DescendingEntrySetView extends EntrySetView {
-            public Iterator<Map.Entry<K,V>> iterator() {
+            public Iterator<Map.Entry<K,V>>! iterator() {
                 return new DescendingSubMapEntryIterator(absHighest(), absLowFence());
             }
         }

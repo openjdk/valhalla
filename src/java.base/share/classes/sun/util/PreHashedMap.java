@@ -171,7 +171,7 @@ public abstract class PreHashedMap<V>
                 return size;
             }
 
-            public Iterator<String> iterator() {
+            public Iterator<String>! iterator() {
                 return new Iterator<>() {
                     private int i = -1;
                     Object[] a = null;
@@ -233,7 +233,7 @@ public abstract class PreHashedMap<V>
                 return size;
             }
 
-            public Iterator<Map.Entry<String,V>> iterator() {
+            public Iterator<Map.Entry<String,V>>! iterator() {
                 return new Iterator<Map.Entry<String,V>>() {
                     final Iterator<String> i = keySet().iterator();
 

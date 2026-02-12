@@ -135,7 +135,7 @@ final class ProcessEnvironment extends HashMap<String,String>
         public int size()        {return s.size();}
         public boolean isEmpty() {return s.isEmpty();}
         public void clear()      {       s.clear();}
-        public Iterator<Map.Entry<String,String>> iterator() {
+        public Iterator<Map.Entry<String,String>>! iterator() {
             return new Iterator<Map.Entry<String,String>>() {
                 Iterator<Map.Entry<String,String>> i = s.iterator();
                 public boolean hasNext() { return i.hasNext();}
@@ -162,7 +162,7 @@ final class ProcessEnvironment extends HashMap<String,String>
         public int size()                  {return c.size();}
         public boolean isEmpty()           {return c.isEmpty();}
         public void clear()                {       c.clear();}
-        public Iterator<String> iterator() {return c.iterator();}
+        public Iterator<String>! iterator() {return c.iterator();}
         public boolean contains(Object o)  {return c.contains(nonNullString(o));}
         public boolean remove(Object o)    {return c.remove(nonNullString(o));}
     }
@@ -173,7 +173,7 @@ final class ProcessEnvironment extends HashMap<String,String>
         public int size()                  {return s.size();}
         public boolean isEmpty()           {return s.isEmpty();}
         public void clear()                {       s.clear();}
-        public Iterator<String> iterator() {return s.iterator();}
+        public Iterator<String>! iterator() {return s.iterator();}
         public boolean contains(Object o)  {return s.contains(nonNullString(o));}
         public boolean remove(Object o)    {return s.remove(nonNullString(o));}
     }

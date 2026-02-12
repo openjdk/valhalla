@@ -388,7 +388,7 @@ public class EnumMap<K extends Enum<K>, V> extends AbstractMap<K, V>
     }
 
     private class KeySet extends AbstractSet<K> {
-        public Iterator<K> iterator() {
+        public Iterator<K>! iterator() {
             return new KeyIterator();
         }
         public int size() {
@@ -427,7 +427,7 @@ public class EnumMap<K extends Enum<K>, V> extends AbstractMap<K, V>
     }
 
     private class Values extends AbstractCollection<V> {
-        public Iterator<V> iterator() {
+        public Iterator<V>! iterator() {
             return new ValueIterator();
         }
         public int size() {
@@ -471,7 +471,7 @@ public class EnumMap<K extends Enum<K>, V> extends AbstractMap<K, V>
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        public Iterator<Map.Entry<K,V>> iterator() {
+        public Iterator<Map.Entry<K,V>>! iterator() {
             return new EntryIterator();
         }
 

@@ -353,7 +353,7 @@ public abstract class AbstractMap<K,V> implements Map<K,V> {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new AbstractSet<>() {
-                public Iterator<K> iterator() {
+                public Iterator<K>! iterator() {
                     return new KeyIterator();
                 }
 
@@ -398,7 +398,7 @@ public abstract class AbstractMap<K,V> implements Map<K,V> {
         Collection<V> vals = values;
         if (vals == null) {
             vals = new AbstractCollection<>() {
-                public Iterator<V> iterator() {
+                public Iterator<V>! iterator() {
                     return new ValueIterator();
                 }
 
@@ -896,7 +896,7 @@ public abstract class AbstractMap<K,V> implements Map<K,V> {
         public boolean containsAll(Collection<?> c) { return view().containsAll(c); }
         public void forEach(Consumer<? super E> c) { view().forEach(c); }
         public boolean isEmpty() { return view().isEmpty(); }
-        public Iterator<E> iterator() { return view().iterator(); }
+        public Iterator<E>! iterator() { return view().iterator(); }
         public Stream<E> parallelStream() { return view().parallelStream(); }
         public boolean remove(Object o) { return view().remove(o); }
         public boolean removeAll(Collection<?> c) { return view().removeAll(c); }

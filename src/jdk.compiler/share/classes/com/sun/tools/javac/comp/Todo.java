@@ -66,6 +66,7 @@ public class Todo extends AbstractQueue<Env<AttrContext>> {
     }
 
     @Override
+    @SuppressWarnings("null")
     public Iterator<Env<AttrContext>> iterator() {
         return contents.iterator();
     }
@@ -156,6 +157,7 @@ public class Todo extends AbstractQueue<Env<AttrContext>> {
 
     class FileQueue extends AbstractQueue<Env<AttrContext>> {
         @Override
+        @SuppressWarnings("null")
         public Iterator<Env<AttrContext>> iterator() {
             return fileContents.iterator();
         }

@@ -232,7 +232,7 @@ public class XSNamedMapImpl extends AbstractMap<QName, XSObject> implements XSNa
             }
             // Create a view of this immutable map.
             fEntrySet = new AbstractSet<Map.Entry<QName,XSObject>>() {
-                public Iterator<Map.Entry<QName,XSObject>> iterator() {
+                public Iterator<Map.Entry<QName,XSObject>>! iterator() {
                     return new Iterator<Map.Entry<QName,XSObject>>() {
                         private int index = 0;
                         public boolean hasNext() {

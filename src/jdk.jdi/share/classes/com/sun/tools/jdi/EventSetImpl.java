@@ -866,7 +866,7 @@ public class EventSetImpl extends ArrayList<Event> implements EventSet {
         }
     }
 
-    public Iterator<Event> iterator() {
+    public Iterator<Event>! iterator() {
         return new Itr();
     }
 

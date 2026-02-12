@@ -2218,7 +2218,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             Map.Entry<K,V> e = m.pollLastEntry();
             return (e == null) ? null : e.getKey();
         }
-        public Iterator<K> iterator() {
+        public Iterator<K>! iterator() {
             return (m instanceof ConcurrentSkipListMap)
                 ? ((ConcurrentSkipListMap<K,V>)m).new KeyIterator()
                 : ((SubMap<K,V>)m).new SubMapKeyIterator();
@@ -2278,7 +2278,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         Values(ConcurrentNavigableMap<K,V> map) {
             m = map;
         }
-        public Iterator<V> iterator() {
+        public Iterator<V>! iterator() {
             return (m instanceof ConcurrentSkipListMap)
                 ? ((ConcurrentSkipListMap<K,V>)m).new ValueIterator()
                 : ((SubMap<K,V>)m).new SubMapValueIterator();
@@ -2319,7 +2319,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         EntrySet(ConcurrentNavigableMap<K,V> map) {
             m = map;
         }
-        public Iterator<Map.Entry<K,V>> iterator() {
+        public Iterator<Map.Entry<K,V>>! iterator() {
             return (m instanceof ConcurrentSkipListMap)
                 ? ((ConcurrentSkipListMap<K,V>)m).new EntryIterator()
                 : ((SubMap<K,V>)m).new SubMapEntryIterator();

@@ -818,7 +818,7 @@ public enum AccessFlag {
         }
 
         @Override
-        public Iterator<AccessFlag> iterator() {
+        public Iterator<AccessFlag>! iterator() {
             return new AccessFlagIterator(definition, mask);
         }
 

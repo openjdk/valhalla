@@ -628,7 +628,7 @@ public interface BlockingDeque<E> extends BlockingQueue<E>, Deque<E> {
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    Iterator<E> iterator();
+    Iterator<E>! iterator();
 
     // *** Stack methods ***
 
