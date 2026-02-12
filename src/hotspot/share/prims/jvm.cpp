@@ -536,6 +536,16 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
+JVM_ENTRY(jarray, JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len))
+  oop mirror = JNIHandles::resolve_non_null(elmClass);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
+  validate_array_arguments(klass, len, CHECK_NULL);
+  InlineKlass* vk = InlineKlass::cast(klass);
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
+  refArrayOop array = oopFactory::new_refArray(klass, len, props, CHECK_NULL);
+  return (jarray) JNIHandles::make_local(THREAD, array);
+JVM_END
+
 JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jobject obj))
   arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
   return oop->is_flatArray();

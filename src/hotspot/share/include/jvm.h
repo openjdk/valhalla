@@ -1103,6 +1103,9 @@ JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject
 JNIEXPORT jarray JNICALL
 JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint len);
 
+JNIEXPORT jarray JNICALL
+JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len);
+
 JNIEXPORT jboolean JNICALL
 JVM_IsFlatArray(JNIEnv *env, jobject obj);
 

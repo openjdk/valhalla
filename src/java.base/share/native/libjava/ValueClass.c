@@ -46,6 +46,12 @@ Java_jdk_internal_value_ValueClass_newNullableAtomicArray(JNIEnv *env, jclass cl
     return JVM_NewNullableAtomicArray(env, elmClass, len);
 }
 
+JNIEXPORT jarray JNICALL
+Java_jdk_internal_value_ValueClass_newReferenceArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
+{
+    return JVM_NewReferenceArray(env, elmClass, len);
+}
+
 JNIEXPORT jboolean JNICALL
 Java_jdk_internal_value_ValueClass_isFlatArray(JNIEnv *env, jclass cls, jobject obj)
 {

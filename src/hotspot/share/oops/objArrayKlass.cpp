@@ -415,7 +415,7 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
 
   ArrayKlass::ArrayProperties props = ad._properties;
 
-  if (properties() == props) {
+  if (properties() == props && kind() == ad._kind) {
     assert(is_refArray_klass() || is_flatArray_klass(), "Must be a concrete array klass");
     return this;
   }
