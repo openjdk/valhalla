@@ -104,7 +104,6 @@ protected:
                       LayoutKind layout_kind);
 
   inline void set_offset(ptrdiff_t offset);
-  inlineOop allocate_instance(TRAPS) const;
 
   static inline void copy(const ValuePayload& src, const ValuePayload& dst,
                           LayoutKind copy_layout_kind);
@@ -114,6 +113,8 @@ protected:
 
   inline bool uses_absolute_addr() const;
 
+  inline oop& container() const;
+
 private:
   inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
   inline void assert_post_construction_invariants() const NOT_DEBUG_RETURN;
@@ -122,7 +123,6 @@ private:
                              LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
 
 public:
-  inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
@@ -174,6 +174,9 @@ class FlatValuePayload : public ValuePayload {
 protected:
   // Inherit ValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
   using ValuePayload::ValuePayload;
+
+private:
+  inlineOop allocate_instance(TRAPS) const;
 
 public:
   FlatValuePayload() = default;
@@ -282,12 +285,13 @@ private:
 protected:
   inline Handle(const ValuePayload& payload, JavaThread* thread);
 
+  inline oop container() const;
+
 public:
   Handle() = default;
   Handle(const Handle&) = default;
   Handle& operator=(const Handle&) = default;
 
-  inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
@@ -302,6 +306,8 @@ private:
 protected:
   inline OopHandle(const ValuePayload& payload, OopStorage* storage);
 
+  inline oop container() const;
+
 public:
   OopHandle() = default;
   OopHandle(const OopHandle&) = default;
@@ -309,7 +315,6 @@ public:
 
   inline void release(OopStorage* storage);
 
-  inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;

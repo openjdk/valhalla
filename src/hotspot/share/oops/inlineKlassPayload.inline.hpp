@@ -176,13 +176,6 @@ inline void ValuePayload::set_offset(ptrdiff_t offset) {
   _storage.offset() = offset;
 }
 
-inline inlineOop ValuePayload::allocate_instance(TRAPS) const {
-  ::Handle container(THREAD, this->container());
-  inlineOop res = klass()->allocate_instance(THREAD);
-  _storage.container() = container();
-  return res;
-}
-
 inline void ValuePayload::copy(const ValuePayload& src,
                                const ValuePayload& dst,
                                LayoutKind copy_layout_kind) {
@@ -223,6 +216,10 @@ inline void ValuePayload::mark_as_null() {
 
 inline bool ValuePayload::uses_absolute_addr() const {
   return _storage.uses_absolute_addr();
+}
+
+inline oop& ValuePayload::container() const {
+  return _storage.container();
 }
 
 #ifdef ASSERT
@@ -349,10 +346,6 @@ ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
 
 #endif // ASSERT
 
-inline oop ValuePayload::container() const {
-  return _storage.container();
-}
-
 inline InlineKlass* ValuePayload::klass() const {
   return _storage.klass();
 }
@@ -402,6 +395,15 @@ inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
 
 inline instanceOop FlatFieldPayload::container() const {
   return instanceOop(ValuePayload::container());
+}
+
+inline inlineOop FlatValuePayload::allocate_instance(TRAPS) const {
+  // Preserve the container oop across the instance allocation.
+  oop& container = this->container();
+  ::Handle container_handle(THREAD, container);
+  inlineOop res = klass()->allocate_instance(THREAD);
+  container = container_handle();
+  return res;
 }
 
 inline bool FlatValuePayload::copy_to(BufferedValuePayload& dst) {
@@ -637,12 +639,12 @@ inline ValuePayload::OopHandle::OopHandle(const ValuePayload& payload,
                payload.klass(),
                payload.layout_kind()} {}
 
-inline void ValuePayload::OopHandle::release(OopStorage* storage) {
-  return _storage.container().release(storage);
-}
-
 inline oop ValuePayload::OopHandle::container() const {
   return _storage.container().resolve();
+}
+
+inline void ValuePayload::OopHandle::release(OopStorage* storage) {
+  return _storage.container().release(storage);
 }
 
 inline InlineKlass* ValuePayload::OopHandle::klass() const {
