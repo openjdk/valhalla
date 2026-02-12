@@ -282,10 +282,9 @@ inline void ValuePayload::assert_post_construction_invariants() const {
                                     (layout_kind() == LayoutKind::BUFFERED));
 }
 
-inline void
-ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
-                                         const ValuePayload& dst,
-                                         LayoutKind copy_layout_kind) {
+inline void ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
+                                                     const ValuePayload& dst,
+                                                     LayoutKind copy_layout_kind) {
   OnVMError on_assertion_failuire([&](outputStream* st) {
     st->print_cr("=== assert_post_construction_invariants failure ===");
     StreamIndentor si(st);
@@ -551,9 +550,11 @@ inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
 }
 
 inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container,
-                                          ptrdiff_t offset, InlineKlass* klass,
+                                          ptrdiff_t offset,
+                                          InlineKlass* klass,
                                           LayoutKind layout_kind,
-                                          jint layout_helper, int element_size)
+                                          jint layout_helper,
+                                          int element_size)
     : FlatValuePayload(container, offset, klass, layout_kind),
       _storage{layout_helper, element_size} {}
 
@@ -607,8 +608,7 @@ inline void FlatArrayPayload::set_offset(ptrdiff_t offset) {
 inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container)
     : FlatArrayPayload(container, FlatArrayKlass::cast(container->klass())) {}
 
-inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container,
-                                          FlatArrayKlass* klass)
+inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container, FlatArrayKlass* klass)
     : FlatArrayPayload(container,
                        BAD_OFFSET,
                        klass->element_klass(),
@@ -633,8 +633,7 @@ inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container,
   postcond(container->klass() == klass);
 }
 
-inline ValuePayload::Handle::Handle(const ValuePayload& payload,
-                                    JavaThread* thread)
+inline ValuePayload::Handle::Handle(const ValuePayload& payload, JavaThread* thread)
     : _storage{::Handle(thread, payload.container()),
                payload.offset(),
                payload.klass(),
@@ -656,8 +655,7 @@ inline LayoutKind ValuePayload::Handle::layout_kind() const {
   return _storage.layout_kind();
 }
 
-inline ValuePayload::OopHandle::OopHandle(const ValuePayload& payload,
-                                          OopStorage* storage)
+inline ValuePayload::OopHandle::OopHandle(const ValuePayload& payload, OopStorage* storage)
     : _storage{::OopHandle(storage, payload.container()),
                payload.offset(),
                payload.klass(),
@@ -683,8 +681,7 @@ inline LayoutKind ValuePayload::OopHandle::layout_kind() const {
   return _storage.layout_kind();
 }
 
-inline BufferedValuePayload::Handle::Handle(const BufferedValuePayload& payload,
-                                            JavaThread* thread)
+inline BufferedValuePayload::Handle::Handle(const BufferedValuePayload& payload, JavaThread* thread)
     : ValuePayload::Handle(payload, thread) {}
 
 BufferedValuePayload BufferedValuePayload::Handle::operator()() const {
@@ -695,8 +692,7 @@ inline inlineOop BufferedValuePayload::Handle::container() const {
   return inlineOop(ValuePayload::Handle::container());
 }
 
-BufferedValuePayload::Handle
-BufferedValuePayload::make_handle(JavaThread* thread) const {
+BufferedValuePayload::Handle BufferedValuePayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
@@ -712,39 +708,33 @@ inline inlineOop BufferedValuePayload::OopHandle::container() const {
   return inlineOop(ValuePayload::OopHandle::container());
 }
 
-BufferedValuePayload::OopHandle
-BufferedValuePayload::make_oop_handle(OopStorage* storage) const {
+BufferedValuePayload::OopHandle BufferedValuePayload::make_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
-inline FlatValuePayload::Handle::Handle(const FlatValuePayload& payload,
-                                        JavaThread* thread)
+inline FlatValuePayload::Handle::Handle(const FlatValuePayload& payload, JavaThread* thread)
     : ValuePayload::Handle(payload, thread) {}
 
 FlatValuePayload FlatValuePayload::Handle::operator()() const {
   return FlatValuePayload(container(), offset(), klass(), layout_kind());
 }
 
-FlatValuePayload::Handle
-FlatValuePayload::make_handle(JavaThread* thread) const {
+FlatValuePayload::Handle FlatValuePayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
-inline FlatValuePayload::OopHandle::OopHandle(const FlatValuePayload& payload,
-                                              OopStorage* storage)
+inline FlatValuePayload::OopHandle::OopHandle(const FlatValuePayload& payload, OopStorage* storage)
     : ValuePayload::OopHandle(payload, storage) {}
 
 FlatValuePayload FlatValuePayload::OopHandle::operator()() const {
   return FlatValuePayload(container(), offset(), klass(), layout_kind());
 }
 
-FlatValuePayload::OopHandle
-FlatValuePayload::make_oop_handle(OopStorage* storage) const {
+FlatValuePayload::OopHandle FlatValuePayload::make_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
-inline FlatFieldPayload::Handle::Handle(const FlatFieldPayload& payload,
-                                        JavaThread* thread)
+inline FlatFieldPayload::Handle::Handle(const FlatFieldPayload& payload, JavaThread* thread)
     : FlatValuePayload::Handle(payload, thread) {}
 
 FlatFieldPayload FlatFieldPayload::Handle::operator()() const {
@@ -755,13 +745,11 @@ inline instanceOop FlatFieldPayload::Handle::container() const {
   return instanceOop(ValuePayload::Handle::container());
 }
 
-FlatFieldPayload::Handle
-FlatFieldPayload::make_handle(JavaThread* thread) const {
+FlatFieldPayload::Handle FlatFieldPayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
-inline FlatFieldPayload::OopHandle::OopHandle(const FlatFieldPayload& payload,
-                                              OopStorage* storage)
+inline FlatFieldPayload::OopHandle::OopHandle(const FlatFieldPayload& payload, OopStorage* storage)
     : FlatValuePayload::OopHandle(payload, storage) {}
 
 FlatFieldPayload FlatFieldPayload::OopHandle::operator()() const {
@@ -772,13 +760,11 @@ inline instanceOop FlatFieldPayload::OopHandle::container() const {
   return instanceOop(ValuePayload::OopHandle::container());
 }
 
-FlatFieldPayload::OopHandle
-FlatFieldPayload::make_oop_handle(OopStorage* storage) const {
+FlatFieldPayload::OopHandle FlatFieldPayload::make_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
-inline FlatArrayPayload::Handle::Handle(const FlatArrayPayload& payload,
-                                        JavaThread* thread)
+inline FlatArrayPayload::Handle::Handle(const FlatArrayPayload& payload, JavaThread* thread)
     : FlatValuePayload::Handle(payload, thread), _storage(payload._storage) {}
 
 FlatArrayPayload FlatArrayPayload::Handle::operator()() const {
@@ -794,13 +780,11 @@ inline flatArrayOop FlatArrayPayload::Handle::container() const {
   return flatArrayOop(ValuePayload::Handle::container());
 }
 
-FlatArrayPayload::Handle
-FlatArrayPayload::make_handle(JavaThread* thread) const {
+FlatArrayPayload::Handle FlatArrayPayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
-inline FlatArrayPayload::OopHandle::OopHandle(const FlatArrayPayload& payload,
-                                              OopStorage* storage)
+inline FlatArrayPayload::OopHandle::OopHandle(const FlatArrayPayload& payload, OopStorage* storage)
     : FlatValuePayload::OopHandle(payload, storage),
       _storage(payload._storage) {}
 

@@ -58,9 +58,12 @@ private:
 
   public:
     inline StorageImpl();
-    inline StorageImpl(OopOrHandle container, ptrdiff_t offset, InlineKlass* klass,
+    inline StorageImpl(OopOrHandle container,
+                       ptrdiff_t offset,
+                       InlineKlass* klass,
                        LayoutKind layout_kind);
-    inline StorageImpl(address absolute_addr, InlineKlass* klass,
+    inline StorageImpl(address absolute_addr,
+                       InlineKlass* klass,
                        LayoutKind layout_kind);
     inline ~StorageImpl();
     inline StorageImpl(const StorageImpl& other);
@@ -105,7 +108,8 @@ protected:
 
   inline void set_offset(ptrdiff_t offset);
 
-  static inline void copy(const ValuePayload& src, const ValuePayload& dst,
+  static inline void copy(const ValuePayload& src,
+                          const ValuePayload& dst,
                           LayoutKind copy_layout_kind);
 
   inline void mark_as_non_null();
@@ -118,9 +122,9 @@ protected:
 private:
   inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
   inline void assert_post_construction_invariants() const NOT_DEBUG_RETURN;
-  static inline void
-  assert_pre_copy_invariants(const ValuePayload& src, const ValuePayload& dst,
-                             LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
+  static inline void assert_pre_copy_invariants(const ValuePayload& src,
+                                                const ValuePayload& dst,
+                                                LayoutKind copy_layout_kind) NOT_DEBUG_RETURN;
 
 public:
   inline InlineKlass* klass() const;
@@ -135,9 +139,9 @@ public:
   class Handle;
   class OopHandle;
 
-  [[nodiscard]] static inline ValuePayload
-  construct_from_parts(address absolute_addr, InlineKlass* klass,
-                       LayoutKind layout_kind);
+  [[nodiscard]] static inline ValuePayload construct_from_parts(address absolute_addr,
+                                                                InlineKlass* klass,
+                                                                LayoutKind layout_kind);
 };
 
 class BufferedValuePayload : public ValuePayload {
@@ -192,9 +196,10 @@ public:
   inline void write_without_nullability_check(inlineOop obj);
   inline void write(inlineOop obj, TRAPS);
 
-  [[nodiscard]] static inline FlatValuePayload
-  construct_from_parts(oop container, ptrdiff_t offset, InlineKlass* klass,
-                       LayoutKind layout_kind);
+  [[nodiscard]] static inline FlatValuePayload construct_from_parts(oop container,
+                                                                    ptrdiff_t offset,
+                                                                    InlineKlass* klass,
+                                                                    LayoutKind layout_kind);
 
   class Handle;
   class OopHandle;
@@ -210,7 +215,8 @@ private:
                           InlineKlass* klass,
                           LayoutKind layout_kind);
 
-  inline FlatFieldPayload(instanceOop container, ptrdiff_t offset,
+  inline FlatFieldPayload(instanceOop container,
+                          ptrdiff_t offset,
                           InlineLayoutInfo* inline_layout_info);
 
 public:
@@ -218,7 +224,8 @@ public:
 
   inline FlatFieldPayload(instanceOop container,
                           fieldDescriptor* field_descriptor);
-  inline FlatFieldPayload(instanceOop container, fieldDescriptor* field_descriptor,
+  inline FlatFieldPayload(instanceOop container,
+                          fieldDescriptor* field_descriptor,
                           InstanceKlass* klass);
 
   inline FlatFieldPayload(instanceOop container,
@@ -243,9 +250,12 @@ private:
     int _element_size;
   } _storage;
 
-  inline FlatArrayPayload(flatArrayOop container, ptrdiff_t offset,
-                          InlineKlass* klass, LayoutKind layout_kind,
-                          jint layout_helper, int element_size);
+  inline FlatArrayPayload(flatArrayOop container,
+                          ptrdiff_t offset,
+                          InlineKlass* klass,
+                          LayoutKind layout_kind,
+                          jint layout_helper,
+                          int element_size);
 
 public:
   FlatArrayPayload() = default;
@@ -256,8 +266,7 @@ public:
   inline FlatArrayPayload(flatArrayOop container, FlatArrayKlass* klass);
 
   inline FlatArrayPayload(flatArrayOop container, int index);
-  inline FlatArrayPayload(flatArrayOop container, int index,
-                          FlatArrayKlass* klass);
+  inline FlatArrayPayload(flatArrayOop container, int index, FlatArrayKlass* klass);
 
   inline flatArrayOop container() const;
 
