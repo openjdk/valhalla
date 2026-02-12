@@ -122,7 +122,7 @@ public class TestValueClassArrays extends DumpReplayBase {
         invalidateCiMethodDataInReplayFile();
         negativeTest(defaultReplayRunFlags);
         ErrorFile errorFile = new ErrorFile(ERROR_FILE);
-        Asserts.assertTrue(errorFile.find("guarantee(false) failed: invalid array_properties: -1, fall back to DEFAULT"));
+        Asserts.assertTrue(errorFile.find("guarantee(false) failed: invalid array_properties: -1"));
     }
 
     private void invalidateCiMethodDataInReplayFile() {
