@@ -64,7 +64,7 @@ public class TestOptimizePtrCompare {
     }
 
     @Test
-    @IR(failOn = {IRNode.CMP_P})
+    @IR(counts = {IRNode.CMP_P, "1"})
     public static void test2() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue arg = new MyValue(null);
