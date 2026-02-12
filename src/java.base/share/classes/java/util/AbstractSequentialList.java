@@ -236,7 +236,7 @@ public abstract class AbstractSequentialList<E> extends AbstractList<E> {
      *
      * @return an iterator over the elements in this list (in proper sequence)
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return listIterator();
     }
 

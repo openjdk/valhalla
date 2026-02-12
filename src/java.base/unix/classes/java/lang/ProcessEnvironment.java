@@ -326,7 +326,7 @@ final class ProcessEnvironment
         public int size()        {return s.size();}
         public boolean isEmpty() {return s.isEmpty();}
         public void clear()      {       s.clear();}
-        public Iterator<Map.Entry<String,String>> iterator() {
+        public Iterator<Map.Entry<String,String>>! iterator() {
             return new Iterator<Map.Entry<String,String>>() {
                 Iterator<Map.Entry<Variable,Value>> i = s.iterator();
                 public boolean hasNext() {return i.hasNext();}
@@ -368,7 +368,7 @@ final class ProcessEnvironment
         public int size()        {return c.size();}
         public boolean isEmpty() {return c.isEmpty();}
         public void clear()      {       c.clear();}
-        public Iterator<String> iterator() {
+        public Iterator<String>! iterator() {
             return new Iterator<String>() {
                 Iterator<Value> i = c.iterator();
                 public boolean hasNext() {return i.hasNext();}
@@ -395,7 +395,7 @@ final class ProcessEnvironment
         public int size()        {return s.size();}
         public boolean isEmpty() {return s.isEmpty();}
         public void clear()      {       s.clear();}
-        public Iterator<String> iterator() {
+        public Iterator<String>! iterator() {
             return new Iterator<String>() {
                 Iterator<Variable> i = s.iterator();
                 public boolean hasNext() {return i.hasNext();}

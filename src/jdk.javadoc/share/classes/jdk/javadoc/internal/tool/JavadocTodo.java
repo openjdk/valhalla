@@ -33,6 +33,7 @@ import com.sun.tools.javac.util.Context.Factory;
  * Javadoc's own todo queue doesn't queue its inputs, as javadoc
  * doesn't perform attribution of method bodies or semantic checking.
  */
+@SuppressWarnings("null")
 public class JavadocTodo extends Todo {
     public static void preRegister(Context context) {
         context.put(todoKey, (Factory<Todo>)JavadocTodo::new);

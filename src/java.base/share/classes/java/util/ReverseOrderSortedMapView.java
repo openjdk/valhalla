@@ -98,7 +98,7 @@ class ReverseOrderSortedMapView<K, V> extends AbstractMap<K, V> implements Sorte
     public Set<K> keySet() {
         return new AbstractSet<>() {
             // inherit add(), which throws UOE
-            public Iterator<K> iterator() { return descendingKeyIterator(base); }
+            public Iterator<K>! iterator() { return descendingKeyIterator(base); }
             public int size() { return base.size(); }
             public void clear() { base.keySet().clear(); }
             public boolean contains(Object o) { return base.keySet().contains(o); }
@@ -109,7 +109,7 @@ class ReverseOrderSortedMapView<K, V> extends AbstractMap<K, V> implements Sorte
     public Collection<V> values() {
         return new AbstractCollection<>() {
             // inherit add(), which throws UOE
-            public Iterator<V> iterator() { return descendingValueIterator(base); }
+            public Iterator<V>! iterator() { return descendingValueIterator(base); }
             public int size() { return base.size(); }
             public void clear() { base.values().clear(); }
             public boolean contains(Object o) { return base.values().contains(o); }
@@ -120,7 +120,7 @@ class ReverseOrderSortedMapView<K, V> extends AbstractMap<K, V> implements Sorte
     public Set<Entry<K, V>> entrySet() {
         return new AbstractSet<>() {
             // inherit add(), which throws UOE
-            public Iterator<Entry<K, V>> iterator() { return descendingEntryIterator(base); }
+            public Iterator<Entry<K, V>>! iterator() { return descendingEntryIterator(base); }
             public int size() { return base.size(); }
             public void clear() { base.entrySet().clear(); }
             public boolean contains(Object o) { return base.entrySet().contains(o); }
@@ -392,7 +392,7 @@ class ReverseOrderSortedMapView<K, V> extends AbstractMap<K, V> implements Sorte
 
         public Set<Entry<K, V>> entrySet() {
             return new AbstractSet<>() {
-                public Iterator<Entry<K, V>> iterator() {
+                public Iterator<Entry<K, V>>! iterator() {
                     return entryIterator();
                 }
 

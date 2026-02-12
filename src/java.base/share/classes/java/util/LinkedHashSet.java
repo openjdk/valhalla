@@ -306,7 +306,7 @@ public class LinkedHashSet<E>
     public SequencedSet<E> reversed() {
         class ReverseLinkedHashSetView extends AbstractSet<E> implements SequencedSet<E> {
             public int size()                  { return LinkedHashSet.this.size(); }
-            public Iterator<E> iterator()      { return map().sequencedKeySet().reversed().iterator(); }
+            public Iterator<E>! iterator()      { return map().sequencedKeySet().reversed().iterator(); }
             public boolean add(E e)            { return LinkedHashSet.this.add(e); }
             public void addFirst(E e)          { LinkedHashSet.this.addLast(e); }
             public void addLast(E e)           { LinkedHashSet.this.addFirst(e); }

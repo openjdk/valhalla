@@ -4474,7 +4474,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          *
          * @return an iterator over the elements in this collection
          */
-        public abstract Iterator<E> iterator();
+        public abstract Iterator<E>! iterator();
         public abstract boolean contains(Object o);
         public abstract boolean remove(Object o);
 
@@ -4659,7 +4659,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * @return an iterator over the keys of the backing map
          */
-        public Iterator<K> iterator() {
+        public Iterator<K>! iterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
             int f = (t = m.table) == null ? 0 : t.length;
@@ -4764,7 +4764,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return false;
         }
 
-        public final Iterator<V> iterator() {
+        public final Iterator<V>! iterator() {
             ConcurrentHashMap<K,V> m = map;
             Node<K,V>[] t;
             int f = (t = m.table) == null ? 0 : t.length;
@@ -4843,7 +4843,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         /**
          * @return an iterator over the entries of the backing map
          */
-        public Iterator<Map.Entry<K,V>> iterator() {
+        public Iterator<Map.Entry<K,V>>! iterator() {
             ConcurrentHashMap<K,V> m = map;
             Node<K,V>[] t;
             int f = (t = m.table) == null ? 0 : t.length;

@@ -1291,7 +1291,7 @@ public class ScheduledThreadPoolExecutor
             }
         }
 
-        public Iterator<Runnable> iterator() {
+        public Iterator<Runnable>! iterator() {
             final ReentrantLock lock = this.lock;
             lock.lock();
             try {

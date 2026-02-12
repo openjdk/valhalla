@@ -394,7 +394,7 @@ public class SoftCache extends AbstractMap<Object, Object> implements Map<Object
     private class EntrySet extends AbstractSet<Map.Entry<Object, Object>> {
         Set<Map.Entry<Object, Object>> hashEntries = hash.entrySet();
 
-        public Iterator<Map.Entry<Object, Object>> iterator() {
+        public Iterator<Map.Entry<Object, Object>>! iterator() {
 
             return new Iterator<Map.Entry<Object, Object>>() {
                 Iterator<Map.Entry<Object, Object>> hashIterator = hashEntries.iterator();

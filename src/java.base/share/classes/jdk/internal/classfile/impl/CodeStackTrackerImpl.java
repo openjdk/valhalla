@@ -51,7 +51,7 @@ public final class CodeStackTrackerImpl implements CodeStackTracker {
         }
 
         @Override
-        public Iterator<TypeKind> iterator() {
+        public Iterator<TypeKind>! iterator() {
             return new Iterator<TypeKind>() {
                 Item i = top;
 

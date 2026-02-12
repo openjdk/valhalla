@@ -162,7 +162,7 @@ public class XSObjectListImpl extends AbstractList<XSObject> implements XSObject
         return getLength();
     }
 
-    public Iterator<XSObject> iterator() {
+    public Iterator<XSObject>! iterator() {
         return listIterator0(0);
     }
 

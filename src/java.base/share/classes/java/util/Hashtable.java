@@ -664,7 +664,7 @@ public class Hashtable<K,V>
     }
 
     private class KeySet extends AbstractSet<K> {
-        public Iterator<K> iterator() {
+        public Iterator<K>! iterator() {
             return getIterator(KEYS);
         }
         public int size() {
@@ -704,7 +704,7 @@ public class Hashtable<K,V>
     }
 
     private class EntrySet extends AbstractSet<Map.Entry<K,V>> {
-        public Iterator<Map.Entry<K,V>> iterator() {
+        public Iterator<Map.Entry<K,V>>! iterator() {
             return getIterator(ENTRIES);
         }
 
@@ -784,7 +784,7 @@ public class Hashtable<K,V>
     }
 
     private class ValueCollection extends AbstractCollection<V> {
-        public Iterator<V> iterator() {
+        public Iterator<V>! iterator() {
             return getIterator(VALUES);
         }
         public int size() {

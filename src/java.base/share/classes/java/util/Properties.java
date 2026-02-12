@@ -1440,7 +1440,7 @@ public class Properties extends Hashtable<Object,Object> {
         }
 
         @Override
-        public Iterator<Map.Entry<Object, Object>> iterator() {
+        public Iterator<Map.Entry<Object, Object>>! iterator() {
             return entrySet.iterator();
         }
     }

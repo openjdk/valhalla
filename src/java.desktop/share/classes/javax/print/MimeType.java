@@ -184,7 +184,7 @@ class MimeType implements Serializable, Cloneable {
      * Parameter map entry set.
      */
     private class ParameterMapEntrySet extends AbstractSet<Map.Entry<String, String>> {
-        public Iterator<Map.Entry<String, String>> iterator() {
+        public Iterator<Map.Entry<String, String>>! iterator() {
             return new ParameterMapEntrySetIterator();
         }
         public int size() {

@@ -697,7 +697,7 @@ public class LinkedHashMap<K,V>
         LinkedKeySet(boolean reversed)          { this.reversed = reversed; }
         public final int size()                 { return size; }
         public final void clear()               { LinkedHashMap.this.clear(); }
-        public final Iterator<K> iterator() {
+        public final Iterator<K>! iterator() {
             return new LinkedKeyIterator(reversed);
         }
         public final boolean contains(Object o) { return containsKey(o); }
@@ -805,7 +805,7 @@ public class LinkedHashMap<K,V>
         LinkedValues(boolean reversed)          { this.reversed = reversed; }
         public final int size()                 { return size; }
         public final void clear()               { LinkedHashMap.this.clear(); }
-        public final Iterator<V> iterator() {
+        public final Iterator<V>! iterator() {
             return new LinkedValueIterator(reversed);
         }
         public final boolean contains(Object o) { return containsValue(o); }
@@ -911,7 +911,7 @@ public class LinkedHashMap<K,V>
         LinkedEntrySet(boolean reversed)        { this.reversed = reversed; }
         public final int size()                 { return size; }
         public final void clear()               { LinkedHashMap.this.clear(); }
-        public final Iterator<Map.Entry<K,V>> iterator() {
+        public final Iterator<Map.Entry<K,V>>! iterator() {
             return new LinkedEntryIterator(reversed);
         }
         public final boolean contains(Object o) {

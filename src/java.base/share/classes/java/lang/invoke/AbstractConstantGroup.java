@@ -212,7 +212,7 @@ abstract class AbstractConstantGroup implements ConstantGroup {
         }
 
         @Override
-        public Iterator<Object> iterator() {
+        public Iterator<Object>! iterator() {
             if (resolving)
                 return new AsIterator(self, offset, offset + size);
             else

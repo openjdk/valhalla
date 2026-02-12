@@ -2022,7 +2022,7 @@ public final class Collectors {
         public Set<Map.Entry<Boolean, T>> entrySet() {
             return new AbstractSet<>() {
                 @Override
-                public Iterator<Map.Entry<Boolean, T>> iterator() {
+                public Iterator<Map.Entry<Boolean, T>>! iterator() {
                     Map.Entry<Boolean, T> falseEntry = new SimpleImmutableEntry<>(false, forFalse);
                     Map.Entry<Boolean, T> trueEntry = new SimpleImmutableEntry<>(true, forTrue);
                     return List.of(falseEntry, trueEntry).iterator();

@@ -204,6 +204,7 @@ public class ListBuffer<A> extends AbstractQueue<A> {
 
     /** An enumeration of all elements in this buffer.
      */
+    @SuppressWarnings("null")
     public Iterator<A> iterator() {
         return new Iterator<A>() {
             List<A> elems = ListBuffer.this.elems;
