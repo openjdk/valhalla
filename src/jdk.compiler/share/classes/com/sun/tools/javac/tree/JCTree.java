@@ -2929,6 +2929,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return this;
         }
 
+        /* the order here is important
+         */
         public enum NullMarker {
             NOT_NULL("!"),
             UNSPECIFIED("");
