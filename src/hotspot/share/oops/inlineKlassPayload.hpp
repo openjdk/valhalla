@@ -92,13 +92,13 @@ protected:
   ValuePayload(const ValuePayload&) = default;
   ValuePayload& operator=(const ValuePayload&) = default;
 
-  // Constructed from parts
+  // Constructed from parts container and offset
   inline ValuePayload(oop container,
                       ptrdiff_t offset,
                       InlineKlass* klass,
                       LayoutKind layout_kind);
 
-  // Raw constructor
+  // Constructed from parts absolute_addr
   inline ValuePayload(address absolute_addr,
                       InlineKlass* klass,
                       LayoutKind layout_kind);
@@ -134,14 +134,10 @@ public:
 
   class Handle;
   class OopHandle;
-};
 
-class RawValuePayload : public ValuePayload {
-public:
-  RawValuePayload() = default;
-
-  inline RawValuePayload(address absolute_addr, InlineKlass* klass,
-                         LayoutKind layout_kind);
+  [[nodiscard]] static inline ValuePayload
+  construct_from_parts(address absolute_addr, InlineKlass* klass,
+                       LayoutKind layout_kind);
 };
 
 class BufferedValuePayload : public ValuePayload {

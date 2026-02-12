@@ -373,6 +373,12 @@ inline bool ValuePayload::is_payload_null() const {
   return has_null_marker() && klass()->is_payload_marked_as_null(addr());
 }
 
+inline ValuePayload ValuePayload::construct_from_parts(address absolute_addr,
+                                                       InlineKlass* klass,
+                                                       LayoutKind layout_kind) {
+  return ValuePayload(absolute_addr, klass, layout_kind);
+}
+
 inline inlineOop BufferedValuePayload::container() const {
   return inlineOop(ValuePayload::container());
 }
@@ -658,11 +664,6 @@ inline ptrdiff_t ValuePayload::OopHandle::offset() const {
 inline LayoutKind ValuePayload::OopHandle::layout_kind() const {
   return _storage.layout_kind();
 }
-
-inline RawValuePayload::RawValuePayload(address absolute_addr,
-                                        InlineKlass* klass,
-                                        LayoutKind layout_kind)
-    : ValuePayload(absolute_addr, klass, layout_kind) {}
 
 inline BufferedValuePayload::Handle::Handle(const BufferedValuePayload& payload,
                                             JavaThread* thread)
