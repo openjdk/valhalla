@@ -630,10 +630,6 @@ inline LayoutKind ValuePayload::Handle::layout_kind() const {
   return _storage.layout_kind();
 }
 
-inline ValuePayload ValuePayload::Handle::operator()() const {
-  return ValuePayload(container(), offset(), klass(), layout_kind());
-}
-
 inline ValuePayload::OopHandle::OopHandle(const ValuePayload& payload,
                                           OopStorage* storage)
     : _storage{::OopHandle(storage, payload.container()),
@@ -661,23 +657,14 @@ inline LayoutKind ValuePayload::OopHandle::layout_kind() const {
   return _storage.layout_kind();
 }
 
-inline ValuePayload ValuePayload::OopHandle::operator()() const {
-  return ValuePayload(container(), offset(), klass(), layout_kind());
-}
-
-inline ValuePayload::Handle ValuePayload::make_handle(JavaThread* thread) const {
-  return Handle(*this, thread);
-}
-
-inline ValuePayload::OopHandle
-ValuePayload::make_oop_handle(OopStorage* storage) const {
-  return OopHandle(*this, storage);
-}
-
 inline RawValuePayload::RawValuePayload(address absolute_addr,
                                         InlineKlass* klass,
                                         LayoutKind layout_kind)
     : ValuePayload(absolute_addr, klass, layout_kind) {}
+
+inline BufferedValuePayload::Handle::Handle(const BufferedValuePayload& payload,
+                                            JavaThread* thread)
+    : ValuePayload::Handle(payload, thread) {}
 
 BufferedValuePayload BufferedValuePayload::Handle::operator()() const {
   return BufferedValuePayload(container(), offset(), klass(), layout_kind());
@@ -692,6 +679,10 @@ BufferedValuePayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
+inline BufferedValuePayload::OopHandle::OopHandle(const BufferedValuePayload& payload,
+                                                  OopStorage* storage)
+    : ValuePayload::OopHandle(payload, storage) {}
+
 BufferedValuePayload BufferedValuePayload::OopHandle::operator()() const {
   return BufferedValuePayload(container(), offset(), klass(), layout_kind());
 }
@@ -705,6 +696,10 @@ BufferedValuePayload::make_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
 
+inline FlatValuePayload::Handle::Handle(const FlatValuePayload& payload,
+                                        JavaThread* thread)
+    : ValuePayload::Handle(payload, thread) {}
+
 FlatValuePayload FlatValuePayload::Handle::operator()() const {
   return FlatValuePayload(container(), offset(), klass(), layout_kind());
 }
@@ -714,6 +709,10 @@ FlatValuePayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
 
+inline FlatValuePayload::OopHandle::OopHandle(const FlatValuePayload& payload,
+                                              OopStorage* storage)
+    : ValuePayload::OopHandle(payload, storage) {}
+
 FlatValuePayload FlatValuePayload::OopHandle::operator()() const {
   return FlatValuePayload(container(), offset(), klass(), layout_kind());
 }
@@ -722,6 +721,10 @@ FlatValuePayload::OopHandle
 FlatValuePayload::make_oop_handle(OopStorage* storage) const {
   return OopHandle(*this, storage);
 }
+
+inline FlatFieldPayload::Handle::Handle(const FlatFieldPayload& payload,
+                                        JavaThread* thread)
+    : FlatValuePayload::Handle(payload, thread) {}
 
 FlatFieldPayload FlatFieldPayload::Handle::operator()() const {
   return FlatFieldPayload(container(), offset(), klass(), layout_kind());
@@ -735,6 +738,10 @@ FlatFieldPayload::Handle
 FlatFieldPayload::make_handle(JavaThread* thread) const {
   return Handle(*this, thread);
 }
+
+inline FlatFieldPayload::OopHandle::OopHandle(const FlatFieldPayload& payload,
+                                              OopStorage* storage)
+    : FlatValuePayload::OopHandle(payload, storage) {}
 
 FlatFieldPayload FlatFieldPayload::OopHandle::operator()() const {
   return FlatFieldPayload(container(), offset(), klass(), layout_kind());

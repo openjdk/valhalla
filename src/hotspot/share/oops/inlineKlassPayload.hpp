@@ -134,9 +134,6 @@ public:
 
   class Handle;
   class OopHandle;
-
-  inline Handle make_handle(JavaThread* thread) const;
-  inline OopHandle make_oop_handle(OopStorage* storage) const;
 };
 
 class RawValuePayload : public ValuePayload {
@@ -282,19 +279,18 @@ private:
 
   Storage _storage;
 
+protected:
+  inline Handle(const ValuePayload& payload, JavaThread* thread);
+
 public:
   Handle() = default;
   Handle(const Handle&) = default;
   Handle& operator=(const Handle&) = default;
 
-  inline Handle(const ValuePayload& payload, JavaThread* thread);
-
   inline oop container() const;
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
-
-  inline ValuePayload operator()() const;
 };
 
 class ValuePayload::OopHandle {
@@ -303,12 +299,13 @@ private:
 
   Storage _storage;
 
+protected:
+  inline OopHandle(const ValuePayload& payload, OopStorage* storage);
+
 public:
   OopHandle() = default;
   OopHandle(const OopHandle&) = default;
   OopHandle& operator=(const OopHandle&) = default;
-
-  inline OopHandle(const ValuePayload& payload, OopStorage* storage);
 
   inline void release(OopStorage* storage);
 
@@ -316,13 +313,11 @@ public:
   inline InlineKlass* klass() const;
   inline ptrdiff_t offset() const;
   inline LayoutKind layout_kind() const;
-
-  inline ValuePayload operator()() const;
 };
 
 class BufferedValuePayload::Handle : public ValuePayload::Handle {
 public:
-  using ValuePayload::Handle::Handle;
+  inline Handle(const BufferedValuePayload& payload, JavaThread* thread);
 
   inline BufferedValuePayload operator()() const;
 
@@ -331,7 +326,7 @@ public:
 
 class BufferedValuePayload::OopHandle : public ValuePayload::OopHandle {
 public:
-  using ValuePayload::OopHandle::OopHandle;
+  inline OopHandle(const BufferedValuePayload& payload, OopStorage* storage);
 
   inline BufferedValuePayload operator()() const;
 
@@ -340,21 +335,21 @@ public:
 
 class FlatValuePayload::Handle : public ValuePayload::Handle {
 public:
-  using ValuePayload::Handle::Handle;
+  inline Handle(const FlatValuePayload& payload, JavaThread* thread);
 
   inline FlatValuePayload operator()() const;
 };
 
 class FlatValuePayload::OopHandle : public ValuePayload::OopHandle {
 public:
-  using ValuePayload::OopHandle::OopHandle;
+  inline OopHandle(const FlatValuePayload& payload, OopStorage* storage);
 
   inline FlatValuePayload operator()() const;
 };
 
 class FlatFieldPayload::Handle : public FlatValuePayload::Handle {
 public:
-  using FlatValuePayload::Handle::Handle;
+  inline Handle(const FlatFieldPayload& payload, JavaThread* thread);
 
   inline FlatFieldPayload operator()() const;
 
@@ -363,7 +358,7 @@ public:
 
 class FlatFieldPayload::OopHandle : public FlatValuePayload::OopHandle {
 public:
-  using FlatValuePayload::OopHandle::OopHandle;
+  inline OopHandle(const FlatFieldPayload& payload, OopStorage* storage);
 
   inline FlatFieldPayload operator()() const;
 
