@@ -1609,6 +1609,11 @@ bool ciMethod::is_scalarized_arg(int idx) const {
   return get_Method()->is_scalarized_arg(idx);
 }
 
+bool ciMethod::is_scalarized_buffer_arg(int idx) const {
+  VM_ENTRY_MARK;
+  return get_Method()->is_scalarized_buffer_arg(idx);
+}
+
 bool ciMethod::has_scalarized_args() const {
   VM_ENTRY_MARK;
   return get_Method()->has_scalarized_args();

@@ -392,6 +392,7 @@ class ciMethod : public ciMetadata {
 
   // Support for the inline type calling convention
   bool is_scalarized_arg(int idx) const;
+  bool is_scalarized_buffer_arg(int idx) const;
   bool has_scalarized_args() const;
   const GrowableArray<SigEntry>* get_sig_cc() const;
 };
