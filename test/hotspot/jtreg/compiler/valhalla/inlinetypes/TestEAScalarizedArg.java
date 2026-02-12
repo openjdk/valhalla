@@ -53,7 +53,7 @@ public class TestEAScalarizedArg {
     static Object notInlined(MyValue arg1, Object arg2) {
         return arg2;
     }
-    
+
     static int test2() {
         Object o2 = new Object();
         MyValue v = new MyValue(null);
