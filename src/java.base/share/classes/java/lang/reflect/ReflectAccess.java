@@ -65,7 +65,7 @@ final class ReflectAccess implements JavaLangReflectAccess {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends AccessibleObject> T! getRoot(T obj) {
+    public <T extends AccessibleObject> T getRoot(T! obj) {
         return (T) obj.getRoot();
     }
 
