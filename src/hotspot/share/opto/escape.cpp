@@ -2134,11 +2134,13 @@ private:
     if (_sig_cc == nullptr) {
       return;
     }
+    BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
     while (_i_sig_cc < _sig_cc->length()) {
       BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
+      assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "");
       if (bt == T_METADATA) {
         _depth++;
-      } else if (bt == T_VOID && (_sig_cc->at(_i_sig_cc-1)._bt != T_LONG && _sig_cc->at(_i_sig_cc-1)._bt != T_DOUBLE)) {
+      } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
         _depth--;
         if (_depth == 0) {
           _i_domain++;
@@ -2146,6 +2148,7 @@ private:
       } else {
         return;
       }
+      prev_bt = bt;
       _i_sig_cc++;
     }
   }
