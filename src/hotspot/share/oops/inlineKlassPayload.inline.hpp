@@ -111,7 +111,13 @@ ValuePayload::StorageImpl<OopOrHandle>::operator=(const StorageImpl& other) {
 }
 
 template <typename OopOrHandle>
-inline OopOrHandle& ValuePayload::StorageImpl<OopOrHandle>::container() const {
+inline OopOrHandle& ValuePayload::StorageImpl<OopOrHandle>::container() {
+  precond(!_uses_absolute_addr);
+  return _container;
+}
+
+template <typename OopOrHandle>
+inline OopOrHandle ValuePayload::StorageImpl<OopOrHandle>::container() const {
   precond(!_uses_absolute_addr);
   return _container;
 }
@@ -217,7 +223,11 @@ inline bool ValuePayload::uses_absolute_addr() const {
   return _storage.uses_absolute_addr();
 }
 
-inline oop& ValuePayload::container() const {
+inline oop& ValuePayload::container() {
+  return _storage.container();
+}
+
+inline oop ValuePayload::container() const {
   return _storage.container();
 }
 
@@ -404,7 +414,7 @@ inline FlatValuePayload::FlatValuePayload(oop container,
                                           LayoutKind layout_kind)
     : ValuePayload(container, offset, klass, layout_kind) {}
 
-inline inlineOop FlatValuePayload::allocate_instance(TRAPS) const {
+inline inlineOop FlatValuePayload::allocate_instance(TRAPS) {
   // Preserve the container oop across the instance allocation.
   oop& container = this->container();
   ::Handle container_handle(THREAD, container);

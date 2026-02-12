@@ -47,7 +47,7 @@ private:
   private:
     union {
       struct {
-        mutable OopOrHandle _container;
+        OopOrHandle _container;
         ptrdiff_t _offset;
       };
       address _absolute_addr;
@@ -69,7 +69,8 @@ private:
     inline StorageImpl(const StorageImpl& other);
     inline StorageImpl& operator=(const StorageImpl& other);
 
-    inline OopOrHandle& container() const;
+    inline OopOrHandle& container();
+    inline OopOrHandle container() const;
 
     inline ptrdiff_t& offset();
     inline ptrdiff_t offset() const;
@@ -117,7 +118,8 @@ protected:
 
   inline bool uses_absolute_addr() const;
 
-  inline oop& container() const;
+  inline oop& container();
+  inline oop container() const;
 
 private:
   inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
@@ -180,7 +182,7 @@ protected:
                           LayoutKind layout_kind);
 
 private:
-  inlineOop allocate_instance(TRAPS) const;
+  inlineOop allocate_instance(TRAPS);
 
 public:
   FlatValuePayload() = default;
