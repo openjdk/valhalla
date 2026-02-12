@@ -437,6 +437,19 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
   return ak->klass_with_properties(props, THREAD); // why not CHECK_NULL ?
 }
 
+// Iterate the linked list of refined array klasses
+bool ObjArrayKlass::find_refined_array_klass(ObjArrayKlass* k) {
+  assert(k->is_refined_objArray_klass(), "must be");
+  ObjArrayKlass* curr = this;
+  while (curr != nullptr) {
+    if (curr == k) {
+      return true;
+    }
+    curr = curr->next_refined_array_klass();
+  }
+  return false;
+}
+
 
 // Printing
 
