@@ -144,8 +144,10 @@ class BufferedValuePayload : public ValuePayload {
   friend class FlatValuePayload;
 
 private:
-  // Inherit ValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
-  using ValuePayload::ValuePayload;
+  inline BufferedValuePayload(inlineOop container,
+                              ptrdiff_t offset,
+                              InlineKlass* klass,
+                              LayoutKind layout_kind);
 
 public:
   BufferedValuePayload() = default;
@@ -168,8 +170,10 @@ public:
 
 class FlatValuePayload : public ValuePayload {
 protected:
-  // Inherit ValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
-  using ValuePayload::ValuePayload;
+  inline FlatValuePayload(oop container,
+                          ptrdiff_t offset,
+                          InlineKlass* klass,
+                          LayoutKind layout_kind);
 
 private:
   inlineOop allocate_instance(TRAPS) const;
@@ -201,8 +205,10 @@ public:
 
 class FlatFieldPayload : public FlatValuePayload {
 private:
-  // Inherit FlatValuePayload(oop, ptrdiff_t, InlineKlass*, LayoutKind);
-  using FlatValuePayload::FlatValuePayload;
+  inline FlatFieldPayload(instanceOop container,
+                          ptrdiff_t offset,
+                          InlineKlass* klass,
+                          LayoutKind layout_kind);
 
   inline FlatFieldPayload(instanceOop container, ptrdiff_t offset,
                           InlineLayoutInfo* inline_layout_info);

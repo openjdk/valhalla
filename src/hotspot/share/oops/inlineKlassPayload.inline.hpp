@@ -387,6 +387,12 @@ inline void BufferedValuePayload::copy_to(const BufferedValuePayload& dst) {
   copy(*this, dst, LayoutKind::BUFFERED);
 }
 
+inline BufferedValuePayload::BufferedValuePayload(inlineOop container,
+                                                  ptrdiff_t offset,
+                                                  InlineKlass* klass,
+                                                  LayoutKind layout_kind)
+    : ValuePayload(container, offset, klass, layout_kind) {}
+
 inline BufferedValuePayload::BufferedValuePayload(inlineOop buffer)
     : BufferedValuePayload(buffer, InlineKlass::cast(buffer->klass())) {}
 
@@ -396,12 +402,24 @@ inline BufferedValuePayload::BufferedValuePayload(inlineOop buffer,
 
 inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
                                           ptrdiff_t offset,
+                                          InlineKlass* klass,
+                                          LayoutKind layout_kind)
+    : FlatValuePayload(container, offset, klass, layout_kind) {}
+
+inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
+                                          ptrdiff_t offset,
                                           InlineLayoutInfo* inline_layout_info)
     : FlatValuePayload(container, offset, inline_layout_info->klass(), inline_layout_info->kind()) {}
 
 inline instanceOop FlatFieldPayload::container() const {
   return instanceOop(ValuePayload::container());
 }
+
+inline FlatValuePayload::FlatValuePayload(oop container,
+                                          ptrdiff_t offset,
+                                          InlineKlass* klass,
+                                          LayoutKind layout_kind)
+    : ValuePayload(container, offset, klass, layout_kind) {}
 
 inline inlineOop FlatValuePayload::allocate_instance(TRAPS) const {
   // Preserve the container oop across the instance allocation.
