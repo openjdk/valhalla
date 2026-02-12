@@ -1899,11 +1899,11 @@ public class Check {
                         checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
                     warnNullableTypes(incompatibleParam.position != null ? incompatibleParam.position.vartype : theTree,
                             LintWarnings.IncompatibleNullRestrictions(
-                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
+                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType, other.owner, other)));
                 }
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
                     warnNullableTypes(resultTypePos, LintWarnings.IncompatibleNullRestrictions(
-                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
+                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType(), other.owner, other)));
                 }
             }
         }

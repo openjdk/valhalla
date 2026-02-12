@@ -4014,7 +4014,7 @@ public class Attr extends JCTree.Visitor {
                                             incompatibleParam.position().vartype : tree,
                                 LintWarnings.IncompatibleNullRestrictions(
                                         Fragments.LambdaArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
-                                                incompatibleParam.overridenType())));
+                                                incompatibleParam.overridenType(), tree.target)));
                 }
             }
         }
@@ -4323,7 +4323,7 @@ public class Attr extends JCTree.Visitor {
                     chk.warnNullableTypes(tree,
                             LintWarnings.IncompatibleNullRestrictions(
                                     Fragments.MethodReferenceArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
-                                            incompatibleParam.overridenType())));
+                                            incompatibleParam.overridenType(), tree.target)));
                 }
             }
         }
