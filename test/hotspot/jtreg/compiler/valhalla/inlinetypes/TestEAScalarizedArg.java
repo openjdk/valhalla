@@ -26,7 +26,7 @@
  * @bug 8377480
  * @summary [lworld] incorrect execution due to EA pointer comparison optimization at scalarized call
  * @enablePreview
- * @run main/othervm -XX:-BackgroundCompilation -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestEAScalarizedArg::notInlined  ${test.main.class}
+ * @run main/othervm -XX:-BackgroundCompilation -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestEAScalarizedArg::notInlined*  ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;
@@ -53,6 +53,20 @@ public class TestEAScalarizedArg {
     static Object notInlined(MyValue arg1, Object arg2) {
         return arg2;
     }
+    
+    static int test2() {
+        Object o2 = new Object();
+        MyValue v = new MyValue(null);
+        Object res = notInlined2(v);
+        if (res == null) {
+            return 1;
+        }
+        return 2;
+    }
+
+    static Object notInlined2(MyValue arg1) {
+        return arg1;
+    }
 
     static public void main(String[] args) {
         Object o = new Object();
@@ -60,8 +74,12 @@ public class TestEAScalarizedArg {
         for (int i = 0; i < 20_000; i++ ) {
             test1(o);
             test1(null);
+            test2();
         }
         if (test1(o) != 2) {
+            throw new RuntimeException("execution failed");
+        }
+        if (test2() != 2) {
             throw new RuntimeException("execution failed");
         }
     }

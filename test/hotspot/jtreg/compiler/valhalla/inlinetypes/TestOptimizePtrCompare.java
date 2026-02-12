@@ -78,4 +78,47 @@ public class TestOptimizePtrCompare {
     static MyValue notInlined2(MyValue v) {
         return v;
     }
+    static value class MyValue2 {
+        Object o1;
+        Object o2;
+
+        MyValue2(Object o1, Object o2) {
+            this.o1 = o1;
+            this.o2 = o2;
+        }
+    }
+
+    static Object fieldO = new Object();
+    
+    // @Test
+    // @IR(failOn = {IRNode.CMP_P})
+    // public static void test3() {
+    //     Object notUsed = new Object(); // make sure EA runs
+    //     MyValue2 arg = new MyValue2(null, fieldO);
+    //     MyValue2 res = notInlined3(arg);
+    //     if (res.o1 != null) {
+    //         throw new RuntimeException("never taken");
+    //     }
+    // }
+
+    // @DontInline
+    // static MyValue2 notInlined3(MyValue2 v) {
+    //     return v;
+    // }
+
+    @Test
+    @IR(failOn = {IRNode.CMP_P})
+    public static void test4() {
+        Object notUsed = new Object(); // make sure EA runs
+        MyValue arg = new MyValue(null);
+        Object res = notInlined3(arg);
+        if (res == null) {
+            throw new RuntimeException("never taken");
+        }
+    }
+
+    @DontInline
+    static Object notInlined3(MyValue v) {
+        return v;
+    }
 }
