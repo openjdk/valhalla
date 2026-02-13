@@ -80,7 +80,7 @@ private:
 
     inline InlineKlass* klass() const;
 
-    LayoutKind layout_kind() const;
+    inline LayoutKind layout_kind() const;
 
     inline bool uses_absolute_addr() const;
   };
@@ -182,7 +182,7 @@ protected:
                           LayoutKind layout_kind);
 
 private:
-  inlineOop allocate_instance(TRAPS);
+  inline inlineOop allocate_instance(TRAPS);
 
 public:
   FlatValuePayload() = default;
