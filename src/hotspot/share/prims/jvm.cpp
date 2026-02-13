@@ -771,12 +771,17 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   oop obj = JNIHandles::resolve_non_null(handle);
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
     const intptr_t obj_identity_hash = obj->mark().hash();
-    // Check if mark word contains hash code already
+    // Check if mark word contains hash code already.
+    // It is possible that the generated identity hash is 0, which is not
+    // distinct from the no_hash value. In such a case, the hash will be
+    // computed and set every time JVM_IHashCode is called. If that happens,
+    // the only consequence is losing out on the optimization.
     if (obj_identity_hash != markWord::no_hash) {
       return checked_cast<jint>(obj_identity_hash);
     }
 
-    // Compute hash by calling ValueObjectMethods.valueObjectHashCode
+    // Compute hash by calling ValueObjectMethods.valueObjectHashCode.
+    // The identity hash is invariantly immutable (see its JavaDoc comment).
     JavaValue result(T_INT);
     JavaCallArguments args;
     Handle ho(THREAD, obj);
@@ -790,12 +795,6 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
         THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
       }
     }
-
-    // The generated identity hash is invariantly immutable. We divide into two cases:
-    // 1. No oops: the identity hash is computed from the immutable fields, no
-    //    matter when this is called the same identity hash code is expected.
-    // 2. Oops: the above still applies, but the oops' identity hash code must
-    //    be used as the polymorphic hashCode may change due to mutability.
     const intptr_t identity_hash = result.get_jint();
 
     // We now have to set the hash via CAS. It's possible that this will race
