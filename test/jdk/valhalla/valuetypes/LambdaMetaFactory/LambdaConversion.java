@@ -47,7 +47,7 @@ public class LambdaConversion {
     }
 
     @Test
-    public static void test() {
+    public void test() {
         Pointer<c_int> p_int = new Pointer<>(12);
         assertTrue(doAction(p_int, LambdaConversion::one) == 1);
         assertTrue(doAction(p_int, LambdaConversion::two) == 2);

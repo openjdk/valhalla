@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,8 +116,6 @@ static LatestMethodCache _throw_no_such_method_error_cache; // Unsafe.throwNoSuc
 static LatestMethodCache _do_stack_walk_cache;              // AbstractStackWalker.doStackWalk()
 static LatestMethodCache _is_substitutable_cache;           // ValueObjectMethods.isSubstitutable()
 static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethods.valueObjectHashCode()
-static LatestMethodCache _is_substitutable_alt_cache;       // ValueObjectMethods.isSubstitutableAlt()
-static LatestMethodCache _value_object_hash_code_alt_cache; // ValueObjectMethods.valueObjectHashCodeAlt()
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
@@ -1089,8 +1087,6 @@ Method* Universe::throw_no_such_method_error()       { return _throw_no_such_met
 Method* Universe::do_stack_walk_method()             { return _do_stack_walk_cache.get_method(); }
 Method* Universe::is_substitutable_method()          { return _is_substitutable_cache.get_method(); }
 Method* Universe::value_object_hash_code_method()    { return _value_object_hash_code_cache.get_method(); }
-Method* Universe::is_substitutableAlt_method()       { return _is_substitutable_alt_cache.get_method(); }
-Method* Universe::value_object_hash_codeAlt_method() { return _value_object_hash_code_alt_cache.get_method(); }
 
 void Universe::initialize_known_methods(JavaThread* current) {
   // Set up static method for registering finalizers
@@ -1130,14 +1126,6 @@ void Universe::initialize_known_methods(JavaThread* current) {
   _value_object_hash_code_cache.init(current,
                           vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::valueObjectHashCode_name()->as_C_string(),
-                          vmSymbols::object_int_signature(), true);
-  _is_substitutable_alt_cache.init(current,
-                          vmClasses::ValueObjectMethods_klass(),
-                          vmSymbols::isSubstitutableAlt_name()->as_C_string(),
-                          vmSymbols::object_object_boolean_signature(), true);
-  _value_object_hash_code_alt_cache.init(current,
-                          vmClasses::ValueObjectMethods_klass(),
-                          vmSymbols::valueObjectHashCodeAlt_name()->as_C_string(),
                           vmSymbols::object_int_signature(), true);
 }
 

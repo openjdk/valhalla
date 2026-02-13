@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -555,7 +555,7 @@ JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* le
   JavaValue result(T_BOOLEAN);
   JavaCalls::call_static(&result,
                          vmClasses::ValueObjectMethods_klass(),
-                         UseAltSubstitutabilityMethod ? vmSymbols::isSubstitutableAlt_name() : vmSymbols::isSubstitutable_name(),
+                         vmSymbols::isSubstitutable_name(),
                          vmSymbols::object_object_boolean_signature(),
                          &args, CHECK_0);
   return result.get_jboolean() ? 1 : 0;

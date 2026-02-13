@@ -1382,7 +1382,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   assert(nullptr == _fields_annotations, "invariant");
   assert(nullptr == _fields_type_annotations, "invariant");
 
+  // "inline type" means concrete value class
   bool is_inline_type = !class_access_flags.is_identity_class() && !class_access_flags.is_abstract();
+  // "value class" can be either abstract or concrete value class
   bool is_value_class = !class_access_flags.is_identity_class() && !class_access_flags.is_interface();
   cfs->guarantee_more(2, CHECK);  // length
   const u2 length = cfs->get_u2_fast();
@@ -1392,17 +1394,21 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   const InjectedField* const injected = JavaClasses::get_injected(_class_name,
                                                                   &num_injected);
 
-  // two more slots are required for inline classes:
-  // one for the static field with a reference to the pre-allocated default value
-  // one for the field the JVM injects when detecting an empty inline class
+  // Two more slots are required for inline classes:
+  //   - The static field ".null_reset" which carries the nullable flat layout
+  //     representation of null, added below
+  //   - The nonstatic field ".empty" the JVM injects when detecting an empty
+  //     inline class, added in FieldLayoutBuilder::compute_inline_class_layout
+  // One more slot is required for both abstract value class and inline classes:
+  //   - The static field ".acmp_maps" for acmp and identity hash, tracks
+  //     nonstatic fields both inherited or declared, added below
   const int total_fields = length + num_injected + (is_inline_type ? 2 : 0)
-                           + ((UseAltSubstitutabilityMethod && is_value_class) ? 1 : 0);
+                           + (is_value_class ? 1 : 0);
 
   // Allocate a temporary resource array to collect field data.
   // After parsing all fields, data are stored in a UNSIGNED5 compressed stream.
   _temp_field_info = new GrowableArray<FieldInfo>(total_fields);
 
-  int instance_fields_count = 0;
   ResourceMark rm(THREAD);
   for (int n = 0; n < length; n++) {
     // access_flags, name_index, descriptor_index, attributes_count
@@ -1410,7 +1416,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
     if (!supports_inline_types()) {
-      recognized_modifiers &= ~JVM_ACC_STRICT;
+      recognized_modifiers &= ~JVM_ACC_STRICT_INIT;
     }
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
@@ -1432,7 +1438,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       signature_index, CHECK);
     const Symbol* const sig = cp->symbol_at(signature_index);
     verify_legal_field_signature(name, sig, CHECK);
-    if (!access_flags.is_static()) instance_fields_count++;
 
     u2 constantvalue_index = 0;
     bool is_synthetic = false;
@@ -1480,9 +1485,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
             return;
           }
 
-          if ((flags & JVM_ACC_STRICT) == 0) {
+          if ((flags & JVM_ACC_STRICT_INIT) == 0) {
             // Inject STRICT_INIT and validate in context
-            const jint patched_flags = flags | JVM_ACC_STRICT;
+            const jint patched_flags = flags | JVM_ACC_STRICT_INIT;
             verify_legal_field_modifiers(patched_flags, class_access_flags, CHECK);
             access_flags.set_flags(patched_flags);
           }
@@ -1587,8 +1592,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     _static_oop_count++;
   }
   if (!access_flags().is_identity_class() && !access_flags().is_interface()
-      && _class_name != vmSymbols::java_lang_Object() && UseAltSubstitutabilityMethod) {
-    // Acmp map required for abstract and concrete value classes
+      && _class_name != vmSymbols::java_lang_Object()) {
+    // Acmp map ".acmp_maps" required for abstract and concrete value classes
     FieldInfo::FieldFlags fflags2(0);
     fflags2.update_injected(true);
     fflags2.update_stable(true);
@@ -4599,15 +4604,15 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
-  const bool is_public    = (flags & JVM_ACC_PUBLIC)    != 0;
-  const bool is_protected = (flags & JVM_ACC_PROTECTED) != 0;
-  const bool is_private   = (flags & JVM_ACC_PRIVATE)   != 0;
-  const bool is_static    = (flags & JVM_ACC_STATIC)    != 0;
-  const bool is_final     = (flags & JVM_ACC_FINAL)     != 0;
-  const bool is_volatile  = (flags & JVM_ACC_VOLATILE)  != 0;
-  const bool is_transient = (flags & JVM_ACC_TRANSIENT) != 0;
-  const bool is_enum      = (flags & JVM_ACC_ENUM)      != 0;
-  const bool is_strict    = (flags & JVM_ACC_STRICT)    != 0;
+  const bool is_public    = (flags & JVM_ACC_PUBLIC)      != 0;
+  const bool is_protected = (flags & JVM_ACC_PROTECTED)   != 0;
+  const bool is_private   = (flags & JVM_ACC_PRIVATE)     != 0;
+  const bool is_static    = (flags & JVM_ACC_STATIC)      != 0;
+  const bool is_final     = (flags & JVM_ACC_FINAL)       != 0;
+  const bool is_volatile  = (flags & JVM_ACC_VOLATILE)    != 0;
+  const bool is_transient = (flags & JVM_ACC_TRANSIENT)   != 0;
+  const bool is_enum      = (flags & JVM_ACC_ENUM)        != 0;
+  const bool is_strict    = (flags & JVM_ACC_STRICT_INIT) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
 
   const bool is_interface = class_access_flags.is_interface();
@@ -5535,7 +5540,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
   if (Arguments::is_valhalla_enabled() && !access_flags().is_identity_class() && !access_flags().is_interface()
-      && _class_name != vmSymbols::java_lang_Object() && UseAltSubstitutabilityMethod) {
+      && _class_name != vmSymbols::java_lang_Object()) {
     // Both abstract and concrete value classes need a field map for acmp
     ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
     // Current format of acmp maps:
@@ -5704,7 +5709,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_aot_runtime_setup_method(false),
   _has_strict_static_fields(false),
-  _has_inlined_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
   _has_loosely_consistent_annotation(false),
@@ -6351,7 +6355,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       access_flags().is_abstract() && !access_flags().is_identity_class() && !access_flags().is_interface(),
       _must_be_atomic, _layout_info, _inline_layout_info_array);
   lb.build_layout();
-  _has_inlined_fields = _layout_info->_has_inlined_fields;
 
   // If it turned out that we didn't inline any of the fields, we deallocate
   // the array of InlineLayoutInfo since it isn't needed, and so it isn't
