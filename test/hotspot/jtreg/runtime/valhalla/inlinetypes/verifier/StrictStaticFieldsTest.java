@@ -44,7 +44,7 @@
  */
 
 
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
 import jdk.test.lib.helpers.StrictInit;
 
 public class StrictStaticFieldsTest {
