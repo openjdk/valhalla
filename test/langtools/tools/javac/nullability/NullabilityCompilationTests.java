@@ -390,7 +390,23 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                2)
+                                2),
+                        new DiagAndCode(
+                                """
+                                interface I {
+                                    String! m();
+                                }
+                                class Test {
+                                    public String! m() { return ""; }
+                                }
+                                class Sub extends Test implements I {
+                                    @Override
+                                    public String m() { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2) // one warning per each method in the corresponding parents
                 )
         );
     }
