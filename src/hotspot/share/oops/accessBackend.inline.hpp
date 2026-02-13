@@ -32,9 +32,9 @@
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/inlineKlass.hpp"
-#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/orderAccess.hpp"
 

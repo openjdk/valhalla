@@ -24,7 +24,7 @@
 
 #include "gc/shared/barrierSetRuntime.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/inlineKlassPayload.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "utilities/macros.hpp"
 

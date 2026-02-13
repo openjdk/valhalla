@@ -26,7 +26,7 @@
 
 #include "oops/inlineKlass.hpp"
 
-#include "oops/inlineKlassPayload.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/devirtualizer.inline.hpp"

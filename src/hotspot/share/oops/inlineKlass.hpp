@@ -25,11 +25,11 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
-#include "oops/inlineKlassPayload.hpp"
 #include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/valuePayload.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"

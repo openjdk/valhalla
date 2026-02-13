@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INLINEKLASSPAYLOAD_INLINE_HPP
-#define SHARE_VM_OOPS_INLINEKLASSPAYLOAD_INLINE_HPP
+#ifndef SHARE_VM_OOPS_VALUEPAYLOAD_INLINE_HPP
+#define SHARE_VM_OOPS_VALUEPAYLOAD_INLINE_HPP
 
-#include "oops/inlineKlassPayload.hpp"
+#include "oops/valuePayload.hpp"
 
 #include "cppstdlib/type_traits.hpp"
 #include "oops/flatArrayKlass.inline.hpp"
@@ -814,4 +814,4 @@ inline FlatArrayPayload::OopHandle FlatArrayPayload::make_oop_handle(OopStorage*
   return OopHandle(*this, storage);
 }
 
-#endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_INLINE_HPP
+#endif // SHARE_VM_OOPS_VALUEPAYLOAD_INLINE_HPP

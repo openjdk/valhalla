@@ -31,8 +31,8 @@
 #include "oops/access.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
-#include "oops/inlineKlassPayload.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "runtime/globals.hpp"
 
 inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
