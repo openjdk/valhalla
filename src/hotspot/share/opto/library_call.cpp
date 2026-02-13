@@ -2769,7 +2769,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     return false;
   }
   assert(layout_type->get_con() >= static_cast<int>(LayoutKind::REFERENCE) &&
-         layout_type->get_con() <= static_cast<int>(LayoutKind::UNKNOWN),
+         layout_type->get_con() < static_cast<int>(LayoutKind::UNKNOWN),
          "invalid layoutKind %d", layout_type->get_con());
   LayoutKind layout = static_cast<LayoutKind>(layout_type->get_con());
   assert(layout == LayoutKind::REFERENCE || layout == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT ||
