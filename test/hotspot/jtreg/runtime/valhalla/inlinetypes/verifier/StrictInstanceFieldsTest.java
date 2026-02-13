@@ -45,8 +45,6 @@
  */
 
 import java.lang.reflect.Field;
-import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.helpers.StrictInit;
 
 public class StrictInstanceFieldsTest {
@@ -263,6 +261,7 @@ class ControlFlowChild extends Parent {
     }
 }
 
+// See TODO above
 // class TryCatchChild extends Parent {
 
 //     @StrictInit

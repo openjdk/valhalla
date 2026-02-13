@@ -68,9 +68,6 @@ public interface JavaLangReflectAccess {
     /** Tests if this is a null-restricted field */
     public boolean isNullRestrictedField(Field f);
 
-    /** Tests if this is a strict-init field */
-    public boolean isStrictInitField(Field f);
-
     /** Returns a new instance created by the given constructor with access check */
     public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
         throws IllegalAccessException, InstantiationException, InvocationTargetException;

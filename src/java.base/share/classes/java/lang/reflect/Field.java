@@ -1367,7 +1367,6 @@ class Field extends AccessibleObject implements Member {
 
     private static final int TRUST_FINAL     = 0x0010;
     private static final int NULL_RESTRICTED = 0x0020;
-    private static final int STRICT_INIT     = 0x0800;
 
     /* package-private */ boolean isTrustedFinal() {
         return (flags & TRUST_FINAL) == TRUST_FINAL;
