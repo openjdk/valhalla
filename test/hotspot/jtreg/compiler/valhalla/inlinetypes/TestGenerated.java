@@ -26,19 +26,13 @@
  * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @enablePreview
- * @library /testlibrary /test/lib /
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @build jdk.test.whitebox.WhiteBox
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch
+ * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseArrayFlattening
+ * @run main/othervm -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 
@@ -47,8 +41,6 @@ package compiler.valhalla.inlinetypes;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-
-import jdk.test.whitebox.WhiteBox;
 
 @LooselyConsistentValue
 value class EmptyPrimitive {
@@ -102,9 +94,6 @@ value class MyValue6Generated {
 }
 
 public class TestGenerated {
-    private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
-    private static final boolean SLOW_CONFIGURATION = (WHITE_BOX.getIntxVMFlag("TieredStopAtLevel").intValue() < 4);
-
     EmptyPrimitive f1 = new EmptyPrimitive();
     EmptyPrimitive f2 = new EmptyPrimitive();
 
@@ -346,8 +335,7 @@ public class TestGenerated {
         array5[0] = new MyValue5Generated();
         array4[0].intArray[0] = 42;
 
-        int iterations = SLOW_CONFIGURATION ? 1_000 : 50_000;
-        for (int i = 0; i < iterations; ++i) {
+        for (int i = 0; i < 50_000; ++i) {
             t.test1(array1);
             t.test2(array2);
             t.test3(array2);
