@@ -211,10 +211,10 @@ static bool needs_backwards_copy(arrayOop s, int src_pos,
 void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
                                 arrayOop d, int dst_pos, int length, TRAPS) {
 
-  assert(s->is_objArray() || s->is_flatArray(), "must be obj or flat array");
+  assert(s->is_refArray() || s->is_flatArray(), "must be ref or flat array");
 
   // Check destination
-  if ((!d->is_flatArray()) && (!d->is_objArray())) {
+  if (!d->is_flatArray() && !d->is_refArray()) {
     THROW(vmSymbols::java_lang_ArrayStoreException());
   }
 
@@ -246,7 +246,6 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
     }
 
     flatArrayOop sa = flatArrayOop(s);
-    InlineKlass* s_elem_vklass = element_klass();
 
     // flatArray-to-flatArray
     if (dk->is_flatArray_klass()) {
@@ -309,25 +308,24 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
           src += src_incr;
         }
       }
-    } else { // flatArray-to-refArray
+    } else {
+      // flatArray-to-refArray
       assert(dk->is_refArray_klass(), "Expected objArray here");
+
       // Need to allocate each new src elem payload -> dst oop
       refArrayHandle dh(THREAD, (refArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
-      InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
         oop o = sh->obj_at(src_pos + i, CHECK);
         dh->obj_at_put(dst_pos + i, o);
       }
     }
   } else {
+    // refArray-to-flatArray
     assert(s->is_refArray(), "Expected refArray");
+    assert(d->is_flatArray(), "Expected flatArray");
     refArrayOop sa = refArrayOop(s);
-    assert(d->is_flatArray(), "Expected flatArray");  // refArray-to-flatArray
-    InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
     flatArrayOop da = flatArrayOop(d);
-    FlatArrayKlass* fdk = FlatArrayKlass::cast(da->klass());
-    InlineKlass* vk = InlineKlass::cast(d_elem_klass);
 
     for (int i = 0; i < length; i++) {
       da->obj_at_put( dst_pos + i, sa->obj_at(src_pos + i), CHECK);

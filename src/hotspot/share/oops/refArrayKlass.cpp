@@ -209,15 +209,9 @@ void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
                                int length, TRAPS) {
   assert(s->is_refArray(), "must be a reference array");
 
-  if (UseArrayFlattening) {
-    if (d->is_flatArray()) {
-      FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
-    if (s->is_flatArray()) {
-      FlatArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
+  if (UseArrayFlattening && d->is_flatArray()) {
+    FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+    return;
   }
 
   if (!d->is_refArray()) {

@@ -292,25 +292,6 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   return h_array();
 }
 
-void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
-                               int dst_pos, int length, TRAPS) {
-  assert(s->is_objArray(), "must be obj array");
-
-  if (UseArrayFlattening) {
-    if (d->is_flatArray()) {
-      FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
-    if (s->is_flatArray()) {
-      FlatArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
-  }
-
-  assert(s->is_refArray() && d->is_refArray(), "Must be");
-  RefArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-}
-
 bool ObjArrayKlass::can_be_primary_super_slow() const {
   if (!bottom_klass()->can_be_primary_super())
     // array of interfaces
