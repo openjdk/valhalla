@@ -470,14 +470,21 @@ public class FlatArraysTest {
     int i = 0;
   }
 
-  static value class FieldsHolder {
+  static class FieldsHolder {
     @NullRestricted
-    SmallValue sv = new SmallValue();
+    SmallValue sv;
 
     @NullRestricted
-    AtomicValue av = new AtomicValue();
+    AtomicValue av;
 
-    AtomicValue nav = new AtomicValue();
+    AtomicValue nav;
+
+    FieldsHolder() {
+      sv = new SmallValue();
+      av = new AtomicValue();
+      nav = new AtomicValue();
+      super();
+    }
   }
 
   static void testSpecialArrayLayoutFromArray(Object[] array, boolean expectException) {

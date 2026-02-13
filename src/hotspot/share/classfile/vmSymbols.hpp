@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -779,10 +779,7 @@ class SerializeClosure;
                                                                                                                   \
   template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
-  template(isSubstitutableAlt_name,                         "isSubstitutableAlt")                                 \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
-  template(valueObjectHashCodeAlt_name,                     "valueObjectHashCodeAlt")                             \
-  template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
   /* jcmd Thread.dump_to_file */                                                                                  \

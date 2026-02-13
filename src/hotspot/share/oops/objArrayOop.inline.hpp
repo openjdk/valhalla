@@ -30,6 +30,7 @@
 #include "oops/access.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
+#include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.inline.hpp"
 #include "runtime/globals.hpp"
@@ -80,6 +81,11 @@ inline void objArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   } else {
     ((refArrayOopDesc* )this)->obj_at_put(index, value, CHECK);
   }
+}
+
+template <typename OopClosureType>
+void objArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
+  ShouldNotReachHere();
 }
 
 #endif // SHARE_OOPS_OBJARRAYOOP_INLINE_HPP

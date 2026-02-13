@@ -31,6 +31,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:.
@@ -60,10 +61,18 @@ public class TestTrivialMethods {
     @NullRestricted
     static MyValue3 staticField = MyValue3.create();
     static MyValue3 staticFieldRef = MyValue3.create();
+
     @NullRestricted
-    MyValue3 field = MyValue3.create();
-    MyValue3 fieldRef = MyValue3.create();
-    Object objField = null;
+    MyValue3 field;
+    MyValue3 fieldRef;
+    Object objField;
+
+    private TestTrivialMethods() {
+        field = MyValue3.create();
+        fieldRef = MyValue3.create();
+        objField = null;
+        super();
+    }
 
     public MyValue3 getter1() {
         return staticField;

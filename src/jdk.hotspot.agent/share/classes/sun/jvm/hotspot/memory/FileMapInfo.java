@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -128,11 +128,11 @@ public class FileMapInfo {
     metadataTypeArray[6] = db.lookupType("Method");
     metadataTypeArray[7] = db.lookupType("MethodData");
     metadataTypeArray[8] = db.lookupType("MethodCounters");
-    metadataTypeArray[9] = db.lookupType("ObjArrayKlass");
-    metadataTypeArray[10] = db.lookupType("TypeArrayKlass");
-    metadataTypeArray[11] = db.lookupType("FlatArrayKlass");
-    metadataTypeArray[12] = db.lookupType("InlineKlass");
+    metadataTypeArray[9] = db.lookupType("TypeArrayKlass");
+    metadataTypeArray[10] = db.lookupType("ObjArrayKlass");
     metadataTypeArray[11] = db.lookupType("RefArrayKlass");
+    metadataTypeArray[12] = db.lookupType("FlatArrayKlass");
+    metadataTypeArray[13] = db.lookupType("InlineKlass");
   }
 
   public FileMapHeader getHeader() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package java.lang.invoke;
 
 import sun.invoke.util.VerifyAccess;
 
+import java.lang.classfile.ClassFile;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
@@ -389,9 +390,9 @@ final class MemberName implements Member, Cloneable {
     public boolean isFinal() {
         return Modifier.isFinal(flags);
     }
-    /** Utility method to query the modifier flags of this member. */
-    public boolean isStrict() {
-        return Modifier.isStrict(flags);
+     /** Utility method to query the ACC_STRICT_INIT flag of this member. */
+    public boolean isStrictInit() {
+        return (flags & ClassFile.ACC_STRICT_INIT) != 0;
     }
     /** Utility method to query whether this member or its defining class is final. */
     public boolean canBeStaticallyBound() {
