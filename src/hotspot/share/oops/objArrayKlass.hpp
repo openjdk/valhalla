@@ -44,18 +44,22 @@ class ObjArrayKlass : public ArrayKlass {
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
-  Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
- protected:
   Klass* _element_klass;            // The klass of the elements of this array type
+  Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
   ObjArrayKlass* _next_refined_array_klass;
+
+  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
+  ObjArrayKlass* allocate_klass_from_description(ArrayDescription ad, TRAPS);
+  ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
+
+  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
+  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
 
  protected:
   // Constructor
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props);
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
-  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
-  ObjArrayKlass* allocate_klass_from_description(ArrayDescription ad, TRAPS);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
  public:
@@ -64,15 +68,13 @@ class ObjArrayKlass : public ArrayKlass {
 
   Klass* element_klass() const      { return _element_klass; }
 
-  ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
-  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
-  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
   ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
-  ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
-  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+
+  ObjArrayKlass* next_refined_array_klass() const   { return _next_refined_array_klass; }
 
   // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }
+  static ByteSize element_klass_offset()            { return byte_offset_of(ObjArrayKlass, _element_klass); }
+  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }

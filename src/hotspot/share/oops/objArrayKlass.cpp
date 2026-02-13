@@ -128,8 +128,8 @@ static Klass* calculate_bottom_klass(Klass* element_klass) {
 
 ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props)
     : ArrayKlass(n, name, kind, props),
-      _bottom_klass(calculate_bottom_klass(element_klass)),
       _element_klass(element_klass),
+      _bottom_klass(calculate_bottom_klass(element_klass)),
       _next_refined_array_klass(nullptr) {
 
   set_class_loader_data(_bottom_klass->class_loader_data());
