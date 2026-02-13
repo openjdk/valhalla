@@ -78,7 +78,7 @@ private:
     inline address& absolute_addr();
     inline address absolute_addr() const;
 
-    InlineKlass* klass() const;
+    inline InlineKlass* klass() const;
 
     LayoutKind layout_kind() const;
 
