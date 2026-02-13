@@ -172,12 +172,7 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKin
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {
-  // In this assert, we cannot safely access the Klass* with compact headers,
-  // because size_given_klass() calls oop_size() on objects that might be
-  // concurrently forwarded, which would overwrite the Klass*.
-  assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
-  // return objArrayOop(obj)->object_size();
-  return obj->is_flatArray() ? flatArrayOop(obj)->object_size(layout_helper()) : refArrayOop(obj)->object_size();
+  ShouldNotReachHere();
 }
 
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
