@@ -474,11 +474,5 @@ void ObjArrayKlass::verify_on(outputStream* st) {
 }
 
 void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
-  ArrayKlass::oop_verify_on(obj, st);
-  guarantee(obj->is_objArray(), "must be objArray");
-  guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()), "null-free klass but not object");
-  objArrayOop oa = objArrayOop(obj);
-  for(int index = 0; index < oa->length(); index++) {
-    guarantee(oopDesc::is_oop_or_null(oa->obj_at(index)), "should be oop");
-  }
+  ShouldNotReachHere();
 }
