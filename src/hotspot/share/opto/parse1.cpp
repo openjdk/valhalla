@@ -108,8 +108,7 @@ void Parse::print_statistics() {
 // on stack replacement.
 Node* Parse::fetch_interpreter_state(int index,
                                      const Type* type,
-                                     Node* local_addrs,
-                                     Node* local_addrs_base) {
+                                     Node* local_addrs) {
   BasicType bt = type->basic_type();
   if (type == TypePtr::NULL_PTR) {
     // Ptr types are mixed together with T_ADDRESS but nullptr is
@@ -117,7 +116,7 @@ Node* Parse::fetch_interpreter_state(int index,
     bt = T_OBJECT;
   }
   Node *mem = memory(Compile::AliasIdxRaw);
-  Node *adr = basic_plus_adr( local_addrs_base, local_addrs, -index*wordSize );
+  Node *adr = basic_plus_adr(top(), local_addrs, -index*wordSize);
   Node *ctl = control();
 
   // Very similar to LoadNode::make, except we handle un-aligned longs and
@@ -132,7 +131,7 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_DOUBLE: {
     // Since arguments are in reverse order, the argument address 'adr'
     // refers to the back half of the long/double.  Recompute adr.
-    adr = basic_plus_adr(local_addrs_base, local_addrs, -(index+1)*wordSize);
+    adr = basic_plus_adr(top(), local_addrs, -(index+1)*wordSize);
     if (Matcher::misaligned_doubles_ok) {
       l = (bt == T_DOUBLE)
         ? (Node*)new LoadDNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::DOUBLE, MemNode::unordered)
@@ -236,7 +235,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   // Commute monitors from interpreter frame to compiler frame.
   assert(jvms()->monitor_depth() == 0, "should be no active locks at beginning of osr");
   int mcnt = osr_block->flow()->monitor_count();
-  Node *monitors_addr = basic_plus_adr(osr_buf, osr_buf, (max_locals+mcnt*2-1)*wordSize);
+  Node *monitors_addr = basic_plus_adr(top(), osr_buf, (max_locals+mcnt*2-1)*wordSize);
   for (index = 0; index < mcnt; index++) {
     // Make a BoxLockNode for the monitor.
     BoxLockNode* osr_box = new BoxLockNode(next_monitor());
@@ -257,9 +256,9 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     // Displaced headers and locked objects are interleaved in the
     // temp OSR buffer.  We only copy the locked objects out here.
     // Fetch the locked object from the OSR temp buffer and copy to our fastlock node.
-    Node* lock_object = fetch_interpreter_state(index*2, Type::get_const_basic_type(T_OBJECT), monitors_addr, osr_buf);
+    Node* lock_object = fetch_interpreter_state(index*2, Type::get_const_basic_type(T_OBJECT), monitors_addr);
     // Try and copy the displaced header to the BoxNode
-    Node* displaced_hdr = fetch_interpreter_state((index*2) + 1, Type::get_const_basic_type(T_ADDRESS), monitors_addr, osr_buf);
+    Node* displaced_hdr = fetch_interpreter_state((index*2) + 1, Type::get_const_basic_type(T_ADDRESS), monitors_addr);
 
     store_to_memory(control(), box, displaced_hdr, T_ADDRESS, MemNode::unordered);
 
@@ -286,7 +285,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   }
 
   // Extract the needed locals from the interpreter frame.
-  Node *locals_addr = basic_plus_adr(osr_buf, osr_buf, (max_locals-1)*wordSize);
+  Node *locals_addr = basic_plus_adr(top(), osr_buf, (max_locals-1)*wordSize);
 
   // find all the locals that the interpreter thinks contain live oops
   const ResourceBitMap live_oops = method()->live_local_oops_at_bci(osr_bci());
@@ -327,7 +326,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       continue;
     }
     // Construct code to access the appropriate local.
-    Node* value = fetch_interpreter_state(index, type, locals_addr, osr_buf);
+    Node* value = fetch_interpreter_state(index, type, locals_addr);
     set_local(index, value);
   }
 
@@ -2379,7 +2378,7 @@ void Parse::call_register_finalizer() {
   Node* klass_addr = basic_plus_adr( receiver, receiver, oopDesc::klass_offset_in_bytes() );
   Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
 
-  Node* access_flags_addr = basic_plus_adr(klass, klass, in_bytes(Klass::misc_flags_offset()));
+  Node* access_flags_addr = basic_plus_adr(top(), klass, in_bytes(Klass::misc_flags_offset()));
   Node* access_flags = make_load(nullptr, access_flags_addr, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);
 
   Node* mask  = _gvn.transform(new AndINode(access_flags, intcon(KlassFlags::_misc_has_finalizer)));
