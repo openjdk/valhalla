@@ -110,7 +110,12 @@ public class GarbageProducers {
 
  class IntegerObjArrayProducer implements GarbageProducer<Integer[]> {
     public Integer[] create(long memory) {
-        Integer[] arr = new Integer[Memory.getArrayLength(memory, Memory.getIntegerArrayElementSize())];
+        int size = Memory.getIntegerArrayElementSize();
+        if (!Memory.isValhallaEnabled()) {
+            // Let assume that every Integer is new object
+            size += Memory.getObjectExtraSize();
+        }
+        Integer[] arr = new Integer[Memory.getArrayLength(memory, size)];
         LocalRandom.nextInts(arr);
         return arr;
     }
