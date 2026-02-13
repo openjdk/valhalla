@@ -2750,7 +2750,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     Node* masked2 = transform_later(new AndXNode(cast, mask2));
     Node* rawklassptr = transform_later(new CastX2PNode(masked2));
     Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeInstKlassPtr::OBJECT_OR_NULL));
-    Node* layout_val = make_load(nullptr, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
+    Node* layout_val = make_load_raw(nullptr, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
     Node* size_in_bytes = ConvI2X(layout_val);
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     Node* fast_oop = bs->obj_allocate(this, mem, allocation_ctl, size_in_bytes, io, needgc_ctrl,
@@ -2761,22 +2761,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     Node* mark_word_node;
     if (UseCompactObjectHeaders) {
       // COH: We need to load the prototype from the klass at runtime since it encodes the klass pointer already.
-      mark_word_node = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+      mark_word_node = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     } else {
       // Otherwise, use the static prototype.
       mark_word_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
     }
 
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
+    fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
     if (!UseCompactObjectHeaders) {
       // COH: Everything is encoded in the mark word, so nothing left to do.
-      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+      fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
       if (UseCompressedClassPointers) {
-        fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+        fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
       }
     }
-    Node* members  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* members  = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* pack_handler = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
                                         nullptr,
                                         "pack handler",
@@ -3007,7 +3007,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         // Make loads control dependent to make sure they are only executed if array is locked
         Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
         Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-        Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+        Node* proto_adr = basic_plus_adr(top(), klass, in_bytes(Klass::prototype_header_offset()));
         Node* proto_load = _igvn.transform(LoadNode::make(_igvn, ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
         proto = _igvn.transform(new OrXNode(proto, proto_load));
       }
@@ -3040,7 +3040,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         assert(t->isa_klassptr(), "Unexpected input type");
         klass = array_or_klass;
       }
-      Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
+      Node* lh_addr = basic_plus_adr(top(), klass, in_bytes(Klass::layout_helper_offset()));
       Node* lh_val = _igvn.transform(LoadNode::make(_igvn, nullptr, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
       lhs = _igvn.transform(new OrINode(lhs, lh_val));
     }

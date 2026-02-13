@@ -294,7 +294,7 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
 
 Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem, uintptr_t mask_val, RegionNode* region) {
   // Load markword and check if obj is locked
-  Node* mark = make_load(nullptr, mem->memory_at(Compile::AliasIdxRaw), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
+  Node* mark = make_load_raw(nullptr, mem->memory_at(Compile::AliasIdxRaw), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
   Node* locked_bit = MakeConX(markWord::unlocked_value);
   locked_bit = transform_later(new AndXNode(locked_bit, mark));
   Node* cmp = transform_later(new CmpXNode(locked_bit, MakeConX(0)));
@@ -312,7 +312,7 @@ Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem
   // Make loads control dependent to make sure they are only executed if array is locked
   Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
   Node* klass = transform_later(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-  Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+  Node* proto_adr = basic_plus_adr(top(), klass, in_bytes(Klass::prototype_header_offset()));
   Node* proto = transform_later(LoadNode::make(_igvn, *ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
 
   locked_region->init_req(2, *ctrl);

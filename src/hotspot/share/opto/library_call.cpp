@@ -3236,7 +3236,7 @@ bool LibraryCallKit::inline_arrayLayout() {
   }
 
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
-  Node* layout_kind_addr = basic_plus_adr(klass_node, layout_kind_offset);
+  Node* layout_kind_addr = basic_plus_adr(top(), klass_node, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::POS, T_INT, MemNode::unordered);
 
   region->init_req(1, control());
@@ -3255,7 +3255,7 @@ bool LibraryCallKit::inline_getFieldMap() {
   Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
 
   int field_map_offset_offset = in_bytes(InstanceKlass::acmp_maps_offset_offset());
-  Node* field_map_offset_addr = basic_plus_adr(klass, field_map_offset_offset);
+  Node* field_map_offset_addr = basic_plus_adr(top(), klass, field_map_offset_offset);
   Node* field_map_offset = make_load(nullptr, field_map_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
   field_map_offset = _gvn.transform(ConvI2L(field_map_offset));
 
@@ -4905,7 +4905,7 @@ Node* LibraryCallKit::load_default_refined_array_klass(Node* klass_node, bool ty
       phi->add_req(klass_node);
     }
   }
-  Node* adr_refined_klass = basic_plus_adr(klass_node, in_bytes(ObjArrayKlass::next_refined_array_klass_offset()));
+  Node* adr_refined_klass = basic_plus_adr(top(), klass_node, in_bytes(ObjArrayKlass::next_refined_array_klass_offset()));
   Node* refined_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
 
   // Can be null if not initialized yet, just deopt
@@ -4933,7 +4933,7 @@ Node* LibraryCallKit::load_non_refined_array_klass(Node* klass_node) {
   if (region->req() == 3) {
     phi->add_req(klass_node);
   }
-  Node* super_adr = basic_plus_adr(klass_node, in_bytes(Klass::super_offset()));
+  Node* super_adr = basic_plus_adr(top(), klass_node, in_bytes(Klass::super_offset()));
   Node* super_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), super_adr, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT));
 
   region->init_req(1, control());
@@ -6726,9 +6726,9 @@ bool LibraryCallKit::inline_arraycopy() {
     // TODO 8350865 Improve this. What about atomicity? Make sure this is always folded for type arrays.
     // If destination is null-restricted, source must be null-restricted as well: src_null_restricted || !dst_null_restricted
     Node* src_klass = load_object_klass(src);
-    Node* adr_prop_src = basic_plus_adr(src_klass, in_bytes(ArrayKlass::properties_offset()));
+    Node* adr_prop_src = basic_plus_adr(top(), src_klass, in_bytes(ArrayKlass::properties_offset()));
     Node* prop_src = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_prop_src, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
-    Node* adr_prop_dest = basic_plus_adr(refined_dest_klass, in_bytes(ArrayKlass::properties_offset()));
+    Node* adr_prop_dest = basic_plus_adr(top(), refined_dest_klass, in_bytes(ArrayKlass::properties_offset()));
     Node* prop_dest = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_prop_dest, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
 
     prop_dest = _gvn.transform(new XorINode(prop_dest, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));

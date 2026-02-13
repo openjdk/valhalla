@@ -3854,7 +3854,7 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
     // Make loads control dependent to make sure they are only executed if array is locked
     Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
     Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-    Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+    Node* proto_adr = basic_plus_adr(top(), klass, in_bytes(Klass::prototype_header_offset()));
     Node* proto = _gvn.transform(LoadNode::make(_gvn, control(), C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
 
     locked_region->init_req(2, control());
@@ -3902,7 +3902,7 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
 
   Node* array_klass = load_object_klass(array);
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
-  Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
+  Node* layout_kind_addr = basic_plus_adr(top(), array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
   Node* cmp = _gvn.transform(new CmpINode(layout_kind, intcon((int)LayoutKind::NULL_FREE_ATOMIC_FLAT)));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
