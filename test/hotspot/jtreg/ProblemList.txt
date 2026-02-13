@@ -205,7 +205,6 @@ compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
-runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
 
