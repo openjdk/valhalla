@@ -812,8 +812,8 @@ jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,gener
 
 java/util/Collection/MOAT.java 8375086 generic-all
 
-sun/tools/jhsdb/BasicLauncherTest.java 8366806 generic-all
-sun/tools/jhsdb/HeapDumpTest.java 8366806 generic-all
-sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java 8366806 generic-all
-sun/tools/jhsdb/JShellHeapDumpTest.java 8366806 generic-all
+sun/tools/jhsdb/BasicLauncherTest.java 8365722 generic-all
+sun/tools/jhsdb/HeapDumpTest.java 8365722 generic-all
+sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java 8365722 generic-all
+sun/tools/jhsdb/JShellHeapDumpTest.java 8365722 generic-all
 sun/tools/jhsdb/JStackStressTest.java 8375470 macosx-aarch64
