@@ -212,7 +212,6 @@ runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java 8377009 generi
 serviceability/sa/ClhsdbCDSCore.java   8377324 generic-all
 serviceability/sa/TestPrintMdo.java    8377324 generic-all
 
-vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
 vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
