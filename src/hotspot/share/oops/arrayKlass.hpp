@@ -70,7 +70,7 @@ class ArrayKlass: public Klass {
   ArrayKlass();
 
   // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
+  static Symbol* create_element_klass_array_name(Klass* element_klass, JavaThread* current);
 
  public:
 

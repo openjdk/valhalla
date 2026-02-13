@@ -52,7 +52,7 @@ class FlatArrayKlass : public ObjArrayKlass {
 
   FlatArrayKlass() {} // used by CppVtableCloner<T>::initialize()
 
-  InlineKlass* element_klass() const { return InlineKlass::cast(_element_klass); }
+  InlineKlass* element_klass() const { return InlineKlass::cast(ObjArrayKlass::element_klass()); }
 
   LayoutKind layout_kind() const  { return _layout_kind; }
   static ByteSize layout_kind_offset() { return in_ByteSize(offset_of(FlatArrayKlass, _layout_kind)); }

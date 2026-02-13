@@ -130,12 +130,11 @@ ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties prop
   log_array_class_load(this);
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
-  ResourceMark rm(THREAD);
-  Symbol* name = nullptr;
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, JavaThread* current) {
+  ResourceMark rm(current);
   char *name_str = element_klass->name()->as_C_string();
   int len = element_klass->name()->utf8_length();
-  char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
+  char *new_str = NEW_RESOURCE_ARRAY_IN_THREAD(current, char, len + 4);
   int idx = 0;
   new_str[idx++] = JVM_SIGNATURE_ARRAY;
   if (element_klass->is_instance_klass()) { // it could be an array or simple type

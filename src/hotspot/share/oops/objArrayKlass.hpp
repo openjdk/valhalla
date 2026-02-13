@@ -58,9 +58,6 @@ class ObjArrayKlass : public ArrayKlass {
   ObjArrayKlass* allocate_klass_from_description(ArrayDescription ad, TRAPS);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
-   // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
-
  public:
   // For dummy objects
   ObjArrayKlass() {}
