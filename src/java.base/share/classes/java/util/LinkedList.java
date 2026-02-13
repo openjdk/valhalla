@@ -1341,7 +1341,7 @@ public class LinkedList<E>
             rlist.forEach(action);
         }
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return rlist.iterator();
         }
 

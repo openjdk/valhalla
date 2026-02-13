@@ -146,7 +146,7 @@ class ReverseOrderListView<E> implements List<E> {
             action.accept(e);
     }
 
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return new DescendingIterator();
     }
 

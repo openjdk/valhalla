@@ -56,7 +56,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
             action.accept(e);
     }
 
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return base.descendingIterator();
     }
 

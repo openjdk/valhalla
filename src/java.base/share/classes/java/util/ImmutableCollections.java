@@ -296,7 +296,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return new ListItr<E>(this, size());
         }
 
@@ -492,7 +492,7 @@ class ImmutableCollections {
             return size;
         }
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return new ListItr<>(this, size());
         }
 
@@ -871,7 +871,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return new Iterator<>() {
                 private int idx = (e1 == EMPTY) ? 1 : 2;
 
@@ -1059,7 +1059,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return new SetNIterator();
         }
 

@@ -1225,7 +1225,7 @@ public class Vector<E>
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    public synchronized Iterator<E>! iterator() {
+    public synchronized Iterator<E> iterator() {
         return new Itr();
     }
 

@@ -77,7 +77,7 @@ class PartiallyOrderedSet<E> extends AbstractSet<E> {
      * collection, with an ordering that respects the orderings set
      * by the {@code setOrdering} method.
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return new PartialOrderIterator<>(poNodes.values().iterator());
     }
 

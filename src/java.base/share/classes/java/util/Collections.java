@@ -1074,7 +1074,7 @@ public final class Collections {
         public <T> T[] toArray(IntFunction<T[]> f) {return c.toArray(f);}
         public String toString()                   {return c.toString();}
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return new Iterator<>() {
                 private final Iterator<? extends E> i = c.iterator();
 
@@ -2326,7 +2326,7 @@ public final class Collections {
             synchronized (mutex) {return c.toArray(f);}
         }
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return c.iterator(); // Must be manually synched by user!
         }
 
@@ -3488,7 +3488,7 @@ public final class Collections {
             return c.retainAll(coll);
         }
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             // JDK-6363904 - unwrapped iterator could be typecast to
             // ListIterator with unsafe set()
             final Iterator<E> it = c.iterator();
@@ -4766,7 +4766,7 @@ public final class Collections {
         @java.io.Serial
         private static final long serialVersionUID = 1582296315990362920L;
 
-        public Iterator<E>! iterator() { return emptyIterator(); }
+        public Iterator<E> iterator() { return emptyIterator(); }
 
         public int size() {return 0;}
         public boolean isEmpty() {return true;}
@@ -4892,7 +4892,7 @@ public final class Collections {
         @java.io.Serial
         private static final long serialVersionUID = 8842843931221139166L;
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return emptyIterator();
         }
         public ListIterator<E> listIterator() {
@@ -5228,7 +5228,7 @@ public final class Collections {
 
         SingletonSet(E e) {element = e;}
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return singletonIterator(element);
         }
 
@@ -5298,7 +5298,7 @@ public final class Collections {
 
         SingletonList(E obj)                {element = obj;}
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return singletonIterator(element);
         }
 
@@ -6081,7 +6081,7 @@ public final class Collections {
         public boolean contains(Object o) { return m.containsKey(o); }
         public boolean remove(Object o)   { return m.remove(o) != null; }
         public boolean add(E e) { return m.put(e, Boolean.TRUE) == null; }
-        public Iterator<E>! iterator()     { return s.iterator(); }
+        public Iterator<E> iterator()     { return s.iterator(); }
         public Object[] toArray()         { return s.toArray(); }
         public <T> T[] toArray(T[] a)     { return s.toArray(a); }
         public String toString()          { return s.toString(); }
@@ -6255,7 +6255,7 @@ public final class Collections {
         public boolean isEmpty()                    { return q.isEmpty(); }
         public boolean contains(Object o)           { return q.contains(o); }
         public boolean remove(Object o)             { return q.remove(o); }
-        public Iterator<E>! iterator()               { return q.iterator(); }
+        public Iterator<E> iterator()               { return q.iterator(); }
         public Object[] toArray()                   { return q.toArray(); }
         public <T> T[] toArray(T[] a)               { return q.toArray(a); }
         public <T> T[] toArray(IntFunction<T[]> f)  { return q.toArray(f); }

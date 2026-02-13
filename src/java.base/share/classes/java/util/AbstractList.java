@@ -297,7 +297,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return new Itr();
     }
 
@@ -829,7 +829,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
             return true;
         }
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return listIterator();
         }
 
