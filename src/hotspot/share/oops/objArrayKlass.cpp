@@ -202,6 +202,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription a
   ObjArrayKlass* ak = nullptr;
   switch (ad._kind) {
     case Klass::RefArrayKlassKind: {
+      assert(class_loader_data() == element_klass()->class_loader_data(), "Sanity - cleanup?");
       ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
       break;
     }
