@@ -398,7 +398,7 @@ public final class GarbageUtils {
                     return new BooleanObjArrayProducer();
                 else if (id.equals("ByteObjArr"))
                     return new BooleanObjArrayProducer();
-                else if (id.equals("IntegerObjArray"))
+                else if (id.equals("IntegerObjArr"))
                     return new IntegerObjArrayProducer();
                 else if (id.equals("objectArr"))
                         return new ObjectArrayProducer();
