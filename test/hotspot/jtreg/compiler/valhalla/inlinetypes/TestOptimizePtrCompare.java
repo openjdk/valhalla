@@ -64,7 +64,7 @@ public class TestOptimizePtrCompare {
     }
 
     @Test
-    @IR(counts = {IRNode.CMP_P, "1"})
+    @IR(failOn = {IRNode.CMP_P})
     public static void test2() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue arg = new MyValue(null);
@@ -111,14 +111,30 @@ public class TestOptimizePtrCompare {
     public static void test4() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue arg = new MyValue(null);
-        Object res = notInlined3(arg);
+        Object res = notInlined4(arg);
         if (res == null) {
             throw new RuntimeException("never taken");
         }
     }
 
     @DontInline
-    static Object notInlined3(MyValue v) {
+    static Object notInlined4(MyValue v) {
+        return v;
+    }
+
+    @Test
+    @IR(failOn = {IRNode.CMP_P})
+    public static void test5() {
+        Object notUsed = new Object(); // make sure EA runs
+        MyValue2 arg = new MyValue2(fieldO, null);
+        MyValue2 res = notInlined5(arg);
+        if (res.o2 != null) {
+            throw new RuntimeException("never taken");
+        }
+    }
+
+    @DontInline
+    static MyValue2 notInlined5(MyValue2 v) {
         return v;
     }
 }

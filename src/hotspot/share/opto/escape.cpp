@@ -1749,14 +1749,18 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       break;
     case Op_Proj: {
       // we are only interested in the oop result projection from a call
-      if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() &&
-          (n->in(0)->as_Call()->returns_pointer() || n->bottom_type()->isa_ptr())) {
-        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
-               n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
+      if (n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->is_Call() && n->in(0)->as_Call()->returns_pointer()) {
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
       } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_LoadFlat() && igvn->type(n)->isa_ptr()) {
         // Treat LoadFlat outputs similar to a call return value
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
+      } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() && n->bottom_type()->isa_ptr()) {
+        assert(n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "");
+        if (n->as_Proj()->_con == TypeFunc::Parms) {
+          add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
+        } else {
+          add_local_var(n, PointsToNode::NoEscape);
+        }
       }
       break;
     }
@@ -1927,14 +1931,18 @@ void ConnectionGraph::add_final_edges(Node *n) {
       break;
     }
     case Op_Proj: {
-      if (n->in(0)->is_Call()) {
-        // we are only interested in the oop result projection from a call
-        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
-              n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
+      if (n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->is_Call() && n->in(0)->as_Call()->returns_pointer()) {
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
       } else if (n->in(0)->is_LoadFlat()) {
         // Treat LoadFlat outputs similar to a call return value
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
+      } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() && n->bottom_type()->isa_ptr()) {
+        assert(n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "");
+        if (n->as_Proj()->_con == TypeFunc::Parms) {
+          add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
+        } else {
+          add_local_var(n, PointsToNode::NoEscape);
+        }
       }
       break;
     }
@@ -2129,6 +2137,7 @@ private:
   uint _i_domain_cc;
   int _i_sig_cc;
   uint _depth;
+  int _first_field_pos;
 
   void next_helper() {
     if (_sig_cc == nullptr) {
@@ -2139,6 +2148,9 @@ private:
       BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
       assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "");
       if (bt == T_METADATA) {
+        if (_depth == 0) {
+          _first_field_pos = _i_sig_cc;
+        }
         _depth++;
       } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
         _depth--;
@@ -2162,7 +2174,8 @@ public:
     _i_domain(TypeFunc::Parms),
     _i_domain_cc(TypeFunc::Parms),
     _i_sig_cc(0),
-    _depth(0) {
+    _depth(0),
+    _first_field_pos(-1) {
     next_helper();
   }
 
@@ -2197,6 +2210,12 @@ public:
   const Type* current_domain_cc() const {
     return _domain_cc->field_at(_i_domain_cc);
   }
+
+  int first_field_pos() const {
+    assert(_first_field_pos != -1, "");
+    return _first_field_pos;
+  }
+
 };
 
 void ConnectionGraph::add_call_node(CallNode* call) {
@@ -2528,10 +2547,21 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
           if (at->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(k) &&
-              !meth->is_scalarized_arg(k)) {
+              call_analyzer->is_arg_returned(k) ) {
             // The call returns arguments.
-            if (call_ptn != nullptr) { // Is call's result used?
+            if (meth->is_scalarized_arg(k)) {
+              ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos());
+              if (res_proj != nullptr) {
+                assert(_igvn->type(res_proj)->isa_ptr(), "");
+                if (res_proj->_con == TypeFunc::Parms) {
+                  assert(call_ptn->is_LocalVar(), "node should be registered");
+                  assert(arg_ptn != nullptr, "node should be registered");
+                  add_edge(call_ptn, arg_ptn);
+                } else {
+                  add_edge(ptnode_adr(res_proj->_idx), arg_ptn);
+                }
+              }
+            } else if (call_ptn != nullptr) { // Is call's result used?
               assert(call_ptn->is_LocalVar(), "node should be registered");
               assert(arg_ptn != nullptr, "node should be registered");
               add_edge(call_ptn, arg_ptn);
