@@ -77,7 +77,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      *
      * @return an iterator over the elements contained in this collection
      */
-    public abstract Iterator<E>! iterator();
+    public abstract Iterator<E> iterator();
 
     public abstract int size();
 

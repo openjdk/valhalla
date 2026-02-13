@@ -171,7 +171,7 @@ public interface NavigableSet<E> extends SortedSet<E> {
      *
      * @return an iterator over the elements in this set, in ascending order
      */
-    Iterator<E>! iterator();
+    Iterator<E> iterator();
 
     /**
      * Returns a reverse order view of the elements contained in this set.

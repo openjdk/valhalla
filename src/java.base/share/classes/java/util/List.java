@@ -184,7 +184,7 @@ public interface List<E> extends SequencedCollection<E> {
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    Iterator<E>! iterator();
+    Iterator<E> iterator();
 
     /**
      * Returns an array containing all of the elements in this list in proper

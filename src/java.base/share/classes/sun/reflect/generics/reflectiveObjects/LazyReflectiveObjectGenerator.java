@@ -56,7 +56,7 @@ public abstract class LazyReflectiveObjectGenerator {
     // produce a reifying visitor (could this be typed as a TypeTreeVisitor?
     protected Reifier getReifier(){return Reifier.make(getFactory());}
 
-    Type[] reifyBounds(FieldTypeSignature[] boundASTs) {
+    Type[]! reifyBounds(FieldTypeSignature[] boundASTs) {
         final int length = boundASTs.length;
         final Type[] bounds = new Type[length];
         // iterate over bound trees, reifying each in turn

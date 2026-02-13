@@ -50,7 +50,7 @@ public interface Type {
      * @return a string describing this type
      * @since 1.8
      */
-    default String getTypeName() {
+    default String! getTypeName() {
         return toString();
     }
 }

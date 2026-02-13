@@ -393,7 +393,7 @@ public class CopyOnWriteArraySet<E> extends AbstractSet<E>
      *
      * @return an iterator over the elements in this set
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return al.iterator();
     }
 

@@ -100,14 +100,14 @@ public final class Method extends Executable {
     private String getGenericSignature() {return signature;}
 
     // Accessor for factory
-    private GenericsFactory getFactory() {
+    private GenericsFactory! getFactory() {
         // create scope and factory
         return CoreReflectionFactory.make(this, MethodScope.make(this));
     }
 
     // Accessor for generic info repository
     @Override
-    MethodRepository getGenericInfo() {
+    MethodRepository! getGenericInfo() {
         var genericInfo = this.genericInfo;
         if (genericInfo == null) {
             var root = this.root;
@@ -153,11 +153,11 @@ public final class Method extends Executable {
      * ReflectAccess) which returns a copy of this Method. The copy's
      * "root" field points to this Method.
      */
-    Method copy() {
+    Method! copy() {
         if (this.root != null)
             throw new IllegalArgumentException("Can not copy a non-root Method");
 
-        Method res = new Method(clazz, name, parameterTypes, returnType,
+        Method! res = new Method(clazz, name, parameterTypes, returnType,
                                 exceptionTypes, modifiers, slot, signature,
                                 annotations, parameterAnnotations, annotationDefault);
         res.root = this;
@@ -202,7 +202,7 @@ public final class Method extends Executable {
      * that declares the method represented by this object.
      */
     @Override
-    public Class<?> getDeclaringClass() {
+    public Class<?>! getDeclaringClass() {
         return clazz;
     }
 
@@ -211,7 +211,7 @@ public final class Method extends Executable {
      * object, as a {@code String}.
      */
     @Override
-    public String getName() {
+    public String! getName() {
         return name;
     }
 
@@ -232,7 +232,7 @@ public final class Method extends Executable {
      */
     @Override
     @SuppressWarnings("unchecked")
-    public TypeVariable<Method>[] getTypeParameters() {
+    public TypeVariable<Method>[]! getTypeParameters() {
         if (getGenericSignature() != null)
             return (TypeVariable<Method>[])getGenericInfo().getTypeParameters();
         else
@@ -245,7 +245,7 @@ public final class Method extends Executable {
      *
      * @return the return type for the method this object represents
      */
-    public Class<?> getReturnType() {
+    public Class<?>! getReturnType() {
         return returnType;
     }
 
@@ -273,19 +273,19 @@ public final class Method extends Executable {
      *     type that cannot be instantiated for any reason
      * @since 1.5
      */
-    public Type getGenericReturnType() {
+    public Type! getGenericReturnType() {
       if (getGenericSignature() != null) {
         return getGenericInfo().getReturnType();
       } else { return getReturnType();}
     }
 
     @Override
-    Class<?>[] getSharedParameterTypes() {
+    Class<?>[]! getSharedParameterTypes() {
         return parameterTypes;
     }
 
     @Override
-    Class<?>[] getSharedExceptionTypes() {
+    Class<?>[]! getSharedExceptionTypes() {
         return exceptionTypes;
     }
 
@@ -293,7 +293,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      */
     @Override
-    public Class<?>[] getParameterTypes() {
+    public Class<?>[]! getParameterTypes() {
         return parameterTypes.length == 0 ? parameterTypes: parameterTypes.clone();
     }
 
@@ -312,7 +312,7 @@ public final class Method extends Executable {
      * @since 1.5
      */
     @Override
-    public Type[] getGenericParameterTypes() {
+    public Type[]! getGenericParameterTypes() {
         return super.getGenericParameterTypes();
     }
 
@@ -320,7 +320,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      */
     @Override
-    public Class<?>[] getExceptionTypes() {
+    public Class<?>[]! getExceptionTypes() {
         return exceptionTypes.length == 0 ? exceptionTypes : exceptionTypes.clone();
     }
 
@@ -332,7 +332,7 @@ public final class Method extends Executable {
      * @since 1.5
      */
     @Override
-    public Type[] getGenericExceptionTypes() {
+    public Type[]! getGenericExceptionTypes() {
         return super.getGenericExceptionTypes();
     }
 
@@ -397,7 +397,7 @@ public final class Method extends Executable {
      * @jls 9.4 Method Declarations
      * @jls 9.6.1 Annotation Interface Elements
      */
-    public String toString() {
+    public String! toString() {
         return sharedToString(Modifier.methodModifiers(),
                               isDefault(),
                               parameterTypes,
@@ -405,19 +405,19 @@ public final class Method extends Executable {
     }
 
     @Override
-    void specificToStringHeader(StringBuilder sb) {
+    void specificToStringHeader(StringBuilder! sb) {
         sb.append(getReturnType().getTypeName()).append(' ');
         sb.append(getDeclaringClass().getTypeName()).append('.');
         sb.append(getName());
     }
 
     @Override
-    String toShortString() {
+    String! toShortString() {
         return "method " + getDeclaringClass().getTypeName() +
                 '.' + toShortSignature();
     }
 
-    String toShortSignature() {
+    String! toShortSignature() {
         StringJoiner sj = new StringJoiner(",", getName() + "(", ")");
         for (Class<?> parameterType : getSharedParameterTypes()) {
             sj.add(parameterType.getTypeName());
@@ -468,12 +468,12 @@ public final class Method extends Executable {
      * @jls 9.6.1 Annotation Interface Elements
      */
     @Override
-    public String toGenericString() {
+    public String! toGenericString() {
         return sharedToGenericString(Modifier.methodModifiers(), isDefault());
     }
 
     @Override
-    void specificToGenericStringHeader(StringBuilder sb) {
+    void specificToGenericStringHeader(StringBuilder! sb) {
         Type genRetType = getGenericReturnType();
         sb.append(genRetType.getTypeName()).append(' ');
         sb.append(getDeclaringClass().getTypeName()).append('.');
@@ -699,7 +699,7 @@ public final class Method extends Executable {
     // (though not efficient) to generate more than one MethodAccessor
     // for a given Method. However, avoiding synchronization will
     // probably make the implementation more scalable.
-    private MethodAccessor acquireMethodAccessor() {
+    private MethodAccessor! acquireMethodAccessor() {
         // First check to see if one has been created yet, and take it
         // if so
         Method root = this.root;
@@ -725,7 +725,7 @@ public final class Method extends Executable {
 
     // Sets the MethodAccessor for this Method object and
     // (recursively) its root
-    void setMethodAccessor(MethodAccessor accessor) {
+    void setMethodAccessor(MethodAccessor! accessor) {
         methodAccessor = accessor;
         // Propagate up
         Method root = this.root;
@@ -774,7 +774,7 @@ public final class Method extends Executable {
      * @since 1.5
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         return super.getAnnotation(annotationClass);
     }
 
@@ -783,7 +783,7 @@ public final class Method extends Executable {
      * @since 1.5
      */
     @Override
-    public Annotation[] getDeclaredAnnotations()  {
+    public Annotation[]! getDeclaredAnnotations()  {
         return super.getDeclaredAnnotations();
     }
 
@@ -792,7 +792,7 @@ public final class Method extends Executable {
      * @since 1.5
      */
     @Override
-    public Annotation[][] getParameterAnnotations() {
+    public Annotation[][]! getParameterAnnotations() {
         return sharedGetParameterAnnotations(parameterTypes, parameterAnnotations);
     }
 
@@ -801,12 +801,12 @@ public final class Method extends Executable {
      * @since 1.8
      */
     @Override
-    public AnnotatedType getAnnotatedReturnType() {
+    public AnnotatedType! getAnnotatedReturnType() {
         return getAnnotatedReturnType0(getGenericReturnType());
     }
 
     @Override
-    boolean handleParameterNumberMismatch(int resultLength, Class<?>[] parameterTypes) {
+    boolean handleParameterNumberMismatch(int resultLength, Class<?>[]! parameterTypes) {
         throw new AnnotationFormatError("Parameter annotations don't match number of parameters");
     }
 }

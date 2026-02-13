@@ -601,7 +601,7 @@ public interface Deque<E> extends Queue<E>, SequencedCollection<E> {
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    Iterator<E>! iterator();
+    Iterator<E> iterator();
 
     /**
      * Returns an iterator over the elements in this deque in reverse

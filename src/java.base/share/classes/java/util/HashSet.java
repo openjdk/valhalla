@@ -179,7 +179,7 @@ public class HashSet<E>
      * @return an Iterator over the elements in this set
      * @see ConcurrentModificationException
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return map.keySet().iterator();
     }
 

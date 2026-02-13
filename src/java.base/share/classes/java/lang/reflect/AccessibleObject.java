@@ -101,15 +101,15 @@ public class AccessibleObject implements AnnotatedElement {
      *         {@code null}
      */
     @CallerSensitive
-    public static void setAccessible(AccessibleObject[] array, boolean flag) {
+    public static void setAccessible(AccessibleObject[]! array, boolean flag) {
         if (flag) {
             Class<?> caller = Reflection.getCallerClass();
             array = array.clone();
-            for (AccessibleObject ao : array) {
+            for (AccessibleObject! ao : array) {
                 ao.checkCanSetAccessible(caller);
             }
         }
-        for (AccessibleObject ao : array) {
+        for (AccessibleObject! ao : array) {
             ao.setAccessible0(flag);
         }
     }
@@ -263,12 +263,12 @@ public class AccessibleObject implements AnnotatedElement {
         // do nothing, needs to be overridden by Constructor, Method, Field
     }
 
-    final void checkCanSetAccessible(Class<?> caller, Class<?> declaringClass) {
+    final void checkCanSetAccessible(Class<?> caller, Class<?>! declaringClass) {
         checkCanSetAccessible(caller, declaringClass, true);
     }
 
     private boolean checkCanSetAccessible(Class<?> caller,
-                                          Class<?> declaringClass,
+                                          Class<?>! declaringClass,
                                           boolean throwExceptionIfDenied) {
         if (caller == MethodHandle.class) {
             throw new IllegalCallerException();   // should not happen
@@ -321,7 +321,7 @@ public class AccessibleObject implements AnnotatedElement {
         return false;
     }
 
-    private void throwInaccessibleObjectException(Class<?> caller, Class<?> declaringClass) {
+    private void throwInaccessibleObjectException(Class<?> caller, Class<?>! declaringClass) {
         boolean isClassPublic = Modifier.isPublic(declaringClass.getModifiers());
         String pn = declaringClass.getPackageName();
         int modifiers = ((Member)this).getModifiers();
@@ -347,7 +347,7 @@ public class AccessibleObject implements AnnotatedElement {
         throw e;
     }
 
-    private boolean isSubclassOf(Class<?> queryClass, Class<?> ofClass) {
+    private boolean isSubclassOf(Class<?> queryClass, Class<?>! ofClass) {
         while (queryClass != null) {
             if (queryClass == ofClass) {
                 return true;
@@ -360,7 +360,7 @@ public class AccessibleObject implements AnnotatedElement {
     /**
      * Returns a short descriptive string to describe this object in log messages.
      */
-    String toShortString() {
+    String! toShortString() {
         return toString();
     }
 
@@ -490,7 +490,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.5
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         throw new UnsupportedOperationException("All subclasses should override this method");
     }
 
@@ -501,7 +501,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.5
      */
     @Override
-    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
+    public boolean isAnnotationPresent(Class<? extends Annotation>! annotationClass) {
         return AnnotatedElement.super.isAnnotationPresent(annotationClass);
     }
 
@@ -519,7 +519,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.8
      */
     @Override
-    public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
+    public <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotationClass) {
         throw new UnsupportedOperationException("All subclasses should override this method");
     }
 
@@ -532,7 +532,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.5
      */
     @Override
-    public Annotation[] getAnnotations() {
+    public Annotation[]! getAnnotations() {
         return getDeclaredAnnotations();
     }
 
@@ -546,7 +546,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.8
      */
     @Override
-    public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getDeclaredAnnotation(Class<T>! annotationClass) {
         // Only annotations on classes are inherited, for all other
         // objects getDeclaredAnnotation is the same as
         // getAnnotation.
@@ -563,7 +563,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.8
      */
     @Override
-    public <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
+    public <T extends Annotation> T[]! getDeclaredAnnotationsByType(Class<T>! annotationClass) {
         // Only annotations on classes are inherited, for all other
         // objects getDeclaredAnnotationsByType is the same as
         // getAnnotationsByType.
@@ -583,7 +583,7 @@ public class AccessibleObject implements AnnotatedElement {
      * @since 1.5
      */
     @Override
-    public Annotation[] getDeclaredAnnotations()  {
+    public Annotation[]! getDeclaredAnnotations()  {
         throw new UnsupportedOperationException("All subclasses should override this method");
     }
 
@@ -606,19 +606,20 @@ public class AccessibleObject implements AnnotatedElement {
     volatile Object accessCheckCache;
 
     private static class Cache {
-        final WeakReference<Class<?>> callerRef;
-        final WeakReference<Class<?>> targetRef;
+        final WeakReference<Class<?>>! callerRef;
+        final WeakReference<Class<?>>! targetRef;
 
-        Cache(Class<?> caller, Class<?> target) {
+        Cache(Class<?> caller, Class<?>! target) {
             this.callerRef = new WeakReference<>(caller);
             this.targetRef = new WeakReference<>(target);
+            super();
         }
 
-        boolean isCacheFor(Class<?> caller, Class<?> refc) {
+        boolean isCacheFor(Class<?> caller, Class<?>! refc) {
             return callerRef.refersTo(caller) && targetRef.refersTo(refc);
         }
 
-        static Object protectedMemberCallerCache(Class<?> caller, Class<?> refc) {
+        static Object protectedMemberCallerCache(Class<?> caller, Class<?>! refc) {
             return new Cache(caller, refc);
         }
     }
@@ -629,7 +630,7 @@ public class AccessibleObject implements AnnotatedElement {
      * the given targetClass where the target class is different than
      * the declaring member class.
      */
-    private boolean isAccessChecked(Class<?> caller, Class<?> targetClass) {
+    private boolean isAccessChecked(Class<?> caller, Class<?>! targetClass) {
         Object cache = accessCheckCache;  // read volatile
         if (cache instanceof Cache c) {
             return c.isCacheFor(caller, targetClass);
@@ -652,7 +653,7 @@ public class AccessibleObject implements AnnotatedElement {
         return false;
     }
 
-    final void checkAccess(Class<?> caller, Class<?> memberClass,
+    final void checkAccess(Class<?> caller, Class<?>! memberClass,
                            Class<?> targetClass, int modifiers)
         throws IllegalAccessException
     {
@@ -666,7 +667,7 @@ public class AccessibleObject implements AnnotatedElement {
         }
     }
 
-    final boolean verifyAccess(Class<?> caller, Class<?> memberClass,
+    final boolean verifyAccess(Class<?> caller, Class<?>! memberClass,
                                Class<?> targetClass, int modifiers)
     {
         if (caller == memberClass) {  // quick check
@@ -688,7 +689,7 @@ public class AccessibleObject implements AnnotatedElement {
     }
 
     // Keep all this slow stuff out of line:
-    private boolean slowVerifyAccess(Class<?> caller, Class<?> memberClass,
+    private boolean slowVerifyAccess(Class<?> caller, Class<?>! memberClass,
                                      Class<?> targetClass, int modifiers)
     {
 

@@ -155,7 +155,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @return an iterator over the elements in this set
      */
-    Iterator<E>! iterator();
+    Iterator<E> iterator();
 
     /**
      * Returns an array containing all of the elements in this set.

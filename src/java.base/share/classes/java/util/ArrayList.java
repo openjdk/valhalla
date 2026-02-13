@@ -1034,7 +1034,7 @@ public class ArrayList<E> extends AbstractList<E>
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return new Itr();
     }
 
@@ -1367,7 +1367,7 @@ public class ArrayList<E> extends AbstractList<E>
             return indexOf(o) >= 0;
         }
 
-        public Iterator<E>! iterator() {
+        public Iterator<E> iterator() {
             return listIterator();
         }
 

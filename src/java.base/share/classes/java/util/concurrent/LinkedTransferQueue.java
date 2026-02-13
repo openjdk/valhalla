@@ -1314,7 +1314,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue in proper sequence
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return new Itr();
     }
 

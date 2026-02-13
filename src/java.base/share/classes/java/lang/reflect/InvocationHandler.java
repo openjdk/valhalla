@@ -256,10 +256,8 @@ public interface InvocationHandler {
      * @jvms 5.4.3 Resolution
      */
     @CallerSensitive
-    public static Object invokeDefault(Object proxy, Method method, Object... args)
+    public static Object invokeDefault(Object! proxy, Method! method, Object... args)
             throws Throwable {
-        Objects.requireNonNull(proxy);
-        Objects.requireNonNull(method);
         return Proxy.invokeDefault(proxy, method, args, Reflection.getCallerClass());
     }
 }

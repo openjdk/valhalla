@@ -45,5 +45,5 @@ public interface GenericDeclaration extends AnnotatedElement {
      *     the format specified in
      *     <cite>The Java Virtual Machine Specification</cite>
      */
-    public TypeVariable<?>[] getTypeParameters();
+    public TypeVariable<?>[]! getTypeParameters();
 }

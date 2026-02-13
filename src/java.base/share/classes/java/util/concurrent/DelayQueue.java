@@ -539,7 +539,7 @@ public class DelayQueue<E extends Delayed> extends AbstractQueue<E>
      *
      * @return an iterator over the elements in this queue
      */
-    public Iterator<E>! iterator() {
+    public Iterator<E> iterator() {
         return new Itr(toArray());
     }
 

@@ -48,7 +48,7 @@ public interface AnnotatedWildcardType extends AnnotatedType {
      * an empty array if no lower bound is explicitly declared.
      * @see WildcardType#getLowerBounds()
      */
-    AnnotatedType[] getAnnotatedLowerBounds();
+    AnnotatedType[]! getAnnotatedLowerBounds();
 
     /**
      * Returns the potentially annotated upper bounds of this wildcard type.
@@ -62,7 +62,7 @@ public interface AnnotatedWildcardType extends AnnotatedType {
      * @return the potentially annotated upper bounds of this wildcard type
      * @see WildcardType#getUpperBounds()
      */
-    AnnotatedType[] getAnnotatedUpperBounds();
+    AnnotatedType[]! getAnnotatedUpperBounds();
 
     /**
      * Returns the potentially annotated type that this type is a member of, if

@@ -43,7 +43,7 @@ public interface AnnotatedTypeVariable extends AnnotatedType {
      * @return the potentially annotated bounds of this type variable
      * @see TypeVariable#getBounds()
      */
-    AnnotatedType[] getAnnotatedBounds();
+    AnnotatedType[]! getAnnotatedBounds();
 
     /**
      * Returns the potentially annotated type that this type is a member of, if

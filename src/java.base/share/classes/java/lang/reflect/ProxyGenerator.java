@@ -204,9 +204,8 @@ final class ProxyGenerator {
      */
     static byte[] generateProxyClass(ClassLoader loader,
                                      final String name,
-                                     List<Class<?>> interfaces,
+                                     List<Class<?>>! interfaces,
                                      int accessFlags) {
-        Objects.requireNonNull(interfaces);
         ProxyGenerator gen = new ProxyGenerator(name, interfaces, accessFlags);
         final byte[] classFile = gen.generateClassFile();
 
