@@ -91,9 +91,30 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
-Klass(kind, prototype_header),
-  _dimension(1),
+static markWord calc_prototype_header(Klass::KlassKind kind, ArrayKlass::ArrayProperties props) {
+  switch (kind) {
+  case Klass::KlassKind::TypeArrayKlassKind:
+    return markWord::prototype();
+
+  case Klass::KlassKind::FlatArrayKlassKind:
+    return markWord::flat_array_prototype(ArrayKlass::is_null_restricted(props));
+
+  case Klass::KlassKind::ObjArrayKlassKind:
+  case Klass::KlassKind::RefArrayKlassKind:
+    if (ArrayKlass::is_null_restricted(props)) {
+      return markWord::null_free_array_prototype();
+    } else {
+      return markWord::prototype();
+    }
+
+  default:
+    ShouldNotReachHere();
+  };
+}
+
+ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props)
+    : Klass(kind, calc_prototype_header(kind, props)),
+  _dimension(n),
   _properties(props),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {

@@ -99,36 +99,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
 
 RefArrayKlass::RefArrayKlass(int n, Klass* element_klass, Symbol* name,
                              ArrayKlass::ArrayProperties props)
-    : ObjArrayKlass(n, element_klass, name, Kind, props,
-                    ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype()) {
-  set_dimension(n);
-  set_element_klass(element_klass);
-
-  Klass* bk;
-  if (element_klass->is_objArray_klass()) {
-    bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
-  } else {
-    bk = element_klass;
-  }
-  assert(bk != nullptr && (bk->is_instance_klass() || bk->is_typeArray_klass()),
-         "invalid bottom klass");
-  set_bottom_klass(bk);
-  set_class_loader_data(bk->class_loader_data());
-
-  if (element_klass->is_array_klass()) {
-    set_lower_dimension(ArrayKlass::cast(element_klass));
-  }
-
-  int lh = array_layout_helper(T_OBJECT);
-  if (ArrayKlass::is_null_restricted(props)) {
-    assert(n == 1, "Bytecode does not support null-free multi-dim");
-    lh = layout_helper_set_null_free(lh);
-#ifdef _LP64
-    assert(prototype_header().is_null_free_array(), "sanity");
-#endif
-  }
-  set_layout_helper(lh);
-  assert(is_array_klass(), "sanity");
+    : ObjArrayKlass(n, element_klass, name, Kind, props) {
   assert(is_refArray_klass(), "sanity");
 }
 

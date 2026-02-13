@@ -51,7 +51,7 @@ class ObjArrayKlass : public ArrayKlass {
 
  protected:
   // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props);
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
@@ -65,13 +65,10 @@ class ObjArrayKlass : public ArrayKlass {
   // For dummy objects
   ObjArrayKlass() {}
 
-  virtual Klass* element_klass() const      { return _element_klass; }
-  virtual void set_element_klass(Klass* k)  { _element_klass = k; }
-
+  Klass* element_klass() const      { return _element_klass; }
 
   ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
   inline ObjArrayKlass* next_refined_array_klass_acquire() const;
-  void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
   inline void release_set_next_refined_klass(ObjArrayKlass* ak);
   ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
   ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
@@ -81,7 +78,6 @@ class ObjArrayKlass : public ArrayKlass {
   static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
-  void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }
 
   ModuleEntry* module() const override;

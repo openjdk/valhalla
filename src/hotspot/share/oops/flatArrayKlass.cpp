@@ -55,15 +55,14 @@
 
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
-                ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk)
+    : ObjArrayKlass(1, element_klass, name, Kind, props),
+      _layout_kind(lk) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
   assert(lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT, "Layout not supported by arrays yet (needs frozen arrays)");
   assert(LayoutKindHelper::is_flat(lk), "Must be a flat layout");
 
-  set_element_klass(InlineKlass::cast(element_klass));
-  set_class_loader_data(element_klass->class_loader_data());
-  set_layout_kind(lk);
+  assert(_class_loader_data == element_klass->class_loader_data(), "Sanity check");
 
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass), lk));
   assert(is_array_klass(), "sanity");
@@ -336,39 +335,8 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
   }
 }
 
-ModuleEntry* FlatArrayKlass::module() const {
-  assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");
-  // The array is defined in the module of its bottom class
-  return element_klass()->module();
-}
-
-PackageEntry* FlatArrayKlass::package() const {
-  assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");
-  return element_klass()->package();
-}
-
 bool FlatArrayKlass::can_be_primary_super_slow() const {
     return true;
-}
-
-GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_slots,
-                                                                Array<InstanceKlass*>* transitive_interfaces) {
-  assert(transitive_interfaces == nullptr, "sanity");
-  // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
-  Array<Klass*>* elem_supers = element_klass()->secondary_supers();
-  int num_elem_supers = elem_supers == nullptr ? 0 : elem_supers->length();
-  int num_secondaries = num_extra_slots + 2 + num_elem_supers;
-  GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+2);
-
-  secondaries->push(vmClasses::Cloneable_klass());
-  secondaries->push(vmClasses::Serializable_klass());
-  for (int i = 0; i < num_elem_supers; i++) {
-    Klass* elem_super = (Klass*) elem_supers->at(i);
-    Klass* array_super = elem_super->array_klass_or_null();
-    assert(array_super != nullptr, "must already have been created");
-    secondaries->push(array_super);
-  }
-  return secondaries;
 }
 
 u2 FlatArrayKlass::compute_modifier_flags() const {

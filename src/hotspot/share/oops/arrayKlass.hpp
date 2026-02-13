@@ -66,7 +66,7 @@ class ArrayKlass: public Klass {
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header = markWord::prototype());
+  ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props);
   ArrayKlass();
 
   // Create array_name for element klass
@@ -87,7 +87,6 @@ class ArrayKlass: public Klass {
 
   // Instance variables
   int dimension() const                 { return _dimension;      }
-  void set_dimension(int dimension)     { _dimension = dimension; }
 
   ArrayProperties properties() const { return _properties; }
   void set_properties(ArrayProperties props) { _properties = props; }

@@ -60,7 +60,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n
 
   int size = ArrayKlass::static_size(ObjArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, props, ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype());
+  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, props);
 }
 
 Symbol* ObjArrayKlass::create_element_klass_array_name(JavaThread* current, Klass* element_klass) {
@@ -130,13 +130,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mk) :
-ArrayKlass(name, kind, props, mk) {
-  set_dimension(n);
-  set_element_klass(element_klass);
-  set_next_refined_klass_klass(nullptr);
-  set_properties(props);
-
+static Klass* calculate_bottom_klass(Klass* element_klass) {
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
     assert(!element_klass->is_refined_objArray_klass(), "no such mechanism yet");
@@ -145,9 +139,20 @@ ArrayKlass(name, kind, props, mk) {
     assert(!element_klass->is_refArray_klass(), "Sanity");
     bk = element_klass;
   }
-  assert(bk != nullptr && (bk->is_instance_klass() || bk->is_typeArray_klass()), "invalid bottom klass");
-  set_bottom_klass(bk);
-  set_class_loader_data(bk->class_loader_data());
+
+  assert(bk != nullptr, "Sanity");
+  assert(bk->is_instance_klass() || bk->is_typeArray_klass(), "invalid bottom klass");
+
+  return bk;
+}
+
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props)
+    : ArrayKlass(n, name, kind, props),
+      _bottom_klass(calculate_bottom_klass(element_klass)),
+      _element_klass(element_klass),
+      _next_refined_array_klass(nullptr) {
+
+  set_class_loader_data(_bottom_klass->class_loader_data());
 
   if (element_klass->is_array_klass()) {
     set_lower_dimension(ArrayKlass::cast(element_klass));
