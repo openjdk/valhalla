@@ -77,6 +77,10 @@ final class ReflectAccess implements JavaLangReflectAccess {
         return f.isNullRestricted();
     }
 
+    public boolean isStrictInitField(Field f) {
+        return f.isStrictInit();
+    }
+
     public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
         throws IllegalAccessException, InstantiationException, InvocationTargetException
     {

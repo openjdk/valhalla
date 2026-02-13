@@ -25,6 +25,7 @@
  * @test
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
  * @compile BadChild.jasm
  *          BadChild1.jasm
  *          ControlFlowChildBad.jasm
@@ -34,10 +35,14 @@
  *          StrictFieldsNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
  * @compile -XDnoLocalProxyVars StrictInstanceFieldsTest.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictInstanceFieldsTest
+ *             Child ControlFlowChild TryCatchChild AssignedInConditionalChild
+ *             SwitchCaaseChild NestedConstructorChild FinalChild
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
 
 import java.lang.reflect.Field;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.Strict;
 
 public class StrictInstanceFieldsTest {
@@ -184,6 +189,7 @@ class Parent {
 
     Parent() {
         z = 0;
+        checkStrict(this.getClass());
     }
 
     @Override
@@ -200,13 +206,27 @@ class Parent {
         }
         return sb.toString();
     }
+
+    // Every class has strict fields x and y, make sure they have the ACC_STRICT_INIT flag set
+    public static void checkStrict(Class<?> c) {
+        Field[] fields = c.getDeclaredFields();
+
+        for (Field f : fields) {
+            if (f.getName().equals("x") && !ValueClass.isStrictInitField(f)) {
+                throw new RuntimeException("Field x Should be strict!");
+            }
+            if (f.getName().equals("y") && !ValueClass.isStrictInitField(f)) {
+                throw new RuntimeException("Field y Should be strict!");
+            }
+        }
+    }
 }
 
 class Child extends Parent {
 
-    @Strict
+    @StrictInit
     int x;
-    @Strict
+    @StrictInit
     int y;
 
     Child() {
@@ -217,9 +237,9 @@ class Child extends Parent {
 
 class ControlFlowChild extends Parent {
 
-    @Strict
+    @StrictInit
     int x;
-    @Strict
+    @StrictInit
     int y;
 
     ControlFlowChild(boolean a, boolean b) {
@@ -239,9 +259,9 @@ class ControlFlowChild extends Parent {
 
 class TryCatchChild extends Parent {
 
-    @Strict
+    @StrictInit
     int x;
-    @Strict
+    @StrictInit
     int y;
 
     TryCatchChild() {
@@ -260,9 +280,9 @@ class TryCatchChild extends Parent {
 
 class AssignedInConditionalChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     AssignedInConditionalChild() {
@@ -277,9 +297,9 @@ class AssignedInConditionalChild extends Parent {
 
 class SwitchCaseChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     SwitchCaseChild(int n) {
@@ -303,9 +323,9 @@ class SwitchCaseChild extends Parent {
 
 class NestedConstructorChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     NestedConstructorChild(boolean a, boolean b) {
@@ -329,9 +349,9 @@ class NestedConstructorChild extends Parent {
 
 class FinalChild extends Parent {
 
-    @Strict
+    @StrictInit
     final int x;
-    @Strict
+    @StrictInit
     final int y;
 
     FinalChild() {
