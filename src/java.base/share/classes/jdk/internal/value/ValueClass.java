@@ -61,13 +61,6 @@ public final class ValueClass {
     }
 
     /**
-     * {@return {@code true} if the field is StrictInit}
-     */
-    public static boolean isStrictInitField(Field f) {
-        return JLRA.isStrictInitField(f);
-    }
-
-    /**
      * Allocate an array of a value class type with components that behave in
      * the same way as a {@link jdk.internal.vm.annotation.NullRestricted}
      * field.

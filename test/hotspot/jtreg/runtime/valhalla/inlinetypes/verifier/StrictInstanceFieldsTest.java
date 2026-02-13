@@ -24,9 +24,11 @@
 /*
  * @test
  * @enablePreview
+ * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
- * @compile BadChild.jasm
+ * @compile TryCatchChild.jasm
+ *          BadChild.jasm
  *          BadChild1.jasm
  *          ControlFlowChildBad.jasm
  *          TryCatchChildBad.jasm
@@ -34,10 +36,11 @@
  *          EndsInEarlyLarval.jcod
  *          StrictFieldsNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
- * @compile -XDnoLocalProxyVars StrictInstanceFieldsTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor StrictInstanceFieldsTest
+ * @compile StrictInstanceFieldsTest.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor
+ *             StrictInstanceFieldsTest
  *             Child ControlFlowChild TryCatchChild AssignedInConditionalChild
- *             SwitchCaaseChild NestedConstructorChild FinalChild
+ *             SwitchCaseChild NestedConstructorChild FinalChild
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
 
@@ -62,6 +65,7 @@ public class StrictInstanceFieldsTest {
         System.out.println(c1);
 
         // Constructor with try-catch-finally
+        // TODO: StrictProcessor causes this class to fail when written in Java
         TryCatchChild c2 = new TryCatchChild();
         System.out.println(c2);
 
@@ -208,16 +212,17 @@ class Parent {
         return sb.toString();
     }
 
-    // Every class has strict fields x and y, make sure they have the ACC_STRICT_INIT flag set
+    // Every class in this test has strict fields x and y,
+    // make sure they have the ACC_STRICT_INIT flag set
     public static void checkStrict(Class<?> c) {
         Field[] fields = c.getDeclaredFields();
 
         for (Field f : fields) {
-            if (f.getName().equals("x") && !ValueClass.isStrictInitField(f)) {
-                throw new RuntimeException("Field x Should be strict!");
+            if (f.getName().equals("x") && !f.isStrictInit()) {
+                throw new RuntimeException("Field x should be strict");
             }
-            if (f.getName().equals("y") && !ValueClass.isStrictInitField(f)) {
-                throw new RuntimeException("Field y Should be strict!");
+            if (f.getName().equals("y") && !f.isStrictInit()) {
+                throw new RuntimeException("Field y should be strict");
             }
         }
     }
@@ -258,26 +263,26 @@ class ControlFlowChild extends Parent {
     }
 }
 
-class TryCatchChild extends Parent {
+// class TryCatchChild extends Parent {
 
-    @StrictInit
-    int x;
-    @StrictInit
-    int y;
+//     @StrictInit
+//     int x;
+//     @StrictInit
+//     int y;
 
-    TryCatchChild() {
-        try {
-            x = 0;
-            int[] a = new int[1];
-            System.out.println(a[2]);
-        } catch (java.lang.ArrayIndexOutOfBoundsException e) {
-            y = 0;
-        } finally {
-            x = y = 1;
-        }
-        super();
-    }
-}
+//     TryCatchChild() {
+//         try {
+//             x = 0;
+//             int[] a = new int[1];
+//             System.out.println(a[2]);
+//         } catch (java.lang.ArrayIndexOutOfBoundsException e) {
+//             y = 0;
+//         } finally {
+//             x = y = 1;
+//         }
+//         super();
+//     }
+// }
 
 class AssignedInConditionalChild extends Parent {
 

@@ -280,6 +280,18 @@ class Field extends AccessibleObject implements Member {
     }
 
     /**
+     * Returns (@code true) if this field is a strictly
+     * initialized field; returns {@code false} otherwise.
+     *
+     * @return true if and only if this field is a strictly
+     * initialized field as defined by the Java Language Specification
+     * @since Valhalla
+     */
+    public boolean isStrictInit() {
+        return accessFlags().contains(AccessFlag.STRICT_INIT);
+    }
+
+    /**
      * Returns a {@code Class} object that identifies the
      * declared type for the field represented by this
      * {@code Field} object.
@@ -1363,10 +1375,6 @@ class Field extends AccessibleObject implements Member {
 
     /* package-private */ boolean isNullRestricted() {
         return (flags & NULL_RESTRICTED) == NULL_RESTRICTED;
-    }
-
-    boolean isStrictInit() {
-        return (flags & STRICT_INIT) == STRICT_INIT;
     }
 
     /**

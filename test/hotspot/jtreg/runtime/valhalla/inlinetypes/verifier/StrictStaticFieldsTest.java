@@ -35,12 +35,12 @@
  *          WriteAfterReadRefl.jasm
  * @compile StrictStaticFieldsTest.java
  * @run driver jdk.test.lib.helpers.StrictProcessor
- *             runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
- *             runtime.valhalla.inlinetypes.verifier.Aregular_OK
- *             runtime.valhalla.inlinetypes.verifier.Anulls_OK
- *             runtime.valhalla.inlinetypes.verifier.Arepeat_OK
- *             runtime.valhalla.inlinetypes.verifier.Aupdate_OK
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
+ *             StrictStaticFieldsTest
+ *             Aregular_OK
+ *             Anulls_OK
+ *             Arepeat_OK
+ *             Aupdate_OK
+ * @run main/othervm StrictStaticFieldsTest
  */
 
 
