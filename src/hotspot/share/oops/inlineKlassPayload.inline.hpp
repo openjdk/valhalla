@@ -72,7 +72,7 @@ inline ValuePayload::StorageImpl<OopOrHandle>::StorageImpl(address absolute_addr
 template <typename OopOrHandle>
 inline ValuePayload::StorageImpl<OopOrHandle>::~StorageImpl() {
 #ifdef ASSERT
-  if (!_use_absolute_addr) {
+  if (!_uses_absolute_addr) {
     _container.~OopOrHandle();
   }
 #else  // ASSERT
