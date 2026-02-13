@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
-#define SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
+#ifndef SHARE_VM_OOPS_VALUEPAYLOAD_HPP
+#define SHARE_VM_OOPS_VALUEPAYLOAD_HPP
 
 #include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
@@ -407,4 +407,4 @@ public:
   inline flatArrayOop container() const;
 };
 
-#endif // SHARE_VM_OOPS_INLINEKLASSPAYLOAD_HPP
+#endif // SHARE_VM_OOPS_VALUEPAYLOAD_HPP
