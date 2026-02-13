@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -388,7 +388,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         // the barrier must remain. We can detect this simply by checking if initialization
         // is still needed.
         boolean initializingStill = UNSAFE.shouldBeInitialized(defc);
-        if (initializingStill && member.isStrict()) {
+        if (initializingStill && member.isStrictInit()) {
             // while <clinit> is running, we track access to strict static fields
             UNSAFE.notifyStrictStaticAccess(defc, staticOffset(this), member.isSetter());
         }

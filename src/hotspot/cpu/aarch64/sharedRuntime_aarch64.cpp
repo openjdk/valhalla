@@ -593,7 +593,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
-  if (requires_clinit_barrier && VM_Version::supports_fast_class_init_checks()) {
+  if (requires_clinit_barrier) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     Label L_skip_barrier;
 
     { // Bypass the barrier for non-static methods
@@ -1794,7 +1795,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // SVC, HVC, or SMC.  Make it a NOP.
   __ nop();
 
-  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+  if (method->needs_clinit_barrier()) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     Label L_skip_barrier;
     __ mov_metadata(rscratch2, method->method_holder()); // InstanceKlass*
     __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
@@ -3055,7 +3057,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     j++;
   }
   assert(j == regs->length(), "missed a field?");
-  if (vk->has_nullable_atomic_layout()) {
+  if (vk->supports_nullable_layouts()) {
     // Zero the null marker (setting it to 1 would be better but would require an additional register)
     __ strb(zr, Address(r0, vk->null_marker_offset()));
   }
@@ -3067,7 +3069,8 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   Label not_null;
   __ cbnz(r0, not_null);
 
-  // Return value is null. Zero oop registers to make the GC happy.
+  // Return value is null. Zero all registers because the runtime requires a canonical
+  // representation of a flat null.
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
@@ -3081,9 +3084,12 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       }
       continue;
     }
-    if (bt == T_OBJECT || bt == T_ARRAY) {
-      VMRegPair pair = regs->at(j);
-      VMReg r_1 = pair.first();
+
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    if (r_1->is_FloatRegister()) {
+      __ mov(r_1->as_FloatRegister(), Assembler::T2S, 0);
+    } else {
       __ mov(r_1->as_Register(), zr);
     }
     j++;

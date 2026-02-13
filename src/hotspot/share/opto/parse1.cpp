@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,8 @@
  *
  */
 
+#include "ci/ciObjArrayKlass.hpp"
+#include "ci/ciSignature.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/resourceArea.hpp"
@@ -643,16 +645,34 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);
       }
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
-               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
-               (!t->is_aryptr()->is_not_null_free() || !t->is_aryptr()->is_not_flat())) {
-      // Speculate on varargs Object array being not null-free and not flat
-      const TypePtr* spec_type = t->speculative();
-      spec_type = (spec_type != nullptr && spec_type->isa_aryptr() != nullptr) ? spec_type : t->is_aryptr();
-      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free()->cast_to_not_flat();
-      spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
-      Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
-      replace_in_map(parm, cast);
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
+      // Speculate on varargs Object array being the default array refined type. The assumption is
+      // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
+      // translate the call so that the caller will create a new default array of Object, put o1,
+      // o2, o3 into the newly created array, then invoke the method test. This only makes sense if
+      // the method we are parsing is the top-level method of the compilation unit. Otherwise, if
+      // it is truly called according to our assumption, we must know the exact type of the
+      // argument because the allocation happens inside the compilation unit.
+      const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
+      ciSignature* method_signature = method()->signature();
+      ciType* parm_citype = method_signature->type_at(method_signature->count() - 1);
+      if (!parm_citype->is_obj_array_klass()) {
+        continue;
+      }
+
+      ciObjArrayKlass* spec_citype = ciObjArrayKlass::make(parm_citype->as_obj_array_klass()->element_klass(), true);
+      const Type* improved_spec_type = TypeKlassPtr::make(spec_citype, Type::trust_interfaces)->as_instance_type();
+      improved_spec_type = improved_spec_type->join(spec_type)->join(TypePtr::NOTNULL);
+      if (improved_spec_type->empty()) {
+        continue;
+      }
+
+      const TypePtr* improved_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, improved_spec_type->is_ptr());
+      improved_type = improved_type->join_speculative(t)->is_ptr();
+      if (improved_type != t) {
+        Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, improved_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+        replace_in_map(parm, cast);
+      }
     }
   }
 
@@ -1349,8 +1369,7 @@ void Parse::do_method_entry() {
       Node* not_subtype_ctrl = gen_subtype_check(receiver_obj, holder_klass);
       assert(!stopped(), "not a subtype");
 
-      Node* halt = _gvn.transform(new HaltNode(not_subtype_ctrl, frameptr(), "failed receiver subtype check"));
-      C->root()->add_req(halt);
+      halt(not_subtype_ctrl, frameptr(), "failed receiver subtype check");
     }
   }
 #endif // ASSERT

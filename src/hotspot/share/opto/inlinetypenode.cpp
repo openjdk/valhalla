@@ -444,8 +444,7 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, bool immutable_m
     if (field->is_flat()) {
       // Recursively load the flat inline type field
       ciInlineKlass* fvk = ft->as_inline_klass();
-      // Atomic if nullable or not LooselyConsistentValue
-      bool atomic = !field_null_free || fvk->must_be_atomic();
+      bool atomic = field->is_atomic();
 
       int old_len = visited.length();
       visited.push(ft);
@@ -597,8 +596,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
     if (field->is_flat()) {
       // Recursively store the flat inline type field
       ciInlineKlass* fvk = ft->as_inline_klass();
-      // Atomic if nullable or not LooselyConsistentValue
-      bool atomic = !field_null_free || fvk->must_be_atomic();
+      bool atomic = field->is_atomic();
 
       field_val->as_InlineType()->store_flat(kit, base, field_ptr, atomic, immutable_memory, field_null_free, decorators);
     } else {
@@ -657,9 +655,10 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
   }
   for (uint i = 0; i < field_count(); i++) {
     ciType* ft = field(i)->type();
-    if (ft->is_inlinetype()) {
+    Node* fv = field_value(i);
+    if (ft->is_inlinetype() && fv->is_InlineType()) {
       // Check recursively
-      if (!field_value(i)->as_InlineType()->can_emit_substitutability_check(nullptr)){
+      if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;
       }
     } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
@@ -1414,10 +1413,10 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
   }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region, GrowableArray<ciType*>& visited) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited) {
   PhaseGVN& gvn = kit->gvn();
   Node* null_marker = nullptr;
-  if (!null_free) {
+  if (!no_null_marker) {
     // Nullable inline type
     if (in) {
       // Set null marker
@@ -1479,7 +1478,6 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
-      bool null_free = field->is_null_free();
       // Non-flat inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != nullptr) {
@@ -1493,16 +1491,12 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
           parm = PhiNode::make(null_check_region, parm, TypeInstPtr::make(TypePtr::BotPTR, type->as_inline_klass()));
           parm->set_req(2, kit->zerocon(T_OBJECT));
           parm = gvn.transform(parm);
-          null_free = false;
         }
         if (visited.contains(type)) {
           kit->C->set_has_circular_inline_type(true);
         } else if (!parm->is_InlineType()) {
           int old_len = visited.length();
           visited.push(type);
-          if (null_free) {
-            parm = kit->cast_not_null(parm);
-          }
           parm = make_from_oop_impl(kit, parm, type->as_inline_klass(), visited);
           visited.trunc_to(old_len);
         }
@@ -1515,7 +1509,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     gvn.record_for_igvn(parm);
   }
   // The last argument is used to pass the null marker to compiled code
-  if (!null_free && !in) {
+  if (!no_null_marker && !in) {
     Node* cmp = null_marker->raw_out(0);
     null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));
     set_req(NullMarker, null_marker);
@@ -1932,6 +1926,8 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
 
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
+  assert(oop_off_1 == -1 || oop_off_1 == 0 || oop_off_1 == 4, "invalid layout for %s, first oop at offset %d", vk->name()->as_utf8(), oop_off_1);
+  assert(oop_off_2 == -1 || oop_off_2 == 4, "invalid layout for %s, second oop at offset %d", vk->name()->as_utf8(), oop_off_2);
   BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   if (!UseG1GC || oop_off_1 == -1) {

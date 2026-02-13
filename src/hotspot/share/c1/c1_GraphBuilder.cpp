@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,9 @@
 #include "c1/c1_CFGPrinter.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_GraphBuilder.hpp"
+#include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
+#include "c1/c1_ValueType.hpp"
 #include "ci/ciCallSite.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
@@ -1983,28 +1985,28 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           // Flat field
           assert(!needs_patching, "Can't patch flat inline type field access");
           ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-          bool is_naturally_atomic = inline_klass->nof_declared_nonstatic_fields() <= 1;
-          bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
-          if (needs_atomic_access) {
+          if (field->is_atomic()) {
             assert(!has_pending_field_access(), "Pending field accesses are not supported");
             LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
             push(type, append(load));
           } else {
-            assert(field->is_null_free(), "must be null-free");
             // Look at the next bytecode to check if we can delay the field access
             bool can_delay_access = false;
-            ciBytecodeStream s(method());
-            s.force_bci(bci());
-            s.next();
-            if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
-              ciField* next_field = s.get_field(will_link);
-              bool next_needs_patching = !next_field->holder()->is_loaded() ||
-                                         !next_field->will_link(method(), Bytecodes::_getfield) ||
-                                         PatchALot;
-              // We can't update the offset for atomic accesses
-              bool next_needs_atomic_access = !next_field->is_null_free() || next_field->is_volatile();
-              can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching && !next_needs_atomic_access;
+            if (field->is_null_free()) {
+              ciBytecodeStream s(method());
+              s.force_bci(bci());
+              s.next();
+              if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
+                ciField* next_field = s.get_field(will_link);
+                bool next_needs_patching = !next_field->holder()->is_loaded() ||
+                                          !next_field->will_link(method(), Bytecodes::_getfield) ||
+                                          PatchALot;
+                // We can't update the offset for atomic accesses
+                bool next_needs_atomic_access = next_field->is_flat() && next_field->is_atomic();
+                can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching && !next_needs_atomic_access && next_field->is_null_free();
+              }
             }
+
             if (can_delay_access) {
               if (has_pending_load_indexed()) {
                 pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
@@ -2018,8 +2020,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             } else {
               scope()->set_wrote_final();
               scope()->set_wrote_fields();
-              bool need_membar = false;
               if (has_pending_load_indexed()) {
+                assert(field->is_null_free(), "nullable fields do not support delayed accesses yet");
                 assert(!needs_patching, "Can't patch delayed field access");
                 pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
                 NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
@@ -2028,34 +2030,49 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 apush(append_split(vt));
                 append(pending_load_indexed()->load_instr());
                 set_pending_load_indexed(nullptr);
-                need_membar = true;
-              } else {
-                if (has_pending_field_access()) {
-                  state_before = pending_field_access()->state_before();
-                }
+              } else if (has_pending_field_access()) {
+                assert(field->is_null_free(), "nullable fields do not support delayed accesses yet");
+                state_before = pending_field_access()->state_before();
                 NewInstance* new_instance = new NewInstance(inline_klass, state_before, false, true);
                 _memory->new_instance(new_instance);
                 apush(append_split(new_instance));
-                if (has_pending_field_access()) {
-                  copy_inline_content(inline_klass, pending_field_access()->obj(),
-                                      pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->payload_offset(),
-                                      new_instance, inline_klass->payload_offset(), state_before);
-                  set_pending_field_access(nullptr);
-                } else {
-                  if (field->type()->as_instance_klass()->is_initialized() && field->type()->as_inline_klass()->is_empty()) {
-                    // Needs an explicit null check because below code does not perform any actual load if there are no fields
-                    null_check(obj);
-                  }
-                  copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->payload_offset(), state_before);
+                copy_inline_content(inline_klass, pending_field_access()->obj(),
+                                    pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->payload_offset(),
+                                    new_instance, inline_klass->payload_offset(), state_before);
+                set_pending_field_access(nullptr);
+              } else {
+                if (!field->is_null_free() && !inline_klass->is_initialized()) {
+                  // Cannot allocate an instance of inline_klass because it may have not been
+                  // initialized, bailout for now
+                  bailout("load from an uninitialized nullable non-atomic flat field");
+                  return;
                 }
-                need_membar = true;
+
+                NewInstance* new_instance = new NewInstance(inline_klass, state_before, false, true);
+                _memory->new_instance(new_instance);
+                append_split(new_instance);
+
+                if (inline_klass->is_initialized() && inline_klass->is_empty()) {
+                  // Needs an explicit null check because below code does not perform any actual load if there are no fields
+                  null_check(obj);
+                }
+                copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->payload_offset(), state_before);
+
+                Instruction* result = new_instance;
+                if (!field->is_null_free()) {
+                  Value int_zero = append(new Constant(intZero));
+                  Value object_null = append(new Constant(objectNull));
+                  Value nm_offset = append(new Constant(new LongConstant(offset + inline_klass->null_marker_offset_in_payload())));
+                  Value nm = append(new UnsafeGet(T_BOOLEAN, obj, nm_offset, false));
+                  result = append(new IfOp(nm, Instruction::neq, int_zero, new_instance, object_null, state_before, false));
+                }
+                apush(result);
               }
-              if (need_membar) {
-                // If we allocated a new instance ensure the stores to copy the
-                // field contents are visible before any subsequent store that
-                // publishes this reference.
-                append(new MemBar(lir_membar_storestore));
-              }
+
+              // If we allocated a new instance ensure the stores to copy the
+              // field contents are visible before any subsequent store that
+              // publishes this reference.
+              append(new MemBar(lir_membar_storestore));
             }
           }
         }
@@ -2090,16 +2107,33 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         // Flat field
         assert(!needs_patching, "Can't patch flat inline type field access");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-        bool is_naturally_atomic = inline_klass->nof_declared_nonstatic_fields() <= 1;
-        bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
-        if (needs_atomic_access) {
+        if (field->is_atomic()) {
           if (field->is_null_free()) {
             null_check(val);
           }
           append(new StoreField(obj, offset, field, val, false, state_before, needs_patching));
-        } else {
-          assert(field->is_null_free(), "must be null-free");
+        } else if (field->is_null_free()) {
+          assert(!inline_klass->is_empty(), "should have been handled");
           copy_inline_content(inline_klass, val, inline_klass->payload_offset(), obj, offset, state_before, field);
+        } else {
+          if (!inline_klass->is_initialized()) {
+            // null_reset_value is not available, bailout for now
+            bailout("store to an uninitialized nullable non-atomic flat field");
+            return;
+          }
+
+          // Store the subfields when field is a nullable non-atomic field
+          Value object_null = append(new Constant(objectNull));
+          Value null_reset_value = append(new Constant(new ObjectConstant(inline_klass->get_null_reset_value().as_object())));
+          Value src = append(new IfOp(val, Instruction::neq, object_null, val, null_reset_value, state_before, false));
+          copy_inline_content(inline_klass, src, inline_klass->payload_offset(), obj, offset, state_before);
+
+          // Store the null marker
+          Value int_one = append(new Constant(new IntConstant(1)));
+          Value int_zero = append(new Constant(intZero));
+          Value nm = append(new IfOp(val, Instruction::neq, object_null, int_one, int_zero, state_before, false));
+          Value nm_offset = append(new Constant(new LongConstant(offset + inline_klass->null_marker_offset_in_payload())));
+          append(new UnsafePut(T_BOOLEAN, obj, nm_offset, nm, false));
         }
       }
       break;
@@ -2415,7 +2449,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   CHECK_BAILOUT();
 
   // inlining not successful => standard invoke
-  ValueType* result_type = as_ValueType(declared_signature->return_type());
+  ciType* return_type = declared_signature->return_type();
   ValueStack* state_before = copy_state_exhandling();
 
   // The bytecode (code) might change in this method so we are checking this very late.
@@ -2464,14 +2498,15 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
-  Invoke* result = new Invoke(code, result_type, recv, args, target, state_before);
+  Invoke* result = new Invoke(code, return_type, recv, args, target, state_before);
   // push result
   append_split(result);
 
-  if (result_type != voidType) {
-    push(result_type, result);
+  if (!return_type->is_void()) {
+    push(as_ValueType(return_type), result);
   }
-  if (profile_return() && result_type->is_object_kind()) {
+
+  if (profile_return() && return_type->is_object()) {
     profile_return_type(result, target);
   }
 }

@@ -38,7 +38,6 @@ import java.util.List;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -88,7 +87,6 @@ public class EmptyValueTest {
     }
 
     static value class WrappedEmpty1 {
-      @Strict
       @NullRestricted
       Empty0 empty = new Empty0();
     }
@@ -108,7 +106,6 @@ public class EmptyValueTest {
     }
 
     static class Container2 {
-      @Strict
       @NullRestricted
       WrappedEmpty1 we;
 

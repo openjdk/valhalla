@@ -34,7 +34,6 @@ import java.util.Arrays;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
 import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
@@ -175,8 +174,7 @@ public class TestIntrinsics {
                    .addFlags("-Xbootclasspath/a:.", "-XX:+UnlockDiagnosticVMOptions", "-XX:+WhiteBoxAPI",
                              "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                             "-XX:+UseAltSubstitutabilityMethod")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
@@ -507,24 +505,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
-    MyValue1 test22_vt;
-
-    @Test
-    @IR(failOn = {CALL_UNSAFE})
-    public void test22(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        U.putInt(v, X_OFFSET, rI);
-        v = U.finishPrivateBuffer(v);
-        test22_vt = v;
-    }
-
-    @Run(test = "test22")
-    public void test22_verifier() {
-        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        test22(v.setX(v, 0));
-        Asserts.assertEQ(v, test22_vt);
-    }
-
     @Test
     @IR(failOn = {CALL_UNSAFE})
     public int test23(MyValue1 v, long offset) {
@@ -538,7 +518,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
-    @Strict
     @NullRestricted
     MyValue1 test24_vt;
 
@@ -869,22 +848,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(vt, test31_vt);
     }
 
-    @Test
-    @IR(failOn = {CALL_UNSAFE})
-    public MyValue1 test39(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        U.putInt(v, X_OFFSET, rI);
-        v = U.finishPrivateBuffer(v);
-        return v;
-    }
-
-    @Run(test = "test39")
-    public void test39_verifier() {
-        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 res = test39(v.setX(v, 0));
-        Asserts.assertEQ(v, res);
-    }
-
     // Test value class array creation via reflection
     @Test
     public Object[] test40(Class<?> componentType, int len) {
@@ -1166,7 +1129,6 @@ public class TestIntrinsics {
         test53(MyValue1[].class, MyValue1[].class, len, 4);
     }
 
-    @Strict
     @NullRestricted
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1630,7 +1592,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
     }
 
-    @Strict
     @NullRestricted
     static final MyValue1 test73_value1 = MyValue1.createWithFieldsInline(rI, rL);
     static final MyValue1 test73_value2 = MyValue1.createWithFieldsInline(rI+1, rL+1);
@@ -1761,7 +1722,6 @@ public class TestIntrinsics {
 
     @LooselyConsistentValue
     public static value class Test80Value1 {
-        @Strict
         @NullRestricted
         Test80Value2 v = new Test80Value2();
     }
@@ -1886,27 +1846,6 @@ public class TestIntrinsics {
             }
         }
     }
-
-    /* TODO: 8322547: Unsafe::putInt checks the larval bit which leads to a VM crash
-    @Test
-    @IR(failOn = {CALL_UNSAFE})
-    public MyValue1 test84(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        for (int i = 0; i < 10; i++) {
-            U.putInt(v, X_OFFSET, i);
-        }
-        U.putInt(v, X_OFFSET, rI);
-        v = U.finishPrivateBuffer(v);
-        return v;
-    }
-
-    @Run(test = "test84")
-    public void test84_verifier() {
-        MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 v2 = test84(MyValue1.setX(v1, 0));
-        Asserts.assertEQ(v1.hash(), v2.hash());
-    }
-    */
 
     static value class MyValueClonable implements Cloneable {
         int x;

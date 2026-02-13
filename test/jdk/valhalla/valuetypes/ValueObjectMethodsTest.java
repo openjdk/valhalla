@@ -28,9 +28,8 @@
  * @summary test Object methods on value classes
  * @enablePreview
  * @run junit/othervm ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAltSubstitutabilityMethod ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseFieldFlattening ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseFieldFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
  */
 import java.lang.classfile.ClassFile;
 import java.util.Optional;
@@ -41,7 +40,6 @@ import java.util.stream.Stream;
 import java.lang.reflect.AccessFlag;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -60,9 +58,9 @@ public class ValueObjectMethodsTest {
     }
 
     static value class Line {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p1;
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -72,7 +70,7 @@ public class ValueObjectMethodsTest {
     }
 
     static class Ref {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p;
         Line l;
         Ref(Point p, Line l) {
@@ -83,9 +81,9 @@ public class ValueObjectMethodsTest {
     }
 
     static value class Value {
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p;
-        @NullRestricted  @Strict
+        @NullRestricted
         Line l;
         Ref r;
         String s;

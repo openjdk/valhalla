@@ -32,7 +32,6 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
@@ -116,10 +115,8 @@ public class TestLWorldProfiling {
                    .start();
     }
 
-    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-    @Strict
     @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
     private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
@@ -525,7 +522,6 @@ public class TestLWorldProfiling {
         private Object o6 = null;
     }
 
-    @Strict
     @NullRestricted
     private static final NotFlattenable notFlattenable = new NotFlattenable();
     private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, new NotFlattenable());
@@ -1220,5 +1216,17 @@ public class TestLWorldProfiling {
             Test40Inline[] array = (Test40Inline[])ValueClass.newNullRestrictedNonAtomicArray(Test40Inline.class, 1, new Test40Inline());
             test41(array, new Test40Inline());
         }
+    }
+
+    @Test
+    static long test42(Long... v) {
+        return v[0];
+    }
+
+    @Run(test = "test42")
+    @Warmup(10000)
+    public void test42_verifier() {
+        Long[] arg = (Long[])ValueClass.newNullRestrictedNonAtomicArray(Long.class, 1, 0L);
+        test42(arg);
     }
 }
