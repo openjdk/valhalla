@@ -238,7 +238,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription a
 
 objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  ObjArrayKlass* ak = klass_with_properties(props, THREAD);
+  ObjArrayKlass* ak = klass_with_properties(props, CHECK_NULL);
   size_t size = 0;
   switch(ak->kind()) {
     case Klass::RefArrayKlassKind:
@@ -431,10 +431,10 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
         ArrayDescription default_ad = array_layout_selection(element_klass(), ArrayKlass::ArrayProperties::DEFAULT);
-        first = allocate_klass_from_description(default_ad, THREAD);
+        first = allocate_klass_from_description(default_ad, CHECK_NULL);
         release_set_next_refined_klass(first);
       }
-      ak = allocate_klass_from_description(ad, THREAD);
+      ak = allocate_klass_from_description(ad, CHECK_NULL);
       first->release_set_next_refined_klass(ak);
     }
   }

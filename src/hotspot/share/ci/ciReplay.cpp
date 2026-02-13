@@ -513,8 +513,8 @@ class CompileReplay : public StackObj {
       }
       obj = ciReplay::obj_field(obj, field);
       // TODO 8350865 I think we need to handle null-free/flat arrays here
-      if (obj != nullptr && obj->is_objArray()) {
-        objArrayOop arr = (objArrayOop)obj;
+      if (obj != nullptr && obj->is_refArray()) {
+        refArrayOop arr = refArrayOopDesc::cast(obj);
         int index = parse_int("index");
         if (index >= arr->length()) {
           report_error("bad array index");

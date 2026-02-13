@@ -1364,7 +1364,9 @@ void ciEnv::record_lambdaform(Thread* thread, oop form) {
   }
 
   // Check LambdaForm.names array
-  objArrayOop names = (objArrayOop)obj_field(form, "names");
+  // The type of the array is Name[] and Name is an identity class,
+  // so the array is always an array of references
+  refArrayOop names = refArrayOopDesc::cast(obj_field(form, "names"));
   if (names != nullptr) {
     RecordLocation lp0(this, "names");
     int len = names->length();

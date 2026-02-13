@@ -730,7 +730,7 @@ bool Universe::should_fill_in_stack_trace(Handle throwable) {
   // preallocated errors with backtrace have been consumed. Also need to avoid
   // a potential loop which could happen if an out of memory occurs when attempting
   // to allocate the backtrace.
-  objArrayOop preallocated_oom = out_of_memory_errors();
+  refArrayOop preallocated_oom = out_of_memory_errors();
   for (int i = 0; i < _oom_count; i++) {
     if (throwable() == preallocated_oom->obj_at(i)) {
       return false;
