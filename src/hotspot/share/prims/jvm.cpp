@@ -1489,9 +1489,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (members != length) {
     // Return array of right length
-    refArrayOop res = oopFactory::new_refArray(vmClasses::Class_klass(),
-                                                       members,
-                                                       CHECK_NULL);
+    refArrayOop res = oopFactory::new_refArray(vmClasses::Class_klass(), members, CHECK_NULL);
     for(int i = 0; i < members; i++) {
       res->obj_at_put(i, result->obj_at(i));
     }
@@ -1963,9 +1961,7 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
     log_trace(class, nestmates)(" - host has %d listed nest members", length);
 
     // nest host is first in the array so make it one bigger
-    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(),
-                                                     length + 1,
-                                                     CHECK_NULL);
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length + 1, CHECK_NULL);
     refArrayHandle result(THREAD, r);
     result->obj_at_put(0, host->java_mirror());
     if (length != 0) {
@@ -2041,9 +2037,7 @@ JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
 
     log_trace(class, sealed)(" - sealed class has %d permitted subclasses", length);
 
-    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(),
-                                                     length,
-                                                     CHECK_NULL);
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length, CHECK_NULL);
     refArrayHandle result(THREAD, r);
     int count = 0;
     for (int i = 0; i < length; i++) {

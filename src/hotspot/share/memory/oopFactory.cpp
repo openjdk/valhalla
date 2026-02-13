@@ -124,7 +124,7 @@ refArrayOop oopFactory::new_refArray(Klass* klass, int length, ArrayKlass::Array
   ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_from_description(ad, CHECK_NULL);
   // Cast below must pass because the array description required a RefArrayKlass
   RefArrayKlass* rak = RefArrayKlass::cast(oak);
-  oop array = rak->allocate_instance(length, properties, CHECK_NULL);
+  oop array = rak->RefArrayKlass::allocate_instance(length, properties, CHECK_NULL);
   return refArrayOopDesc::cast(array);
 }
 

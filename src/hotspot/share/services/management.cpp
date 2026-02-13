@@ -1464,9 +1464,7 @@ JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
 
   if (num_entries < nFlags) {
     // Return array of right length
-    refArrayOop res = oopFactory::new_refArray(vmClasses::String_klass(),
-                                                       num_entries,
-                                                       CHECK_NULL);
+    refArrayOop res = oopFactory::new_refArray(vmClasses::String_klass(), num_entries, CHECK_NULL);
     for(int i = 0; i < num_entries; i++) {
       res->obj_at_put(i, flags_ah->obj_at(i));
     }

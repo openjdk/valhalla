@@ -1074,7 +1074,7 @@ void Klass::oop_verify_on(oop obj, outputStream* st) {
 }
 
 #ifdef ASSERT
-void Klass::validate_array_description(ArrayDescription& ad) {
+void Klass::validate_array_description(const ArrayDescription& ad) {
   if (is_identity_class() || is_array_klass() || is_interface() ||
       (is_instance_klass() && InstanceKlass::cast(this)->access_flags().is_abstract())) {
     assert(ad._layout_kind == LayoutKind::REFERENCE, "Cannot support flattening");

@@ -812,7 +812,7 @@ public:
 
   virtual void oop_verify_on(oop obj, outputStream* st);
 
-  void validate_array_description(ArrayDescription& ad) NOT_DEBUG_RETURN;
+  void validate_array_description(const ArrayDescription& ad) NOT_DEBUG_RETURN;
 
   // for error reporting
   static bool is_valid(Klass* k);
