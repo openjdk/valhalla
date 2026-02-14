@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.comp;
 
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
@@ -45,6 +46,7 @@ import com.sun.tools.javac.code.Directive.ExportsDirective;
 import com.sun.tools.javac.code.Directive.RequiresDirective;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
+import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -1809,7 +1811,8 @@ public class Check {
     void checkOverride(JCTree tree,
                        MethodSymbol m,
                        MethodSymbol other,
-                       ClassSymbol origin) {
+                       ClassSymbol origin,
+                       Env<AttrContext> env) {
         // Don't check overriding of synthetic methods or by bridge methods.
         if ((m.flags() & (SYNTHETIC|BRIDGE)) != 0 || (other.flags() & SYNTHETIC) != 0) {
             return;
@@ -1889,6 +1892,7 @@ public class Check {
                  * or with a generated method, for example a record accessor, for which there are no precise
                  * locations
                  */
+                Path filePath = ((PathFileObject.SimpleFileObject)env.toplevel.sourcefile).getPath();
                 if (theTree instanceof JCMethodDecl methodDecl) {
                     // ok we are lucky we can work with precise locations
                     preciseLocations = true;
@@ -1897,11 +1901,25 @@ public class Check {
                 }
                 for (ArgsNullabilityResult incompatibleParam :
                         checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
+                    if (preciseLocations) {
+                        int endPos = incompatibleParam.position.vartype.getEndPosition(env.toplevel.endPositions);
+                        int lineNumber = env.toplevel.getLineMap().getLineNumber(endPos);
+                        int colNumber = env.toplevel.getLineMap().getColumnNumber(endPos);
+                        log.warning(incompatibleParam.position.vartype,
+                                Warnings.NoteFromCompiler("NOTE:" + filePath + ":" + lineNumber + ":" + colNumber));
+                    }
                     warnNullableTypes(incompatibleParam.position != null ? incompatibleParam.position.vartype : theTree,
                             LintWarnings.IncompatibleNullRestrictions(
                                     Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
                 }
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                    if (preciseLocations) {
+                        int endPos = resultTypePos.getEndPosition(env.toplevel.endPositions);
+                        int lineNumber = env.toplevel.getLineMap().getLineNumber(endPos);
+                        int colNumber = env.toplevel.getLineMap().getColumnNumber(endPos);
+                        log.warning(resultTypePos,
+                                Warnings.NoteFromCompiler("NOTE:" + filePath + ":" + lineNumber + ":" + colNumber));
+                    }
                     warnNullableTypes(resultTypePos, LintWarnings.IncompatibleNullRestrictions(
                             Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
                 }
@@ -2239,10 +2257,10 @@ public class Check {
         for (Type t = origin.type; t.hasTag(CLASS);
              t = types.supertype(t)) {
             if (t != origin.type) {
-                checkOverride(tree, t, origin, m);
+                checkOverride(tree, t, origin, m, env);
             }
             for (Type t2 : types.interfaces(t)) {
-                checkOverride(tree, t2, origin, m);
+                checkOverride(tree, t2, origin, m, env);
             }
         }
 
@@ -2266,12 +2284,12 @@ public class Check {
         }
     }
 
-    void checkOverride(JCTree tree, Type site, ClassSymbol origin, MethodSymbol m) {
+    void checkOverride(JCTree tree, Type site, ClassSymbol origin, MethodSymbol m, Env<AttrContext> env) {
         TypeSymbol c = site.tsym;
         for (Symbol sym : c.members().getSymbolsByName(m.name)) {
             if (m.overrides(sym, origin, types, false)) {
                 if ((sym.flags() & ABSTRACT) == 0) {
-                    checkOverride(tree, m, (MethodSymbol)sym, origin);
+                    checkOverride(tree, m, (MethodSymbol)sym, origin, env);
                 }
             }
         }
@@ -2609,14 +2627,14 @@ public class Check {
      *  method conform to the method they implement.
      *  @param tree         The class definition whose members are checked.
      */
-    void checkImplementations(JCClassDecl tree) {
-        checkImplementations(tree, tree.sym, tree.sym);
+    void checkImplementations(JCClassDecl tree, Env<AttrContext> env) {
+        checkImplementations(tree, tree.sym, tree.sym, env);
     }
     //where
         /** Check that all methods which implement some
          *  method in `ic' conform to the method they implement.
          */
-        void checkImplementations(JCTree tree, ClassSymbol origin, ClassSymbol ic) {
+        void checkImplementations(JCTree tree, ClassSymbol origin, ClassSymbol ic, Env<AttrContext> env) {
             for (List<Type> l = types.closure(ic.type); l.nonEmpty(); l = l.tail) {
                 ClassSymbol lc = (ClassSymbol)l.head.tsym;
                 if ((lc.flags() & ABSTRACT) != 0) {
@@ -2634,7 +2652,7 @@ public class Check {
                                 // that interfaces really don't inherit from
                                 // Object it's just that the compiler represents
                                 // things that way.
-                                checkOverride(tree, implmeth, absmeth, origin);
+                                checkOverride(tree, implmeth, absmeth, origin, env);
                             }
                         }
                     }

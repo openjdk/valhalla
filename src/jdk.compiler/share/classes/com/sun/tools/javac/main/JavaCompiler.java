@@ -438,8 +438,7 @@ public class JavaCompiler {
         sourceOutput  = options.isSet(PRINTSOURCE); // used to be -s
         lineDebugInfo = options.isUnset(G_CUSTOM) ||
                         options.isSet(G_CUSTOM, "lines");
-        genEndPos     = options.isSet(XJCOV) ||
-                        context.get(DiagnosticListener.class) != null;
+        genEndPos     = true;
         devVerbose    = options.isSet("dev");
         processPcks   = options.isSet("process.packages");
         werrorAny     = options.isSet(WERROR) || options.isSet(WERROR_CUSTOM, Option.LINT_CUSTOM_ALL);
