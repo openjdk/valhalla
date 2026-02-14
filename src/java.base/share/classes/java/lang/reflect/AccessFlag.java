@@ -802,12 +802,12 @@ public enum AccessFlag {
 
         // all mutating methods throw UnsupportedOperationException
         @Override public boolean add(AccessFlag e) { throw uoe(); }
-        @Override public boolean addAll(Collection<? extends AccessFlag> c) { throw uoe(); }
+        @Override public boolean addAll(Collection<? extends AccessFlag>! c) { throw uoe(); }
         @Override public void    clear() { throw uoe(); }
         @Override public boolean remove(Object o) { throw uoe(); }
-        @Override public boolean removeAll(Collection<?> c) { throw uoe(); }
-        @Override public boolean removeIf(Predicate<? super AccessFlag> filter) { throw uoe(); }
-        @Override public boolean retainAll(Collection<?> c) { throw uoe(); }
+        @Override public boolean removeAll(Collection<?>! c) { throw uoe(); }
+        @Override public boolean removeIf(Predicate<? super AccessFlag>! filter) { throw uoe(); }
+        @Override public boolean retainAll(Collection<?>! c) { throw uoe(); }
         private static UnsupportedOperationException uoe() { return new UnsupportedOperationException(); }
 
         private AccessFlagSet(AccessFlag[] definition, int mask) {
