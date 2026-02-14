@@ -1892,7 +1892,10 @@ public class Check {
                  * or with a generated method, for example a record accessor, for which there are no precise
                  * locations
                  */
-                Path filePath = ((PathFileObject.SimpleFileObject)env.toplevel.sourcefile).getPath();
+                Path filePath = null;
+                if (env.toplevel.sourcefile instanceof PathFileObject.SimpleFileObject simpleFileObject) {
+                    filePath = simpleFileObject.getPath();
+                }
                 if (theTree instanceof JCMethodDecl methodDecl) {
                     // ok we are lucky we can work with precise locations
                     preciseLocations = true;
@@ -1901,7 +1904,7 @@ public class Check {
                 }
                 for (ArgsNullabilityResult incompatibleParam :
                         checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
-                    if (preciseLocations) {
+                    if (preciseLocations && filePath != null) {
                         int endPos = incompatibleParam.position.vartype.getEndPosition(env.toplevel.endPositions);
                         int lineNumber = env.toplevel.getLineMap().getLineNumber(endPos);
                         int colNumber = env.toplevel.getLineMap().getColumnNumber(endPos);
@@ -1913,7 +1916,7 @@ public class Check {
                                     Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
                 }
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
-                    if (preciseLocations) {
+                    if (preciseLocations && filePath != null) {
                         int endPos = resultTypePos.getEndPosition(env.toplevel.endPositions);
                         int lineNumber = env.toplevel.getLineMap().getLineNumber(endPos);
                         int colNumber = env.toplevel.getLineMap().getColumnNumber(endPos);
