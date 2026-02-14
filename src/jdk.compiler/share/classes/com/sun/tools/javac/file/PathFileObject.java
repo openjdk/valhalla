@@ -258,7 +258,7 @@ public abstract class PathFileObject implements JavaFileObject {
         return new SimpleFileObject(fileManager, path, userPath);
     }
 
-    public static class SimpleFileObject extends PathFileObject {
+    private static class SimpleFileObject extends PathFileObject {
         private final Path userPath;
         private SimpleFileObject(BaseFileManager fileManager, Path path, Path userPath) {
             super(fileManager, path);

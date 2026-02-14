@@ -4416,7 +4416,7 @@ public class Attr extends JCTree.Visitor {
                     ClassSymbol csym = types.makeFunctionalInterfaceClass(env,
                             names.empty, fExpr.target, ABSTRACT);
                     if (csym != null) {
-                        chk.checkImplementations(env.tree, csym, csym, env);
+                        chk.checkImplementations(env.tree, csym, csym);
                         try {
                             //perform an additional functional interface check on the synthetic class,
                             //as there may be spurious errors for raw targets - because of existing issues
@@ -6139,7 +6139,7 @@ public class Attr extends JCTree.Visitor {
 
         // Check that all methods which implement some
         // method conform to the method they implement.
-        chk.checkImplementations(tree, env);
+        chk.checkImplementations(tree);
 
         //check that a resource implementing AutoCloseable cannot throw InterruptedException
         checkAutoCloseable(env, tree, false);

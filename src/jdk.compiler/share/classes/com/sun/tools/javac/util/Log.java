@@ -523,7 +523,7 @@ public class Log extends AbstractLog {
             this.emitWarnings = options.isUnset(NOWARN);
             this.suppressNotes = options.isSet("suppressNotes");
             this.MaxErrors = getIntOption(options, XMAXERRS, getDefaultMaxErrors());
-            this.MaxWarnings = 10000;//getIntOption(options, XMAXWARNS, getDefaultMaxWarnings());
+            this.MaxWarnings = getIntOption(options, XMAXWARNS, getDefaultMaxWarnings());
 
             boolean rawDiagnostics = options.isSet("rawDiagnostics");
             this.diagFormatter = rawDiagnostics ? new RawDiagnosticFormatter(options) :
