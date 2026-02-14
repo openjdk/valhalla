@@ -1904,27 +1904,27 @@ public class Check {
                 }
                 for (ArgsNullabilityResult incompatibleParam :
                         checkArgsNullability(mt.getParameterTypes(), ot.getParameterTypes(), params)) {
+                    String additionalInfo = "";
                     if (preciseLocations && filePath != null) {
                         int endPos = incompatibleParam.position.vartype.getEndPosition(env.toplevel.endPositions);
                         int lineNumber = env.toplevel.getLineMap().getLineNumber(endPos);
                         int colNumber = env.toplevel.getLineMap().getColumnNumber(endPos);
-                        log.warning(incompatibleParam.position.vartype,
-                                Warnings.NoteFromCompiler("NOTE:" + filePath + ":" + lineNumber + ":" + colNumber));
+                        additionalInfo = "NOTE:" + filePath + ":" + lineNumber + ":" + colNumber;
                     }
                     warnNullableTypes(incompatibleParam.position != null ? incompatibleParam.position.vartype : theTree,
                             LintWarnings.IncompatibleNullRestrictions(
-                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType)));
+                                    Fragments.ArgumentTypeNullabilityMismatch(incompatibleParam.overridingType, incompatibleParam.overridenType, additionalInfo)));
                 }
                 if (types.hasNarrowerNullability(ot.getReturnType(), mt.getReturnType())) {
+                    String additionalInfo = "";
                     if (preciseLocations && filePath != null) {
                         int endPos = resultTypePos.getEndPosition(env.toplevel.endPositions);
                         int lineNumber = env.toplevel.getLineMap().getLineNumber(endPos);
                         int colNumber = env.toplevel.getLineMap().getColumnNumber(endPos);
-                        log.warning(resultTypePos,
-                                Warnings.NoteFromCompiler("NOTE:" + filePath + ":" + lineNumber + ":" + colNumber));
+                        additionalInfo = "NOTE:" + filePath + ":" + lineNumber + ":" + colNumber;
                     }
                     warnNullableTypes(resultTypePos, LintWarnings.IncompatibleNullRestrictions(
-                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType())));
+                            Fragments.ReturnTypeNullabilityMismatch(mt.getReturnType(), ot.getReturnType(), additionalInfo)));
                 }
             }
         }
