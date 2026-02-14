@@ -60,7 +60,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
         return base.descendingIterator();
     }
 
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this, Spliterator.ORDERED);
     }
 
@@ -71,7 +71,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
         return true;
     }
 
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         boolean modified = false;
         for (E e : c) {
             base.addFirst(e);
@@ -88,7 +88,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
         return base.contains(o);
     }
 
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(Collection<?>! c) {
         return base.containsAll(c);
     }
 
@@ -96,7 +96,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
         return base.isEmpty();
     }
 
-    public Stream<E> parallelStream() {
+    public Stream<E>! parallelStream() {
         return StreamSupport.stream(spliterator(), true);
     }
 
@@ -122,7 +122,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
     }
 
     // copied from AbstractCollection
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<?> it = iterator();
@@ -136,7 +136,7 @@ class ReverseOrderDequeView<E> implements Deque<E> {
     }
 
     // copied from AbstractCollection
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<E> it = iterator();
@@ -153,19 +153,19 @@ class ReverseOrderDequeView<E> implements Deque<E> {
         return base.size();
     }
 
-    public Stream<E> stream() {
+    public Stream<E>! stream() {
         return StreamSupport.stream(spliterator(), false);
     }
 
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return ArraysSupport.reverse(base.toArray());
     }
 
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         return ArraysSupport.toArrayReversed(base, a);
     }
 
-    public <T> T[] toArray(IntFunction<T[]> generator) {
+    public <T> T[]! toArray(IntFunction<T[]>! generator) {
         return ArraysSupport.reverse(base.toArray(generator));
     }
 

@@ -110,7 +110,7 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
         return descendingIterator(base);
     }
 
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this, Spliterator.ORDERED);
     }
 
@@ -121,7 +121,7 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
         return true;
     }
 
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         return base.addAll(c);
     }
 
@@ -133,7 +133,7 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
         return base.contains(o);
     }
 
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(Collection<?>! c) {
         return base.containsAll(c);
     }
 
@@ -141,7 +141,7 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
         return base.isEmpty();
     }
 
-    public Stream<E> parallelStream() {
+    public Stream<E>! parallelStream() {
         return StreamSupport.stream(spliterator(), true);
     }
 
@@ -149,12 +149,12 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
         return base.remove(o);
     }
 
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         return base.removeAll(c);
     }
 
     // copied from AbstractCollection
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         return base.retainAll(c);
     }
 
@@ -162,19 +162,19 @@ class ReverseOrderSortedSetView<E> implements SortedSet<E> {
         return base.size();
     }
 
-    public Stream<E> stream() {
+    public Stream<E>! stream() {
         return StreamSupport.stream(spliterator(), false);
     }
 
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return ArraysSupport.reverse(base.toArray());
     }
 
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         return ArraysSupport.toArrayReversed(base, a);
     }
 
-    public <T> T[] toArray(IntFunction<T[]> generator) {
+    public <T> T[]! toArray(IntFunction<T[]>! generator) {
         return ArraysSupport.reverse(base.toArray(generator));
     }
 

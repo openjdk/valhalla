@@ -994,15 +994,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
-        public final Spliterator<K> spliterator() {
+        public final Spliterator<K>! spliterator() {
             return new KeySpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return keysToArray(new Object[size]);
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return keysToArray(prepareArray(a));
         }
 
@@ -1051,15 +1051,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         public final void clear()               { HashMap.this.clear(); }
         public final Iterator<V>! iterator()     { return new ValueIterator(); }
         public final boolean contains(Object o) { return containsValue(o); }
-        public final Spliterator<V> spliterator() {
+        public final Spliterator<V>! spliterator() {
             return new ValueSpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return valuesToArray(new Object[size]);
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return valuesToArray(prepareArray(a));
         }
 
@@ -1121,7 +1121,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
             return false;
         }
-        public final Spliterator<Map.Entry<K,V>> spliterator() {
+        public final Spliterator<Map.Entry<K,V>>! spliterator() {
             return new EntrySpliterator<>(HashMap.this, 0, -1, 0, 0);
         }
         public final void forEach(Consumer<? super Map.Entry<K,V>> action) {

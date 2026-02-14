@@ -150,7 +150,7 @@ class ReverseOrderListView<E> implements List<E> {
         return new DescendingIterator();
     }
 
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this, Spliterator.ORDERED);
     }
 
@@ -162,7 +162,7 @@ class ReverseOrderListView<E> implements List<E> {
         return true;
     }
 
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         checkModifiable();
 
         @SuppressWarnings("unchecked")
@@ -184,7 +184,7 @@ class ReverseOrderListView<E> implements List<E> {
         return base.contains(o);
     }
 
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(Collection<?>! c) {
         return base.containsAll(c);
     }
 
@@ -218,7 +218,7 @@ class ReverseOrderListView<E> implements List<E> {
         return base.isEmpty();
     }
 
-    public Stream<E> parallelStream() {
+    public Stream<E>! parallelStream() {
         return StreamSupport.stream(spliterator(), true);
     }
 
@@ -245,7 +245,7 @@ class ReverseOrderListView<E> implements List<E> {
     }
 
     // copied from AbstractCollection
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         checkModifiable();
         Objects.requireNonNull(c);
         boolean modified = false;
@@ -260,7 +260,7 @@ class ReverseOrderListView<E> implements List<E> {
     }
 
     // copied from AbstractCollection
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         checkModifiable();
         Objects.requireNonNull(c);
         boolean modified = false;
@@ -278,19 +278,19 @@ class ReverseOrderListView<E> implements List<E> {
         return base.size();
     }
 
-    public Stream<E> stream() {
+    public Stream<E>! stream() {
         return StreamSupport.stream(spliterator(), false);
     }
 
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return ArraysSupport.reverse(base.toArray());
     }
 
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         return ArraysSupport.toArrayReversed(base, a);
     }
 
-    public <T> T[] toArray(IntFunction<T[]> generator) {
+    public <T> T[]! toArray(IntFunction<T[]>! generator) {
         return ArraysSupport.reverse(base.toArray(generator));
     }
 
@@ -367,7 +367,7 @@ class ReverseOrderListView<E> implements List<E> {
         return base.remove(size - index - 1);
     }
 
-    public boolean removeIf(Predicate<? super E> filter) {
+    public boolean removeIf(Predicate<? super E>! filter) {
         checkModifiable();
         return base.removeIf(filter);
     }

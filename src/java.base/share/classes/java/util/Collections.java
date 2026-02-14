@@ -1069,9 +1069,9 @@ public final class Collections {
         public int size()                          {return c.size();}
         public boolean isEmpty()                   {return c.isEmpty();}
         public boolean contains(Object o)          {return c.contains(o);}
-        public Object[] toArray()                  {return c.toArray();}
-        public <T> T[] toArray(T[] a)              {return c.toArray(a);}
-        public <T> T[] toArray(IntFunction<T[]> f) {return c.toArray(f);}
+        public Object[]! toArray()                  {return c.toArray();}
+        public <T> T[]! toArray(T[]! a)              {return c.toArray(a);}
+        public <T> T[]! toArray(IntFunction<T[]>! f) {return c.toArray(f);}
         public String toString()                   {return c.toString();}
 
         public Iterator<E>! iterator() {
@@ -1098,16 +1098,16 @@ public final class Collections {
             throw new UnsupportedOperationException();
         }
 
-        public boolean containsAll(Collection<?> coll) {
+        public boolean containsAll(Collection<?>! coll) {
             return c.containsAll(coll);
         }
-        public boolean addAll(Collection<? extends E> coll) {
+        public boolean addAll(Collection<? extends E>! coll) {
             throw new UnsupportedOperationException();
         }
-        public boolean removeAll(Collection<?> coll) {
+        public boolean removeAll(Collection<?>! coll) {
             throw new UnsupportedOperationException();
         }
-        public boolean retainAll(Collection<?> coll) {
+        public boolean retainAll(Collection<?>! coll) {
             throw new UnsupportedOperationException();
         }
         public void clear() {
@@ -1120,22 +1120,22 @@ public final class Collections {
             c.forEach(action);
         }
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             throw new UnsupportedOperationException();
         }
         @SuppressWarnings("unchecked")
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return (Spliterator<E>)c.spliterator();
         }
         @SuppressWarnings("unchecked")
         @Override
-        public Stream<E> stream() {
+        public Stream<E>! stream() {
             return (Stream<E>)c.stream();
         }
         @SuppressWarnings("unchecked")
         @Override
-        public Stream<E> parallelStream() {
+        public Stream<E>! parallelStream() {
             return (Stream<E>)c.parallelStream();
         }
     }
@@ -1845,18 +1845,18 @@ public final class Collections {
             }
 
             @SuppressWarnings("unchecked")
-            public Spliterator<Entry<K,V>> spliterator() {
+            public Spliterator<Entry<K,V>>! spliterator() {
                 return new UnmodifiableEntrySetSpliterator<>(
                         (Spliterator<Map.Entry<K, V>>) c.spliterator());
             }
 
             @Override
-            public Stream<Entry<K,V>> stream() {
+            public Stream<Entry<K,V>>! stream() {
                 return StreamSupport.stream(spliterator(), false);
             }
 
             @Override
-            public Stream<Entry<K,V>> parallelStream() {
+            public Stream<Entry<K,V>>! parallelStream() {
                 return StreamSupport.stream(spliterator(), true);
             }
 
@@ -1881,7 +1881,7 @@ public final class Collections {
             }
 
             @SuppressWarnings("unchecked")
-            public Object[] toArray() {
+            public Object[]! toArray() {
                 Object[] a = c.toArray();
                 for (int i=0; i<a.length; i++)
                     a[i] = new UnmodifiableEntry<>((Map.Entry<? extends K, ? extends V>)a[i]);
@@ -1889,7 +1889,7 @@ public final class Collections {
             }
 
             @SuppressWarnings("unchecked")
-            public <T> T[] toArray(T[] a) {
+            public <T> T[]! toArray(T[]! a) {
                 // We don't pass a to c.toArray, to avoid window of
                 // vulnerability wherein an unscrupulous multithreaded client
                 // could get his hands on raw (unwrapped) Entries from c.
@@ -1925,7 +1925,7 @@ public final class Collections {
              * an unscrupulous List whose contains(Object o) method senses
              * when o is a Map.Entry, and calls o.setValue.
              */
-            public boolean containsAll(Collection<?> coll) {
+            public boolean containsAll(Collection<?>! coll) {
                 for (Object e : coll) {
                     if (!contains(e)) // Invokes safe contains() above
                         return false;
@@ -2316,13 +2316,13 @@ public final class Collections {
         public boolean contains(Object o) {
             synchronized (mutex) {return c.contains(o);}
         }
-        public Object[] toArray() {
+        public Object[]! toArray() {
             synchronized (mutex) {return c.toArray();}
         }
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             synchronized (mutex) {return c.toArray(a);}
         }
-        public <T> T[] toArray(IntFunction<T[]> f) {
+        public <T> T[]! toArray(IntFunction<T[]>! f) {
             synchronized (mutex) {return c.toArray(f);}
         }
 
@@ -2337,16 +2337,16 @@ public final class Collections {
             synchronized (mutex) {return c.remove(o);}
         }
 
-        public boolean containsAll(Collection<?> coll) {
+        public boolean containsAll(Collection<?>! coll) {
             synchronized (mutex) {return c.containsAll(coll);}
         }
-        public boolean addAll(Collection<? extends E> coll) {
+        public boolean addAll(Collection<? extends E>! coll) {
             synchronized (mutex) {return c.addAll(coll);}
         }
-        public boolean removeAll(Collection<?> coll) {
+        public boolean removeAll(Collection<?>! coll) {
             synchronized (mutex) {return c.removeAll(coll);}
         }
-        public boolean retainAll(Collection<?> coll) {
+        public boolean retainAll(Collection<?>! coll) {
             synchronized (mutex) {return c.retainAll(coll);}
         }
         public void clear() {
@@ -2361,19 +2361,19 @@ public final class Collections {
             synchronized (mutex) {c.forEach(consumer);}
         }
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             synchronized (mutex) {return c.removeIf(filter);}
         }
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return c.spliterator(); // Must be manually synched by user!
         }
         @Override
-        public Stream<E> stream() {
+        public Stream<E>! stream() {
             return c.stream(); // Must be manually synched by user!
         }
         @Override
-        public Stream<E> parallelStream() {
+        public Stream<E>! parallelStream() {
             return c.parallelStream(); // Must be manually synched by user!
         }
         @java.io.Serial
@@ -3471,20 +3471,20 @@ public final class Collections {
         public int size()                          { return c.size(); }
         public boolean isEmpty()                   { return c.isEmpty(); }
         public boolean contains(Object o)          { return c.contains(o); }
-        public Object[] toArray()                  { return c.toArray(); }
-        public <T> T[] toArray(T[] a)              { return c.toArray(a); }
-        public <T> T[] toArray(IntFunction<T[]> f) { return c.toArray(f); }
+        public Object[]! toArray()                  { return c.toArray(); }
+        public <T> T[]! toArray(T[]! a)              { return c.toArray(a); }
+        public <T> T[]! toArray(IntFunction<T[]>! f) { return c.toArray(f); }
         public String toString()                   { return c.toString(); }
         public boolean remove(Object o)            { return c.remove(o); }
         public void clear()                        {        c.clear(); }
 
-        public boolean containsAll(Collection<?> coll) {
+        public boolean containsAll(Collection<?>! coll) {
             return c.containsAll(coll);
         }
-        public boolean removeAll(Collection<?> coll) {
+        public boolean removeAll(Collection<?>! coll) {
             return c.removeAll(coll);
         }
-        public boolean retainAll(Collection<?> coll) {
+        public boolean retainAll(Collection<?>! coll) {
             return c.retainAll(coll);
         }
 
@@ -3536,7 +3536,7 @@ public final class Collections {
             return (Collection<E>) Arrays.asList(a);
         }
 
-        public boolean addAll(Collection<? extends E> coll) {
+        public boolean addAll(Collection<? extends E>! coll) {
             // Doing things this way insulates us from concurrent changes
             // in the contents of coll and provides all-or-nothing
             // semantics (which we wouldn't get if we type-checked each
@@ -3548,15 +3548,15 @@ public final class Collections {
         @Override
         public void forEach(Consumer<? super E> action) {c.forEach(action);}
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             return c.removeIf(filter);
         }
         @Override
-        public Spliterator<E> spliterator() {return c.spliterator();}
+        public Spliterator<E>! spliterator() {return c.spliterator();}
         @Override
-        public Stream<E> stream()           {return c.stream();}
+        public Stream<E>! stream()           {return c.stream();}
         @Override
-        public Stream<E> parallelStream()   {return c.parallelStream();}
+        public Stream<E>! parallelStream()   {return c.parallelStream();}
     }
 
     /**
@@ -4191,7 +4191,7 @@ public final class Collections {
             public boolean add(Map.Entry<K, V> e) {
                 throw new UnsupportedOperationException();
             }
-            public boolean addAll(Collection<? extends Map.Entry<K, V>> coll) {
+            public boolean addAll(Collection<? extends Map.Entry<K, V>>! coll) {
                 throw new UnsupportedOperationException();
             }
 
@@ -4215,7 +4215,7 @@ public final class Collections {
             }
 
             @SuppressWarnings("unchecked")
-            public Object[] toArray() {
+            public Object[]! toArray() {
                 Object[] source = s.toArray();
 
                 /*
@@ -4233,7 +4233,7 @@ public final class Collections {
             }
 
             @SuppressWarnings("unchecked")
-            public <T> T[] toArray(T[] a) {
+            public <T> T[]! toArray(T[]! a) {
                 // We don't pass a to s.toArray, to avoid window of
                 // vulnerability wherein an unscrupulous multithreaded client
                 // could get his hands on raw (unwrapped) Entries from s.
@@ -4267,7 +4267,7 @@ public final class Collections {
              * against an unscrupulous collection whose contains(Object o)
              * method senses when o is a Map.Entry, and calls o.setValue.
              */
-            public boolean containsAll(Collection<?> c) {
+            public boolean containsAll(Collection<?>! c) {
                 for (Object o : c)
                     if (!contains(o)) // Invokes safe contains() above
                         return false;
@@ -4281,10 +4281,10 @@ public final class Collections {
                                 <>((Map.Entry<?,?>)o));
             }
 
-            public boolean removeAll(Collection<?> c) {
+            public boolean removeAll(Collection<?>! c) {
                 return batchRemove(c, false);
             }
-            public boolean retainAll(Collection<?> c) {
+            public boolean retainAll(Collection<?>! c) {
                 return batchRemove(c, true);
             }
             private boolean batchRemove(Collection<?> c, boolean complement) {
@@ -4773,11 +4773,11 @@ public final class Collections {
         public void clear() {}
 
         public boolean contains(Object obj) {return false;}
-        public boolean containsAll(Collection<?> c) { return c.isEmpty(); }
+        public boolean containsAll(Collection<?>! c) { return c.isEmpty(); }
 
-        public Object[] toArray() { return new Object[0]; }
+        public Object[]! toArray() { return new Object[0]; }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             if (a.length > 0)
                 a[0] = null;
             return a;
@@ -4789,12 +4789,12 @@ public final class Collections {
             Objects.requireNonNull(action);
         }
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             Objects.requireNonNull(filter);
             return false;
         }
         @Override
-        public Spliterator<E> spliterator() { return Spliterators.emptySpliterator(); }
+        public Spliterator<E>! spliterator() { return Spliterators.emptySpliterator(); }
 
         // Preserves singleton property
         @java.io.Serial
@@ -4904,11 +4904,11 @@ public final class Collections {
         public void clear() {}
 
         public boolean contains(Object obj) {return false;}
-        public boolean containsAll(Collection<?> c) { return c.isEmpty(); }
+        public boolean containsAll(Collection<?>! c) { return c.isEmpty(); }
 
-        public Object[] toArray() { return new Object[0]; }
+        public Object[]! toArray() { return new Object[0]; }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             if (a.length > 0)
                 a[0] = null;
             return a;
@@ -4925,7 +4925,7 @@ public final class Collections {
         public int hashCode() { return 1; }
 
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             Objects.requireNonNull(filter);
             return false;
         }
@@ -4949,7 +4949,7 @@ public final class Collections {
         }
 
         @Override
-        public Spliterator<E> spliterator() { return Spliterators.emptySpliterator(); }
+        public Spliterator<E>! spliterator() { return Spliterators.emptySpliterator(); }
 
         // Preserves singleton property
         @java.io.Serial
@@ -5242,11 +5242,11 @@ public final class Collections {
             action.accept(element);
         }
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return singletonSpliterator(element);
         }
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             throw new UnsupportedOperationException();
         }
         @Override
@@ -5254,12 +5254,12 @@ public final class Collections {
             return Objects.hashCode(element);
         }
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return new Object[] {element};
         }
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             if (a.length < 1)
                 a = (T[])Array.newInstance(a.getClass().getComponentType(), 1);
             a[0] = (T)element;
@@ -5318,7 +5318,7 @@ public final class Collections {
             action.accept(element);
         }
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             throw new UnsupportedOperationException();
         }
         @Override
@@ -5341,7 +5341,7 @@ public final class Collections {
             return element;
         }
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return singletonSpliterator(element);
         }
         @Override
@@ -5560,7 +5560,7 @@ public final class Collections {
             }
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             final Object[] a = new Object[n];
             if (element != null)
                 Arrays.fill(a, 0, n, element);
@@ -5568,7 +5568,7 @@ public final class Collections {
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             final int n = this.n;
             if (a.length < n) {
                 a = (T[])java.lang.reflect.Array
@@ -5647,17 +5647,17 @@ public final class Collections {
 
         // Override default methods in Collection
         @Override
-        public Stream<E> stream() {
+        public Stream<E>! stream() {
             return IntStream.range(0, n).mapToObj(i -> element);
         }
 
         @Override
-        public Stream<E> parallelStream() {
+        public Stream<E>! parallelStream() {
             return IntStream.range(0, n).parallel().mapToObj(i -> element);
         }
 
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return stream().spliterator();
         }
 
@@ -6082,14 +6082,14 @@ public final class Collections {
         public boolean remove(Object o)   { return m.remove(o) != null; }
         public boolean add(E e) { return m.put(e, Boolean.TRUE) == null; }
         public Iterator<E>! iterator()     { return s.iterator(); }
-        public Object[] toArray()         { return s.toArray(); }
-        public <T> T[] toArray(T[] a)     { return s.toArray(a); }
+        public Object[]! toArray()         { return s.toArray(); }
+        public <T> T[]! toArray(T[]! a)     { return s.toArray(a); }
         public String toString()          { return s.toString(); }
         public int hashCode()             { return s.hashCode(); }
         public boolean equals(Object o)   { return o == this || s.equals(o); }
-        public boolean containsAll(Collection<?> c) {return s.containsAll(c);}
-        public boolean removeAll(Collection<?> c)   {return s.removeAll(c);}
-        public boolean retainAll(Collection<?> c)   {return s.retainAll(c);}
+        public boolean containsAll(Collection<?>! c) {return s.containsAll(c);}
+        public boolean removeAll(Collection<?>! c)   {return s.removeAll(c);}
+        public boolean retainAll(Collection<?>! c)   {return s.retainAll(c);}
         // addAll is the only inherited implementation
 
         // Override default methods in Collection
@@ -6098,16 +6098,16 @@ public final class Collections {
             s.forEach(action);
         }
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             return s.removeIf(filter);
         }
 
         @Override
-        public Spliterator<E> spliterator() {return s.spliterator();}
+        public Spliterator<E>! spliterator() {return s.spliterator();}
         @Override
-        public Stream<E> stream()           {return s.stream();}
+        public Stream<E>! stream()           {return s.stream();}
         @Override
-        public Stream<E> parallelStream()   {return s.parallelStream();}
+        public Stream<E>! parallelStream()   {return s.parallelStream();}
 
         @java.io.Serial
         private static final long serialVersionUID = 2454657854757543876L;
@@ -6256,27 +6256,27 @@ public final class Collections {
         public boolean contains(Object o)           { return q.contains(o); }
         public boolean remove(Object o)             { return q.remove(o); }
         public Iterator<E>! iterator()               { return q.iterator(); }
-        public Object[] toArray()                   { return q.toArray(); }
-        public <T> T[] toArray(T[] a)               { return q.toArray(a); }
-        public <T> T[] toArray(IntFunction<T[]> f)  { return q.toArray(f); }
+        public Object[]! toArray()                   { return q.toArray(); }
+        public <T> T[]! toArray(T[]! a)               { return q.toArray(a); }
+        public <T> T[]! toArray(IntFunction<T[]>! f)  { return q.toArray(f); }
         public String toString()                    { return q.toString(); }
-        public boolean containsAll(Collection<?> c) { return q.containsAll(c); }
-        public boolean removeAll(Collection<?> c)   { return q.removeAll(c); }
-        public boolean retainAll(Collection<?> c)   { return q.retainAll(c); }
+        public boolean containsAll(Collection<?>! c) { return q.containsAll(c); }
+        public boolean removeAll(Collection<?>! c)   { return q.removeAll(c); }
+        public boolean retainAll(Collection<?>! c)   { return q.retainAll(c); }
         // We use inherited addAll; forwarding addAll would be wrong
 
         // Override default methods in Collection
         @Override
         public void forEach(Consumer<? super E> action) {q.forEach(action);}
         @Override
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             return q.removeIf(filter);
         }
         @Override
-        public Spliterator<E> spliterator() {return q.spliterator();}
+        public Spliterator<E>! spliterator() {return q.spliterator();}
         @Override
-        public Stream<E> stream()           {return q.stream();}
+        public Stream<E>! stream()           {return q.stream();}
         @Override
-        public Stream<E> parallelStream()   {return q.parallelStream();}
+        public Stream<E>! parallelStream()   {return q.parallelStream();}
     }
 }

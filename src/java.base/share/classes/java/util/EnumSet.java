@@ -503,7 +503,7 @@ public abstract sealed class EnumSet<E extends Enum<E>> extends AbstractSet<E>
     }
 
     @Override
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this,
                 Spliterator.DISTINCT | Spliterator.SORTED | Spliterator.ORDERED | Spliterator.NONNULL);
     }

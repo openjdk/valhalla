@@ -4218,13 +4218,13 @@ public final class Arrays {
         }
 
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return Arrays.copyOf(a, a.length, Object[].class);
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int size = size();
             if (a.length < size)
                 return Arrays.copyOf(this.a, size,
@@ -4268,7 +4268,7 @@ public final class Arrays {
         }
 
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return Spliterators.spliterator(a, Spliterator.ORDERED);
         }
 

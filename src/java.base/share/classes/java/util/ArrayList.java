@@ -366,7 +366,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @return an array containing all of the elements in this list in
      *         proper sequence
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return Arrays.copyOf(elementData, size);
     }
 
@@ -395,7 +395,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         if (a.length < size)
             // Make a new array of a's runtime type, but my contents:
             return (T[]) Arrays.copyOf(elementData, size, a.getClass());
@@ -749,7 +749,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @return {@code true} if this list changed as a result of the call
      * @throws NullPointerException if the specified collection is null
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         Object[] a;
         int numNew;
         if (c.getClass() == ArrayList.class) {
@@ -878,7 +878,7 @@ public class ArrayList<E> extends AbstractList<E>
      *         or if the specified collection is null
      * @see Collection#contains(Object)
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         return batchRemove(c, false, 0, size);
     }
 
@@ -898,7 +898,7 @@ public class ArrayList<E> extends AbstractList<E>
      *         or if the specified collection is null
      * @see Collection#contains(Object)
      */
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         return batchRemove(c, true, 0, size);
     }
 
@@ -1268,7 +1268,7 @@ public class ArrayList<E> extends AbstractList<E>
             updateSizeAndModCount(fromIndex - toIndex);
         }
 
-        public boolean addAll(Collection<? extends E> c) {
+        public boolean addAll(Collection<? extends E>! c) {
             return addAll(this.size, c);
         }
 
@@ -1287,11 +1287,11 @@ public class ArrayList<E> extends AbstractList<E>
             root.replaceAllRange(operator, offset, offset + size);
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<?>! c) {
             return batchRemove(c, false);
         }
 
-        public boolean retainAll(Collection<?> c) {
+        public boolean retainAll(Collection<?>! c) {
             return batchRemove(c, true);
         }
 
@@ -1305,7 +1305,7 @@ public class ArrayList<E> extends AbstractList<E>
             return modified;
         }
 
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             checkForComodification();
             int oldSize = root.size;
             boolean modified = root.removeIf(filter, offset, offset + size);
@@ -1314,13 +1314,13 @@ public class ArrayList<E> extends AbstractList<E>
             return modified;
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             checkForComodification();
             return Arrays.copyOfRange(root.elementData, offset, offset + size);
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             checkForComodification();
             if (a.length < size)
                 return (T[]) Arrays.copyOfRange(
@@ -1515,7 +1515,7 @@ public class ArrayList<E> extends AbstractList<E>
             } while (slist != null);
         }
 
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             checkForComodification();
 
             // This Spliterator needs to late-bind to the subList, not the outer
@@ -1628,7 +1628,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @since 1.8
      */
     @Override
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new ArrayListSpliterator(0, -1, 0);
     }
 
@@ -1755,7 +1755,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public boolean removeIf(Predicate<? super E> filter) {
+    public boolean removeIf(Predicate<? super E>! filter) {
         return removeIf(filter, 0, size);
     }
 

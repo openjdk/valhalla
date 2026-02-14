@@ -159,12 +159,12 @@ class ImmutableCollections {
     abstract static class AbstractImmutableCollection<E> extends AbstractCollection<E> {
         // all mutating methods throw UnsupportedOperationException
         @Override public boolean add(E e) { throw uoe(); }
-        @Override public boolean addAll(Collection<? extends E> c) { throw uoe(); }
+        @Override public boolean addAll(Collection<? extends E>! c) { throw uoe(); }
         @Override public void    clear() { throw uoe(); }
         @Override public boolean remove(Object o) { throw uoe(); }
-        @Override public boolean removeAll(Collection<?> c) { throw uoe(); }
-        @Override public boolean removeIf(Predicate<? super E> filter) { throw uoe(); }
-        @Override public boolean retainAll(Collection<?> c) { throw uoe(); }
+        @Override public boolean removeAll(Collection<?>! c) { throw uoe(); }
+        @Override public boolean removeIf(Predicate<? super E>! filter) { throw uoe(); }
+        @Override public boolean retainAll(Collection<?>! c) { throw uoe(); }
     }
 
     // ---------- List Static Factory Methods ----------
@@ -543,7 +543,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             Object[] array = new Object[size];
             for (int i = 0; i < size; i++) {
                 array[i] = get(i);
@@ -553,7 +553,7 @@ class ImmutableCollections {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             T[] array = a.length >= size ? a :
                     (T[])java.lang.reflect.Array
                             .newInstance(a.getClass().getComponentType(), size);
@@ -661,7 +661,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             if (e1 == EMPTY) {
                 return new Object[] { e0 };
             } else {
@@ -671,7 +671,7 @@ class ImmutableCollections {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int size = size();
             T[] array = a.length >= size ? a :
                     (T[])Array.newInstance(a.getClass().getComponentType(), size);
@@ -695,7 +695,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             if (e1 == EMPTY) {
                 return Collections.singletonSpliterator(e0);
             } else {
@@ -746,13 +746,13 @@ class ImmutableCollections {
         }
 
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return Arrays.copyOf(elements, elements.length);
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int size = elements.length;
             if (a.length < size) {
                 // Make a new array of a's runtime type, but my contents:
@@ -911,7 +911,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             if (e1 == EMPTY) {
                 return new Object[] { e0 };
             } else if (REVERSE) {
@@ -923,7 +923,7 @@ class ImmutableCollections {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int size = size();
             T[] array = a.length >= size ? a :
                     (T[])Array.newInstance(a.getClass().getComponentType(), size);
@@ -954,7 +954,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             if (e1 == EMPTY) {
                 return Collections.singletonSpliterator(e0);
             } else {
@@ -1110,7 +1110,7 @@ class ImmutableCollections {
         }
 
         @Override
-        public Object[] toArray() {
+        public Object[]! toArray() {
             Object[] array = new Object[size];
             Iterator<E> it = iterator();
             for (int i = 0; i < size; i++) {
@@ -1121,7 +1121,7 @@ class ImmutableCollections {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             T[] array = a.length >= size ? a :
                     (T[])Array.newInstance(a.getClass().getComponentType(), size);
             Iterator<E> it = iterator();
