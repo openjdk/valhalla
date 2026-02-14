@@ -282,7 +282,7 @@ public class RoleList extends ArrayList<Object> {
      * @throws IllegalArgumentException if {@code c} contains a member that is not a {@code Role}.
      */
     @Override
-    public boolean addAll(Collection<?> c) {
+    public boolean addAll(Collection<?>! c) {
         checkTypeSafe(c);
         return super.addAll(c);
     }

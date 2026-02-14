@@ -132,7 +132,7 @@ public final class StringListImpl extends AbstractList<String> implements String
         return getLength();
     }
 
-    public Object[] toArray() {
+    public Object[]! toArray() {
         if (fVector != null) {
             return fVector.toArray();
         }
@@ -141,7 +141,7 @@ public final class StringListImpl extends AbstractList<String> implements String
         return a;
     }
 
-    public Object[] toArray(Object[] a) {
+    public Object[]! toArray(Object[]! a) {
         if (fVector != null) {
             return fVector.toArray(a);
         }

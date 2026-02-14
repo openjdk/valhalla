@@ -268,7 +268,7 @@ public class AttributeList extends ArrayList<Object> {
      * @throws IllegalArgumentException if {@code c} contains an element that is not an {@code Attribute}.
      */
     @Override
-    public boolean addAll(Collection<?> c) {
+    public boolean addAll(Collection<?>! c) {
         adding(c);
         return super.addAll(c);
     }
