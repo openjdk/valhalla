@@ -5580,7 +5580,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
       map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
       acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
     }
-    assert(acmp_maps_array->length() == map->length(), "sanity");
+    assert(acmp_maps_array->length() == map_h->length(), "sanity");
     ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
     ik->set_acmp_maps_array(acmp_maps_array);
   }
