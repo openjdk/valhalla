@@ -218,6 +218,8 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
+  // For construction ArrayProperties::INVALID may be given in ObjArrayKlass::allocate_klass
+  assert(props != ArrayProperties::INVALID, "Sanity check");
   assert(ArrayKlass::is_null_restricted(props) || !ArrayKlass::is_non_atomic(props), "only null-restricted array can be non-atomic");
   ObjArrayKlass* ak = nullptr;
   ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
