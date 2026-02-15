@@ -60,4 +60,3 @@ gc/arguments/TestNewSizeFlags.java 8299116 macosx-aarch64
 #############################################################################
 
 # Valhalla failures start here:
-serviceability/sa/ClhsdbTestAllocationMerge.java 8374946 generic-all
