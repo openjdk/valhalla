@@ -46,10 +46,12 @@
 #include "memory/resourceArea.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -359,13 +361,24 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
     InlineKlass* vk = fak->element_klass();
     ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(fak->layout_kind());
-    result = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
-    if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+    flatArrayOop array = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
+    // For flat arrays
+    if (array != nullptr && len != 0 && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+      precond(h_init_val() != nullptr);
+      precond(array->klass() == fak);
       // Null-free arrays need to be initialized
+
+      // A null inital value is used as a signal value that the value is
+      // represented by all zeros. A newly allocated null-free array is already
+      // initialised with all zeros and has no null markers. So the payload copy
+      // can be elided.
+      FlatArrayPayload payload(array, 0, fak);
       for (int i = 0; i < len; i++) {
-        vk->write_value_to_addr(h_init_val(), ((flatArrayOop)result)->value_at_addr(i, fak->layout_helper()), fak->layout_kind(), CHECK);
+        payload.write_without_nullability_check(inlineOop(h_init_val()));
+        payload.next_element();
       }
     }
+    result = array;
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -374,7 +387,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     result = oopFactory::new_refArray(array_type, len, THREAD);
-    if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+    if (result != nullptr && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
         ((objArrayOop)result)->obj_at_put(i, h_init_val());

@@ -162,6 +162,7 @@ class Copy : AllStatic {
   static void conjoint_memory_atomic(const void* from, void* to, size_t size);
 
   static void copy_value_content(const void* from, void* to, size_t size);
+  static void clear_value_content(void* to, size_t size);
 
   // bytes,                 conjoint array, atomic on each byte (not that it matters)
   static void arrayof_conjoint_jbytes(const HeapWord* from, HeapWord* to, size_t count) {

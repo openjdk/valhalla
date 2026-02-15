@@ -26,8 +26,90 @@
 
 #include "oops/inlineKlass.hpp"
 
-#include "oops/instanceKlass.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
+#include "runtime/handles.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/devirtualizer.inline.hpp"
+
+inline bool InlineKlass::layout_has_null_marker(LayoutKind lk) const {
+  assert(is_layout_supported(lk), "Must be");
+  return LayoutKindHelper::is_nullable_flat(lk) ||
+         (lk == LayoutKind::BUFFERED && supports_nullable_layouts());
+}
+
+inline bool InlineKlass::is_layout_supported(LayoutKind lk) const {
+  switch(lk) {
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+      return has_null_free_non_atomic_layout();
+      break;
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+      return has_null_free_atomic_layout();
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      return has_nullable_atomic_layout();
+      break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      return has_nullable_non_atomic_layout();
+      break;
+    case LayoutKind::BUFFERED:
+      return true;
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+inline int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
+  switch(kind) {
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+      assert(has_null_free_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+      assert(has_null_free_atomic_layout(), "Layout not available");
+      return null_free_atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      assert(has_nullable_atomic_layout(), "Layout not available");
+      return nullable_atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return nullable_non_atomic_size_in_bytes();
+      break;
+    case LayoutKind::BUFFERED:
+      return payload_size_in_bytes();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
+inline int InlineKlass::layout_alignment(LayoutKind kind) const {
+  switch(kind) {
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+      assert(has_null_free_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_alignment();
+      break;
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+      assert(has_null_free_atomic_layout(), "Layout not available");
+      return null_free_atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      assert(has_nullable_atomic_layout(), "Layout not available");
+      return nullable_atomic_size_in_bytes();
+      break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return null_free_non_atomic_alignment();
+    break;
+    case LayoutKind::BUFFERED:
+      return payload_alignment();
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
 
 inline address InlineKlass::payload_addr(oop o) const {
   return cast_from_oop<address>(o) + payload_offset();
@@ -69,6 +151,5 @@ inline void InlineKlass::oop_iterate_specialized_bounded(const address oop_addr,
     }
   }
 }
-
 
 #endif // SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP

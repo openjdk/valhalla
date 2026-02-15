@@ -343,11 +343,12 @@ JRT_END
  * On some architectures/platforms it should be possible to do this implicitly
  */
 #undef CHECK_NULL
-#define CHECK_NULL(obj_)                                                                         \
-        if ((obj_) == nullptr) {                                                                    \
-          VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), nullptr);                      \
-        }                                                                                        \
+#define CHECK_NULL_MSG(obj_, msg)                                              \
+        if ((obj_) == nullptr) {                                               \
+          VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), (msg));   \
+        }                                                                      \
         VERIFY_OOP(obj_)
+#define CHECK_NULL(obj_) CHECK_NULL_MSG(obj_, nullptr)
 
 #define VMdoubleConstZero() 0.0
 #define VMdoubleConstOne() 1.0
@@ -518,86 +519,341 @@ void BytecodeInterpreter::run(interpreterState istate) {
 
 #ifdef USELABELS
   const static void* const opclabels_data[256] = {
-/* 0x00 */ &&opc_nop,           &&opc_aconst_null,      &&opc_iconst_m1,      &&opc_iconst_0,
-/* 0x04 */ &&opc_iconst_1,      &&opc_iconst_2,         &&opc_iconst_3,       &&opc_iconst_4,
-/* 0x08 */ &&opc_iconst_5,      &&opc_lconst_0,         &&opc_lconst_1,       &&opc_fconst_0,
-/* 0x0C */ &&opc_fconst_1,      &&opc_fconst_2,         &&opc_dconst_0,       &&opc_dconst_1,
+/* 0x00 */
+    &&opc_nop,
+    &&opc_aconst_null,
+    &&opc_iconst_m1,
+    &&opc_iconst_0,
+/* 0x04 */
+    &&opc_iconst_1,
+    &&opc_iconst_2,
+    &&opc_iconst_3,
+    &&opc_iconst_4,
+/* 0x08 */
+    &&opc_iconst_5,
+    &&opc_lconst_0,
+    &&opc_lconst_1,
+    &&opc_fconst_0,
+/* 0x0C */
+    &&opc_fconst_1,
+    &&opc_fconst_2,
+    &&opc_dconst_0,
+    &&opc_dconst_1,
 
-/* 0x10 */ &&opc_bipush,        &&opc_sipush,           &&opc_ldc,            &&opc_ldc_w,
-/* 0x14 */ &&opc_ldc2_w,        &&opc_iload,            &&opc_lload,          &&opc_fload,
-/* 0x18 */ &&opc_dload,         &&opc_aload,            &&opc_iload_0,        &&opc_iload_1,
-/* 0x1C */ &&opc_iload_2,       &&opc_iload_3,          &&opc_lload_0,        &&opc_lload_1,
+/* 0x10 */
+    &&opc_bipush,
+    &&opc_sipush,
+    &&opc_ldc,
+    &&opc_ldc_w,
+/* 0x14 */
+    &&opc_ldc2_w,
+    &&opc_iload,
+    &&opc_lload,
+    &&opc_fload,
+/* 0x18 */
+    &&opc_dload,
+    &&opc_aload,
+    &&opc_iload_0,
+    &&opc_iload_1,
+/* 0x1C */
+    &&opc_iload_2,
+    &&opc_iload_3,
+    &&opc_lload_0,
+    &&opc_lload_1,
 
-/* 0x20 */ &&opc_lload_2,       &&opc_lload_3,          &&opc_fload_0,        &&opc_fload_1,
-/* 0x24 */ &&opc_fload_2,       &&opc_fload_3,          &&opc_dload_0,        &&opc_dload_1,
-/* 0x28 */ &&opc_dload_2,       &&opc_dload_3,          &&opc_aload_0,        &&opc_aload_1,
-/* 0x2C */ &&opc_aload_2,       &&opc_aload_3,          &&opc_iaload,         &&opc_laload,
+/* 0x20 */
+    &&opc_lload_2,
+    &&opc_lload_3,
+    &&opc_fload_0,
+    &&opc_fload_1,
+/* 0x24 */
+    &&opc_fload_2,
+    &&opc_fload_3,
+    &&opc_dload_0,
+    &&opc_dload_1,
+/* 0x28 */
+    &&opc_dload_2,
+    &&opc_dload_3,
+    &&opc_aload_0,
+    &&opc_aload_1,
+/* 0x2C */
+    &&opc_aload_2,
+    &&opc_aload_3,
+    &&opc_iaload,
+    &&opc_laload,
 
-/* 0x30 */ &&opc_faload,        &&opc_daload,           &&opc_aaload,         &&opc_baload,
-/* 0x34 */ &&opc_caload,        &&opc_saload,           &&opc_istore,         &&opc_lstore,
-/* 0x38 */ &&opc_fstore,        &&opc_dstore,           &&opc_astore,         &&opc_istore_0,
-/* 0x3C */ &&opc_istore_1,      &&opc_istore_2,         &&opc_istore_3,       &&opc_lstore_0,
+/* 0x30 */
+    &&opc_faload,
+    &&opc_daload,
+    &&opc_aaload,
+    &&opc_baload,
+/* 0x34 */
+    &&opc_caload,
+    &&opc_saload,
+    &&opc_istore,
+    &&opc_lstore,
+/* 0x38 */
+    &&opc_fstore,
+    &&opc_dstore,
+    &&opc_astore,
+    &&opc_istore_0,
+/* 0x3C */
+    &&opc_istore_1,
+    &&opc_istore_2,
+    &&opc_istore_3,
+    &&opc_lstore_0,
 
-/* 0x40 */ &&opc_lstore_1,      &&opc_lstore_2,         &&opc_lstore_3,       &&opc_fstore_0,
-/* 0x44 */ &&opc_fstore_1,      &&opc_fstore_2,         &&opc_fstore_3,       &&opc_dstore_0,
-/* 0x48 */ &&opc_dstore_1,      &&opc_dstore_2,         &&opc_dstore_3,       &&opc_astore_0,
-/* 0x4C */ &&opc_astore_1,      &&opc_astore_2,         &&opc_astore_3,       &&opc_iastore,
+/* 0x40 */
+    &&opc_lstore_1,
+    &&opc_lstore_2,
+    &&opc_lstore_3,
+    &&opc_fstore_0,
+/* 0x44 */
+    &&opc_fstore_1,
+    &&opc_fstore_2,
+    &&opc_fstore_3,
+    &&opc_dstore_0,
+/* 0x48 */
+    &&opc_dstore_1,
+    &&opc_dstore_2,
+    &&opc_dstore_3,
+    &&opc_astore_0,
+/* 0x4C */
+    &&opc_astore_1,
+    &&opc_astore_2,
+    &&opc_astore_3,
+    &&opc_iastore,
 
-/* 0x50 */ &&opc_lastore,       &&opc_fastore,          &&opc_dastore,        &&opc_aastore,
-/* 0x54 */ &&opc_bastore,       &&opc_castore,          &&opc_sastore,        &&opc_pop,
-/* 0x58 */ &&opc_pop2,          &&opc_dup,              &&opc_dup_x1,         &&opc_dup_x2,
-/* 0x5C */ &&opc_dup2,          &&opc_dup2_x1,          &&opc_dup2_x2,        &&opc_swap,
+/* 0x50 */
+    &&opc_lastore,
+    &&opc_fastore,
+    &&opc_dastore,
+    &&opc_aastore,
+/* 0x54 */
+    &&opc_bastore,
+    &&opc_castore,
+    &&opc_sastore,
+    &&opc_pop,
+/* 0x58 */
+    &&opc_pop2,
+    &&opc_dup,
+    &&opc_dup_x1,
+    &&opc_dup_x2,
+/* 0x5C */
+    &&opc_dup2,
+    &&opc_dup2_x1,
+    &&opc_dup2_x2,
+    &&opc_swap,
 
-/* 0x60 */ &&opc_iadd,          &&opc_ladd,             &&opc_fadd,           &&opc_dadd,
-/* 0x64 */ &&opc_isub,          &&opc_lsub,             &&opc_fsub,           &&opc_dsub,
-/* 0x68 */ &&opc_imul,          &&opc_lmul,             &&opc_fmul,           &&opc_dmul,
-/* 0x6C */ &&opc_idiv,          &&opc_ldiv,             &&opc_fdiv,           &&opc_ddiv,
+/* 0x60 */
+    &&opc_iadd,
+    &&opc_ladd,
+    &&opc_fadd,
+    &&opc_dadd,
+/* 0x64 */
+    &&opc_isub,
+    &&opc_lsub,
+    &&opc_fsub,
+    &&opc_dsub,
+/* 0x68 */
+    &&opc_imul,
+    &&opc_lmul,
+    &&opc_fmul,
+    &&opc_dmul,
+/* 0x6C */
+    &&opc_idiv,
+    &&opc_ldiv,
+    &&opc_fdiv,
+    &&opc_ddiv,
 
-/* 0x70 */ &&opc_irem,          &&opc_lrem,             &&opc_frem,           &&opc_drem,
-/* 0x74 */ &&opc_ineg,          &&opc_lneg,             &&opc_fneg,           &&opc_dneg,
-/* 0x78 */ &&opc_ishl,          &&opc_lshl,             &&opc_ishr,           &&opc_lshr,
-/* 0x7C */ &&opc_iushr,         &&opc_lushr,            &&opc_iand,           &&opc_land,
+/* 0x70 */
+    &&opc_irem,
+    &&opc_lrem,
+    &&opc_frem,
+    &&opc_drem,
+/* 0x74 */
+    &&opc_ineg,
+    &&opc_lneg,
+    &&opc_fneg,
+    &&opc_dneg,
+/* 0x78 */
+    &&opc_ishl,
+    &&opc_lshl,
+    &&opc_ishr,
+    &&opc_lshr,
+/* 0x7C */
+    &&opc_iushr,
+    &&opc_lushr,
+    &&opc_iand,
+    &&opc_land,
 
-/* 0x80 */ &&opc_ior,           &&opc_lor,              &&opc_ixor,           &&opc_lxor,
-/* 0x84 */ &&opc_iinc,          &&opc_i2l,              &&opc_i2f,            &&opc_i2d,
-/* 0x88 */ &&opc_l2i,           &&opc_l2f,              &&opc_l2d,            &&opc_f2i,
-/* 0x8C */ &&opc_f2l,           &&opc_f2d,              &&opc_d2i,            &&opc_d2l,
+/* 0x80 */
+    &&opc_ior,
+    &&opc_lor,
+    &&opc_ixor,
+    &&opc_lxor,
+/* 0x84 */
+    &&opc_iinc,
+    &&opc_i2l,
+    &&opc_i2f,
+    &&opc_i2d,
+/* 0x88 */
+    &&opc_l2i,
+    &&opc_l2f,
+    &&opc_l2d,
+    &&opc_f2i,
+/* 0x8C */
+    &&opc_f2l,
+    &&opc_f2d,
+    &&opc_d2i,
+    &&opc_d2l,
 
-/* 0x90 */ &&opc_d2f,           &&opc_i2b,              &&opc_i2c,            &&opc_i2s,
-/* 0x94 */ &&opc_lcmp,          &&opc_fcmpl,            &&opc_fcmpg,          &&opc_dcmpl,
-/* 0x98 */ &&opc_dcmpg,         &&opc_ifeq,             &&opc_ifne,           &&opc_iflt,
-/* 0x9C */ &&opc_ifge,          &&opc_ifgt,             &&opc_ifle,           &&opc_if_icmpeq,
+/* 0x90 */
+    &&opc_d2f,
+    &&opc_i2b,
+    &&opc_i2c,
+    &&opc_i2s,
+/* 0x94 */
+    &&opc_lcmp,
+    &&opc_fcmpl,
+    &&opc_fcmpg,
+    &&opc_dcmpl,
+/* 0x98 */
+    &&opc_dcmpg,
+    &&opc_ifeq,
+    &&opc_ifne,
+    &&opc_iflt,
+/* 0x9C */
+    &&opc_ifge,
+    &&opc_ifgt,
+    &&opc_ifle,
+    &&opc_if_icmpeq,
 
-/* 0xA0 */ &&opc_if_icmpne,     &&opc_if_icmplt,        &&opc_if_icmpge,      &&opc_if_icmpgt,
-/* 0xA4 */ &&opc_if_icmple,     &&opc_if_acmpeq,        &&opc_if_acmpne,      &&opc_goto,
-/* 0xA8 */ &&opc_jsr,           &&opc_ret,              &&opc_tableswitch,    &&opc_lookupswitch,
-/* 0xAC */ &&opc_ireturn,       &&opc_lreturn,          &&opc_freturn,        &&opc_dreturn,
+/* 0xA0 */
+    &&opc_if_icmpne,
+    &&opc_if_icmplt,
+    &&opc_if_icmpge,
+    &&opc_if_icmpgt,
+/* 0xA4 */
+    &&opc_if_icmple,
+    &&opc_if_acmpeq,
+    &&opc_if_acmpne,
+    &&opc_goto,
+/* 0xA8 */
+    &&opc_jsr,
+    &&opc_ret,
+    &&opc_tableswitch,
+    &&opc_lookupswitch,
+/* 0xAC */
+    &&opc_ireturn,
+    &&opc_lreturn,
+    &&opc_freturn,
+    &&opc_dreturn,
 
-/* 0xB0 */ &&opc_areturn,       &&opc_return,           &&opc_getstatic,      &&opc_putstatic,
-/* 0xB4 */ &&opc_getfield,      &&opc_putfield,         &&opc_invokevirtual,  &&opc_invokespecial,
-/* 0xB8 */ &&opc_invokestatic,  &&opc_invokeinterface,  &&opc_invokedynamic,  &&opc_new,
-/* 0xBC */ &&opc_newarray,      &&opc_anewarray,        &&opc_arraylength,    &&opc_athrow,
+/* 0xB0 */
+    &&opc_areturn,
+    &&opc_return,
+    &&opc_getstatic,
+    &&opc_putstatic,
+/* 0xB4 */
+    &&opc_getfield,
+    &&opc_putfield,
+    &&opc_invokevirtual,
+    &&opc_invokespecial,
+/* 0xB8 */
+    &&opc_invokestatic,
+    &&opc_invokeinterface,
+    &&opc_invokedynamic,
+    &&opc_new,
+/* 0xBC */
+    &&opc_newarray,
+    &&opc_anewarray,
+    &&opc_arraylength,
+    &&opc_athrow,
 
-/* 0xC0 */ &&opc_checkcast,     &&opc_instanceof,       &&opc_monitorenter,   &&opc_monitorexit,
-/* 0xC4 */ &&opc_wide,          &&opc_multianewarray,   &&opc_ifnull,         &&opc_ifnonnull,
-/* 0xC8 */ &&opc_goto_w,        &&opc_jsr_w,            &&opc_breakpoint,     &&opc_fast_agetfield,
-/* 0xCC */ &&opc_fast_bgetfield,&&opc_fast_cgetfield,   &&opc_fast_dgetfield, &&opc_fast_fgetfield,
+/* 0xC0 */
+    &&opc_checkcast,
+    &&opc_instanceof,
+    &&opc_monitorenter,
+    &&opc_monitorexit,
+/* 0xC4 */
+    &&opc_wide,
+    &&opc_multianewarray,
+    &&opc_ifnull,
+    &&opc_ifnonnull,
+/* 0xC8 */
+    &&opc_goto_w,
+    &&opc_jsr_w,
+    &&opc_breakpoint,
+    &&opc_fast_agetfield,
+/* 0xCC */
+    &&opc_default,
+    &&opc_fast_bgetfield,
+    &&opc_fast_cgetfield,
+    &&opc_fast_dgetfield,
 
-/* 0xD0 */ &&opc_fast_igetfield,&&opc_fast_lgetfield,   &&opc_fast_sgetfield, &&opc_fast_aputfield,
-/* 0xD4 */ &&opc_fast_bputfield,&&opc_fast_zputfield,   &&opc_fast_cputfield, &&opc_fast_dputfield,
-/* 0xD8 */ &&opc_fast_fputfield,&&opc_fast_iputfield,   &&opc_fast_lputfield, &&opc_fast_sputfield,
-/* 0xDC */ &&opc_fast_aload_0,  &&opc_fast_iaccess_0,   &&opc_fast_aaccess_0, &&opc_fast_faccess_0,
+/* 0xD0 */
+    &&opc_fast_fgetfield,
+    &&opc_fast_igetfield,
+    &&opc_fast_lgetfield,
+    &&opc_fast_sgetfield,
+/* 0xD4 */
+    &&opc_fast_aputfield,
+    &&opc_default,
+    &&opc_fast_bputfield,
+    &&opc_fast_zputfield,
+/* 0xD8 */
+    &&opc_fast_cputfield,
+    &&opc_fast_dputfield,
+    &&opc_fast_fputfield,
+    &&opc_fast_iputfield,
+/* 0xDC */
+    &&opc_fast_lputfield,
+    &&opc_fast_sputfield,
+    &&opc_fast_aload_0,
+    &&opc_fast_iaccess_0,
 
-/* 0xE0 */ &&opc_fast_iload,    &&opc_fast_iload2,      &&opc_fast_icaload,   &&opc_fast_invokevfinal,
-/* 0xE4 */ &&opc_default,       &&opc_default,          &&opc_fast_aldc,      &&opc_fast_aldc_w,
-/* 0xE8 */ &&opc_return_register_finalizer,
-                                &&opc_invokehandle,     &&opc_nofast_getfield,&&opc_nofast_putfield,
-/* 0xEC */ &&opc_nofast_aload_0,&&opc_nofast_iload,     &&opc_default,        &&opc_default,
+/* 0xE0 */
+    &&opc_fast_aaccess_0,
+    &&opc_fast_faccess_0,
+    &&opc_fast_iload,
+    &&opc_fast_iload2,
+/* 0xE4 */
+    &&opc_fast_icaload,
+    &&opc_fast_invokevfinal,
+    &&opc_default,
+    &&opc_default,
+/* 0xE8 */
+    &&opc_fast_aldc,
+    &&opc_fast_aldc_w,
+    &&opc_return_register_finalizer,
+    &&opc_invokehandle,
+/* 0xEC */
+    &&opc_nofast_getfield,
+    &&opc_nofast_putfield,
+    &&opc_nofast_aload_0,
+    &&opc_nofast_iload,
 
-/* 0xF0 */ &&opc_default,       &&opc_default,          &&opc_default,        &&opc_default,
-/* 0xF4 */ &&opc_default,       &&opc_default,          &&opc_default,        &&opc_default,
-/* 0xF8 */ &&opc_default,       &&opc_default,          &&opc_default,        &&opc_default,
-/* 0xFC */ &&opc_default,       &&opc_default,          &&opc_default,        &&opc_default
+/* 0xF0 */
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+/* 0xF4 */
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+/* 0xF8 */
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+/* 0xFC */
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
+    &&opc_default,
   };
   uintptr_t *dispatch_table = (uintptr_t*)&opclabels_data[0];
 #endif /* USELABELS */
@@ -1502,7 +1758,13 @@ run:
           ARRAY_LOADTO32(T_FLOAT, jfloat, "%f",   STACK_FLOAT, 0);
       CASE(_aaload): {
           ARRAY_INTRO(-2);
-          SET_STACK_OBJECT(((objArrayOop) arrObj)->obj_at(index), -2);
+          if (((objArrayOop) arrObj)->is_flatArray()) {
+            CALL_VM(InterpreterRuntime::flat_array_load(THREAD, (objArrayOop) arrObj, index), handle_exception);
+            SET_STACK_OBJECT(THREAD->vm_result_oop(),-2);
+            THREAD->set_vm_result_oop(nullptr);
+          } else {
+            SET_STACK_OBJECT(((objArrayOop) arrObj)->obj_at(index), -2);
+          }
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -1);
       }
       CASE(_baload):
@@ -1566,6 +1828,8 @@ run:
             if (rhsKlass != elemKlass && !rhsKlass->is_subtype_of(elemKlass)) { // ebx->is...
               VM_JAVA_ERROR(vmSymbols::java_lang_ArrayStoreException(), "");
             }
+          } else if (arrObj->is_null_free_array()) {
+            VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
           }
           ((objArrayOop) arrObj)->obj_at_put(index, rhsObject);
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -3);
@@ -1730,6 +1994,7 @@ run:
                 MORE_STACK(1);
                 break;
               case atos: {
+                assert(!entry->is_flat(), "Flat volatile field not supported");
                 oop val = obj->obj_field_acquire(field_offset);
                 VERIFY_OOP(val);
                 SET_STACK_OBJECT(val, -1);
@@ -1765,7 +2030,14 @@ run:
                 MORE_STACK(1);
                 break;
               case atos: {
-                oop val = obj->obj_field(field_offset);
+                oop val;
+                if (entry->is_flat()) {
+                  CALL_VM(InterpreterRuntime::read_flat_field(THREAD, obj, entry), handle_exception);
+                  val = THREAD->vm_result_oop();
+                  THREAD->set_vm_result_oop(nullptr);
+                } else {
+                  val = obj->obj_field(field_offset);
+                }
                 VERIFY_OOP(val);
                 SET_STACK_OBJECT(val, -1);
                 break;
@@ -1858,6 +2130,7 @@ run:
                 obj->release_double_field_put(field_offset, STACK_DOUBLE(-1));
                 break;
               case atos: {
+                assert(!entry->is_flat(), "Flat volatile field not supported");
                 oop val = STACK_OBJECT(-1);
                 VERIFY_OOP(val);
                 obj->release_obj_field_put(field_offset, val);
@@ -1896,7 +2169,11 @@ run:
               case atos: {
                 oop val = STACK_OBJECT(-1);
                 VERIFY_OOP(val);
-                obj->obj_field_put(field_offset, val);
+                if (entry->is_flat()) {
+                  CALL_VM(InterpreterRuntime::write_flat_field(THREAD, obj, val, entry), handle_exception);
+                } else {
+                  obj->obj_field_put(field_offset, val);
+                }
                 break;
               }
               default:
@@ -2529,8 +2806,17 @@ run:
 
         MAYBE_POST_FIELD_ACCESS(obj);
 
-        VERIFY_OOP(obj->obj_field(field_offset));
-        SET_STACK_OBJECT(obj->obj_field(field_offset), -1);
+        oop val;
+        if (entry->is_flat()) {
+          CALL_VM(InterpreterRuntime::read_flat_field(THREAD, obj, entry), handle_exception);
+          val = THREAD->vm_result_oop();
+          THREAD->set_vm_result_oop(nullptr);
+        } else {
+          val = obj->obj_field(field_offset);
+        }
+
+        VERIFY_OOP(val);
+        SET_STACK_OBJECT(val, -1);
         UPDATE_PC_AND_CONTINUE(3);
       }
 
@@ -2644,7 +2930,17 @@ run:
         MAYBE_POST_FIELD_MODIFICATION(obj);
 
         int field_offset = entry->field_offset();
-        obj->obj_field_put(field_offset, STACK_OBJECT(-1));
+        oop val = STACK_OBJECT(-1);
+
+        if (entry->is_null_free_inline_type()) {
+          CHECK_NULL_MSG(val, "Value is null");
+        }
+
+        if (entry->is_flat()) {
+          CALL_VM(InterpreterRuntime::write_flat_field(THREAD, obj, val, entry), handle_exception);
+        } else {
+          obj->obj_field_put(field_offset, val);
+        }
 
         UPDATE_PC_AND_TOS_AND_CONTINUE(3, -2);
       }
@@ -2787,8 +3083,17 @@ run:
 
         MAYBE_POST_FIELD_ACCESS(obj);
 
-        VERIFY_OOP(obj->obj_field(field_offset));
-        SET_STACK_OBJECT(obj->obj_field(field_offset), 0);
+        oop val;
+        if (entry->is_flat()) {
+          CALL_VM(InterpreterRuntime::read_flat_field(THREAD, obj, entry), handle_exception);
+          val = THREAD->vm_result_oop();
+          THREAD->set_vm_result_oop(nullptr);
+        } else {
+          val = obj->obj_field(field_offset);
+        }
+
+        VERIFY_OOP(val);
+        SET_STACK_OBJECT(val, 0);
         UPDATE_PC_AND_TOS_AND_CONTINUE(4, 1);
       }
 

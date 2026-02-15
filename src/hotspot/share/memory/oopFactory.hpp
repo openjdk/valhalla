@@ -68,6 +68,7 @@ class oopFactory: AllStatic {
   //
   // Method specifically null free and possibly flat if possible
   // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
+  static flatArrayOop    new_flatArray(FlatArrayKlass* klass, int length, TRAPS);
   static flatArrayOop    new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
 
   // Helper that returns a Handle
