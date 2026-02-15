@@ -52,6 +52,7 @@
 // Forward declarations.
 template <class T> class Array;
 template <class T> class GrowableArray;
+class ArrayDescription;
 class ClassLoaderData;
 class fieldDescriptor;
 class klassVtable;
@@ -810,6 +811,8 @@ public:
 #endif
 
   virtual void oop_verify_on(oop obj, outputStream* st);
+
+  void validate_array_description(const ArrayDescription& ad) NOT_DEBUG_RETURN;
 
   // for error reporting
   static bool is_valid(Klass* k);

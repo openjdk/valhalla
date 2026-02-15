@@ -84,6 +84,9 @@ public final class ValueClass {
     public static native Object[] newNullableAtomicArray(Class<?> componentType,
                                                          int length);
 
+    public static native Object[] newReferenceArray(Class<?> componentType,
+                                                    int length);
+
     /**
      * {@return true if the given array is a flat array}
      */

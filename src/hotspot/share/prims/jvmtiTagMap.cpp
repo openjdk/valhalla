@@ -2881,10 +2881,10 @@ VM_HeapWalkOperation::~VM_HeapWalkOperation() {
 // each element in the array
 inline bool VM_HeapWalkOperation::iterate_over_array(const JvmtiHeapwalkObject& o) {
   assert(!o.is_flat(), "Array object cannot be flattened");
-  objArrayOop array = objArrayOop(o.obj());
+  refArrayOop array = refArrayOopDesc::cast(o.obj());
 
   // array reference to its class
-  oop mirror = ObjArrayKlass::cast(array->klass())->java_mirror();
+  oop mirror = RefArrayKlass::cast(array->klass())->java_mirror();
   if (!CallbackInvoker::report_class_reference(o, mirror)) {
     return false;
   }

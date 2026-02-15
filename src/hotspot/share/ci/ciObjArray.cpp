@@ -35,7 +35,8 @@
 
 ciObject* ciObjArray::obj_at(int index) {
   VM_ENTRY_MARK;
-  objArrayOop array = get_objArrayOop();
+  // The array should be a refArray, otherwise a ciFlatArray object would have been used
+  refArrayOop array = refArrayOopDesc::cast(get_objArrayOop());
   assert(index >= 0 && index < array->length(), "OOB access");
   oop o = array->obj_at(index);
   if (o == nullptr) {
