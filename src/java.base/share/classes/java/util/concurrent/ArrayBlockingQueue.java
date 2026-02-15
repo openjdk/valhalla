@@ -1470,7 +1470,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean removeIf(Predicate<? super E>! filter) {
-        Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
 
