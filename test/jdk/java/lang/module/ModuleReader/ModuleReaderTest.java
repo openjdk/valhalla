@@ -45,6 +45,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -122,7 +123,8 @@ public class ModuleReaderTest {
     // resources in test module (can't use module-info.class as a test
     // resource as it will be modified by the jmod tool)
     private static final String[] TEST_RESOURCES = {
-        "p/Main.class"
+            "p/Main.class",
+            "p/test.txt"
     };
 
     // (directory) resources that may be in the test module
@@ -155,9 +157,14 @@ public class ModuleReaderTest {
     @BeforeAll
     public static void compileTestModule() throws Exception {
         // javac -d mods/$TESTMODULE src/$TESTMODULE/**
-        boolean compiled = CompilerUtils.compile(SRC_DIR.resolve(TEST_MODULE),
-                                                 MODS_DIR.resolve(TEST_MODULE));
+        Path modDir = MODS_DIR.resolve(TEST_MODULE);
+        boolean compiled = CompilerUtils.compile(SRC_DIR.resolve(TEST_MODULE), modDir);
         assertTrue(compiled, "test module did not compile");
+        // Add two versions of a resource for preview mode testing.
+        Files.writeString(modDir.resolve("p", "test.txt"), "Normal Version");
+        Path previewDir = modDir.resolve("META-INF", "preview", "p");
+        Files.createDirectories(previewDir);
+        Files.writeString(previewDir.resolve("test.txt"), "Preview Version");
     }
 
     /**
@@ -220,6 +227,41 @@ public class ModuleReaderTest {
     @Test
     public void testExplodedModule() throws IOException {
         test(MODS_DIR);
+    }
+
+    /**
+     * Test equivalent of the system ModuleReader with preview mode. This differs
+     * in behavior to other "exploded modules" because it supports preview mode.
+     * It also hides preview resources when preview mode is enabled (this differs
+     * from non-exploded builds, in which preview resources are always hidden).
+     */
+    @Test
+    public void testExplodedSystemModule() throws IOException {
+        ModuleFinder normalFinder = ModulePath.of(/* modulePatcher */ null, /* previewMode */ false, MODS_DIR);
+        try (ModuleReader reader = normalFinder.find(TEST_MODULE).get().open()) {
+            assertEquals("Normal Version", assertUtf8Resource(reader, "p/test.txt"));
+            assertEquals("Preview Version", assertUtf8Resource(reader, "META-INF/preview/p/test.txt"));
+        }
+        ModuleFinder previewFinder = ModulePath.of(/* modulePatcher */ null, /* previewMode */ true, MODS_DIR);
+        try (ModuleReader reader = previewFinder.find(TEST_MODULE).get().open()) {
+            assertEquals("Preview Version", assertUtf8Resource(reader, "p/test.txt"));
+            assertFalse(reader.find("META-INF/preview/p/test.txt").isPresent(), "unexpected preview resource");
+        }
+    }
+
+    private static String assertUtf8Resource(ModuleReader reader, String name) throws IOException {
+        Optional<URI> uri = reader.find(name);
+        assertTrue(uri.isPresent(), "resource not found: " + name);
+        assertTrue(uri.get().getPath().endsWith(name), "unexpected path: " + uri.get());
+
+        Optional<InputStream> is = reader.open(name);
+        assertTrue(is.isPresent(), "resource cannot be opened: " + name);
+        byte[] bytes = is.get().readAllBytes();
+
+        Optional<ByteBuffer> buffer = reader.read(name);
+        assertTrue(buffer.isPresent(), "resource cannot be read: " + name);
+        assertArrayEquals(buffer.get().array(), bytes, "resource bytes differ: " + name);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     /**
