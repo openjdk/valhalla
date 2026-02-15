@@ -861,8 +861,7 @@ public class LinkedBlockingDeque<E>
         // Copy c into a private chain of Nodes
         Node<E> beg = null, end = null;
         long n = 0;
-        for (E e : c) {
-            Objects.requireNonNull(e);
+        for (E! e : c) {
             n++;
             Node<E> newNode = new Node<E>(e);
             if (beg == null)
@@ -1345,7 +1344,6 @@ public class LinkedBlockingDeque<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean removeIf(Predicate<? super E>! filter) {
-        Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
 
@@ -1353,7 +1351,6 @@ public class LinkedBlockingDeque<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean removeAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
 
@@ -1361,7 +1358,6 @@ public class LinkedBlockingDeque<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean retainAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }
 

@@ -910,7 +910,6 @@ public class CopyOnWriteArrayList<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean removeIf(Predicate<? super E>! filter) {
-        Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
 
@@ -1646,7 +1645,6 @@ public class CopyOnWriteArrayList<E>
         }
 
         public boolean removeIf(Predicate<? super E>! filter) {
-            Objects.requireNonNull(filter);
             return bulkRemove(filter);
         }
 
