@@ -51,11 +51,11 @@ class ObjArrayKlass : public ArrayKlass {
 
  protected:
   // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
-  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayProperties props, markWord mw);
+  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayProperties props, TRAPS);
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
-  ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
+  ObjArrayKlass* allocate_klass_with_properties(ArrayProperties props, TRAPS);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
    // Create array_name for element klass
@@ -73,7 +73,7 @@ class ObjArrayKlass : public ArrayKlass {
   inline ObjArrayKlass* next_refined_array_klass_acquire() const;
   void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
   inline void release_set_next_refined_klass(ObjArrayKlass* ak);
-  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
+  ObjArrayKlass* klass_with_properties(ArrayProperties properties, TRAPS);
   static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
 
   // Compiler/Interpreter offset

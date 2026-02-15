@@ -812,16 +812,16 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
         }
       }
       if (cik->is_array_klass() && !cik->is_type_array_klass()) {
-        jint props = ArrayKlass::ArrayProperties::DEFAULT;
+        ArrayProperties props;
         if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
           if (cik->as_array_klass()->is_elem_null_free()) {
-            props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+            props.set_null_restricted();
           }
           if (!cik->as_array_klass()->is_elem_atomic()) {
-            props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+            props.set_non_atomic();
           }
         }
-        properties = new ConstantIntValue(props);
+        properties = new ConstantIntValue((jint)props.value());
       }
       sv = new ObjectValue(spobj->_idx,
                            new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, properties);
@@ -1165,16 +1165,16 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           assert(!cik->is_inlinetype(), "Synchronization on value object?");
           ScopeValue* properties = nullptr;
           if (cik->is_array_klass() && !cik->is_type_array_klass()) {
-            jint props = ArrayKlass::ArrayProperties::DEFAULT;
+            ArrayProperties props;
             if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
               if (cik->as_array_klass()->is_elem_null_free()) {
-                props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+                props.set_null_restricted();
               }
               if (!cik->as_array_klass()->is_elem_atomic()) {
-                props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+                props.set_non_atomic();
               }
             }
-            properties = new ConstantIntValue(props);
+            properties = new ConstantIntValue((jint)props.value());
           }
           ObjectValue* sv = new ObjectValue(spobj->_idx,
                                             new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, properties);

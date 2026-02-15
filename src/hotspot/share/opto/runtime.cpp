@@ -358,7 +358,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
     InlineKlass* vk = fak->element_klass();
-    ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(fak->layout_kind());
+    ArrayProperties props = ArrayKlass::array_properties_from_layout(fak->layout_kind());
     result = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized

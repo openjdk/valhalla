@@ -458,10 +458,12 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_inline_klass(), "must be");
-  InlineKlass* vk = InlineKlass::cast(elem_klass);
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj= oopFactory::new_objArray(elem_klass, length, ArrayKlass::ArrayProperties::NULL_RESTRICTED, CHECK);
+
+  const ArrayProperties props(ArrayProperties::NullRestricted);
+  arrayOop obj = oopFactory::new_objArray(elem_klass, length, props, CHECK);
+
   current->set_vm_result_oop(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -1206,7 +1208,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
           k = ek->array_klass(CHECK);
           if (!k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
-            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties(), THREAD);
           }
           if (k->is_flatArray_klass()) {
             deoptimize_for_flat = true;

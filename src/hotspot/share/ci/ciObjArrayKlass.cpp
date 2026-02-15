@@ -151,14 +151,14 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined
       return CURRENT_THREAD_ENV->get_obj_array_klass(array);
     }
 
-    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    ArrayProperties props;
     if (null_free) {
       assert(element_klass->is_inlinetype(), "Only value class arrays can be null free");
-      props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+      props.set_null_restricted();
     }
     if (!atomic) {
       assert(element_klass->is_inlinetype(), "Only value class arrays can be non-atomic");
-      props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      props.set_non_atomic();
     }
     array = ObjArrayKlass::cast(array)->klass_with_properties(props, THREAD);
     if (array->is_flatArray_klass()) {

@@ -456,7 +456,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   if (org->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(org->klass());
     LayoutKind lk = fak->layout_kind();
-    ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
+    const ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
     array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
     int end = to < oh()->length() ? to : oh()->length();
@@ -467,7 +467,11 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
     array = ah();
   } else {
-    ArrayKlass::ArrayProperties props = org->is_null_free_array() ? ArrayKlass::ArrayProperties::NULL_RESTRICTED : ArrayKlass::ArrayProperties::DEFAULT;
+    ArrayProperties props;
+    if (org->is_null_free_array()) {
+      props.set_null_restricted();
+    }
+
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
@@ -494,8 +498,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Type mismatch between array and initial value");
   }
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  const ArrayProperties props(ArrayProperties::NullRestricted | ArrayProperties::NonAtomic);
   objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
@@ -515,8 +518,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Type mismatch between array and initial value");
   }
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  const ArrayProperties props(ArrayProperties::NullRestricted);
   objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
@@ -529,9 +531,7 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   Klass* klass = java_lang_Class::as_Klass(mirror);
   klass->initialize(CHECK_NULL);
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
-  objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
+  objArrayOop array = oopFactory::new_objArray(klass, len, ArrayProperties(), CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
