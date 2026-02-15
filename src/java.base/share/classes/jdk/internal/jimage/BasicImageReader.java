@@ -24,9 +24,7 @@
  */
 package jdk.internal.jimage;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -39,10 +37,10 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Random;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import jdk.internal.jimage.ImageLocation.LocationType;
 import jdk.internal.jimage.decompressor.Decompressor;
 
 /**
@@ -247,50 +245,81 @@ public class BasicImageReader implements AutoCloseable {
         return stringsReader;
     }
 
-    public ImageLocation findLocation(String module, String name) {
-        int index = getLocationIndex(module, name);
-        if (index < 0) {
+    /**
+     * Finds the resource location with a given path in the specified module.
+     *
+     * <p>This is equivalent to, but more efficient than:
+     * <pre>{@code
+     *     findLocation("/" + module + "/" + path)
+     * }</pre>
+     * but returns {@code null} if the effective name would identify a directory
+     * entry (this is to avoid issues if {@code module} were either {@code
+     * "modules"} or {@code "packages"}).
+     *
+     * @param module the name of the module name in which to look.
+     * @param path the resource path string (NOT starting with '/').
+     * @return the verified jimage resource location (or {@code null} if not found).
+     */
+    public ImageLocation findResourceLocation(String module, String path) {
+        int locIndex = getLocationIndex(module, path);
+        if (locIndex < 0) {
             return null;
         }
-        long[] attributes = getAttributes(offsets.get(index));
-        if (!ImageLocation.verify(module, name, attributes, stringsReader)) {
+        long[] attributes = getAttributes(offsets.get(locIndex));
+        if (!ImageLocation.verify(module, path, attributes, stringsReader)) {
             return null;
         }
-        return new ImageLocation(attributes, stringsReader);
+        ImageLocation loc = new ImageLocation(attributes, stringsReader);
+        return loc.getType() == LocationType.RESOURCE ? loc : null;
     }
 
+    /**
+     * Finds the location with the given jimage name. The returned location may
+     * represent a resource or a directory.
+     *
+     * @param name a jimage location name.
+     * @return the verified jimage location (or {@code null} if not found).
+     */
     public ImageLocation findLocation(String name) {
-        int index = getLocationIndex(name);
-        if (index < 0) {
+        return findLocation(name, 0);
+    }
+
+    /**
+     * Finds the location with the given jimage name, starting from a specified
+     * offset. The returned location may represent a resource or a directory.
+     *
+     * <p>This is equivalent to {@code findLocation(name.substring(startIndex))}
+     * but avoids additional allocations.
+     *
+     * @param name a jimage location name string, possibly containing a prefix
+     *         to be ignored.
+     * @param startIndex index of the first character of the trailing name,
+     *         which must be {@code '/'}.
+     * @return the verified jimage location (or {@code null} if not found).
+     */
+    public ImageLocation findLocation(String name, int startIndex) {
+        int locIndex = getLocationIndex(name, startIndex);
+        if (locIndex < 0) {
             return null;
         }
-        long[] attributes = getAttributes(offsets.get(index));
-        if (!ImageLocation.verify(name, attributes, stringsReader)) {
+        long[] attributes = getAttributes(offsets.get(locIndex));
+        if (!ImageLocation.verify(name, startIndex, attributes, stringsReader)) {
             return null;
         }
         return new ImageLocation(attributes, stringsReader);
-    }
-
-    public boolean verifyLocation(String module, String name) {
-        int index = getLocationIndex(module, name);
-        if (index < 0) {
-            return false;
-        }
-        int locationOffset = offsets.get(index);
-        return ImageLocation.verify(module, name, locations, locationOffset, stringsReader);
     }
 
     // Details of the algorithm used here can be found in
     // jdk.tools.jlink.internal.PerfectHashBuilder.
-    public int getLocationIndex(String name) {
+    public int getLocationIndex(String name, int startIndex) {
         int count = header.getTableLength();
-        int index = redirect.get(ImageStringsReader.hashCode(name) % count);
-        if (index < 0) {
-            // index is twos complement of location attributes index.
-            return -index - 1;
-        } else if (index > 0) {
-            // index is hash seed needed to compute location attributes index.
-            return ImageStringsReader.hashCode(name, index) % count;
+        int redirectValue = redirect.get(ImageStringsReader.defaultHashCode(name, startIndex) % count);
+        if (redirectValue < 0) {
+            // Value is twos-complement of location attributes index.
+            return -redirectValue - 1;
+        } else if (redirectValue > 0) {
+            // Value is hash seed needed to compute location attributes index.
+            return ImageStringsReader.seededHashCode(name, startIndex, redirectValue) % count;
         } else {
             // No entry.
             return -1;
@@ -299,13 +328,13 @@ public class BasicImageReader implements AutoCloseable {
 
     private int getLocationIndex(String module, String name) {
         int count = header.getTableLength();
-        int index = redirect.get(ImageStringsReader.hashCode(module, name) % count);
-        if (index < 0) {
-            // index is twos complement of location attributes index.
-            return -index - 1;
-        } else if (index > 0) {
-            // index is hash seed needed to compute location attributes index.
-            return ImageStringsReader.hashCode(module, name, index) % count;
+        int redirectValue = redirect.get(ImageStringsReader.defaultHashCode(module, name) % count);
+        if (redirectValue < 0) {
+            // Value is twos-complement of location attributes index.
+            return -redirectValue - 1;
+        } else if (redirectValue > 0) {
+            // Value is hash seed needed to compute location attributes index.
+            return ImageStringsReader.seededHashCode(module, name, redirectValue) % count;
         } else {
             // No entry.
             return -1;
@@ -493,12 +522,5 @@ public class BasicImageReader implements AutoCloseable {
         }
 
         return null;
-    }
-
-    public InputStream getResourceStream(ImageLocation loc) {
-        Objects.requireNonNull(loc);
-        byte[] bytes = getResource(loc);
-
-        return new ByteArrayInputStream(bytes);
     }
 }
