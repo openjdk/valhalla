@@ -578,8 +578,9 @@ void ShenandoahBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet 
   bool on_oop = is_reference_type(type);
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool as_normal = (decorators & AS_NORMAL) != 0;
+  bool dest_initialized = (decorators & IS_DEST_UNINITIALIZED) == 0;
   if (on_oop && in_heap) {
-    bool needs_pre_barrier = as_normal;
+    bool needs_pre_barrier = as_normal && dest_initialized;
 
     // flatten object address if needed
     // We do it regardless of precise because we need the registers
