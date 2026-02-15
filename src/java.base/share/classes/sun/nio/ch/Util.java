@@ -362,8 +362,8 @@ public class Util {
                 public int size()                 { return s.size(); }
                 public boolean isEmpty()          { return s.isEmpty(); }
                 public boolean contains(Object o) { return s.contains(o); }
-                public Object[] toArray()         { return s.toArray(); }
-                public <T> T[] toArray(T[] a)     { return s.toArray(a); }
+                public Object[]! toArray()         { return s.toArray(); }
+                public <T> T[]! toArray(T[]! a)     { return s.toArray(a); }
                 public String toString()          { return s.toString(); }
                 public Iterator<E>! iterator()     { return s.iterator(); }
                 public boolean equals(Object o)   { return s.equals(o); }
@@ -371,20 +371,20 @@ public class Util {
                 public void clear()               { s.clear(); }
                 public boolean remove(Object o)   { return s.remove(o); }
 
-                public boolean containsAll(Collection<?> coll) {
+                public boolean containsAll(Collection<?>! coll) {
                     return s.containsAll(coll);
                 }
-                public boolean removeAll(Collection<?> coll) {
+                public boolean removeAll(Collection<?>! coll) {
                     return s.removeAll(coll);
                 }
-                public boolean retainAll(Collection<?> coll) {
+                public boolean retainAll(Collection<?>! coll) {
                     return s.retainAll(coll);
                 }
 
                 public boolean add(E o){
                     throw new UnsupportedOperationException();
                 }
-                public boolean addAll(Collection<? extends E> coll) {
+                public boolean addAll(Collection<? extends E>! coll) {
                     throw new UnsupportedOperationException();
                 }
 

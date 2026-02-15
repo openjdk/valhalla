@@ -138,7 +138,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * return list.toArray();
      * }</pre>
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         // Estimate size of array; be prepared to see more or fewer elements
         Object[] r = new Object[size()];
         Iterator<E> it = iterator();
@@ -179,7 +179,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * @throws NullPointerException {@inheritDoc}
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         // Estimate size of array; be prepared to see more or fewer elements
         int size = size();
         T[] r = a.length >= size ? a :
@@ -306,7 +306,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * @throws NullPointerException          {@inheritDoc}
      * @see #contains(Object)
      */
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(Collection<?>! c) {
         for (Object e : c)
             if (!contains(e))
                 return false;
@@ -332,7 +332,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      *
      * @see #add(Object)
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         boolean modified = false;
         for (E e : c)
             if (add(e))
@@ -362,7 +362,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<?> it = iterator();
@@ -397,7 +397,7 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<E> it = iterator();

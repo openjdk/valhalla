@@ -293,7 +293,7 @@ public class List<A> extends AbstractCollection<A> implements java.util.List<A> 
     /** Copy successive elements of this list into given vector until
      *  list is exhausted or end of vector is reached.
      */
-    @Override @SuppressWarnings("unchecked")
+    @Override @SuppressWarnings({"unchecked", "null"})
     public <T> T[] toArray(T[] vec) {
         int i = 0;
         List<A> l = this;
@@ -313,6 +313,7 @@ public class List<A> extends AbstractCollection<A> implements java.util.List<A> 
         return toArray(vec);
     }
 
+    @SuppressWarnings("null")
     public Object[] toArray() {
         return toArray(new Object[size()]);
     }

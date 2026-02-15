@@ -203,7 +203,7 @@ public class LinkedHashSet<E>
      * @since 1.8
      */
     @Override
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this, Spliterator.DISTINCT | Spliterator.ORDERED);
     }
 
@@ -315,8 +315,8 @@ public class LinkedHashSet<E>
             public E removeFirst()             { return LinkedHashSet.this.removeLast(); }
             public E removeLast()              { return LinkedHashSet.this.removeFirst(); }
             public SequencedSet<E> reversed()  { return LinkedHashSet.this; }
-            public Object[] toArray() { return map().keysToArray(new Object[map.size()], true); }
-            public <T> T[] toArray(T[] a) { return map().keysToArray(map.prepareArray(a), true); }
+            public Object[]! toArray() { return map().keysToArray(new Object[map.size()], true); }
+            public <T> T[]! toArray(T[]! a) { return map().keysToArray(map.prepareArray(a), true); }
         }
 
         return new ReverseLinkedHashSetView();

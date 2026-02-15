@@ -280,7 +280,7 @@ public class RoleUnresolvedList extends ArrayList<Object> {
      * @throws IllegalArgumentException if {@code c} contains a member that is not a {@code RoleUnresolved}.
      */
     @Override
-    public boolean addAll(Collection<?> c) {
+    public boolean addAll(Collection<?>! c) {
         checkTypeSafe(c);
         return super.addAll(c);
     }

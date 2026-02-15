@@ -1154,7 +1154,7 @@ public class ConcurrentLinkedDeque<E>
      *         of its elements are null
      * @throws IllegalArgumentException if the collection is this deque
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         if (c == this)
             // As historically specified in AbstractQueue#addAll
             throw new IllegalArgumentException();
@@ -1282,7 +1282,7 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return an array containing all of the elements in this deque
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return toArrayInternal(null);
     }
 
@@ -1324,7 +1324,7 @@ public class ConcurrentLinkedDeque<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         if (a == null) throw new NullPointerException();
         return (T[]) toArrayInternal(a);
     }
@@ -1543,7 +1543,7 @@ public class ConcurrentLinkedDeque<E>
      * @return a {@code Spliterator} over the elements in this deque
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new CLDSpliterator();
     }
 
@@ -1602,7 +1602,7 @@ public class ConcurrentLinkedDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeIf(Predicate<? super E> filter) {
+    public boolean removeIf(Predicate<? super E>! filter) {
         Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
@@ -1610,7 +1610,7 @@ public class ConcurrentLinkedDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
@@ -1618,7 +1618,7 @@ public class ConcurrentLinkedDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }

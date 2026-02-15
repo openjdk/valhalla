@@ -489,11 +489,11 @@ public class EnumMap<K extends Enum<K>, V> extends AbstractMap<K, V>
         public void clear() {
             EnumMap.this.clear();
         }
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return fillEntryArray(new Object[size]);
         }
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int size = size();
             if (a.length < size)
                 a = (T[])java.lang.reflect.Array

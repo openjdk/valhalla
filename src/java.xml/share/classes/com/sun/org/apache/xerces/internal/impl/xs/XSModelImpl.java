@@ -782,13 +782,13 @@ public final class XSModelImpl extends AbstractList<XSNamespaceItem> implements 
         return new XSNamespaceItemListIterator(index);
     }
 
-    public Object[] toArray() {
+    public Object[]! toArray() {
         Object[] a = new Object[fGrammarCount];
         toArray0(a);
         return a;
     }
 
-    public Object[] toArray(Object[] a) {
+    public Object[]! toArray(Object[]! a) {
         if (a.length < fGrammarCount) {
             Class<?> arrayClass = a.getClass();
             Class<?> componentType = arrayClass.getComponentType();

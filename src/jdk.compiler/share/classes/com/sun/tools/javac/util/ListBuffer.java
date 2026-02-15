@@ -177,9 +177,11 @@ public class ListBuffer<A> extends AbstractQueue<A> {
 
     /** Convert buffer to an array
      */
+    @SuppressWarnings("null")
     public <T> T[] toArray(T[] vec) {
         return elems.toArray(vec);
     }
+    @SuppressWarnings("null")
     public Object[] toArray() {
         return toArray(new Object[size()]);
     }
@@ -233,6 +235,7 @@ public class ListBuffer<A> extends AbstractQueue<A> {
         throw new UnsupportedOperationException();
     }
 
+    @SuppressWarnings("null")
     public boolean containsAll(Collection<?> c) {
         for (Object x: c) {
             if (!contains(x))
@@ -241,16 +244,19 @@ public class ListBuffer<A> extends AbstractQueue<A> {
         return true;
     }
 
+    @SuppressWarnings("null")
     public boolean addAll(Collection<? extends A> c) {
         for (A a: c)
             append(a);
         return true;
     }
 
+    @SuppressWarnings("null")
     public boolean removeAll(Collection<?> c) {
         throw new UnsupportedOperationException();
     }
 
+    @SuppressWarnings("null")
     public boolean retainAll(Collection<?> c) {
         throw new UnsupportedOperationException();
     }

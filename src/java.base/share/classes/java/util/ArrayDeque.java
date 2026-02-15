@@ -315,7 +315,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * @throws NullPointerException if the specified collection or any
      *         of its elements are null
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         final int s, needed;
         if ((needed = (s = size()) + c.size() + 1 - elements.length) > 0)
             grow(needed);
@@ -791,7 +791,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * @return a {@code Spliterator} over the elements in this deque
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new DeqSpliterator();
     }
 
@@ -894,7 +894,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeIf(Predicate<? super E> filter) {
+    public boolean removeIf(Predicate<? super E>! filter) {
         Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
@@ -902,7 +902,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
@@ -910,7 +910,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }
@@ -1064,7 +1064,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return an array containing all of the elements in this deque
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return toArray(Object[].class);
     }
 
@@ -1122,7 +1122,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         final int size;
         if ((size = size()) > a.length)
             return toArray((Class<T[]>) a.getClass());
