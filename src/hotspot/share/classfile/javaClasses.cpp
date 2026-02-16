@@ -2034,7 +2034,7 @@ oop java_lang_Thread::async_get_stack_trace(jobject jthread, TRAPS) {
   if (k->should_be_initialized()) {
     k->initialize(CHECK_NULL);
   }
-  objArrayHandle trace = oopFactory::new_objArray_handle(k, gsthc._depth, CHECK_NULL);
+  refArrayHandle trace = oopFactory::new_refArray_handle(k, gsthc._depth, CHECK_NULL);
 
   for (int i = 0; i < gsthc._depth; i++) {
     methodHandle method(THREAD, gsthc._methods->at(i));

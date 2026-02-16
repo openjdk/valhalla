@@ -153,7 +153,7 @@ flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayPr
   return oop;
 }
 
-objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {
-  objArrayOop obj = new_objArray(klass, length, CHECK_(objArrayHandle()));
-  return objArrayHandle(THREAD, obj);
+refArrayHandle oopFactory::new_refArray_handle(Klass* klass, int length, TRAPS) {
+  refArrayOop obj = new_refArray(klass, length, CHECK_(refArrayHandle()));
+  return refArrayHandle(THREAD, obj);
 }
