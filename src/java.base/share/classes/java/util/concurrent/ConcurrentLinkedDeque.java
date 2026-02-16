@@ -1325,7 +1325,6 @@ public class ConcurrentLinkedDeque<E>
      */
     @SuppressWarnings("unchecked")
     public <T> T[]! toArray(T[]! a) {
-        if (a == null) throw new NullPointerException();
         return (T[]) toArrayInternal(a);
     }
 
