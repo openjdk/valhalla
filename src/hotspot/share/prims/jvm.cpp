@@ -744,8 +744,8 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
 
   if (frames_array_h->length() < buffer_size) {
     THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers", nullptr);
@@ -763,8 +763,8 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
 
   if (frames_array_h->length() < buffer_size) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers");
@@ -776,8 +776,8 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
 JVM_END
 
 JVM_ENTRY(void, JVM_SetStackWalkContinuation(JNIEnv *env, jobject stackStream, jlong anchor, jobjectArray frames, jobject cont))
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
   Handle cont_h(THREAD, JNIHandles::resolve_non_null(cont));
 
