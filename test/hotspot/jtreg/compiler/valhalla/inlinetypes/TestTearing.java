@@ -83,7 +83,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=180 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
@@ -122,7 +122,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=150 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -253,7 +253,9 @@ public class TestTearing {
          WHITE_BOX.getBooleanVMFlag("SafepointALot") ||
          WHITE_BOX.getBooleanVMFlag("DeoptimizeALot") ||
          WHITE_BOX.getBooleanVMFlag("DeoptimizeNMethodBarriersALot") ||
-        !WHITE_BOX.getBooleanVMFlag("UseTLAB");
+        !WHITE_BOX.getBooleanVMFlag("UseTLAB") ||
+         WHITE_BOX.getBooleanVMFlag("VerifyOops") ||
+         WHITE_BOX.getBooleanVMFlag("CheckUnhandledOops");
     private static final boolean HAS_FLAT_ARRAY = WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
 
     // Null-free, volatile -> atomic access

@@ -632,50 +632,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     return;
   }
 
-  // Handle inline type arguments
-  int arg_size = method()->arg_size();
-  for (int i = 0; i < arg_size; i++) {
-    Node* parm = local(i);
-    const Type* t = _gvn.type(parm);
-    if (t->is_inlinetypeptr()) {
-      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
-      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
-      if (!(method()->is_object_constructor() && i == 0)) {
-        // Create InlineTypeNode from the oop and replace the parameter
-        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
-        replace_in_map(parm, vt);
-      }
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
-      // Speculate on varargs Object array being the default array refined type. The assumption is
-      // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
-      // translate the call so that the caller will create a new default array of Object, put o1,
-      // o2, o3 into the newly created array, then invoke the method test. This only makes sense if
-      // the method we are parsing is the top-level method of the compilation unit. Otherwise, if
-      // it is truly called according to our assumption, we must know the exact type of the
-      // argument because the allocation happens inside the compilation unit.
-      const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
-      ciSignature* method_signature = method()->signature();
-      ciType* parm_citype = method_signature->type_at(method_signature->count() - 1);
-      if (!parm_citype->is_obj_array_klass()) {
-        continue;
-      }
-
-      ciObjArrayKlass* spec_citype = ciObjArrayKlass::make(parm_citype->as_obj_array_klass()->element_klass(), true);
-      const Type* improved_spec_type = TypeKlassPtr::make(spec_citype, Type::trust_interfaces)->as_instance_type();
-      improved_spec_type = improved_spec_type->join(spec_type)->join(TypePtr::NOTNULL);
-      if (improved_spec_type->empty()) {
-        continue;
-      }
-
-      const TypePtr* improved_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, improved_spec_type->is_ptr());
-      improved_type = improved_type->join_speculative(t)->is_ptr();
-      if (improved_type != t) {
-        Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, improved_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
-        replace_in_map(parm, cast);
-      }
-    }
-  }
-
   entry_map = map();  // capture any changes performed by method setup code
   assert(jvms()->endoff() == map()->req(), "map matches JVMS layout");
 
@@ -1406,6 +1362,50 @@ void Parse::do_method_entry() {
   // Feed profiling data for parameters to the type system so it can
   // propagate it as speculative types
   record_profiled_parameters_for_speculation();
+
+  // More argument handling
+  int arg_size = method()->arg_size();
+  for (int i = 0; i < arg_size; i++) {
+    Node* parm = local(i);
+    const Type* t = _gvn.type(parm);
+    if (t->is_inlinetypeptr()) {
+      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
+      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
+      if (!(method()->is_object_constructor() && i == 0)) {
+        // Create InlineTypeNode from the oop and replace the parameter
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
+        replace_in_map(parm, vt);
+      }
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
+      // Speculate on varargs Object array being the default array refined type. The assumption is
+      // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
+      // translate the call so that the caller will create a new default array of Object, put o1,
+      // o2, o3 into the newly created array, then invoke the method test. This only makes sense if
+      // the method we are parsing is the top-level method of the compilation unit. Otherwise, if
+      // it is truly called according to our assumption, we must know the exact type of the
+      // argument because the allocation happens inside the compilation unit.
+      const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
+      ciSignature* method_signature = method()->signature();
+      ciType* parm_citype = method_signature->type_at(method_signature->count() - 1);
+      if (!parm_citype->is_obj_array_klass()) {
+        continue;
+      }
+
+      ciObjArrayKlass* spec_citype = ciObjArrayKlass::make(parm_citype->as_obj_array_klass()->element_klass(), true);
+      const Type* improved_spec_type = TypeKlassPtr::make(spec_citype, Type::trust_interfaces)->as_instance_type();
+      improved_spec_type = improved_spec_type->join(spec_type)->join(TypePtr::NOTNULL);
+      if (improved_spec_type->empty()) {
+        continue;
+      }
+
+      const TypePtr* improved_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, improved_spec_type->is_ptr());
+      improved_type = improved_type->join_speculative(t)->is_ptr();
+      if (improved_type != t) {
+        Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, improved_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+        replace_in_map(parm, cast);
+      }
+    }
+  }
 }
 
 //------------------------------init_blocks------------------------------------
@@ -1845,10 +1845,15 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     for (uint j = TypeFunc::Parms; j < map()->req(); j++) {
       Node* n = map()->in(j);                 // Incoming change to target state.
       const Type* t = nullptr;
+      ciType* ct = nullptr;
       if (tmp_jvms->is_loc(j)) {
-        t = target->local_type_at(j - tmp_jvms->locoff());
+        int loc_idx = j - tmp_jvms->locoff();
+        t = target->local_type_at(loc_idx);
+        ct = target->flow()->local_type_at(loc_idx);
       } else if (tmp_jvms->is_stk(j) && j < (uint)sp() + tmp_jvms->stkoff()) {
-        t = target->stack_type_at(j - tmp_jvms->stkoff());
+        int stk_idx = j - tmp_jvms->stkoff();
+        t = target->stack_type_at(stk_idx);
+        ct = target->flow()->stack_type_at(stk_idx);
       }
       if (t != nullptr && t != Type::BOTTOM) {
         // An object can appear in the JVMS as either an oop or an InlineTypeNode. If the merge is
@@ -1862,31 +1867,10 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
             map()->set_req(j, n->as_InlineType()->buffer(this));
           }
         } else {
-          // Since the merge is a value object, it can either be an oop or an InlineTypeNode
-          if (!target->is_merged()) {
-            // This is the first processed input of the merge. If it is an InlineTypeNode, the
-            // merge will be an InlineTypeNode. Else, try to scalarize so the merge can be
-            // scalarized as well. However, we cannot blindly scalarize an inline type oop here
-            // since it may be larval
-            if (!n->is_InlineType() && gvn().type(n)->is_zero_type()) {
-              // Null constant implies that this is not a larval object
-              map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
-            }
-          } else {
-            Node* phi = target->start_map()->in(j);
-            if (phi->is_InlineType()) {
-              // Larval oops cannot be merged with non-larval ones, and since the merge point is
-              // non-larval, n must be non-larval as well. As a result, we can scalarize n to merge
-              // into phi
-              if (!n->is_InlineType()) {
-                map()->set_req(j, InlineTypeNode::make_from_oop(this, n, t->inline_klass()));
-              }
-            } else {
-              // The merge is an oop phi, ensure the input is buffered if it is an InlineTypeNode
-              if (n->is_InlineType()) {
-                map()->set_req(j, n->as_InlineType()->buffer(this));
-              }
-            }
+          // Scalarize the value object if it is not larval
+          if (!n->is_InlineType() && !ct->is_early_larval()) {
+            assert(_gvn.type(n) == TypePtr::NULL_PTR, "must be a null constant");
+            map()->set_req(j, InlineTypeNode::make_null(_gvn, t->inline_klass()));
           }
         }
       }

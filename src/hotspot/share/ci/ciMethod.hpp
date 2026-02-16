@@ -394,6 +394,7 @@ class ciMethod : public ciMetadata {
   bool is_scalarized_arg(int idx) const;
   bool has_scalarized_args() const;
   const GrowableArray<SigEntry>* get_sig_cc() const;
+  bool mismatch() const;
 };
 
 #endif // SHARE_CI_CIMETHOD_HPP

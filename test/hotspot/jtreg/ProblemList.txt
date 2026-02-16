@@ -197,24 +197,28 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 #############################################################################
 
 # Valhalla failures start here:
+compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
+
+runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java 8377009 generic-all
+runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java 8377009 generic-all
+
+serviceability/sa/ClhsdbCDSCore.java   8377324 generic-all
+serviceability/sa/TestPrintMdo.java    8377324 generic-all
+
+vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
+vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
+vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64
+
+# The following test failures DID NOT reproduce during Tier[1-8] testing 
+# done for 8377828. Further analysis is being done with 8376235:
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
 compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
-compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
-runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
-runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
-
-serviceability/sa/ClhsdbCDSCore.java   8377324 generic-all
-serviceability/sa/TestPrintMdo.java    8377324 generic-all
-serviceability/sa/ClhsdbDumpclass.java 8377325 generic-all
 
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
-vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
-vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
-vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64

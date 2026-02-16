@@ -438,7 +438,6 @@ ciField* ciInstanceKlass::get_non_flat_field_by_offset(int field_offset) {
 }
 
 int ciInstanceKlass::field_index_by_offset(int offset) {
-  assert(contains_field_offset(offset), "invalid field offset");
   int best_offset = 0;
   int best_index = -1;
   // Search the field with the given offset
