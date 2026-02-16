@@ -44,7 +44,9 @@ class ArrayProperties {
   bool check_flag(Type t) const { return (_flags & t) != 0; }
   void set_flag(Type t, bool b) {
     assert(!check_flag(t), "set once");
-    if (b) _flags |= t;
+    if (b) {
+      _flags |= t;
+    }
   }
 
  public:
