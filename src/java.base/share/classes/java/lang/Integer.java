@@ -910,10 +910,21 @@ public final class Integer extends Number
         @Stable static int high;
 
         @Stable static Integer[] cache;
+        @Stable final static Integer[] unused;
         static Integer[] archivedCache;
 
         static {
-            runtimeSetup();
+            unused = new Integer[0];
+            if (!PreviewFeatures.isEnabled()) {
+                runtimeSetup();
+            } else {
+                cache = unused;
+                assert !isEnabled();
+            }
+        }
+
+        static boolean isEnabled() {
+            return cache != unused;
         }
 
         @AOTRuntimeSetup
@@ -1010,7 +1021,7 @@ public final class Integer extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (!PreviewFeatures.isEnabled()) {
+        if (IntegerCache.isEnabled()) {
             if (i >= IntegerCache.low && i <= IntegerCache.high)
                 return IntegerCache.cache[i + (-IntegerCache.low)];
         }

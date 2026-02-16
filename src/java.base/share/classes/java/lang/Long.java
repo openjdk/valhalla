@@ -930,23 +930,35 @@ public final class Long extends Number
 
         @Stable
         static final Long[] cache;
+        @Stable
+        static final Long[] unused;
         static Long[] archivedCache;
 
         static {
-            int size = -(-128) + 127 + 1;
+            unused = new Long[0];
+            if (!PreviewFeatures.isEnabled()) {
+                int size = -(-128) + 127 + 1;
 
-            // Load and use the archived cache if it exists
-            CDS.initializeFromArchive(LongCache.class);
-            if (archivedCache == null) {
-                Long[] c = new Long[size];
-                long value = -128;
-                for(int i = 0; i < size; i++) {
-                    c[i] = new Long(value++);
+                // Load and use the archived cache if it exists
+                CDS.initializeFromArchive(LongCache.class);
+                if (archivedCache == null) {
+                    Long[] c = new Long[size];
+                    long value = -128;
+                    for(int i = 0; i < size; i++) {
+                        c[i] = new Long(value++);
+                    }
+                    archivedCache = c;
                 }
-                archivedCache = c;
+                cache = archivedCache;
+                assert cache.length == size;
+            } else {
+                cache = unused;
+                assert !isEnabled();
             }
-            cache = archivedCache;
-            assert cache.length == size;
+        }
+
+        static boolean isEnabled() {
+            return cache != unused;
         }
     }
 
@@ -980,7 +992,7 @@ public final class Long extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Long valueOf(long l) {
-        if (!PreviewFeatures.isEnabled()) {
+        if (LongCache.isEnabled()) {
             if (l >= -128 && l <= 127) { // will cache
                 final int offset = 128;
                 return LongCache.cache[(int) l + offset];

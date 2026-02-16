@@ -9396,22 +9396,34 @@ public final class Character implements java.io.Serializable, Comparable<Charact
 
         @Stable
         static final Character[] cache;
+        @Stable
+        static final Character[] unused;
         static Character[] archivedCache;
 
         static {
-            int size = 127 + 1;
+            unused = new Character[0];
+            if (!PreviewFeatures.isEnabled()) {
+                int size = 127 + 1;
 
-            // Load and use the archived cache if it exists
-            CDS.initializeFromArchive(CharacterCache.class);
-            if (archivedCache == null) {
-                Character[] c = new Character[size];
-                for (int i = 0; i < size; i++) {
-                    c[i] = new Character((char) i);
+                // Load and use the archived cache if it exists
+                CDS.initializeFromArchive(CharacterCache.class);
+                if (archivedCache == null) {
+                    Character[] c = new Character[size];
+                    for (int i = 0; i < size; i++) {
+                        c[i] = new Character((char) i);
+                    }
+                    archivedCache = c;
                 }
-                archivedCache = c;
+                cache = archivedCache;
+                assert cache.length == size;
+            } else {
+                cache = unused;
+                assert !isEnabled();
             }
-            cache = archivedCache;
-            assert cache.length == size;
+        }
+
+        static boolean isEnabled() {
+            return cache != unused;
         }
     }
 
@@ -9446,8 +9458,10 @@ public final class Character implements java.io.Serializable, Comparable<Charact
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Character valueOf(char c) {
-        if (c <= 127) { // must cache
-            return CharacterCache.cache[(int)c];
+        if (CharacterCache.isEnabled()) {
+            if (c <= 127) { // must cache
+                return CharacterCache.cache[(int)c];
+            }
         }
         return new Character(c);
     }

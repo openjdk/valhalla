@@ -64,6 +64,7 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/vectorSupport.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/basicLock.inline.hpp"
 #include "runtime/continuation.hpp"
@@ -1144,13 +1145,14 @@ template<typename PrimitiveType, typename CacheType, typename BoxType> class Box
 protected:
   static BoxCache<PrimitiveType, CacheType, BoxType> *_singleton;
   BoxCache(Thread* thread) {
+    assert(!Arguments::enable_preview(), "Should not use box caches with enable preview");
     InstanceKlass* ik = BoxCacheBase<CacheType>::find_cache_klass(thread, CacheType::symbol());
     if (ik->is_in_error_state()) {
       _low = 1;
       _high = 0;
       _cache = nullptr;
     } else {
-      objArrayOop cache = CacheType::cache(ik);
+      refArrayOop cache = CacheType::cache(ik);
       assert(cache->length() > 0, "Empty cache");
       _low = BoxType::value(cache->obj_at(0));
       _high = checked_cast<PrimitiveType>(_low + cache->length() - 1);
@@ -1173,7 +1175,7 @@ public:
   oop lookup(PrimitiveType value) {
     if (_low <= value && value <= _high) {
       int offset = checked_cast<int>(value - _low);
-      return objArrayOop(JNIHandles::resolve_non_null(_cache))->obj_at(offset);
+      return refArrayOop(JNIHandles::resolve_non_null(_cache))->obj_at(offset);
     }
     return nullptr;
   }
@@ -1253,6 +1255,10 @@ public:
 BooleanBoxCache* BooleanBoxCache::_singleton = nullptr;
 
 oop Deoptimization::get_cached_box(AutoBoxObjectValue* bv, frame* fr, RegisterMap* reg_map, bool& cache_init_error, TRAPS) {
+  if (Arguments::enable_preview()) {
+    // Box caches are not used with enable preview.
+    return nullptr;
+  }
    Klass* k = java_lang_Class::as_Klass(bv->klass()->as_ConstantOopReadValue()->value()());
    BasicType box_type = vmClasses::box_klass_type(k);
    if (box_type != T_OBJECT) {

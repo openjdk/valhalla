@@ -1823,7 +1823,7 @@ class java_lang_Integer_IntegerCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1833,7 +1833,7 @@ class java_lang_Long_LongCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1843,7 +1843,7 @@ class java_lang_Character_CharacterCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1853,7 +1853,7 @@ class java_lang_Short_ShortCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1863,7 +1863,7 @@ class java_lang_Byte_ByteCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 

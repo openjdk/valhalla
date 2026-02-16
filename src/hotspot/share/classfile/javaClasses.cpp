@@ -63,6 +63,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/oopCast.inline.hpp"
 #include "oops/recordComponent.hpp"
+#include "oops/refArrayOop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -5137,9 +5138,9 @@ void java_lang_Integer_IntegerCache::compute_offsets(InstanceKlass *k) {
   INTEGER_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-objArrayOop java_lang_Integer_IntegerCache::cache(InstanceKlass *ik) {
+refArrayOop java_lang_Integer_IntegerCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return objArrayOop(base->obj_field(_static_cache_offset));
+  return refArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Integer_IntegerCache::symbol() {
@@ -5167,9 +5168,9 @@ void java_lang_Long_LongCache::compute_offsets(InstanceKlass *k) {
   LONG_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-objArrayOop java_lang_Long_LongCache::cache(InstanceKlass *ik) {
+refArrayOop java_lang_Long_LongCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return objArrayOop(base->obj_field(_static_cache_offset));
+  return refArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Long_LongCache::symbol() {
@@ -5197,9 +5198,9 @@ void java_lang_Character_CharacterCache::compute_offsets(InstanceKlass *k) {
   CHARACTER_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-objArrayOop java_lang_Character_CharacterCache::cache(InstanceKlass *ik) {
+refArrayOop java_lang_Character_CharacterCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return objArrayOop(base->obj_field(_static_cache_offset));
+  return refArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Character_CharacterCache::symbol() {
@@ -5227,9 +5228,9 @@ void java_lang_Short_ShortCache::compute_offsets(InstanceKlass *k) {
   SHORT_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-objArrayOop java_lang_Short_ShortCache::cache(InstanceKlass *ik) {
+refArrayOop java_lang_Short_ShortCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return objArrayOop(base->obj_field(_static_cache_offset));
+  return refArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Short_ShortCache::symbol() {
@@ -5257,9 +5258,9 @@ void java_lang_Byte_ByteCache::compute_offsets(InstanceKlass *k) {
   BYTE_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-objArrayOop java_lang_Byte_ByteCache::cache(InstanceKlass *ik) {
+refArrayOop java_lang_Byte_ByteCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return objArrayOop(base->obj_field(_static_cache_offset));
+  return refArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Byte_ByteCache::symbol() {
