@@ -162,7 +162,8 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
 
 template<bool scan>
 inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool stolen) {
-  assert(scan || (!task_entry.is_partial_array_state() && task_entry.to_oop()->is_typeArray()), "Skipping scan of grey non-typeArray");
+  assert(scan || (!task_entry.is_partial_array_state() && !G1CollectedHeap::array_has_oops(task_entry.to_oop())),
+         "Skipping scan of grey object that needs scanning");
   assert(task_entry.is_partial_array_state() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.to_oop())),
          "Any stolen object should be a slice or marked");
 
@@ -177,8 +178,15 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool 
         _words_scanned += obj->oop_iterate_size(_cm_oop_closure);
       }
     }
+  } else if (!task_entry.to_oop()->is_typeArray()) {
+    // Need to process the klass except for the built-in type array.
+    _cm_oop_closure->do_klass(task_entry.to_oop()->klass());
   }
   check_limits();
+}
+
+inline bool G1CMTask::can_be_processed_immediately(oop obj) {
+  return obj->is_array() && !G1CollectedHeap::array_has_oops(obj);
 }
 
 inline bool G1CMTask::should_be_sliced(oop obj) {
@@ -274,8 +282,8 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // correctness problems.
   if (is_below_finger(obj, global_finger)) {
     G1TaskQueueEntry entry(obj);
-    if (obj->is_typeArray()) {
-      // Immediately process arrays of primitive types, rather
+    if (can_be_processed_immediately(obj)) {
+      // Immediately process arrays of types without oops, rather
       // than pushing on the mark stack.  This keeps us from
       // adding humongous objects to the mark stack that might
       // be reclaimed before the entry is processed - see
@@ -283,8 +291,8 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       // objects.  The cost of the additional type test is
       // mitigated by avoiding a trip through the mark stack,
       // by only doing a bookkeeping update and avoiding the
-      // actual scan of the object - a typeArray contains no
-      // references, and the metadata is built-in.
+      // actual scan of the object - the object contains no
+      // references (but the metadata must be processed).
       process_grey_task_entry<false>(entry, false /* stolen */);
     } else {
       push(entry);

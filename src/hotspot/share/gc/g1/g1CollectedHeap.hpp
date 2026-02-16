@@ -1225,6 +1225,9 @@ public:
   // requires.
   static size_t humongous_obj_size_in_regions(size_t word_size);
 
+  // Returns whether the given array has oops or not in its body.
+  inline static bool array_has_oops(oop obj);
+
   // Returns how much space in bytes an allocation of word_size will use up in the
   // heap.
   static size_t allocation_used_bytes(size_t word_size);

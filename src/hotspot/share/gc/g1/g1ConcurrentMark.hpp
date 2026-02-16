@@ -842,6 +842,10 @@ private:
   // mark bitmap scan, and so needs to be pushed onto the mark stack.
   bool is_below_finger(oop obj, HeapWord* global_finger) const;
 
+  // Returns whether the given oop can be processed immediately, i.e. does not need
+  // to be pushed into the mark stack.
+  // Note that even with a true result, the klass may need to be inspected.
+  static bool can_be_processed_immediately(oop obj);
   template<bool scan> void process_grey_task_entry(G1TaskQueueEntry task_entry, bool stolen);
 
   static bool should_be_sliced(oop obj);

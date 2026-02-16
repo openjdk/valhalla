@@ -42,6 +42,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/markBitMap.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/stackChunkOop.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -108,6 +109,13 @@ inline G1HeapRegion* G1CollectedHeap::region_at(uint index) const { return _hrm.
 
 // Return the region with the given index, or null if unmapped. It assumes the index is valid.
 inline G1HeapRegion* G1CollectedHeap::region_at_or_null(uint index) const { return _hrm.at_or_null(index); }
+
+inline bool G1CollectedHeap::array_has_oops(oop obj) {
+  assert(obj->is_array(), "must be");
+  // Just assume that any instanceOops always have references, i.e. they return "false" although
+  // they may or may not have references.
+  return obj->is_array_with_oops();
+}
 
 template <typename Func>
 inline void G1CollectedHeap::humongous_obj_regions_iterate(G1HeapRegion* start, const Func& f) {

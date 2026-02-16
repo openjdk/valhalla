@@ -341,13 +341,14 @@ class G1PrepareEvacuationTask : public WorkerTask {
       // It also helps with G1 allocating humongous objects as old generation
       // objects although they might also die quite quickly.
       //
-      // TypeArray objects are allowed to be reclaimed even if allocated before
+      // Humongous objects without oops (typeArrays, flatArrays without oops in
+      // its elements) are allowed to be reclaimed even if allocated before
       // the start of concurrent mark.  For this we rely on mark stack insertion
-      // to exclude is_typeArray() objects, preventing reclaiming an object
-      // that is in the mark stack.  We also rely on the metadata for
-      // such objects to be built-in and so ensured to be kept live.
+      // to exclude them, preventing reclaiming an object
+      // that is in the mark stack.  That code also ensures that metadata (klass)
+      // is kept live.
       //
-      // Non-typeArrays that were allocated before marking are excluded from
+      // Other humongous objects that were allocated before marking are excluded from
       // eager reclaim during marking.  One issue is the problem described
       // above with scrubbing the mark stack, but there is also a problem
       // causing these humongous objects being collected incorrectly:
@@ -362,16 +363,17 @@ class G1PrepareEvacuationTask : public WorkerTask {
       // garbage collection. o1 still has the reference to o2, but since o1 had
       // already been scanned we do not detect o2 to be still live and reclaim it.
       //
-      // There is another minor problem with non-typeArray regions being the source
-      // of remembered set entries in other region's remembered sets.  There are
-      // two cases: first, the remembered set entry is in a Free region after reclaim.
-      // We handle this case by ignoring these cards during merging the remembered
-      // sets.
+      // There is another minor problem with these humongous objects with oops being
+      // the source of remembered set entries in other region's remembered sets.
+      // There are two cases: first, the remembered set entry is in a Free region
+      // after reclaim.  We handle this case by ignoring these cards during merging
+      // the remembered sets.
       //
-      // Second, there may be cases where eagerly reclaimed regions were already
-      // reallocated.  This may cause scanning of these outdated remembered set
-      // entries, containing some objects. But apart from extra work this does
-      // not cause correctness issues.
+      // Second, there may be cases where regions previously containing eagerly
+      // reclaimed objects were already allocated into again.
+      // This may cause scanning of these outdated remembered set entries,
+      // containing some objects. But apart from extra work this does not cause
+      // correctness issues.
       // There is no difference between scanning cards covering an effectively
       // dead humongous object vs. some other objects in reallocated regions.
       //
@@ -388,7 +390,8 @@ class G1PrepareEvacuationTask : public WorkerTask {
       //
       // After the pause, having reclaimed h, obviously the mutator can't fetch
       // the reference from h any more.
-      if (!obj->is_typeArray()) {
+      bool potentially_has_oops = !obj->is_array() || _g1h->array_has_oops(obj);
+      if (potentially_has_oops) {
         // All regions that were allocated before marking have a TAMS != bottom.
         bool allocated_before_mark_start = region->bottom() != _g1h->concurrent_mark()->top_at_mark_start(region);
         bool mark_in_progress = _g1h->collector_state()->mark_in_progress();
