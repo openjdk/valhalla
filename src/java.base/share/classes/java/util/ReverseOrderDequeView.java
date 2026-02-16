@@ -123,7 +123,6 @@ class ReverseOrderDequeView<E> implements Deque<E> {
 
     // copied from AbstractCollection
     public boolean removeAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<?> it = iterator();
         while (it.hasNext()) {
@@ -137,7 +136,6 @@ class ReverseOrderDequeView<E> implements Deque<E> {
 
     // copied from AbstractCollection
     public boolean retainAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<E> it = iterator();
         while (it.hasNext()) {

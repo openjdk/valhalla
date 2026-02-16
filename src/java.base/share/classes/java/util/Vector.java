@@ -927,7 +927,6 @@ public class Vector<E>
      * @since 1.2
      */
     public boolean removeAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
 
@@ -951,7 +950,6 @@ public class Vector<E>
      * @since 1.2
      */
     public boolean retainAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }
 
@@ -960,7 +958,6 @@ public class Vector<E>
      */
     @Override
     public boolean removeIf(Predicate<? super E>! filter) {
-        Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
 

@@ -749,7 +749,6 @@ public class CopyOnWriteArrayList<E>
      * @see #remove(Object)
      */
     public boolean removeAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
 
@@ -770,7 +769,6 @@ public class CopyOnWriteArrayList<E>
      * @see #remove(Object)
      */
     public boolean retainAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }
 
@@ -1635,12 +1633,10 @@ public class CopyOnWriteArrayList<E>
         }
 
         public boolean removeAll(Collection<?>! c) {
-            Objects.requireNonNull(c);
             return bulkRemove(e -> c.contains(e));
         }
 
         public boolean retainAll(Collection<?>! c) {
-            Objects.requireNonNull(c);
             return bulkRemove(e -> !c.contains(e));
         }
 

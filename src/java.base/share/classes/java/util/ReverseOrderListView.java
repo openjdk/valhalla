@@ -247,7 +247,6 @@ class ReverseOrderListView<E> implements List<E> {
     // copied from AbstractCollection
     public boolean removeAll(Collection<?>! c) {
         checkModifiable();
-        Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<?> it = iterator();
         while (it.hasNext()) {
@@ -262,7 +261,6 @@ class ReverseOrderListView<E> implements List<E> {
     // copied from AbstractCollection
     public boolean retainAll(Collection<?>! c) {
         checkModifiable();
-        Objects.requireNonNull(c);
         boolean modified = false;
         Iterator<E> it = iterator();
         while (it.hasNext()) {

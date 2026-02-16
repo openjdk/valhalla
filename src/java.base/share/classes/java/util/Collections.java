@@ -4790,7 +4790,6 @@ public final class Collections {
         }
         @Override
         public boolean removeIf(Predicate<? super E>! filter) {
-            Objects.requireNonNull(filter);
             return false;
         }
         @Override
@@ -4926,7 +4925,6 @@ public final class Collections {
 
         @Override
         public boolean removeIf(Predicate<? super E>! filter) {
-            Objects.requireNonNull(filter);
             return false;
         }
         @Override

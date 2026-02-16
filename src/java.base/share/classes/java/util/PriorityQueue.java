@@ -891,7 +891,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean removeIf(Predicate<? super E>! filter) {
-        Objects.requireNonNull(filter);
         return bulkRemove(filter);
     }
 
@@ -899,7 +898,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean removeAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> c.contains(e));
     }
 
@@ -907,7 +905,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException {@inheritDoc}
      */
     public boolean retainAll(Collection<?>! c) {
-        Objects.requireNonNull(c);
         return bulkRemove(e -> !c.contains(e));
     }
 

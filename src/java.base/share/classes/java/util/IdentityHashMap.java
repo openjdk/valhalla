@@ -1013,7 +1013,6 @@ public class IdentityHashMap<K,V>
          * behavior when c is a smaller "normal" (non-identity-based) Set.
          */
         public boolean removeAll(Collection<?>! c) {
-            Objects.requireNonNull(c);
             boolean modified = false;
             for (Iterator<K> i = iterator(); i.hasNext(); ) {
                 if (c.contains(i.next())) {
@@ -1228,7 +1227,6 @@ public class IdentityHashMap<K,V>
          * behavior when c is a smaller "normal" (non-identity-based) Set.
          */
         public boolean removeAll(Collection<?>! c) {
-            Objects.requireNonNull(c);
             boolean modified = false;
             for (Iterator<Map.Entry<K,V>> i = iterator(); i.hasNext(); ) {
                 if (c.contains(i.next())) {

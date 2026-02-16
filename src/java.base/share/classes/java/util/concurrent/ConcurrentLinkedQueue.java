@@ -712,7 +712,6 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
      */
     @SuppressWarnings("unchecked")
     public <T> T[]! toArray(T[]! a) {
-        Objects.requireNonNull(a);
         return (T[]) toArrayInternal(a);
     }
 

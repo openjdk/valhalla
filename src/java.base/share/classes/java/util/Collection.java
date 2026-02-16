@@ -574,7 +574,6 @@ public interface Collection<E> extends Iterable<E> {
      * @since 1.8
      */
     default boolean removeIf(Predicate<? super E>! filter) {
-        Objects.requireNonNull(filter);
         boolean removed = false;
         final Iterator<E> each = iterator();
         while (each.hasNext()) {
