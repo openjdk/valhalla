@@ -98,7 +98,6 @@ public final class ValueClass {
     }
 
     public static Object[] copyOfRangeSpecialArray(Object[] array, int from, int to) {
-        IO.println("attempting copy " + from + " to " + to + " with length " + array.length);
         int length = array.length;
         if (from < 0 || from > length) {
             throw new ArrayIndexOutOfBoundsException("source index " + from + " out of bounds for object array[" + length + "]");
