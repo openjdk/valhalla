@@ -1335,7 +1335,7 @@ public final class ServiceLoader<S>
 
         @Override
         @SuppressWarnings("unchecked")
-        public boolean tryAdvance(Consumer<? super Provider<T>> action) {
+        public boolean tryAdvance(Consumer<? super Provider<T>>! action) {
             if (ServiceLoader.this.reloadCount != expectedReloadCount)
                 throw new ConcurrentModificationException();
             Provider<T> next = null;

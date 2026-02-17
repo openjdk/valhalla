@@ -911,8 +911,7 @@ public class LinkedBlockingQueue<E> extends AbstractQueue<E>
             return null;
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             if (!exhausted) {
                 E e = null;
                 fullyLock();
@@ -936,8 +935,7 @@ public class LinkedBlockingQueue<E> extends AbstractQueue<E>
             return false;
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             if (!exhausted) {
                 exhausted = true;
                 Node<E> p = current;

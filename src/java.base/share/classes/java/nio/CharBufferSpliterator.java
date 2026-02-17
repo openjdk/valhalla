@@ -61,7 +61,7 @@ class CharBufferSpliterator implements Spliterator.OfInt {
     }
 
     @Override
-    public void forEachRemaining(IntConsumer action) {
+    public void forEachRemaining(IntConsumer! action) {
         if (action == null)
             throw new NullPointerException();
         CharBuffer cb = buffer;
@@ -74,7 +74,7 @@ class CharBufferSpliterator implements Spliterator.OfInt {
     }
 
     @Override
-    public boolean tryAdvance(IntConsumer action) {
+    public boolean tryAdvance(IntConsumer! action) {
         if (action == null)
             throw new NullPointerException();
         if (index >= 0 && index < limit) {

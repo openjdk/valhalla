@@ -1497,7 +1497,7 @@ public class IdentityHashMap<K,V>
         }
 
         @SuppressWarnings("unchecked")
-        public void forEachRemaining(Consumer<? super K> action) {
+        public void forEachRemaining(Consumer<? super K>! action) {
             if (action == null)
                 throw new NullPointerException();
             int i, hi, mc; Object key;
@@ -1515,7 +1515,7 @@ public class IdentityHashMap<K,V>
         }
 
         @SuppressWarnings("unchecked")
-        public boolean tryAdvance(Consumer<? super K> action) {
+        public boolean tryAdvance(Consumer<? super K>! action) {
             if (action == null)
                 throw new NullPointerException();
             Object[] a = map.table;
@@ -1553,7 +1553,7 @@ public class IdentityHashMap<K,V>
                                        expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
+        public void forEachRemaining(Consumer<? super V>! action) {
             if (action == null)
                 throw new NullPointerException();
             int i, hi, mc;
@@ -1572,7 +1572,7 @@ public class IdentityHashMap<K,V>
             throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
+        public boolean tryAdvance(Consumer<? super V>! action) {
             if (action == null)
                 throw new NullPointerException();
             Object[] a = map.table;
@@ -1612,7 +1612,7 @@ public class IdentityHashMap<K,V>
                                        expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K, V>> action) {
+        public void forEachRemaining(Consumer<? super Map.Entry<K, V>>! action) {
             if (action == null)
                 throw new NullPointerException();
             int i, hi, mc;
@@ -1636,7 +1636,7 @@ public class IdentityHashMap<K,V>
             throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             if (action == null)
                 throw new NullPointerException();
             Object[] a = map.table;

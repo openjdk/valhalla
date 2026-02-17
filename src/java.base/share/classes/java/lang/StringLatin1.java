@@ -772,7 +772,7 @@ final class StringLatin1 {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super String> action) {
+        public boolean tryAdvance(Consumer<? super String>! action) {
             if (action == null) {
                 throw new NullPointerException("tryAdvance action missing");
             }
@@ -784,7 +784,7 @@ final class StringLatin1 {
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super String> action) {
+        public void forEachRemaining(Consumer<? super String>! action) {
             if (action == null) {
                 throw new NullPointerException("forEachRemaining action missing");
             }
@@ -896,7 +896,7 @@ final class StringLatin1 {
         }
 
         @Override
-        public void forEachRemaining(IntConsumer action) {
+        public void forEachRemaining(IntConsumer! action) {
             byte[] a; int i, hi; // hoist accesses and checks from loop
             if (action == null)
                 throw new NullPointerException();
@@ -907,7 +907,7 @@ final class StringLatin1 {
         }
 
         @Override
-        public boolean tryAdvance(IntConsumer action) {
+        public boolean tryAdvance(IntConsumer! action) {
             if (action == null)
                 throw new NullPointerException();
             if (index >= 0 && index < fence) {

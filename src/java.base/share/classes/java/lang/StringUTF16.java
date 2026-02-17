@@ -1341,10 +1341,7 @@ final class StringUTF16 {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super String> action) {
-            if (action == null) {
-                throw new NullPointerException("tryAdvance action missing");
-            }
+        public boolean tryAdvance(Consumer<? super String>! action) {
             if (index != fence) {
                 action.accept(next());
                 return true;
@@ -1353,10 +1350,7 @@ final class StringUTF16 {
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super String> action) {
-            if (action == null) {
-                throw new NullPointerException("forEachRemaining action missing");
-            }
+        public void forEachRemaining(Consumer<? super String>! action) {
             while (index != fence) {
                 action.accept(next());
             }
@@ -1433,10 +1427,8 @@ final class StringUTF16 {
         }
 
         @Override
-        public void forEachRemaining(IntConsumer action) {
+        public void forEachRemaining(IntConsumer! action) {
             byte[] a; int i, hi; // hoist accesses and checks from loop
-            if (action == null)
-                throw new NullPointerException();
             if (((a = array).length >> 1) >= (hi = fence) &&
                 (i = index) >= 0 && i < (index = hi)) {
                 do {
@@ -1446,9 +1438,7 @@ final class StringUTF16 {
         }
 
         @Override
-        public boolean tryAdvance(IntConsumer action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(IntConsumer! action) {
             int i = index;
             if (i >= 0 && i < fence) {
                 action.accept(charAt(array, i));
@@ -1504,10 +1494,8 @@ final class StringUTF16 {
         }
 
         @Override
-        public void forEachRemaining(IntConsumer action) {
+        public void forEachRemaining(IntConsumer! action) {
             byte[] a; int i, hi; // hoist accesses and checks from loop
-            if (action == null)
-                throw new NullPointerException();
             if (((a = array).length >> 1) >= (hi = fence) &&
                 (i = index) >= 0 && i < (index = hi)) {
                 do {
@@ -1517,9 +1505,7 @@ final class StringUTF16 {
         }
 
         @Override
-        public boolean tryAdvance(IntConsumer action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(IntConsumer! action) {
             if (index >= 0 && index < fence) {
                 index = advance(array, index, fence, action);
                 return true;

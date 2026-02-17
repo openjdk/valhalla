@@ -2137,11 +2137,11 @@ public class TreeMap<K,V>
             public Spliterator<K> trySplit() {
                 return null;
             }
-            public void forEachRemaining(Consumer<? super K> action) {
+            public void forEachRemaining(Consumer<? super K>! action) {
                 while (hasNext())
                     action.accept(next());
             }
-            public boolean tryAdvance(Consumer<? super K> action) {
+            public boolean tryAdvance(Consumer<? super K>! action) {
                 if (hasNext()) {
                     action.accept(next());
                     return true;
@@ -2175,11 +2175,11 @@ public class TreeMap<K,V>
             public Spliterator<K> trySplit() {
                 return null;
             }
-            public void forEachRemaining(Consumer<? super K> action) {
+            public void forEachRemaining(Consumer<? super K>! action) {
                 while (hasNext())
                     action.accept(next());
             }
-            public boolean tryAdvance(Consumer<? super K> action) {
+            public boolean tryAdvance(Consumer<? super K>! action) {
                 if (hasNext()) {
                     action.accept(next());
                     return true;
@@ -3095,7 +3095,7 @@ public class TreeMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super K> action) {
+        public void forEachRemaining(Consumer<? super K>! action) {
             if (action == null)
                 throw new NullPointerException();
             if (est < 0)
@@ -3119,7 +3119,7 @@ public class TreeMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super K> action) {
+        public boolean tryAdvance(Consumer<? super K>! action) {
             TreeMap.Entry<K,V> e;
             if (action == null)
                 throw new NullPointerException();
@@ -3173,7 +3173,7 @@ public class TreeMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super K> action) {
+        public void forEachRemaining(Consumer<? super K>! action) {
             if (action == null)
                 throw new NullPointerException();
             if (est < 0)
@@ -3197,7 +3197,7 @@ public class TreeMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super K> action) {
+        public boolean tryAdvance(Consumer<? super K>! action) {
             TreeMap.Entry<K,V> e;
             if (action == null)
                 throw new NullPointerException();
@@ -3246,7 +3246,7 @@ public class TreeMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
+        public void forEachRemaining(Consumer<? super V>! action) {
             if (action == null)
                 throw new NullPointerException();
             if (est < 0)
@@ -3270,7 +3270,7 @@ public class TreeMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
+        public boolean tryAdvance(Consumer<? super V>! action) {
             TreeMap.Entry<K,V> e;
             if (action == null)
                 throw new NullPointerException();
@@ -3318,7 +3318,7 @@ public class TreeMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K, V>> action) {
+        public void forEachRemaining(Consumer<? super Map.Entry<K, V>>! action) {
             if (action == null)
                 throw new NullPointerException();
             if (est < 0)
@@ -3342,7 +3342,7 @@ public class TreeMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             TreeMap.Entry<K,V> e;
             if (action == null)
                 throw new NullPointerException();

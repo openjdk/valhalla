@@ -873,13 +873,11 @@ public final class Spliterators {
             return null;
         }
 
-        public boolean tryAdvance(C consumer) {
-            Objects.requireNonNull(consumer);
+        public boolean tryAdvance(C! consumer) {
             return false;
         }
 
-        public void forEachRemaining(C consumer) {
-            Objects.requireNonNull(consumer);
+        public void forEachRemaining(C! consumer) {
         }
 
         public long estimateSize() {
@@ -1015,7 +1013,7 @@ public final class Spliterators {
 
         @SuppressWarnings("unchecked")
         @Override
-        public void forEachRemaining(Consumer<? super T> action) {
+        public void forEachRemaining(Consumer<? super T>! action) {
             Object[] a; int i, hi; // hoist accesses and checks from loop
             if (action == null)
                 throw new NullPointerException();
@@ -1026,7 +1024,7 @@ public final class Spliterators {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super T> action) {
+        public boolean tryAdvance(Consumer<? super T>! action) {
             if (action == null)
                 throw new NullPointerException();
             if (index >= 0 && index < fence) {
@@ -1115,7 +1113,7 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(IntConsumer action) {
+        public void forEachRemaining(IntConsumer! action) {
             int[] a; int i, hi; // hoist accesses and checks from loop
             if (action == null)
                 throw new NullPointerException();
@@ -1126,7 +1124,7 @@ public final class Spliterators {
         }
 
         @Override
-        public boolean tryAdvance(IntConsumer action) {
+        public boolean tryAdvance(IntConsumer! action) {
             if (action == null)
                 throw new NullPointerException();
             if (index >= 0 && index < fence) {
@@ -1214,7 +1212,7 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(LongConsumer action) {
+        public void forEachRemaining(LongConsumer! action) {
             long[] a; int i, hi; // hoist accesses and checks from loop
             if (action == null)
                 throw new NullPointerException();
@@ -1225,7 +1223,7 @@ public final class Spliterators {
         }
 
         @Override
-        public boolean tryAdvance(LongConsumer action) {
+        public boolean tryAdvance(LongConsumer! action) {
             if (action == null)
                 throw new NullPointerException();
             if (index >= 0 && index < fence) {
@@ -1313,7 +1311,7 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(DoubleConsumer action) {
+        public void forEachRemaining(DoubleConsumer! action) {
             double[] a; int i, hi; // hoist accesses and checks from loop
             if (action == null)
                 throw new NullPointerException();
@@ -1324,7 +1322,7 @@ public final class Spliterators {
         }
 
         @Override
-        public boolean tryAdvance(DoubleConsumer action) {
+        public boolean tryAdvance(DoubleConsumer! action) {
             if (action == null)
                 throw new NullPointerException();
             if (index >= 0 && index < fence) {
@@ -1929,7 +1927,7 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super T> action) {
+        public void forEachRemaining(Consumer<? super T>! action) {
             if (action == null) throw new NullPointerException();
             Iterator<? extends T> i;
             if ((i = it) == null) {
@@ -1940,7 +1938,7 @@ public final class Spliterators {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super T> action) {
+        public boolean tryAdvance(Consumer<? super T>! action) {
             if (action == null) throw new NullPointerException();
             if (it == null) {
                 it = collection.iterator();
@@ -2043,13 +2041,13 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(IntConsumer action) {
+        public void forEachRemaining(IntConsumer! action) {
             if (action == null) throw new NullPointerException();
             it.forEachRemaining(action);
         }
 
         @Override
-        public boolean tryAdvance(IntConsumer action) {
+        public boolean tryAdvance(IntConsumer! action) {
             if (action == null) throw new NullPointerException();
             if (it.hasNext()) {
                 action.accept(it.nextInt());
@@ -2139,13 +2137,13 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(LongConsumer action) {
+        public void forEachRemaining(LongConsumer! action) {
             if (action == null) throw new NullPointerException();
             it.forEachRemaining(action);
         }
 
         @Override
-        public boolean tryAdvance(LongConsumer action) {
+        public boolean tryAdvance(LongConsumer! action) {
             if (action == null) throw new NullPointerException();
             if (it.hasNext()) {
                 action.accept(it.nextLong());
@@ -2235,13 +2233,13 @@ public final class Spliterators {
         }
 
         @Override
-        public void forEachRemaining(DoubleConsumer action) {
+        public void forEachRemaining(DoubleConsumer! action) {
             if (action == null) throw new NullPointerException();
             it.forEachRemaining(action);
         }
 
         @Override
-        public boolean tryAdvance(DoubleConsumer action) {
+        public boolean tryAdvance(DoubleConsumer! action) {
             if (action == null) throw new NullPointerException();
             if (it.hasNext()) {
                 action.accept(it.nextDouble());

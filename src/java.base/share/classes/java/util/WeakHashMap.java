@@ -1142,7 +1142,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
                                      expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super K> action) {
+        public void forEachRemaining(Consumer<? super K>! action) {
             int i, hi, mc;
             if (action == null)
                 throw new NullPointerException();
@@ -1176,7 +1176,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
                 throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super K> action) {
+        public boolean tryAdvance(Consumer<? super K>! action) {
             int hi;
             if (action == null)
                 throw new NullPointerException();
@@ -1222,7 +1222,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
                                        expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
+        public void forEachRemaining(Consumer<? super V>! action) {
             int i, hi, mc;
             if (action == null)
                 throw new NullPointerException();
@@ -1254,7 +1254,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
                 throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
+        public boolean tryAdvance(Consumer<? super V>! action) {
             int hi;
             if (action == null)
                 throw new NullPointerException();
@@ -1300,7 +1300,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
         }
 
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K, V>> action) {
+        public void forEachRemaining(Consumer<? super Map.Entry<K, V>>! action) {
             int i, hi, mc;
             if (action == null)
                 throw new NullPointerException();
@@ -1336,7 +1336,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
                 throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             int hi;
             if (action == null)
                 throw new NullPointerException();

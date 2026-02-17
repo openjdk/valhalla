@@ -1257,8 +1257,7 @@ public class BitSet implements Cloneable, java.io.Serializable {
             }
 
             @Override
-            public boolean tryAdvance(IntConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(IntConsumer! action) {
 
                 int hi = getFence();
                 int i = index;
@@ -1278,8 +1277,7 @@ public class BitSet implements Cloneable, java.io.Serializable {
             }
 
             @Override
-            public void forEachRemaining(IntConsumer action) {
-                Objects.requireNonNull(action);
+            public void forEachRemaining(IntConsumer! action) {
 
                 int hi = getFence();
                 int i = index;

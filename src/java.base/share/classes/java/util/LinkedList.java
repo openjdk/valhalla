@@ -1238,7 +1238,7 @@ public class LinkedList<E>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
+        public void forEachRemaining(Consumer<? super E>! action) {
             Node<E> p; int n;
             if (action == null) throw new NullPointerException();
             if ((n = getEst()) > 0 && (p = current) != null) {
@@ -1254,7 +1254,7 @@ public class LinkedList<E>
                 throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
+        public boolean tryAdvance(Consumer<? super E>! action) {
             Node<E> p;
             if (action == null) throw new NullPointerException();
             if (getEst() > 0 && (p = current) != null) {
