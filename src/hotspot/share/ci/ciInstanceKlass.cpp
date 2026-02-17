@@ -71,6 +71,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _is_record = ik->is_record();
   _declared_nonstatic_fields = nullptr; // initialized lazily by compute_nonstatic_fields
   _nonstatic_fields = nullptr;          // initialized lazily by compute_nonstatic_fields
+  _trust_final_fields = ik->trust_final_fields();
   _has_injected_fields = -1;
   _implementor = nullptr;               // we will fill these lazily
   _transitive_interfaces = nullptr;
