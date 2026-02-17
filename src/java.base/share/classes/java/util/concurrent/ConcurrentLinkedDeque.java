@@ -1338,7 +1338,7 @@ public class ConcurrentLinkedDeque<E>
      *
      * @return an iterator over the elements in this deque in proper sequence
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return new Itr();
     }
 

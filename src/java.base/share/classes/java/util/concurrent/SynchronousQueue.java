@@ -461,7 +461,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      *
      * @return an empty iterator
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return Collections.emptyIterator();
     }
 

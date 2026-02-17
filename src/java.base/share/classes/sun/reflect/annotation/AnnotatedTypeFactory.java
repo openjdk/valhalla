@@ -103,7 +103,7 @@ public final class AnnotatedTypeFactory {
         return addTo;
     }
 
-    private static boolean isArray(Type! t) {
+    private static boolean isArray(Type t) {
         if (t instanceof Class<?> c) {
             if (c.isArray())
                 return true;
@@ -113,10 +113,10 @@ public final class AnnotatedTypeFactory {
         return false;
     }
 
-    static final TypeAnnotation[]! EMPTY_TYPE_ANNOTATION_ARRAY = new TypeAnnotation[0];
-    static final AnnotatedType! EMPTY_ANNOTATED_TYPE = new AnnotatedTypeBaseImpl(null, LocationInfo.BASE_LOCATION,
+    static final TypeAnnotation[] EMPTY_TYPE_ANNOTATION_ARRAY = new TypeAnnotation[0];
+    static final AnnotatedType EMPTY_ANNOTATED_TYPE = new AnnotatedTypeBaseImpl(null, LocationInfo.BASE_LOCATION,
             EMPTY_TYPE_ANNOTATION_ARRAY, EMPTY_TYPE_ANNOTATION_ARRAY);
-    static final AnnotatedType[]! EMPTY_ANNOTATED_TYPE_ARRAY = new AnnotatedType[0];
+    static final AnnotatedType[] EMPTY_ANNOTATED_TYPE_ARRAY = new AnnotatedType[0];
 
     /*
      * Note that if additional subclasses of AnnotatedTypeBaseImpl are
@@ -140,39 +140,41 @@ public final class AnnotatedTypeFactory {
 
         // AnnotatedElement
         @Override
-        public final Annotation[]! getAnnotations() {
+        public final Annotation[] getAnnotations() {
             return getDeclaredAnnotations();
         }
 
         @Override
-        public final <T extends Annotation> T getAnnotation(Class<T>! annotation) {
+        public final <T extends Annotation> T getAnnotation(Class<T> annotation) {
             return getDeclaredAnnotation(annotation);
         }
 
         @Override
-        public final <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotation) {
+        public final <T extends Annotation> T[] getAnnotationsByType(Class<T> annotation) {
             return getDeclaredAnnotationsByType(annotation);
         }
 
         @Override
-        public final Annotation[]! getDeclaredAnnotations() {
+        public final Annotation[] getDeclaredAnnotations() {
             return annotations.values().toArray(new Annotation[0]);
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public final <T extends Annotation> T getDeclaredAnnotation(Class<T>! annotation) {
+        public final <T extends Annotation> T getDeclaredAnnotation(Class<T> annotation) {
+            Objects.requireNonNull(annotation);
             return (T)annotations.get(annotation);
         }
 
         @Override
-        public final <T extends Annotation> T[]! getDeclaredAnnotationsByType(Class<T>! annotation) {
+        public final <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotation) {
+            Objects.requireNonNull(annotation);
             return AnnotationSupport.getDirectlyAndIndirectlyPresent(annotations, annotation);
         }
 
         // AnnotatedType
         @Override
-        public final Type! getType() {
+        public final Type getType() {
             return type;
         }
 
@@ -348,7 +350,7 @@ public final class AnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotatedType[]! getAnnotatedBounds() {
+        public AnnotatedType[] getAnnotatedBounds() {
             return getTypeVariable().getAnnotatedBounds();
         }
 
@@ -383,7 +385,7 @@ public final class AnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotatedType[]! getAnnotatedActualTypeArguments() {
+        public AnnotatedType[] getAnnotatedActualTypeArguments() {
             Type[] arguments = getParameterizedType().getActualTypeArguments();
             AnnotatedType[] res = new AnnotatedType[arguments.length];
             Arrays.fill(res, EMPTY_ANNOTATED_TYPE);
@@ -467,7 +469,7 @@ public final class AnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotatedType[]! getAnnotatedUpperBounds() {
+        public AnnotatedType[] getAnnotatedUpperBounds() {
             if (!hasUpperBounds()) {
                 return new AnnotatedType[] { buildAnnotatedType(Object.class,
                         LocationInfo.BASE_LOCATION,
@@ -479,7 +481,7 @@ public final class AnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotatedType[]! getAnnotatedLowerBounds() {
+        public AnnotatedType[] getAnnotatedLowerBounds() {
             if (hasUpperBounds)
                 return new AnnotatedType[0];
             return getAnnotatedBounds(getWildcardType().getLowerBounds());
@@ -490,7 +492,7 @@ public final class AnnotatedTypeFactory {
             return null;
         }
 
-        private AnnotatedType[]! getAnnotatedBounds(Type[] bounds) {
+        private AnnotatedType[] getAnnotatedBounds(Type[] bounds) {
             AnnotatedType[] res = new AnnotatedType[bounds.length];
             Arrays.fill(res, EMPTY_ANNOTATED_TYPE);
             int initialCapacity = getTypeAnnotations().length;

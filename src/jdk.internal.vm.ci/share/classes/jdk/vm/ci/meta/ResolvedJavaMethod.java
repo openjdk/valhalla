@@ -283,17 +283,17 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
         }
 
         @Override
-        public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
+        public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
             return method.getParameterAnnotations(annotationClass)[index];
         }
 
         @Override
-        public Annotation[]! getAnnotations() {
+        public Annotation[] getAnnotations() {
             return method.getParameterAnnotations()[index];
         }
 
         @Override
-        public Annotation[]! getDeclaredAnnotations() {
+        public Annotation[] getDeclaredAnnotations() {
             return getAnnotations();
         }
 

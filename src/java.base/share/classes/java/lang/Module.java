@@ -1612,7 +1612,7 @@ public final class Module implements AnnotatedElement {
      * declaration annotation.
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         return moduleInfoClass().getDeclaredAnnotation(annotationClass);
     }
 
@@ -1624,7 +1624,7 @@ public final class Module implements AnnotatedElement {
      * declaration annotations.
      */
     @Override
-    public Annotation[]! getAnnotations() {
+    public Annotation[] getAnnotations() {
         return moduleInfoClass().getAnnotations();
     }
 
@@ -1636,7 +1636,7 @@ public final class Module implements AnnotatedElement {
      * declaration annotations.
      */
     @Override
-    public Annotation[]! getDeclaredAnnotations() {
+    public Annotation[] getDeclaredAnnotations() {
         return moduleInfoClass().getDeclaredAnnotations();
     }
 

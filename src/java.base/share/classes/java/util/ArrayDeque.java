@@ -664,7 +664,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @return an iterator over the elements in this deque
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return new DeqIterator();
     }
 

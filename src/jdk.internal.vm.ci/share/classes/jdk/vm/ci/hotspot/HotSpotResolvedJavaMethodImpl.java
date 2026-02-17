@@ -524,7 +524,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
     }
 
     @Override
-    public Annotation[]! getAnnotations() {
+    public Annotation[] getAnnotations() {
         if (!hasAnnotations()) {
             return new Annotation[0];
         }
@@ -532,7 +532,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
     }
 
     @Override
-    public Annotation[]! getDeclaredAnnotations() {
+    public Annotation[] getDeclaredAnnotations() {
         if (!hasAnnotations()) {
             return new Annotation[0];
         }
@@ -540,7 +540,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         if (!hasAnnotations()) {
             return null;
         }

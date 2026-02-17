@@ -98,7 +98,7 @@ public class WildcardTypeImpl extends LazyReflectiveObjectGenerator
      *     bounds refer to a parameterized type that cannot be instantiated
      *     for any reason
      */
-    public Type[]! getUpperBounds() {
+    public Type[] getUpperBounds() {
         Object[] value = upperBounds;
         if (value instanceof FieldTypeSignature[] sigs) {
             value = reifyBounds(sigs);
@@ -129,7 +129,7 @@ public class WildcardTypeImpl extends LazyReflectiveObjectGenerator
      *     bounds refer to a parameterized type that cannot be instantiated
      *     for any reason
      */
-    public Type[]! getLowerBounds() {
+    public Type[] getLowerBounds() {
         Object[] value = lowerBounds;
         if (value instanceof FieldTypeSignature[] sigs) {
             value = reifyBounds(sigs);

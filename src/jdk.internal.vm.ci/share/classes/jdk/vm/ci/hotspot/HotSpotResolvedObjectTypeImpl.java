@@ -913,7 +913,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private static final Annotation[] NO_ANNOTATIONS = {};
 
     @Override
-    public Annotation[]! getAnnotations() {
+    public Annotation[] getAnnotations() {
         if (!mayHaveAnnotations(true)) {
             return NO_ANNOTATIONS;
         }
@@ -921,7 +921,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    public Annotation[]! getDeclaredAnnotations() {
+    public Annotation[] getDeclaredAnnotations() {
         if (!mayHaveAnnotations(false)) {
             return NO_ANNOTATIONS;
         }
@@ -929,7 +929,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         if (!mayHaveAnnotations(true)) {
             return null;
         }

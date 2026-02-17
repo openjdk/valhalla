@@ -36,8 +36,8 @@ import java.util.Objects;
 /** Implementing class for ParameterizedType interface. */
 
 public class ParameterizedTypeImpl implements ParameterizedType {
-    private final Type[]! actualTypeArguments;
-    private final Class<?>!  rawType;
+    private final Type[] actualTypeArguments;
+    private final Class<?>  rawType;
     private final Type   ownerType;
 
     private ParameterizedTypeImpl(Class<?> rawType,
@@ -46,7 +46,6 @@ public class ParameterizedTypeImpl implements ParameterizedType {
         this.actualTypeArguments = actualTypeArguments;
         this.rawType             = rawType;
         this.ownerType = (ownerType != null) ? ownerType : rawType.getDeclaringClass();
-        super();
         validateConstructorArguments();
     }
 
@@ -117,7 +116,7 @@ public class ParameterizedTypeImpl implements ParameterizedType {
      *     be instantiated for any reason
      * @since 1.5
      */
-    public Type[]! getActualTypeArguments() {
+    public Type[] getActualTypeArguments() {
         return actualTypeArguments.clone();
     }
 
@@ -128,7 +127,7 @@ public class ParameterizedTypeImpl implements ParameterizedType {
      * @return the {@code Type} object representing the class or interface
      *     that declared this type
      */
-    public Class<?>! getRawType() {
+    public Class<?> getRawType() {
         return rawType;
     }
 

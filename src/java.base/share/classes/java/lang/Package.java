@@ -442,7 +442,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.5
      */
     @Override
-    public <A extends Annotation> A getAnnotation(Class<A>! annotationClass) {
+    public <A extends Annotation> A getAnnotation(Class<A> annotationClass) {
         return getPackageInfo().getAnnotation(annotationClass);
     }
 
@@ -452,7 +452,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.5
      */
     @Override
-    public boolean isAnnotationPresent(Class<? extends Annotation>! annotationClass) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
         return AnnotatedElement.super.isAnnotationPresent(annotationClass);
     }
 
@@ -465,7 +465,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.8
      */
     @Override
-    public  <A extends Annotation> A[]! getAnnotationsByType(Class<A>! annotationClass) {
+    public  <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationClass) {
         return getPackageInfo().getAnnotationsByType(annotationClass);
     }
 
@@ -476,7 +476,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.5
      */
     @Override
-    public Annotation[]! getAnnotations() {
+    public Annotation[] getAnnotations() {
         return getPackageInfo().getAnnotations();
     }
 
@@ -489,7 +489,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.8
      */
     @Override
-    public <A extends Annotation> A getDeclaredAnnotation(Class<A>! annotationClass) {
+    public <A extends Annotation> A getDeclaredAnnotation(Class<A> annotationClass) {
         return getPackageInfo().getDeclaredAnnotation(annotationClass);
     }
 
@@ -498,7 +498,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.8
      */
     @Override
-    public <A extends Annotation> A[]! getDeclaredAnnotationsByType(Class<A>! annotationClass) {
+    public <A extends Annotation> A[] getDeclaredAnnotationsByType(Class<A> annotationClass) {
         return getPackageInfo().getDeclaredAnnotationsByType(annotationClass);
     }
 
@@ -509,7 +509,7 @@ public final class Package extends NamedPackage implements java.lang.reflect.Ann
      * @since 1.5
      */
     @Override
-    public Annotation[]! getDeclaredAnnotations()  {
+    public Annotation[] getDeclaredAnnotations()  {
         return getPackageInfo().getDeclaredAnnotations();
     }
 

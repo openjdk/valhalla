@@ -1118,7 +1118,7 @@ public class CopyOnWriteArrayList<E>
      *
      * @return an iterator over the elements in this list in proper sequence
      */
-    public Iterator<E> iterator() {
+    public Iterator<E>! iterator() {
         return new COWIterator<E>(getArray(), 0);
     }
 
@@ -1581,7 +1581,7 @@ public class CopyOnWriteArrayList<E>
             }
         }
 
-        public Iterator<E> iterator() {
+        public Iterator<E>! iterator() {
             return listIterator(0);
         }
 
@@ -1830,7 +1830,7 @@ public class CopyOnWriteArrayList<E>
                 action.accept(e);
         }
 
-        public Iterator<E> iterator() {
+        public Iterator<E>! iterator() {
             return new DescendingIterator();
         }
 

@@ -55,7 +55,7 @@ public class NullRestrictedTypeImpl implements NullRestrictedType {
     }
 
     @Override
-    public Type! getBaseType() {
+    public Type getBaseType() {
         return baseType;
     }
 
