@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -366,7 +366,7 @@ void PhaseOutput::Output() {
       offset += ((MachVEPNode*)broot->get_node(2))->size(C->regalloc());
       _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, offset);
     } else {
-      _code_offsets.set_value(CodeOffsets::Entry, CodeOffsets::no_such_entry_point); // will be patched later
+      _code_offsets.set_value(CodeOffsets::Entry, -1); // will be patched later
       _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, 0);
     }
   }
@@ -3328,13 +3328,13 @@ void PhaseOutput::install_code(ciMethod*         target,
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
-      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == CodeOffsets::no_such_entry_point) {
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
         _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, _first_block_size);
       }
-      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == CodeOffsets::no_such_entry_point) {
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == -1) {
         _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, _first_block_size);
       }
-      if (_code_offsets.value(CodeOffsets::Entry) == CodeOffsets::no_such_entry_point) {
+      if (_code_offsets.value(CodeOffsets::Entry) == -1) {
         _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);
       }
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
