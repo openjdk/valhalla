@@ -44,6 +44,8 @@ package java.lang;
  *
  * <p>This class is intended only for prototyping and
  * <em>not</em> intended for production use.
+ *
+ * @see ComplexTextbook
  */
 // @Deprecated(forRemoval=true)
 // @SuppressWarnings("removal") // Usages from ComplexTextbook
@@ -220,37 +222,50 @@ public final /* value */ class ComplexPolarTextbook  {
     }
 
     /**
-     * {@return lorem ipsum}
-     * @param that lorem ipsum}
+     * Compares this complex number with the specified {@code Object}
+     * for equality.
+     *
+     * This method considers two complex numbers equal if they both
+     * have a radius of zero or, if the radii are nonzero, both the radii
+     * and angles of the two complex numbers are equal.
+     *
+     * @return {@code true} if and only if the specified {@code Object} is a
+     *         complex number and the equality conditions described above are met
+     * @param obj the object to compare this complex number to
      */
     @Override
-    public boolean equals(Object that) {
-        return that instanceof ComplexPolarTextbook c &&
-            this.r == c.r && this.theta == c.theta;
+    public boolean equals(Object obj) {
+        return obj instanceof ComplexPolarTextbook that &&
+            (this.r == that.r &&
+             (this.r == 0.0 || // All radius-zero numbers are equal
+              this.theta == that.theta));
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return a hash code consistent with {@linkplain #equals(Object) equals}}
      */
-    // @Override
+    @Override
     public int hashCode(){
         // Add 0.0 to be consistent with current equals impl.
-        return Double.hashCode(r + 0.0) ^ Double.hashCode(theta + 0.0);
+        return Double.hashCode(r + 0.0) ^
+            // All radius-zero numbers are equal
+            Double.hashCode((r == 0.0) ? 0.0 : (theta + 0.0));
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return {@code true} if the two complex arguments are
+     * representationally equivalent and {@code false} otherwise}
      *
      * @apiNote
      * Relate to {@linkplain Double##repEquivalence equivalence
      * discussion} in {@code double}...
      * Should have a discussion of comparing angles...
      *
-     * @param c1 lorem ipsum}
-     * @param c2 lorem ipsum}
+     * @param c1 the first complex number
+     * @param c2 the second complex number
      */
     public static boolean equivalent(ComplexPolarTextbook c1, ComplexPolarTextbook c2) {
-        return Double.compare(c1.r, c2.r) == 0 &&
+        return Double.compare(c1.r,     c2.r)     == 0 &&
                Double.compare(c1.theta, c2.theta) == 0;
     }
 

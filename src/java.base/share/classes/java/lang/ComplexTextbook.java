@@ -46,6 +46,8 @@ package java.lang;
  *
  * This class is intended only for prototyping and
  * <em>not</em> intended for production use.
+ *
+ * @see ComplexPolarTextbook
  */
 // @Deprecated(forRemoval=true)
 // @SuppressWarnings("removal") // Usages from ComplexPolarTextbook
@@ -239,33 +241,46 @@ public final /* value */ class ComplexTextbook  {
     }
 
     /**
-     * {@return lorem ipsum}
-     * @param that lorem ipsum}
+     * Compares this complex number with the specified {@code Object}
+     * for equality.
+     *
+     * This method considers two complex numbers equal
+     * if and only if they are equal in both their real and imaginary
+     * components.
+     *
+     * @return {@code true} if and only if the specified {@code Object} is a
+     *         complex number whose real  and imaginary components are equal to this
+     *         complex number's.
+     * @param obj the object to compare this complex number to
      */
     @Override
-    public boolean equals(Object that) {
-        return that instanceof ComplexTextbook c &&
-            this.real == c.real && this.imag == c.imag;
+    public boolean equals(Object obj) {
+        // All four signed complex zero values considered equal to
+        // each other.
+        return obj instanceof ComplexTextbook that &&
+            this.real == that.real &&
+            this.imag == that.imag;
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return a hash code consistent with {@linkplain #equals(Object) equals}}
      */
-    // @Override
+    @Override
     public int hashCode(){
         // Add 0.0 to be consistent with current equals impl.
         return Double.hashCode(real + 0.0) ^ Double.hashCode(imag + 0.0);
     }
 
     /**
-     * {@return lorem ipsum}
+     * {@return {@code true} if the two complex arguments are
+     * representationally equivalent and {@code false} otherwise}
      *
      * @apiNote
      * Relate to {@linkplain Double##repEquivalence equivalence
      * discussion} in {@code double}...
      *
-     * @param c1 lorem ipsum}
-     * @param c2 lorem ipsum}
+     * @param c1 the first complex number
+     * @param c2 the second complex number
      */
     public static boolean equivalent(ComplexTextbook c1, ComplexTextbook c2) {
         return Double.compare(c1.real, c2.real) == 0 &&
