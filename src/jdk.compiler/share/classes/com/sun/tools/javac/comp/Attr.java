@@ -4008,13 +4008,16 @@ public class Attr extends JCTree.Visitor {
                 checkContext.report(tree, diags.fragment(Fragments.IncompatibleArgTypesInLambda));
             } else if (allowNullRestrictedTypes) {
                 // ok they are equal but what about nullability?
-                for (ArgsNullabilityResult incompatibleParam :
-                        chk.checkArgsNullability(lambdaTypes, argTypes, tree.params)) {
-                            chk.warnNullableTypes(incompatibleParam.position() != null ?
-                                            incompatibleParam.position().vartype : tree,
+                boolean isSpeculativeRound = checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
+                if (!isSpeculativeRound) {
+                    for (ArgsNullabilityResult incompatibleParam :
+                            chk.checkArgsNullability(lambdaTypes, argTypes, tree.params)) {
+                        chk.warnNullableTypes(incompatibleParam.position() != null ?
+                                        incompatibleParam.position().vartype : tree,
                                 LintWarnings.IncompatibleNullRestrictions(
                                         Fragments.LambdaArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
-                                                incompatibleParam.overridenType())));
+                                                incompatibleParam.overridenType(), tree.target)));
+                    }
                 }
             }
         }
@@ -4323,7 +4326,7 @@ public class Attr extends JCTree.Visitor {
                     chk.warnNullableTypes(tree,
                             LintWarnings.IncompatibleNullRestrictions(
                                     Fragments.MethodReferenceArgumentTypeNullabilityMismatch(incompatibleParam.overridingType(),
-                                            incompatibleParam.overridenType())));
+                                            incompatibleParam.overridenType(), tree.target)));
                 }
             }
         }
