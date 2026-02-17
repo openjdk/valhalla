@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1254,9 +1254,9 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
   CHECKED_CAST(_entry_offset,              uint16_t, (offsets->value(CodeOffsets::Entry)));
   CHECKED_CAST(_verified_entry_offset,     uint16_t, (offsets->value(CodeOffsets::Verified_Entry)));
 
-  _inline_entry_offset             = _entry_offset;
-  _verified_inline_entry_offset    = _verified_entry_offset;
-  _verified_inline_ro_entry_offset = _verified_entry_offset;
+  _inline_entry_point             = entry_point();
+  _verified_inline_entry_point    = verified_entry_point();
+  _verified_inline_ro_entry_point = verified_entry_point();
 
   _skipped_instructions_size = code_buffer->total_skipped_instructions_size();
 }
@@ -1775,15 +1775,9 @@ nmethod::nmethod(
     CHECKED_CAST(metadata_size, uint16_t, align_up(code_buffer->total_metadata_size(), wordSize));
     JVMCI_ONLY( _metadata_size = metadata_size; )
     int jvmci_data_size = 0 JVMCI_ONLY( + align_up(compiler->is_jvmci() ? jvmci_data->size() : 0, oopSize));
-    if (offsets->value(CodeOffsets::Inline_Entry) != CodeOffsets::no_such_entry_point) {
-      CHECKED_CAST(_inline_entry_offset            , uint16_t, offsets->value(CodeOffsets::Inline_Entry));
-    }
-    if (offsets->value(CodeOffsets::Verified_Inline_Entry) != CodeOffsets::no_such_entry_point) {
-      CHECKED_CAST(_verified_inline_entry_offset   , uint16_t, offsets->value(CodeOffsets::Verified_Inline_Entry));
-    }
-    if (offsets->value(CodeOffsets::Verified_Inline_Entry_RO) != CodeOffsets::no_such_entry_point) {
-      CHECKED_CAST(_verified_inline_ro_entry_offset, uint16_t, offsets->value(CodeOffsets::Verified_Inline_Entry_RO));
-    }
+    _inline_entry_point             = code_begin() + offsets->value(CodeOffsets::Inline_Entry);
+    _verified_inline_entry_point    = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry);
+    _verified_inline_ro_entry_point = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
 
     assert(_mutable_data_size == _relocation_size + metadata_size + jvmci_data_size,
            "wrong mutable data size: %d != %d + %d + %d",
