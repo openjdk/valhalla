@@ -36,7 +36,7 @@ public:
   enum : Type {
     NullRestricted = 1 << 0,
     NonAtomic      = 1 << 1,
-    Invalid        = 1 << 2,
+    Invalid        = 1 << 2, // This needs to be last for asserts
   };
 
 private:
@@ -52,7 +52,9 @@ private:
 
  public:
   ArrayProperties() : _flags(0) {}
-  ArrayProperties(Type flags) : _flags(flags) {}
+  ArrayProperties(Type flags) : _flags(flags) {
+    assert((flags & ~((Type(Invalid) << 1) - 1)) == 0, "invalid flags set");
+  }
 
   Type value() const { return _flags; }
 
