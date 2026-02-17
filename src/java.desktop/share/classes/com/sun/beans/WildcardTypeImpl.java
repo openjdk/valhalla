@@ -74,7 +74,7 @@ final class WildcardTypeImpl implements WildcardType {
      *         the upper bound(s) of this type variable
      */
     @Override
-    public Type[] getUpperBounds() {
+    public Type[]! getUpperBounds() {
         return this.upperBounds.clone();
     }
 
@@ -89,7 +89,7 @@ final class WildcardTypeImpl implements WildcardType {
      *         the lower bound(s) of this type variable
      */
     @Override
-    public Type[] getLowerBounds() {
+    public Type[]! getLowerBounds() {
         return this.lowerBounds.clone();
     }
 

@@ -135,7 +135,7 @@ public class TypeVariableImpl<D extends GenericDeclaration>
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
-    public D getGenericDeclaration() {
+    public D! getGenericDeclaration() {
         assert genericDeclaration instanceof Class<?> ||
                 genericDeclaration instanceof Method ||
                 genericDeclaration instanceof Constructor : "Unexpected kind of GenericDeclaration";
@@ -153,7 +153,7 @@ public class TypeVariableImpl<D extends GenericDeclaration>
      *
      * @return the name of this type variable, as it appears in the source code
      */
-    public String getName()   { return name; }
+    public String! getName()   { return name; }
 
     public String toString() {return getName();}
 

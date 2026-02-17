@@ -281,7 +281,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    public Type[] getGenericParameterTypes() {
+    public Type[]! getGenericParameterTypes() {
         return super.getGenericParameterTypes();
     }
 

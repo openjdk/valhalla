@@ -80,7 +80,7 @@ final class MemberName implements Member, Cloneable {
     /** Return the declaring class of this member.
      *  In the case of a bare name and type, the declaring class will be null.
      */
-    public Class<?> getDeclaringClass() {
+    public Class<?>! getDeclaringClass() {
         return clazz;
     }
 
@@ -94,11 +94,11 @@ final class MemberName implements Member, Cloneable {
      *  For a method or field, it is the simple name of the member.
      *  For a constructor, it is always {@code "<init>"}.
      */
-    public String getName() {
+    public String! getName() {
         if (name == null) {
             expandFromVM();
             if (name == null) {
-                return null;
+                throw new NullPointerException();
             }
         }
         return name;

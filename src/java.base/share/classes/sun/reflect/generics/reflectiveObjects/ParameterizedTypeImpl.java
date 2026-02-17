@@ -116,7 +116,7 @@ public class ParameterizedTypeImpl implements ParameterizedType {
      *     be instantiated for any reason
      * @since 1.5
      */
-    public Type[] getActualTypeArguments() {
+    public Type[]! getActualTypeArguments() {
         return actualTypeArguments.clone();
     }
 
@@ -127,7 +127,7 @@ public class ParameterizedTypeImpl implements ParameterizedType {
      * @return the {@code Type} object representing the class or interface
      *     that declared this type
      */
-    public Class<?> getRawType() {
+    public Class<?>! getRawType() {
         return rawType;
     }
 
