@@ -29,16 +29,17 @@
 #include "utilities/ostream.hpp"
 
 class ArrayProperties {
- public:
-  typedef u1 Type;
+public:
+  // This type is mirrored in the compiler so we need to be careful changing it
+  typedef uint32_t Type;
 
-  enum {
+  enum : Type {
     NullRestricted = 1 << 0,
     NonAtomic      = 1 << 1,
     Invalid        = 1 << 2,
   };
 
- private:
+private:
   Type _flags;
 
   bool check_flag(Type t) const { return (_flags & t) != 0; }
