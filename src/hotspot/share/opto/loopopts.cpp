@@ -1506,7 +1506,6 @@ bool PhaseIdealLoop::flat_array_element_type_check(Node *n) {
     return false;
   }
 
-  assert(obj != nullptr && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
   }
