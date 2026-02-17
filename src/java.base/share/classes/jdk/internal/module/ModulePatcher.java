@@ -57,6 +57,7 @@ import jdk.internal.access.JavaLangModuleAccess;
 import jdk.internal.access.SharedSecrets;
 import sun.net.www.ParseUtil;
 
+
 /**
  * Provides support for patching modules, mostly the boot layer.
  */
@@ -119,12 +120,11 @@ public final class ModulePatcher {
                     // is not supported by the boot class loader
                     try (JarFile jf = new JarFile(file.toString())) {
                         jf.stream()
-                                .filter(e -> !e.isDirectory()
-                                        && (!isAutomatic || e.getName().endsWith(".class")))
-                                .map(e -> toPackageName(file, e))
-                                .filter(Checks::isPackageName)
-                                .filter(p -> !p.startsWith("META-INF.preview."))
-                                .forEach(packages::add);
+                          .filter(e -> !e.isDirectory()
+                                  && (!isAutomatic || e.getName().endsWith(".class")))
+                          .map(e -> toPackageName(file, e))
+                          .filter(Checks::isPackageName)
+                          .forEach(packages::add);
                     }
 
                 } else if (Files.isDirectory(file)) {
@@ -134,12 +134,11 @@ public final class ModulePatcher {
                     try (Stream<Path> stream = Files.find(top, Integer.MAX_VALUE,
                             ((path, attrs) -> attrs.isRegularFile()))) {
                         stream.filter(path -> (!isAutomatic
-                                        || path.toString().endsWith(".class"))
-                                        && !isHidden(path))
-                                .map(path -> toPackageName(top, path))
-                                .filter(Checks::isPackageName)
-                                .filter(p -> !p.startsWith("META-INF.preview."))
-                                .forEach(packages::add);
+                                      || path.toString().endsWith(".class"))
+                                      && !isHidden(path))
+                            .map(path -> toPackageName(top, path))
+                            .filter(Checks::isPackageName)
+                            .forEach(packages::add);
                     }
 
                 }
