@@ -2311,8 +2311,10 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         bool ret_arg = false;
         // Determine whether any arguments are returned.
         for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
+          uint arg = di.i_domain() - TypeFunc::Parms;
           if (di.current_domain_cc()->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(di.i_domain() - TypeFunc::Parms)) {
+              call_analyzer->is_arg_returned(arg) &&
+              !meth->is_scalarized_arg(arg)) {
             ret_arg = true;
             break;
           }
@@ -2526,7 +2528,8 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
           if (at->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(k)) {
+              call_analyzer->is_arg_returned(k) &&
+              !meth->is_scalarized_arg(k)) {
             // The call returns arguments.
             if (call_ptn != nullptr) { // Is call's result used?
               assert(call_ptn->is_LocalVar(), "node should be registered");
