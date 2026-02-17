@@ -39,7 +39,7 @@ public final class Memory {
 
         private static final boolean previewEnabled =
                 System.getProperty("test.java.opts", "").contains("--enable-preview") ||
-                System.getProperty("test.vm.opts", "").contains("--preview");
+                System.getProperty("test.vm.opts", "").contains("--enable-preview");
 
 
         private Memory() {
