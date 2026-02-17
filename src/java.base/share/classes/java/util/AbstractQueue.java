@@ -178,8 +178,6 @@ public abstract class AbstractQueue<E>
      * @see #add(Object)
      */
     public boolean addAll(Collection<? extends E>! c) {
-        if (c == null)
-            throw new NullPointerException();
         if (c == this)
             throw new IllegalArgumentException();
         boolean modified = false;

@@ -4570,7 +4570,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
 
         public boolean removeAll(Collection<?>! c) {
-            if (c == null) throw new NullPointerException();
             boolean modified = false;
             // Use (c instanceof Set) as a hint that lookup in c is as
             // efficient as this view
@@ -4592,7 +4591,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
 
         public final boolean retainAll(Collection<?>! c) {
-            if (c == null) throw new NullPointerException();
             boolean modified = false;
             for (Iterator<E> it = iterator(); it.hasNext();) {
                 if (!c.contains(it.next())) {
@@ -4779,7 +4777,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
 
         @Override public boolean removeAll(Collection<?>! c) {
-            if (c == null) throw new NullPointerException();
             boolean modified = false;
             for (Iterator<V> it = iterator(); it.hasNext();) {
                 if (c.contains(it.next())) {

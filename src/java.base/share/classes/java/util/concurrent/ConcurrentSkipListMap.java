@@ -2297,7 +2297,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public boolean removeIf(Predicate<? super V>! filter) {
-            if (filter == null) throw new NullPointerException();
             if (m instanceof ConcurrentSkipListMap)
                 return ((ConcurrentSkipListMap<K,V>)m).removeValueIf(filter);
             // else use iterator
@@ -2369,7 +2368,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
                 : ((SubMap<K,V>)m).new SubMapEntryIterator();
         }
         public boolean removeIf(Predicate<? super Entry<K,V>>! filter) {
-            if (filter == null) throw new NullPointerException();
             if (m instanceof ConcurrentSkipListMap)
                 return ((ConcurrentSkipListMap<K,V>)m).removeEntryIf(filter);
             // else use iterator
