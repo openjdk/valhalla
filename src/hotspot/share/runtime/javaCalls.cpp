@@ -405,7 +405,8 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
         // The enter_interp_only_mode use handshake to set interp_only mode
         // so no safepoint should be allowed between is_interp_only_mode() and call
         NoSafepointVerifier nsv;
-        if (JvmtiExport::can_post_interpreter_events() && thread->is_interp_only_mode()) {
+        bool is_interp_only_mode = (StressCallingConvention && (os::random() % (1 << 10)) == 0) || thread->is_interp_only_mode();
+        if (JvmtiExport::can_post_interpreter_events() && is_interp_only_mode) {
           entry_point = method->interpreter_entry();
         } else {
           // Since the call stub sets up like the interpreter we call the from_interpreted_entry

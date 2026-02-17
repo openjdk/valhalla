@@ -401,6 +401,7 @@ public:
   address get_i2c_entry();
   address get_c2i_entry();
   address get_c2i_inline_entry();
+  address get_c2i_inline_ro_entry();
   address get_c2i_unverified_entry();
   address get_c2i_unverified_inline_entry();
   address get_c2i_no_clinit_check_entry();
