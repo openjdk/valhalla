@@ -1506,6 +1506,13 @@ bool PhaseIdealLoop::flat_array_element_type_check(Node *n) {
     return false;
   }
 
+  // TODO 8378077: The code below does not work anymore with off-heap accesses which set their bases to top with
+  // JDK-8373343. Also: flat_array_element_type_check() was introduced with JDK-8228622 for a specific check to enable
+  // split-if but JDK-8245729 changed how that check looks like. Is it still relevant? This should be revisited.
+  if (addr->in(AddPNode::Base)->is_top()) {
+    return false;
+  }
+
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
   }
