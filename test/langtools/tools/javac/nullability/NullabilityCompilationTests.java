@@ -390,7 +390,23 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 """,
                                 Result.Warning,
                                 "compiler.warn.incompatible.null.restrictions",
-                                2)
+                                2),
+                        new DiagAndCode(
+                                """
+                                interface I {
+                                    String! m();
+                                }
+                                class Test {
+                                    public String! m() { return ""; }
+                                }
+                                class Sub extends Test implements I {
+                                    @Override
+                                    public String m() { return null; }
+                                }
+                                """,
+                                Result.Warning,
+                                "compiler.warn.incompatible.null.restrictions",
+                                2) // one warning per each method in the corresponding parents
                 )
         );
     }
@@ -412,7 +428,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 }
                 """,
                 List.of(
-                        "Sub.java:3:5: compiler.warn.incompatible.null.restrictions: (compiler.misc.return.type.nullability.mismatch: java.lang.String, java.lang.String!)",
+                        "Sub.java:3:5: compiler.warn.incompatible.null.restrictions: (compiler.misc.return.type.nullability.mismatch: java.lang.String, java.lang.String!, Super, m(java.lang.String))",
                         "1 warning"
                 )
         );
@@ -430,8 +446,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 }
                 """,
                 List.of(
-                        "Sub.java:3:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.String, java.lang.String!)",
-                        "Sub.java:3:24: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer!)",
+                        "Sub.java:3:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.String, java.lang.String!, Super, m(java.lang.String!,java.lang.Integer!))",
+                        "Sub.java:3:24: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer!, Super, m(java.lang.String!,java.lang.Integer!))",
                         "2 warnings"
                 )
         );
@@ -451,8 +467,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 }
                 """,
                 List.of(
-                        "Sub.java:4:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.String>!)",
-                        "Sub.java:4:22: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.Integer>!)",
+                        "Sub.java:4:14: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.String>!, Super, m(java.util.List<java.lang.String>!,java.util.List<java.lang.Integer>!))",
+                        "Sub.java:4:22: compiler.warn.incompatible.null.restrictions: (compiler.misc.argument.type.nullability.mismatch: java.util.List, java.util.List<java.lang.Integer>!, Super, m(java.util.List<java.lang.String>!,java.util.List<java.lang.Integer>!))",
                         "2 warnings"
                 )
         );
@@ -469,8 +485,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                 }
                 """,
                 List.of(
-                        "Sub.java:2:16: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.String, java.lang.String!)",
-                        "Sub.java:2:26: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer!)",
+                        "Sub.java:2:16: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.String, java.lang.String!, Super)",
+                        "Sub.java:2:26: compiler.warn.incompatible.null.restrictions: (compiler.misc.lambda.argument.type.nullability.mismatch: java.lang.Integer, java.lang.Integer!, Super)",
                         "2 warnings"
                 )
         );
