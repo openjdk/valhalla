@@ -655,9 +655,10 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
   }
   for (uint i = 0; i < field_count(); i++) {
     ciType* ft = field(i)->type();
-    if (ft->is_inlinetype()) {
+    Node* fv = field_value(i);
+    if (ft->is_inlinetype() && fv->is_InlineType()) {
       // Check recursively
-      if (!field_value(i)->as_InlineType()->can_emit_substitutability_check(nullptr)){
+      if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;
       }
     } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
@@ -1925,6 +1926,8 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
 
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
+  assert(oop_off_1 == -1 || oop_off_1 == 0 || oop_off_1 == 4, "invalid layout for %s, first oop at offset %d", vk->name()->as_utf8(), oop_off_1);
+  assert(oop_off_2 == -1 || oop_off_2 == 4, "invalid layout for %s, second oop at offset %d", vk->name()->as_utf8(), oop_off_2);
   BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   if (!UseG1GC || oop_off_1 == -1) {
