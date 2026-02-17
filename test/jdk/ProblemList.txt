@@ -803,6 +803,10 @@ java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-
 java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
 java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
 
+java/lang/invoke/VarHandles/VarHandleTestMethodTypeValue.java           8378087 generic-all
+java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java   8378087 generic-all
+java/lang/invoke/VarHandles/VarHandleTestAccessValue.java               8378087 generic-all
+
 java/net/CookieHandler/B6644726.java                            8365811 generic-all
 
 jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
