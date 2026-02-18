@@ -31,7 +31,7 @@
  *          TryCatchChildBad.jasm
  *          NestedEarlyLarval.jcod
  *          EndsInEarlyLarval.jcod
- *          StrictFieldsNotSubset.jcod
+ *          EarlyLarvalNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
  * @compile StrictInstanceFieldsTest.java
  * @run driver jdk.test.lib.helpers.StrictProcessor StrictInstanceFieldsTest
@@ -156,7 +156,7 @@ public class StrictInstanceFieldsTest {
 
         // Early_larval frame includes a strict field not preset in the original set of unset fields
         try {
-            StrictFieldsNotSubset child = new StrictFieldsNotSubset(true, false);
+            EarlyLarvalNotSubset child = new EarlyLarvalNotSubset(true, false);
             System.out.println(child);
             throw new RuntimeException("Should fail verification");
         } catch (java.lang.VerifyError e) {
