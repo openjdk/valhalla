@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1271,7 +1271,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
       THROW_MSG(vmSymbols::java_lang_InternalError(), "bad index info (1)");
   }
 
-  objArrayHandle buf(THREAD, (objArrayOop)JNIHandles::resolve(buf_jh));
+  refArrayHandle buf(THREAD, (refArrayOop)JNIHandles::resolve(buf_jh));
 
   Handle ifna(THREAD, JNIHandles::resolve(ifna_jh));
   caller->constants()->
