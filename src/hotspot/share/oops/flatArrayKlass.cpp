@@ -94,11 +94,9 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
   }
 #endif // ASSERT
 
-#ifndef PRODUCT
   if (PrintFlatArrayLayout) {
     print();
   }
-#endif
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
@@ -393,7 +391,6 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 }
 
 void FlatArrayKlass::print_on(outputStream* st) const {
-#ifndef PRODUCT
   assert(!is_refArray_klass(), "Unimplemented");
   ResourceMark rm;
 
@@ -414,7 +411,6 @@ void FlatArrayKlass::print_on(outputStream* st) const {
   st->print(" - element size %i ", elem_size);
   st->print("aligned layout size %i", 1 << layout_helper_log2_element_size(layout_helper()));
   st->cr();
-#endif //PRODUCT
 }
 
 void FlatArrayKlass::print_value_on(outputStream* st) const {

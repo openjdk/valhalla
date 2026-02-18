@@ -1522,17 +1522,6 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   return cast;                  // Return casted value
 }
 
-Node* GraphKit::cast_to_non_larval(Node* obj) {
-  const Type* obj_type = gvn().type(obj);
-  if (obj->is_InlineType() || !obj_type->is_inlinetypeptr()) {
-    return obj;
-  }
-
-  Node* new_obj = InlineTypeNode::make_from_oop(this, obj, obj_type->inline_klass());
-  replace_in_map(obj, new_obj);
-  return new_obj;
-}
-
 // Sometimes in intrinsics, we implicitly know an object is not null
 // (there's no actual null check) so we can cast it to not null. In
 // the course of optimizations, the input to the cast can become null.
@@ -1944,7 +1933,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
     // TODO 8284443 A static call to a mismatched method should still be scalarized
-    if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
+    if (t->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         // There are 2 cases in which the argument has not been scalarized
@@ -3590,7 +3579,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
   const Type* obj_type = _gvn.type(obj);
-  obj = cast_to_non_larval(obj);
 
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();

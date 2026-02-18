@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -460,13 +460,6 @@ class GraphKit : public Phase {
 
   // Cast obj to not-null on this path
   Node* cast_not_null(Node* obj, bool do_replace_in_map = true);
-  // If a larval object appears multiple times in the JVMS and we encounter a loop, they will
-  // become multiple Phis and we cannot change all of them to non-larval when we invoke the
-  // constructor on one. The other case is that we don't know whether a parameter of an OSR
-  // compilation is larval or not. If such a maybe-larval object is passed into an operation that
-  // does not permit larval objects, we can be sure that it is not larval and scalarize it if it
-  // is a value object.
-  Node* cast_to_non_larval(Node* obj);
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 

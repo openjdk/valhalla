@@ -116,8 +116,18 @@ final class ValueObjectMethods {
     /**
      * Return the identity hashCode of a value object.
      * Two statewise equivalent value objects produce the same hashCode.
-     * The hashCode is computed using Unsafe.getFieldMap.
      * This method is called by the JVM.
+     *
+     * The generated identity hash must be invariantly immutable.
+     * We divide into two cases:
+     *   1. No references: the identity hash is computed from the immutable
+     *      fields, no matter when this is called the same identity hash code
+     *      is expected.
+     *   2. References: the above still applies, but the references' identity
+     *      hash code must be used, the user overwriteable hashCode may change
+     *      due to mutability.
+     *
+     * The hashCode is computed using Unsafe.getFieldMap.
      *
      * @param obj a value class instance, non-null
      * @return the hashCode of the object

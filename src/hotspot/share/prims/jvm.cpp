@@ -782,13 +782,18 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   }
   oop obj = JNIHandles::resolve_non_null(handle);
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
-    // Check if mark word contains hash code already
-    intptr_t hash = obj->mark().hash();
-    if (hash != markWord::no_hash) {
-      return checked_cast<jint>(hash);
+    const intptr_t obj_identity_hash = obj->mark().hash();
+    // Check if mark word contains hash code already.
+    // It is possible that the generated identity hash is 0, which is not
+    // distinct from the no_hash value. In such a case, the hash will be
+    // computed and set every time JVM_IHashCode is called. If that happens,
+    // the only consequence is losing out on the optimization.
+    if (obj_identity_hash != markWord::no_hash) {
+      return checked_cast<jint>(obj_identity_hash);
     }
 
-    // Compute hash by calling ValueObjectMethods.valueObjectHashCode
+    // Compute hash by calling ValueObjectMethods.valueObjectHashCode.
+    // The identity hash is invariantly immutable (see its JavaDoc comment).
     JavaValue result(T_INT);
     JavaCallArguments args;
     Handle ho(THREAD, obj);
@@ -802,15 +807,25 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
         THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
       }
     }
-    hash = result.get_jint();
+    const intptr_t identity_hash = result.get_jint();
 
-    // Store hash in the mark word
-    markWord old_mark, new_mark, test;
+    // We now have to set the hash via CAS. It's possible that this will race
+    // other threads. By our invariant of immutability, when there is a
+    // race, the identity hash code is going to be one of the following:
+    // a) 0, another thread updated other markWord bits; b) identity_hash set
+    // by another thread; or c) identity_hash set by the current thread.
+    // A nonzero identity hash code that is not the identity_hash computed
+    // earlier indicates a violation of the invariant.
+    markWord current_mark, old_mark, new_mark;
     do {
-      old_mark = ho->mark();
-      new_mark = old_mark.copy_set_hash(hash);
-      test = ho->cas_set_mark(new_mark, old_mark);
-    } while (test != old_mark);
+      current_mark = ho->mark();
+      new_mark = current_mark.copy_set_hash(identity_hash);
+      old_mark = ho->cas_set_mark(new_mark, current_mark);
+      assert(old_mark.has_no_hash() || old_mark.hash() == new_mark.hash(),
+            "CAS identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
+            new_mark.hash(),
+            old_mark.hash());
+    } while (old_mark != current_mark);
 
     return checked_cast<jint>(new_mark.hash());
   } else {
