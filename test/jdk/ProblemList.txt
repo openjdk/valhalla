@@ -793,6 +793,8 @@ tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 83
 
 # Valhalla failures start here:
 
+java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8376514 generic-all # debug only
+
 jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
 jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,generic-x64
 
