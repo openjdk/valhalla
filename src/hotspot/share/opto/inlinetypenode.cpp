@@ -845,6 +845,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   vt->set_oop(kit->gvn(), res_oop);
   vt->set_is_buffered(kit->gvn());
   vt = kit->gvn().transform(vt)->as_InlineType();
+  kit->record_for_igvn(vt);
   if (safe_for_replace) {
     kit->replace_in_map(this, vt);
   }
