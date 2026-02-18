@@ -1443,15 +1443,15 @@ nmethod::nmethod(const nmethod &nm) : CodeBlob(nm._name, nm._kind, nm._size, nm.
   _oops_do_mark_link            = nullptr;
   _compiled_ic_data             = nullptr;
 
-  auto relocate_address = [&nm, this](address old_addr) -> address {
-    if (old_addr == nullptr) return nullptr;
-    address new_addr = old_addr - (address) &nm + (address) this;
+  // Relocate the OSR entry point from nm to the new nmethod.
+  if (nm._osr_entry_point == nullptr) {
+    _osr_entry_point = nullptr;
+  } else {
+    address new_addr = nm._osr_entry_point - (address) &nm + (address) this;
     assert(new_addr >= code_begin() && new_addr < code_end(),
            "relocated address must be within code bounds");
-    return new_addr;
-  };
-
-  _osr_entry_point              = relocate_address(nm._osr_entry_point);
+    _osr_entry_point = new_addr;
+  }
   _entry_offset                 = nm._entry_offset;
   _verified_entry_offset        = nm._verified_entry_offset;
   _inline_entry_offset             = nm._inline_entry_offset;
