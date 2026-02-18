@@ -71,13 +71,13 @@ inline ValuePayload::StorageImpl<OopOrHandle>::StorageImpl(address absolute_addr
 
 template <typename OopOrHandle>
 inline ValuePayload::StorageImpl<OopOrHandle>::~StorageImpl() {
-#ifdef ASSERT
+#ifdef CHECK_UNHANDLED_OOPS
   if (!_uses_absolute_addr) {
     _container.~OopOrHandle();
   }
-#else  // ASSERT
+#else  // CHECK_UNHANDLED_OOPS
   static_assert(std::is_trivially_destructible_v<OopOrHandle>);
-#endif // ASSERT
+#endif // CHECK_UNHANDLED_OOPS
 }
 
 template <typename OopOrHandle>
