@@ -220,5 +220,4 @@ compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
 
-vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
