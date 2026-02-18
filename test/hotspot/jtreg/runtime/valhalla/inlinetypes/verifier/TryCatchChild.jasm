@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,13 @@
  * questions.
  */
 
-/*
-class TryCatchChild extends Parent {
-    @Strict int x;
-    @Strict int y;
+ /*
+ class TryCatchChild extends Parent {
+
+    @StrictInit
+    int x;
+    @StrictInit
+    int y;
 
     TryCatchChild() {
         try {
@@ -33,19 +36,21 @@ class TryCatchChild extends Parent {
             System.out.println(a[2]);
         } catch (java.lang.ArrayIndexOutOfBoundsException e) {
             y = 0;
+        } finally {
+            x = y = 1;
         }
         super();
     }
 }
 */
 
-identity class TryCatchChildBad extends Parent version 71:65535
+identity class TryCatchChild extends Parent version 71:65535
 {
   strict Field x:I;
   strict Field y:I;
 
   Method       "<init>":"()V"
-    stack 4  locals 2
+    stack 4  locals 3
   {
          try               T0, T1;
          aload_0;
@@ -60,6 +65,12 @@ identity class TryCatchChildBad extends Parent version 71:65535
          iaload;
          invokevirtual     Method java/io/PrintStream.println:"(I)V";
          endtry            T0,T1;
+         aload_0;
+         aload_0;
+         iconst_1;
+         dup_x1;
+         putfield          Field y:"I";
+         putfield          Field x:"I";
          goto              L63;
          catch             T0 java/lang/ArrayIndexOutOfBoundsException;
          try               T2;
@@ -70,19 +81,29 @@ identity class TryCatchChildBad extends Parent version 71:65535
          iconst_0;
          putfield          Field y:"I";
          endtry            T2;
+         aload_0;
+         aload_0;
+         iconst_1;
+         dup_x1;
+         putfield          Field y:"I";
+         putfield          Field x:"I";
          goto              L63;
          catch             T1 #0;
          catch             T2 #0;
          stack_frame_type  stack1;
            stack_map       class java/lang/Throwable;
          astore_2;
+         aload_0;
+         aload_0;
+         iconst_1;
+         dup_x1;
+         putfield          Field y:"I";
+         putfield          Field x:"I";
          aload_2;
          athrow;
-  L63:   stack_frame_type  early_larval;
-           unset_fields;
-           frame_type      same;
+  L63:   stack_frame_type  same;
          aload_0;
          invokespecial     Method Parent."<init>":"()V";
          return;
   }
-} // end Class TryCatchChildBad
+} // end Class TryCatchChild
