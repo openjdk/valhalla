@@ -2413,7 +2413,6 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
           stack_object_type = current_type();
 
           if (fd.access_flags().is_strict()) {
-            //ResourceMark rm(THREAD);
             if (!current_frame->satisfy_unset_field(fd.name(), fd.signature())) {
               log_info(verification)("Attempting to initialize field not found in initial strict instance fields: %s%s",
                                      fd.name()->as_C_string(), fd.signature()->as_C_string());
