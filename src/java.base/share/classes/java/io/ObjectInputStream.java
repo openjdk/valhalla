@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -2378,22 +2379,27 @@ public class ObjectInputStream
 
             // Best effort Failure Atomicity; slotValues will be non-null if field
             // values can be set after reading all field data in the hierarchy.
-            List<FieldValues> slotValues = desc.getClassDataLayout().stream()
-                    .filter(s -> s.hasData)
-                    .map(s1 -> {
-                        var values = new FieldValues(s1.desc, true);
-                        finishBlockData(s1.desc);
-                        return values;
-                    })
-                    .toList();
+            List<ClassDataSlot> slots = desc.getClassDataLayout();
+            List<FieldValues> slotValues = new ArrayList<>(slots.size());
+            for (ClassDataSlot s : slots) {
+                if (s.hasData) {
+                    var value = new FieldValues(s.desc, true);
+                    finishBlockData(s.desc);
+                    slotValues.add(value);
+                }
+            }
 
             if (handles.lookupException(passHandle) != null) {
                 return null;    // some exception for a class, do not return the object
             }
 
             // Check that the types are assignable for all slots before assigning.
-            slotValues.forEach(v -> v.defaultCheckFieldValues(obj));
-            slotValues.forEach(v -> v.defaultSetFieldValues(obj));
+            for (FieldValues slotValue : slotValues) {
+                slotValue.defaultCheckFieldValues(obj);
+            }
+            for (FieldValues v : slotValues) {
+                v.defaultSetFieldValues(obj);
+            }
             return obj;
         } catch (InstantiationException | InvocationTargetException ex) {
             throw new InvalidClassException(desc.forClass().getName(),

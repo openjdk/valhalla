@@ -36,6 +36,11 @@
 
 inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
 
+inline flatArrayOop flatArrayOopDesc::cast(oop o) {
+  assert(o->is_flatArray(), "Must be a flatArray");
+  return (flatArrayOop)o;
+}
+
 inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");
 
@@ -51,6 +56,7 @@ inline int flatArrayOopDesc::object_size(int lh) const {
 }
 
 inline oop flatArrayOopDesc::obj_at(int index) const {
+  fatal("Should not be used with flat arrays");
   EXCEPTION_MARK;
   return obj_at(index, THREAD);
 }

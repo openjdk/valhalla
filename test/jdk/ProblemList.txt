@@ -503,6 +503,7 @@ java/lang/invoke/LFCaching/LFMultiThreadCachingTest.java        8151492 generic-
 java/lang/invoke/LFCaching/LFGarbageCollectedTest.java          8078602 generic-all
 java/lang/invoke/lambda/LambdaFileEncodingSerialization.java    8249079 linux-all
 java/lang/invoke/RicochetTest.java                              8251969 generic-all
+java/lang/ProcessBuilder/PipelineLeaksFD.java                   8375585 generic-all
 
 ############################################################################
 
@@ -811,6 +812,10 @@ com/sun/management/HotSpotDiagnosticMXBean/DumpThreadsWithEliminatedLock.java 83
 java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
 java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
 java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
+
+java/lang/invoke/VarHandles/VarHandleTestMethodTypeValue.java           8378087 generic-all
+java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java   8378087 generic-all
+java/lang/invoke/VarHandles/VarHandleTestAccessValue.java               8378087 generic-all
 
 java/net/CookieHandler/B6644726.java                            8365811 generic-all
 

@@ -92,11 +92,9 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
   }
 #endif // ASSERT
 
-#ifndef PRODUCT
   if (PrintFlatArrayLayout) {
     print();
   }
-#endif
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
@@ -310,10 +308,10 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
           src += src_incr;
         }
       }
-    } else { // flatArray-to-objArray
+    } else { // flatArray-to-refArray
       assert(dk->is_refArray_klass(), "Expected objArray here");
       // Need to allocate each new src elem payload -> dst oop
-      objArrayHandle dh(THREAD, (objArrayOop)d);
+      refArrayHandle dh(THREAD, (refArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
       InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
@@ -322,9 +320,9 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       }
     }
   } else {
-    assert(s->is_objArray(), "Expected objArray");
-    objArrayOop sa = objArrayOop(s);
-    assert(d->is_flatArray(), "Expected flatArray");  // objArray-to-flatArray
+    assert(s->is_refArray(), "Expected refArray");
+    refArrayOop sa = refArrayOop(s);
+    assert(d->is_flatArray(), "Expected flatArray");  // refArray-to-flatArray
     InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
     flatArrayOop da = flatArrayOop(d);
     FlatArrayKlass* fdk = FlatArrayKlass::cast(da->klass());
@@ -383,7 +381,6 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 }
 
 void FlatArrayKlass::print_on(outputStream* st) const {
-#ifndef PRODUCT
   assert(!is_refArray_klass(), "Unimplemented");
   ResourceMark rm;
 
@@ -404,7 +401,6 @@ void FlatArrayKlass::print_on(outputStream* st) const {
   st->print(" - element size %i ", elem_size);
   st->print("aligned layout size %i", 1 << layout_helper_log2_element_size(layout_helper()));
   st->cr();
-#endif //PRODUCT
 }
 
 void FlatArrayKlass::print_value_on(outputStream* st) const {
