@@ -97,6 +97,7 @@ enum class LayoutKind : uint32_t {
 class LayoutKindHelper : AllStatic {
  public:
   static bool is_flat(LayoutKind lk) {
+    assert(lk != LayoutKind::UNKNOWN, "Sanity check");
     return lk == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT
                  || lk == LayoutKind::NULL_FREE_ATOMIC_FLAT
                  || lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
