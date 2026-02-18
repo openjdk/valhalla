@@ -33,7 +33,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary For InlineType nodes, we want to set the base oop if fields are loaded from memory.
  *          This test ensures that this optimization is not missed when we have nested
  *          inline types and InlineTypeNode::is_loaded suddenly returns something for one of
- *          the nested types after another optimization.  
+ *          the nested types after another optimization.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -52,7 +52,6 @@ public class TestMissingOptUseBaseOopNested {
 
     public static void main(String[] args) {
         TestMissingOptUseBaseOopNested t = new TestMissingOptUseBaseOopNested();
-        RuntimeException tmp = new RuntimeException("42");
         for (int i = 0; i < 10000; i++) {
             t.test();
         }
