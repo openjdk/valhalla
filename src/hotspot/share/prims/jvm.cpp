@@ -472,7 +472,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
       if (i < ((objArrayOop)oh())->length()) {
-        ((objArrayOop)array)->obj_at_put(i - from, ((objArrayOop)oh())->obj_at(i));
+        oop val = ((objArrayOop)oh())->obj_at(i, CHECK_NULL);
+        ((objArrayOop)array)->obj_at_put(i - from, val);
       } else {
         assert(!ak->is_null_free_array_klass(), "Must be a nullable array");
         ((objArrayOop)array)->obj_at_put(i - from, nullptr);
@@ -532,6 +533,16 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   InlineKlass* vk = InlineKlass::cast(klass);
   ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
   objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
+  return (jarray) JNIHandles::make_local(THREAD, array);
+JVM_END
+
+JVM_ENTRY(jarray, JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len))
+  oop mirror = JNIHandles::resolve_non_null(elmClass);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
+  validate_array_arguments(klass, len, CHECK_NULL);
+  InlineKlass* vk = InlineKlass::cast(klass);
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
+  refArrayOop array = oopFactory::new_refArray(klass, len, props, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -770,13 +781,18 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   }
   oop obj = JNIHandles::resolve_non_null(handle);
   if (Arguments::is_valhalla_enabled() && obj->klass()->is_inline_klass()) {
-    // Check if mark word contains hash code already
-    intptr_t hash = obj->mark().hash();
-    if (hash != markWord::no_hash) {
-      return checked_cast<jint>(hash);
+    const intptr_t obj_identity_hash = obj->mark().hash();
+    // Check if mark word contains hash code already.
+    // It is possible that the generated identity hash is 0, which is not
+    // distinct from the no_hash value. In such a case, the hash will be
+    // computed and set every time JVM_IHashCode is called. If that happens,
+    // the only consequence is losing out on the optimization.
+    if (obj_identity_hash != markWord::no_hash) {
+      return checked_cast<jint>(obj_identity_hash);
     }
 
-    // Compute hash by calling ValueObjectMethods.valueObjectHashCode
+    // Compute hash by calling ValueObjectMethods.valueObjectHashCode.
+    // The identity hash is invariantly immutable (see its JavaDoc comment).
     JavaValue result(T_INT);
     JavaCallArguments args;
     Handle ho(THREAD, obj);
@@ -790,15 +806,25 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
         THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
       }
     }
-    hash = result.get_jint();
+    const intptr_t identity_hash = result.get_jint();
 
-    // Store hash in the mark word
-    markWord old_mark, new_mark, test;
+    // We now have to set the hash via CAS. It's possible that this will race
+    // other threads. By our invariant of immutability, when there is a
+    // race, the identity hash code is going to be one of the following:
+    // a) 0, another thread updated other markWord bits; b) identity_hash set
+    // by another thread; or c) identity_hash set by the current thread.
+    // A nonzero identity hash code that is not the identity_hash computed
+    // earlier indicates a violation of the invariant.
+    markWord current_mark, old_mark, new_mark;
     do {
-      old_mark = ho->mark();
-      new_mark = old_mark.copy_set_hash(hash);
-      test = ho->cas_set_mark(new_mark, old_mark);
-    } while (test != old_mark);
+      current_mark = ho->mark();
+      new_mark = current_mark.copy_set_hash(identity_hash);
+      old_mark = ho->cas_set_mark(new_mark, current_mark);
+      assert(old_mark.has_no_hash() || old_mark.hash() == new_mark.hash(),
+            "CAS identity hash invariant violated, expected=" INTPTR_FORMAT " actual=" INTPTR_FORMAT,
+            new_mark.hash(),
+            old_mark.hash());
+    } while (old_mark != current_mark);
 
     return checked_cast<jint>(new_mark.hash());
   } else {
@@ -1438,7 +1464,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (iter.length() == 0) {
     // Neither an inner nor outer class
-    oop result = oopFactory::new_objArray(vmClasses::Class_klass(), 0, CHECK_NULL);
+    oop result = oopFactory::new_refArray(vmClasses::Class_klass(), 0, CHECK_NULL);
     return (jobjectArray)JNIHandles::make_local(THREAD, result);
   }
 
@@ -1447,8 +1473,8 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
   int length = iter.length();
 
   // Allocate temp. result array
-  objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), length/4, CHECK_NULL);
-  objArrayHandle result (THREAD, r);
+  refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length / 4, CHECK_NULL);
+  refArrayHandle result(THREAD, r);
   int members = 0;
 
   for (; !iter.done(); iter.next()) {
@@ -1477,7 +1503,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (members != length) {
     // Return array of right length
-    objArrayOop res = oopFactory::new_objArray(vmClasses::Class_klass(), members, CHECK_NULL);
+    refArrayOop res = oopFactory::new_refArray(vmClasses::Class_klass(), members, CHECK_NULL);
     for(int i = 0; i < members; i++) {
       res->obj_at_put(i, result->obj_at(i));
     }
@@ -1949,9 +1975,8 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
     log_trace(class, nestmates)(" - host has %d listed nest members", length);
 
     // nest host is first in the array so make it one bigger
-    objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                             length + 1, CHECK_NULL);
-    objArrayHandle result(THREAD, r);
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length + 1, CHECK_NULL);
+    refArrayHandle result(THREAD, r);
     result->obj_at_put(0, host->java_mirror());
     if (length != 0) {
       int count = 0;
@@ -2026,9 +2051,8 @@ JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
 
     log_trace(class, sealed)(" - sealed class has %d permitted subclasses", length);
 
-    objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                             length, CHECK_NULL);
-    objArrayHandle result(THREAD, r);
+    refArrayOop r = oopFactory::new_refArray(vmClasses::Class_klass(), length, CHECK_NULL);
+    refArrayHandle result(THREAD, r);
     int count = 0;
     for (int i = 0; i < length; i++) {
       int cp_index = subclasses->at(i);
@@ -3721,8 +3745,8 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
     THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
 
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(threads));
-  objArrayHandle ah(THREAD, a);
+  refArrayOop a = refArrayOopDesc::cast(JNIHandles::resolve_non_null(threads));
+  refArrayHandle ah(THREAD, a);
   int num_threads = ah->length();
   // check if threads is non-empty array
   if (num_threads == 0) {
@@ -3734,13 +3758,12 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
   if (k != vmClasses::Thread_klass()) {
     THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
-  refArrayHandle rah(THREAD, (refArrayOop)ah()); // j.l.Thread is an identity class, arrays are always reference arrays
 
   ResourceMark rm(THREAD);
 
   GrowableArray<instanceHandle>* thread_handle_array = new GrowableArray<instanceHandle>(num_threads);
   for (int i = 0; i < num_threads; i++) {
-    oop thread_obj = rah->obj_at(i);
+    oop thread_obj = ah->obj_at(i);
     instanceHandle h(THREAD, (instanceOop) thread_obj);
     thread_handle_array->append(h);
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,16 +58,11 @@ class oopFactory: AllStatic {
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
   static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
-  // Allocate refArray instance given a refArrayKlass.
-  static objArrayOop     new_refArray(Klass* array_klass, int length, TRAPS);
+  // Factories to create a reference arrays
+  static refArrayOop     new_refArray(Klass* klass, int length, TRAPS);
+  static refArrayOop     new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
-  // Value arrays...
-  // LWorld:
-  //    - Q-type signature allocation should use this path.
-  //    - L-type signature allocation should use new_objArray
-  //
-  // Method specifically null free and possibly flat if possible
-  // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
+  // Factory to create flat arrays.
   static flatArrayOop    new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
 
   // Helper that returns a Handle
