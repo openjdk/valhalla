@@ -1096,6 +1096,7 @@ class ClearArrayNode: public Node {
 private:
   bool _is_large;
   bool _word_copy_only;
+  static Node* make_address(Node* dest, Node* offset, bool raw_base, PhaseGVN* phase);
 public:
   ClearArrayNode( Node *ctrl, Node *arymem, Node *word_cnt, Node *base, Node* val, bool is_large)
     : Node(ctrl, arymem, word_cnt, base, val), _is_large(is_large),
@@ -1127,17 +1128,20 @@ public:
                             Node* raw_val,
                             intptr_t start_offset,
                             intptr_t end_offset,
+                            bool raw_base,
                             PhaseGVN* phase);
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
                             Node* val,
                             Node* raw_val,
                             intptr_t start_offset,
                             Node* end_offset,
+                            bool raw_base,
                             PhaseGVN* phase);
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
                             Node* raw_val,
                             Node* start_offset,
                             Node* end_offset,
+                            bool raw_base,
                             PhaseGVN* phase);
   // Return allocation input memory edge if it is different instance
   // or itself if it is the one we are looking for.

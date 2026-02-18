@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,7 +66,8 @@ public:
   // special value to note codeBlobs where profile (forte) stack walking is
   // always dangerous and suspect.
 
-  enum { frame_never_safe = -1 };
+  static const int frame_never_safe = -1;
+  static const int no_such_entry_point = -1;
 
 private:
   int _values[max_Entries];
@@ -77,8 +78,8 @@ public:
     _values[Entry         ] = 0;
     _values[Verified_Entry] = 0;
     _values[Inline_Entry  ] = 0;
-    _values[Verified_Inline_Entry] = -1;
-    _values[Verified_Inline_Entry_RO] = -1;
+    _values[Verified_Inline_Entry   ] = no_such_entry_point;
+    _values[Verified_Inline_Entry_RO] = no_such_entry_point;
     _values[Frame_Complete] = frame_never_safe;
     _values[OSR_Entry     ] = 0;
     _values[Exceptions    ] = -1;

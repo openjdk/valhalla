@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -356,39 +356,21 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
   oop result;
   Handle h_init_val(current, init_val); // keep the init_val object alive
 
-  if (array_type->is_flatArray_klass()) {
-    Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
-    InlineKlass* vk = fak->element_klass();
-    ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(fak->layout_kind());
-    flatArrayOop array = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
-    // For flat arrays
-    if (array != nullptr && len != 0 && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
-      precond(h_init_val() != nullptr);
-      precond(array->klass() == fak);
-      // Null-free arrays need to be initialized
-
-      // A null inital value is used as a signal value that the value is
-      // represented by all zeros. A newly allocated null-free array is already
-      // initialised with all zeros and has no null markers. So the payload copy
-      // can be elided.
-      FlatArrayPayload payload(array, 0, fak);
-      for (int i = 0; i < len; i++) {
-        payload.write_without_nullability_check(inlineOop(h_init_val()));
-        payload.next_element();
-      }
-    }
-    result = array;
-  } else if (array_type->is_typeArray_klass()) {
+  if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
     BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    result = oopFactory::new_refArray(array_type, len, THREAD);
-    if (result != nullptr && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+    ObjArrayKlass* oak = ObjArrayKlass::cast(array_type);
+    result = oopFactory::new_objArray(oak->element_klass(), len, oak->properties(), THREAD);
+    if (!HAS_PENDING_EXCEPTION && array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
+#ifdef ASSERT
+      ObjArrayKlass* result_oak = ObjArrayKlass::cast(result->klass());
+      assert(result_oak->is_null_free_array_klass(), "Sanity check");
+#endif
       for (int i = 0; i < len; i++) {
         ((objArrayOop)result)->obj_at_put(i, h_init_val());
       }
