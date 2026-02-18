@@ -25,7 +25,6 @@
 #include "memory/allocation.inline.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
-#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/node.hpp"
@@ -613,7 +612,8 @@ void PhaseIdealLoop::do_split_if(Node* iff, RegionNode** new_false_region, Regio
         if (_loop_or_ctrl[m->_idx] == nullptr) {
           _igvn.remove_dead_node(m);
           // fall through
-        } else if (m != iff && split_up(m, region, iff)) {
+        }
+        else if (m != iff && split_up(m, region, iff)) {
           // fall through
         } else {
           continue;

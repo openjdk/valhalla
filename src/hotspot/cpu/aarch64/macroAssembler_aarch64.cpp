@@ -7104,7 +7104,7 @@ void MacroAssembler::get_thread(Register dst) {
 
 #ifdef COMPILER2
 // C2 compiled method's prolog code
-// Moved here from aarch64.ad to support Valhalla code belows
+// Moved here from aarch64.ad to support Valhalla code below
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   if (C->clinit_barrier_on_entry()) {
     assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
