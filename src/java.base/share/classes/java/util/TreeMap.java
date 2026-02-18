@@ -3096,8 +3096,6 @@ public class TreeMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super K>! action) {
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             TreeMap.Entry<K,V> f = fence, e, p, pl;
@@ -3121,8 +3119,6 @@ public class TreeMap<K,V>
 
         public boolean tryAdvance(Consumer<? super K>! action) {
             TreeMap.Entry<K,V> e;
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             if ((e = current) == null || e == fence)
@@ -3174,8 +3170,6 @@ public class TreeMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super K>! action) {
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             TreeMap.Entry<K,V> f = fence, e, p, pr;
@@ -3199,8 +3193,6 @@ public class TreeMap<K,V>
 
         public boolean tryAdvance(Consumer<? super K>! action) {
             TreeMap.Entry<K,V> e;
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             if ((e = current) == null || e == fence)
@@ -3247,8 +3239,6 @@ public class TreeMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super V>! action) {
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             TreeMap.Entry<K,V> f = fence, e, p, pl;
@@ -3272,8 +3262,6 @@ public class TreeMap<K,V>
 
         public boolean tryAdvance(Consumer<? super V>! action) {
             TreeMap.Entry<K,V> e;
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             if ((e = current) == null || e == fence)
@@ -3319,8 +3307,6 @@ public class TreeMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super Map.Entry<K, V>>! action) {
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             TreeMap.Entry<K,V> f = fence, e, p, pl;
@@ -3344,8 +3330,6 @@ public class TreeMap<K,V>
 
         public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             TreeMap.Entry<K,V> e;
-            if (action == null)
-                throw new NullPointerException();
             if (est < 0)
                 getEstimate(); // force initialization
             if ((e = current) == null || e == fence)

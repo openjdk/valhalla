@@ -3174,7 +3174,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super K>! action) {
-            if (action == null) throw new NullPointerException();
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3189,7 +3188,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public boolean tryAdvance(Consumer<? super K>! action) {
-            if (action == null) throw new NullPointerException();
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3264,7 +3262,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super V>! action) {
-            if (action == null) throw new NullPointerException();
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3279,7 +3276,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public boolean tryAdvance(Consumer<? super V>! action) {
-            if (action == null) throw new NullPointerException();
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3350,7 +3346,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public void forEachRemaining(Consumer<? super Map.Entry<K,V>>! action) {
-            if (action == null) throw new NullPointerException();
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3367,7 +3362,6 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
         }
 
         public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
-            if (action == null) throw new NullPointerException();
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;

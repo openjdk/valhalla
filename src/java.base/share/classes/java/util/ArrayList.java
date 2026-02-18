@@ -1690,8 +1690,6 @@ public class ArrayList<E> extends AbstractList<E>
         }
 
         public boolean tryAdvance(Consumer<? super E>! action) {
-            if (action == null)
-                throw new NullPointerException();
             int hi = getFence(), i = index;
             if (i < hi) {
                 index = i + 1;
@@ -1707,8 +1705,6 @@ public class ArrayList<E> extends AbstractList<E>
         public void forEachRemaining(Consumer<? super E>! action) {
             int i, hi, mc; // hoist accesses and checks from loop
             Object[] a;
-            if (action == null)
-                throw new NullPointerException();
             if ((a = elementData) != null) {
                 if ((hi = fence) < 0) {
                     mc = modCount;

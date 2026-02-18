@@ -62,8 +62,6 @@ class CharBufferSpliterator implements Spliterator.OfInt {
 
     @Override
     public void forEachRemaining(IntConsumer! action) {
-        if (action == null)
-            throw new NullPointerException();
         CharBuffer cb = buffer;
         int i = index;
         int hi = limit;
@@ -75,8 +73,6 @@ class CharBufferSpliterator implements Spliterator.OfInt {
 
     @Override
     public boolean tryAdvance(IntConsumer! action) {
-        if (action == null)
-            throw new NullPointerException();
         if (index >= 0 && index < limit) {
             action.accept(buffer.getUnchecked(index++));
             return true;

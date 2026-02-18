@@ -1240,7 +1240,6 @@ public class LinkedList<E>
 
         public void forEachRemaining(Consumer<? super E>! action) {
             Node<E> p; int n;
-            if (action == null) throw new NullPointerException();
             if ((n = getEst()) > 0 && (p = current) != null) {
                 current = null;
                 est = 0;
@@ -1256,7 +1255,6 @@ public class LinkedList<E>
 
         public boolean tryAdvance(Consumer<? super E>! action) {
             Node<E> p;
-            if (action == null) throw new NullPointerException();
             if (getEst() > 0 && (p = current) != null) {
                 --est;
                 E e = p.item;

@@ -847,8 +847,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         }
 
         public void forEachRemaining(Consumer<? super E>! action) {
-            if (action == null)
-                throw new NullPointerException();
             if (fence < 0) { fence = size; expectedModCount = modCount; }
             final Object[] es = queue;
             int i, hi; E e;
@@ -862,8 +860,6 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         }
 
         public boolean tryAdvance(Consumer<? super E>! action) {
-            if (action == null)
-                throw new NullPointerException();
             if (fence < 0) { fence = size; expectedModCount = modCount; }
             int i;
             if ((i = index) < fence) {
