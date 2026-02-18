@@ -4012,9 +4012,9 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
   //       | |
   //       AddP  ( base == address )
   //
-  // case #6. Constant Pool, ThreadLocal, CastX2P or
+  // case #6. Constant Pool, ThreadLocal, CastX2P, Klass, OSR buffer buf or
   //          Raw object's field reference:
-  //      {ConP, ThreadLocal, CastX2P, raw Load}
+  //      {ConP, ThreadLocal, CastX2P, raw Load, Parm0}
   //  top   |
   //     \  |
   //     AddP  ( base == top )
@@ -4039,8 +4039,20 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
   //     \  |
   //     AddP  ( base == top )
   //
+  // case #10. Klass fetched with
+  //           LibraryCallKit::load_*_refined_array_klass()
+  //           which has en extra Phi.
+  //  LoadKlass   LoadKlass
+  //       |          |
+  //     CastPP    CastPP
+  //          \   /
+  //           Phi
+  //      top   |
+  //         \  |
+  //         AddP  ( base == top )
+  //
   Node *base = addp->in(AddPNode::Base);
-  if (base->uncast()->is_top()) { // The AddP case #3 and #6 and #9.
+  if (base->uncast()->is_top()) { // The AddP case #3, #6, #9, and #10.
     base = addp->in(AddPNode::Address);
     while (base->is_AddP()) {
       // Case #6 (unsafe access) may have several chained AddP nodes.
@@ -4054,10 +4066,24 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
     } else {
       Node* uncast_base = base->uncast();
       int opcode = uncast_base->Opcode();
-      assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
-             opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
-             (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != nullptr)) ||
-             is_captured_store_address(addp), "sanity");
+#ifdef ASSERT
+      if (uncast_base->is_Phi()) {
+        // Case #10
+        assert(uncast_base->req() == 3, "unexpected Phi shape");
+        Node* in1 = uncast_base->in(1);
+        Node* in2 = uncast_base->in(2);
+        assert(in1->uncast()->Opcode() == Op_LoadKlass &&
+               in2->uncast()->Opcode() == Op_LoadKlass, "must be LoadKlass");
+      } else {
+        // Case #3 and #6
+        assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
+               opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
+               (_igvn->C->is_osr_compilation() && uncast_base->is_Parm() && uncast_base->as_Parm()->_con == TypeFunc::Parms)||
+               (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != nullptr)) ||
+               (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_klassptr() != nullptr)) ||
+               is_captured_store_address(addp), "sanity");
+      }
+#endif
     }
   }
   return base;
@@ -4669,7 +4695,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
   uint new_index_start = (uint) _compile->num_alias_types();
   VectorSet visited;
   ideal_nodes.clear(); // Reset for use with set_map/get_map.
-  uint unique_old = _compile->unique();
 
   //  Phase 1:  Process possible allocations from alloc_worklist.
   //  Create instance types for the CheckCastPP for allocations where possible.
