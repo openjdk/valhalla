@@ -172,6 +172,11 @@ address Method::get_c2i_inline_entry() {
   return adapter()->get_c2i_inline_entry();
 }
 
+address Method::get_c2i_inline_ro_entry() {
+  assert(adapter() != nullptr, "must have");
+  return adapter()->get_c2i_inline_ro_entry();
+}
+
 address Method::get_c2i_unverified_entry() {
   if (is_abstract()) {
     return SharedRuntime::get_handle_wrong_method_abstract_stub();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,7 @@
 // Forward declarations.
 template <class T> class Array;
 template <class T> class GrowableArray;
+class ArrayDescription;
 class ClassLoaderData;
 class fieldDescriptor;
 class klassVtable;
@@ -812,6 +813,8 @@ public:
 #endif
 
   virtual void oop_verify_on(oop obj, outputStream* st);
+
+  void validate_array_description(const ArrayDescription& ad) NOT_DEBUG_RETURN;
 
   // for error reporting
   static bool is_valid(Klass* k);
