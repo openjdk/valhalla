@@ -44,6 +44,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -1498,7 +1499,7 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
       writer->write_objectID(object_id);
     }
   } else {
-    refArrayOop rarray = refArrayOopDesc::cast(array);
+    refArrayOop rarray = oop_cast<refArrayOop>(array);
     for (int index = 0; index < length; index++) {
       oop o = rarray->obj_at(index);
       o = mask_dormant_archived_object(o, array);

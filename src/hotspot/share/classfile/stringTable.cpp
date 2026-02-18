@@ -44,6 +44,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -80,7 +81,7 @@ int StringTable::_shared_strings_array_root_index;
 
 inline oop StringTable::read_string_from_compact_hashtable(address base_address, u4 index) {
   assert(AOTMappedHeapLoader::is_in_use(), "sanity");
-  refArrayOop array = refArrayOopDesc::cast(_shared_strings_array.resolve());
+  refArrayOop array = oop_cast<refArrayOop>(_shared_strings_array.resolve());
   oop s;
 
   if (!_is_two_dimensional_shared_strings_array) {
@@ -88,7 +89,7 @@ inline oop StringTable::read_string_from_compact_hashtable(address base_address,
   } else {
     int primary_index = index >> _secondary_array_index_bits;
     int secondary_index = index & _secondary_array_index_mask;
-    refArrayOop secondary = refArrayOopDesc::cast(array->obj_at(primary_index));
+    refArrayOop secondary = oop_cast<refArrayOop>(array->obj_at(primary_index));
     s = secondary->obj_at(secondary_index);
   }
 
@@ -1063,7 +1064,7 @@ void StringTable::verify_secondary_array_index_bits() {
 oop StringTable::init_shared_strings_array() {
   assert(CDSConfig::is_dumping_heap(), "must be");
   assert(HeapShared::is_writing_mapping_mode(), "should not reach here");
-  refArrayOop array = refArrayOopDesc::cast(_shared_strings_array.resolve());
+  refArrayOop array = oop_cast<refArrayOop>(_shared_strings_array.resolve());
 
   verify_secondary_array_index_bits();
 
@@ -1085,7 +1086,7 @@ oop StringTable::init_shared_strings_array() {
         int secondary_index = index & _secondary_array_index_mask;
 
         assert(primary_index < array->length(), "no strings should have been added");
-        refArrayOop secondary = refArrayOopDesc::cast(array->obj_at(primary_index));
+        refArrayOop secondary = oop_cast<refArrayOop>(array->obj_at(primary_index));
 
         assert(secondary != nullptr && secondary->is_refArray(), "must be");
         assert(secondary_index < secondary->length(), "no strings should have been added");
