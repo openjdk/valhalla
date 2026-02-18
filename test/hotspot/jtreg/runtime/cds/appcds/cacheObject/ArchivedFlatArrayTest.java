@@ -30,10 +30,13 @@
  * @library /test/jdk/lib/testlibrary /test/lib /test/hotspot/jtreg/runtime/cds/appcds
  * @enablePreview
  * @modules java.base/jdk.internal.value
- * @compile ArchivedFlatArrayApp.java
+ * @compile ArchivedFlatArrayApp.java ArchivedArrayLayoutsApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar archived_flat_array.jar ArchivedFlatArrayApp
  *                                                                                  ArchivedFlatArrayApp$ArchivedData
  *                                                                                  ArchivedFlatArrayApp$CharPair
+ *                                                                                  ArchivedArrayLayoutsApp
+ *                                                                                  ArchivedArrayLayoutsApp$Point
+ *                                                                                  ArchivedArrayLayoutsApp$ArchivedData
  * @run main/othervm ArchivedFlatArrayTest
  */
 
@@ -45,6 +48,7 @@ public class ArchivedFlatArrayTest {
 
     static String appJar = ClassFileInstaller.getJarPath("archived_flat_array.jar");
     static String mainClass = "ArchivedFlatArrayApp";
+    static String mainClass2 = "ArchivedArrayLayoutsApp";
 
     public static void test(String className, String[] classlist) throws Exception {
         String[] suffix = TestCommon.list("--enable-preview",
@@ -66,5 +70,6 @@ public class ArchivedFlatArrayTest {
 
     public static void main(String[] args) throws Exception {
         test(mainClass, TestCommon.list(mainClass, "ArchivedFlatArrayApp$ArchivedData", "ArchivedFlatArrayApp$CharPair"));
+        test(mainClass, TestCommon.list(mainClass2, "ArchivedArrayLayoutsApp$ArchivedData", "ArchivedArrayLayoutsApp$Point"));
     }
 }
