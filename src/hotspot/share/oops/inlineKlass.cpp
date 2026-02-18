@@ -46,6 +46,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/registerMap.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -204,7 +205,7 @@ bool InlineKlass::is_layout_supported(LayoutKind lk) {
   }
 }
 
-void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized) {
+void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk) {
   assert(is_layout_supported(lk), "Unsupported layout");
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
@@ -212,18 +213,10 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)src)) {
         // copy null_reset value to dest
-        if (dest_is_initialized) {
-          HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
-        } else {
-          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
-        }
+        HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
       } else {
         // Copy has to be performed, even if this is an empty value, because of the null marker
-        if (dest_is_initialized) {
-          HeapAccess<>::value_copy(src, dst, this, lk);
-        } else {
-          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
-        }
+        HeapAccess<>::value_copy(src, dst, this, lk);
       }
     }
     break;
@@ -231,11 +224,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) return; // nothing to do
-      if (dest_is_initialized) {
-        HeapAccess<>::value_copy(src, dst, this, lk);
-      } else {
-        HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
-      }
+      HeapAccess<>::value_copy(src, dst, this, lk);
     }
     break;
     default:
@@ -257,8 +246,9 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
+      ZERO_ONLY(ThreadInVMfromJava tivmj(THREAD);) // Zero enters here from C++ intepreter
       oop res = allocate_instance(CHECK_NULL);
-      copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk, false);
+      copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk);
 
       // After copying, re-check if the payload is now marked as null. Another
       // thread could have marked the src object as null after the initial check
@@ -303,7 +293,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) 
       mark_payload_as_non_null((address)src_addr);
     }
   }
-  copy_payload_to_addr(src_addr, dst, lk, true /* dest_is_initialized */);
+  copy_payload_to_addr(src_addr, dst, lk);
 }
 
 // Arrays of...

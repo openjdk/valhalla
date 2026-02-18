@@ -167,8 +167,11 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
 
   Node* base_uncasted = base->uncast();
   if (base_uncasted->is_Proj()) {
-    MultiNode* multi = base_uncasted->in(0)->as_Multi();
-    if (multi->is_Allocate()) {
+    Node* multi = base_uncasted->in(0);
+    if (multi->is_top()) {
+      // The pointer dies, make the memory die, too
+      return multi;
+    } else if (multi->is_Allocate()) {
       base_local = base_uncasted->as_Proj();
       return nullptr;
     } else if (multi->is_Call()) {
@@ -182,7 +185,7 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
         return nullptr;
       } else {
         // Use the start memory otherwise
-        return multi->proj_out(TypeFunc::Memory);
+        return multi->as_Start()->proj_out(TypeFunc::Memory);
       }
     }
   }
@@ -2303,7 +2306,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     BasicType bt = value_basic_type();
 
     // Fold loads of the field map
-    if (UseAltSubstitutabilityMethod && tinst != nullptr) {
+    if (tinst != nullptr) {
       ciInstanceKlass* ik = tinst->instance_klass();
       int offset = tinst->offset();
       if (ik == phase->C->env()->Class_klass()) {
@@ -2834,7 +2837,13 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
             && adr2->is_AddP()) {
           int mirror_field = in_bytes(Klass::java_mirror_offset());
           if (tkls->offset() == mirror_field) {
-            return adr2->in(AddPNode::Base);
+#ifdef ASSERT
+            const TypeKlassPtr* tkls2 = phase->type(adr2->in(AddPNode::Address))->is_klassptr();
+            assert(tkls2->offset() == 0, "not a load of java_mirror");
+#endif
+            assert(adr2->in(AddPNode::Base)->is_top(), "not an off heap load");
+            assert(adr2->in(AddPNode::Offset)->find_intptr_t_con(-1) == in_bytes(Klass::java_mirror_offset()), "incorrect offset");
+            return adr2->in(AddPNode::Address);
           }
         }
       }
@@ -4386,6 +4395,15 @@ bool ClearArrayNode::step_through(Node** np, uint instance_id, PhaseValues* phas
   return true;
 }
 
+Node* ClearArrayNode::make_address(Node* dest, Node* offset, bool raw_base, PhaseGVN* phase) {
+  Node* base = dest;
+  if (raw_base) {
+    // May be called as part of the initialization of a just allocated object
+    base = phase->C->top();
+  }
+  return phase->transform(new AddPNode(base, dest, offset));
+}
+
 //----------------------------clear_memory-------------------------------------
 // Generate code to initialize object storage to zero.
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
@@ -4393,13 +4411,13 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
                                    Node* raw_val,
                                    intptr_t start_offset,
                                    Node* end_offset,
+                                   bool raw_base,
                                    PhaseGVN* phase) {
   intptr_t offset = start_offset;
 
   int unit = BytesPerLong;
   if ((offset % unit) != 0) {
-    Node* adr = new AddPNode(dest, dest, phase->MakeConX(offset));
-    adr = phase->transform(adr);
+    Node* adr = make_address(dest, phase->MakeConX(offset), raw_base, phase);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
     if (val != nullptr) {
       assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
@@ -4414,13 +4432,14 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
   assert((offset % unit) == 0, "");
 
   // Initialize the remaining stuff, if any, with a ClearArray.
-  return clear_memory(ctl, mem, dest, raw_val, phase->MakeConX(offset), end_offset, phase);
+  return clear_memory(ctl, mem, dest, raw_val, phase->MakeConX(offset), end_offset, raw_base, phase);
 }
 
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
                                    Node* raw_val,
                                    Node* start_offset,
                                    Node* end_offset,
+                                   bool raw_base,
                                    PhaseGVN* phase) {
   if (start_offset == end_offset) {
     // nothing to do
@@ -4440,7 +4459,7 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
 
   // Bulk clear double-words
   Node* zsize = phase->transform(new SubXNode(zend, zbase) );
-  Node* adr = phase->transform(new AddPNode(dest, dest, start_offset) );
+  Node* adr = make_address(dest, start_offset, raw_base, phase);
   if (raw_val == nullptr) {
     raw_val = phase->MakeConX(0);
   }
@@ -4453,6 +4472,7 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
                                    Node* raw_val,
                                    intptr_t start_offset,
                                    intptr_t end_offset,
+                                   bool raw_base,
                                    PhaseGVN* phase) {
   if (start_offset == end_offset) {
     // nothing to do
@@ -4466,11 +4486,10 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
   }
   if (done_offset > start_offset) {
     mem = clear_memory(ctl, mem, dest, val, raw_val,
-                       start_offset, phase->MakeConX(done_offset), phase);
+                       start_offset, phase->MakeConX(done_offset), raw_base, phase);
   }
   if (done_offset < end_offset) { // emit the final 32-bit store
-    Node* adr = new AddPNode(dest, dest, phase->MakeConX(done_offset));
-    adr = phase->transform(adr);
+    Node* adr = make_address(dest, phase->MakeConX(done_offset), raw_base, phase);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
     if (val != nullptr) {
       assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
@@ -5693,6 +5712,7 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
                                               allocation()->in(AllocateNode::InitValue),
                                               allocation()->in(AllocateNode::RawInitValue),
                                               zeroes_done, zeroes_needed,
+                                              true,
                                               phase);
         zeroes_done = zeroes_needed;
         if (zsize > InitArrayShortSize && ++big_init_gaps > 2)
@@ -5753,7 +5773,7 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
       rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
                                             allocation()->in(AllocateNode::InitValue),
                                             allocation()->in(AllocateNode::RawInitValue),
-                                            zeroes_done, size_in_bytes, phase);
+                                            zeroes_done, size_in_bytes, true, phase);
     }
   }
 

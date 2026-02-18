@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,63 +89,6 @@ static void trace_type_profile(Compile* C, ciMethod* method, JVMState* jvms,
   }
 }
 
-static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
-  if (callee->is_object_constructor() && arg_idx == 0) {
-    return true;
-  }
-
-  if (arg_idx != 1 || callee->intrinsic_id() == vmIntrinsicID::_none) {
-    return false;
-  }
-
-  switch (callee->intrinsic_id()) {
-    case vmIntrinsicID::_finishPrivateBuffer:
-    case vmIntrinsicID::_putBoolean:
-    case vmIntrinsicID::_putBooleanOpaque:
-    case vmIntrinsicID::_putBooleanRelease:
-    case vmIntrinsicID::_putBooleanVolatile:
-    case vmIntrinsicID::_putByte:
-    case vmIntrinsicID::_putByteOpaque:
-    case vmIntrinsicID::_putByteRelease:
-    case vmIntrinsicID::_putByteVolatile:
-    case vmIntrinsicID::_putChar:
-    case vmIntrinsicID::_putCharOpaque:
-    case vmIntrinsicID::_putCharRelease:
-    case vmIntrinsicID::_putCharUnaligned:
-    case vmIntrinsicID::_putCharVolatile:
-    case vmIntrinsicID::_putShort:
-    case vmIntrinsicID::_putShortOpaque:
-    case vmIntrinsicID::_putShortRelease:
-    case vmIntrinsicID::_putShortUnaligned:
-    case vmIntrinsicID::_putShortVolatile:
-    case vmIntrinsicID::_putInt:
-    case vmIntrinsicID::_putIntOpaque:
-    case vmIntrinsicID::_putIntRelease:
-    case vmIntrinsicID::_putIntUnaligned:
-    case vmIntrinsicID::_putIntVolatile:
-    case vmIntrinsicID::_putLong:
-    case vmIntrinsicID::_putLongOpaque:
-    case vmIntrinsicID::_putLongRelease:
-    case vmIntrinsicID::_putLongUnaligned:
-    case vmIntrinsicID::_putLongVolatile:
-    case vmIntrinsicID::_putFloat:
-    case vmIntrinsicID::_putFloatOpaque:
-    case vmIntrinsicID::_putFloatRelease:
-    case vmIntrinsicID::_putFloatVolatile:
-    case vmIntrinsicID::_putDouble:
-    case vmIntrinsicID::_putDoubleOpaque:
-    case vmIntrinsicID::_putDoubleRelease:
-    case vmIntrinsicID::_putDoubleVolatile:
-    case vmIntrinsicID::_putReference:
-    case vmIntrinsicID::_putReferenceOpaque:
-    case vmIntrinsicID::_putReferenceRelease:
-    case vmIntrinsicID::_putReferenceVolatile:
-      return true;
-    default:
-      return false;
-  }
-}
-
 CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool call_does_dispatch,
                                        JVMState* jvms, bool allow_inline,
                                        float prof_factor, ciKlass* speculative_receiver_type,
@@ -206,21 +149,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   // methods.  If these methods are replaced with specialized code,
   // then we return it as the inlined version of the call.
   CallGenerator* cg_intrinsic = nullptr;
-  if (callee->intrinsic_id() == vmIntrinsics::_makePrivateBuffer || callee->intrinsic_id() == vmIntrinsics::_finishPrivateBuffer) {
-    // These methods must be inlined so that we don't have larval value objects crossing method
-    // boundaries
-    assert(!call_does_dispatch, "callee should not be virtual %s", callee->name()->as_utf8());
-    CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
-
-    if (cg == nullptr) {
-      // This is probably because the intrinsics is disabled from the command line
-      char reason[256];
-      jio_snprintf(reason, sizeof(reason), "cannot find an intrinsics for %s", callee->name()->as_utf8());
-      C->record_method_not_compilable(reason);
-      return nullptr;
-    }
-    return cg;
-  } else if (allow_inline && allow_intrinsics) {
+  if (allow_inline && allow_intrinsics) {
     CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
     if (cg != nullptr) {
       if (cg->is_predicated()) {
@@ -716,15 +645,6 @@ void Parse::do_call() {
     set_stack(sp() - nargs, casted_receiver);
   }
 
-  // Scalarize value objects passed into this invocation if we know that they are not larval
-  for (int arg_idx = 0; arg_idx < nargs; arg_idx++) {
-    if (arg_can_be_larval(callee, arg_idx)) {
-      continue;
-    }
-
-    cast_to_non_larval(peek(nargs - 1 - arg_idx));
-  }
-
   // Note:  It's OK to try to inline a virtual call.
   // The call generator will not attempt to inline a polymorphic call
   // unless it knows how to optimize the receiver dispatch.
@@ -888,7 +808,7 @@ void Parse::do_call() {
       record_profiled_return_for_speculation();
     }
 
-    if (!rtype->is_void() && cg->method()->intrinsic_id() != vmIntrinsicID::_makePrivateBuffer) {
+    if (!rtype->is_void()) {
       Node* retnode = peek();
       const Type* rettype = gvn().type(retnode);
       if (rettype->is_inlinetypeptr() && !retnode->is_InlineType()) {

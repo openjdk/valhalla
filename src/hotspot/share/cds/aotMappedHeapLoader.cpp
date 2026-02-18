@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -618,7 +618,7 @@ bool AOTMappedHeapLoader::map_heap_region_impl(FileMapInfo* info) {
   aot_log_info(aot)("Preferred address to map heap data (to avoid relocation) is " INTPTR_FORMAT, p2i(requested_start));
 
   // allocate from java heap
-  HeapWord* start = G1CollectedHeap::heap()->alloc_archive_region(word_size, (HeapWord*)requested_start);
+  HeapWord* start = G1CollectedHeap::heap()->alloc_archive_region(word_size);
   if (start == nullptr) {
     AOTMetaspace::report_loading_error("UseSharedSpaces: Unable to allocate java heap region for archive heap.");
     return false;

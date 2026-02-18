@@ -1622,6 +1622,11 @@ const GrowableArray<SigEntry>* ciMethod::get_sig_cc() const {
   return get_Method()->adapter()->get_sig_cc();
 }
 
+bool ciMethod::mismatch() const {
+  VM_ENTRY_MARK;
+  return get_Method()->mismatch();
+}
+
 // ciMethod::is_old
 //
 // Return true for redefined methods

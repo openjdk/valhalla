@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1186,7 +1186,7 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
   if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
-      (method()->name() == ciSymbols::isSubstitutableAlt_name() || method()->name() == ciSymbols::isSubstitutable_name())) {
+      (method()->name() == ciSymbols::isSubstitutable_name())) {
     Node* left = in(TypeFunc::Parms);
     Node* right = in(TypeFunc::Parms + 1);
     if (!left->is_top() && !right->is_top() && (left->is_InlineType() || right->is_InlineType())) {
@@ -2007,7 +2007,7 @@ Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = nullptr;
   if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     Node* klass_node = in(AllocateNode::KlassNode);
-    Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
+    Node* proto_adr = phase->transform(new AddPNode(phase->C->top(), klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
     if (Arguments::is_valhalla_enabled()) {
       mark_node = phase->transform(mark_node);

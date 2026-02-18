@@ -2449,7 +2449,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   CHECK_BAILOUT();
 
   // inlining not successful => standard invoke
-  ValueType* result_type = as_ValueType(declared_signature->return_type());
+  ciType* return_type = declared_signature->return_type();
   ValueStack* state_before = copy_state_exhandling();
 
   // The bytecode (code) might change in this method so we are checking this very late.
@@ -2498,14 +2498,15 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
-  Invoke* result = new Invoke(code, result_type, recv, args, target, state_before);
+  Invoke* result = new Invoke(code, return_type, recv, args, target, state_before);
   // push result
   append_split(result);
 
-  if (result_type != voidType) {
-    push(result_type, result);
+  if (!return_type->is_void()) {
+    push(as_ValueType(return_type), result);
   }
-  if (profile_return() && result_type->is_object_kind()) {
+
+  if (profile_return() && return_type->is_object()) {
     profile_return_type(result, target);
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1444,8 +1444,8 @@ JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
   int nFlags = (int) JVMFlag::numFlags - 1;
   // allocate a temp array
   refArrayOop r = oopFactory::new_refArray(vmClasses::String_klass(),
-                                                   nFlags,
-                                                   CHECK_NULL);
+                                           nFlags,
+                                           CHECK_NULL);
   refArrayHandle flags_ah(THREAD, r);
   int num_entries = 0;
   for (int i = 0; i < nFlags; i++) {

@@ -655,9 +655,10 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
   }
   for (uint i = 0; i < field_count(); i++) {
     ciType* ft = field(i)->type();
-    if (ft->is_inlinetype()) {
+    Node* fv = field_value(i);
+    if (ft->is_inlinetype() && fv->is_InlineType()) {
       // Check recursively
-      if (!field_value(i)->as_InlineType()->can_emit_substitutability_check(nullptr)){
+      if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;
       }
     } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
@@ -1650,6 +1651,54 @@ InlineTypeNode* LoadFlatNode::load(GraphKit* kit, ciInlineKlass* vk, Node* base,
   return load->collect_projs(kit, vk, TypeFunc::Parms, null_free);
 }
 
+bool LoadFlatNode::expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const {
+  precond(inst != nullptr);
+  assert(igvn.delay_transform(), "transformation must be delayed");
+  if ((_decorators & C2_MISMATCHED) != 0) {
+    return false;
+  }
+
+  GraphKit kit(jvms(), &igvn);
+  kit.set_all_memory(kit.reset_memory());
+
+  for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
+    ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
+    if (proj_out == nullptr) {
+      continue;
+    }
+
+    ciField* field = _vk->nonstatic_field_at(i);
+    BasicType bt = field->type()->basic_type();
+    if (inst == nullptr) {
+      Node* cst_node = igvn.zerocon(bt);
+      igvn.replace_node(proj_out, cst_node);
+    } else {
+      bool is_unsigned_load = bt == T_BOOLEAN || bt == T_CHAR;
+      const Type* cst_type = Type::make_constant_from_field(field, inst, bt, is_unsigned_load);
+      Node* cst_node = igvn.makecon(cst_type);
+      igvn.replace_node(proj_out, cst_node);
+    }
+  }
+
+  if (!_null_free) {
+    ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + _vk->nof_nonstatic_fields());
+    if (proj_out != nullptr) {
+      igvn.replace_node(proj_out, igvn.intcon(1));
+    }
+  }
+
+  Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
+  if (old_ctrl != nullptr) {
+    igvn.replace_node(old_ctrl, kit.control());
+  }
+  Node* old_mem = proj_out_or_null(TypeFunc::Memory);
+  Node* new_mem = kit.reset_memory();
+  if (old_mem != nullptr) {
+    igvn.replace_node(old_mem, new_mem);
+  }
+  return true;
+}
+
 bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
   assert(igvn.delay_transform(), "transformation must be delayed");
   if ((_decorators & C2_MISMATCHED) != 0) {
@@ -1925,6 +1974,8 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
 
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
+  assert(oop_off_1 == -1 || oop_off_1 == 0 || oop_off_1 == 4, "invalid layout for %s, first oop at offset %d", vk->name()->as_utf8(), oop_off_1);
+  assert(oop_off_2 == -1 || oop_off_2 == 4, "invalid layout for %s, second oop at offset %d", vk->name()->as_utf8(), oop_off_2);
   BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   if (!UseG1GC || oop_off_1 == -1) {

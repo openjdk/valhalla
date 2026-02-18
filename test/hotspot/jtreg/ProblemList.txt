@@ -113,7 +113,6 @@ runtime/NMT/VirtualAllocCommitMerge.java 8309698 linux-s390x
 applications/jcstress/copy.java 8229852 linux-all
 
 containers/docker/TestJcmd.java 8278102 linux-all
-containers/docker/TestMemoryAwareness.java 8303470 linux-all
 containers/docker/TestJFREvents.java 8327723 linux-x64
 containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 
@@ -197,83 +196,28 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 #############################################################################
 
 # Valhalla failures start here:
-compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
-compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
-compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
+compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
+
+runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java 8377009 generic-all
+runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java 8377009 generic-all
+
+serviceability/sa/ClhsdbCDSCore.java   8377324 generic-all
+serviceability/sa/TestPrintMdo.java    8377324 generic-all
+
+vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
+vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
+vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64
+
+# The following test failures DID NOT reproduce during Tier[1-8] testing 
+# done for 8377828. Further analysis is being done with 8376235:
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
 compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
-compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
-runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
-runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
-
-serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
-serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
-serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
-serviceability/sa/ClhsdbInspect.java 8190936 generic-all
-serviceability/sa/ClhsdbLongConstant.java 8190936 generic-all
-serviceability/sa/ClhsdbJdis.java 8190936 generic-all
-serviceability/sa/ClhsdbJstack.java 8190936 generic-all
-serviceability/sa/ClhsdbPrintAll.java 8190936 generic-all
-serviceability/sa/ClhsdbPrintAs.java 8190936 generic-all
-serviceability/sa/ClhsdbPrintStatics.java 8190936 generic-all
-serviceability/sa/ClhsdbSource.java 8190936 generic-all
-serviceability/sa/ClhsdbSymbol.java 8190936 generic-all
-serviceability/sa/ClhsdbWhere.java 8190936 generic-all
-serviceability/sa/JhsdbThreadInfoTest.java 8190936 generic-all
-serviceability/sa/TestClassDump.java 8190936 generic-all
-serviceability/sa/TestClhsdbJstackLock.java 8190936 generic-all
-serviceability/sa/TestCpoolForInvokeDynamic.java 8190936 generic-all
-serviceability/sa/TestHeapDumpForInvokeDynamic.java 8190936 generic-all
-serviceability/sa/TestHeapDumpForLargeArray.java 8190936 generic-all
-serviceability/sa/TestIntConstant.java 8190936 generic-all
-serviceability/sa/TestJhsdbJstackLock.java 8190936 generic-all
-serviceability/sa/TestJmapCore.java 8190936 generic-all
-serviceability/sa/TestJmapCoreMetaspace.java 8190936 generic-all
-serviceability/sa/TestPrintMdo.java 8190936 generic-all
-serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
-serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
-serviceability/sa/CDSJMapClstats.java 8365722 generic-all
-serviceability/sa/ClhsdbClasses.java 8365722 generic-all
-serviceability/sa/sadebugd/DisableRegistryTest.java 8365722 generic-all
-serviceability/sa/ClhsdbDumpheap.java 8365722 generic-all
-serviceability/sa/sadebugd/ClhsdbTestConnectArgument.java 8365722 generic-all
-serviceability/sa/sadebugd/DebugdConnectTest.java 8365722 generic-all
-serviceability/sa/ClhsdbJhisto.java 8365722 generic-all
-serviceability/sa/ClhsdbJstack.java#id1 8365722 generic-all
-serviceability/sa/ClhsdbJstackWithConcurrentLock.java 8365722 generic-all
-serviceability/sa/TestJhsdbJstackWithVirtualThread.java 8365722 generic-all
-serviceability/sa/ClhsdbJstackXcompStress.java 8365722 generic-all
-serviceability/sa/ClhsdbPstack.java#process 8365722 generic-all
-serviceability/sa/ClhsdbPstack.java#core 8365722 generic-all
-serviceability/sa/ClhsdbScanOops.java#id0 8365722 generic-all
-serviceability/sa/ClhsdbScanOops.java#id1 8365722 generic-all
-serviceability/sa/ClhsdbScanOops.java#serial 8365722 generic-all
-serviceability/sa/ClhsdbScanOops.java#parallel 8365722 generic-all
-serviceability/sa/DeadlockDetectionTest.java 8365722 generic-all
-serviceability/sa/ClhsdbJstack.java#id0 8365722 generic-all
-serviceability/sa/TestInstanceKlassSize.java 8365722 generic-all
-serviceability/sa/TestSysProps.java 8365722 generic-all
-serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
-resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
-resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8190936 generic-all
 
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
-vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-all
-vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
-vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64

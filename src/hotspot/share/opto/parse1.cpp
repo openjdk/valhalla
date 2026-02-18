@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,8 @@
  *
  */
 
+#include "ci/ciObjArrayKlass.hpp"
+#include "ci/ciSignature.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/resourceArea.hpp"
@@ -106,8 +108,7 @@ void Parse::print_statistics() {
 // on stack replacement.
 Node* Parse::fetch_interpreter_state(int index,
                                      const Type* type,
-                                     Node* local_addrs,
-                                     Node* local_addrs_base) {
+                                     Node* local_addrs) {
   BasicType bt = type->basic_type();
   if (type == TypePtr::NULL_PTR) {
     // Ptr types are mixed together with T_ADDRESS but nullptr is
@@ -115,7 +116,7 @@ Node* Parse::fetch_interpreter_state(int index,
     bt = T_OBJECT;
   }
   Node *mem = memory(Compile::AliasIdxRaw);
-  Node *adr = basic_plus_adr( local_addrs_base, local_addrs, -index*wordSize );
+  Node *adr = basic_plus_adr(top(), local_addrs, -index*wordSize);
   Node *ctl = control();
 
   // Very similar to LoadNode::make, except we handle un-aligned longs and
@@ -130,7 +131,7 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_DOUBLE: {
     // Since arguments are in reverse order, the argument address 'adr'
     // refers to the back half of the long/double.  Recompute adr.
-    adr = basic_plus_adr(local_addrs_base, local_addrs, -(index+1)*wordSize);
+    adr = basic_plus_adr(top(), local_addrs, -(index+1)*wordSize);
     if (Matcher::misaligned_doubles_ok) {
       l = (bt == T_DOUBLE)
         ? (Node*)new LoadDNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::DOUBLE, MemNode::unordered)
@@ -234,7 +235,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   // Commute monitors from interpreter frame to compiler frame.
   assert(jvms()->monitor_depth() == 0, "should be no active locks at beginning of osr");
   int mcnt = osr_block->flow()->monitor_count();
-  Node *monitors_addr = basic_plus_adr(osr_buf, osr_buf, (max_locals+mcnt*2-1)*wordSize);
+  Node *monitors_addr = basic_plus_adr(top(), osr_buf, (max_locals+mcnt*2-1)*wordSize);
   for (index = 0; index < mcnt; index++) {
     // Make a BoxLockNode for the monitor.
     BoxLockNode* osr_box = new BoxLockNode(next_monitor());
@@ -255,9 +256,9 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     // Displaced headers and locked objects are interleaved in the
     // temp OSR buffer.  We only copy the locked objects out here.
     // Fetch the locked object from the OSR temp buffer and copy to our fastlock node.
-    Node* lock_object = fetch_interpreter_state(index*2, Type::get_const_basic_type(T_OBJECT), monitors_addr, osr_buf);
+    Node* lock_object = fetch_interpreter_state(index*2, Type::get_const_basic_type(T_OBJECT), monitors_addr);
     // Try and copy the displaced header to the BoxNode
-    Node* displaced_hdr = fetch_interpreter_state((index*2) + 1, Type::get_const_basic_type(T_ADDRESS), monitors_addr, osr_buf);
+    Node* displaced_hdr = fetch_interpreter_state((index*2) + 1, Type::get_const_basic_type(T_ADDRESS), monitors_addr);
 
     store_to_memory(control(), box, displaced_hdr, T_ADDRESS, MemNode::unordered);
 
@@ -284,7 +285,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   }
 
   // Extract the needed locals from the interpreter frame.
-  Node *locals_addr = basic_plus_adr(osr_buf, osr_buf, (max_locals-1)*wordSize);
+  Node *locals_addr = basic_plus_adr(top(), osr_buf, (max_locals-1)*wordSize);
 
   // find all the locals that the interpreter thinks contain live oops
   const ResourceBitMap live_oops = method()->live_local_oops_at_bci(osr_bci());
@@ -325,7 +326,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       continue;
     }
     // Construct code to access the appropriate local.
-    Node* value = fetch_interpreter_state(index, type, locals_addr, osr_buf);
+    Node* value = fetch_interpreter_state(index, type, locals_addr);
     set_local(index, value);
   }
 
@@ -628,32 +629,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     if (log)  log->done("parse");
     C->set_default_node_notes(caller_nn);
     return;
-  }
-
-  // Handle inline type arguments
-  int arg_size = method()->arg_size();
-  for (int i = 0; i < arg_size; i++) {
-    Node* parm = local(i);
-    const Type* t = _gvn.type(parm);
-    if (t->is_inlinetypeptr()) {
-      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
-      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
-      if (!(method()->is_object_constructor() && i == 0)) {
-        // Create InlineTypeNode from the oop and replace the parameter
-        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
-        replace_in_map(parm, vt);
-      }
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
-               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
-               (!t->is_aryptr()->is_not_null_free() || !t->is_aryptr()->is_not_flat())) {
-      // Speculate on varargs Object array being not null-free and not flat
-      const TypePtr* spec_type = t->speculative();
-      spec_type = (spec_type != nullptr && spec_type->isa_aryptr() != nullptr) ? spec_type : t->is_aryptr();
-      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free()->cast_to_not_flat();
-      spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
-      Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
-      replace_in_map(parm, cast);
-    }
   }
 
   entry_map = map();  // capture any changes performed by method setup code
@@ -1386,6 +1361,50 @@ void Parse::do_method_entry() {
   // Feed profiling data for parameters to the type system so it can
   // propagate it as speculative types
   record_profiled_parameters_for_speculation();
+
+  // More argument handling
+  int arg_size = method()->arg_size();
+  for (int i = 0; i < arg_size; i++) {
+    Node* parm = local(i);
+    const Type* t = _gvn.type(parm);
+    if (t->is_inlinetypeptr()) {
+      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
+      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
+      if (!(method()->is_object_constructor() && i == 0)) {
+        // Create InlineTypeNode from the oop and replace the parameter
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
+        replace_in_map(parm, vt);
+      }
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
+      // Speculate on varargs Object array being the default array refined type. The assumption is
+      // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
+      // translate the call so that the caller will create a new default array of Object, put o1,
+      // o2, o3 into the newly created array, then invoke the method test. This only makes sense if
+      // the method we are parsing is the top-level method of the compilation unit. Otherwise, if
+      // it is truly called according to our assumption, we must know the exact type of the
+      // argument because the allocation happens inside the compilation unit.
+      const TypePtr* spec_type = (t->speculative() != nullptr) ? t->speculative() : t->remove_speculative()->is_aryptr();
+      ciSignature* method_signature = method()->signature();
+      ciType* parm_citype = method_signature->type_at(method_signature->count() - 1);
+      if (!parm_citype->is_obj_array_klass()) {
+        continue;
+      }
+
+      ciObjArrayKlass* spec_citype = ciObjArrayKlass::make(parm_citype->as_obj_array_klass()->element_klass(), true);
+      const Type* improved_spec_type = TypeKlassPtr::make(spec_citype, Type::trust_interfaces)->as_instance_type();
+      improved_spec_type = improved_spec_type->join(spec_type)->join(TypePtr::NOTNULL);
+      if (improved_spec_type->empty()) {
+        continue;
+      }
+
+      const TypePtr* improved_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, improved_spec_type->is_ptr());
+      improved_type = improved_type->join_speculative(t)->is_ptr();
+      if (improved_type != t) {
+        Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, improved_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+        replace_in_map(parm, cast);
+      }
+    }
+  }
 }
 
 //------------------------------init_blocks------------------------------------
@@ -1825,10 +1844,15 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     for (uint j = TypeFunc::Parms; j < map()->req(); j++) {
       Node* n = map()->in(j);                 // Incoming change to target state.
       const Type* t = nullptr;
+      ciType* ct = nullptr;
       if (tmp_jvms->is_loc(j)) {
-        t = target->local_type_at(j - tmp_jvms->locoff());
+        int loc_idx = j - tmp_jvms->locoff();
+        t = target->local_type_at(loc_idx);
+        ct = target->flow()->local_type_at(loc_idx);
       } else if (tmp_jvms->is_stk(j) && j < (uint)sp() + tmp_jvms->stkoff()) {
-        t = target->stack_type_at(j - tmp_jvms->stkoff());
+        int stk_idx = j - tmp_jvms->stkoff();
+        t = target->stack_type_at(stk_idx);
+        ct = target->flow()->stack_type_at(stk_idx);
       }
       if (t != nullptr && t != Type::BOTTOM) {
         // An object can appear in the JVMS as either an oop or an InlineTypeNode. If the merge is
@@ -1842,31 +1866,10 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
             map()->set_req(j, n->as_InlineType()->buffer(this));
           }
         } else {
-          // Since the merge is a value object, it can either be an oop or an InlineTypeNode
-          if (!target->is_merged()) {
-            // This is the first processed input of the merge. If it is an InlineTypeNode, the
-            // merge will be an InlineTypeNode. Else, try to scalarize so the merge can be
-            // scalarized as well. However, we cannot blindly scalarize an inline type oop here
-            // since it may be larval
-            if (!n->is_InlineType() && gvn().type(n)->is_zero_type()) {
-              // Null constant implies that this is not a larval object
-              map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
-            }
-          } else {
-            Node* phi = target->start_map()->in(j);
-            if (phi->is_InlineType()) {
-              // Larval oops cannot be merged with non-larval ones, and since the merge point is
-              // non-larval, n must be non-larval as well. As a result, we can scalarize n to merge
-              // into phi
-              if (!n->is_InlineType()) {
-                map()->set_req(j, InlineTypeNode::make_from_oop(this, n, t->inline_klass()));
-              }
-            } else {
-              // The merge is an oop phi, ensure the input is buffered if it is an InlineTypeNode
-              if (n->is_InlineType()) {
-                map()->set_req(j, n->as_InlineType()->buffer(this));
-              }
-            }
+          // Scalarize the value object if it is not larval
+          if (!n->is_InlineType() && !ct->is_early_larval()) {
+            assert(_gvn.type(n) == TypePtr::NULL_PTR, "must be a null constant");
+            map()->set_req(j, InlineTypeNode::make_null(_gvn, t->inline_klass()));
           }
         }
       }
@@ -2359,7 +2362,7 @@ void Parse::call_register_finalizer() {
   Node* klass_addr = basic_plus_adr( receiver, receiver, oopDesc::klass_offset_in_bytes() );
   Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
 
-  Node* access_flags_addr = basic_plus_adr(klass, klass, in_bytes(Klass::misc_flags_offset()));
+  Node* access_flags_addr = basic_plus_adr(top(), klass, in_bytes(Klass::misc_flags_offset()));
   Node* access_flags = make_load(nullptr, access_flags_addr, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);
 
   Node* mask  = _gvn.transform(new AndINode(access_flags, intcon(KlassFlags::_misc_has_finalizer)));

@@ -22,7 +22,7 @@
  */
 
  /*
- * @test id=ValueCompositionTest_no_atomic_flat_and_no_nullable_flat
+ * @test id=ValueCompositionTest_no_atomic_flat_and_no_nullable_atomic_flat
  * @library /test/lib
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
@@ -32,7 +32,7 @@
  */
 
  /*
- * @test id=ValueCompositionTest_atomic_flat_and_nullable_flat
+ * @test id=ValueCompositionTest_atomic_flat_and_nullable_atomic_flat
  * @library /test/lib
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
@@ -50,13 +50,31 @@
  * @run main runtime.valhalla.inlinetypes.field_layout.ValueCompositionTest 2
  */
 
- /* @test id=ValueCompositionTest_atomic_flat_and_no_nullable_flat
+ /* @test id=ValueCompositionTest_atomic_flat_and_no_nullable_atomic_flat_and_no_nullable_nonatomic_flat
  * @library /test/lib
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
  * @run main runtime.valhalla.inlinetypes.field_layout.ValueCompositionTest 3
+ */
+
+ /* @test id=ValueCompositionTest_no_atomic_flat_and_nullable_atomic_flat_and_no_nullable_non_atomic_flat
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.ValueCompositionTest 4
+ */
+
+ /* @test id=ValueCompositionTest_no_atomic_flat_and_nullable_atomic_flat_and_nullable_non_atomic_flat
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
+ * @run main runtime.valhalla.inlinetypes.field_layout.ValueCompositionTest 5
  */
 
 package runtime.valhalla.inlinetypes.field_layout;
@@ -147,7 +165,9 @@ public class ValueCompositionTest {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f.layoutKind());
     }
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
-    if (useNullableAtomicFlat) {
+    if (useNullableNonAtomicFlat) {
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
+    } else  if (useNullableAtomicFlat) {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
@@ -222,7 +242,9 @@ public class ValueCompositionTest {
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
-    if (useNullableAtomicFlat) {
+    if (useNullableNonAtomicFlat) {
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
+    } else if (useNullableAtomicFlat) {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
@@ -294,7 +316,9 @@ public class ValueCompositionTest {
     FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
     FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("val1", false);
-    if (useNullableAtomicFlat) {
+    if (useNullableNonAtomicFlat) {
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
+    } else if (useNullableAtomicFlat) {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f1.layoutKind());
     } else {
       Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
@@ -331,8 +355,7 @@ public class ValueCompositionTest {
     Collections.addAll(argsList, "-Xmx256m");
     Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
     Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
-    // TODO JDK-8376814: Make this test works with this flag
-    Collections.addAll(argsList, "-XX:-UseNullableNonAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
@@ -340,21 +363,34 @@ public class ValueCompositionTest {
 
   static boolean useAtomicFlat;
   static boolean useNullableAtomicFlat;
+  static boolean useNullableNonAtomicFlat;
 
   public static void main(String[] args) throws Exception {
 
     switch(args[0]) {
       case "0": useAtomicFlat = false;
                 useNullableAtomicFlat = false;
+                useNullableNonAtomicFlat = false;
                 break;
       case "1": useAtomicFlat = true;
                 useNullableAtomicFlat = true;
+                useNullableNonAtomicFlat = true;
                 break;
       case "2": useAtomicFlat = false;
                 useNullableAtomicFlat = true;
+                useNullableNonAtomicFlat = false;
                 break;
       case "3": useAtomicFlat = true;
                 useNullableAtomicFlat = false;
+                useNullableNonAtomicFlat = false;
+                break;
+      case "4": useAtomicFlat = false;
+                useNullableAtomicFlat = true;
+                useNullableNonAtomicFlat = false;
+                break;
+      case "5": useAtomicFlat = false;
+                useNullableAtomicFlat = true;
+                useNullableNonAtomicFlat = true;
                 break;
       default: throw new RuntimeException("Unrecognized configuration");
     }
