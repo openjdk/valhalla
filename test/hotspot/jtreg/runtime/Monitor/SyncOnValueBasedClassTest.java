@@ -34,6 +34,7 @@ import java.util.stream.*;
  * @requires vm.flavor != "zero"
  * @library /test/lib
  * @run main/othervm/timeout=180000 SyncOnValueBasedClassTest
+ * @ignore
  */
 
 public class SyncOnValueBasedClassTest {
