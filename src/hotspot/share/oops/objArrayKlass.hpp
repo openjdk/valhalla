@@ -44,44 +44,40 @@ class ObjArrayKlass : public ArrayKlass {
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
-  Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
- protected:
   Klass* _element_klass;            // The klass of the elements of this array type
+  Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
   ObjArrayKlass* _next_refined_array_klass;
-
- protected:
-  // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
-  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
   ObjArrayKlass* allocate_klass_from_description(ArrayDescription ad, TRAPS);
-  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+  ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
 
-   // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
+  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
+  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
+
+ protected:
+  // Constructor
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props);
+  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
+
+  ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
+  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
  public:
   // For dummy objects
   ObjArrayKlass() {}
 
-  virtual Klass* element_klass() const      { return _element_klass; }
-  virtual void set_element_klass(Klass* k)  { _element_klass = k; }
+  Klass* element_klass() const      { return _element_klass; }
 
-
-  ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
-  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
-  void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
-  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
   ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
-  ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
-  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+
+  ObjArrayKlass* next_refined_array_klass() const   { return _next_refined_array_klass; }
 
   // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }
+  static ByteSize element_klass_offset()            { return byte_offset_of(ObjArrayKlass, _element_klass); }
+  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
-  void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }
 
   ModuleEntry* module() const override;
@@ -99,9 +95,6 @@ class ObjArrayKlass : public ArrayKlass {
                                                 int n, Klass* element_klass, TRAPS);
 
   oop multi_allocate(int rank, jint* sizes, TRAPS) override;
-
-  // Copying
-  void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) override;
 
   // Compute protection domain
   oop protection_domain() const override { return bottom_klass()->protection_domain(); }

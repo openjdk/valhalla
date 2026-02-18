@@ -91,9 +91,30 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
-Klass(kind, prototype_header),
-  _dimension(1),
+static markWord calc_prototype_header(Klass::KlassKind kind, ArrayKlass::ArrayProperties props) {
+  switch (kind) {
+  case Klass::KlassKind::TypeArrayKlassKind:
+    return markWord::prototype();
+
+  case Klass::KlassKind::FlatArrayKlassKind:
+    return markWord::flat_array_prototype(ArrayKlass::is_null_restricted(props));
+
+  case Klass::KlassKind::ObjArrayKlassKind:
+  case Klass::KlassKind::RefArrayKlassKind:
+    if (ArrayKlass::is_null_restricted(props)) {
+      return markWord::null_free_array_prototype();
+    } else {
+      return markWord::prototype();
+    }
+
+  default:
+    ShouldNotReachHere();
+  };
+}
+
+ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props)
+    : Klass(kind, calc_prototype_header(kind, props)),
+  _dimension(n),
   _properties(props),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {
@@ -109,12 +130,11 @@ Klass(kind, prototype_header),
   log_array_class_load(this);
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
-  ResourceMark rm(THREAD);
-  Symbol* name = nullptr;
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, JavaThread* current) {
+  ResourceMark rm(current);
   char *name_str = element_klass->name()->as_C_string();
   int len = element_klass->name()->utf8_length();
-  char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
+  char *new_str = NEW_RESOURCE_ARRAY_IN_THREAD(current, char, len + 4);
   int idx = 0;
   new_str[idx++] = JVM_SIGNATURE_ARRAY;
   if (element_klass->is_instance_klass()) { // it could be an array or simple type
@@ -167,7 +187,7 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+      ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");
