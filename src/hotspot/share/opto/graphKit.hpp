@@ -88,13 +88,6 @@ class GraphKit : public Phase {
   ~GraphKit() {
     assert(failing_internal() || !has_exceptions(),
            "unless compilation failed, user must call transfer_exceptions_into_jvms");
-#if 0
-    // During incremental inlining, the Node_Array of the C->for_igvn() worklist and the IGVN
-    // worklist are shared but the _in_worklist VectorSet is not. To avoid inconsistencies,
-    // we should not add nodes to the _for_igvn worklist when using IGVN for the GraphKit.
-    assert((_gvn.is_IterGVN() == nullptr) || (_gvn.C->for_igvn()->size() == _worklist_size),
-           "GraphKit should not modify _for_igvn worklist after parsing");
-#endif
   }
 #endif
 

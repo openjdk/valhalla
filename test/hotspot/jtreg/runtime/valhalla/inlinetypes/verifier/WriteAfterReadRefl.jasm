@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,9 +43,7 @@ class WriteAfterReadRefl {
 
 super class WriteAfterReadRefl version 71:65535
 {
-  @-jdk/internal/vm/annotation/Strict { }
   strict static final  Field F1__STRICT:"Ljava/lang/String;";
-  @-jdk/internal/vm/annotation/Strict { }
   strict static final Field F2__STRICT:I;
 
   Method       "<init>":"(LStrictStaticFieldsTest;)V"

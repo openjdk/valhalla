@@ -107,7 +107,8 @@ public:
   f(InlineTypeReturnedAsFields) \
   f(UseNonAtomicValueFlattening) \
   f(UseAtomicValueFlattening) \
-  f(UseNullableValueFlattening)
+  f(UseNullableValueFlattening) \
+  f(UseNullableNonAtomicValueFlattening)
 
 
 class CDSMustMatchFlags {
