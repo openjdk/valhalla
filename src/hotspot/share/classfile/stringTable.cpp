@@ -44,7 +44,6 @@
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "runtime/atomicAccess.hpp"
