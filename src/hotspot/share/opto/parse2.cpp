@@ -2019,55 +2019,28 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
   return cast;
 }
 
-void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
+void Parse::acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
   Node* ne_region = new RegionNode(1);
   Node* null_ctl;
   Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
   ne_region->add_req(null_ctl);
 
-  Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
-  {
-    PreserveJVMState pjvms(this);
-    inc_sp(2);
-    set_control(slow_ctl);
-    Deoptimization::DeoptReason reason;
-    if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
-      reason = Deoptimization::Reason_speculate_class_check;
-    } else {
-      reason = Deoptimization::Reason_class_check;
-    }
-    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-  }
-  ne_region->add_req(control());
-
-  record_for_igvn(ne_region);
-  set_control(_gvn.transform(ne_region));
-  if (btest == BoolTest::ne) {
+  if (input_type != nullptr) {
+    Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
     {
       PreserveJVMState pjvms(this);
-      if (null_ctl == top()) {
-        replace_in_map(input, cast);
+      inc_sp(2);
+      set_control(slow_ctl);
+      Deoptimization::DeoptReason reason;
+      if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+        reason = Deoptimization::Reason_speculate_class_check;
+      } else {
+        reason = Deoptimization::Reason_class_check;
       }
-      int target_bci = iter().get_dest();
-      merge(target_bci);
+      uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
     }
-    record_for_igvn(eq_region);
-    set_control(_gvn.transform(eq_region));
   } else {
-    if (null_ctl == top()) {
-      replace_in_map(input, cast);
-    }
-    set_control(_gvn.transform(ne_region));
-  }
-}
-
-void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  {
+    // No specific type, check for inline type
     BuildCutout unless(this, inline_type_test(cast, /* is_inline = */ false), PROB_MAX);
     inc_sp(2);
     uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
@@ -2238,23 +2211,43 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
   if (left_type != nullptr && !left_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, left_type, btest, eq_region);
     return;
   }
   if (right_type != nullptr && !right_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, right_type, btest, eq_region);
     return;
   }
   if (!left_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(left, tleft, left_ptr, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, nullptr, btest, eq_region);
     return;
   }
   if (!right_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(right, tright, right_ptr, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, nullptr, btest, eq_region);
     return;
+  }
+  // TODO check if profile information suggests that one operand is an inline type, that's sufficient because we check below that the other operand has the same type. Is it?
+  if (left_type != nullptr && left_type->is_inlinetype()) {
+    left = null_check(left);
+    Node* slow_ctl = type_check_receiver(left, left_type, 1.0, &left);
+    {
+      PreserveJVMState pjvms(this);
+      inc_sp(2);
+      set_control(slow_ctl);
+      uncommon_trap_exact(Deoptimization::Reason_speculate_class_check, Deoptimization::Action_maybe_recompile);
+    }
+  } else if (right_type != nullptr && right_type->is_inlinetype()) {
+    right = null_check(right);
+    Node* slow_ctl = type_check_receiver(right, right_type, 1.0, &right);
+    {
+      PreserveJVMState pjvms(this);
+      inc_sp(2);
+      set_control(slow_ctl);
+      uncommon_trap_exact(Deoptimization::Reason_speculate_class_check, Deoptimization::Action_maybe_recompile);
+    }
   }
 
   // Pointers are not equal, check if first operand is non-null
