@@ -37,13 +37,15 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /*
  * @test id=normal
- * @summary A parity test for the default runtime JRT file system.
+ * @summary Ensures the default runtime JRT file system has identical behavior
+ *     in packaged or exploded builds.
  * @run junit/othervm -esa JrtFileSystemClassParityTest
  */
 
 /*
  * @test id=preview
- * @summary A parity test for the default runtime JRT file system (in preview mode).
+ * @summary Ensures the default runtime JRT file system (in preview mode) has
+ *     identical behavior in packaged or exploded builds.
  * @run junit/othervm -esa --enable-preview JrtFileSystemClassParityTest
  */
 public class JrtFileSystemClassParityTest {

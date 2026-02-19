@@ -116,9 +116,9 @@ public class ModulePath implements ModuleFinder {
     }
 
     /**
-     * Returns a ModuleFinder for system modules in the {@code $JAVA_HOME/modules}
-     * directory on the file system by searching a sequence of directories and/or
-     * packaged modules. The modules may be patched by the given ModulePatcher.
+     * Returns a ModuleFinder for an exploded JDK build where {@code moduleDir}
+     * is the $JAVA_HOME/modules directory. The modules may be patched by the
+     * given ModulePatcher.
      *
      * <p>Preview mode is only permitted for system modules, and this method
      * should only be called from {@link SystemModuleFinders#ofSystem()}.

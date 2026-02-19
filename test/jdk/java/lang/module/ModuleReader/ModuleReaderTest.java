@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,6 +157,7 @@ public class ModuleReaderTest {
         Path srcDir = Path.of("src", TEST_MODULE);
         Files.createDirectories(srcDir);
         Files.writeString(srcDir.resolve("module-info.java"), "module " + TEST_MODULE + " {}");
+
         // Write and compile test class "p.Main".
         Path pkgPath = Path.of("p");
         Path javaSrc = srcDir.resolve(pkgPath).resolve("Main.java");
@@ -168,10 +169,12 @@ public class ModuleReaderTest {
                     public static void main(String[] args) { }
                 }
                 """);
+
         // javac -d <outDir> <srcDir>/**
         Path outDir = MODS_DIR.resolve(TEST_MODULE);
         boolean compiled = CompilerUtils.compile(srcDir, outDir);
         assertTrue(compiled, "test module did not compile");
+
         // Add two versions of a resource for preview mode testing.
         Files.writeString(outDir.resolve(pkgPath).resolve("test.txt"), "Normal Version");
         Path previewDir = outDir.resolve("META-INF", "preview").resolve(pkgPath);
@@ -267,17 +270,21 @@ public class ModuleReaderTest {
     }
 
     private static String assertUtf8Resource(ModuleReader reader, String name) throws IOException {
+        // Check the resource can be found with the expected URI.
         Optional<URI> uri = reader.find(name);
         assertTrue(uri.isPresent(), "resource not found: " + name);
         assertTrue(uri.get().getPath().endsWith(name), "unexpected path: " + uri.get());
 
+        // Open and read all resource bytes.
         Optional<InputStream> is = reader.open(name);
         assertTrue(is.isPresent(), "resource cannot be opened: " + name);
         byte[] bytes = is.get().readAllBytes();
 
+        // Cross-check that read() returns the same bytes as open().
         Optional<ByteBuffer> buffer = reader.read(name);
         assertTrue(buffer.isPresent(), "resource cannot be read: " + name);
         assertArrayEquals(buffer.get().array(), bytes, "resource bytes differ: " + name);
+        // Return the string of the UTF-8 bytes for checking the actual content.
         return new String(bytes, StandardCharsets.UTF_8);
     }
 

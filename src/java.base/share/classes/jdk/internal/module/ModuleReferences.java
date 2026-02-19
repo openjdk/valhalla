@@ -373,7 +373,6 @@ class ModuleReferences {
 
         ExplodedModuleReader(Path dir, boolean previewMode) {
             this.dir = dir;
-            // Don't use PREVIEW_PREFIX here, as these paths may use '\'.
             Path path = dir.resolve("META-INF", "preview");
             this.previewDir = (previewMode && Files.isDirectory(path)) ? path : null;
         }
