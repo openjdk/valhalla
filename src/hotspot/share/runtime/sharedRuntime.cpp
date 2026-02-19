@@ -4114,6 +4114,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     address loc = reg_map.location(pair.first(), nullptr);
+    guarantee(loc != nullptr, "bad register save location");
     switch(bt) {
     case T_BOOLEAN:
       *(jboolean*)loc = res->bool_field(off);
