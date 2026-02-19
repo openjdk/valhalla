@@ -598,7 +598,7 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
   CompilationMemoryStatisticMark cmsm(directive);
 
   {
-    ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
+    ResetNoHandleMark rnhm;
     // TODO 8284443 Should only be computed once
     _compiled_entry_signature.compute_calling_conventions(false);
   }

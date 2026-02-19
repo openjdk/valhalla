@@ -681,7 +681,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   // get sender esp
   ldr(rscratch2,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
-
   if (StackReservedPages > 0) {
     // testing if reserved zone needs to be re-enabled
     Label no_reserved_zone_enabling;

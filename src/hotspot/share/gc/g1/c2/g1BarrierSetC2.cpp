@@ -215,6 +215,7 @@ Node* G1BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) c
 void G1BarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const {
   eliminate_gc_barrier_data(node);
 }
+
 void G1BarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
   if (node->is_LoadStore()) {
     LoadStoreNode* loadstore = node->as_LoadStore();
