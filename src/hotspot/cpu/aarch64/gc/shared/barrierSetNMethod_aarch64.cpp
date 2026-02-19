@@ -80,10 +80,10 @@ public:
     return (-entry_barrier_offset(nm)) - 4;
   }
 
-  NativeNMethodBarrier(nmethod* nm, address alt_entry_instruction_address = 0): _nm(nm) {
+  NativeNMethodBarrier(nmethod* nm, address alt_entry_instruction_address = nullptr): _nm(nm) {
 #if INCLUDE_JVMCI
     if (nm->is_compiled_by_jvmci()) {
-      assert(alt_entry_instruction_address == 0, "invariant");
+      assert(alt_entry_instruction_address == nullptr, "invariant");
       address pc = nm->code_begin() + nm->jvmci_nmethod_data()->nmethod_entry_patch_offset();
       RelocIterator iter(nm, pc, pc + 4);
       guarantee(iter.next(), "missing relocs");
@@ -94,7 +94,7 @@ public:
     } else
 #endif
       {
-        _instruction_address = (alt_entry_instruction_address != 0) ? alt_entry_instruction_address :
+        _instruction_address = (alt_entry_instruction_address != nullptr) ? alt_entry_instruction_address :
           nm->code_begin() + nm->frame_complete_offset() + entry_barrier_offset(nm);
         if (nm->is_compiled_by_c2()) {
           // With c2 compiled code, the guard is out-of-line in a stub
