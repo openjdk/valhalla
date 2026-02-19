@@ -1506,7 +1506,13 @@ bool PhaseIdealLoop::flat_array_element_type_check(Node *n) {
     return false;
   }
 
-  assert(obj != nullptr && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
+  // TODO 8378077: The code below does not work anymore with off-heap accesses which set their bases to top with
+  // JDK-8373343. Also: flat_array_element_type_check() was introduced with JDK-8228622 for a specific check to enable
+  // split-if but JDK-8245729 changed how that check looks like. Is it still relevant? This should be revisited.
+  if (addr->in(AddPNode::Base)->is_top()) {
+    return false;
+  }
+
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
   }
@@ -2094,11 +2100,6 @@ bool PhaseIdealLoop::ctrl_of_all_uses_out_of_loop(const Node* n, Node* n_ctrl, I
     if (u->is_Opaque1()) {
       return false;  // Found loop limit, bugfix for 4677003
     }
-    // We can't reuse tags in PhaseIdealLoop::dom_lca_for_get_late_ctrl_internal() so make sure calls to
-    // get_late_ctrl_with_anti_dep() use their own tag
-    _dom_lca_tags_round++;
-    assert(_dom_lca_tags_round != 0, "shouldn't wrap around");
-
     if (u->is_Phi()) {
       for (uint j = 1; j < u->req(); ++j) {
         if (u->in(j) == n && !ctrl_of_use_out_of_loop(n, n_ctrl, n_loop, u->in(0)->in(j))) {
@@ -2132,6 +2133,11 @@ bool PhaseIdealLoop::would_sink_below_pre_loop_exit(IdealLoopTree* n_loop, Node*
 
 bool PhaseIdealLoop::ctrl_of_use_out_of_loop(const Node* n, Node* n_ctrl, IdealLoopTree* n_loop, Node* ctrl) {
   if (n->is_Load()) {
+    // We can't reuse tags in PhaseIdealLoop::dom_lca_for_get_late_ctrl_internal() so make sure each call to
+    // get_late_ctrl_with_anti_dep() uses its own tag
+    _dom_lca_tags_round++;
+    assert(_dom_lca_tags_round != 0, "shouldn't wrap around");
+
     ctrl = get_late_ctrl_with_anti_dep(n->as_Load(), n_ctrl, ctrl);
   }
   IdealLoopTree *u_loop = get_loop(ctrl);

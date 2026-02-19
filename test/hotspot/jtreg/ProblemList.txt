@@ -77,6 +77,8 @@ compiler/interpreter/Test6833129.java 8335266 generic-i586
 
 compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 
+compiler/longcountedloops/TestLoopNestTooManyTraps.java 8376591 generic-all
+
 #############################################################################
 
 # :hotspot_gc
@@ -113,7 +115,6 @@ runtime/NMT/VirtualAllocCommitMerge.java 8309698 linux-s390x
 applications/jcstress/copy.java 8229852 linux-all
 
 containers/docker/TestJcmd.java 8278102 linux-all
-containers/docker/TestMemoryAwareness.java 8303470 linux-all
 containers/docker/TestJFREvents.java 8327723 linux-x64
 containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 
@@ -199,9 +200,6 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 # Valhalla failures start here:
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
-runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java 8377009 generic-all
-runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java 8377009 generic-all
-
 serviceability/sa/ClhsdbCDSCore.java   8377324 generic-all
 serviceability/sa/TestPrintMdo.java    8377324 generic-all
 
@@ -209,7 +207,7 @@ vmTestbase/vm/mlvm/hiddenloader/stress/byteMutation/Test.java 8317172 generic-al
 vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64
 
-# The following test failures DID NOT reproduce during Tier[1-8] testing 
+# The following test failures DID NOT reproduce during Tier[1-8] testing
 # done for 8377828. Further analysis is being done with 8376235:
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
@@ -217,7 +215,5 @@ compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
 compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
-
-runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
 
 vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64

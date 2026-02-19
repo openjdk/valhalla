@@ -205,14 +205,6 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
 
   __ bind(runtime);
 
-  // save the live input values
-  RegSet saved = RegSet::of(pre_val);
-  FloatRegSet fsaved;
-
-  // Barriers might be emitted when converting between (scalarized) calling
-  // conventions for inline types. Save all argument registers before calling
-  // into the runtime.
-
   assert_different_registers(rscratch1, pre_val); // push_call_clobbered_registers trashes rscratch1
   __ push_call_clobbered_registers();
 

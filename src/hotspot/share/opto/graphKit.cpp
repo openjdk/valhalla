@@ -3009,7 +3009,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // will always succeed.  We could leave a dependency behind to ensure this.
 
   // First load the super-klass's check-offset
-  Node *p1 = gvn.transform(new AddPNode(superklass, superklass, gvn.MakeConX(in_bytes(Klass::super_check_offset_offset()))));
+  Node *p1 = gvn.transform(new AddPNode(C->top(), superklass, gvn.MakeConX(in_bytes(Klass::super_check_offset_offset()))));
   Node* m = C->immutable_memory();
   Node *chk_off = gvn.transform(new LoadINode(nullptr, m, p1, gvn.type(p1)->is_ptr(), TypeInt::INT, MemNode::unordered));
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
@@ -3027,7 +3027,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
 #ifdef _LP64
   chk_off_X = gvn.transform(new ConvI2LNode(chk_off_X));
 #endif
-  Node *p2 = gvn.transform(new AddPNode(subklass,subklass,chk_off_X));
+  Node* p2 = gvn.transform(new AddPNode(C->top(), subklass, chk_off_X));
   // For some types like interfaces the following loadKlass is from a 1-word
   // cache which is mutable so can't use immutable memory.  Other
   // types load from the super-class display table which is immutable.
@@ -3842,7 +3842,7 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
     // Make loads control dependent to make sure they are only executed if array is locked
     Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
     Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-    Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+    Node* proto_adr = basic_plus_adr(top(), klass, in_bytes(Klass::prototype_header_offset()));
     Node* proto = _gvn.transform(LoadNode::make(_gvn, control(), C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
 
     locked_region->init_req(2, control());
@@ -3890,7 +3890,7 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
 
   Node* array_klass = load_object_klass(array);
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
-  Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
+  Node* layout_kind_addr = basic_plus_adr(top(), array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
   Node* cmp = _gvn.transform(new CmpINode(layout_kind, intcon((int)LayoutKind::NULL_FREE_ATOMIC_FLAT)));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -4128,7 +4128,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     }
   }
   constant_value = Klass::_lh_neutral_value;  // put in a known value
-  Node* lhp = basic_plus_adr(klass_node, klass_node, in_bytes(Klass::layout_helper_offset()));
+  Node* lhp = basic_plus_adr(top(), klass_node, in_bytes(Klass::layout_helper_offset()));
   return make_load(nullptr, lhp, TypeInt::INT, T_INT, MemNode::unordered);
 }
 
