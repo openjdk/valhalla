@@ -1269,10 +1269,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     if (protection_domain.not_null()) {
       set_protection_domain(mirror(), protection_domain());
     }
-  } else {
+  } else if (k->is_objArray_klass()) {
     ObjArrayKlass* objarray_k = (ObjArrayKlass*)as_Klass(m);
     // Mirror should be restored for an ObjArrayKlass or one of its refined array klasses
-    assert(objarray_k == k || objarray_k->next_refined_array_klass() == k, "must be");
+    assert(objarray_k == k || objarray_k->find_refined_array_klass((ObjArrayKlass*)k), "must be");
   }
 
   assert(class_loader() == k->class_loader(), "should be same");
@@ -1288,6 +1288,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     ResourceMark rm(THREAD);
     log_trace(aot, heap, mirror)(
         "Restored %s archived mirror " PTR_FORMAT, k->external_name(), p2i(mirror()));
+  }
+
+  if (CDSConfig::is_dumping_heap() && (!k->is_refined_objArray_klass())) {
+    create_scratch_mirror(k, CHECK_(false));
   }
 
   return true;
@@ -4480,12 +4484,12 @@ void jdk_internal_foreign_abi_CallConv::serialize_offsets(SerializeClosure* f) {
 }
 #endif
 
-objArrayOop jdk_internal_foreign_abi_CallConv::argRegs(oop entry) {
-  return oop_cast<objArrayOop>(entry->obj_field(_argRegs_offset));
+refArrayOop jdk_internal_foreign_abi_CallConv::argRegs(oop entry) {
+  return oop_cast<refArrayOop>(entry->obj_field(_argRegs_offset));
 }
 
-objArrayOop jdk_internal_foreign_abi_CallConv::retRegs(oop entry) {
-  return oop_cast<objArrayOop>(entry->obj_field(_retRegs_offset));
+refArrayOop jdk_internal_foreign_abi_CallConv::retRegs(oop entry) {
+  return oop_cast<refArrayOop>(entry->obj_field(_retRegs_offset));
 }
 
 oop java_lang_invoke_MethodHandle::type(oop mh) {

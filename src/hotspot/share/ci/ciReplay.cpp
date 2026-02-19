@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -513,8 +513,8 @@ class CompileReplay : public StackObj {
       }
       obj = ciReplay::obj_field(obj, field);
       // TODO 8350865 I think we need to handle null-free/flat arrays here
-      if (obj != nullptr && obj->is_objArray()) {
-        objArrayOop arr = (objArrayOop)obj;
+      if (obj != nullptr && obj->is_refArray()) {
+        refArrayOop arr = refArrayOopDesc::cast(obj);
         int index = parse_int("index");
         if (index >= arr->length()) {
           report_error("bad array index");
@@ -866,7 +866,7 @@ class CompileReplay : public StackObj {
       if (had_error()) {
         return;
       }
-      if (Arguments::is_valhalla_enabled() && _version >= 3 && k != nullptr && k->is_objArray_klass()) {
+      if (_version >= 3 && k != nullptr && k->is_objArray_klass()) {
         k = create_concrete_object_array_klass(ObjArrayKlass::cast(k), THREAD);
       }
       rec->_classes_offsets[i] = offset;
@@ -892,11 +892,16 @@ class CompileReplay : public StackObj {
   ObjArrayKlass* create_concrete_object_array_klass(ObjArrayKlass* obj_array_klass, TRAPS) {
     ArrayKlass::ArrayProperties array_properties =
     static_cast<ArrayKlass::ArrayProperties>(parse_int("array_properties"));
+    if (!Arguments::is_valhalla_enabled()) {
+      // Ignore array properties.
+      return obj_array_klass;
+    }
+
     if (array_properties != ArrayKlass::DEFAULT &&
         array_properties != ArrayKlass::NULL_RESTRICTED &&
         array_properties != ArrayKlass::NON_ATOMIC &&
         array_properties != (ArrayKlass::NULL_RESTRICTED | ArrayKlass::NON_ATOMIC)) {
-      guarantee(false, "invalid array_properties: %d, fall back to DEFAULT", array_properties);
+      guarantee(false, "invalid array_properties: %d", array_properties);
     }
 
     return obj_array_klass->klass_with_properties(array_properties, THREAD);

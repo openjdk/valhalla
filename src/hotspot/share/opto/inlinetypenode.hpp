@@ -136,7 +136,8 @@ public:
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Implementation of the substitutability check for acmp
-  static Node* emit_substitutability_check(GraphKit* kit, Node* lhs, Node* rhs);
+  bool can_emit_substitutability_check(Node* other) const;
+  void check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* other, bool flat = false) const;
 
   // Allocates the inline type (if not yet allocated)
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);
@@ -187,6 +188,7 @@ public:
   static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
   Node* base() const { return in(TypeFunc::Parms); }
   Node* ptr() const { return in(TypeFunc::Parms + 1); }
+  bool expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const;
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 
