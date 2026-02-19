@@ -70,7 +70,7 @@ public class TestInliningProtectionDomain extends InliningBase {
 
         if (inlineFails) {
             Asserts.assertTrue(inlineesNormal.get(0).compare("compiler.ciReplay.ProtectionDomainTestNoOtherCompilationPrivate", "bar", inlineesNormal.get(0).isUnloadedSignatureClasses()));
-            Asserts.assertTrue(inlineesReplay.get(0).compare("compiler.ciReplay.ProtectionDomainTestNoOtherCompilationPrivate", "bar", inlineesReplay.get(0).isDisallowedByReplay()));
+            Asserts.assertTrue(inlineesReplay.get(0).compare("compiler.ciReplay.ProtectionDomainTestNoOtherCompilationPrivate", "bar", inlineesReplay.get(0).isUnloadedSignatureClasses()));
         } else {
             Asserts.assertTrue(inlineesNormal.get(4).compare("compiler.ciReplay.InliningBar", "bar2", inlineesNormal.get(4).isNormalInline()));
             Asserts.assertTrue(inlineesReplay.get(4).compare("compiler.ciReplay.InliningBar", "bar2", inlineesReplay.get(4).isForcedByReplay() || inlineesReplay.get(4).isForcedIncrementalInlineByReplay()));
@@ -92,9 +92,9 @@ class ProtectionDomainTestCompiledBefore {
         bar();
     }
 
-    // Record should be resolved for the protection domain of this class because the separate compilation of bar() in
+    // SigType should be resolved for the protection domain of this class because the separate compilation of bar() in
     // the normal run will resolve all classes in the signature. Inlining succeeds.
-    private static Record bar() {
+    private static SigType bar() {
         InliningFoo.foo();
         return null;
     }
@@ -111,10 +111,10 @@ class ProtectionDomainTestNoOtherCompilationPublic {
         bar(); // Not compiled before separately
     }
 
-    // Record should be resolved for the protection domain of this class because getDeclaredMethods is called in normal run
+    // SigType should be resolved for the protection domain of this class because getDeclaredMethods is called in normal run
     // when validating main() method. In this process, all public methods of this class are visited and its signature classes
     // are resolved. Inlining of bar() succeeds.
-    public static Record bar() {
+    public static SigType bar() {
         InliningFoo.foo();
         return null;
     }
@@ -131,12 +131,12 @@ class ProtectionDomainTestNoOtherCompilationPrivate {
         bar(); // Not compiled before separately
     }
 
-    // Record should be unresolved for the protection domain of this class even though getDeclaredMethods is called in normal
+    // SigType should be unresolved for the protection domain of this class even though getDeclaredMethods is called in normal
     // run when validating main() method. In this process, only public methods of this class are visited and its signature
     // classes are resolved. Since this method is private, the signature classes are not resolved for this protection domain.
     // Inlining of bar() should fail in normal run with "unresolved signature classes". Therefore, replay compilation should
     // also not inline bar().
-    private static Record bar() {
+    private static SigType bar() {
         InliningFoo.foo();
         return null;
     }
@@ -181,3 +181,6 @@ class InliningBar {
 
     private static void bar2() {}
 }
+
+class SigType {}
+

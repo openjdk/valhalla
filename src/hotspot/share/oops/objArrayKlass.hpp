@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,7 @@ class ObjArrayKlass : public ArrayKlass {
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
-  ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
+  ObjArrayKlass* allocate_klass_from_description(ArrayDescription ad, TRAPS);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
    // Create array_name for element klass
@@ -73,8 +73,10 @@ class ObjArrayKlass : public ArrayKlass {
   inline ObjArrayKlass* next_refined_array_klass_acquire() const;
   void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
   inline void release_set_next_refined_klass(ObjArrayKlass* ak);
-  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
+  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
+  ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
   static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+  bool find_refined_array_klass(ObjArrayKlass* k);
 
   // Compiler/Interpreter offset
   static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }

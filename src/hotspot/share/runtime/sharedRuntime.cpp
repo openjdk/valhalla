@@ -1634,19 +1634,27 @@ JRT_END
 // otherwise return c2i entry.
 address SharedRuntime::get_resolved_entry(JavaThread* current, methodHandle callee_method,
                                           bool is_static_call, bool is_optimized, bool caller_does_not_scalarize) {
-  if (current->is_interp_only_mode() && !callee_method->is_special_native_intrinsic()) {
-    // In interp_only_mode we need to go to the interpreted entry
-    // The c2i won't patch in this mode -- see fixup_callers_callsite
-    return callee_method->get_c2i_entry();
-  }
+  bool is_interp_only_mode = (StressCallingConvention && (os::random() % (1 << 10)) == 0) || current->is_interp_only_mode();
+  // In interp_only_mode we need to go to the interpreted entry
+  // The c2i won't patch in this mode -- see fixup_callers_callsite
+  bool go_to_interpreter = is_interp_only_mode && !callee_method->is_special_native_intrinsic();
 
   if (caller_does_not_scalarize) {
+    if (go_to_interpreter) {
+      return callee_method->get_c2i_inline_entry();
+    }
     assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
     return callee_method->verified_inline_code_entry();
   } else if (is_static_call || is_optimized) {
+    if (go_to_interpreter) {
+      return callee_method->get_c2i_entry();
+    }
     assert(callee_method->verified_code_entry() != nullptr, "Jump to zero!");
     return callee_method->verified_code_entry();
   } else {
+    if (go_to_interpreter) {
+      return callee_method->get_c2i_inline_ro_entry();
+    }
     assert(callee_method->verified_inline_ro_code_entry() != nullptr, "Jump to zero!");
     return callee_method->verified_inline_ro_code_entry();
   }

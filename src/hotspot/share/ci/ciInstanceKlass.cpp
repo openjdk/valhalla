@@ -71,6 +71,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _is_record = ik->is_record();
   _declared_nonstatic_fields = nullptr; // initialized lazily by compute_nonstatic_fields
   _nonstatic_fields = nullptr;          // initialized lazily by compute_nonstatic_fields
+  _trust_final_fields = ik->trust_final_fields();
   _has_injected_fields = -1;
   _implementor = nullptr;               // we will fill these lazily
   _transitive_interfaces = nullptr;
@@ -438,7 +439,6 @@ ciField* ciInstanceKlass::get_non_flat_field_by_offset(int field_offset) {
 }
 
 int ciInstanceKlass::field_index_by_offset(int offset) {
-  assert(contains_field_offset(offset), "invalid field offset");
   int best_offset = 0;
   int best_index = -1;
   // Search the field with the given offset

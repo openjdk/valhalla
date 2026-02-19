@@ -110,7 +110,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 }
 
 void Parse::do_get_xxx(Node* obj, ciField* field) {
-  obj = cast_to_non_larval(obj);
   BasicType bt = field->layout_type();
   // Does this field have a constant value?  If so, just push the value.
   if (field->is_constant() && !field->is_flat() &&
@@ -267,7 +266,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
   }
 
-  val = cast_to_non_larval(val);
   Node* adr = basic_plus_adr(obj, obj, offset);
 
   // We cannot store into a non-larval object, so obj must not be an InlineTypeNode

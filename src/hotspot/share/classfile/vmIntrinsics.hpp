@@ -764,7 +764,6 @@ class methodHandle;
   do_name(getLong_name,"getLong")               do_name(putLong_name,"putLong")                                         \
   do_name(getFloat_name,"getFloat")             do_name(putFloat_name,"putFloat")                                       \
   do_name(getDouble_name,"getDouble")           do_name(putDouble_name,"putDouble")                                     \
-  do_name(getValue_name,"getValue")             do_name(putValue_name,"putValue")                                       \
   do_name(getFlatValue_name,"getFlatValue")     do_name(putFlatValue_name,"putFlatValue")                               \
                                                                                                                         \
   do_intrinsic(_getReference,       jdk_internal_misc_Unsafe,     getReference_name, getReference_signature,     F_RN)  \
