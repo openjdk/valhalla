@@ -43,7 +43,6 @@ class flatArrayOopDesc : public objArrayOopDesc {
   size_t value_offset(int index, jint lh) const;
   size_t value_offset_from_base(int index, jint lh) const;
 
-  inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;
   inline jboolean null_marker_of_obj_at(int index) const;
   inline jboolean null_marker_of_obj_at(int index, TRAPS) const;
