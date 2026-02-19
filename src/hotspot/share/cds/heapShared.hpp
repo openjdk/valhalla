@@ -478,7 +478,6 @@ private:
 
   static bool has_been_archived(oop orig_obj);
   static void prepare_resolved_references();
-  static void archive_strings();
   static void archive_subgraphs();
   static void copy_java_mirror(oop orig_mirror, oop scratch_m);
 

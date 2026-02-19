@@ -189,6 +189,9 @@ public:
   static bool is_dumping_heap()                              NOT_CDS_JAVA_HEAP_RETURN_(false);
   static bool is_loading_heap()                              NOT_CDS_JAVA_HEAP_RETURN_(false);
 
+  static bool is_dumping_klass_subgraphs()                   NOT_CDS_JAVA_HEAP_RETURN_(false);
+  static bool is_using_klass_subgraphs()                     NOT_CDS_JAVA_HEAP_RETURN_(false);
+
   static bool is_dumping_invokedynamic()                     NOT_CDS_JAVA_HEAP_RETURN_(false);
   static bool is_dumping_method_handles()                    NOT_CDS_JAVA_HEAP_RETURN_(false);
 

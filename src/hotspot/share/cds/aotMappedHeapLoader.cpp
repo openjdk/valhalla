@@ -360,10 +360,8 @@ bool AOTMappedHeapLoader::load_heap_region(FileMapInfo* mapinfo) {
 }
 
 refArrayOop AOTMappedHeapLoader::root_segment(int segment_idx) {
-  if (CDSConfig::is_dumping_heap()) {
-    assert(Thread::current() == (Thread*)VMThread::vm_thread(), "should be in vm thread");
-  } else {
-    assert(CDSConfig::is_using_archive(), "must be");
+  if (!CDSConfig::is_using_archive()) {
+    assert(CDSConfig::is_dumping_heap() && Thread::current() == (Thread*)VMThread::vm_thread(), "sanity");
   }
 
   oop segment = _root_segments->at(segment_idx).resolve();
@@ -465,7 +463,9 @@ void AOTMappedHeapLoader::finish_initialization(FileMapInfo* info) {
       add_root_segment(refArrayOopDesc::cast(segment_oop));
     }
 
-    StringTable::load_shared_strings_array();
+    if (CDSConfig::is_dumping_final_static_archive()) {
+      StringTable::move_shared_strings_into_runtime_table();
+    }
   }
 }
 
