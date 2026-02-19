@@ -308,10 +308,10 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
           src += src_incr;
         }
       }
-    } else { // flatArray-to-objArray
+    } else { // flatArray-to-refArray
       assert(dk->is_refArray_klass(), "Expected objArray here");
       // Need to allocate each new src elem payload -> dst oop
-      objArrayHandle dh(THREAD, (objArrayOop)d);
+      refArrayHandle dh(THREAD, (refArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
       InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
@@ -320,9 +320,9 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       }
     }
   } else {
-    assert(s->is_objArray(), "Expected objArray");
-    objArrayOop sa = objArrayOop(s);
-    assert(d->is_flatArray(), "Expected flatArray");  // objArray-to-flatArray
+    assert(s->is_refArray(), "Expected refArray");
+    refArrayOop sa = refArrayOop(s);
+    assert(d->is_flatArray(), "Expected flatArray");  // refArray-to-flatArray
     InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
     flatArrayOop da = flatArrayOop(d);
     FlatArrayKlass* fdk = FlatArrayKlass::cast(da->klass());

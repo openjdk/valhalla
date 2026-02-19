@@ -276,7 +276,8 @@ module java.base {
         jdk.httpserver,
         jdk.jlink,
         jdk.jpackage,
-        jdk.net;
+        jdk.net,
+        jdk.security.auth;
     exports sun.net to
         java.net.http,
         jdk.naming.dns;
