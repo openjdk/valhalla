@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,10 @@ public:
 
   virtual ciType* unwrap()                  { return this; }
   virtual bool is_null_free() const         { return false; }
+
+  virtual bool can_be_inline_klass(bool is_exact = false) {
+    return false;
+  }
 
   const char* name();
   virtual void print_name_on(outputStream* st);

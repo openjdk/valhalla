@@ -661,7 +661,7 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
       if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;
       }
-    } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
+    } else if (ft->can_be_inline_klass()) {
       // Comparing this field might require (another) substitutability check, bail out
       return false;
     }
@@ -759,7 +759,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
       done_region->add_req(*ctrl);
       *ctrl = igvn->register_new_node_with_optimizer(done_region);
     } else {
-      assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
+      assert(!ft->can_be_inline_klass(), "Needs substitutability test");
       acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, this_field, other_field);
     }
   }
