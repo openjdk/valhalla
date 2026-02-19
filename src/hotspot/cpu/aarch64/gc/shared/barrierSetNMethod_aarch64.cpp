@@ -236,6 +236,10 @@ void BarrierSetNMethod::set_guard_value(nmethod* nm, int value, int bit_mask) {
     bs_asm->increment_patching_epoch();
   }
 
+  // Enable WXWrite: the function is called directly from nmethod_entry_barrier
+  // stub.
+  MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXWrite, Thread::current()));
+
   set_value(nm, value, bit_mask);
 }
 

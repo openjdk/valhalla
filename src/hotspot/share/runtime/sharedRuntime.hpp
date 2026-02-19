@@ -26,7 +26,6 @@
 #define SHARE_RUNTIME_SHAREDRUNTIME_HPP
 
 #include "asm/codeBuffer.hpp"
-#include "classfile/compactHashtable.hpp"
 #include "code/codeBlob.hpp"
 #include "code/vmreg.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -40,6 +39,7 @@
 class AdapterHandlerEntry;
 class AdapterFingerPrint;
 class MetaspaceClosure;
+class SerializeClosure;
 class vframeStream;
 class SigEntry;
 
