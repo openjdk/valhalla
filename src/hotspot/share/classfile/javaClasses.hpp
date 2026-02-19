@@ -1205,9 +1205,9 @@ class jdk_internal_foreign_abi_ABIDescriptor: AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
   // Accessors
-  static objArrayOop inputStorage(oop entry);
-  static objArrayOop outputStorage(oop entry);
-  static objArrayOop volatileStorage(oop entry);
+  static refArrayOop inputStorage(oop entry);
+  static refArrayOop outputStorage(oop entry);
+  static refArrayOop volatileStorage(oop entry);
   static jint        stackAlignment(oop entry);
   static jint        shadowSpace(oop entry);
   static oop         scratch1(oop entry);

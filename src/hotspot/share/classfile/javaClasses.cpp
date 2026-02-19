@@ -4375,16 +4375,16 @@ void jdk_internal_foreign_abi_ABIDescriptor::serialize_offsets(SerializeClosure*
 }
 #endif
 
-objArrayOop jdk_internal_foreign_abi_ABIDescriptor::inputStorage(oop entry) {
-  return oop_cast<objArrayOop>(entry->obj_field(_inputStorage_offset));
+refArrayOop jdk_internal_foreign_abi_ABIDescriptor::inputStorage(oop entry) {
+  return oop_cast<refArrayOop>(entry->obj_field(_inputStorage_offset));
 }
 
-objArrayOop jdk_internal_foreign_abi_ABIDescriptor::outputStorage(oop entry) {
-  return oop_cast<objArrayOop>(entry->obj_field(_outputStorage_offset));
+refArrayOop jdk_internal_foreign_abi_ABIDescriptor::outputStorage(oop entry) {
+  return oop_cast<refArrayOop>(entry->obj_field(_outputStorage_offset));
 }
 
-objArrayOop jdk_internal_foreign_abi_ABIDescriptor::volatileStorage(oop entry) {
-  return oop_cast<objArrayOop>(entry->obj_field(_volatileStorage_offset));
+refArrayOop jdk_internal_foreign_abi_ABIDescriptor::volatileStorage(oop entry) {
+  return oop_cast<refArrayOop>(entry->obj_field(_volatileStorage_offset));
 }
 
 jint jdk_internal_foreign_abi_ABIDescriptor::stackAlignment(oop entry) {
