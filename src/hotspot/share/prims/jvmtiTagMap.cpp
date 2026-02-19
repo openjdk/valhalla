@@ -37,12 +37,14 @@
 #include "oops/arrayOop.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiImpl.hpp"
@@ -289,7 +291,9 @@ public:
     for (int i = 0; i < _entries.length(); i++) {
       EXCEPTION_MARK;
       Entry& entry = _entries.at(i);
-      oop obj = entry.inline_klass->read_payload_from_addr(entry.holder(), entry.offset, entry.layout_kind, JavaThread::current());
+      FlatValuePayload payload = FlatValuePayload::construct_from_parts(
+          entry.holder(), entry.offset, entry.inline_klass, entry.layout_kind);
+      oop obj = payload.read(JavaThread::current());
 
       if (HAS_PENDING_EXCEPTION) {
         tty->print_cr("Exception in JvmtiTagMapFlatEntryConverter: ");

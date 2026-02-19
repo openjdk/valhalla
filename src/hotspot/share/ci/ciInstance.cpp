@@ -34,6 +34,7 @@
 #include "oops/fieldStreams.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 
 // ciInstance
 //
@@ -85,7 +86,8 @@ ciConstant ciInstance::field_value_impl(ciField* field) {
       if (field->is_flat()) {
         assert(field->is_atomic(), "do not query atomically a non-atomic flat field");
         InlineKlass* vk = field->type()->as_inline_klass()->get_InlineKlass();
-        oop res = vk->read_payload_from_addr(obj, offset, field->layout_kind(), THREAD);
+        FlatValuePayload payload = FlatValuePayload::construct_from_parts(obj, offset, vk, field->layout_kind());
+        oop res = payload.read(THREAD);
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
           return ciConstant();

@@ -72,7 +72,8 @@ namespace AccessInternal {
     BARRIER_ATOMIC_XCHG_AT,
     BARRIER_ARRAYCOPY,
     BARRIER_CLONE,
-    BARRIER_VALUE_COPY
+    BARRIER_VALUE_COPY,
+    BARRIER_VALUE_STORE_NULL,
   };
 
   template <DecoratorSet decorators, typename T>
@@ -113,7 +114,8 @@ namespace AccessInternal {
                                               arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                               size_t length);
     typedef void (*clone_func_t)(oop src, oop dst, size_t size);
-    typedef void (*value_copy_func_t)(void* src, void* dst, InlineKlass* md, LayoutKind lk);
+    typedef void (*value_copy_func_t)(const ValuePayload& src, const ValuePayload& dst);
+    typedef void (*value_store_null_func_t)(const ValuePayload& dst);
   };
 
   template <DecoratorSet decorators>
@@ -141,6 +143,7 @@ namespace AccessInternal {
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_ARRAYCOPY, arraycopy_func_t);
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_CLONE, clone_func_t);
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_VALUE_COPY, value_copy_func_t);
+  ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_VALUE_STORE_NULL, value_store_null_func_t);
 #undef ACCESS_GENERATE_ACCESS_FUNCTION
 
   template <DecoratorSet decorators, typename T, BarrierType barrier_type>
@@ -168,6 +171,7 @@ namespace AccessInternal {
   void arraycopy_conjoint_atomic(T* src, T* dst, size_t length);
 
   void value_copy_internal(void* src, void* dst, size_t length);
+  void value_store_null(void* dst, size_t length);
 }
 
 // This mask specifies what decorators are relevant for raw accesses. When passing
@@ -357,8 +361,8 @@ public:
                             size_t length);
 
   static void clone(oop src, oop dst, size_t size);
-  static void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk);
-
+  static void value_copy(const ValuePayload& src, const ValuePayload& dst);
+  static void value_store_null(const ValuePayload& dst);
 };
 
 namespace AccessInternal {
@@ -560,10 +564,22 @@ namespace AccessInternal {
     typedef typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type func_t;
     static func_t _value_copy_func;
 
-    static void value_copy_init(void* src, void* dst, InlineKlass* md, LayoutKind lk);
+    static void value_copy_init(const ValuePayload& src, const ValuePayload& dst);
 
-    static inline void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-      _value_copy_func(src, dst, md, lk);
+    static inline void value_copy(const ValuePayload& src, const ValuePayload& dst) {
+      _value_copy_func(src, dst);
+    }
+  };
+
+  template <DecoratorSet decorators, typename T>
+  struct RuntimeDispatch<decorators, T, BARRIER_VALUE_STORE_NULL>: AllStatic {
+    typedef typename AccessFunction<decorators, T, BARRIER_VALUE_STORE_NULL>::type func_t;
+    static func_t _value_store_null_func;
+
+    static void value_store_null_init(const ValuePayload& dst);
+
+    static inline void value_store_null(const ValuePayload& dst) {
+      _value_store_null_func(dst);
     }
   };
 
@@ -611,6 +627,10 @@ namespace AccessInternal {
   template <DecoratorSet decorators, typename T>
   typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type
   RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::_value_copy_func = &value_copy_init;
+
+  template <DecoratorSet decorators, typename T>
+  typename AccessFunction<decorators, T, BARRIER_VALUE_STORE_NULL>::type
+  RuntimeDispatch<decorators, T, BARRIER_VALUE_STORE_NULL>::_value_store_null_func = &value_store_null_init;
 
   // Step 3: Pre-runtime dispatching.
   // The PreRuntimeDispatch class is responsible for filtering the barrier strength
@@ -932,17 +952,33 @@ namespace AccessInternal {
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       HasDecorator<decorators, AS_RAW>::value>::type
-    value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+    value_copy(const ValuePayload& src, const ValuePayload& dst) {
       typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
-      Raw::value_copy(src, dst, md, lk);
+      Raw::value_copy(src, dst);
     }
 
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       !HasDecorator<decorators, AS_RAW>::value>::type
-      value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+    value_copy(const ValuePayload& src, const ValuePayload& dst) {
       const DecoratorSet expanded_decorators = decorators;
-      RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md, lk);
+      RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst);
+    }
+
+    template <DecoratorSet decorators>
+    inline static typename EnableIf<
+      HasDecorator<decorators, AS_RAW>::value>::type
+    value_store_null(const ValuePayload& dst) {
+      typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
+      Raw::value_store_null(dst);
+    }
+
+    template <DecoratorSet decorators>
+    inline static typename EnableIf<
+      !HasDecorator<decorators, AS_RAW>::value>::type
+    value_store_null(const ValuePayload& dst) {
+      const DecoratorSet expanded_decorators = decorators;
+      RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_STORE_NULL>::value_store_null(dst);
     }
   };
 
@@ -1237,9 +1273,15 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators>
-  inline void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+  inline void value_copy(const ValuePayload& src, const ValuePayload& dst) {
     const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
-    PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md, lk);
+    PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst);
+  }
+
+  template <DecoratorSet decorators>
+  static inline void value_store_null(const ValuePayload& dst) {
+    const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
+    PreRuntimeDispatch::value_store_null<expanded_decorators>(dst);
   }
 
   // Infer the type that should be returned from an Access::oop_load.

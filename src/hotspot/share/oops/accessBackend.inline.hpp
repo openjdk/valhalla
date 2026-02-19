@@ -32,7 +32,9 @@
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/orderAccess.hpp"
 
@@ -331,9 +333,26 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
 }
 
 template <DecoratorSet decorators>
-inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-  assert(is_aligned(src, md->layout_alignment(lk)) && is_aligned(dst, md->layout_alignment(lk)), "Unaligned value_copy");
-  AccessInternal::value_copy_internal(src, dst, static_cast<size_t>(md->layout_size_in_bytes(lk)));
+inline void RawAccessBarrier<decorators>::value_copy(const ValuePayload& src, const ValuePayload& dst) {
+  precond(src.klass() == dst.klass());
+
+  const InlineKlass* klass = src.klass();
+  const LayoutKind copy_layout = LayoutKindHelper::get_copy_layout(
+      src.layout_kind(), dst.layout_kind());
+  const int size = klass->layout_size_in_bytes(copy_layout);
+
+  AccessInternal::value_copy_internal(src.addr(), dst.addr(),
+                                      static_cast<size_t>(size));
+}
+
+template <DecoratorSet decorators>
+inline void RawAccessBarrier<decorators>::value_store_null(const ValuePayload& dst) {
+  address dst_addr = dst.addr();
+  const LayoutKind lk = dst.layout_kind();
+  const InlineKlass* klass = dst.klass();
+  const int size = klass->layout_size_in_bytes(lk);
+
+  AccessInternal::value_store_null(dst_addr, static_cast<size_t>(size));
 }
 
 #endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

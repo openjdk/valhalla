@@ -32,6 +32,7 @@
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "runtime/globals.hpp"
 
 inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
@@ -41,14 +42,28 @@ inline flatArrayOop flatArrayOopDesc::cast(oop o) {
   return (flatArrayOop)o;
 }
 
+inline size_t flatArrayOopDesc::base_offset_in_bytes() {
+  return static_cast<size_t>(arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT));
+}
+
 inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");
 
   address array_base = (address) base();
-  ptrdiff_t offset = (ptrdiff_t) index << Klass::layout_helper_log2_element_size(lh);
+  size_t offset = value_offset_from_base(index, lh);
   address addr = array_base + offset;
   assert(addr >= array_base, "must be");
   return (void*) addr;
+}
+
+inline size_t flatArrayOopDesc::value_offset(int index, jint lh) const {
+  assert(is_within_bounds(index), "index out of bounds");
+  return base_offset_in_bytes() + value_offset_from_base(index, lh);
+}
+
+inline size_t flatArrayOopDesc::value_offset_from_base(int index, jint lh) const {
+  assert(is_within_bounds(index), "index out of bounds");
+  return static_cast<size_t>(index) << Klass::layout_helper_log2_element_size(lh);
 }
 
 inline int flatArrayOopDesc::object_size(int lh) const {
@@ -63,13 +78,8 @@ inline oop flatArrayOopDesc::obj_at(int index) const {
 
 inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  char* this_oop = (char*) (oopDesc*) this;
-  char* val = (char*) value_at_addr(index, faklass->layout_helper());
-  ptrdiff_t offset = val - this_oop;
-  oop res = vk->read_payload_from_addr((oopDesc*)this, offset, faklass->layout_kind(), CHECK_NULL);
-  return res;
+  FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
+  return payload.read(THREAD);
 }
 
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
@@ -103,7 +113,10 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   } else if(is_null_free_array()) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
-  vk->write_value_to_addr(value, value_at_addr(index, faklass->layout_helper()), faklass->layout_kind(), CHECK);
+
+  FlatArrayPayload payload(flatArrayOop(this), index, faklass);
+  // The value and klass has already been checked for null compatibility.
+  payload.write_without_nullability_check(inlineOop(value));
 }
 
 #endif // SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP

@@ -63,6 +63,7 @@ class oopFactory: AllStatic {
   static refArrayOop     new_refArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Factory to create flat arrays.
+  static flatArrayOop    new_flatArray(FlatArrayKlass* klass, int length, TRAPS);
   static flatArrayOop    new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
 
   // Helper that returns a Handle

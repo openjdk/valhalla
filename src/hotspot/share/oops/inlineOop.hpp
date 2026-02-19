@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,17 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
-#define SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
+#ifndef SHARE_OOPS_INLINEOOP_HPP
+#define SHARE_OOPS_INLINEOOP_HPP
 
-#include "memory/allocation.hpp"
-#include "oops/inlineKlass.hpp"
-#include "oops/oopsHierarchy.hpp"
-#include "utilities/globalDefinitions.hpp"
-#include "utilities/macros.hpp"
 
-class oopDesc;
-class JavaThread;
+#include "oops/instanceOop.hpp"
 
-class BarrierSetRuntime: public AllStatic {
-public:
-  // Template interpreter...
-  static void value_copy(address src, address dst, InlineLayoutInfo* layout_info);
-  static void value_copy_is_dest_uninitialized(address src, address dst, InlineLayoutInfo* layout_info);
+// A buffered object of a java value class InlineKlass.
+class inlineOopDesc : public instanceOopDesc {
 };
 
-#endif // SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
+// See similar requirement for instanceOopDesc.
+static_assert(std::is_trivially_default_constructible<inlineOopDesc>::value, "required");
+
+#endif // SHARE_OOPS_INLINEOOP_HPP
