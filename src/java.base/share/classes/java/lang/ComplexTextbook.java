@@ -118,21 +118,21 @@ public final /* value */ class ComplexTextbook  {
 
     /**
      * A complex number with the value of zero, both real and
-     * imaginary components of +0.0.
+     * imaginary components of {@code +0.0}.
      *
      * @see #isZero(ComplexTextbook)
      */
     public static final ComplexTextbook ZERO = valueOf(0.0, 0.0);
 
     /**
-     * A complex number with a real component of 1.0 and a 0.0
+     * A complex number with a real component of {@code 1.0} and a {@code 0.0}
      * imaginary component.
      */
     public static final ComplexTextbook ONE = valueOf(1.0, 0.0);
 
     /**
      * A complex number with a real component of positive infinity and
-     * a 0.0 imaginary component.
+     * a {@code 0.0} imaginary component.
      *
      * @see #isInfinite(ComplexTextbook)
      * @see #proj(ComplexTextbook)

@@ -114,20 +114,20 @@ public final /* value */ class ComplexPolarTextbook  {
 
     /**
      * A complex number with the value of zero, both magnitude and
-     * angle are 0.0.
+     * angle are {@code 0.0}.
      *
      * @see #isZero(ComplexPolarTextbook)
      */
     public static final ComplexPolarTextbook ZERO = valueOf(0.0, 0.0);
 
     /**
-     * A complex number with a magnitude of 1.0 and an angle of 0.0.
+     * A complex number with a magnitude of {@code 1.0} and an angle of {@code 0.0}.
      */
     public static final ComplexPolarTextbook ONE = valueOf(1.0, 0.0);
 
     /**
-     * A complex number with a magnitude of of positive infinity and a
-     * 0.0 angle.
+     * A complex number with a magnitude of positive infinity and a
+     * {@code 0.0} angle.
      *
      * @see #isInfinite(ComplexPolarTextbook)
      * @see #proj(ComplexPolarTextbook)
@@ -157,7 +157,10 @@ public final /* value */ class ComplexPolarTextbook  {
 
     /**
      * {@return a complex number with magnitude and angle components
-     * equivalent to the magnitude and angle  arguments, respectively}
+     * equivalent to the magnitude and angle arguments, respectively}
+     *
+     * @apiNote
+     * No attempt is made to normalize the angle &theta;.
      *
      * @param r the magnitude of the complex number
      * @param theta the angle of the complex number
@@ -179,11 +182,16 @@ public final /* value */ class ComplexPolarTextbook  {
 
     /**
      * {@return a complex number of polar coordinates computed from
-     * from a complex number using real and imaginary components}
+     * a complex number using real and imaginary components}
      *
      * @implSpec
      * {@link ComplexTextbook#abs(ComplexTextbook) abs} and
      * {@link Math#atan2(double, double) atan2}
+     *
+     * @apiNote
+     * As a consequence of how the method is required to be
+     * implemented, the angle &theta; will be normalied to be in the range
+     * between &plusmn;&pi; and &pi;.
      *
      * @param c a complex number using real and imaginary components
      */
@@ -281,6 +289,11 @@ public final /* value */ class ComplexPolarTextbook  {
      * @implSpec
      * TBD
      *
+     * @apiNote
+     * As a consequence of how the method is required to be
+     * implemented, the angle &theta; will be normalied to be in the range
+     * between &plusmn;&pi; and &pi;.
+     *
      * @param addend the first operand
      * @param augend the second operand
      * @return the sum of the operands
@@ -297,6 +310,11 @@ public final /* value */ class ComplexPolarTextbook  {
      *
      * @implSpec
      * TBD
+     *
+     * @apiNote
+     * As a consequence of how the method is required to be
+     * implemented, the angle &theta; will be normalied to be in the range
+     * between &plusmn;&pi; and &pi;.
      *
      * @param minuend the first operand
      * @param subtrahend the second operand
@@ -317,6 +335,9 @@ public final /* value */ class ComplexPolarTextbook  {
      * The computed product is calculated as
      * (<i>r</i><sub>1</sub>&middot;<i>r</i><sub>2</sub> &ang;
      * &theta;<sub>1</sub> + &theta;<sub>2</sub>)
+     *
+     * @apiNote
+     * No attempt is made to normalize the angle &theta;.
      *
      * @param multiplier the first operand
      * @param multiplicand the second operand
@@ -339,6 +360,9 @@ public final /* value */ class ComplexPolarTextbook  {
      * The computed quotient is calculated as
      * (<i>r</i><sub>1</sub>/<i>r</i><sub>2</sub> &ang;
      * &theta;<sub>1</sub> &minus; &theta;<sub>2</sub>)
+     *
+     * @apiNote
+     * No attempt is made to normalize the angle &theta;.
      *
      * @param dividend the value to be divided
      * @param divisor the value being divided by
@@ -390,7 +414,7 @@ public final /* value */ class ComplexPolarTextbook  {
      * Math#atan2(double, double) atan2}.
      *
      * @apiNote
-     * If the angle is large (abs(theta) >> &pi;), it might be more robust to convert to
+     * If the angle is large (abs(&theta;) >> &pi;), it might be more robust to convert to
      * (real, imaginary), negate, and convert back normalizing the
      * angle.
      *
