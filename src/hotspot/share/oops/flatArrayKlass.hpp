@@ -124,9 +124,13 @@ class FlatArrayKlass : public ObjArrayKlass {
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements(flatArrayOop a, OopClosureType* closure);
 
+  // Iterate over oop elements within index range [start, end), and no metadata.
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_elements_range(flatArrayOop a, OopClosureType* closure, int start, int end);
+
 private:
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_specialized(flatArrayOop a, OopClosureType* closure);
+  inline void oop_oop_iterate_elements_specialized(flatArrayOop a, OopClosureType* closure, int start, int end);
 
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements_bounded(flatArrayOop a, OopClosureType* closure, MemRegion mr);
