@@ -38,14 +38,15 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 /*
  * @test id=normal
  * @summary Ensures the default runtime JRT file system has identical behavior
- *     in packaged or exploded builds.
+ *     in packaged or exploded builds compared to Class.getResourceAsStream().
  * @run junit/othervm -esa JrtFileSystemClassParityTest
  */
 
 /*
  * @test id=preview
  * @summary Ensures the default runtime JRT file system (in preview mode) has
- *     identical behavior in packaged or exploded builds.
+ *     identical behavior in packaged or exploded builds compared to
+ *     Class.getResourceAsStream()
  * @run junit/othervm -esa --enable-preview JrtFileSystemClassParityTest
  */
 public class JrtFileSystemClassParityTest {
@@ -55,17 +56,17 @@ public class JrtFileSystemClassParityTest {
             FileSystems.getFileSystem(URI.create("jrt:/")).getPath("/modules/java.base");
 
     @Test
-    public void testResourceAsStreamParity() throws IOException {
+    public void testGetResourceAsStreamParity() throws IOException {
         Path moduleInfo = JAVA_BASE.resolve("module-info.class");
         try (Stream<Path> classFiles = Files.walk(JAVA_BASE)
                 .filter(Files::isRegularFile)
                 .filter(p -> p.getFileName().toString().endsWith(".class"))
                 .filter(p -> !p.equals(moduleInfo))) {
-            classFiles.forEach(JrtFileSystemClassParityTest::testParity);
+            classFiles.forEach(JrtFileSystemClassParityTest::testMatchesGetResourceAsStream);
         }
     }
 
-    private static void testParity(Path jrtClassFile) {
+    private static void testMatchesGetResourceAsStream(Path jrtClassFile) {
         try {
             byte[] jrtBytes = Files.readAllBytes(jrtClassFile);
             // Remove /modules/<mod-name>/ leading segments.
