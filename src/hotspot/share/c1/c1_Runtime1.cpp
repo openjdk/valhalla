@@ -50,6 +50,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/arrayProperties.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -461,7 +462,7 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
 
-  const ArrayProperties props(ArrayProperties::NullRestricted);
+  const ArrayProperties props = ArrayProperties::Default().with_null_restricted();
   arrayOop obj = oopFactory::new_objArray(elem_klass, length, props, CHECK);
 
   current->set_vm_result_oop(obj);
@@ -1208,7 +1209,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
           k = ek->array_klass(CHECK);
           if (!k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
-            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties(), THREAD);
+            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties::Default(), THREAD);
           }
           if (k->is_flatArray_klass()) {
             deoptimize_for_flat = true;

@@ -6731,7 +6731,7 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* adr_prop_dest = basic_plus_adr(refined_dest_klass, in_bytes(ArrayKlass::properties_offset()));
     Node* prop_dest = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_prop_dest, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
 
-    const ArrayProperties props_null_restricted(ArrayProperties::NullRestricted);
+    const ArrayProperties props_null_restricted = ArrayProperties::Default().with_null_restricted();
     jint props_value = (jint)props_null_restricted.value();
 
     prop_dest = _gvn.transform(new XorINode(prop_dest, intcon(props_value)));

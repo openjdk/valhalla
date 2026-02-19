@@ -33,39 +33,40 @@ public:
   // This type is mirrored in the compiler so we need to be careful changing it
   typedef uint32_t Type;
 
-  enum : Type {
+private:
+  Type _flags;
+
+  enum class Property : Type {
     NullRestricted = 1 << 0,
     NonAtomic      = 1 << 1,
     Invalid        = 1 << 2, // This needs to be last for asserts
   };
 
-private:
-  Type _flags;
-
-  bool check_flag(Type t) const { return (_flags & t) != 0; }
-  void set_flag(Type t, bool b) {
-    assert(!check_flag(t), "set once");
-    if (b) {
-      _flags |= t;
-    }
+  ArrayProperties with_property(Property prop, bool enabled = true) const {
+    return enabled
+        ? ArrayProperties(_flags | static_cast<Type>(prop))
+        : ArrayProperties(_flags &~ static_cast<Type>(prop));
   }
 
- public:
-  ArrayProperties() : _flags(0) {}
-  ArrayProperties(Type flags) : _flags(flags) {
-    assert((flags & ~((Type(Invalid) << 1) - 1)) == 0, "invalid flags set");
+  bool check_flag(Property prop) const { return (_flags & static_cast<Type>(prop)) != 0; }
+
+public:
+  explicit ArrayProperties(Type flags = 0) : _flags(flags) {
+    assert((flags & ~((Type(Property::Invalid) << 1) - 1)) == 0, "invalid flags set");
   }
+
+  static ArrayProperties Default() { return ArrayProperties(); }
+  static ArrayProperties Invalid() { return ArrayProperties().with_property(Property::Invalid, true); }
+
+  ArrayProperties with_null_restricted(bool b = true) const { return with_property(Property::NullRestricted, b); }
+  ArrayProperties with_non_atomic(bool b = true) const { return with_property(Property::NonAtomic, b); }
+
+  bool is_null_restricted() const { return check_flag(Property::NullRestricted); }
+  bool is_non_atomic() const { return check_flag(Property::NonAtomic); }
+  bool is_invalid() const { return check_flag(Property::Invalid); }
+  bool is_valid() const { return !check_flag(Property::Invalid); }
 
   Type value() const { return _flags; }
-
-  bool is_null_restricted() const { return check_flag(NullRestricted); };
-  bool is_non_atomic() const { return check_flag(NonAtomic); };
-  bool is_invalid() const { return check_flag(Invalid); };
-  bool is_valid() const { return !check_flag(Invalid); }
-
-  void set_null_restricted() { set_flag(NullRestricted, true); }
-  void set_non_atomic() { set_flag(NonAtomic, true); }
-  void set_invalid() { set_flag(Invalid, true); }
 
   const char* as_string() {
     // Caller must have set a ResourceMark

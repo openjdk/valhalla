@@ -164,19 +164,12 @@ public:
 
   ArrayDescription(Klass::KlassKind k, ArrayProperties p, LayoutKind lk)
     : _kind(k),
-      _properties(),
       _layout_kind(lk) {
-
-    if (p.is_null_restricted()) {
-      _properties.set_null_restricted();
-    }
 
     // Atomicity depends on the layout kind, which might be different than what
     // the given properties says
-    const bool is_non_atomic = lk != LayoutKind::REFERENCE && !LayoutKindHelper::is_atomic_flat(lk);
-    if (is_non_atomic) {
-      _properties.set_non_atomic();
-    }
+    const bool non_atomic = lk != LayoutKind::REFERENCE && !LayoutKindHelper::is_atomic_flat(lk);
+    _properties = p.with_non_atomic(non_atomic);
   }
  };
 

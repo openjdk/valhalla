@@ -220,22 +220,16 @@ oop ArrayKlass::component_mirror() const {
 }
 
 ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
-  ArrayProperties props;
   switch(lk) {
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      props.set_null_restricted();
-      break;
+      return ArrayProperties::Default().with_null_restricted();
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      props.set_null_restricted();
-      props.set_non_atomic();
-      break;
+      return ArrayProperties::Default().with_null_restricted().with_non_atomic();
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      // Nothing to do
-      break;
+      return ArrayProperties::Default();
     default:
       ShouldNotReachHere();
   }
-  return props;
 }
 
 // JVMTI support

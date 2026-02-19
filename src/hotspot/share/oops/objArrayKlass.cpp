@@ -112,7 +112,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   Symbol* name = create_element_klass_array_name(THREAD, element_klass);
 
   // Initialize instance variables
-  ArrayProperties props(ArrayProperties::Invalid);
+  const ArrayProperties props = ArrayProperties::Invalid();
 
   ObjArrayKlass* oak = ObjArrayKlass::allocate_klass(loader_data, n, element_klass, name, props, CHECK_NULL);
 
@@ -265,9 +265,9 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
-  ObjArrayKlass* oak = klass_with_properties(ArrayProperties(), CHECK_NULL);
+  ObjArrayKlass* oak = klass_with_properties(ArrayProperties::Default(), CHECK_NULL);
   assert(oak->is_refArray_klass() || oak->is_flatArray_klass(), "Must be");
-  objArrayOop array = oak->allocate_instance(length, ArrayProperties(), CHECK_NULL);
+  objArrayOop array = oak->allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
   if (rank > 1) {
     if (length != 0) {
@@ -425,7 +425,7 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayProperties props, TRAPS
       if (!is_refArray_klass() && !is_flatArray_klass() && (props.is_null_restricted() || props.is_non_atomic())) {
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
-        first = allocate_klass_with_properties(ArrayProperties(), THREAD);
+        first = allocate_klass_with_properties(ArrayProperties::Default(), THREAD);
         release_set_next_refined_klass(first);
       }
       ak = allocate_klass_with_properties(props, THREAD);

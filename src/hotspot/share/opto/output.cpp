@@ -812,15 +812,13 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
         }
       }
       if (cik->is_array_klass() && !cik->is_type_array_klass()) {
-        ArrayProperties props;
-        if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
-          if (cik->as_array_klass()->is_elem_null_free()) {
-            props.set_null_restricted();
-          }
-          if (!cik->as_array_klass()->is_elem_atomic()) {
-            props.set_non_atomic();
-          }
-        }
+        ciArrayKlass* ciak = cik->as_array_klass();
+        const bool is_element_inline = ciak->element_klass()->is_inlinetype();
+
+        const ArrayProperties props = ArrayProperties::Default()
+          .with_null_restricted(is_element_inline && ciak->is_elem_null_free())
+          .with_non_atomic(is_element_inline && !ciak->is_elem_atomic());
+
         properties = new ConstantIntValue((jint)props.value());
       }
       sv = new ObjectValue(spobj->_idx,
@@ -1165,15 +1163,13 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           assert(!cik->is_inlinetype(), "Synchronization on value object?");
           ScopeValue* properties = nullptr;
           if (cik->is_array_klass() && !cik->is_type_array_klass()) {
-            ArrayProperties props;
-            if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
-              if (cik->as_array_klass()->is_elem_null_free()) {
-                props.set_null_restricted();
-              }
-              if (!cik->as_array_klass()->is_elem_atomic()) {
-                props.set_non_atomic();
-              }
-            }
+            ciArrayKlass* ciak = cik->as_array_klass();
+            const bool is_element_inline = ciak->element_klass()->is_inlinetype();
+
+            const ArrayProperties props = ArrayProperties::Default()
+              .with_null_restricted(is_element_inline && ciak->is_elem_null_free())
+              .with_non_atomic(is_element_inline && !ciak->is_elem_atomic());
+
             properties = new ConstantIntValue((jint)props.value());
           }
           ObjectValue* sv = new ObjectValue(spobj->_idx,

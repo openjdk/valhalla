@@ -312,7 +312,7 @@ static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, Obj
       k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
     } else {
       // TODO Graal needs to be fixed. Just go with the default properties for now
-      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties(), THREAD);
+      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties::Default(), THREAD);
     }
   }
   return k;
