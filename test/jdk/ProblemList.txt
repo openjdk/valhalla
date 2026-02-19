@@ -793,6 +793,8 @@ tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 83
 
 # Valhalla failures start here:
 
+java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8376514 generic-all # debug only
+
 jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
 jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,generic-x64
 
@@ -812,10 +814,6 @@ com/sun/management/HotSpotDiagnosticMXBean/DumpThreadsWithEliminatedLock.java 83
 java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
 java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
 java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
-
-java/lang/invoke/VarHandles/VarHandleTestMethodTypeValue.java           8378087 generic-all
-java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java   8378087 generic-all
-java/lang/invoke/VarHandles/VarHandleTestAccessValue.java               8378087 generic-all
 
 java/net/CookieHandler/B6644726.java                            8365811 generic-all
 
