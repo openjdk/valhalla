@@ -38,6 +38,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopCast.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
@@ -77,8 +78,9 @@ typeArrayOop oopFactory::new_longArray(int length, TRAPS) {
 }
 
 // create java.lang.Object[]
-objArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
-  return Universe::objectArrayKlass()->allocate_instance(length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+refArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
+  objArrayOop obj = Universe::objectArrayKlass()->allocate_instance(length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  return refArrayOop(obj);
 }
 
 typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {

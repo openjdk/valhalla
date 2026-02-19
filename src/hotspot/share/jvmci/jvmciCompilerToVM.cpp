@@ -804,7 +804,7 @@ C2V_VMENTRY_NULL(jobject, lookupConstantInPool, (JNIEnv* env, jobject, ARGUMENT_
       Handle garbage;
       while (true) {
         // Trigger an OutOfMemoryError
-        objArrayOop next = oopFactory::new_objectArray(0x7FFFFFFF, CHECK_NULL);
+        refArrayOop next = oopFactory::new_objectArray(0x7FFFFFFF, CHECK_NULL);
         next->obj_at_put(0, garbage());
         garbage = Handle(THREAD, next);
       }
@@ -1671,8 +1671,8 @@ C2V_VMENTRY_NULL(jobject, iterateFrames, (JNIEnv* env, jobject compilerToVM, job
         HotSpotJVMCI::HotSpotStackFrameReference::set_frameNumber(JVMCIENV, frame_reference(), frame_number);
 
         // initialize the locals array
-        objArrayOop array_oop = oopFactory::new_objectArray(locals->size(), CHECK_NULL);
-        objArrayHandle array(THREAD, array_oop);
+        refArrayOop array_oop = oopFactory::new_objectArray(locals->size(), CHECK_NULL);
+        refArrayHandle array(THREAD, array_oop);
         for (int i = 0; i < locals->size(); i++) {
           StackValue* var = locals->at(i);
           if (var->type() == T_OBJECT) {

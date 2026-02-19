@@ -2479,8 +2479,8 @@ class BacktraceBuilder: public StackObj {
     objArrayHandle old_head(THREAD, _head);
     PauseNoSafepointVerifier pnsv(&_nsv);
 
-    objArrayOop head = oopFactory::new_objectArray(trace_size, CHECK);
-    objArrayHandle new_head(THREAD, head);
+    refArrayOop head = oopFactory::new_objectArray(trace_size, CHECK);
+    refArrayHandle new_head(THREAD, head);
 
     typeArrayOop methods = oopFactory::new_shortArray(trace_chunk_size, CHECK);
     typeArrayHandle new_methods(THREAD, methods);
@@ -2488,8 +2488,8 @@ class BacktraceBuilder: public StackObj {
     typeArrayOop bcis = oopFactory::new_intArray(trace_chunk_size, CHECK);
     typeArrayHandle new_bcis(THREAD, bcis);
 
-    objArrayOop mirrors = oopFactory::new_objectArray(trace_chunk_size, CHECK);
-    objArrayHandle new_mirrors(THREAD, mirrors);
+    refArrayOop mirrors = oopFactory::new_objectArray(trace_chunk_size, CHECK);
+    refArrayHandle new_mirrors(THREAD, mirrors);
 
     typeArrayOop names = oopFactory::new_symbolArray(trace_chunk_size, CHECK);
     typeArrayHandle new_names(THREAD, names);
