@@ -28,6 +28,7 @@ package jdk.internal.value;
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.reflect.Field;
@@ -51,6 +52,18 @@ public final class ValueClass {
     /// This excludes abstract value classes and primitives.
     public static boolean isConcreteValueClass(Class<?> clazz) {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
+    }
+
+    /// {@return whether a flat layout of this class contains references}
+    /// Returns true if there is no flat layout for the incoming class.
+    public static boolean hasOops(Class<?> c) {
+        // non-concrete value class always a pointer
+        if (!ValueClass.isConcreteValueClass(c))
+            return !c.isPrimitive();
+        // Checks there's no reference
+        int[] map = Unsafe.getUnsafe().getFieldMap(c);
+        int nbNonRef = map[0];
+        return nbNonRef * 2 + 1 < map.length;
     }
 
     /**

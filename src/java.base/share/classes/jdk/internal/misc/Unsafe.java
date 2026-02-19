@@ -1460,11 +1460,15 @@ public final class Unsafe {
         return arrayInstanceIndexScale0(array);
     }
 
-    public int[] getFieldMap(Class<? extends Object> c) {
-      if (c == null) {
-        throw new NullPointerException();
-      }
-      return getFieldMap0(c);
+    /**
+     * Returns the acmp map of this class, which must be a concrete value class.
+     * See classFileParser.cpp for the map layout.
+     */
+    public int[] getFieldMap(Class<?> c) {
+        if (c == null) {
+            throw new NullPointerException();
+        }
+        return getFieldMap0(c);
     }
 
     /**

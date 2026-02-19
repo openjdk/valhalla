@@ -24,11 +24,11 @@
 /*
  * @test
  * @bug 8377576
- * @summary Test jdk.internal.value.ValueClass
+ * @summary Test jdk.internal.value.ValueClass with and without preview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
- * @run junit ValueClassTest
- * @run junit/othervm --enable-preview ValueClassTest
+ * @run junit ValueClassCompatibilityTest
+ * @run junit/othervm --enable-preview ValueClassCompatibilityTest
  */
 
 import java.util.ArrayList;
@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ValueClassTest {
+class ValueClassCompatibilityTest {
     @Test
     void testIsValueObjectCompatible() {
         isValueObjectCompatibleCase(false, int.class, "primitive");
@@ -93,42 +93,29 @@ class ValueClassTest {
     }
 
     @Test
-    void testSpecialCopy() {
-        if (!PreviewFeatures.isEnabled()) {
-            return;
-        }
-        Object[] original = makeArray(4);
-        assertThrows(NegativeArraySizeException.class, () -> ValueClass.copyOfSpecialArray(original, -1));
-        assertArrayEquals(original, ValueClass.copyOfSpecialArray(original, 4));
-        Object[] padded = makeArray(5);
-        padded[4] = null;
-        assertArrayEquals(padded, ValueClass.copyOfSpecialArray(original, 5));
-        Object[] truncated = makeArray(3);
-        assertArrayEquals(truncated, ValueClass.copyOfSpecialArray(original, 3));
+    void testHasOops() {
+        // Actual value class cases are tested in ValueClassPreviewTest
+        assertFalse(ValueClass.hasOops(int.class), "primitive");
+        hasOopsCase(true, Object.class, "Object");
+        hasOopsCase(true, Number.class, "abstract value class");
+        hasOopsCase(false, Integer.class, "final value class");
+        hasOopsCase(true, ClassValue.class, "abstract identity class");
+        hasOopsCase(true, ArrayList.class, "identity class");
+        hasOopsCase(true, String.class, "final identity class");
+        hasOopsCase(true, Comparable.class, "interface");
+        hasOopsCase(true, int[].class, "array class");
+        hasOopsCase(true, Object[].class, "array class");
+        hasOopsCase(true, Number[].class, "array class");
+        hasOopsCase(true, Integer[].class, "array class");
+        hasOopsCase(true, ClassValue[].class, "array class");
+        hasOopsCase(true, ArrayList[].class, "array class");
+        hasOopsCase(true, String[].class, "array class");
+        hasOopsCase(true, Comparable[].class, "array class");
     }
 
-    @Test
-    void testSpecialCopyOfRange() {
-        if (!PreviewFeatures.isEnabled()) {
-            return;
-        }
-        Object[] original = makeArray(4);
-        assertThrows(ArrayIndexOutOfBoundsException.class, () -> ValueClass.copyOfRangeSpecialArray(original, -1, 5));
-        assertThrows(ArrayIndexOutOfBoundsException.class, () -> ValueClass.copyOfRangeSpecialArray(original, 5, 5));
-        assertThrows(IllegalArgumentException.class, () -> ValueClass.copyOfRangeSpecialArray(original, 4, 2));
-        assertArrayEquals(original, ValueClass.copyOfRangeSpecialArray(original, 0, 4));
-        Object[] padded = makeArray(5);
-        padded[4] = null;
-        assertArrayEquals(padded, ValueClass.copyOfRangeSpecialArray(original, 0, 5));
-        Object[] truncated = makeArray(3);
-        assertArrayEquals(truncated, ValueClass.copyOfRangeSpecialArray(original, 0, 3));
-    }
-
-    private static Object[] makeArray(int l) {
-        Object[] arr = ValueClass.newNullableAtomicArray(Integer.class, l);
-        for (int i = 0; i < l; i++) {
-            arr[i] = Integer.valueOf(i);
-        }
-        return arr;
+    private static void hasOopsCase(boolean expected, Class<?> arg, String classification) {
+        assertEquals(!PreviewFeatures.isEnabled() || expected,
+                ValueClass.hasOops(arg),
+                () -> classification + ": " + arg.getTypeName());
     }
 }
