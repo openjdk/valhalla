@@ -1112,7 +1112,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
     }
     break;
   default:
-    assert(false, "unexpected basic type %s", type2name(bt));
+    guarantee(false, "unexpected basic type %s", type2name(bt));
     break;
   }
   assert(load != nullptr, "LoadNode should have been created");
@@ -3001,7 +3001,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
       return new StorePNode(ctl, mem, adr, adr_type, val, mo);
     }
   default:
-    assert(false, "unexpected basic type %s", type2name(bt));
+    guarantee(false, "unexpected basic type %s", type2name(bt));
     return (StoreNode*)nullptr;
   }
 }
