@@ -4137,7 +4137,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   if (verified_inline_ro_entry_point() >= block_begin) {
     low = MIN2(low, verified_inline_ro_entry_point());
   }
-  assert(low != 0, "sanity");
+  assert(low != nullptr, "sanity");
   if (block_begin == low) {
     stream->print("  # ");
     m->print_value_on(stream);
