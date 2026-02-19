@@ -4648,7 +4648,7 @@ void java_lang_invoke_MethodType::serialize_offsets(SerializeClosure* f) {
 
 void java_lang_invoke_MethodType::print_signature(oop mt, outputStream* st) {
   st->print("(");
-  objArrayOop pts = ptypes(mt);
+  refArrayOop pts = ptypes(mt);
   if (pts != nullptr) {
     for (int i = 0, limit = pts->length(); i < limit; i++) {
       java_lang_Class::print_signature(pts->obj_at(i), st);
@@ -4699,9 +4699,9 @@ oop java_lang_invoke_MethodType::rtype(oop mt) {
   return mt->obj_field(_rtype_offset);
 }
 
-objArrayOop java_lang_invoke_MethodType::ptypes(oop mt) {
+refArrayOop java_lang_invoke_MethodType::ptypes(oop mt) {
   assert(is_instance(mt), "must be a MethodType");
-  return (objArrayOop) mt->obj_field(_ptypes_offset);
+  return (refArrayOop) mt->obj_field(_ptypes_offset);
 }
 
 oop java_lang_invoke_MethodType::ptype(oop mt, int idx) {
@@ -4713,7 +4713,7 @@ int java_lang_invoke_MethodType::ptype_count(oop mt) {
 }
 
 int java_lang_invoke_MethodType::ptype_slot_count(oop mt) {
-  objArrayOop pts = ptypes(mt);
+  refArrayOop pts = ptypes(mt);
   int count = pts->length();
   int slots = 0;
   for (int i = 0; i < count; i++) {

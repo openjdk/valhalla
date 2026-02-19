@@ -1398,7 +1398,7 @@ class java_lang_invoke_MethodType: AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
   // Accessors
   static oop            rtype(oop mt);
-  static objArrayOop    ptypes(oop mt);
+  static refArrayOop    ptypes(oop mt);
 
   static oop            ptype(oop mt, int index);
   static int            ptype_count(oop mt);
