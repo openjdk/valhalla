@@ -2562,7 +2562,7 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
 
   // Inline type nodes can have other inline types as users. If an input gets
   // updated, make sure that inline type users get a chance for optimization.
-  if (use->is_InlineType() /*|| use->is_Load()*/) {
+  if (use->is_InlineType()) {
     auto push_the_uses_to_worklist = [&](Node* n){
       if (n->is_InlineType()) {
         worklist.push(n);
