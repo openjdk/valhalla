@@ -38,8 +38,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:VerifyIterativeGVN=1110
- *                   -XX:+AlwaysIncrementalInline -XX:CompileCommand=compileonly,${test.main.class}::test
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions
+ *                   -XX:CompileCommand=compileonly,${test.main.class}::test
+ *                   -XX:+AlwaysIncrementalInline -XX:VerifyIterativeGVN=1110
  *                   ${test.main.class}
  * @run main ${test.main.class}
  */
