@@ -1269,10 +1269,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     if (protection_domain.not_null()) {
       set_protection_domain(mirror(), protection_domain());
     }
-  } else {
+  } else if (k->is_objArray_klass()) {
     ObjArrayKlass* objarray_k = (ObjArrayKlass*)as_Klass(m);
     // Mirror should be restored for an ObjArrayKlass or one of its refined array klasses
-    assert(objarray_k == k || objarray_k->next_refined_array_klass() == k, "must be");
+    assert(objarray_k == k || objarray_k->find_refined_array_klass((ObjArrayKlass*)k), "must be");
   }
 
   assert(class_loader() == k->class_loader(), "should be same");
