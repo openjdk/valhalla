@@ -349,6 +349,7 @@ void ArrayKlass::verify_on(outputStream* st) {
 }
 
 void ArrayKlass::oop_verify_on(oop obj, outputStream* st) {
+  Klass::oop_verify_on(obj, st);
   guarantee(obj->is_array(), "must be array");
   arrayOop a = arrayOop(obj);
   guarantee(a->length() >= 0, "array with negative length?");
