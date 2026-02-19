@@ -700,8 +700,8 @@ JVM_END
 
 JVM_ENTRY(void, JVM_InitStackTraceElementArray(JNIEnv *env, jobjectArray elements, jobject backtrace, jint depth))
   Handle backtraceh(THREAD, JNIHandles::resolve(backtrace));
-  objArrayOop st = objArrayOop(JNIHandles::resolve(elements));
-  objArrayHandle stack_trace(THREAD, st);
+  refArrayOop st = refArrayOop(JNIHandles::resolve(elements));
+  refArrayHandle stack_trace(THREAD, st);
   // Fill in the allocated stack trace
   java_lang_Throwable::get_stack_trace_elements(depth, backtraceh, stack_trace, CHECK);
 JVM_END
