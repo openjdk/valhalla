@@ -53,7 +53,7 @@ final class VarHandles {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             Class<?> type = f.getFieldType();
             if (!type.isPrimitive()) {
-                if (type.isValue()) {
+                if (ValueClass.isConcreteValueClass(type)) {
                     int layout = f.getLayout();
                     boolean isAtomic = isAtomicFlat(f);
                     boolean isFlat = f.isFlat();
@@ -143,7 +143,7 @@ final class VarHandles {
         Class<?> type = f.getFieldType();
         if (!type.isPrimitive()) {
             assert !f.isFlat() : ("static field is flat in " + decl + "." + f.getName());
-            if (type.isValue()) {
+            if (ValueClass.isConcreteValueClass(type)) {
                 if (isAtomicFlat(f)) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                             ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
