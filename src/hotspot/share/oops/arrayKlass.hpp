@@ -162,9 +162,9 @@ public:
   ArrayProperties  _properties;
   LayoutKind       _layout_kind;
 
-  ArrayDescription(Klass::KlassKind k, ArrayProperties p, LayoutKind lk)
-    : _kind(k),
-      _layout_kind(lk) {
+  ArrayDescription(Klass::KlassKind k, ArrayProperties p, LayoutKind lk) {
+    _kind = k;
+    _layout_kind = lk;
     assert(lk == LayoutKind::REFERENCE || k != Klass::KlassKind::RefArrayKlassKind, "Sanity check");
 
     // Atomicity depends on the layout kind, which might be different than what
