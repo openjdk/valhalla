@@ -2378,7 +2378,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       }
       if (klass->is_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::properties_offset())) {
         assert(klass->is_type_array_klass() || tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
-        return TypeInt::make(klass->as_array_klass()->properties());
+        return TypeInt::make((jint)klass->as_array_klass()->properties().value());
       }
       if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
         assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");

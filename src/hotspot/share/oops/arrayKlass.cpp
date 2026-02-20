@@ -219,36 +219,18 @@ oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
 
-ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
-  ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
   switch(lk) {
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-      break;
+      return ArrayProperties::Default().with_null_restricted();
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
-      break;
+      return ArrayProperties::Default().with_null_restricted().with_non_atomic();
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::DEFAULT;
-      break;
+      return ArrayProperties::Default();
     default:
       ShouldNotReachHere();
   }
-  return props;
 }
-
-  const char* ArrayKlass::array_properties_as_string(ArrayProperties props) {
-    // Caller must have set a ResourceMark
-    stringStream ss;
-    if (props == DEFAULT) {
-      ss.print("DEFAULT (NULLABLE ATOMIC)");
-    } else {
-      ss.print("%s", ((props & NULL_RESTRICTED) != 0) ? "NULL_RESTRICTED " : "NULLABLE ");
-      ss.print("%s", ((props & NON_ATOMIC) != 0) ? "NON_ATOMIC " : "ATOMIC ");
-    }
-    return ss.as_string();
-  }
-
 
 // JVMTI support
 

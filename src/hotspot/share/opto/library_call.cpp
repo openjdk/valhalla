@@ -6731,11 +6731,14 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* adr_prop_dest = basic_plus_adr(top(), refined_dest_klass, in_bytes(ArrayKlass::properties_offset()));
     Node* prop_dest = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_prop_dest, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
 
-    prop_dest = _gvn.transform(new XorINode(prop_dest, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));
-    prop_src = _gvn.transform(new OrINode(prop_dest, prop_src));
-    prop_src = _gvn.transform(new AndINode(prop_src, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));
+    const ArrayProperties props_null_restricted = ArrayProperties::Default().with_null_restricted();
+    jint props_value = (jint)props_null_restricted.value();
 
-    Node* chk = _gvn.transform(new CmpINode(prop_src, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));
+    prop_dest = _gvn.transform(new XorINode(prop_dest, intcon(props_value)));
+    prop_src = _gvn.transform(new OrINode(prop_dest, prop_src));
+    prop_src = _gvn.transform(new AndINode(prop_src, intcon(props_value)));
+
+    Node* chk = _gvn.transform(new CmpINode(prop_src, intcon(props_value)));
     Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
     generate_fair_guard(tst, slow_region);
 

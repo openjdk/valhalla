@@ -392,7 +392,7 @@ void FlatArrayKlass::print_on(outputStream* st) const {
   st->print(" - layout kind: %s", LayoutKindHelper::layout_kind_as_string(layout_kind()));
   st->cr();
 
-  st->print(" - array properties: %s", ArrayKlass::array_properties_as_string(properties()));
+  st->print(" - array properties: %s", properties().as_string());
   st->cr();
 
   int elem_size = element_byte_size();

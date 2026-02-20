@@ -433,7 +433,7 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   if (!UseArrayFlattening || !vk->is_layout_supported(lk)) {
     THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "Layout not supported");
   }
-  ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
+  ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
   oop array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 } UNSAFE_END
