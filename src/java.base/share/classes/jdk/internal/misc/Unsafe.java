@@ -1462,13 +1462,24 @@ public final class Unsafe {
 
     /**
      * Returns the acmp map of this class, which must be a concrete value class.
-     * See classFileParser.cpp for the map layout.
+     * Intended to be used by substitutability test in ValueObjectMethods only.
+     * The format is subject to change.
      */
     public int[] getFieldMap(Class<?> c) {
         if (c == null) {
             throw new NullPointerException();
         }
         return getFieldMap0(c);
+    }
+
+    /**
+     * Returns whether the flat layout of fields of this value class type
+     * contains oops. Required for numerical CAS safety.
+     */
+    public boolean hasOopsInLayout(Class<?> c) {
+        int[] map = getFieldMap(c);
+        int nbNonRef = map[0];
+        return nbNonRef * 2 + 1 < map.length;
     }
 
     /**

@@ -54,16 +54,14 @@ public final class ValueClass {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
     }
 
-    /// {@return whether a flat layout of this class contains references}
-    /// Returns true if there is no flat layout for the incoming class.
+    /// {@return whether the flat layout for fields of this type contains references}
+    /// Returns true if there is no flat layout for fields of the given type.
     public static boolean hasOops(Class<?> c) {
-        // non-concrete value class always a pointer
+        // non-concrete value class always a reference field
         if (!ValueClass.isConcreteValueClass(c))
             return !c.isPrimitive();
-        // Checks there's no reference
-        int[] map = Unsafe.getUnsafe().getFieldMap(c);
-        int nbNonRef = map[0];
-        return nbNonRef * 2 + 1 < map.length;
+        // Checks for oops in flat layout
+        return Unsafe.getUnsafe().hasOopsInLayout(c);
     }
 
     /**
