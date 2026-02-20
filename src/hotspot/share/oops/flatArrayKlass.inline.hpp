@@ -48,11 +48,10 @@ void FlatArrayKlass::oop_oop_iterate_elements_specialized(flatArrayOop a,
                                                           int start, int end) {
   precond(contains_oops());
   precond(start >= 0);
-  assert(start <=  end, "Invalid range [%d - %d)", start, end);
+  assert(start <= end, "Invalid range [%d - %d)", start, end);
   assert(end <= a->length(), "Invalid range [%d - %d) for a.length: %d", start, end, a->length());
 
   const int shift = Klass::layout_helper_log2_element_size(layout_helper());
-  const int addr_incr = 1 << shift;
   const uintptr_t base = (uintptr_t) a->base();
   const uintptr_t start_addr = base + ((size_t)start << shift);
   const uintptr_t stop_addr = base + ((size_t)end << shift);
