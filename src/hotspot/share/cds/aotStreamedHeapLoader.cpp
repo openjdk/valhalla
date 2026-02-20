@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
@@ -1051,7 +1052,7 @@ oop AOTStreamedHeapLoader::materialize_root(int root_index) {
   {
     MutexLocker ml(AOTHeapLoading_lock, Mutex::_safepoint_check_flag);
 
-    oop root = objArrayOop(_roots.resolve())->obj_at(root_index);
+    oop root = oop_cast<refArrayOop>(_roots.resolve())->obj_at(root_index);
 
     if (root != nullptr) {
       // The root has already been materialized
@@ -1070,7 +1071,7 @@ oop AOTStreamedHeapLoader::materialize_root(int root_index) {
 }
 
 oop AOTStreamedHeapLoader::get_root(int index) {
-  oop result = objArrayOop(_roots.resolve())->obj_at(index);
+  oop result = oop_cast<refArrayOop>(_roots.resolve())->obj_at(index);
   if (result == nullptr) {
     // Materialize root
     result = materialize_root(index);

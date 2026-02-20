@@ -3166,8 +3166,7 @@ public class Attr extends JCTree.Visitor {
             clazzid1 = make.at(clazz.pos).Select(make.Type(encltype),
                                                  ((JCIdent) clazzid).name);
 
-            EndPosTable endPosTable = this.env.toplevel.endPositions;
-            endPosTable.storeEnd(clazzid1, clazzid.getEndPosition(endPosTable));
+            clazzid1.endpos = clazzid.getEndPosition();
             if (clazz.hasTag(ANNOTATED_TYPE)) {
                 JCAnnotatedType annoType = (JCAnnotatedType) clazz;
                 List<JCAnnotation> annos = annoType.annotations;
@@ -4467,7 +4466,10 @@ public class Attr extends JCTree.Visitor {
             chk.checkCastable(tree.rhs.pos(),
                               operator.type.getReturnType(),
                               owntype);
-            chk.checkLossOfPrecision(tree.rhs.pos(), operand, owntype);
+            switch (tree.getTag()) {
+            case SL_ASG, SR_ASG, USR_ASG -> { }     // we only use (at most) the lower 6 bits, so any integral type is OK
+            default -> chk.checkLossOfPrecision(tree.rhs.pos(), operand, owntype);
+            }
             chk.checkOutOfRangeShift(tree.rhs.pos(), operator, operand);
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
@@ -4739,7 +4741,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         List<Type> expectedRecordTypes;
-        if (site.tsym.kind == Kind.TYP && ((ClassSymbol) site.tsym).isRecord()) {
+        if (site.tsym instanceof ClassSymbol clazz && clazz.isRecord()) {
             ClassSymbol record = (ClassSymbol) site.tsym;
             expectedRecordTypes = record.getRecordComponents()
                                         .stream()
@@ -5785,7 +5787,7 @@ public class Attr extends JCTree.Visitor {
         annotate.flush();
 
         // Now that this tree is attributed, we can calculate the Lint configuration everywhere within it
-        lintMapper.calculateLints(env.toplevel.sourcefile, env.tree, env.toplevel.endPositions);
+        lintMapper.calculateLints(env.toplevel.sourcefile, env.tree);
     }
 
     public void attribPackage(DiagnosticPosition pos, PackageSymbol p) {

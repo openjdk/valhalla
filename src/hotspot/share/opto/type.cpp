@@ -101,10 +101,9 @@ void Type::Offset::dump2(outputStream *st) const {
     return;
   } else if (_offset == OffsetTop) {
     st->print("+top");
-  }
-  else if (_offset == OffsetBot) {
+  } else if (_offset == OffsetBot) {
     st->print("+bot");
-  } else if (_offset) {
+  } else {
     st->print("+%d", _offset);
   }
 }
@@ -400,7 +399,12 @@ static const Type* make_constant_from_non_flat_array_element(ciArray* array, int
 
 static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int off, int field_offset, int stable_dimension,
                                                          BasicType loadbt, bool is_unsigned_load) {
-  // Decode the results of GraphKit::array_element_address.
+  if (!array->is_null_free()) {
+    ciConstant nm_value = array->null_marker_of_element_by_offset(off);
+    if (!nm_value.is_valid() || !nm_value.as_boolean()) {
+      return nullptr;
+    }
+  }
   ciConstant element_value = array->field_value_by_offset(off + field_offset);
   if (element_value.basic_type() == T_ILLEGAL) {
     return nullptr; // wrong offset
@@ -410,8 +414,7 @@ static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int
   assert(con.basic_type() != T_ILLEGAL, "elembt=%s; loadbt=%s; unsigned=%d",
          type2name(element_value.basic_type()), type2name(loadbt), is_unsigned_load);
 
-  if (con.is_valid() &&          // not a mismatched access
-      !con.is_null_or_zero()) {  // not a default value
+  if (con.is_valid()) { // not a mismatched access
     bool is_narrow_oop = (loadbt == T_NARROWOOP);
     return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
   }
@@ -7323,7 +7326,7 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   // convention (with an inline type argument/return as a list of its fields).
   bool has_scalar_args = method->has_scalarized_args() && !is_osr_compilation;
   // Fall back to the non-scalarized calling convention when compiling a call via a mismatching method
-  if (method != C->method() && method->get_Method()->mismatch()) {
+  if (method != C->method() && method->mismatch()) {
     has_scalar_args = false;
   }
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, ignore_interfaces, false);

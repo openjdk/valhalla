@@ -30,7 +30,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run junit/othervm/timeout=480 -XX:ReservedCodeCacheSize=2G runtime.valhalla.inlinetypes.classloading.ConcurrentClassLoadingTest
+ * @run junit/othervm/timeout=480 -XX:ReservedCodeCacheSize=1G runtime.valhalla.inlinetypes.classloading.ConcurrentClassLoadingTest
  */
 
 package runtime.valhalla.inlinetypes.classloading;
