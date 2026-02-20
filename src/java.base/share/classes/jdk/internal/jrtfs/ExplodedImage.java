@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -294,17 +293,20 @@ class ExplodedImage extends SystemImage {
         }
     }
 
-    private static final Pattern NON_EMPTY_MODULES_NAME =
-            Pattern.compile("/modules(/[^/]+)+");
-
     private static boolean isNonEmptyModulesName(String name) {
         // Don't just check the prefix, there must be something after it too
         // (otherwise you end up with an empty string after trimming).
         // Also make sure we can't be tricked by "/modules//absolute/path" or
-        // "/modules/../../escaped/path"
-        return NON_EMPTY_MODULES_NAME.matcher(name).matches()
+        // "/modules/../../escaped/path".
+        // Don't use regex as 'name' is untrusted (avoids stack overflow risk)
+        // and performance isn't an issue here.
+        return name.startsWith("/modules/")
+                && !name.contains("//")
+                && !name.contains("/./")
                 && !name.contains("/../")
-                && !name.contains("/./");
+                && !name.endsWith("/")
+                && !name.endsWith("/.")
+                && !name.endsWith("/..");
     }
 
     // convert "/" to platform path separator
