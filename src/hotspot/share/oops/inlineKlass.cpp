@@ -492,8 +492,9 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
-      address loc = reg_map.location(pair.first(), nullptr);
-      oop o = *(oop*)loc;
+      oop* loc = (oop*)reg_map.location(pair.first(), nullptr);
+      guarantee(loc != nullptr, "bad register save location");
+      oop o = *loc;
       assert(oopDesc::is_oop_or_null(o), "Bad oop value: " PTR_FORMAT, p2i(o));
       handles.push(Handle(thread, o));
     }
@@ -523,8 +524,9 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
-      address loc = reg_map.location(pair.first(), nullptr);
-      *(oop*)loc = handles.at(k++)();
+      oop* loc = (oop*)reg_map.location(pair.first(), nullptr);
+      guarantee(loc != nullptr, "bad register save location");
+      *loc = handles.at(k++)();
     }
     if (bt == T_METADATA) {
       continue;
@@ -565,6 +567,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     address loc = reg_map.location(pair.first(), nullptr);
+    guarantee(loc != nullptr, "bad register save location");
     switch(bt) {
     case T_BOOLEAN: {
       new_vt->bool_field_put(off, *(jboolean*)loc);
@@ -628,8 +631,9 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
   assert(nb == 1, "broken");
 
-  address loc = map.location(pair.first(), nullptr);
-  intptr_t ptr = *(intptr_t*)loc;
+  intptr_t* loc = (intptr_t*)map.location(pair.first(), nullptr);
+  guarantee(loc != nullptr, "bad register save location");
+  intptr_t ptr = *loc;
   if (is_set_nth_bit(ptr, 0)) {
     // Return value is tagged, must be an InlineKlass pointer
     clear_nth_bit(ptr, 0);

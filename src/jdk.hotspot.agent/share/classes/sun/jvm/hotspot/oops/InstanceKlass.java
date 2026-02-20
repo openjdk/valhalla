@@ -76,6 +76,10 @@ public class InstanceKlass extends Klass {
   public boolean isSuper()                  { return getAccessFlagsObj().isSuper(); }
   public boolean isSynthetic()              { return getAccessFlagsObj().isSynthetic(); }
 
+  public boolean supportsInlineTypes() {
+      return majorVersion() >= VALUE_TYPES_MAJOR_VERSION && minorVersion() == JAVA_PREVIEW_MINOR_VERSION;
+  }
+
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     Type type            = db.lookupType("InstanceKlass");
     annotations          = type.getAddressField("_annotations");

@@ -603,7 +603,7 @@ void Compile::print_phase(const char* phase_name) {
   tty->print_cr("%u.\t%s", ++_phase_counter, phase_name);
 }
 
-void Compile::print_ideal_ir(const char* phase_name) {
+void Compile::print_ideal_ir(const char* compile_phase_name) const {
   // keep the following output all in one block
   // This output goes directly to the tty, not the compiler log.
   // To enable tools to match it up with the compilation activity,
@@ -615,7 +615,7 @@ void Compile::print_ideal_ir(const char* phase_name) {
   stringStream ss;
 
   if (_output == nullptr) {
-    ss.print_cr("AFTER: %s", phase_name);
+    ss.print_cr("AFTER: %s", compile_phase_name);
     // Print out all nodes in ascending order of index.
     // It is important that we traverse both inputs and outputs of nodes,
     // so that we reach all nodes that are connected to Root.
@@ -632,7 +632,7 @@ void Compile::print_ideal_ir(const char* phase_name) {
     xtty->head("ideal compile_id='%d'%s compile_phase='%s'",
                compile_id(),
                is_osr_compilation() ? " compile_kind='osr'" : "",
-               phase_name);
+               compile_phase_name);
   }
 
   tty->print("%s", ss.as_string());
@@ -697,7 +697,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _coarsened_locks(comp_arena(), 8, 0, nullptr),
       _congraph(nullptr),
       NOT_PRODUCT(_igv_printer(nullptr) COMMA)
-          _unique(0),
+      _unique(0),
       _dead_node_count(0),
       _dead_node_list(comp_arena()),
       _node_arena_one(mtCompiler, Arena::Tag::tag_node),
@@ -889,7 +889,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
 
 #ifndef PRODUCT
   if (should_print_ideal()) {
-    print_ideal_ir("print_ideal");
+    print_ideal_ir("PrintIdeal");
   }
 #endif
 
@@ -973,7 +973,7 @@ Compile::Compile(ciEnv* ci_env,
       _for_merge_stores_igvn(comp_arena(), 8, 0, nullptr),
       _congraph(nullptr),
       NOT_PRODUCT(_igv_printer(nullptr) COMMA)
-          _unique(0),
+      _unique(0),
       _dead_node_count(0),
       _dead_node_list(comp_arena()),
       _node_arena_one(mtCompiler, Arena::Tag::tag_node),
@@ -1920,7 +1920,7 @@ void Compile::process_for_post_loop_opts_igvn(PhaseIterGVN& igvn) {
   // at least to this point, even if no loop optimizations were done.
   PhaseIdealLoop::verify(igvn);
 
-  if (has_loops() || _loop_opts_cnt > 0) {
+  if (_print_phase_loop_opts) {
     print_method(PHASE_AFTER_LOOP_OPTS, 2);
   }
   C->set_post_loop_opts_phase(); // no more loop opts allowed
@@ -2098,36 +2098,40 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
       LoadFlatNode* loadn = n->as_LoadFlat();
       // Expending a flat load atomically means that we get a chunk of memory spanning multiple fields
       // that we chop with bitwise operations. That is too subtle for some optimizations, especially
-      // constant folding when fields are constant. But if the flattened field being accessed is read-only
-      // then no concurrent writes can happen and non-atomic loads are fine, allowing better optimizations.
-      // A way for fields to be read-only is to be stable and already initialized. Here, we check if the
-      // field being accessed is stable, and if the null marker of the field/array element is non-zero.
-      // If so, we know that the stable value was initialized away from the default value (null), and
-      // that we can assume it's read-only, so can the load can be performed non-atomically.
-      bool non_atomic_is_fine = false;
+      // constant folding when fields are constant. If we can get a constant object from which we are
+      // flat-loading, we can simply replace the loads at compilation-time by the field of the constant
+      // object.
+      ciInstance* loaded_from = nullptr;
       if (FoldStableValues) {
-        const TypeOopPtr* base_type = igvn.type(loadn->base())->isa_oopptr();
+        const TypeOopPtr* base_type = igvn.type(loadn->base())->is_oopptr();
         ciObject* oop = base_type->const_oop();
-        ciInstance* holder = oop != nullptr && oop->is_instance() ? oop->as_instance() : nullptr;
-        ciArray* array = oop != nullptr && oop->is_array() ? oop->as_array() : nullptr;
         int off = igvn.type(loadn->ptr())->isa_ptr()->offset();
 
-        if (holder != nullptr) {
+        if (oop != nullptr && oop->is_instance()) {
+          ciInstance* holder = oop->as_instance();
           ciKlass* klass = holder->klass();
           ciInstanceKlass* iklass = klass->as_instance_klass();
-          const ciField* field = iklass->get_non_flat_field_by_offset(off);
-          ciField* nm_field = iklass->get_field_by_offset(field->null_marker_offset(), false);
-          ciConstant cst = nm_field != nullptr ? holder->field_value(nm_field) : ciConstant() /* invalid */;
-          non_atomic_is_fine = field->is_stable() && cst.is_valid() && cst.as_boolean();
-        } else if (array != nullptr) {
+          ciField* field = iklass->get_non_flat_field_by_offset(off);
+
+          if (field->is_stable()) {
+            ciConstant fv = holder->field_value(field);
+            if (is_reference_type(fv.basic_type()) && fv.as_object()->is_instance()) {
+              // The field value is an object, not null. We can use stability.
+              loaded_from = fv.as_object()->as_instance();
+            }
+          }
+        } else if (oop != nullptr && oop->is_array() && off != Type::OffsetBot) {
+          ciArray* array = oop->as_array();
+          ciConstant elt = array->element_value_by_offset(off);
           const TypeAryPtr* aryptr = base_type->is_aryptr();
-          ciConstant elt = ((ciFlatArray*)array)->null_marker_of_element_by_offset(off);
-          non_atomic_is_fine = aryptr->is_stable() && elt.is_valid() && !elt.is_null_or_zero();
+          if (aryptr->is_stable() && aryptr->is_atomic() && is_reference_type(elt.basic_type()) && elt.as_object()->is_instance()) {
+            loaded_from = elt.as_object()->as_instance();
+          }
         }
       }
 
-      if (non_atomic_is_fine) {
-        loadn->expand_non_atomic(igvn);
+      if (loaded_from != nullptr) {
+        loadn->expand_constant(igvn, loaded_from);
       } else {
         loadn->expand_atomic(igvn);
       }
@@ -2653,6 +2657,7 @@ void Compile::inline_boxing_calls(PhaseIterGVN& igvn) {
 
 bool Compile::inline_incrementally_one() {
   assert(IncrementalInline, "incremental inlining should be on");
+  assert(_late_inlines.length() > 0, "should have been checked by caller");
 
   TracePhase tp(_t_incrInline_inline);
 
@@ -2725,12 +2730,31 @@ void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   print_method(PHASE_INCREMENTAL_INLINE_CLEANUP, 3);
 }
 
+template<typename E>
+static void shuffle_array(Compile& C, GrowableArray<E>& array) {
+  if (array.length() < 2) {
+    return;
+  }
+  for (uint i = array.length() - 1; i >= 1; i--) {
+    uint j = C.random() % (i + 1);
+    swap(array.at(i), array.at(j));
+  }
+}
+
+void Compile::shuffle_late_inlines() {
+  shuffle_array(*C, _late_inlines);
+}
+
 // Perform incremental inlining until bound on number of live nodes is reached
 void Compile::inline_incrementally(PhaseIterGVN& igvn) {
   TracePhase tp(_t_incrInline);
 
   set_inlining_incrementally(true);
   uint low_live_nodes = 0;
+
+  if (StressIncrementalInlining) {
+    shuffle_late_inlines();
+  }
 
   while (_late_inlines.length() > 0) {
     if (live_nodes() > (uint)LiveNodeCountInliningCutoff) {
@@ -2764,6 +2788,10 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
 
     igvn_worklist()->ensure_empty(); // should be done with igvn
 
+    if (_late_inlines.length() == 0) {
+      break; // no more progress
+    }
+
     while (inline_incrementally_one()) {
       assert(!failing_internal() || failure_is_artificial(), "inconsistent");
     }
@@ -2774,10 +2802,6 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
     print_method(PHASE_INCREMENTAL_INLINE_STEP, 3);
 
     if (failing())  return;
-
-    if (_late_inlines.length() == 0) {
-      break; // no more progress
-    }
   }
 
   igvn_worklist()->ensure_empty(); // should be done with igvn
@@ -2807,6 +2831,10 @@ void Compile::process_late_inline_calls_no_inline(PhaseIterGVN& igvn) {
   _modified_nodes = nullptr;
 #endif
   assert(_late_inlines.length() > 0, "sanity");
+
+  if (StressIncrementalInlining) {
+    shuffle_late_inlines();
+  }
 
   while (_late_inlines.length() > 0) {
     igvn_worklist()->ensure_empty(); // should be done with igvn
@@ -2981,7 +3009,8 @@ void Compile::Optimize() {
     print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
   }
 
-  if (has_loops()) {
+  _print_phase_loop_opts = has_loops();
+  if (_print_phase_loop_opts) {
     print_method(PHASE_BEFORE_LOOP_OPTS, 2);
   }
 
@@ -5757,13 +5786,7 @@ void CloneMap::dump(node_idx_t key, outputStream* st) const {
 }
 
 void Compile::shuffle_macro_nodes() {
-  if (_macro_nodes.length() < 2) {
-    return;
-  }
-  for (uint i = _macro_nodes.length() - 1; i >= 1; i--) {
-    uint j = C->random() % (i + 1);
-    swap(_macro_nodes.at(i), _macro_nodes.at(j));
-  }
+  shuffle_array(*C, _macro_nodes);
 }
 
 // Move Allocate nodes to the start of the list
@@ -5783,17 +5806,17 @@ void Compile::sort_macro_nodes() {
   }
 }
 
-void Compile::print_method(CompilerPhaseType cpt, int level, Node* n) {
+void Compile::print_method(CompilerPhaseType compile_phase, int level, Node* n) {
   if (failing_internal()) { return; } // failing_internal to not stress bailouts from printing code.
   EventCompilerPhase event(UNTIMED);
   if (event.should_commit()) {
-    CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, cpt, C->_compile_id, level);
+    CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, compile_phase, C->_compile_id, level);
   }
 #ifndef PRODUCT
   ResourceMark rm;
   stringStream ss;
-  ss.print_raw(CompilerPhaseTypeHelper::to_description(cpt));
-  int iter = ++_igv_phase_iter[cpt];
+  ss.print_raw(CompilerPhaseTypeHelper::to_description(compile_phase));
+  int iter = ++_igv_phase_iter[compile_phase];
   if (iter > 1) {
     ss.print(" %d", iter);
   }
@@ -5821,8 +5844,8 @@ void Compile::print_method(CompilerPhaseType cpt, int level, Node* n) {
   if (should_print_phase(level)) {
     print_phase(name);
   }
-  if (should_print_ideal_phase(cpt)) {
-    print_ideal_ir(CompilerPhaseTypeHelper::to_name(cpt));
+  if (should_print_ideal_phase(compile_phase)) {
+    print_ideal_ir(CompilerPhaseTypeHelper::to_name(compile_phase));
   }
 #endif
   C->_latest_stage_start_counter.stamp();

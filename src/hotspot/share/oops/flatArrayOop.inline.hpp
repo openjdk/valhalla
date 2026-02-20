@@ -51,6 +51,7 @@ inline int flatArrayOopDesc::object_size(int lh) const {
 }
 
 inline oop flatArrayOopDesc::obj_at(int index) const {
+  fatal("Should not be used with flat arrays");
   EXCEPTION_MARK;
   return obj_at(index, THREAD);
 }

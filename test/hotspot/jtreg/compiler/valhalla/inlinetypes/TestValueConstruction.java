@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1664,7 +1664,7 @@ public class TestValueConstruction {
     }
 
     private static final MethodHandle MULTIPLE_OCCURRENCES_IN_JVMS = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
-            "multipleOccurrencesInJVMSReturnStack",
+            "multipleOccurrencesInJVMS",
             MethodType.methodType(MyValue1.class, int.class),
             CODE -> {
                 Label loopHead = CODE.newLabel();
@@ -1672,6 +1672,7 @@ public class TestValueConstruction {
                 CODE.
                         new_(MyValue1.class.describeConstable().get()).
                         dup().
+                        // Duplicate the larval oop across multiple local slots
                         astore(1).
                         astore(2).
                         iconst_0().
@@ -1692,6 +1693,37 @@ public class TestValueConstruction {
 
     public static MyValue1 testMultipleOccurrencesInJVMS(int x) throws Throwable {
         return (MyValue1) MULTIPLE_OCCURRENCES_IN_JVMS.invokeExact(x);
+    }
+
+    private static final MethodHandle OSR_LARVAL_LOCAL = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+            "osrLarvalLocal",
+            MethodType.methodType(MyValue1.class, MyValue1.class, int.class),
+            CODE -> {
+                Label loopHead = CODE.newLabel();
+                Label loopExit = CODE.newLabel();
+                CODE.
+                        new_(MyValue1.class.describeConstable().get()).
+                        // Overwrite a parameter with the larval oop
+                        astore(0).
+                        iconst_0().
+                        istore(2).
+                        labelBinding(loopHead).
+                        iload(2).
+                        ldc(100).
+                        if_icmpge(loopExit).
+                        iinc(2, 1).
+                        goto_(loopHead).
+                        labelBinding(loopExit).
+                        aload(0).
+                        iload(1).
+                        invokespecial(MyValue1.class.describeConstable().get(), "<init>", MethodType.methodType(void.class, int.class).describeConstable().get()).
+                        aload(0).
+                        areturn();
+            });
+
+    public static MyValue1 testOsrLarvalLocal(int x) throws Throwable {
+        MyValue1 dummy = new MyValue1(x - 1);
+        return (MyValue1) OSR_LARVAL_LOCAL.invokeExact(dummy, x);
     }
 
     public static void main(String[] args) throws Throwable {
@@ -1822,6 +1854,7 @@ public class TestValueConstruction {
         check(testBackAndForthAbstract(x), new MyValue15(x), doCheck);
         check(testBackAndForthAbstract2(x), new MyValue16(x), doCheck);
         check(testMultipleOccurrencesInJVMS(x), new MyValue1(x), doCheck);
+        check(testOsrLarvalLocal(x), new MyValue1(x), doCheck);
     }
 
     private static void check(Object testResult, Object expectedResult, boolean check) {

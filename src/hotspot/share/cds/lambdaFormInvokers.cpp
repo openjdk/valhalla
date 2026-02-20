@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -171,7 +172,7 @@ void LambdaFormInvokers::regenerate_holder_classes(TRAPS) {
     return;
   }
 
-  objArrayHandle h_array(THREAD, (objArrayOop)result.get_oop());
+  refArrayHandle h_array(THREAD, oop_cast<refArrayOop>(result.get_oop()));
   int sz = h_array->length();
   assert(sz % 2 == 0 && sz >= 2, "Must be even size of length");
   for (int i = 0; i < sz; i+= 2) {
