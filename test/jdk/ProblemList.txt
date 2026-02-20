@@ -797,8 +797,6 @@ jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,gener
 
 # The following test failures DID NOT reproduce during Tier[1-8] testing 
 # done for 8377828. Further analysis is being done with 8376235:
-java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
-java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
 java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
 
 java/net/CookieHandler/B6644726.java                            8365811 generic-all
