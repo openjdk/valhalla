@@ -77,7 +77,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * @library /test/jdk/tools/lib
  *          /test/lib
  * @build tests.*
- * @run junit/othervm -esa SystemImageTest
+ * @run junit/othervm -esa -ea SystemImageTest
  */
 // FIXME: Currently the test output in Jtreg does not show the implementation.
 // This is due to using both @ParameterizedClass and @ParameterizedTest to

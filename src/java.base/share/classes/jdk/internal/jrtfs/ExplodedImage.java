@@ -306,13 +306,15 @@ class ExplodedImage extends SystemImage {
         if (!name.startsWith("/modules/")) {
             return false;
         }
+        // i = first index of segment (possibly after a trailing '/').
         int i = "/modules/".length();
         do {
+            // j = next '/' or end of name.
             int j = name.indexOf('/', i);
             if (j == -1) {
                 j = name.length();
             }
-            // Test for empty path segment '//' or trailing '/'.
+            // Test for empty path segment ('//' or trailing '/').
             if (j == i) {
                 return false;
             }
@@ -321,8 +323,9 @@ class ExplodedImage extends SystemImage {
             if (j - i <= 2 && name.charAt(i) == '.' && name.charAt(j - 1) == '.') {
                 return false;
             }
+            // Loop once more if (j == name.length()-1) to catch trailing '/'.
             i = j + 1;
-        } while (i < name.length());
+        } while (i <= name.length());
         return true;
     }
 
