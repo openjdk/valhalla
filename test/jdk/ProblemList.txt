@@ -795,9 +795,6 @@ tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 83
 
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8376514 generic-all # debug only
 
-jdk/internal/vm/Continuation/Fuzz.java#default 8370177 generic-aarch64,generic-x64
-jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,generic-x64
-
 sun/tools/jhsdb/BasicLauncherTest.java 8365722 generic-all
 sun/tools/jhsdb/HeapDumpTest.java 8365722 generic-all
 sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java 8365722 generic-all

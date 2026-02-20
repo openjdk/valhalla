@@ -113,7 +113,7 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return (address)f.own_abi()->lr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool callee_augmented) {
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
   f.own_abi()->lr = (uint64_t)pc;
 }
 

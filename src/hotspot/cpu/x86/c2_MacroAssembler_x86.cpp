@@ -91,6 +91,12 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
     // We always push rbp, so that on return to interpreter rbp, will be
     // restored correctly and we can correct the stack.
     push(rbp);
+#ifdef ASSERT
+    if (sp_inc > 0) {
+      movl(Address(rsp, 0), badRegWordVal);
+      movl(Address(rsp, VMRegImpl::stack_slot_size), badRegWordVal);
+    }
+#endif
     // Save caller's stack pointer into RBP if the frame pointer is preserved.
     if (PreserveFramePointer) {
       mov(rbp, rsp);
@@ -108,6 +114,12 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
     // Save RBP register now.
     framesize -= wordSize;
     movptr(Address(rsp, framesize), rbp);
+#ifdef ASSERT
+    if (sp_inc > 0) {
+      movl(Address(rsp, framesize), badRegWordVal);
+      movl(Address(rsp, framesize + VMRegImpl::stack_slot_size), badRegWordVal);
+    }
+#endif
     // Save caller's stack pointer into RBP if the frame pointer is preserved.
     if (PreserveFramePointer) {
       movptr(rbp, rsp);
@@ -120,7 +132,7 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   if (C->needs_stack_repair()) {
     // Save stack increment just below the saved rbp (also account for fixed framesize and rbp)
     assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize + wordSize);
+    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize);
   }
 
   if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
