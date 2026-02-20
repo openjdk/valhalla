@@ -301,32 +301,16 @@ class ExplodedImage extends SystemImage {
         // Don't just check the prefix, there must be something after it too
         // (otherwise you end up with an empty string after trimming).
         // Also make sure we can't be tricked by "/modules//absolute/path" or
-        // "/modules/../../escaped/path"
-        // Don't use regex as 'name' is untrusted (avoids stack overflow risk).
-        if (!name.startsWith("/modules/")) {
-            return false;
-        }
-        // i = first index of segment (possibly after a trailing '/').
-        int i = "/modules/".length();
-        do {
-            // j = next '/' or end of name.
-            int j = name.indexOf('/', i);
-            if (j == -1) {
-                j = name.length();
-            }
-            // Test for empty path segment ('//' or trailing '/').
-            if (j == i) {
-                return false;
-            }
-            // Check for path segments '.' or '..'.
-            // Reads same char twice if (j == i+1), but that's fine.
-            if (j - i <= 2 && name.charAt(i) == '.' && name.charAt(j - 1) == '.') {
-                return false;
-            }
-            // Loop once more if (j == name.length()-1) to catch trailing '/'.
-            i = j + 1;
-        } while (i <= name.length());
-        return true;
+        // "/modules/../../escaped/path".
+        // Don't use regex as 'name' is untrusted (avoids stack overflow risk)
+        // and performance isn't an issue here.
+        return name.startsWith("/modules/")
+                && !name.contains("//")
+                && !name.contains("/./")
+                && !name.contains("/../")
+                && !name.endsWith("/")
+                && !name.endsWith("/.")
+                && !name.endsWith("/..");
     }
 
     // convert "/" to platform path separator
