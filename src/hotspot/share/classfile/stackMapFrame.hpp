@@ -202,12 +202,12 @@ class StackMapFrame : public ResourceObj {
   // Called during merging of frames
   bool verify_unset_fields_compatibility(AssertUnsetFieldTable* target_table) const {
     bool compatible = true;
-    auto is_unset = [&] (const NameAndSig& key, const bool& value) {
-      // Successor must have same debts as current frame
-      if (!value) {
-        bool* has_debt = target_table->get(key);
-        guarantee(has_debt != nullptr, "Must be present");
-        if (*has_debt == true) {
+    auto is_unset = [&] (const NameAndSig& key, const bool& satisfied) {
+      // Successor must have same (or more) unsatisfied debts as current frame.
+      if (!satisfied) {
+        bool* target_satisfied = target_table->get(key);
+        guarantee(target_satisfied != nullptr, "Must be present");
+        if (*target_satisfied == true) {
           compatible = false;
         }
       }
