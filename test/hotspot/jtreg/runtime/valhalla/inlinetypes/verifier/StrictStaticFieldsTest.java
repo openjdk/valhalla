@@ -27,6 +27,7 @@
  * @summary Tracking of strict static fields
  * @library /test/lib
  * @enablePreview
+ * @modules java.base/jdk.internal.vm.annotation
  * @compile Bnoinit_BAD.jasm
  *          Brbefore_BAD.jasm
  *          Cwreflective_OK.jasm
@@ -34,17 +35,16 @@
  *          WriteAfterReadRefl.jasm
  * @compile StrictStaticFieldsTest.java
  * @run driver jdk.test.lib.helpers.StrictProcessor
- *             runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
- *             runtime.valhalla.inlinetypes.verifier.Aregular_OK
- *             runtime.valhalla.inlinetypes.verifier.Anulls_OK
- *             runtime.valhalla.inlinetypes.verifier.Arepeat_OK
- *             runtime.valhalla.inlinetypes.verifier.Aupdate_OK
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
+ *             StrictStaticFieldsTest
+ *             Aregular_OK
+ *             Anulls_OK
+ *             Arepeat_OK
+ *             Aupdate_OK
+ * @run main/othervm StrictStaticFieldsTest
  */
 
-package runtime.valhalla.inlinetypes.verifier;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
 import jdk.test.lib.helpers.StrictInit;
 
 public class StrictStaticFieldsTest {
