@@ -56,13 +56,13 @@ void FlatArrayKlass::oop_oop_iterate_elements_specialized(flatArrayOop a,
   const uintptr_t start_addr = base + ((size_t)start << shift);
   const uintptr_t stop_addr = base + ((size_t)end << shift);
 
-  oop_oop_iterate_elements_specialized_bounded<T>(a, closure, (void*)start_addr, (void*)stop_addr);
+  oop_oop_iterate_elements_specialized_bounded<T>(a, closure, start_addr, stop_addr);
 }
 
 template <typename T, class OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded(flatArrayOop a,
                                                                   OopClosureType* closure,
-                                                                  void* lo, void* hi) {
+                                                                  uintptr_t lo, uintptr_t hi) {
   assert(contains_oops(), "Nothing to iterate");
 
   const int shift = Klass::layout_helper_log2_element_size(layout_helper());
@@ -71,12 +71,12 @@ void FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded(flatArrayOop a
   uintptr_t stop_addr = elem_addr + ((uintptr_t)a->length() << shift);
   const int oop_offset = element_klass()->payload_offset();
 
-  if (elem_addr < (uintptr_t) lo) {
-    uintptr_t diff = ((uintptr_t) lo) - elem_addr;
+  if (elem_addr < lo) {
+    uintptr_t diff = lo - elem_addr;
     elem_addr += (diff >> shift) << shift;
   }
-  if (stop_addr > (uintptr_t) hi) {
-    uintptr_t diff = stop_addr - ((uintptr_t) hi);
+  if (stop_addr > hi) {
+    uintptr_t diff = stop_addr - hi;
     stop_addr -= (diff >> shift) << shift;
   }
 
@@ -116,7 +116,7 @@ void FlatArrayKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
 template <typename T, class OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_elements_bounded(flatArrayOop a, OopClosureType* closure, MemRegion mr) {
   if (contains_oops()) {
-    oop_oop_iterate_elements_specialized_bounded<T>(a, closure, mr.start(), mr.end());
+    oop_oop_iterate_elements_specialized_bounded<T>(a, closure, (uintptr_t)mr.start(), (uintptr_t)mr.end());
   }
 }
 

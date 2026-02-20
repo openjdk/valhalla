@@ -268,7 +268,7 @@ class InlineKlass: public InstanceKlass {
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
 
   template <typename T, class OopClosureType>
-  inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi);
+  inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, uintptr_t lo, uintptr_t hi);
 
   // calling convention support
   void initialize_calling_convention(TRAPS);

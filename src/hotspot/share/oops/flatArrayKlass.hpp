@@ -136,7 +136,7 @@ private:
   inline void oop_oop_iterate_elements_bounded(flatArrayOop a, OopClosureType* closure, MemRegion mr);
 
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_specialized_bounded(flatArrayOop a, OopClosureType* closure, void* low, void* high);
+  inline void oop_oop_iterate_elements_specialized_bounded(flatArrayOop a, OopClosureType* closure, uintptr_t low, uintptr_t high);
 
  public:
   u2 compute_modifier_flags() const override;
