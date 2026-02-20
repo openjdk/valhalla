@@ -35,7 +35,8 @@ package compiler.valhalla.inlinetypes;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:VerifyIterativeGVN=1110
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions
+ *                   -XX:VerifyIterativeGVN=1110
  *                   -XX:CompileCommand=compileonly,${test.main.class}::test
  *                   ${test.main.class}
  * @run main ${test.main.class}
