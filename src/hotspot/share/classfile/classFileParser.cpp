@@ -4502,8 +4502,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
   const bool is_enum       = (flags & JVM_ACC_ENUM)       != 0;
   const bool is_annotation = (flags & JVM_ACC_ANNOTATION) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
-  const bool valid_value_class = is_identity || is_interface ||
-                                 (supports_inline_types() && (!is_identity && (is_abstract || is_final)));
+  const bool valid_value_class = is_identity || is_interface || (supports_inline_types() && (is_abstract || is_final));
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
