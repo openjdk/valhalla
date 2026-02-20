@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -51,7 +50,7 @@ import static java.util.stream.Collectors.toList;
  * build')
  *
  * @implNote This class needs to maintain JDK 8 source compatibility.
- *
+ * <p>
  * It is used internally in the JDK to implement jimage/jrtfs access,
  * but also compiled and delivered as part of the jrtfs.jar to support access
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
@@ -100,13 +99,17 @@ class ExplodedImage extends SystemImage {
             }
         }
 
-        /** Creates a symbolic link node to the specified target. */
+        /**
+         * Creates a symbolic link node to the specified target.
+         */
         private PathNode(String name, Node link) {              // link
             super(name, link.getFileAttributes());
             this.link = (PathNode)link;
         }
 
-        /** Creates a completed directory node based a list of child nodes. */
+        /**
+         * Creates a completed directory node based a list of child nodes.
+         */
         private PathNode(String name, List<PathNode> children) {    // dir
             super(name, modulesDirAttrs);
             this.childNames = children.stream().map(Node::getName).collect(toList());
@@ -265,7 +268,7 @@ class ExplodedImage extends SystemImage {
      * @param name a resource or directory node name, of the form "/modules/...".
      * @param path the path of a file for a resource or directory.
      * @return the newly created and cached node, or {@code null} if the given
-     *     path references a file which must be hidden in the node hierarchy.
+     * path references a file which must be hidden in the node hierarchy.
      */
     private PathNode createModulesNode(String name, Path path) {
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
@@ -294,17 +297,33 @@ class ExplodedImage extends SystemImage {
         }
     }
 
-    private static final Pattern NON_EMPTY_MODULES_NAME =
-            Pattern.compile("/modules(/[^/]+)+");
-
     private static boolean isNonEmptyModulesName(String name) {
         // Don't just check the prefix, there must be something after it too
         // (otherwise you end up with an empty string after trimming).
         // Also make sure we can't be tricked by "/modules//absolute/path" or
         // "/modules/../../escaped/path"
-        return NON_EMPTY_MODULES_NAME.matcher(name).matches()
-                && !name.contains("/../")
-                && !name.contains("/./");
+        // Don't use regex as 'name' is untrusted (avoids stack overflow risk).
+        if (!name.startsWith("/modules/")) {
+            return false;
+        }
+        int i = "/modules/".length();
+        do {
+            int j = name.indexOf('/', i);
+            if (j == -1) {
+                j = name.length();
+            }
+            // Test for empty path segment '//' or trailing '/'.
+            if (j == i) {
+                return false;
+            }
+            // Check for path segments '.' or '..'.
+            // Reads same char twice if (j == i+1), but that's fine.
+            if (j - i <= 2 && name.charAt(i) == '.' && name.charAt(j - 1) == '.') {
+                return false;
+            }
+            i = j + 1;
+        } while (i < name.length());
+        return true;
     }
 
     // convert "/" to platform path separator
