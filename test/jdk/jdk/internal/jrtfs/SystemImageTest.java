@@ -163,7 +163,15 @@ class SystemImageTest {
             "/modules/unknown",
             "/modules/modbar/",
             "/modules/modfoo//com",
-            "/modules/modfoo/com/"})
+            "/modules/modfoo/com/",
+            "/modules/modfoo/com/foo/.",
+            "/modules/modfoo/com/foo/./",
+            "/modules/modfoo/com/foo/./bar",
+            "/modules/modfoo/com/foo/..",
+            "/modules/modfoo/com/foo/../",
+            "/modules/modfoo/com/bar/../foo",
+            "/modules/../packages",
+            "/modules/../.."})
     public void testModuleNodes_absent(String name) throws IOException {
         try (var image = getImage(DISABLED)) {
             assertAbsent(image, name);
