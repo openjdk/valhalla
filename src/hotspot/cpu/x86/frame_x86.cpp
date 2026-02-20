@@ -655,9 +655,9 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   nmethod* nm = _cb->as_nmethod_or_null();
   if (nm != nullptr && nm->needs_stack_repair()) {
     // The stack increment resides just below the saved rbp on the stack
-    // and does not account for the return address.
+    // and does not account for the return address and rbp (see MacroAssembler::remove_frame).
     intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
-    int real_frame_size = (*real_frame_size_addr / wordSize) + 2;
+    int real_frame_size = (*real_frame_size_addr / wordSize) + metadata_words_at_bottom;
     assert(real_frame_size >= _cb->frame_size() && real_frame_size <= 1000000, "invalid frame size");
     sender_sp = unextended_sp() + real_frame_size;
   }
@@ -687,9 +687,9 @@ frame::CompiledFramePointers frame::compiled_frame_details() const {
 intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
   assert(nm != nullptr && nm->needs_stack_repair(), "");
   // The stack increment resides just below the saved rbp on the stack
-  // and does not account for the return address.
+  // and does not account for the return address and rbp (see MacroAssembler::remove_frame).
   intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
-  int real_frame_size = (*real_frame_size_addr / wordSize) + 2;
+  int real_frame_size = (*real_frame_size_addr / wordSize) + metadata_words_at_bottom;
   assert(real_frame_size >= nm->frame_size() && real_frame_size <= 1000000, "invalid frame size");
   return sp + real_frame_size;
 }
@@ -697,8 +697,10 @@ intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp
 bool frame::was_augmented_on_entry(int& real_size) const {
   assert(is_compiled_frame(), "");
   if (_cb->as_nmethod_or_null()->needs_stack_repair()) {
+    // The stack increment resides just below the saved rbp on the stack
+    // and does not account for the return address and rbp (see MacroAssembler::remove_frame).
     intptr_t* real_frame_size_addr = unextended_sp() + _cb->frame_size() - sender_sp_offset - 1;
-    real_size = (*real_frame_size_addr / wordSize) + 2;
+    real_size = (*real_frame_size_addr / wordSize) + metadata_words_at_bottom;
     return real_size != _cb->frame_size();
   }
   real_size = _cb->frame_size();
