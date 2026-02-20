@@ -264,7 +264,7 @@ class ExplodedImage extends SystemImage {
      * @param name a resource or directory node name, of the form "/modules/...".
      * @param path the path of a file for a resource or directory.
      * @return the newly created and cached node, or {@code null} if the given
-     * path references a file which must be hidden in the node hierarchy.
+     *     path references a file which must be hidden in the node hierarchy.
      */
     private PathNode createModulesNode(String name, Path path) {
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
