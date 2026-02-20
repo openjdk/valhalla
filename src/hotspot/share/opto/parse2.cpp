@@ -2134,7 +2134,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   const TypeOopPtr* tleft = _gvn.type(left)->isa_oopptr();
   const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   Node* cmp = CmpP(left, right);
-  record_for_igvn(cmp); // TODO it's this one
+  record_for_igvn(cmp);
   cmp = optimize_cmp_with_klass(cmp);
   if (tleft == nullptr || !tleft->can_be_inline_type() ||
       tright == nullptr || !tright->can_be_inline_type()) {
