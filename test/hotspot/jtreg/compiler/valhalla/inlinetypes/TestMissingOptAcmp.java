@@ -26,7 +26,11 @@ package compiler.valhalla.inlinetypes;
 /*
  * @test
  * @key randomness
- * @summary TODO.
+ * @summary In CmpLNode::Ideal, we optimize expressions of the form
+ *          CmpL(OrL(CastP2X(..), CastP2X(..)), 0L) that are created
+ *          by Parse::do_acmp. If one of the operands has a NotNull type,
+ *          then it can be folded. This test ensures that this optimization
+ *          is not missed.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -36,7 +40,6 @@ package compiler.valhalla.inlinetypes;
  *                   ${test.main.class}
  * @run main ${test.main.class}
  */
-
 
 value class MyValue1NewAcmp {
     int x;
