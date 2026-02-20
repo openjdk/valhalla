@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -205,7 +205,9 @@ class StackMapFrame : public ResourceObj {
     auto is_unset = [&] (const NameAndSig& key, const bool& value) {
       // Successor must have same debts as current frame
       if (!value) {
-        if (*target_table->get(key) == true) {
+        bool* has_debt = target_table->get(key);
+        guarantee(has_debt != nullptr, "Must be present");
+        if (*has_debt == true) {
           compatible = false;
         }
       }
