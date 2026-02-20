@@ -42,6 +42,7 @@ public class AccessFlags implements /* imports */ ClassConstants {
   public boolean isFinal       () { return (flags & JVM_ACC_FINAL       ) != 0; }
   public boolean isSynchronized() { return (flags & JVM_ACC_SYNCHRONIZED) != 0; }
   public boolean isSuper       () { return (flags & JVM_ACC_SUPER       ) != 0; }
+  public boolean isIdentity    () { return (flags & JVM_ACC_IDENTITY    ) != 0; }
   public boolean isVolatile    () { return (flags & JVM_ACC_VOLATILE    ) != 0; }
   public boolean isBridge      () { return (flags & JVM_ACC_BRIDGE      ) != 0; }
   public boolean isTransient   () { return (flags & JVM_ACC_TRANSIENT   ) != 0; }
@@ -64,6 +65,7 @@ public class AccessFlags implements /* imports */ ClassConstants {
     if (isStatic      ()) tty.print("static "      );
     if (isFinal       ()) tty.print("final "       );
     if (isSynchronized()) tty.print("synchronized ");
+    if (isIdentity    ()) tty.print("identity "    );
     if (isVolatile    ()) tty.print("volatile "    );
     if (isBridge      ()) tty.print("bridge "      );
     if (isTransient   ()) tty.print("transient "   );

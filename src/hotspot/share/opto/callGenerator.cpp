@@ -696,7 +696,7 @@ void CallGenerator::do_late_inline_helper() {
     int arg_num = 0;
     for (uint i1 = 0; i1 < nargs; i1++) {
       const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-      if (t->is_inlinetypeptr() && !method()->get_Method()->mismatch() && method()->is_scalarized_arg(arg_num)) {
+      if (t->is_inlinetypeptr() && !method()->mismatch() && method()->is_scalarized_arg(arg_num)) {
         // Inline type arguments are not passed by reference: we get an argument per
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
