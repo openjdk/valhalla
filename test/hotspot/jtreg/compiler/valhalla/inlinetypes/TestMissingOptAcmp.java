@@ -55,6 +55,7 @@ public class TestMissingOptAcmp {
     }
 
     public static Object getNotNull(Object u) {
+        // results in a CastPP with NotNull type, which enables the optimization
         return (u != null) ? u : new Object();
     }
 
