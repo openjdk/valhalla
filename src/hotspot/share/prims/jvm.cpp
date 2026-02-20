@@ -65,6 +65,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/refArrayOop.inline.hpp"
 #include "prims/foreignGlobals.hpp"
@@ -3745,7 +3746,7 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
     THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
 
-  refArrayOop a = refArrayOopDesc::cast(JNIHandles::resolve_non_null(threads));
+  refArrayOop a = oop_cast<refArrayOop>(JNIHandles::resolve_non_null(threads));
   refArrayHandle ah(THREAD, a);
   int num_threads = ah->length();
   // check if threads is non-empty array
