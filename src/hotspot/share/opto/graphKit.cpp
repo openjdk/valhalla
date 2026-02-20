@@ -32,6 +32,7 @@
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/flatArrayKlass.hpp"
@@ -3611,7 +3612,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
           assert(safe_for_replace, "must be");
           obj = null_check(obj);
         }
-        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType(), "should have been scalarized");
+        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType() || UseShenandoahGC, "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
         if (null_free) {
