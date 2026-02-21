@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,6 +89,9 @@ public final class BasicImageWriter {
     }
 
     private void generatePerfectHash() {
+        // About 40% of entries in the location table are expected to be
+        // auxiliary hashes for secondary lookup, so the amortized cost of
+        // a random lookup is about 1.4 x the cost of a single hash operation.
         PerfectHashBuilder<ImageLocationWriter> builder =
             new PerfectHashBuilder<>(
                         PerfectHashBuilder.Entry.class,

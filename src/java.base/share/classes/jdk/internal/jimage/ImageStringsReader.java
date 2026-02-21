@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,56 +62,108 @@ public class ImageStringsReader implements ImageStrings {
         throw new InternalError("Can not add strings at runtime");
     }
 
-    public static int hashCode(String s) {
-        return hashCode(s, HASH_MULTIPLIER);
+    /**
+     * {@return the lookup hash code for a string, starting at the given index,
+     * with the default seed value}
+     */
+    public static int defaultHashCode(String s, int index) {
+        return seededHashCode(s, index, HASH_MULTIPLIER);
     }
 
-    public static int hashCode(String s, int seed) {
-        return unmaskedHashCode(s, seed) & POSITIVE_MASK;
+    /**
+     * {@return the lookup hash code for a string, starting at the given index,
+     * with a specified seed value}
+     */
+    public static int seededHashCode(String s, int index, int seed) {
+        return unmaskedHashCode(s, index, seed) & POSITIVE_MASK;
     }
 
-    public static int hashCode(String module, String name) {
-        return hashCode(module, name, HASH_MULTIPLIER);
+    /**
+     * {@return the lookup hash code for the path in the given module with the
+     * default seed value}
+     *
+     * This method behaves exactly like:
+     * <pre>{@code
+     *   defaultHashCode("/" + module + "/" + path, 0);
+     * }</pre>
+     */
+    public static int defaultHashCode(String module, String name) {
+        return seededHashCode(module, name, HASH_MULTIPLIER);
     }
 
-    public static int hashCode(String module, String name, int seed) {
+    /**
+     * {@return the lookup hash code for the path in the given module with a
+     * specified seed value}
+     *
+     * This method behaves exactly like:
+     * <pre>{@code
+     *   seededHashCode("/" + module + "/" + path, 0, seed);
+     * }</pre>
+     */
+    public static int seededHashCode(String module, String path, int seed) {
         seed = (seed * HASH_MULTIPLIER) ^ ('/');
-        seed = unmaskedHashCode(module, seed);
+        seed = unmaskedHashCode(module, 0, seed);
         seed = (seed * HASH_MULTIPLIER) ^ ('/');
-        seed = unmaskedHashCode(name, seed);
+        seed = unmaskedHashCode(path, 0, seed);
         return seed & POSITIVE_MASK;
     }
 
+    /**
+     * {@return the raw 32-bit hash code of the given string, suitable for using
+     * as a seed to another unmaskedHashCode() call}
+     *
+     * This is useful when constructing compound hash values, since:
+     * <pre>{@code
+     *   int seed = unmaskedHashCode("hello ", startingSeed);
+     *   int hash = unmaskedHashCode("world!", seed) & POSITIVE_MASK;
+     * }</pre>
+     *
+     * Is the same as:
+     * <pre>{@code
+     *   int hash = seededHashCode("hello world!", 0, startingSeed);
+     * }</pre>
+     *
+     * but returned values should not be used directly for location entry lookup.
+     *
+     * @param s the string to process
+     * @param seed the hash seed (possibly returned from a previous call to
+     *             {@code unmaskedHashCode()}).
+     */
     public static int unmaskedHashCode(String s, int seed) {
+        return unmaskedHashCode(s, 0, seed);
+    }
+
+    /**
+     * This algorithm hashes each byte of the modified UTF-8 representation of
+     * the string, starting at 'startIndex'.
+     *
+     * <p>It is equivalent to:
+     * <pre>{@code
+     *   for (byte b : mutf8FromString(s.substring(startIndex))) {
+     *       seed = (seed * HASH_MULTIPLIER) ^ (b & 0xFF);
+     *   }
+     *   return seed;
+     * }</pre>
+     * but avoids any allocations.
+     */
+    private static int unmaskedHashCode(String s, int startIndex, int seed) {
         int slen = s.length();
-        byte[] buffer = null;
-
-        for (int i = 0; i < slen; i++) {
+        for (int i = startIndex; i < slen; i++) {
+            // Upper 16-bits MUST be zero.
             int uch = s.charAt(i);
-
-            if ((uch & ~0x7F) != 0) {
-                if (buffer == null) {
-                    buffer = new byte[8];
-                }
-                int mask = ~0x3F;
-                int n = 0;
-
-                do {
-                    buffer[n++] = (byte)(0x80 | (uch & 0x3F));
-                    uch >>= 6;
-                    mask >>= 1;
-                } while ((uch & mask) != 0);
-
-                buffer[n] = (byte)((mask << 1) | uch);
-
-                do {
-                    seed = (seed * HASH_MULTIPLIER) ^ (buffer[n--] & 0xFF);
-                } while (0 <= n);
-            } else if (uch == 0) {
-                seed = (seed * HASH_MULTIPLIER) ^ (0xC0);
-                seed = (seed * HASH_MULTIPLIER) ^ (0x80);
-            } else {
+            // Copied and adapted from jdk/internal/util/ModifiedUtf.java
+            if (uch != 0 && uch < 0x80) {
+                // 7-bits (ASCII) not including nul.
                 seed = (seed * HASH_MULTIPLIER) ^ (uch);
+            } else if (uch >= 0x800) {
+                // 12-16 bits, three bytes.
+                seed = (seed * HASH_MULTIPLIER) ^ (0xE0 | uch >> 12 & 0x0F);
+                seed = (seed * HASH_MULTIPLIER) ^ (0x80 | uch >> 6 & 0x3F);
+                seed = (seed * HASH_MULTIPLIER) ^ (0x80 | uch & 0x3F);
+            } else {
+                // 7-11 bits, two bytes (or variant nul encoding).
+                seed = (seed * HASH_MULTIPLIER) ^ (0xC0 | uch >> 6 & 0x1F);
+                seed = (seed * HASH_MULTIPLIER) ^ (0x80 | uch & 0x3F);
             }
         }
         return seed;

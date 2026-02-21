@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,6 +238,18 @@ public class ImageLocation {
         return attributes;
     }
 
+    private static long readValue(int length, ByteBuffer buffer, int offset, int limit) {
+        long value = 0;
+        for (int j = 0; j < length; j++) {
+            value <<= 8;
+            if (offset >= limit) {
+                throw new InternalError("Missing jimage attribute data");
+            }
+            value |= buffer.get(offset++) & 0xFF;
+        }
+        return value;
+    }
+
     public static byte[] compress(long[] attributes) {
         Objects.requireNonNull(attributes);
         ImageStream stream = new ImageStream(16);
@@ -261,7 +273,7 @@ public class ImageLocation {
      }
 
     public boolean verify(String name) {
-        return verify(name, attributes, strings);
+        return verify(name, 0, attributes, strings);
     }
 
     /**
@@ -269,127 +281,72 @@ public class ImageLocation {
      * by not creating the full name and enabling early returns we allocate
      * fewer objects.
      */
-    static boolean verify(String name, long[] attributes, ImageStrings strings) {
+    static boolean verify(String name, int index, long[] attributes, ImageStrings strings) {
         Objects.requireNonNull(name);
-        final int length = name.length();
-        int index = 0;
-        int moduleOffset = (int)attributes[ATTRIBUTE_MODULE];
-        if (moduleOffset != 0 && length >= 1) {
-            int moduleLen = strings.match(moduleOffset, name, 1);
-            index = moduleLen + 1;
-            if (moduleLen < 0
-                    || length <= index
-                    || name.charAt(0) != '/'
-                    || name.charAt(index++) != '/') {
-                return false;
-            }
-        }
-        return verifyName(null, name, index, length, 0,
-                (int) attributes[ATTRIBUTE_PARENT],
-                (int) attributes[ATTRIBUTE_BASE],
-                (int) attributes[ATTRIBUTE_EXTENSION],
-                strings);
-    }
-
-    static boolean verify(String module, String name, ByteBuffer locations,
-                          int locationOffset, ImageStrings strings) {
-        int moduleOffset = 0;
-        int parentOffset = 0;
-        int baseOffset = 0;
-        int extOffset = 0;
-
-        int limit = locations.limit();
-        while (locationOffset < limit) {
-            int data = locations.get(locationOffset++) & 0xFF;
-            if (data <= 0x7) { // ATTRIBUTE_END
-                break;
-            }
-            int kind = data >>> 3;
-            if (ATTRIBUTE_COUNT <= kind) {
-                throw new InternalError(
-                        "Invalid jimage attribute kind: " + kind);
-            }
-
-            int length = (data & 0x7) + 1;
-            switch (kind) {
-                case ATTRIBUTE_MODULE:
-                    moduleOffset = (int) readValue(length, locations, locationOffset, limit);
-                    break;
-                case ATTRIBUTE_BASE:
-                    baseOffset = (int) readValue(length, locations, locationOffset, limit);
-                    break;
-                case ATTRIBUTE_PARENT:
-                    parentOffset = (int) readValue(length, locations, locationOffset, limit);
-                    break;
-                case ATTRIBUTE_EXTENSION:
-                    extOffset = (int) readValue(length, locations, locationOffset, limit);
-                    break;
-            }
-            locationOffset += length;
-        }
-        return verifyName(module, name, 0, name.length(),
-                moduleOffset, parentOffset, baseOffset, extOffset, strings);
-    }
-
-    private static long readValue(int length, ByteBuffer buffer, int offset, int limit) {
-        long value = 0;
-        for (int j = 0; j < length; j++) {
-            value <<= 8;
-            if (offset >= limit) {
-                throw new InternalError("Missing jimage attribute data");
-            }
-            value |= buffer.get(offset++) & 0xFF;
-        }
-        return value;
-    }
-
-    static boolean verify(String module, String name, long[] attributes,
-            ImageStrings strings) {
-        Objects.requireNonNull(module);
-        Objects.requireNonNull(name);
-        return verifyName(module, name, 0, name.length(),
-                (int) attributes[ATTRIBUTE_MODULE],
-                (int) attributes[ATTRIBUTE_PARENT],
-                (int) attributes[ATTRIBUTE_BASE],
-                (int) attributes[ATTRIBUTE_EXTENSION],
-                strings);
-    }
-
-    private static boolean verifyName(String module, String name, int index, int length,
-            int moduleOffset, int parentOffset, int baseOffset, int extOffset, ImageStrings strings) {
-
+        // When locations are encoded in a single name string, there can be valid
+        // entries without module offsets. This only happens in the special cases
+        // of "/modules" and "/packages", and in those cases, the entire name
+        // (including the leading '/') is encoded in the base name.
+        int moduleOffset = (int) attributes[ATTRIBUTE_MODULE];
         if (moduleOffset != 0) {
-            if (strings.match(moduleOffset, module, 0) != module.length()) {
+            if (name.charAt(index++) != '/') {
+                return false;
+            }
+            int moduleLen = strings.match(moduleOffset, name, index);
+            index += moduleLen;
+            if (moduleLen < 0 || index == name.length() || name.charAt(index++) != '/') {
                 return false;
             }
         }
+        return verifyPackagePath(name, index, attributes, strings);
+    }
+
+    static boolean verify(String module, String path, long[] attributes, ImageStrings strings) {
+        Objects.requireNonNull(module);
+        Objects.requireNonNull(path);
+
+        // Unlike the single name case, any valid location here must have a
+        // module, so we can simplify the test logic.
+        int moduleOffset = (int) attributes[ATTRIBUTE_MODULE];
+        return moduleOffset != 0
+                && strings.match(moduleOffset, module, 0) == module.length()
+                && verifyPackagePath(path, 0, attributes, strings);
+    }
+
+    private static boolean verifyPackagePath(String path, int index, long[] attributes, ImageStrings strings) {
+        int length = path.length();
+        // A parent string, if present, must be followed by a '/'.
+        int parentOffset = (int) attributes[ATTRIBUTE_PARENT];
         if (parentOffset != 0) {
-            int parentLen = strings.match(parentOffset, name, index);
+            int parentLen = strings.match(parentOffset, path, index);
             if (parentLen < 0) {
                 return false;
             }
             index += parentLen;
-            if (length <= index || name.charAt(index++) != '/') {
+            if (length <= index || path.charAt(index++) != '/') {
                 return false;
             }
         }
-        int baseLen = strings.match(baseOffset, name, index);
+        // A base name always exists, and ends the path if no extension exists.
+        int baseOffset = (int) attributes[ATTRIBUTE_BASE];
+        int baseLen = strings.match(baseOffset, path, index);
         if (baseLen < 0) {
             return false;
         }
         index += baseLen;
+        // If an extension exists, it is appended after a '.'.
+        int extOffset = (int) attributes[ATTRIBUTE_EXTENSION];
         if (extOffset != 0) {
-            if (length <= index
-                    || name.charAt(index++) != '.') {
+            if (length <= index || path.charAt(index++) != '.') {
                 return false;
             }
-
-            int extLen = strings.match(extOffset, name, index);
+            int extLen = strings.match(extOffset, path, index);
             if (extLen < 0) {
                 return false;
             }
             index += extLen;
         }
+        // It's a full match if we accounted for the entire string.
         return length == index;
     }
 

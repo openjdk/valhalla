@@ -87,8 +87,8 @@ public class JImageNonAsciiNameTest {
 
         BasicImageReader bir = BasicImageReader.open(
                 testImage.resolve("lib").resolve("modules"));
-        ImageLocation loc = bir.findLocation(moduleName,
-                fullName.replace(".","/") + ".class");
+        ImageLocation loc = bir.findResourceLocation(moduleName,
+                fullName.replace(".", "/") + ".class");
         if (loc == null) {
             throw new RuntimeException("Failed to find " +
                     fullName + " in module " +moduleName);
