@@ -368,17 +368,17 @@ public class HashSet<E>
      * @return a {@code Spliterator} over the elements in this set
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new HashMap.KeySpliterator<>(map, 0, -1, 0, 0);
     }
 
     @Override
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return map.keysToArray(new Object[map.size()]);
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         return map.keysToArray(map.prepareArray(a));
     }
 

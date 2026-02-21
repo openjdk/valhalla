@@ -97,13 +97,13 @@ public final class LSInputListImpl extends AbstractList<LSInput> implements LSIn
         return getLength();
     }
 
-    public Object[] toArray() {
+    public Object[]! toArray() {
         Object[] a = new Object[fLength];
         toArray0(a);
         return a;
     }
 
-    public Object[] toArray(Object[] a) {
+    public Object[]! toArray(Object[]! a) {
         if (a.length < fLength) {
             Class<?> arrayClass = a.getClass();
             Class<?> componentType = arrayClass.getComponentType();

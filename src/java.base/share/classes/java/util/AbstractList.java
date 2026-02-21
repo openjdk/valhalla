@@ -814,7 +814,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
             updateSizeAndModCount(fromIndex - toIndex);
         }
 
-        public boolean addAll(Collection<? extends E> c) {
+        public boolean addAll(Collection<? extends E>! c) {
             return addAll(size, c);
         }
 

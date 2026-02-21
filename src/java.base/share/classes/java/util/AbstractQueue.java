@@ -177,9 +177,7 @@ public abstract class AbstractQueue<E>
      *         this time due to insertion restrictions
      * @see #add(Object)
      */
-    public boolean addAll(Collection<? extends E> c) {
-        if (c == null)
-            throw new NullPointerException();
+    public boolean addAll(Collection<? extends E>! c) {
         if (c == this)
             throw new IllegalArgumentException();
         boolean modified = false;

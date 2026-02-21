@@ -395,7 +395,7 @@ public class LinkedList<E>
      * @return {@code true} if this list changed as a result of the call
      * @throws NullPointerException if the specified collection is null
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         return addAll(size, c);
     }
 
@@ -1058,7 +1058,7 @@ public class LinkedList<E>
      * @return an array containing all of the elements in this list
      *         in proper sequence
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         Object[] result = new Object[size];
         int i = 0;
         for (Node<E> x = first; x != null; x = x.next)
@@ -1105,7 +1105,7 @@ public class LinkedList<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         if (a.length < size)
             a = (T[])java.lang.reflect.Array.newInstance(
                                 a.getClass().getComponentType(), size);
@@ -1181,7 +1181,7 @@ public class LinkedList<E>
      * @since 1.8
      */
     @Override
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new LLSpliterator<>(this, -1, 0);
     }
 
@@ -1305,15 +1305,15 @@ public class LinkedList<E>
             return rlist.toString();
         }
 
-        public boolean retainAll(Collection<?> c) {
+        public boolean retainAll(Collection<?>! c) {
             return rlist.retainAll(c);
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<?>! c) {
             return rlist.removeAll(c);
         }
 
-        public boolean containsAll(Collection<?> c) {
+        public boolean containsAll(Collection<?>! c) {
             return rlist.containsAll(c);
         }
 
@@ -1321,19 +1321,19 @@ public class LinkedList<E>
             return rlist.isEmpty();
         }
 
-        public Stream<E> parallelStream() {
+        public Stream<E>! parallelStream() {
             return rlist.parallelStream();
         }
 
-        public Stream<E> stream() {
+        public Stream<E>! stream() {
             return rlist.stream();
         }
 
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             return rlist.removeIf(filter);
         }
 
-        public <T> T[] toArray(IntFunction<T[]> generator) {
+        public <T> T[]! toArray(IntFunction<T[]>! generator) {
             return rlist.toArray(generator);
         }
 
@@ -1373,15 +1373,15 @@ public class LinkedList<E>
             return list;
         }
 
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return rlist.spliterator();
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return rlist.toArray(a);
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return rlist.toArray();
         }
 
@@ -1485,7 +1485,7 @@ public class LinkedList<E>
             return rlist.addAll(index, c);
         }
 
-        public boolean addAll(Collection<? extends E> c) {
+        public boolean addAll(Collection<? extends E>! c) {
             return rlist.addAll(c);
         }
 

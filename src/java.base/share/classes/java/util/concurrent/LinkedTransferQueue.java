@@ -839,7 +839,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return toArrayInternal(null);
     }
 
@@ -879,8 +879,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
-        Objects.requireNonNull(a);
+    public <T> T[]! toArray(T[]! a) {
         return (T[]) toArrayInternal(a);
     }
 
@@ -1105,7 +1104,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
      * @return a {@code Spliterator} over the elements in this queue
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new LTQSpliterator();
     }
 
@@ -1513,24 +1512,21 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeIf(Predicate<? super E> filter) {
-        Objects.requireNonNull(filter);
+    public boolean removeIf(Predicate<? super E>! filter) {
         return bulkRemove(filter);
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean removeAll(Collection<?>! c) {
         return bulkRemove(e -> c.contains(e));
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean retainAll(Collection<?>! c) {
         return bulkRemove(e -> !c.contains(e));
     }
 

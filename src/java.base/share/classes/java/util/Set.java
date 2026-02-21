@@ -173,7 +173,7 @@ public interface Set<E> extends Collection<E> {
      *
      * @return an array containing all the elements in this set
      */
-    Object[] toArray();
+    Object[]! toArray();
 
     /**
      * Returns an array containing all of the elements in this set; the
@@ -217,7 +217,7 @@ public interface Set<E> extends Collection<E> {
      *         set
      * @throws NullPointerException if the specified array is null
      */
-    <T> T[] toArray(T[] a);
+    <T> T[]! toArray(T[]! a);
 
 
     // Modification Operations
@@ -300,7 +300,7 @@ public interface Set<E> extends Collection<E> {
      *         or if the specified collection is null
      * @see    #contains(Object)
      */
-    boolean containsAll(Collection<?> c);
+    boolean containsAll(Collection<?>! c);
 
     /**
      * Adds all of the elements in the specified collection to this set if
@@ -324,7 +324,7 @@ public interface Set<E> extends Collection<E> {
      *         specified collection prevents it from being added to this set
      * @see #add(Object)
      */
-    boolean addAll(Collection<? extends E> c);
+    boolean addAll(Collection<? extends E>! c);
 
     /**
      * Retains only the elements in this set that are contained in the
@@ -347,7 +347,7 @@ public interface Set<E> extends Collection<E> {
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    boolean retainAll(Collection<?> c);
+    boolean retainAll(Collection<?>! c);
 
     /**
      * Removes from this set all of its elements that are contained in the
@@ -370,7 +370,7 @@ public interface Set<E> extends Collection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(Collection<?> c);
+    boolean removeAll(Collection<?>! c);
 
     /**
      * Removes all of the elements from this set (optional operation).
@@ -437,7 +437,7 @@ public interface Set<E> extends Collection<E> {
      * @since 1.8
      */
     @Override
-    default Spliterator<E> spliterator() {
+    default Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this, Spliterator.DISTINCT);
     }
 

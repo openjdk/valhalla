@@ -54,11 +54,15 @@ public class PreviewVersion {
 
         // Run the test. This should fail because --enable-preview is not specified.
         ClassFileInstaller.writeClassToDisk("PVTest", klassbuf, System.getProperty("test.classes"));
-        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+        // commenting this section as in bworld-apis preview is enabled by default
+        /*ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(
             "-cp", "." + File.pathSeparator + System.getProperty("test.classes"), "PVTest");
         OutputAnalyzer oa = new OutputAnalyzer(pb.start());
         oa.shouldContain("Preview features are not enabled");
-        oa.shouldHaveExitValue(1);
+        oa.shouldHaveExitValue(1);*/
+
+        ProcessBuilder pb;
+        OutputAnalyzer oa;
 
         // This should be successful because --enable-preview is specified.
         pb = ProcessTools.createLimitedTestJavaProcessBuilder("--enable-preview",

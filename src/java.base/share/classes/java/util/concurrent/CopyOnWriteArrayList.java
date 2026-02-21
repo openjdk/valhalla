@@ -334,7 +334,7 @@ public class CopyOnWriteArrayList<E>
      *
      * @return an array containing all the elements in this list
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return getArray().clone();
     }
 
@@ -377,7 +377,7 @@ public class CopyOnWriteArrayList<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         Object[] es = getArray();
         int len = es.length;
         if (a.length < len)
@@ -722,7 +722,7 @@ public class CopyOnWriteArrayList<E>
      * @throws NullPointerException if the specified collection is null
      * @see #contains(Object)
      */
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(Collection<?>! c) {
         Object[] es = getArray();
         int len = es.length;
         for (Object e : c) {
@@ -748,8 +748,7 @@ public class CopyOnWriteArrayList<E>
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    public boolean removeAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean removeAll(Collection<?>! c) {
         return bulkRemove(e -> c.contains(e));
     }
 
@@ -769,8 +768,7 @@ public class CopyOnWriteArrayList<E>
      *         or if the specified collection is null
      * @see #remove(Object)
      */
-    public boolean retainAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean retainAll(Collection<?>! c) {
         return bulkRemove(e -> !c.contains(e));
     }
 
@@ -832,7 +830,7 @@ public class CopyOnWriteArrayList<E>
      * @throws NullPointerException if the specified collection is null
      * @see #add(Object)
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         Object[] cs = (c.getClass() == CopyOnWriteArrayList.class) ?
             ((CopyOnWriteArrayList<?>)c).getArray() : c.toArray();
         if (cs.length == 0)
@@ -909,8 +907,7 @@ public class CopyOnWriteArrayList<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeIf(Predicate<? super E> filter) {
-        Objects.requireNonNull(filter);
+    public boolean removeIf(Predicate<? super E>! filter) {
         return bulkRemove(filter);
     }
 
@@ -1167,7 +1164,7 @@ public class CopyOnWriteArrayList<E>
      * @return a {@code Spliterator} over the elements in this list
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.spliterator
             (getArray(), Spliterator.IMMUTABLE | Spliterator.ORDERED);
     }
@@ -1318,7 +1315,7 @@ public class CopyOnWriteArrayList<E>
                 throw new IndexOutOfBoundsException(outOfBounds(index, size));
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             final Object[] es;
             final int offset;
             final int size;
@@ -1331,7 +1328,7 @@ public class CopyOnWriteArrayList<E>
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             final Object[] es;
             final int offset;
             final int size;
@@ -1381,7 +1378,7 @@ public class CopyOnWriteArrayList<E>
             return indexOf(o) >= 0;
         }
 
-        public boolean containsAll(Collection<?> c) {
+        public boolean containsAll(Collection<?>! c) {
             final Object[] es;
             final int offset;
             final int size;
@@ -1511,7 +1508,7 @@ public class CopyOnWriteArrayList<E>
             }
         }
 
-        public boolean addAll(Collection<? extends E> c) {
+        public boolean addAll(Collection<? extends E>! c) {
             synchronized (lock) {
                 final Object[] oldArray = getArrayChecked();
                 boolean modified =
@@ -1635,18 +1632,15 @@ public class CopyOnWriteArrayList<E>
             }
         }
 
-        public boolean removeAll(Collection<?> c) {
-            Objects.requireNonNull(c);
+        public boolean removeAll(Collection<?>! c) {
             return bulkRemove(e -> c.contains(e));
         }
 
-        public boolean retainAll(Collection<?> c) {
-            Objects.requireNonNull(c);
+        public boolean retainAll(Collection<?>! c) {
             return bulkRemove(e -> !c.contains(e));
         }
 
-        public boolean removeIf(Predicate<? super E> filter) {
-            Objects.requireNonNull(filter);
+        public boolean removeIf(Predicate<? super E>! filter) {
             return bulkRemove(filter);
         }
 
@@ -1660,7 +1654,7 @@ public class CopyOnWriteArrayList<E>
             }
         }
 
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             synchronized (lock) {
                 return Spliterators.spliterator(
                         getArrayChecked(), offset, offset + size,
@@ -1834,7 +1828,7 @@ public class CopyOnWriteArrayList<E>
             return new DescendingIterator();
         }
 
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return Spliterators.spliterator(this, Spliterator.ORDERED);
         }
 
@@ -1845,7 +1839,7 @@ public class CopyOnWriteArrayList<E>
             return true;
         }
 
-        public boolean addAll(Collection<? extends E> c) {
+        public boolean addAll(Collection<? extends E>! c) {
             @SuppressWarnings("unchecked")
             E[] es = (E[]) c.toArray();
             if (es.length > 0) {
@@ -1865,7 +1859,7 @@ public class CopyOnWriteArrayList<E>
             return base.contains(o);
         }
 
-        public boolean containsAll(Collection<?> c) {
+        public boolean containsAll(Collection<?>! c) {
             return base.containsAll(c);
         }
 
@@ -1899,7 +1893,7 @@ public class CopyOnWriteArrayList<E>
             return base.isEmpty();
         }
 
-        public Stream<E> parallelStream() {
+        public Stream<E>! parallelStream() {
             return StreamSupport.stream(spliterator(), true);
         }
 
@@ -1913,11 +1907,11 @@ public class CopyOnWriteArrayList<E>
             }
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<?>! c) {
             return base.removeAll(c);
         }
 
-        public boolean retainAll(Collection<?> c) {
+        public boolean retainAll(Collection<?>! c) {
             return base.retainAll(c);
         }
 
@@ -1925,21 +1919,21 @@ public class CopyOnWriteArrayList<E>
             return base.size();
         }
 
-        public Stream<E> stream() {
+        public Stream<E>! stream() {
             return StreamSupport.stream(spliterator(), false);
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return ArraysSupport.reverse(base.toArray());
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             // TODO optimize this
             return toArray(i -> (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), i));
         }
 
-        public <T> T[] toArray(IntFunction<T[]> generator) {
+        public <T> T[]! toArray(IntFunction<T[]>! generator) {
             return ArraysSupport.reverse(base.toArray(generator));
         }
 
@@ -2062,7 +2056,7 @@ public class CopyOnWriteArrayList<E>
             }
         }
 
-        public boolean removeIf(Predicate<? super E> filter) {
+        public boolean removeIf(Predicate<? super E>! filter) {
             return base.removeIf(filter);
         }
 

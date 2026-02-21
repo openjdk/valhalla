@@ -324,7 +324,7 @@ public interface Collection<E> extends Iterable<E> {
      * @return an array, whose {@linkplain Class#getComponentType runtime component
      * type} is {@code Object}, containing all of the elements in this collection
      */
-    Object[] toArray();
+    Object[]! toArray();
 
     /**
      * Returns an array containing all of the elements in this collection;
@@ -377,7 +377,7 @@ public interface Collection<E> extends Iterable<E> {
      *         runtime component type} of the specified array
      * @throws NullPointerException if the specified array is null
      */
-    <T> T[] toArray(T[] a);
+    <T> T[]! toArray(T[]! a);
 
     /**
      * Returns an array containing all of the elements in this collection,
@@ -414,7 +414,7 @@ public interface Collection<E> extends Iterable<E> {
      * @throws NullPointerException if the generator function is null
      * @since 11
      */
-    default <T> T[] toArray(IntFunction<T[]> generator) {
+    default <T> T[]! toArray(IntFunction<T[]>! generator) {
         return toArray(generator.apply(0));
     }
 
@@ -498,7 +498,7 @@ public interface Collection<E> extends Iterable<E> {
      *         or if the specified collection is null.
      * @see    #contains(Object)
      */
-    boolean containsAll(Collection<?> c);
+    boolean containsAll(Collection<?>! c);
 
     /**
      * Adds all of the elements in the specified collection to this collection
@@ -526,7 +526,7 @@ public interface Collection<E> extends Iterable<E> {
      *         this time due to insertion restrictions
      * @see #add(Object)
      */
-    boolean addAll(Collection<? extends E> c);
+    boolean addAll(Collection<? extends E>! c);
 
     /**
      * Removes all of this collection's elements that are also contained in the
@@ -551,7 +551,7 @@ public interface Collection<E> extends Iterable<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(Collection<?> c);
+    boolean removeAll(Collection<?>! c);
 
     /**
      * Removes all of the elements of this collection that satisfy the given
@@ -573,8 +573,7 @@ public interface Collection<E> extends Iterable<E> {
      *         is not supported by this collection
      * @since 1.8
      */
-    default boolean removeIf(Predicate<? super E> filter) {
-        Objects.requireNonNull(filter);
+    default boolean removeIf(Predicate<? super E>! filter) {
         boolean removed = false;
         final Iterator<E> each = iterator();
         while (each.hasNext()) {
@@ -608,7 +607,7 @@ public interface Collection<E> extends Iterable<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean retainAll(Collection<?> c);
+    boolean retainAll(Collection<?>! c);
 
     /**
      * Removes all of the elements from this collection (optional operation).
@@ -725,7 +724,7 @@ public interface Collection<E> extends Iterable<E> {
      * @since 1.8
      */
     @Override
-    default Spliterator<E> spliterator() {
+    default Spliterator<E>! spliterator() {
         return Spliterators.spliterator(this, 0);
     }
 
@@ -744,7 +743,7 @@ public interface Collection<E> extends Iterable<E> {
      * @return a sequential {@code Stream} over the elements in this collection
      * @since 1.8
      */
-    default Stream<E> stream() {
+    default Stream<E>! stream() {
         return StreamSupport.stream(spliterator(), false);
     }
 
@@ -765,7 +764,7 @@ public interface Collection<E> extends Iterable<E> {
      * collection
      * @since 1.8
      */
-    default Stream<E> parallelStream() {
+    default Stream<E>! parallelStream() {
         return StreamSupport.stream(spliterator(), true);
     }
 }

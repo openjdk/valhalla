@@ -933,7 +933,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
             WeakHashMap.this.clear();
         }
 
-        public Spliterator<K> spliterator() {
+        public Spliterator<K>! spliterator() {
             return new KeySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
     }
@@ -977,7 +977,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
             WeakHashMap.this.clear();
         }
 
-        public Spliterator<V> spliterator() {
+        public Spliterator<V>! spliterator() {
             return new ValueSpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
     }
@@ -1031,15 +1031,15 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
             return list;
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return deepCopy().toArray();
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return deepCopy().toArray(a);
         }
 
-        public Spliterator<Map.Entry<K,V>> spliterator() {
+        public Spliterator<Map.Entry<K,V>>! spliterator() {
             return new EntrySpliterator<>(WeakHashMap.this, 0, -1, 0, 0);
         }
     }

@@ -1366,7 +1366,7 @@ public class TreeMap<K,V>
             TreeMap.this.clear();
         }
 
-        public Spliterator<V> spliterator() {
+        public Spliterator<V>! spliterator() {
             return new ValueSpliterator<>(TreeMap.this, null, null, 0, -1, 0);
         }
     }
@@ -1404,7 +1404,7 @@ public class TreeMap<K,V>
             TreeMap.this.clear();
         }
 
-        public Spliterator<Map.Entry<K,V>> spliterator() {
+        public Spliterator<Map.Entry<K,V>>! spliterator() {
             return new EntrySpliterator<>(TreeMap.this, null, null, 0, -1, 0);
         }
     }
@@ -1491,7 +1491,7 @@ public class TreeMap<K,V>
             return new KeySet<>(m.descendingMap());
         }
 
-        public Spliterator<E> spliterator() {
+        public Spliterator<E>! spliterator() {
             return keySpliteratorFor(m);
         }
     }

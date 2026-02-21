@@ -79,7 +79,7 @@ final class LazyCollections {
 
         @Override public boolean  isEmpty() { return size == 0; }
         @Override public int      size() { return size; }
-        @Override public Object[] toArray() { return copyInto(new Object[size]); }
+        @Override public Object[]! toArray() { return copyInto(new Object[size]); }
 
         @ForceInline
         @Override
@@ -94,7 +94,7 @@ final class LazyCollections {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             if (a.length < size) {
                 // Make a new array of a's runtime type, but my contents:
                 T[] n = (T[]) Array.newInstance(a.getClass().getComponentType(), size);

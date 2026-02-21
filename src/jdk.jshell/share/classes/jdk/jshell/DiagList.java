@@ -74,7 +74,7 @@ final class DiagList extends ArrayList<Diag> {
     }
 
     @Override
-    public boolean addAll(Collection<? extends Diag> c) {
+    public boolean addAll(Collection<? extends Diag>! c) {
         return c.stream().filter(this::add).count() > 0;
     }
 

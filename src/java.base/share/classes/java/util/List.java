@@ -202,7 +202,7 @@ public interface List<E> extends SequencedCollection<E> {
      *         sequence
      * @see Arrays#asList(Object[])
      */
-    Object[] toArray();
+    Object[]! toArray();
 
     /**
      * Returns an array containing all of the elements in this list in
@@ -243,7 +243,7 @@ public interface List<E> extends SequencedCollection<E> {
      *         this list
      * @throws NullPointerException if the specified array is null
      */
-    <T> T[] toArray(T[] a);
+    <T> T[]! toArray(T[]! a);
 
 
     // Modification Operations
@@ -316,7 +316,7 @@ public interface List<E> extends SequencedCollection<E> {
      *         or if the specified collection is null
      * @see #contains(Object)
      */
-    boolean containsAll(Collection<?> c);
+    boolean containsAll(Collection<?>! c);
 
     /**
      * Appends all of the elements in the specified collection to the end of
@@ -339,7 +339,7 @@ public interface List<E> extends SequencedCollection<E> {
      *         specified collection prevents it from being added to this list
      * @see #add(Object)
      */
-    boolean addAll(Collection<? extends E> c);
+    boolean addAll(Collection<? extends E>! c);
 
     /**
      * Inserts all of the elements in the specified collection into this
@@ -388,7 +388,7 @@ public interface List<E> extends SequencedCollection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean removeAll(Collection<?> c);
+    boolean removeAll(Collection<?>! c);
 
     /**
      * Retains only the elements in this list that are contained in the
@@ -410,7 +410,7 @@ public interface List<E> extends SequencedCollection<E> {
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    boolean retainAll(Collection<?> c);
+    boolean retainAll(Collection<?>! c);
 
     /**
      * Replaces each element of this list with the result of applying the
@@ -775,7 +775,7 @@ public interface List<E> extends SequencedCollection<E> {
      * @since 1.8
      */
     @Override
-    default Spliterator<E> spliterator() {
+    default Spliterator<E>! spliterator() {
         if (this instanceof RandomAccess) {
             return new AbstractList.RandomAccessSpliterator<>(this);
         } else {
