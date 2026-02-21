@@ -257,7 +257,7 @@ public final class Modifier {
      * @return  a string representation of the set of modifiers
      * represented by {@code mod}
      */
-    public static String toString(int mod) {
+    public static String! toString(int mod) {
         StringJoiner sj = new StringJoiner(" ");
 
         if ((mod & PUBLIC) != 0)        sj.add("public");

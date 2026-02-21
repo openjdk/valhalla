@@ -60,7 +60,7 @@ public interface Member {
      * @return an object representing the declaring class of the
      * underlying member
      */
-    public Class<?> getDeclaringClass();
+    public Class<?>! getDeclaringClass();
 
     /**
      * Returns the simple name of the underlying member or constructor
@@ -68,7 +68,7 @@ public interface Member {
      *
      * @return the simple name of the underlying member
      */
-    public String getName();
+    public String! getName();
 
     /**
      * Returns the Java language modifiers for the member or

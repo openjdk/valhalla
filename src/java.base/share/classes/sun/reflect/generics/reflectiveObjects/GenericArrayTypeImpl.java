@@ -60,7 +60,7 @@ public class GenericArrayTypeImpl
      *     of this array
      * @since 1.5
      */
-    public Type getGenericComponentType() {
+    public Type! getGenericComponentType() {
         return genericComponentType; // return cached component type
     }
 

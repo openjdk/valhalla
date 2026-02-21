@@ -117,7 +117,7 @@ public class TypeVariableImpl<D extends GenericDeclaration>
      * @return an array of Types representing the upper bound(s) of this
      *     type variable
      */
-    public Type[] getBounds() {
+    public Type[]! getBounds() {
         Object[] value = bounds;
         if (value instanceof FieldTypeSignature[] sigs) {
             value = reifyBounds(sigs);
@@ -135,7 +135,7 @@ public class TypeVariableImpl<D extends GenericDeclaration>
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
-    public D getGenericDeclaration() {
+    public D! getGenericDeclaration() {
         assert genericDeclaration instanceof Class<?> ||
                 genericDeclaration instanceof Method ||
                 genericDeclaration instanceof Constructor : "Unexpected kind of GenericDeclaration";
@@ -153,7 +153,7 @@ public class TypeVariableImpl<D extends GenericDeclaration>
      *
      * @return the name of this type variable, as it appears in the source code
      */
-    public String getName()   { return name; }
+    public String! getName()   { return name; }
 
     public String toString() {return getName();}
 
@@ -172,41 +172,41 @@ public class TypeVariableImpl<D extends GenericDeclaration>
 
     // Implementations of AnnotatedElement methods.
     @SuppressWarnings("unchecked")
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         Objects.requireNonNull(annotationClass);
         // T is an Annotation type, the return value of get will be an annotation
         return (T)mapAnnotations(getAnnotations()).get(annotationClass);
     }
 
-    public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
+    public <T extends Annotation> T getDeclaredAnnotation(Class<T>! annotationClass) {
         Objects.requireNonNull(annotationClass);
         return getAnnotation(annotationClass);
     }
 
     @Override
-    public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
+    public <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotationClass) {
         Objects.requireNonNull(annotationClass);
         return AnnotationSupport.getDirectlyAndIndirectlyPresent(mapAnnotations(getAnnotations()), annotationClass);
     }
 
     @Override
-    public <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
+    public <T extends Annotation> T[]! getDeclaredAnnotationsByType(Class<T>! annotationClass) {
         Objects.requireNonNull(annotationClass);
         return getAnnotationsByType(annotationClass);
     }
 
-    public Annotation[] getAnnotations() {
+    public Annotation[]! getAnnotations() {
         int myIndex = typeVarIndex();
         if (myIndex < 0)
             throw new AssertionError("Index must be non-negative.");
         return TypeAnnotationParser.parseTypeVariableAnnotations(getGenericDeclaration(), myIndex);
     }
 
-    public Annotation[] getDeclaredAnnotations() {
+    public Annotation[]! getDeclaredAnnotations() {
         return getAnnotations();
     }
 
-    public AnnotatedType[] getAnnotatedBounds() {
+    public AnnotatedType[]! getAnnotatedBounds() {
         return TypeAnnotationParser.parseAnnotatedBounds(getBounds(),
                                                          getGenericDeclaration(),
                                                          typeVarIndex());

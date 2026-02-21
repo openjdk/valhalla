@@ -45,7 +45,7 @@ public interface AnnotatedParameterizedType extends AnnotatedType {
      * @return the potentially annotated actual type arguments of this parameterized type
      * @see ParameterizedType#getActualTypeArguments()
      */
-    AnnotatedType[] getAnnotatedActualTypeArguments();
+    AnnotatedType[]! getAnnotatedActualTypeArguments();
 
     /**
      * Returns the potentially annotated type that this type is a member of, if

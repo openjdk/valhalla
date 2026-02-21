@@ -67,9 +67,9 @@ public abstract sealed class Executable extends AccessibleObject
      */
     abstract boolean hasGenericInformation();
 
-    abstract ConstructorRepository getGenericInfo();
+    abstract ConstructorRepository! getGenericInfo();
 
-    boolean equalParamTypes(Class<?>[] params1, Class<?>[] params2) {
+    boolean equalParamTypes(Class<?>[]! params1, Class<?>[]! params2) {
         // The parameter arrays are trusted and the same for a root and all leaf
         // copies. Thus, == on arrays is more useful than == on Executable.
         if (params1 == params2)
@@ -85,7 +85,7 @@ public abstract sealed class Executable extends AccessibleObject
         return false;
     }
 
-    Annotation[][] parseParameterAnnotations(byte[] parameterAnnotations) {
+    Annotation[][]! parseParameterAnnotations(byte[]! parameterAnnotations) {
         return AnnotationParser.parseParameterAnnotations(
                parameterAnnotations,
                SharedSecrets.getJavaLangAccess().
@@ -93,7 +93,7 @@ public abstract sealed class Executable extends AccessibleObject
                getDeclaringClass());
     }
 
-    void printModifiersIfNonzero(StringBuilder sb, int mask, boolean isDefault) {
+    void printModifiersIfNonzero(StringBuilder! sb, int mask, boolean isDefault) {
         int mod = getModifiers() & mask;
 
         if (mod != 0 && !isDefault) {
@@ -110,12 +110,12 @@ public abstract sealed class Executable extends AccessibleObject
         }
     }
 
-    String sharedToString(int modifierMask,
-                          boolean isDefault,
-                          Class<?>[] parameterTypes,
-                          Class<?>[] exceptionTypes) {
+    String! sharedToString(int modifierMask,
+                           boolean isDefault,
+                           Class<?>[]! parameterTypes,
+                           Class<?>[]! exceptionTypes) {
         try {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder! sb = new StringBuilder();
 
             printModifiersIfNonzero(sb, modifierMask, isDefault);
             specificToStringHeader(sb);
@@ -139,7 +139,7 @@ public abstract sealed class Executable extends AccessibleObject
      */
     abstract void specificToStringHeader(StringBuilder sb);
 
-    static String typeVarBounds(TypeVariable<?> typeVar) {
+    static String! typeVarBounds(TypeVariable<?>! typeVar) {
         Type[] bounds = typeVar.getBounds();
         if (bounds.length == 1 && bounds[0].equals(Object.class)) {
             return typeVar.getName();
@@ -151,13 +151,13 @@ public abstract sealed class Executable extends AccessibleObject
         }
     }
 
-    String sharedToGenericString(int modifierMask, boolean isDefault) {
+    String! sharedToGenericString(int modifierMask, boolean isDefault) {
         try {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder! sb = new StringBuilder();
 
             printModifiersIfNonzero(sb, modifierMask, isDefault);
 
-            TypeVariable<?>[] typeparms = getTypeParameters();
+            TypeVariable<?>[]! typeparms = getTypeParameters();
             if (typeparms.length > 0) {
                 sb.append(Arrays.stream(typeparms)
                           .map(Executable::typeVarBounds)
@@ -167,8 +167,8 @@ public abstract sealed class Executable extends AccessibleObject
             specificToGenericStringHeader(sb);
 
             sb.append('(');
-            StringJoiner sj = new StringJoiner(",");
-            Type[] params = getGenericParameterTypes();
+            StringJoiner! sj = new StringJoiner(",");
+            Type[]! params = getGenericParameterTypes();
             for (int j = 0; j < params.length; j++) {
                 String param = params[j].getTypeName();
                 if (isVarArgs() && (j == params.length - 1)) // replace T[] with T...
@@ -178,7 +178,7 @@ public abstract sealed class Executable extends AccessibleObject
             sb.append(sj.toString());
             sb.append(')');
 
-            Type[] exceptionTypes = getGenericExceptionTypes();
+            Type[]! exceptionTypes = getGenericExceptionTypes();
             if (exceptionTypes.length > 0) {
                 sb.append(Arrays.stream(exceptionTypes)
                           .map(Type::getTypeName)
@@ -194,18 +194,18 @@ public abstract sealed class Executable extends AccessibleObject
      * Generate toGenericString header information specific to a
      * method or constructor.
      */
-    abstract void specificToGenericStringHeader(StringBuilder sb);
+    abstract void specificToGenericStringHeader(StringBuilder! sb);
 
     /**
      * Returns the {@code Class} object representing the class or interface
      * that declares the executable represented by this object.
      */
-    public abstract Class<?> getDeclaringClass();
+    public abstract Class<?>! getDeclaringClass();
 
     /**
      * Returns the name of the executable represented by this object.
      */
-    public abstract String getName();
+    public abstract String! getName();
 
     /**
      * {@return the Java language {@linkplain Modifier modifiers} for
@@ -225,7 +225,7 @@ public abstract sealed class Executable extends AccessibleObject
      * @since 20
      */
     @Override
-    public Set<AccessFlag> accessFlags() {
+    public Set<AccessFlag>! accessFlags() {
         return reflectionFactory.parseAccessFlags(getModifiers(),
                                                   AccessFlag.Location.METHOD,
                                                   getDeclaringClass());
@@ -245,15 +245,15 @@ public abstract sealed class Executable extends AccessibleObject
      *     the format specified in
      *     <cite>The Java Virtual Machine Specification</cite>
      */
-    public abstract TypeVariable<?>[] getTypeParameters();
+    public abstract TypeVariable<?>[]! getTypeParameters();
 
     // returns shared array of parameter types - must never give it out
     // to the untrusted code...
-    abstract Class<?>[] getSharedParameterTypes();
+    abstract Class<?>[]! getSharedParameterTypes();
 
     // returns shared array of exception types - must never give it out
     // to the untrusted code...
-    abstract Class<?>[] getSharedExceptionTypes();
+    abstract Class<?>[]! getSharedExceptionTypes();
 
     /**
      * Returns an array of {@code Class} objects that represent the formal
@@ -272,7 +272,7 @@ public abstract sealed class Executable extends AccessibleObject
      * represents
      */
     @SuppressWarnings("doclint:reference") // cross-module links
-    public abstract Class<?>[] getParameterTypes();
+    public abstract Class<?>[]! getParameterTypes();
 
     /**
      * Returns the number of formal parameters (whether explicitly
@@ -335,7 +335,7 @@ public abstract sealed class Executable extends AccessibleObject
      *     type that cannot be instantiated for any reason
      */
     @SuppressWarnings("doclint:reference") // cross-module links
-    public Type[] getGenericParameterTypes() {
+    public Type[]! getGenericParameterTypes() {
         if (hasGenericInformation())
             return getGenericInfo().getParameterTypes();
         else
@@ -346,7 +346,7 @@ public abstract sealed class Executable extends AccessibleObject
      * Behaves like {@code getGenericParameterTypes}, but returns type
      * information for all parameters, including synthetic parameters.
      */
-    Type[] getAllGenericParameterTypes() {
+    Type[]! getAllGenericParameterTypes() {
         final boolean genericInfo = hasGenericInformation();
 
         // Easy case: we don't have generic parameter information.  In
@@ -356,8 +356,8 @@ public abstract sealed class Executable extends AccessibleObject
             return getParameterTypes();
         } else {
             final boolean realParamData = hasRealParameterData();
-            final Type[] genericParamTypes = getGenericParameterTypes();
-            final Type[] nonGenericParamTypes = getSharedParameterTypes();
+            final Type[]! genericParamTypes = getGenericParameterTypes();
+            final Type[]! nonGenericParamTypes = getSharedParameterTypes();
             // If we have real parameter data, then we use the
             // synthetic and mandate flags to our advantage.
             if (realParamData) {
@@ -372,11 +372,11 @@ public abstract sealed class Executable extends AccessibleObject
                         return nonGenericParamTypes.clone();
                     }
                 } else {
-                    final Type[] out = new Type[nonGenericParamTypes.length];
-                    final Parameter[] params = getParameters();
+                    final Type[]! out = new Type[nonGenericParamTypes.length];
+                    final Parameter[]! params = getParameters();
                     int fromidx = 0;
                     for (int i = 0; i < out.length; i++) {
-                        final Parameter param = params[i];
+                        final Parameter! param = params[i];
                         if (param.isSynthetic() || param.isImplicit()) {
                             // If we hit a synthetic or mandated parameter,
                             // use the non generic parameter info.
@@ -414,7 +414,7 @@ public abstract sealed class Executable extends AccessibleObject
      * @throws MalformedParametersException if the class file contains
      * a MethodParameters attribute that is improperly formatted.
      */
-    public Parameter[] getParameters() {
+    public Parameter[]! getParameters() {
         // TODO: This may eventually need to be guarded by security
         // mechanisms similar to those in Field, Method, etc.
         //
@@ -424,7 +424,7 @@ public abstract sealed class Executable extends AccessibleObject
         return parameterData().parameters.clone();
     }
 
-    private Parameter[] synthesizeAllParams() {
+    private Parameter[]! synthesizeAllParams() {
         final int realparams = getParameterCount();
         final Parameter[] out = new Parameter[realparams];
         for (int i = 0; i < realparams; i++)
@@ -436,13 +436,13 @@ public abstract sealed class Executable extends AccessibleObject
         return out;
     }
 
-    private void verifyParameters(final Parameter[] parameters) {
+    private void verifyParameters(final Parameter[]! parameters) {
         final int mask = Modifier.FINAL | Modifier.SYNTHETIC | Modifier.MANDATED;
 
         if (getParameterCount() != parameters.length)
             throw new MalformedParametersException("Wrong number of parameters in MethodParameters attribute");
 
-        for (Parameter parameter : parameters) {
+        for (Parameter! parameter : parameters) {
             final String name = parameter.getRealName();
             final int mods = parameter.getModifiers();
 
@@ -465,7 +465,7 @@ public abstract sealed class Executable extends AccessibleObject
         return parameterData().isReal;
     }
 
-    private ParameterData parameterData() {
+    private ParameterData! parameterData() {
         ParameterData parameterData = this.parameterData;
         if (parameterData != null) {
             return parameterData;
@@ -493,9 +493,9 @@ public abstract sealed class Executable extends AccessibleObject
 
     private transient @Stable ParameterData parameterData;
 
-    record ParameterData(@Stable Parameter[] parameters, boolean isReal) {}
+    record ParameterData(@Stable Parameter[]! parameters, boolean isReal) {}
 
-    private native Parameter[] getParameters0();
+    private native Parameter[]! getParameters0();
     native byte[] getTypeAnnotationBytes0();
 
     // Needed by reflectaccess
@@ -513,7 +513,7 @@ public abstract sealed class Executable extends AccessibleObject
      * @return the exception types declared as being thrown by the
      * executable this object represents
      */
-    public abstract Class<?>[] getExceptionTypes();
+    public abstract Class<?>[]! getExceptionTypes();
 
     /**
      * Returns an array of {@code Type} objects that represent the
@@ -536,7 +536,7 @@ public abstract sealed class Executable extends AccessibleObject
      *     the underlying executable's {@code throws} clause refers to a
      *     parameterized type that cannot be instantiated for any reason
      */
-    public Type[] getGenericExceptionTypes() {
+    public Type[]! getGenericExceptionTypes() {
         Type[] result;
         if (hasGenericInformation() &&
             ((result = getGenericInfo().getExceptionTypes()).length > 0))
@@ -549,7 +549,7 @@ public abstract sealed class Executable extends AccessibleObject
      * {@return a string describing this {@code Executable}, including
      * any type parameters}
      */
-    public abstract String toGenericString();
+    public abstract String! toGenericString();
 
     /**
      * {@return {@code true} if this executable was declared to take a
@@ -604,19 +604,19 @@ public abstract sealed class Executable extends AccessibleObject
      *    the formal and implicit parameters, in declaration order, of
      *    the executable represented by this object
      */
-    public abstract Annotation[][] getParameterAnnotations();
+    public abstract Annotation[][]! getParameterAnnotations();
 
-    Annotation[][] sharedGetParameterAnnotations(Class<?>[] parameterTypes,
-                                                 byte[] parameterAnnotations) {
+    Annotation[][]! sharedGetParameterAnnotations(Class<?>[]! parameterTypes,
+                                                  byte[] parameterAnnotations) {
         int numParameters = parameterTypes.length;
         if (parameterAnnotations == null)
             return new Annotation[numParameters][0];
 
-        Annotation[][] result = parseParameterAnnotations(parameterAnnotations);
+        Annotation[][]! result = parseParameterAnnotations(parameterAnnotations);
 
         if (result.length != numParameters &&
             handleParameterNumberMismatch(result.length, parameterTypes)) {
-            Annotation[][] tmp = new Annotation[numParameters][];
+            Annotation[][]! tmp = new Annotation[numParameters][];
             // Shift annotations down to account for any implicit leading parameters
             System.arraycopy(result, 0, tmp, numParameters - result.length, result.length);
             for (int i = 0; i < numParameters - result.length; i++) {
@@ -627,15 +627,14 @@ public abstract sealed class Executable extends AccessibleObject
         return result;
     }
 
-    abstract boolean handleParameterNumberMismatch(int resultLength, Class<?>[] parameterTypes);
+    abstract boolean handleParameterNumberMismatch(int resultLength, Class<?>[]! parameterTypes);
 
     /**
      * {@inheritDoc}
      * @throws NullPointerException  {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
+    public <T extends Annotation> T getAnnotation(Class<T>! annotationClass) {
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
     }
 
@@ -645,9 +644,7 @@ public abstract sealed class Executable extends AccessibleObject
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
-        Objects.requireNonNull(annotationClass);
-
+    public <T extends Annotation> T[]! getAnnotationsByType(Class<T>! annotationClass) {
         return AnnotationSupport.getDirectlyAndIndirectlyPresent(declaredAnnotations(), annotationClass);
     }
 
@@ -655,13 +652,13 @@ public abstract sealed class Executable extends AccessibleObject
      * {@inheritDoc}
      */
     @Override
-    public Annotation[] getDeclaredAnnotations()  {
+    public Annotation[]! getDeclaredAnnotations()  {
         return AnnotationParser.toArray(declaredAnnotations());
     }
 
     private transient volatile Map<Class<? extends Annotation>, Annotation> declaredAnnotations;
 
-    private Map<Class<? extends Annotation>, Annotation> declaredAnnotations() {
+    private Map<Class<? extends Annotation>, Annotation>! declaredAnnotations() {
         Map<Class<? extends Annotation>, Annotation> declAnnos;
         if ((declAnnos = declaredAnnotations) == null) {
             synchronized (this) {
@@ -699,7 +696,7 @@ public abstract sealed class Executable extends AccessibleObject
      * @return an object representing the return type of the method
      * or constructor represented by this {@code Executable}
      */
-    public abstract AnnotatedType getAnnotatedReturnType();
+    public abstract AnnotatedType! getAnnotatedReturnType();
 
     /* Helper for subclasses of Executable.
      *
@@ -707,7 +704,7 @@ public abstract sealed class Executable extends AccessibleObject
      * specify the return type of the method/constructor represented by this
      * Executable.
      */
-    AnnotatedType getAnnotatedReturnType0(Type returnType) {
+    AnnotatedType! getAnnotatedReturnType0(Type! returnType) {
         return TypeAnnotationParser.buildAnnotatedType(getTypeAnnotationBytes0(),
                 SharedSecrets.getJavaLangAccess().
                         getConstantPool(getDeclaringClass()),
@@ -755,7 +752,7 @@ public abstract sealed class Executable extends AccessibleObject
                 TypeAnnotation.TypeAnnotationTarget.METHOD_RECEIVER);
     }
 
-    Type parameterize(Class<?> c) {
+    Type! parameterize(Class<?>! c) {
         Class<?> ownerClass = c.getDeclaringClass();
         TypeVariable<?>[] typeVars = c.getTypeParameters();
 
@@ -798,7 +795,7 @@ public abstract sealed class Executable extends AccessibleObject
      * {@code Executable}
      */
     @SuppressWarnings("doclint:reference") // cross-module links
-    public AnnotatedType[] getAnnotatedParameterTypes() {
+    public AnnotatedType[]! getAnnotatedParameterTypes() {
         return TypeAnnotationParser.buildAnnotatedTypes(getTypeAnnotationBytes0(),
                 SharedSecrets.getJavaLangAccess().
                         getConstantPool(getDeclaringClass()),
@@ -822,7 +819,7 @@ public abstract sealed class Executable extends AccessibleObject
      * exceptions of the method or constructor represented by this {@code
      * Executable}
      */
-    public AnnotatedType[] getAnnotatedExceptionTypes() {
+    public AnnotatedType[]! getAnnotatedExceptionTypes() {
         return TypeAnnotationParser.buildAnnotatedTypes(getTypeAnnotationBytes0(),
                 SharedSecrets.getJavaLangAccess().
                         getConstantPool(getDeclaringClass()),

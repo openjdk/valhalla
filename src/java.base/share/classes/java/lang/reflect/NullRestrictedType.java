@@ -44,5 +44,5 @@ public interface NullRestrictedType extends Type {
      * {@return the {@code Type} object representing the type to which the null-restriction has
      * been applied}
      */
-    Type getBaseType();
+    Type! getBaseType();
 }

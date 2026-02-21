@@ -364,8 +364,9 @@ public enum AccessFlag {
 
     private AccessFlag(int mask,
                        boolean sourceModifier,
-                       Set<Location> locations,
-                       List<Map.Entry<ClassFileFormatVersion, Set<Location>>> historicalLocations) {
+                       Set<Location>! locations,
+                       List<Map.Entry<ClassFileFormatVersion, Set<Location>>>! historicalLocations) {
+        // TODO no ! in enum fields
         this.mask = mask;
         this.sourceModifier = sourceModifier;
         this.locations = locations;
@@ -395,7 +396,7 @@ public enum AccessFlag {
      * This method returns an empty set if this flag is not defined in
      * the current class file format version.
      */
-    public Set<Location> locations() {
+    public Set<Location>! locations() {
         return locations(latest());
     }
 
@@ -409,7 +410,7 @@ public enum AccessFlag {
      * @param cffv the class file format version to use
      * @throws NullPointerException if the parameter is {@code null}
      */
-    public Set<Location> locations(ClassFileFormatVersion cffv) {
+    public Set<Location>! locations(ClassFileFormatVersion! cffv) {
         return Location.findInHistory(locations, historicalLocations, cffv);
     }
 
@@ -423,7 +424,7 @@ public enum AccessFlag {
      * positions not defined for the location in the current class file format
      * @throws NullPointerException if {@code location} is {@code null}
      */
-    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
+    public static Set<AccessFlag>! maskToAccessFlags(int mask, Location! location) {
         return maskToAccessFlags(mask, location, latest());
     }
 
@@ -439,7 +440,7 @@ public enum AccessFlag {
      * @throws NullPointerException if {@code location} or {@code cffv} is {@code null}
      * @since 25
      */
-    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location, ClassFileFormatVersion cffv) {
+    public static Set<AccessFlag>! maskToAccessFlags(int mask, Location! location, ClassFileFormatVersion! cffv) {
         var definition = findDefinition(location, cffv);  // null checks location
         int unmatchedMask = mask & (~location.flagsMask(cffv));  // null checks cffv
         if (unmatchedMask != 0) {
@@ -603,41 +604,41 @@ public enum AccessFlag {
         ;
 
         // Repeated sets of locations used by AccessFlag constants
-        private static final Set<Location> EMPTY_SET = Set.of();
-        private static final Set<Location> SET_MODULE = Set.of(MODULE);
-        private static final Set<Location> SET_CLASS_METHOD_INNER_CLASS =
+        private static final Set<Location>! EMPTY_SET = Set.of();
+        private static final Set<Location>! SET_MODULE = Set.of(MODULE);
+        private static final Set<Location>! SET_CLASS_METHOD_INNER_CLASS =
             Set.of(CLASS, METHOD, INNER_CLASS);
-        private static final Set<Location> SET_CLASS_FIELD_METHOD =
+        private static final Set<Location>! SET_CLASS_FIELD_METHOD =
             Set.of(CLASS, FIELD, METHOD);
-        private static final Set<Location> SET_CLASS_FIELD_INNER_CLASS =
+        private static final Set<Location>! SET_CLASS_FIELD_INNER_CLASS =
             Set.of(CLASS, FIELD, INNER_CLASS);
-        private static final Set<Location> SET_CLASS_FIELD_METHOD_INNER_CLASS =
+        private static final Set<Location>! SET_CLASS_FIELD_METHOD_INNER_CLASS =
             Set.of(CLASS, FIELD, METHOD, INNER_CLASS);
-        private static final Set<Location> SET_CLASS_METHOD =
+        private static final Set<Location>! SET_CLASS_METHOD =
             Set.of(CLASS, METHOD);
-        private static final Set<Location> SET_FIELD_METHOD =
+        private static final Set<Location>! SET_FIELD_METHOD =
             Set.of(FIELD, METHOD);
-        private static final Set<Location> SET_FIELD_METHOD_INNER_CLASS =
+        private static final Set<Location>! SET_FIELD_METHOD_INNER_CLASS =
             Set.of(FIELD, METHOD, INNER_CLASS);
-        private static final Set<Location> SET_METHOD = Set.of(METHOD);
-        private static final Set<Location> SET_METHOD_PARAM = Set.of(METHOD_PARAMETER);
-        private static final Set<Location> SET_FIELD = Set.of(FIELD);
-        private static final Set<Location> SET_CLASS = Set.of(CLASS);
-        private static final Set<Location> SET_CLASS_INNER_CLASS =
+        private static final Set<Location>! SET_METHOD = Set.of(METHOD);
+        private static final Set<Location>! SET_METHOD_PARAM = Set.of(METHOD_PARAMETER);
+        private static final Set<Location>! SET_FIELD = Set.of(FIELD);
+        private static final Set<Location>! SET_CLASS = Set.of(CLASS);
+        private static final Set<Location>! SET_CLASS_INNER_CLASS =
             Set.of(CLASS, INNER_CLASS);
-        private static final Set<Location> SET_MODULE_REQUIRES =
+        private static final Set<Location>! SET_MODULE_REQUIRES =
             Set.of(MODULE_REQUIRES);
-        private static final Set<Location> SET_FINAL_8 =
+        private static final Set<Location>! SET_FINAL_8 =
             Set.of(CLASS, FIELD, METHOD,
                    INNER_CLASS,     /* added in 1.1 */
                    METHOD_PARAMETER); /* added in 8 */
-        private static final Set<Location> SET_SYNTHETIC_5 =
+        private static final Set<Location>! SET_SYNTHETIC_5 =
               Set.of(CLASS, FIELD, METHOD,
                      INNER_CLASS);
-        private static final Set<Location> SET_SYNTHETIC_8 =
+        private static final Set<Location>! SET_SYNTHETIC_8 =
               Set.of(CLASS, FIELD, METHOD,
                      INNER_CLASS, METHOD_PARAMETER);
-        private static final Set<Location> SET_SYNTHETIC_9 =
+        private static final Set<Location>! SET_SYNTHETIC_9 =
               // Added as an access flag in 5.0
               Set.of(CLASS, FIELD, METHOD,
                      INNER_CLASS,
@@ -645,7 +646,7 @@ public enum AccessFlag {
                      // Module-related items added in 9
                      MODULE, MODULE_REQUIRES,
                      MODULE_EXPORTS, MODULE_OPENS);
-        private static final Set<Location> SET_MANDATED_9 =
+        private static final Set<Location>! SET_MANDATED_9 =
             Set.of(METHOD_PARAMETER, // From 8
                    // Starting in 9
                    MODULE, MODULE_REQUIRES,
@@ -655,7 +656,7 @@ public enum AccessFlag {
         private final List<Map.Entry<ClassFileFormatVersion, Integer>> historicalFlagsMasks;
 
         Location(int flagsMask,
-                 List<Map.Entry<ClassFileFormatVersion, Integer>> historicalFlagsMasks) {
+                 List<Map.Entry<ClassFileFormatVersion, Integer>>! historicalFlagsMasks) {
             this.flagsMask = flagsMask;
             this.historicalFlagsMasks = ensureHistoryOrdered(historicalFlagsMasks);
         }
@@ -663,7 +664,7 @@ public enum AccessFlag {
         // Ensures the historical versions are from newest to oldest and do not include the latest
         // These 2 utilities reside in Location because Location must be initialized before AccessFlag
         private static <T> List<Map.Entry<ClassFileFormatVersion, T>> ensureHistoryOrdered(
-                List<Map.Entry<ClassFileFormatVersion, T>> history) {
+                List<Map.Entry<ClassFileFormatVersion, T>>! history) {
             ClassFileFormatVersion lastVersion = CURRENT_PREVIEW_FEATURES;
             for (var e : history) {
                 var historyVersion = e.getKey();
@@ -675,9 +676,8 @@ public enum AccessFlag {
             return history;
         }
 
-        private static <T> T findInHistory(T candidate, List<Map.Entry<ClassFileFormatVersion, T>> history,
-                                           ClassFileFormatVersion cffv) {
-            Objects.requireNonNull(cffv);
+        private static <T> T findInHistory(T candidate, List<Map.Entry<ClassFileFormatVersion, T>>! history,
+                                           ClassFileFormatVersion! cffv) {
             for (var e : history) {
                 if (e.getKey().compareTo(cffv) < 0) {
                     // last version found was valid
@@ -712,7 +712,7 @@ public enum AccessFlag {
          * @throws NullPointerException if {@code cffv} is {@code null}
          * @since 25
          */
-        public int flagsMask(ClassFileFormatVersion cffv) {
+        public int flagsMask(ClassFileFormatVersion! cffv) {
             return findInHistory(flagsMask, historicalFlagsMasks, cffv);
         }
 
@@ -725,7 +725,7 @@ public enum AccessFlag {
          *
          * @since 25
          */
-        public Set<AccessFlag> flags() {
+        public Set<AccessFlag>! flags() {
             return flags(latest());
         }
 
@@ -740,13 +740,13 @@ public enum AccessFlag {
          * @throws NullPointerException if {@code cffv} is {@code null}
          * @since 25
          */
-        public Set<AccessFlag> flags(ClassFileFormatVersion cffv) {
+        public Set<AccessFlag>! flags(ClassFileFormatVersion! cffv) {
             // implicit null check cffv
             return new AccessFlagSet(findDefinition(this, cffv), flagsMask(cffv));
         }
     }
 
-    private static AccessFlag[] createDefinition(AccessFlag... known) {
+    private static AccessFlag[]! createDefinition(AccessFlag... known) {
         var ret = new AccessFlag[Character.SIZE];
         for (var flag : known) {
             var mask = flag.mask;
@@ -757,7 +757,7 @@ public enum AccessFlag {
         return ret;
     }
 
-    private static AccessFlag[] findDefinition(Location location, ClassFileFormatVersion cffv) {
+    private static AccessFlag[]! findDefinition(Location! location, ClassFileFormatVersion! cffv) {
         return switch (location) {
             case CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? CLASS_PREVIEW_FLAGS : CLASS_FLAGS;
             case FIELD -> cffv == CURRENT_PREVIEW_FEATURES ? FIELD_PREVIEW_FLAGS : FIELD_FLAGS;
@@ -771,7 +771,7 @@ public enum AccessFlag {
         };
     }
 
-    private static final @Stable AccessFlag[] // Can use stable array and lazy init in the future
+    private static final @Stable AccessFlag[]! // Can use stable array and lazy init in the future
             CLASS_FLAGS         = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
             CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE), // identity
             FIELD_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
@@ -785,7 +785,7 @@ public enum AccessFlag {
             MODULE_EXPORTS_FLAGS = createDefinition(SYNTHETIC, MANDATED),
             MODULE_OPENS_FLAGS = createDefinition(SYNTHETIC, MANDATED);
 
-    private static int undefinedMask(AccessFlag[] definition, int mask) {
+    private static int undefinedMask(AccessFlag[]! definition, int mask) {
         assert definition.length == Character.SIZE;
         int definedMask = 0;
         for (int i = 0; i < Character.SIZE; i++) {
@@ -797,7 +797,7 @@ public enum AccessFlag {
     }
 
     private static final class AccessFlagSet extends AbstractSet<AccessFlag> {
-        private final @Stable AccessFlag[] definition;
+        private final @Stable AccessFlag[]! definition;
         private final int mask;
 
         // all mutating methods throw UnsupportedOperationException
@@ -814,6 +814,7 @@ public enum AccessFlag {
             assert undefinedMask(definition, mask) == 0 : mask;
             this.definition = definition;
             this.mask = mask;
+            super();
         }
 
         @Override
@@ -822,8 +823,7 @@ public enum AccessFlag {
         }
 
         @Override
-        public void forEach(Consumer<? super AccessFlag> action) {
-            Objects.requireNonNull(action); // in case of empty
+        public void forEach(Consumer<? super AccessFlag>! action) {
             for (int i = 0; i < Character.SIZE; i++) {
                 if ((mask & (1 << i)) != 0) {
                     action.accept(definition[i]);
@@ -832,12 +832,13 @@ public enum AccessFlag {
         }
 
         private static final class AccessFlagIterator implements Iterator<AccessFlag> {
-            private final @Stable AccessFlag[] definition;
+            private final @Stable AccessFlag[]! definition;
             private int remainingMask;
 
-            private AccessFlagIterator(AccessFlag[] definition, int remainingMask) {
+            private AccessFlagIterator(AccessFlag[]! definition, int remainingMask) {
                 this.definition = definition;
                 this.remainingMask = remainingMask;
+                super();
             }
 
             @Override
@@ -862,8 +863,8 @@ public enum AccessFlag {
         }
 
         @Override
-        public boolean contains(Object o) {
-            if (Objects.requireNonNull(o) instanceof AccessFlag flag) {
+        public boolean contains(Object! o) {
+            if (o instanceof AccessFlag flag) {
                 int bit = flag.mask;
                 return (bit & mask) != 0 && definition[Integer.numberOfTrailingZeros(bit)] == flag;
             }
