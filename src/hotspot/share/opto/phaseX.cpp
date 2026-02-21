@@ -2594,11 +2594,13 @@ void PhaseIterGVN::add_users_of_use_to_worklist(Node* n, Node* use, Unique_Node_
   // Inline type nodes can have other inline types as users. If an input gets
   // updated, make sure that inline type users get a chance for optimization.
   if (use->is_InlineType()) {
-    for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
-      Node* u = use->fast_out(i2);
-      if (u->is_InlineType())
-        worklist.push(u);
-    }
+    auto push_the_uses_to_worklist = [&](Node* n){
+      if (n->is_InlineType()) {
+        worklist.push(n);
+      }
+    };
+    auto is_boundary = [](Node* n){ return !n->is_InlineType(); };
+    use->visit_uses(push_the_uses_to_worklist, is_boundary, true);
   }
   // If changed Cast input, notify down for Phi, Sub, and Xor - all do "uncast"
   // Patterns:

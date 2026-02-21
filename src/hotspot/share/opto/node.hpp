@@ -1216,10 +1216,12 @@ public:
 
   // Visit boundary uses of the node and apply a callback function for each.
   // Recursively traverse uses, stopping and applying the callback when
-  // reaching a boundary node, defined by is_boundary. Note: the function
-  // definition appears after the complete type definition of Node_List.
+  // reaching a boundary node, defined by is_boundary. If callback_on_all is true,
+  // it applies the callback on all the nodes seen, and not only on the boundary
+  // nodes. Note: the function definition appears after the complete type
+  // definition of Node_List.
   template <typename Callback, typename Check>
-  void visit_uses(Callback callback, Check is_boundary) const;
+  void visit_uses(Callback callback, Check is_boundary, bool always_callback = false) const;
 
   // Returns a clone of the current node that's pinned (if the current node is not) for nodes found in array accesses
   // (Load and range check CastII nodes).
@@ -1743,7 +1745,7 @@ public:
 
 // Definition must appear after complete type definition of Node_List
 template <typename Callback, typename Check>
-void Node::visit_uses(Callback callback, Check is_boundary) const {
+void Node::visit_uses(Callback callback, Check is_boundary, bool always_callback) const {
   ResourceMark rm;
   VectorSet visited;
   Node_List worklist;
@@ -1756,10 +1758,11 @@ void Node::visit_uses(Callback callback, Check is_boundary) const {
 
   while (worklist.size() > 0) {
     Node* use = worklist.pop();
-    // Apply callback on boundary nodes
-    if (is_boundary(use)) {
+    bool boundary = is_boundary(use);
+    if (boundary || always_callback) {
       callback(use);
-    } else {
+    }
+    if (!boundary) {
       // Not a boundary node, continue search
       for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
         Node* out = use->fast_out(k);
