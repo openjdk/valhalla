@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,7 +97,8 @@ abstract class Wrap implements GeneralWrap {
         if (nonNull) {
             components.add(
                     new CompoundWrap("    public static class Holder {\n    ",
-                                     new VarDeclareWrap(wtype, brackets, wname, winit),
+                                     winit != null ? new VarDeclareWrap(wtype, brackets, wname, winit)
+                                                   : new VarDeclareWrap(wtype, brackets, wname),
                                      "    }\n"));
             wmeth = new CompoundWrap(
                     "        return ", "Holder.", wname, ";\n"
