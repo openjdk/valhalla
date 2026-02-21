@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,16 +34,19 @@ import java.lang.annotation.*;
  * contain combinations of field values that were never set by a previous
  * constructor invocation.
  * <p>
- * Users of a class with this annotation take responsibility for ensuring the
- * integrity of their data by avoiding race conditions.
+ * The HotSpot VM uses this <em>experimental</em> annotation to enable
+ * non-atomic strategies for reading and writing to flattened fields and arrays
+ * of the annotated class's type. Users of a class with this annotation take
+ * responsibility for ensuring the integrity of their data by avoiding race
+ * conditions.
  * <p>
- * The HotSpot VM uses this annotation to enable non-atomic strategies for
- * reading and writing to flattened fields and arrays of the annotated class's
- * type.
+ * Use of this annotation in trusted code, if any, should ensure the data
+ * corruption never violate API contracts; for example, if a racy read can
+ * produce an illegal combination of field values, that field should not be
+ * modeled by a loosely-consistent value class.
  * <p>
- * Because these behaviors are not specified by Java SE, this annotation should
- * only be used by internal JDK code for experimental purposes and should not
- * affect user-observable outcomes.
+ * <b>This annotation will be removed in the future, and is subject to
+ * behavioral change without replacement or notice.</b>
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
