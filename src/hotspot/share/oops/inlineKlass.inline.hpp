@@ -48,7 +48,7 @@ void InlineKlass::oop_iterate_specialized(const address oop_addr, OopClosureType
 }
 
 template <typename T, class OopClosureType>
-inline void InlineKlass::oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi) {
+inline void InlineKlass::oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, uintptr_t lo, uintptr_t hi) {
   OopMapBlock* map = start_of_nonstatic_oop_maps();
   OopMapBlock* const end_map = map + nonstatic_oop_map_count();
 

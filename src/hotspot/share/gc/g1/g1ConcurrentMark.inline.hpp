@@ -182,14 +182,14 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool 
 }
 
 inline bool G1CMTask::should_be_sliced(oop obj) {
-  return obj->is_refArray() && ((refArrayOop)obj)->length() >= (int)ObjArrayMarkingStride;
+  return obj->is_array_with_oops() && ((objArrayOop)obj)->length() >= (int)ObjArrayMarkingStride;
 }
 
 inline void G1CMTask::process_array_chunk(objArrayOop obj, size_t start, size_t end) {
-  assert(obj->is_refArray(), "Must be");
-  refArrayOop(obj)->oop_iterate_elements_range(_cm_oop_closure,
-                                               checked_cast<int>(start),
-                                               checked_cast<int>(end));
+  precond(obj->is_array_with_oops());
+  obj->oop_iterate_elements_range(_cm_oop_closure,
+                                  checked_cast<int>(start),
+                                  checked_cast<int>(end));
 }
 
 inline void G1ConcurrentMark::update_top_at_mark_start(G1HeapRegion* r) {

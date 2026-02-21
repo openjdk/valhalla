@@ -63,6 +63,10 @@ class flatArrayOopDesc : public objArrayOopDesc {
 
   int object_size(int lh) const;
 
+  // Special iterators for an element index range.
+  template <typename OopClosureType>
+  void oop_iterate_elements_range(OopClosureType* blk, int start, int end);
+
 };
 
 // See similar requirement for oopDesc.
