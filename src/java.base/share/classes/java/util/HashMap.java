@@ -1693,10 +1693,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                         expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super K> action) {
+        public void forEachRemaining(Consumer<? super K>! action) {
             int i, hi, mc;
-            if (action == null)
-                throw new NullPointerException();
             HashMap<K,V> m = map;
             Node<K,V>[] tab = m.table;
             if ((hi = fence) < 0) {
@@ -1722,10 +1720,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super K> action) {
+        public boolean tryAdvance(Consumer<? super K>! action) {
             int hi;
-            if (action == null)
-                throw new NullPointerException();
             Node<K,V>[] tab = map.table;
             if (tab != null && tab.length >= (hi = getFence()) && index >= 0) {
                 while (current != null || index < hi) {
@@ -1765,10 +1761,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                           expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
+        public void forEachRemaining(Consumer<? super V>! action) {
             int i, hi, mc;
-            if (action == null)
-                throw new NullPointerException();
             HashMap<K,V> m = map;
             Node<K,V>[] tab = m.table;
             if ((hi = fence) < 0) {
@@ -1794,10 +1788,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
+        public boolean tryAdvance(Consumer<? super V>! action) {
             int hi;
-            if (action == null)
-                throw new NullPointerException();
             Node<K,V>[] tab = map.table;
             if (tab != null && tab.length >= (hi = getFence()) && index >= 0) {
                 while (current != null || index < hi) {
@@ -1836,10 +1828,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                           expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K,V>> action) {
+        public void forEachRemaining(Consumer<? super Map.Entry<K,V>>! action) {
             int i, hi, mc;
-            if (action == null)
-                throw new NullPointerException();
             HashMap<K,V> m = map;
             Node<K,V>[] tab = m.table;
             if ((hi = fence) < 0) {
@@ -1865,10 +1855,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             int hi;
-            if (action == null)
-                throw new NullPointerException();
             Node<K,V>[] tab = map.table;
             if (tab != null && tab.length >= (hi = getFence()) && index >= 0) {
                 while (current != null || index < hi) {

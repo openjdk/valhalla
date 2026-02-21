@@ -1068,7 +1068,7 @@ final class Nodes {
             }
 
             @Override
-            public boolean tryAdvance(Consumer<? super T> consumer) {
+            public boolean tryAdvance(Consumer<? super T>! consumer) {
                 if (!initTryAdvance())
                     return false;
 
@@ -1090,7 +1090,7 @@ final class Nodes {
             }
 
             @Override
-            public void forEachRemaining(Consumer<? super T> consumer) {
+            public void forEachRemaining(Consumer<? super T>! consumer) {
                 if (curNode == null)
                     return;
 
@@ -1122,7 +1122,7 @@ final class Nodes {
             }
 
             @Override
-            public boolean tryAdvance(T_CONS consumer) {
+            public boolean tryAdvance(T_CONS! consumer) {
                 if (!initTryAdvance())
                     return false;
 
@@ -1144,7 +1144,7 @@ final class Nodes {
             }
 
             @Override
-            public void forEachRemaining(T_CONS consumer) {
+            public void forEachRemaining(T_CONS! consumer) {
                 if (curNode == null)
                     return;
 

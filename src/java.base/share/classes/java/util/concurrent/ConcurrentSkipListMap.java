@@ -2989,7 +2989,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
                 return null;
             }
 
-            public boolean tryAdvance(Consumer<? super T> action) {
+            public boolean tryAdvance(Consumer<? super T>! action) {
                 if (hasNext()) {
                     action.accept(next());
                     return true;
@@ -2997,7 +2997,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
                 return false;
             }
 
-            public void forEachRemaining(Consumer<? super T> action) {
+            public void forEachRemaining(Consumer<? super T>! action) {
                 while (hasNext())
                     action.accept(next());
             }
@@ -3173,8 +3173,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super K> action) {
-            if (action == null) throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super K>! action) {
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3188,8 +3187,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super K> action) {
-            if (action == null) throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super K>! action) {
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3263,8 +3261,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
-            if (action == null) throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super V>! action) {
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3278,8 +3275,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
-            if (action == null) throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super V>! action) {
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3349,8 +3345,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             return null;
         }
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K,V>> action) {
-            if (action == null) throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super Map.Entry<K,V>>! action) {
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;
@@ -3366,8 +3361,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
-            if (action == null) throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             Comparator<? super K> cmp = comparator;
             K f = fence;
             Node<K,V> e = current;

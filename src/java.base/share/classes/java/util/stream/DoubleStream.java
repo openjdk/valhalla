@@ -1007,8 +1007,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
             boolean started;
 
             @Override
-            public boolean tryAdvance(DoubleConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(DoubleConsumer! action) {
                 double t;
                 if (started)
                     t = f.applyAsDouble(prev);
@@ -1069,8 +1068,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
             boolean started, finished;
 
             @Override
-            public boolean tryAdvance(DoubleConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(DoubleConsumer! action) {
                 if (finished)
                     return false;
                 double t;
@@ -1089,8 +1087,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
             }
 
             @Override
-            public void forEachRemaining(DoubleConsumer action) {
-                Objects.requireNonNull(action);
+            public void forEachRemaining(DoubleConsumer! action) {
                 if (finished)
                     return;
                 finished = true;

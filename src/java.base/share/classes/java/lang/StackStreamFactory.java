@@ -574,7 +574,7 @@ final class StackStreamFactory {
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super StackFrame> action) {
+        public void forEachRemaining(Consumer<? super StackFrame>! action) {
             checkState(OPEN);
             for (int n = 0; n < maxDepth; n++) {
                 StackFrame frame = nextStackFrame();
@@ -585,7 +585,7 @@ final class StackStreamFactory {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super StackFrame> action) {
+        public boolean tryAdvance(Consumer<? super StackFrame>! action) {
             checkState(OPEN);
 
             int index = frameBuffer.getIndex();

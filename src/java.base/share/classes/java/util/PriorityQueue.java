@@ -846,9 +846,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
                 new PriorityQueueSpliterator(lo, index = mid, expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super E>! action) {
             if (fence < 0) { fence = size; expectedModCount = modCount; }
             final Object[] es = queue;
             int i, hi; E e;
@@ -861,9 +859,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
                 throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super E>! action) {
             if (fence < 0) { fence = size; expectedModCount = modCount; }
             int i;
             if ((i = index) < fence) {

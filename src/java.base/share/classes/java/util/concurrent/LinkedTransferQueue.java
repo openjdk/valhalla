@@ -1029,8 +1029,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
                                                    Spliterator.CONCURRENT));
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             final DualNode p;
             if ((p = current()) != null) {
                 current = null;
@@ -1040,8 +1039,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
         }
 
         @SuppressWarnings("unchecked")
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             DualNode p;
             if ((p = current()) != null) {
                 E e = null;

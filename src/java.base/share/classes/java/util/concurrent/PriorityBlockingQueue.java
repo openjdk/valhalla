@@ -958,8 +958,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
                 new PBQSpliterator(array, lo, index = mid);
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             final int hi = getFence(), lo = index;
             final Object[] es = array;
             index = hi;                 // ensure exhaustion
@@ -967,8 +966,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
                 action.accept((E) es[i]);
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             if (getFence() > index && index >= 0) {
                 action.accept((E) array[index++]);
                 return true;

@@ -1799,14 +1799,12 @@ public final class Collections {
                 }
 
                 @Override
-                public boolean tryAdvance(Consumer<? super Entry<K, V>> action) {
-                    Objects.requireNonNull(action);
+                public boolean tryAdvance(Consumer<? super Entry<K, V>>! action) {
                     return s.tryAdvance(entryConsumer(action));
                 }
 
                 @Override
-                public void forEachRemaining(Consumer<? super Entry<K, V>> action) {
-                    Objects.requireNonNull(action);
+                public void forEachRemaining(Consumer<? super Entry<K, V>>! action) {
                     s.forEachRemaining(entryConsumer(action));
                 }
 
@@ -5182,8 +5180,7 @@ public final class Collections {
             }
 
             @Override
-            public boolean tryAdvance(Consumer<? super T> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super T>! consumer) {
                 if (est > 0) {
                     est--;
                     consumer.accept(element);
@@ -5193,7 +5190,7 @@ public final class Collections {
             }
 
             @Override
-            public void forEachRemaining(Consumer<? super T> consumer) {
+            public void forEachRemaining(Consumer<? super T>! consumer) {
                 tryAdvance(consumer);
             }
 

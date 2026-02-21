@@ -532,7 +532,7 @@ public final class SystemModuleFinders {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super String> action) {
+        public boolean tryAdvance(Consumer<? super String>! action) {
             String next;
             try {
                 next = next();
