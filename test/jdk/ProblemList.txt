@@ -800,6 +800,4 @@ jdk/internal/vm/Continuation/Fuzz.java#preserve-fp 8370177 generic-aarch64,gener
 # I'm disabling this entry to determine frequency of failure:
 # java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
 
-java/net/CookieHandler/B6644726.java                            8365811 generic-all
-
 sun/tools/jhsdb/JStackStressTest.java 8375470 macosx-aarch64
