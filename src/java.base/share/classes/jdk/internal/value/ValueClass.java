@@ -28,6 +28,7 @@ package jdk.internal.value;
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.reflect.Field;
@@ -51,6 +52,19 @@ public final class ValueClass {
     /// This excludes abstract value classes and primitives.
     public static boolean isConcreteValueClass(Class<?> clazz) {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
+    }
+
+    /// {@return whether a field of type `c` can be represented with a payload
+    /// without oops}  For example, primitive type fields and value classes with
+    /// all primitive fields recursively may be represented by a payload of a
+    /// layout without oops.  Returns false if there is no flat layout for a
+    /// field of type `c`.
+    public static boolean hasBinaryPayload(Class<?> c) {
+        // non-concrete value class type field always a reference
+        if (!ValueClass.isConcreteValueClass(c))
+            return c.isPrimitive();
+        // Check the flat layout
+        return Unsafe.getUnsafe().isFlatPayloadBinary(c);
     }
 
     /**
