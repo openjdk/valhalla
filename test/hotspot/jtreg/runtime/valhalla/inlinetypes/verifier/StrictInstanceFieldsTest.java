@@ -27,8 +27,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
- * @compile TryCatchChild.jasm
- *          BadChild.jasm
+ * @compile BadChild.jasm
  *          BadChild1.jasm
  *          StrictFieldNotSubset.jasm
  *          ControlFlowChildBad.jasm
@@ -78,7 +77,6 @@ public class StrictInstanceFieldsTest {
         System.out.println(c1);
 
         // Constructor with try-catch-finally
-        // TODO: StrictProcessor causes this class to fail when written in Java
         TryCatchChild c2 = new TryCatchChild();
         System.out.println(c2);
 
@@ -207,27 +205,26 @@ class ControlFlowChild extends Parent {
     }
 }
 
-// See TODO above
-// class TryCatchChild extends Parent {
+class TryCatchChild extends Parent {
 
-//     @StrictInit
-//     int x;
-//     @StrictInit
-//     int y;
+    @StrictInit
+    int x;
+    @StrictInit
+    int y;
 
-//     TryCatchChild() {
-//         try {
-//             x = 0;
-//             int[] a = new int[1];
-//             System.out.println(a[2]);
-//         } catch (java.lang.ArrayIndexOutOfBoundsException e) {
-//             y = 0;
-//         } finally {
-//             x = y = 1;
-//         }
-//         super();
-//     }
-// }
+    TryCatchChild() {
+        try {
+            x = 0;
+            int[] a = new int[1];
+            System.out.println(a[2]);
+        } catch (java.lang.ArrayIndexOutOfBoundsException e) {
+            y = 0;
+        } finally {
+            x = y = 1;
+        }
+        super();
+    }
+}
 
 class AssignedInConditionalChild extends Parent {
 
