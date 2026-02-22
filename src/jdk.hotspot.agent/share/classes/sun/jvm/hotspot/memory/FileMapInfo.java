@@ -97,10 +97,12 @@ public class FileMapInfo {
     headerObj = VMObjectFactory.newObject(FileMapHeader.class, header);
 
     // char* mapped_base_address = header->_mapped_base_address
-    // size_t cloned_vtable_offset = header->_cloned_vtable_offset
+    // narrowPtr cloned_vtable_narrowPtr = header->_cloned_vtable_offset
+    // size_t cloned_vtable_offset = AOTCompressedPointers::get_byte_offset(cloned_vtable_narrowPtr);
     // CppVtableInfo** vtablesIndex = mapped_base_address + cloned_vtable_offset;
     mapped_base_address = get_AddressField(FileMapHeader_type, header, "_mapped_base_address");
-    long cloned_vtable_offset = get_CIntegerField(FileMapHeader_type, header, "_cloned_vtables_offset");
+    long cloned_vtable_narrowPtr = get_CIntegerField(FileMapHeader_type, header, "_cloned_vtables");
+    long cloned_vtable_offset = cloned_vtable_narrowPtr; // Currently narrowPtr is the same as offset
     vtablesIndex = mapped_base_address.addOffsetTo(cloned_vtable_offset);
 
     // CDSFileMapRegion* rw_region = &header->_region[rw];

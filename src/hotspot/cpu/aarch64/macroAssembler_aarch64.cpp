@@ -479,6 +479,7 @@ address MacroAssembler::target_addr_for_insn(address insn_addr) {
 // Patch any kind of instruction; there may be several instructions.
 // Return the total length (in bytes) of the instructions.
 int MacroAssembler::pd_patch_instruction_size(address insn_addr, address target) {
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
   return RelocActions<Patcher>::run(insn_addr, target);
 }
 
@@ -486,6 +487,8 @@ int MacroAssembler::patch_oop(address insn_addr, address o) {
   int instructions;
   unsigned insn = *(unsigned*)insn_addr;
   assert(nativeInstruction_at(insn_addr+4)->is_movk(), "wrong insns in patch");
+
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
 
   // OOPs are either narrow (32 bits) or wide (48 bits).  We encode
   // narrow OOPs by setting the upper 16 bits in the first
@@ -515,6 +518,8 @@ int MacroAssembler::patch_narrow_klass(address insn_addr, narrowKlass n) {
   NativeInstruction *insn = nativeInstruction_at(insn_addr);
   assert(Instruction_aarch64::extract(insn->encoding(), 31, 21) == 0b11010010101 &&
          nativeInstruction_at(insn_addr+4)->is_movk(), "wrong insns in patch");
+
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
 
   Instruction_aarch64::patch(insn_addr, 20, 5, n >> 16);
   Instruction_aarch64::patch(insn_addr+4, 20, 5, n & 0xffff);
@@ -6795,10 +6800,14 @@ void MacroAssembler::fill_words(Register base, Register cnt, Register value)
 
 // Intrinsic for
 //
-// - sun/nio/cs/ISO_8859_1$Encoder.implEncodeISOArray
-//     return the number of characters copied.
-// - java/lang/StringUTF16.compress
-//     return index of non-latin1 character if copy fails, otherwise 'len'.
+// - sun.nio.cs.ISO_8859_1.Encoder#encodeISOArray0(byte[] sa, int sp, byte[] da, int dp, int len)
+//   Encodes char[] to byte[] in ISO-8859-1
+//
+// - java.lang.StringCoding#encodeISOArray0(byte[] sa, int sp, byte[] da, int dp, int len)
+//   Encodes byte[] (containing UTF-16) to byte[] in ISO-8859-1
+//
+// - java.lang.StringCoding#encodeAsciiArray0(char[] sa, int sp, byte[] da, int dp, int len)
+//   Encodes char[] to byte[] in ASCII
 //
 // This version always returns the number of characters copied, and does not
 // clobber the 'len' register. A successful copy will complete with the post-
