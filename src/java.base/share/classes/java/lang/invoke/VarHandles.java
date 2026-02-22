@@ -208,7 +208,7 @@ final class VarHandles {
         boolean hasAtomicAccess = (field.getModifiers() & Modifier.VOLATILE) != 0 ||
                 !(field.isNullRestricted()) ||
                 !field.getFieldType().isAnnotationPresent(LooselyConsistentValue.class);
-        return hasAtomicAccess && !ValueClass.hasOops(field.getFieldType());
+        return hasAtomicAccess && ValueClass.hasBinaryPayload(field.getFieldType());
     }
 
     static boolean isAtomicFlat(Object[] array) {
@@ -216,7 +216,7 @@ final class VarHandles {
         boolean hasAtomicAccess = ValueClass.isAtomicArray(array) ||
                 !ValueClass.isNullRestrictedArray(array) ||
                 !componentType.isAnnotationPresent(LooselyConsistentValue.class);
-        return hasAtomicAccess && !ValueClass.hasOops(componentType);
+        return hasAtomicAccess && ValueClass.hasBinaryPayload(componentType);
     }
 
     // Required by instance field handles

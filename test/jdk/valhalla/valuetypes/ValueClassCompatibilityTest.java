@@ -32,6 +32,7 @@
  */
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.ValueClass;
@@ -93,29 +94,30 @@ class ValueClassCompatibilityTest {
     }
 
     @Test
-    void testHasOops() {
+    void testBinaryPayload() {
         // Actual value class cases are tested in ValueClassPreviewTest
-        assertFalse(ValueClass.hasOops(int.class), "primitive");
-        hasOopsCase(true, Object.class, "Object");
-        hasOopsCase(true, Number.class, "abstract value class");
-        hasOopsCase(false, Integer.class, "final value class");
-        hasOopsCase(true, ClassValue.class, "abstract identity class");
-        hasOopsCase(true, ArrayList.class, "identity class");
-        hasOopsCase(true, String.class, "final identity class");
-        hasOopsCase(true, Comparable.class, "interface");
-        hasOopsCase(true, int[].class, "array class");
-        hasOopsCase(true, Object[].class, "array class");
-        hasOopsCase(true, Number[].class, "array class");
-        hasOopsCase(true, Integer[].class, "array class");
-        hasOopsCase(true, ClassValue[].class, "array class");
-        hasOopsCase(true, ArrayList[].class, "array class");
-        hasOopsCase(true, String[].class, "array class");
-        hasOopsCase(true, Comparable[].class, "array class");
+        assertTrue(ValueClass.hasBinaryPayload(int.class), "primitive");
+        binaryPayloadCase(false, Object.class, "Object");
+        binaryPayloadCase(false, Number.class, "abstract value class");
+        binaryPayloadCase(true, Integer.class, "final value class (wrapper)");
+        binaryPayloadCase(false, Optional.class, "final value class (reference)");
+        binaryPayloadCase(false, ClassValue.class, "abstract identity class");
+        binaryPayloadCase(false, ArrayList.class, "identity class");
+        binaryPayloadCase(false, String.class, "final identity class");
+        binaryPayloadCase(false, Comparable.class, "interface");
+        binaryPayloadCase(false, int[].class, "array class");
+        binaryPayloadCase(false, Object[].class, "array class");
+        binaryPayloadCase(false, Number[].class, "array class");
+        binaryPayloadCase(false, Integer[].class, "array class");
+        binaryPayloadCase(false, ClassValue[].class, "array class");
+        binaryPayloadCase(false, ArrayList[].class, "array class");
+        binaryPayloadCase(false, String[].class, "array class");
+        binaryPayloadCase(false, Comparable[].class, "array class");
     }
 
-    private static void hasOopsCase(boolean expected, Class<?> arg, String classification) {
-        assertEquals(!PreviewFeatures.isEnabled() || expected,
-                ValueClass.hasOops(arg),
+    private static void binaryPayloadCase(boolean expected, Class<?> arg, String classification) {
+        assertEquals(PreviewFeatures.isEnabled() && expected,
+                ValueClass.hasBinaryPayload(arg),
                 () -> classification + ": " + arg.getTypeName());
     }
 }

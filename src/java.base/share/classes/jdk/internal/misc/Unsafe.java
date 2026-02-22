@@ -1473,13 +1473,14 @@ public final class Unsafe {
     }
 
     /**
-     * Returns whether the flat layout of fields of this value class type
-     * contains oops. Required for numerical CAS safety.
+     * For a field of type {@code c}, returns true if and only if there is
+     * a possible flat layout that contains no oop.
+     * Required for numerical CAS safety.
      */
-    public boolean hasOopsInLayout(Class<?> c) {
+    public boolean isFlatPayloadBinary(Class<?> c) {
         int[] map = getFieldMap(c);
         int nbNonRef = map[0];
-        return nbNonRef * 2 + 1 < map.length;
+        return nbNonRef * 2 + 1 == map.length;
     }
 
     /**

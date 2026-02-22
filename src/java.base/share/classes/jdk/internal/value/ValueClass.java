@@ -54,14 +54,17 @@ public final class ValueClass {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
     }
 
-    /// {@return whether the flat layout for fields of this type contains references}
-    /// Returns true if there is no flat layout for fields of the given type.
-    public static boolean hasOops(Class<?> c) {
-        // non-concrete value class always a reference field
+    /// {@return whether a field of type `c` can be represented with a payload
+    /// without oops}  For example, primitive type fields and value classes with
+    /// all primitive fields recursively may be represented by a payload of a
+    /// layout without oops.  Returns false if there is no flat layout for a
+    /// field of type `c`.
+    public static boolean hasBinaryPayload(Class<?> c) {
+        // non-concrete value class type field always a reference
         if (!ValueClass.isConcreteValueClass(c))
-            return !c.isPrimitive();
-        // Checks for oops in flat layout
-        return Unsafe.getUnsafe().hasOopsInLayout(c);
+            return c.isPrimitive();
+        // Check the flat layout
+        return Unsafe.getUnsafe().isFlatPayloadBinary(c);
     }
 
     /**

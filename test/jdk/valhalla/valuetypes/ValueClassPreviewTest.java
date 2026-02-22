@@ -30,6 +30,7 @@
  */
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import jdk.internal.value.ValueClass;
 import org.junit.jupiter.api.Test;
@@ -38,18 +39,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ValueClassPreviewTest {
     @Test
-    void testHasOops() {
-        assertFalse(ValueClass.hasOops(Integer.class));
-        assertTrue(ValueClass.hasOops(Optional.class));
+    void testHasBinaryPayload() {
+        assertTrue(ValueClass.hasBinaryPayload(Integer.class));
+        assertTrue(ValueClass.hasBinaryPayload(OptionalInt.class));
+        assertFalse(ValueClass.hasBinaryPayload(Optional.class));
 
         value record R1(int a, long b, float c) {}
-        assertFalse(ValueClass.hasOops(R1.class));
+        assertTrue(ValueClass.hasBinaryPayload(R1.class));
         value record R2(R1 a) {}
-        assertFalse(ValueClass.hasOops(R2.class));
+        assertTrue(ValueClass.hasBinaryPayload(R2.class));
         value record R3(String a) {}
-        assertTrue(ValueClass.hasOops(R3.class));
+        assertFalse(ValueClass.hasBinaryPayload(R3.class));
         value record R4(R3 a) {}
-        assertTrue(ValueClass.hasOops(R4.class));
+        assertFalse(ValueClass.hasBinaryPayload(R4.class));
     }
 
     @Test
