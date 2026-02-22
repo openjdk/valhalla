@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2412,7 +2412,6 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
           stack_object_type = current_type();
 
           if (fd.access_flags().is_strict()) {
-            ResourceMark rm(THREAD);
             if (!current_frame->satisfy_unset_field(fd.name(), fd.signature())) {
               log_info(verification)("Attempting to initialize field not found in initial strict instance fields: %s%s",
                                      fd.name()->as_C_string(), fd.signature()->as_C_string());

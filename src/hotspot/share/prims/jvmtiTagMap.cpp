@@ -42,6 +42,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -2881,7 +2882,7 @@ VM_HeapWalkOperation::~VM_HeapWalkOperation() {
 // each element in the array
 inline bool VM_HeapWalkOperation::iterate_over_array(const JvmtiHeapwalkObject& o) {
   assert(!o.is_flat(), "Array object cannot be flattened");
-  refArrayOop array = refArrayOopDesc::cast(o.obj());
+  refArrayOop array = oop_cast<refArrayOop>(o.obj());
 
   // array reference to its class
   oop mirror = RefArrayKlass::cast(array->klass())->java_mirror();
