@@ -213,5 +213,4 @@ vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375
 # done for 8377828. Further analysis is being done with 8376235:
 compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
 
-vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 vmTestbase/nsk/jdi/BScenarios/multithrd/tc04x001/TestDescription.java 8375076 windows-x64
