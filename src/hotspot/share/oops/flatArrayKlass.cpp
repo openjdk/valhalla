@@ -313,7 +313,6 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       // Need to allocate each new src elem payload -> dst oop
       refArrayHandle dh(THREAD, (refArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
-      InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
         oop o = sh->obj_at(src_pos + i, CHECK);
         dh->obj_at_put(dst_pos + i, o);
@@ -326,7 +325,6 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
     InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
     flatArrayOop da = flatArrayOop(d);
     FlatArrayKlass* fdk = FlatArrayKlass::cast(da->klass());
-    InlineKlass* vk = InlineKlass::cast(d_elem_klass);
 
     for (int i = 0; i < length; i++) {
       da->obj_at_put( dst_pos + i, sa->obj_at(src_pos + i), CHECK);
