@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,28 @@
 
 package nsk.share.gc;
 
+import nsk.share.gc.gp.GarbageProducer;
+import nsk.share.test.LocalRandom;
+
 /**
- *  An object that occupies approximately given number of bytes in memory.
+ * GarbageProducer default implementation.
  */
-public class MemoryObject {
-        private final static int diff = Memory.getObjectExtraSize() + Memory.getIntSize();
-        private final int size;
-        private final Object storage;
-
-
-        /**
-         *  Create an object that occupies given number of bytes.
-         *
-         *  @param size size
-         */
-        public MemoryObject(int size) {
-            if (size > diff) {
-                int memory = (size - diff);
+public class DefaultProducer implements GarbageProducer<Object> {
+        static class GarbageObject {
+                Integer[] arr;
+        }
+        public Object create(long memory) {
                 if (Memory.isValhallaEnabled()) {
-                    storage = new Integer[Memory.getArrayLength(memory, Memory.getIntegerArrayElementSize())];
+                        GarbageObject obj = new GarbageObject();
+                        obj.arr = new Integer[Memory.getArrayLength(memory, Memory.getIntegerArrayElementSize())];
+                        LocalRandom.nextInts(obj.arr);
+                        return obj;
                 } else {
-                    storage = new int[Memory.getArrayLength(memory, Memory.getIntSize())];
+                        int[] arr = new int[Memory.getArrayLength(memory, Memory.getIntSize())];
+                        LocalRandom.nextInts(arr);
+                        return arr;
                 }
-           } else {
-                storage = new int[0];
-           }
-           this.size = size;
         }
 
-        public final int getSize() {
-                return size;
-        }
+        public void validate(Object o) {}
 }

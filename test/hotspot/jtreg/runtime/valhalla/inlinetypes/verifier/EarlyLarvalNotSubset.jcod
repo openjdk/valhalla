@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,13 @@
  */
 
 /*
-class StrictFieldsNotSubset extends Parent {
+class EarlyLarvalNotSubset extends Parent {
     @Strict
     int x;
     @Strict
     int y;
 
-    StrictFieldsNotSubset(boolean a, boolean b) {
+    EarlyLarvalNotSubset(boolean a, boolean b) {
         if (a) {
             x = 1;
             if (b) {
@@ -44,7 +44,7 @@ class StrictFieldsNotSubset extends Parent {
 }
 */
 
-class StrictFieldsNotSubset {
+class EarlyLarvalNotSubset {
   0xCAFEBABE;
   65535;                                   // minor version
   71;                                      // version
@@ -53,7 +53,7 @@ class StrictFieldsNotSubset {
     Field #2 #3;                           // #1
     Class #4;                              // #2
     NameAndType #5 #6;                     // #3
-    Utf8 "StrictFieldsNotSubset";          // #4
+    Utf8 "EarlyLarvalNotSubset";          // #4
     Utf8 "x";                              // #5
     Utf8 "I";                              // #6
     Field #2 #8;                           // #7

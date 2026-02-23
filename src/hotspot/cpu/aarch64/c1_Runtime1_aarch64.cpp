@@ -1235,8 +1235,6 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
       break;
 
     default:
-      // FIXME: For unhandled trap_id this code fails with assert during vm intialization
-      // rather than insert a call to unimplemented_entry
       { StubFrame f(sasm, "unimplemented entry", dont_gc_arguments, does_not_return);
         __ mov(r0, (int)id);
         __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, unimplemented_entry), r0);
@@ -1244,8 +1242,6 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
       break;
     }
   }
-
-
   return oop_maps;
 }
 

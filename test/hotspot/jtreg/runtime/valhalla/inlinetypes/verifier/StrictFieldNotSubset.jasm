@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,29 +19,33 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "ci/ciNullObject.hpp"
-#include "ci/ciObjArray.hpp"
-#include "ci/ciUtilities.inline.hpp"
-#include "oops/objArrayOop.inline.hpp"
-#include "oops/oopCast.inline.hpp"
+/*
+class StrictFieldNotSubset extends Parent {
+  @Strict int x;
+  @Strict static int y;
 
-// ciObjArray
-//
-// This class represents an objArrayOop in the HotSpot virtual
-// machine.
-
-ciObject* ciObjArray::obj_at(int index) {
-  VM_ENTRY_MARK;
-  // The array should be a refArray, otherwise a ciFlatArray object would have been used
-  refArrayOop array = oop_cast<refArrayOop>(get_objArrayOop());
-  assert(index >= 0 && index < array->length(), "OOB access");
-  oop o = array->obj_at(index);
-  if (o == nullptr) {
-    return ciNullObject::make();
-  } else {
-    return CURRENT_ENV->get_object(o);
+  StrictFieldNotSubset() {
+    y = 1; // Using putfield instead of putstatic
+    super();
   }
 }
+*/
+
+identity class StrictFieldNotSubset extends Parent version 71:65535
+{
+  strict Field x:I;
+  static strict Field y:I;
+
+  public Method "<init>":"()V"
+    stack 2  locals 3
+  {
+         aload_0;
+         iconst_1;
+         putfield          Field y:"I";
+         aload_0;
+         invokespecial     Method java/lang/Object."<init>":"()V";
+         return;
+  }
+} // end Class StrictFieldNotSubset

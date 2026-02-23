@@ -31,6 +31,7 @@
 #include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -63,12 +64,12 @@ ciConstant ciArray::element_value_impl(BasicType elembt,
   case T_OBJECT:
     {
       if (ary->is_refArray()) {
-        refArrayOop refary = refArrayOopDesc::cast(ary);
+        refArrayOop refary = oop_cast<refArrayOop>(ary);
         oop elem = refary->obj_at(index);
         return ciConstant(elembt, CURRENT_ENV->get_object(elem));
       } else {
         assert(ary->is_flatArray(), "");
-        flatArrayOop flatary = flatArrayOopDesc::cast(ary);
+        flatArrayOop flatary = oop_cast<flatArrayOop>(ary);
         assert(CompilerThread::current()->thread_state() == _thread_in_vm, "");
         JavaThread* THREAD = CompilerThread::current();
         oop elem = flatary->obj_at(index, THREAD);

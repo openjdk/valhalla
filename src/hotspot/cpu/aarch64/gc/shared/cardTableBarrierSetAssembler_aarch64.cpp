@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,7 +108,6 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
   bool precise = is_array || on_anonymous;
 
   bool needs_post_barrier = val != noreg && in_heap;
-
   BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg, noreg);
   if (needs_post_barrier) {
     // flatten object address if needed
