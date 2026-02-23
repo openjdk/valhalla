@@ -76,6 +76,7 @@ class ObjArrayKlass : public ArrayKlass {
   ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
   ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
   static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+  bool find_refined_array_klass(ObjArrayKlass* k);
 
   // Compiler/Interpreter offset
   static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }

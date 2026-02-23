@@ -37,11 +37,6 @@
 
 inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
 
-inline flatArrayOop flatArrayOopDesc::cast(oop o) {
-  assert(o->is_flatArray(), "Must be a flatArray");
-  return (flatArrayOop)o;
-}
-
 inline size_t flatArrayOopDesc::base_offset_in_bytes() {
   return static_cast<size_t>(arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT));
 }

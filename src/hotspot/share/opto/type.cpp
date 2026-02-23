@@ -101,10 +101,9 @@ void Type::Offset::dump2(outputStream *st) const {
     return;
   } else if (_offset == OffsetTop) {
     st->print("+top");
-  }
-  else if (_offset == OffsetBot) {
+  } else if (_offset == OffsetBot) {
     st->print("+bot");
-  } else if (_offset) {
+  } else {
     st->print("+%d", _offset);
   }
 }
