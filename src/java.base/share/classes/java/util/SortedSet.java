@@ -252,7 +252,7 @@ public interface SortedSet<E> extends Set<E>, SequencedSet<E> {
      * @since 1.8
      */
     @Override
-    default Spliterator<E> spliterator() {
+    default Spliterator<E>! spliterator() {
         return new Spliterators.IteratorSpliterator<E>(
                 this, Spliterator.DISTINCT | Spliterator.SORTED | Spliterator.ORDERED) {
             @Override

@@ -1265,7 +1265,7 @@ public class ScheduledThreadPoolExecutor
             }
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             final ReentrantLock lock = this.lock;
             lock.lock();
             try {
@@ -1276,7 +1276,7 @@ public class ScheduledThreadPoolExecutor
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             final ReentrantLock lock = this.lock;
             lock.lock();
             try {

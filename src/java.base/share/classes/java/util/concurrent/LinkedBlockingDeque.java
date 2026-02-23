@@ -853,7 +853,7 @@ public class LinkedBlockingDeque<E>
      * @throws IllegalStateException if this deque is full
      * @see #add(Object)
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         if (c == this)
             // As historically specified in AbstractQueue#addAll
             throw new IllegalArgumentException();
@@ -861,8 +861,7 @@ public class LinkedBlockingDeque<E>
         // Copy c into a private chain of Nodes
         Node<E> beg = null, end = null;
         long n = 0;
-        for (E e : c) {
-            Objects.requireNonNull(e);
+        for (E! e : c) {
             n++;
             Node<E> newNode = new Node<E>(e);
             if (beg == null)
@@ -914,7 +913,7 @@ public class LinkedBlockingDeque<E>
      *
      * @return an array containing all of the elements in this deque
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -964,7 +963,7 @@ public class LinkedBlockingDeque<E>
      * @throws NullPointerException if the specified array is null
      */
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -1295,7 +1294,7 @@ public class LinkedBlockingDeque<E>
      * @return a {@code Spliterator} over the elements in this deque
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new LBDSpliterator();
     }
 
@@ -1344,24 +1343,21 @@ public class LinkedBlockingDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeIf(Predicate<? super E> filter) {
-        Objects.requireNonNull(filter);
+    public boolean removeIf(Predicate<? super E>! filter) {
         return bulkRemove(filter);
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean removeAll(Collection<?>! c) {
         return bulkRemove(e -> c.contains(e));
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean retainAll(Collection<?>! c) {
         return bulkRemove(e -> !c.contains(e));
     }
 

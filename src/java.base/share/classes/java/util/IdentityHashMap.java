@@ -1012,8 +1012,7 @@ public class IdentityHashMap<K,V>
          * the former contains an optimization that results in incorrect
          * behavior when c is a smaller "normal" (non-identity-based) Set.
          */
-        public boolean removeAll(Collection<?> c) {
-            Objects.requireNonNull(c);
+        public boolean removeAll(Collection<?>! c) {
             boolean modified = false;
             for (Iterator<K> i = iterator(); i.hasNext(); ) {
                 if (c.contains(i.next())) {
@@ -1032,11 +1031,11 @@ public class IdentityHashMap<K,V>
                 result += System.identityHashCode(key);
             return result;
         }
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return toArray(new Object[0]);
         }
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1064,7 +1063,7 @@ public class IdentityHashMap<K,V>
             return a;
         }
 
-        public Spliterator<K> spliterator() {
+        public Spliterator<K>! spliterator() {
             return new KeySpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
     }
@@ -1120,11 +1119,11 @@ public class IdentityHashMap<K,V>
         public void clear() {
             IdentityHashMap.this.clear();
         }
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return toArray(new Object[0]);
         }
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1151,7 +1150,7 @@ public class IdentityHashMap<K,V>
             return a;
         }
 
-        public Spliterator<V> spliterator() {
+        public Spliterator<V>! spliterator() {
             return new ValueSpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
     }
@@ -1227,8 +1226,7 @@ public class IdentityHashMap<K,V>
          * the former contains an optimization that results in incorrect
          * behavior when c is a smaller "normal" (non-identity-based) Set.
          */
-        public boolean removeAll(Collection<?> c) {
-            Objects.requireNonNull(c);
+        public boolean removeAll(Collection<?>! c) {
             boolean modified = false;
             for (Iterator<Map.Entry<K,V>> i = iterator(); i.hasNext(); ) {
                 if (c.contains(i.next())) {
@@ -1239,12 +1237,12 @@ public class IdentityHashMap<K,V>
             return modified;
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return toArray(new Object[0]);
         }
 
         @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             int expectedModCount = modCount;
             int size = size();
             if (a.length < size)
@@ -1272,7 +1270,7 @@ public class IdentityHashMap<K,V>
             return a;
         }
 
-        public Spliterator<Map.Entry<K,V>> spliterator() {
+        public Spliterator<Map.Entry<K,V>>! spliterator() {
             return new EntrySpliterator<>(IdentityHashMap.this, 0, -1, 0, 0);
         }
     }

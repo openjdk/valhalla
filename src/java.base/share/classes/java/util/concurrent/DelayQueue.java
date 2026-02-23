@@ -442,7 +442,7 @@ public class DelayQueue<E extends Delayed> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -487,7 +487,7 @@ public class DelayQueue<E extends Delayed> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {

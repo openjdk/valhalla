@@ -211,16 +211,16 @@ class LvtTest {
         */
 
         List<ExpectedLvtRecord> expected = List.of(
-                ExpectedLvtRecord.of(6, "f", "Ljava/util/List<*>;", 51, 8),
-                ExpectedLvtRecord.of(1, "u", "TU;", 0, 64),
-                ExpectedLvtRecord.of(2, "z", "Ljava/lang/Class<+Ljava/util/List<*>;>;", 0, 64),
-                ExpectedLvtRecord.of(3, "v", "Ljava/util/ArrayList<Ljava/lang/Integer;>;", 8, 56),
-                ExpectedLvtRecord.of(4, "s", "Ljava/util/Set<-Ljava/util/Set<*>;>;", 17, 47)
+                ExpectedLvtRecord.of(6, "f", "Ljava/util/List<*>;", 55, 8),
+                ExpectedLvtRecord.of(1, "u", "TU;", 0, 68),
+                ExpectedLvtRecord.of(2, "z", "Ljava/lang/Class<+Ljava/util/List<*>;>;", 0, 68),
+                ExpectedLvtRecord.of(3, "v", "Ljava/util/ArrayList<Ljava/lang/Integer;>;", 8, 60),
+                ExpectedLvtRecord.of(4, "s", "Ljava/util/Set<-Ljava/util/Set<*>;>;", 17, 51)
         );
 
         // Exploits non-symmetric "equals" in ExpectedLvRecord
         for (int i = 0; i < lvts.size(); i++) {
-            assertTrue(expected.get(i).equals(lvts.get(i)));
+            assertTrue(expected.get(i).equals(lvts.get(i)), "failing for index " + i + " found " + lvts.get(i));
         }
     }
 

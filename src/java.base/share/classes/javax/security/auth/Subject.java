@@ -1094,7 +1094,7 @@ public final class Subject implements java.io.Serializable {
             return false;
         }
 
-        public boolean addAll(Collection<? extends E> c) {
+        public boolean addAll(Collection<? extends E>! c) {
             boolean result = false;
 
             c = collectionNullClean(c);
@@ -1106,7 +1106,7 @@ public final class Subject implements java.io.Serializable {
             return result;
         }
 
-        public boolean removeAll(Collection<?> c) {
+        public boolean removeAll(Collection<?>! c) {
             c = collectionNullClean(c);
 
             boolean modified = false;
@@ -1125,7 +1125,7 @@ public final class Subject implements java.io.Serializable {
             return modified;
         }
 
-        public boolean containsAll(Collection<?> c) {
+        public boolean containsAll(Collection<?>! c) {
             c = collectionNullClean(c);
 
             for (Object item : c) {
@@ -1137,7 +1137,7 @@ public final class Subject implements java.io.Serializable {
             return true;
         }
 
-        public boolean retainAll(Collection<?> c) {
+        public boolean retainAll(Collection<?>! c) {
             c = collectionNullClean(c);
 
             boolean modified = false;
@@ -1166,11 +1166,11 @@ public final class Subject implements java.io.Serializable {
             return elements.isEmpty();
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return elements.toArray();
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return elements.toArray(a);
         }
 

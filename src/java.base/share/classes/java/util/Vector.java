@@ -681,7 +681,7 @@ public class Vector<E>
      *
      * @since 1.2
      */
-    public synchronized Object[] toArray() {
+    public synchronized Object[]! toArray() {
         return Arrays.copyOf(elementData, elementCount);
     }
 
@@ -712,7 +712,7 @@ public class Vector<E>
      * @since 1.2
      */
     @SuppressWarnings("unchecked")
-    public synchronized <T> T[] toArray(T[] a) {
+    public synchronized <T> T[]! toArray(T[]! a) {
         if (a.length < elementCount)
             return (T[]) Arrays.copyOf(elementData, elementCount, a.getClass());
 
@@ -875,7 +875,7 @@ public class Vector<E>
      *         specified collection
      * @throws NullPointerException if the specified collection is null
      */
-    public synchronized boolean containsAll(Collection<?> c) {
+    public synchronized boolean containsAll(Collection<?>! c) {
         return super.containsAll(c);
     }
 
@@ -892,7 +892,7 @@ public class Vector<E>
      * @throws NullPointerException if the specified collection is null
      * @since 1.2
      */
-    public boolean addAll(Collection<? extends E> c) {
+    public boolean addAll(Collection<? extends E>! c) {
         Object[] a = c.toArray();
         modCount++;
         int numNew = a.length;
@@ -926,8 +926,7 @@ public class Vector<E>
      *         or if the specified collection is null
      * @since 1.2
      */
-    public boolean removeAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean removeAll(Collection<?>! c) {
         return bulkRemove(e -> c.contains(e));
     }
 
@@ -950,8 +949,7 @@ public class Vector<E>
      *         or if the specified collection is null
      * @since 1.2
      */
-    public boolean retainAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean retainAll(Collection<?>! c) {
         return bulkRemove(e -> !c.contains(e));
     }
 
@@ -959,8 +957,7 @@ public class Vector<E>
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    public boolean removeIf(Predicate<? super E> filter) {
-        Objects.requireNonNull(filter);
+    public boolean removeIf(Predicate<? super E>! filter) {
         return bulkRemove(filter);
     }
 
@@ -1402,7 +1399,7 @@ public class Vector<E>
      * @since 1.8
      */
     @Override
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new VectorSpliterator(null, 0, -1, 0);
     }
 

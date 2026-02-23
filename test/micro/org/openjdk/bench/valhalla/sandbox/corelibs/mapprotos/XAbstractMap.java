@@ -353,7 +353,7 @@ public abstract class XAbstractMap<K,V> implements Map<K,V> {
         Set<K> ks = keySet;
         if (ks == null) {
             ks = new AbstractSet<K>() {
-                public Iterator<K> iterator() {
+                public Iterator<K>! iterator() {
                     return new Iterator<K>() {
                         private Iterator<Entry<K,V>> i = entrySet().iterator();
 
@@ -412,7 +412,7 @@ public abstract class XAbstractMap<K,V> implements Map<K,V> {
         Collection<V> vals = values;
         if (vals == null) {
             vals = new AbstractCollection<V>() {
-                public Iterator<V> iterator() {
+                public Iterator<V>! iterator() {
                     return new Iterator<V>() {
                         private Iterator<Entry<K,V>> i = entrySet().iterator();
 

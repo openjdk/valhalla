@@ -766,7 +766,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
      *
      * @return an array containing all of the elements in this queue
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -812,7 +812,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
      *         this queue
      * @throws NullPointerException if the specified array is null
      */
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -1002,31 +1002,28 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
      * @return a {@code Spliterator} over the elements in this queue
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return new PBQSpliterator();
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeIf(Predicate<? super E> filter) {
-        Objects.requireNonNull(filter);
+    public boolean removeIf(Predicate<? super E>! filter) {
         return bulkRemove(filter);
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean removeAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean removeAll(Collection<?>! c) {
         return bulkRemove(e -> c.contains(e));
     }
 
     /**
      * @throws NullPointerException {@inheritDoc}
      */
-    public boolean retainAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean retainAll(Collection<?>! c) {
         return bulkRemove(e -> !c.contains(e));
     }
 

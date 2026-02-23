@@ -418,7 +418,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param c the collection
      * @return {@code false} unless given collection is empty
      */
-    public boolean containsAll(Collection<?> c) {
+    public boolean containsAll(Collection<?>! c) {
         return c.isEmpty();
     }
 
@@ -429,7 +429,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param c the collection
      * @return {@code false}
      */
-    public boolean removeAll(Collection<?> c) {
+    public boolean removeAll(Collection<?>! c) {
         return false;
     }
 
@@ -440,7 +440,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @param c the collection
      * @return {@code false}
      */
-    public boolean retainAll(Collection<?> c) {
+    public boolean retainAll(Collection<?>! c) {
         return false;
     }
 
@@ -472,14 +472,14 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @return an empty spliterator
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return Spliterators.emptySpliterator();
     }
 
     /**
      * {@return a zero-length array}
      */
-    public Object[] toArray() {
+    public Object[]! toArray() {
         return new Object[0];
     }
 
@@ -491,7 +491,7 @@ public class SynchronousQueue<E> extends AbstractQueue<E>
      * @return the specified array
      * @throws NullPointerException if the specified array is null
      */
-    public <T> T[] toArray(T[] a) {
+    public <T> T[]! toArray(T[]! a) {
         if (a.length > 0)
             a[0] = null;
         return a;

@@ -225,10 +225,10 @@ abstract class AbstractConstantGroup implements ConstantGroup {
                               resolving, ifNotPresent);
         }
 
-        @Override public Object[] toArray() {
+        @Override public Object[]! toArray() {
             return toArray(new Object[size]);
         }
-        @Override public <T> T[] toArray(T[] a) {
+        @Override public <T> T[]! toArray(T[]! a) {
             int pad = a.length - size;
             if (pad < 0) {
                 pad = 0;

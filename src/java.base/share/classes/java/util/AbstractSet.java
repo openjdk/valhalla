@@ -163,8 +163,7 @@ public abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
      * @see #remove(Object)
      * @see #contains(Object)
      */
-    public boolean removeAll(Collection<?> c) {
-        Objects.requireNonNull(c);
+    public boolean removeAll(Collection<?>! c) {
         boolean modified = false;
 
         if (size() > c.size()) {

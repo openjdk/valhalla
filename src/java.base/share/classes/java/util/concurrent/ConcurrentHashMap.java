@@ -4480,7 +4480,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
         private static final String OOME_MSG = "Required array size too large";
 
-        public final Object[] toArray() {
+        public final Object[]! toArray() {
             long sz = map.mappingCount();
             if (sz > MAX_ARRAY_SIZE)
                 throw new OutOfMemoryError(OOME_MSG);
@@ -4503,7 +4503,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         }
 
         @SuppressWarnings("unchecked")
-        public final <T> T[] toArray(T[] a) {
+        public final <T> T[]! toArray(T[]! a) {
             long sz = map.mappingCount();
             if (sz > MAX_ARRAY_SIZE)
                 throw new OutOfMemoryError(OOME_MSG);
@@ -4559,7 +4559,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return sb.append(']').toString();
         }
 
-        public final boolean containsAll(Collection<?> c) {
+        public final boolean containsAll(Collection<?>! c) {
             if (c != this) {
                 for (Object e : c) {
                     if (e == null || !contains(e))
@@ -4569,8 +4569,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return true;
         }
 
-        public boolean removeAll(Collection<?> c) {
-            if (c == null) throw new NullPointerException();
+        public boolean removeAll(Collection<?>! c) {
             boolean modified = false;
             // Use (c instanceof Set) as a hint that lookup in c is as
             // efficient as this view
@@ -4591,8 +4590,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return modified;
         }
 
-        public final boolean retainAll(Collection<?> c) {
-            if (c == null) throw new NullPointerException();
+        public final boolean retainAll(Collection<?>! c) {
             boolean modified = false;
             for (Iterator<E> it = iterator(); it.hasNext();) {
                 if (!c.contains(it.next())) {
@@ -4694,7 +4692,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
          * @throws UnsupportedOperationException if no default mapped value
          * for additions was provided
          */
-        public boolean addAll(Collection<? extends K> c) {
+        public boolean addAll(Collection<? extends K>! c) {
             boolean added = false;
             V v;
             if ((v = value) == null)
@@ -4720,7 +4718,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                      (containsAll(c) && c.containsAll(this))));
         }
 
-        public Spliterator<K> spliterator() {
+        public Spliterator<K>! spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
             long n = m.sumCount();
@@ -4774,12 +4772,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         public final boolean add(V e) {
             throw new UnsupportedOperationException();
         }
-        public final boolean addAll(Collection<? extends V> c) {
+        public final boolean addAll(Collection<? extends V>! c) {
             throw new UnsupportedOperationException();
         }
 
-        @Override public boolean removeAll(Collection<?> c) {
-            if (c == null) throw new NullPointerException();
+        @Override public boolean removeAll(Collection<?>! c) {
             boolean modified = false;
             for (Iterator<V> it = iterator(); it.hasNext();) {
                 if (c.contains(it.next())) {
@@ -4790,11 +4787,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return modified;
         }
 
-        public boolean removeIf(Predicate<? super V> filter) {
+        public boolean removeIf(Predicate<? super V>! filter) {
             return map.removeValueIf(filter);
         }
 
-        public Spliterator<V> spliterator() {
+        public Spliterator<V>! spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
             long n = m.sumCount();
@@ -4854,7 +4851,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return map.putVal(e.getKey(), e.getValue(), false) == null;
         }
 
-        public boolean addAll(Collection<? extends Entry<K,V>> c) {
+        public boolean addAll(Collection<? extends Entry<K,V>>! c) {
             boolean added = false;
             for (Entry<K,V> e : c) {
                 if (add(e))
@@ -4863,7 +4860,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return added;
         }
 
-        public boolean removeIf(Predicate<? super Entry<K,V>> filter) {
+        public boolean removeIf(Predicate<? super Entry<K,V>>! filter) {
             return map.removeEntryIf(filter);
         }
 
@@ -4886,7 +4883,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                      (containsAll(c) && c.containsAll(this))));
         }
 
-        public Spliterator<Map.Entry<K,V>> spliterator() {
+        public Spliterator<Map.Entry<K,V>>! spliterator() {
             Node<K,V>[] t;
             ConcurrentHashMap<K,V> m = map;
             long n = m.sumCount();

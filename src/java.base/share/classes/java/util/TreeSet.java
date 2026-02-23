@@ -301,7 +301,7 @@ public class TreeSet<E> extends AbstractSet<E>
      *         if any element is null and this set uses natural ordering, or
      *         its comparator does not permit null elements
      */
-    public  boolean addAll(Collection<? extends E> c) {
+    public  boolean addAll(Collection<? extends E>! c) {
         // Use linear-time version if applicable
         if (m.size()==0 && c.size() > 0 &&
             c instanceof SortedSet &&
@@ -581,7 +581,7 @@ public class TreeSet<E> extends AbstractSet<E>
      * @return a {@code Spliterator} over the elements in this set
      * @since 1.8
      */
-    public Spliterator<E> spliterator() {
+    public Spliterator<E>! spliterator() {
         return TreeMap.keySpliteratorFor(m);
     }
 

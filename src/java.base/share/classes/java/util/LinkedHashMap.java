@@ -704,17 +704,17 @@ public class LinkedHashMap<K,V>
         public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true) != null;
         }
-        public final Spliterator<K> spliterator()  {
+        public final Spliterator<K>! spliterator()  {
             return Spliterators.spliterator(this, Spliterator.SIZED |
                                             Spliterator.ORDERED |
                                             Spliterator.DISTINCT);
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return keysToArray(new Object[size], reversed);
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return keysToArray(prepareArray(a), reversed);
         }
 
@@ -809,16 +809,16 @@ public class LinkedHashMap<K,V>
             return new LinkedValueIterator(reversed);
         }
         public final boolean contains(Object o) { return containsValue(o); }
-        public final Spliterator<V> spliterator() {
+        public final Spliterator<V>! spliterator() {
             return Spliterators.spliterator(this, Spliterator.SIZED |
                                             Spliterator.ORDERED);
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return valuesToArray(new Object[size], reversed);
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[]! a) {
             return valuesToArray(prepareArray(a), reversed);
         }
 
@@ -929,7 +929,7 @@ public class LinkedHashMap<K,V>
             }
             return false;
         }
-        public final Spliterator<Map.Entry<K,V>> spliterator() {
+        public final Spliterator<Map.Entry<K,V>>! spliterator() {
             return Spliterators.spliterator(this, Spliterator.SIZED |
                                             Spliterator.ORDERED |
                                             Spliterator.DISTINCT);

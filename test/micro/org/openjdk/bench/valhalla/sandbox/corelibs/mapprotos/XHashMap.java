@@ -1164,17 +1164,17 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
     final class KeySet extends AbstractSet<K> {
         public final int size()                 { return size; }
         public final void clear()               { XHashMap.this.clear(); }
-        public final Iterator<K> iterator()     { return new KeyIterator(); }
+        public final Iterator<K>! iterator()     { return new KeyIterator(); }
         public final boolean contains(Object o) { return containsKey(o); }
         public final boolean remove(Object key) {
             return removeNode(hash(key), key, null, false, true).isPresent();
         }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return keysToArray(new Object[size]);
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[] !a) {
             return keysToArray(prepareArray(a));
         }
 
@@ -1224,14 +1224,14 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
     final class Values extends AbstractCollection<V> {
         public final int size()                 { return size; }
         public final void clear()               { XHashMap.this.clear(); }
-        public final Iterator<V> iterator()     { return new ValueIterator(); }
+        public final Iterator<V>! iterator()     { return new ValueIterator(); }
         public final boolean contains(Object o) { return containsValue(o); }
 
-        public Object[] toArray() {
+        public Object[]! toArray() {
             return valuesToArray(new Object[size]);
         }
 
-        public <T> T[] toArray(T[] a) {
+        public <T> T[]! toArray(T[] !a) {
             return valuesToArray(prepareArray(a));
         }
 
@@ -1278,7 +1278,7 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
     final class EntrySet extends AbstractSet<Map.Entry<K,V>> {
         public final int size()                 { return size; }
         public final void clear()               { XHashMap.this.clear(); }
-        public final Iterator<Map.Entry<K,V>> iterator() {
+        public final Iterator<Map.Entry<K,V>>! iterator() {
             return new EntryIterator();
         }
         public final boolean contains(Object o) {

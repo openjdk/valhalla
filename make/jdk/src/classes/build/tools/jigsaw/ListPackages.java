@@ -128,6 +128,7 @@ public class ListPackages {
     }
 
     private final Set<String> packages = new HashSet<>();
+    @SuppressWarnings("initialization")
     ListPackages(List<Path> dirs) throws IOException {
         for (Path p : dirs) {
             packages.addAll(list(p));

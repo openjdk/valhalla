@@ -904,7 +904,7 @@ public class EventSetImpl extends ArrayList<Event> implements EventSet {
     }
 
     @Override
-    public Spliterator<Event> spliterator() {
+    public Spliterator<Event>! spliterator() {
         return Spliterators.spliterator(this, Spliterator.DISTINCT);
     }
 
@@ -916,13 +916,13 @@ public class EventSetImpl extends ArrayList<Event> implements EventSet {
     public boolean remove(Object o) {
         throw new UnsupportedOperationException();
     }
-    public boolean addAll(Collection<? extends Event> coll) {
+    public boolean addAll(Collection<? extends Event>! coll) {
         throw new UnsupportedOperationException();
     }
-    public boolean removeAll(Collection<?> coll) {
+    public boolean removeAll(Collection<?>! coll) {
         throw new UnsupportedOperationException();
     }
-    public boolean retainAll(Collection<?> coll) {
+    public boolean retainAll(Collection<?>! coll) {
         throw new UnsupportedOperationException();
     }
     public void clear() {
