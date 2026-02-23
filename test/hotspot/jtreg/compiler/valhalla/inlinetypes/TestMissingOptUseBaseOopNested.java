@@ -42,6 +42,16 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  *                   -XX:CompileCommand=compileonly,${test.main.class}::test
  *                   -XX:+AlwaysIncrementalInline -XX:VerifyIterativeGVN=1110
  *                   ${test.main.class}
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions
+ *                   -XX:CompileCommand=compileonly,${test.main.class}::test
+ *                   -XX:+AlwaysIncrementalInline -XX:VerifyIterativeGVN=1110
+ *                   -XX:+StressIGVN
+ *                   ${test.main.class}
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions
+ *                   -XX:CompileCommand=compileonly,${test.main.class}::test
+ *                   -XX:+AlwaysIncrementalInline -XX:VerifyIterativeGVN=1110
+ *                   -XX:+StressIGVN -XX:StressSeed=335817958
+ *                   ${test.main.class}
  * @run main ${test.main.class}
  */
 
