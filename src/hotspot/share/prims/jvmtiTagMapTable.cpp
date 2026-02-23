@@ -236,7 +236,7 @@ JvmtiTagMapTable::~JvmtiTagMapTable() {
 
 jlong* JvmtiTagMapTable::lookup(const JvmtiHeapwalkObject& obj) const {
   if (is_empty()) {
-    return 0;
+    return nullptr;
   }
 
   if (!obj.is_value()) {

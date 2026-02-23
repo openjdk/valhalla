@@ -181,6 +181,8 @@ public class TestLWorld {
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
+                    // TODO 8337821: Temporarily increased MemLimit - remove again with JDK-8378328 once fixed.
+                   .addFlags("-XX:CompileCommand=MemLimit,*.*,0")
                    .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
