@@ -375,7 +375,7 @@ public final class AckFrame extends QuicFrame {
         }
 
         @Override
-        public boolean tryAdvance(LongConsumer action) {
+        public boolean tryAdvance(LongConsumer! action) {
             // First call will see pn == 0 and smallest >= 2,
             // which guarantees we will not enter the `if` below
             // before pn has been initialized from the

@@ -885,8 +885,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
                                                    Spliterator.CONCURRENT));
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             final Node<E> p;
             if ((p = current()) != null) {
                 current = null;
@@ -895,8 +894,7 @@ public class ConcurrentLinkedQueue<E> extends AbstractQueue<E>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             Node<E> p;
             if ((p = current()) != null) {
                 E e;

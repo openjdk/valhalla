@@ -946,8 +946,7 @@ public class RandomSupport {
             return new RandomIntsSpliterator(generatingGenerator, i, m, origin, bound);
         }
 
-        public boolean tryAdvance(IntConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public boolean tryAdvance(IntConsumer! consumer) {
             long i = index, f = fence;
             if (i < f) {
                 consumer.accept(RandomSupport.boundedNextInt(generatingGenerator, origin, bound));
@@ -957,8 +956,7 @@ public class RandomSupport {
             else return false;
         }
 
-        public void forEachRemaining(IntConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public void forEachRemaining(IntConsumer! consumer) {
             long i = index, f = fence;
             if (i < f) {
                 index = f;
@@ -1004,8 +1002,7 @@ public class RandomSupport {
             return new RandomLongsSpliterator(generatingGenerator, i, m, origin, bound);
         }
 
-        public boolean tryAdvance(LongConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public boolean tryAdvance(LongConsumer! consumer) {
             long i = index, f = fence;
             if (i < f) {
                 consumer.accept(RandomSupport.boundedNextLong(generatingGenerator, origin, bound));
@@ -1015,8 +1012,7 @@ public class RandomSupport {
             else return false;
         }
 
-        public void forEachRemaining(LongConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public void forEachRemaining(LongConsumer! consumer) {
             long i = index, f = fence;
             if (i < f) {
                 index = f;
@@ -1062,8 +1058,7 @@ public class RandomSupport {
             return new RandomDoublesSpliterator(generatingGenerator, i, m, origin, bound);
         }
 
-        public boolean tryAdvance(DoubleConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public boolean tryAdvance(DoubleConsumer! consumer) {
             long i = index, f = fence;
             if (i < f) {
                 consumer.accept(RandomSupport.boundedNextDouble(generatingGenerator, origin, bound));
@@ -1073,8 +1068,7 @@ public class RandomSupport {
             else return false;
         }
 
-        public void forEachRemaining(DoubleConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public void forEachRemaining(DoubleConsumer! consumer) {
             long i = index, f = fence;
             if (i < f) {
                 index = f;
@@ -1737,8 +1731,7 @@ public class RandomSupport {
                 return new RandomIntsSpliterator(r.copyAndJump((double)delta), i, m, origin, bound);
             }
 
-            public boolean tryAdvance(IntConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(IntConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(RandomSupport.boundedNextInt(generatingGenerator, origin, bound));
@@ -1748,8 +1741,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(IntConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(IntConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -1784,8 +1776,7 @@ public class RandomSupport {
                 return new RandomLongsSpliterator(r.copyAndJump((double)delta), i, m, origin, bound);
             }
 
-            public boolean tryAdvance(LongConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(LongConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(RandomSupport.boundedNextLong(generatingGenerator, origin, bound));
@@ -1795,8 +1786,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(LongConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(LongConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -1832,8 +1822,7 @@ public class RandomSupport {
                 return new RandomDoublesSpliterator(r.copyAndJump((double)delta), i, m, origin, bound);
             }
 
-            public boolean tryAdvance(DoubleConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(DoubleConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(RandomSupport.boundedNextDouble(generatingGenerator, origin, bound));
@@ -1843,8 +1832,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(DoubleConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(DoubleConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -1888,8 +1876,7 @@ public class RandomSupport {
                 return new RandomJumpsSpliterator(r.copyAndJump(distance * (double)delta), i, m, distance);
             }
 
-            public boolean tryAdvance(Consumer<? super RandomGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super RandomGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(generatingGenerator.copyAndJump(distance));
@@ -1899,8 +1886,7 @@ public class RandomSupport {
                 return false;
             }
 
-            public void forEachRemaining(Consumer<? super RandomGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(Consumer<? super RandomGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -1933,8 +1919,7 @@ public class RandomSupport {
                 return new RandomLeapsSpliterator(generatingGenerator.copyAndJump(distance * (double)delta), i, m, distance);
             }
 
-            public boolean tryAdvance(Consumer<? super JumpableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super JumpableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(generatingGenerator.copyAndJump(distance));
@@ -1944,8 +1929,7 @@ public class RandomSupport {
                 return false;
             }
 
-            public void forEachRemaining(Consumer<? super JumpableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(Consumer<? super JumpableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -1978,8 +1962,7 @@ public class RandomSupport {
                 return new RandomArbitraryJumpsSpliterator(generatingGenerator.copyAndJump(distance * (double)delta), i, m, distance);
             }
 
-            public boolean tryAdvance(Consumer<? super ArbitrarilyJumpableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super ArbitrarilyJumpableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(generatingGenerator.copyAndJump(distance));
@@ -1989,8 +1972,7 @@ public class RandomSupport {
                 return false;
             }
 
-            public void forEachRemaining(Consumer<? super ArbitrarilyJumpableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(Consumer<? super ArbitrarilyJumpableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -2129,8 +2111,7 @@ public class RandomSupport {
                 return new RandomIntsSpliterator(generatingGenerator.split(), i, m, origin, bound);
             }
 
-            public boolean tryAdvance(IntConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(IntConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(RandomSupport.boundedNextInt(generatingGenerator, origin, bound));
@@ -2140,8 +2121,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(IntConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(IntConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -2175,8 +2155,7 @@ public class RandomSupport {
                 return new RandomLongsSpliterator(generatingGenerator.split(), i, m, origin, bound);
             }
 
-            public boolean tryAdvance(LongConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(LongConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(RandomSupport.boundedNextLong(generatingGenerator, origin, bound));
@@ -2186,8 +2165,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(LongConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(LongConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -2221,8 +2199,7 @@ public class RandomSupport {
                 return new RandomDoublesSpliterator(generatingGenerator.split(), i, m, origin, bound);
             }
 
-            public boolean tryAdvance(DoubleConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(DoubleConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(RandomSupport.boundedNextDouble(generatingGenerator, origin, bound));
@@ -2232,8 +2209,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(DoubleConsumer consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(DoubleConsumer! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -2271,8 +2247,7 @@ public class RandomSupport {
                 return new RandomSplitsSpliterator(generatingGenerator.split(), i, m, constructingGenerator);
             }
 
-            public boolean tryAdvance(Consumer<? super SplittableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super SplittableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(constructingGenerator.split(generatingGenerator));
@@ -2282,8 +2257,7 @@ public class RandomSupport {
                 else return false;
             }
 
-            public void forEachRemaining(Consumer<? super SplittableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(Consumer<? super SplittableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;
@@ -2480,8 +2454,7 @@ public class RandomSupport {
                 return result;
             }
 
-            public boolean tryAdvance(Consumer<? super SplittableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super SplittableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     consumer.accept(constructingGenerator.split(generatingGenerator, salt | i));
@@ -2493,8 +2466,7 @@ public class RandomSupport {
                 return false;
             }
 
-            public void forEachRemaining(Consumer<? super SplittableGenerator> consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(Consumer<? super SplittableGenerator>! consumer) {
                 long i = index, f = fence;
                 if (i < f) {
                     index = f;

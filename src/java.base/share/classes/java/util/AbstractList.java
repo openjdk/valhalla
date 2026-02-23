@@ -699,9 +699,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
                     new RandomAccessSpliterator<>(this, lo, index = mid);
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super E>! action) {
             int hi = getFence(), i = index;
             if (i < hi) {
                 index = i + 1;
@@ -712,8 +710,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements L
             return false;
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             List<E> lst = list;
             int hi = getFence();
             int i = index;

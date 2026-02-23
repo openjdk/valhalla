@@ -324,8 +324,7 @@ class SpinedBuffer<E>
             }
 
             @Override
-            public boolean tryAdvance(Consumer<? super E> consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(Consumer<? super E>! consumer) {
 
                 if (splSpineIndex < lastSpineIndex
                     || (splSpineIndex == lastSpineIndex && splElementIndex < lastSpineElementFence)) {
@@ -343,8 +342,7 @@ class SpinedBuffer<E>
             }
 
             @Override
-            public void forEachRemaining(Consumer<? super E> consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(Consumer<? super E>! consumer) {
 
                 if (splSpineIndex < lastSpineIndex
                     || (splSpineIndex == lastSpineIndex && splElementIndex < lastSpineElementFence)) {
@@ -647,8 +645,7 @@ class SpinedBuffer<E>
             }
 
             @Override
-            public boolean tryAdvance(T_CONS consumer) {
-                Objects.requireNonNull(consumer);
+            public boolean tryAdvance(T_CONS! consumer) {
 
                 if (splSpineIndex < lastSpineIndex
                     || (splSpineIndex == lastSpineIndex && splElementIndex < lastSpineElementFence)) {
@@ -666,8 +663,7 @@ class SpinedBuffer<E>
             }
 
             @Override
-            public void forEachRemaining(T_CONS consumer) {
-                Objects.requireNonNull(consumer);
+            public void forEachRemaining(T_CONS! consumer) {
 
                 if (splSpineIndex < lastSpineIndex
                     || (splSpineIndex == lastSpineIndex && splElementIndex < lastSpineElementFence)) {

@@ -937,8 +937,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
             boolean started;
 
             @Override
-            public boolean tryAdvance(LongConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(LongConsumer! action) {
                 long t;
                 if (started)
                     t = f.applyAsLong(prev);
@@ -999,8 +998,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
             boolean started, finished;
 
             @Override
-            public boolean tryAdvance(LongConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(LongConsumer! action) {
                 if (finished)
                     return false;
                 long t;
@@ -1019,8 +1017,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
             }
 
             @Override
-            public void forEachRemaining(LongConsumer action) {
-                Objects.requireNonNull(action);
+            public void forEachRemaining(LongConsumer! action) {
                 if (finished)
                     return;
                 finished = true;

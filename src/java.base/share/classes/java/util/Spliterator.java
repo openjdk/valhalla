@@ -309,7 +309,7 @@ public interface Spliterator<T> {
      * upon entry to this method, else {@code true}.
      * @throws NullPointerException if the specified action is null
      */
-    boolean tryAdvance(Consumer<? super T> action);
+    boolean tryAdvance(Consumer<? super T>! action);
 
     /**
      * Performs the given action for each remaining element, sequentially in
@@ -328,7 +328,7 @@ public interface Spliterator<T> {
      * @param action The action
      * @throws NullPointerException if the specified action is null
      */
-    default void forEachRemaining(Consumer<? super T> action) {
+    default void forEachRemaining(Consumer<? super T>! action) {
         do { } while (tryAdvance(action));
     }
 
@@ -628,7 +628,7 @@ public interface Spliterator<T> {
          * upon entry to this method, else {@code true}.
          * @throws NullPointerException if the specified action is null
          */
-        boolean tryAdvance(T_CONS action);
+        boolean tryAdvance(T_CONS! action);
 
         /**
          * Performs the given action for each remaining element, sequentially in
@@ -648,7 +648,7 @@ public interface Spliterator<T> {
          * @param action The action
          * @throws NullPointerException if the specified action is null
          */
-        default void forEachRemaining(T_CONS action) {
+        default void forEachRemaining(T_CONS! action) {
             do { } while (tryAdvance(action));
         }
     }
@@ -664,10 +664,10 @@ public interface Spliterator<T> {
         OfInt trySplit();
 
         @Override
-        boolean tryAdvance(IntConsumer action);
+        boolean tryAdvance(IntConsumer! action);
 
         @Override
-        default void forEachRemaining(IntConsumer action) {
+        default void forEachRemaining(IntConsumer! action) {
             do { } while (tryAdvance(action));
         }
 
@@ -682,7 +682,7 @@ public interface Spliterator<T> {
          * {@link #tryAdvance(java.util.function.IntConsumer)}.
          */
         @Override
-        default boolean tryAdvance(Consumer<? super Integer> action) {
+        default boolean tryAdvance(Consumer<? super Integer>! action) {
             if (action instanceof IntConsumer) {
                 return tryAdvance((IntConsumer) action);
             }
@@ -705,7 +705,7 @@ public interface Spliterator<T> {
          * {@link #forEachRemaining(java.util.function.IntConsumer)}.
          */
         @Override
-        default void forEachRemaining(Consumer<? super Integer> action) {
+        default void forEachRemaining(Consumer<? super Integer>! action) {
             if (action instanceof IntConsumer) {
                 forEachRemaining((IntConsumer) action);
             }
@@ -729,10 +729,10 @@ public interface Spliterator<T> {
         OfLong trySplit();
 
         @Override
-        boolean tryAdvance(LongConsumer action);
+        boolean tryAdvance(LongConsumer! action);
 
         @Override
-        default void forEachRemaining(LongConsumer action) {
+        default void forEachRemaining(LongConsumer! action) {
             do { } while (tryAdvance(action));
         }
 
@@ -747,7 +747,7 @@ public interface Spliterator<T> {
          * {@link #tryAdvance(java.util.function.LongConsumer)}.
          */
         @Override
-        default boolean tryAdvance(Consumer<? super Long> action) {
+        default boolean tryAdvance(Consumer<? super Long>! action) {
             if (action instanceof LongConsumer) {
                 return tryAdvance((LongConsumer) action);
             }
@@ -770,7 +770,7 @@ public interface Spliterator<T> {
          * {@link #forEachRemaining(java.util.function.LongConsumer)}.
          */
         @Override
-        default void forEachRemaining(Consumer<? super Long> action) {
+        default void forEachRemaining(Consumer<? super Long>! action) {
             if (action instanceof LongConsumer) {
                 forEachRemaining((LongConsumer) action);
             }
@@ -794,10 +794,10 @@ public interface Spliterator<T> {
         OfDouble trySplit();
 
         @Override
-        boolean tryAdvance(DoubleConsumer action);
+        boolean tryAdvance(DoubleConsumer! action);
 
         @Override
-        default void forEachRemaining(DoubleConsumer action) {
+        default void forEachRemaining(DoubleConsumer! action) {
             do { } while (tryAdvance(action));
         }
 
@@ -812,7 +812,7 @@ public interface Spliterator<T> {
          * {@link #tryAdvance(java.util.function.DoubleConsumer)}.
          */
         @Override
-        default boolean tryAdvance(Consumer<? super Double> action) {
+        default boolean tryAdvance(Consumer<? super Double>! action) {
             if (action instanceof DoubleConsumer) {
                 return tryAdvance((DoubleConsumer) action);
             }
@@ -836,7 +836,7 @@ public interface Spliterator<T> {
          * {@link #forEachRemaining(java.util.function.DoubleConsumer)}.
          */
         @Override
-        default void forEachRemaining(Consumer<? super Double> action) {
+        default void forEachRemaining(Consumer<? super Double>! action) {
             if (action instanceof DoubleConsumer) {
                 forEachRemaining((DoubleConsumer) action);
             }

@@ -1236,8 +1236,7 @@ public class LinkedBlockingDeque<E>
             return null;
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             if (!exhausted) {
                 E e = null;
                 final ReentrantLock lock = LinkedBlockingDeque.this.lock;
@@ -1262,8 +1261,7 @@ public class LinkedBlockingDeque<E>
             return false;
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             if (!exhausted) {
                 exhausted = true;
                 Node<E> p = current;

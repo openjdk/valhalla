@@ -948,8 +948,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
             boolean started;
 
             @Override
-            public boolean tryAdvance(IntConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(IntConsumer! action) {
                 int t;
                 if (started)
                     t = f.applyAsInt(prev);
@@ -1010,8 +1009,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
             boolean started, finished;
 
             @Override
-            public boolean tryAdvance(IntConsumer action) {
-                Objects.requireNonNull(action);
+            public boolean tryAdvance(IntConsumer! action) {
                 if (finished)
                     return false;
                 int t;
@@ -1030,8 +1028,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
             }
 
             @Override
-            public void forEachRemaining(IntConsumer action) {
-                Objects.requireNonNull(action);
+            public void forEachRemaining(IntConsumer! action) {
                 if (finished)
                     return;
                 finished = true;

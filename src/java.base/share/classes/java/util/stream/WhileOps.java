@@ -741,7 +741,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(Consumer<? super T> action) {
+                public boolean tryAdvance(Consumer<? super T>! action) {
                     boolean test = true;
                     if (takeOrDrop &&               // If can take
                         checkCancelOnCount() && // and if not cancelled
@@ -783,7 +783,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(Consumer<? super T> action) {
+                public boolean tryAdvance(Consumer<? super T>! action) {
                     if (takeOrDrop) {
                         takeOrDrop = false;
                         boolean adv;
@@ -846,7 +846,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(IntConsumer action) {
+                public boolean tryAdvance(IntConsumer! action) {
                     boolean test = true;
                     if (takeOrDrop &&               // If can take
                         checkCancelOnCount() && // and if not cancelled
@@ -888,7 +888,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(IntConsumer action) {
+                public boolean tryAdvance(IntConsumer! action) {
                     if (takeOrDrop) {
                         takeOrDrop = false;
                         boolean adv;
@@ -951,7 +951,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(LongConsumer action) {
+                public boolean tryAdvance(LongConsumer! action) {
                     boolean test = true;
                     if (takeOrDrop &&               // If can take
                         checkCancelOnCount() && // and if not cancelled
@@ -993,7 +993,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(LongConsumer action) {
+                public boolean tryAdvance(LongConsumer! action) {
                     if (takeOrDrop) {
                         takeOrDrop = false;
                         boolean adv;
@@ -1056,7 +1056,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(DoubleConsumer action) {
+                public boolean tryAdvance(DoubleConsumer! action) {
                     boolean test = true;
                     if (takeOrDrop &&               // If can take
                         checkCancelOnCount() && // and if not cancelled
@@ -1098,7 +1098,7 @@ final class WhileOps {
                 }
 
                 @Override
-                public boolean tryAdvance(DoubleConsumer action) {
+                public boolean tryAdvance(DoubleConsumer! action) {
                     if (takeOrDrop) {
                         takeOrDrop = false;
                         boolean adv;

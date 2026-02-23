@@ -1441,8 +1441,7 @@ public class Vector<E>
         }
 
         @SuppressWarnings("unchecked")
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             int i;
             if (getFence() > (i = index)) {
                 index = i + 1;
@@ -1455,8 +1454,7 @@ public class Vector<E>
         }
 
         @SuppressWarnings("unchecked")
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             final int hi = getFence();
             final Object[] a = array;
             int i;

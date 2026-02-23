@@ -1497,9 +1497,7 @@ public class IdentityHashMap<K,V>
         }
 
         @SuppressWarnings("unchecked")
-        public void forEachRemaining(Consumer<? super K> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super K>! action) {
             int i, hi, mc; Object key;
             IdentityHashMap<K,V> m; Object[] a;
             if ((m = map) != null && (a = m.table) != null &&
@@ -1515,9 +1513,7 @@ public class IdentityHashMap<K,V>
         }
 
         @SuppressWarnings("unchecked")
-        public boolean tryAdvance(Consumer<? super K> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super K>! action) {
             Object[] a = map.table;
             int hi = getFence();
             while (index < hi) {
@@ -1553,9 +1549,7 @@ public class IdentityHashMap<K,V>
                                        expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super V>! action) {
             int i, hi, mc;
             IdentityHashMap<K,V> m; Object[] a;
             if ((m = map) != null && (a = m.table) != null &&
@@ -1572,9 +1566,7 @@ public class IdentityHashMap<K,V>
             throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super V>! action) {
             Object[] a = map.table;
             int hi = getFence();
             while (index < hi) {
@@ -1612,9 +1604,7 @@ public class IdentityHashMap<K,V>
                                        expectedModCount);
         }
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K, V>> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super Map.Entry<K, V>>! action) {
             int i, hi, mc;
             IdentityHashMap<K,V> m; Object[] a;
             if ((m = map) != null && (a = m.table) != null &&
@@ -1636,9 +1626,7 @@ public class IdentityHashMap<K,V>
             throw new ConcurrentModificationException();
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             Object[] a = map.table;
             int hi = getFence();
             while (index < hi) {

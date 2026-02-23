@@ -73,8 +73,7 @@ final class Streams {
         }
 
         @Override
-        public boolean tryAdvance(IntConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public boolean tryAdvance(IntConsumer! consumer) {
 
             final int i = from;
             if (i < upTo) {
@@ -92,8 +91,7 @@ final class Streams {
 
         @Override
         @IntrinsicCandidate
-        public void forEachRemaining(IntConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public void forEachRemaining(IntConsumer! consumer) {
 
             int i = from;
             final int hUpTo = upTo;
@@ -198,8 +196,7 @@ final class Streams {
         }
 
         @Override
-        public boolean tryAdvance(LongConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public boolean tryAdvance(LongConsumer! consumer) {
 
             final long i = from;
             if (i < upTo) {
@@ -216,8 +213,7 @@ final class Streams {
         }
 
         @Override
-        public void forEachRemaining(LongConsumer consumer) {
-            Objects.requireNonNull(consumer);
+        public void forEachRemaining(LongConsumer! consumer) {
 
             long i = from;
             final long hUpTo = upTo;
@@ -390,8 +386,7 @@ final class Streams {
         // count == -2 for one element held by first
 
         @Override
-        public boolean tryAdvance(Consumer<? super T> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super T>! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -404,8 +399,7 @@ final class Streams {
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super T> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super T>! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -481,8 +475,7 @@ final class Streams {
         // count == -2 for one element held by first
 
         @Override
-        public boolean tryAdvance(IntConsumer action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(IntConsumer! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -495,8 +488,7 @@ final class Streams {
         }
 
         @Override
-        public void forEachRemaining(IntConsumer action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(IntConsumer! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -572,8 +564,7 @@ final class Streams {
         // count == -2 for one element held by first
 
         @Override
-        public boolean tryAdvance(LongConsumer action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(LongConsumer! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -586,8 +577,7 @@ final class Streams {
         }
 
         @Override
-        public void forEachRemaining(LongConsumer action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(LongConsumer! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -663,8 +653,7 @@ final class Streams {
         // count == -2 for one element held by first
 
         @Override
-        public boolean tryAdvance(DoubleConsumer action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(DoubleConsumer! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -677,8 +666,7 @@ final class Streams {
         }
 
         @Override
-        public void forEachRemaining(DoubleConsumer action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(DoubleConsumer! action) {
 
             if (count == -2) {
                 action.accept(first);
@@ -714,7 +702,7 @@ final class Streams {
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super T> consumer) {
+        public boolean tryAdvance(Consumer<? super T>! consumer) {
             boolean hasNext;
             if (beforeSplit) {
                 hasNext = aSpliterator.tryAdvance(consumer);
@@ -729,7 +717,7 @@ final class Streams {
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super T> consumer) {
+        public void forEachRemaining(Consumer<? super T>! consumer) {
             if (beforeSplit)
                 aSpliterator.forEachRemaining(consumer);
             bSpliterator.forEachRemaining(consumer);
@@ -782,7 +770,7 @@ final class Streams {
             }
 
             @Override
-            public boolean tryAdvance(T_CONS action) {
+            public boolean tryAdvance(T_CONS! action) {
                 boolean hasNext;
                 if (beforeSplit) {
                     hasNext = aSpliterator.tryAdvance(action);
@@ -797,7 +785,7 @@ final class Streams {
             }
 
             @Override
-            public void forEachRemaining(T_CONS action) {
+            public void forEachRemaining(T_CONS! action) {
                 if (beforeSplit)
                     aSpliterator.forEachRemaining(action);
                 bSpliterator.forEachRemaining(action);

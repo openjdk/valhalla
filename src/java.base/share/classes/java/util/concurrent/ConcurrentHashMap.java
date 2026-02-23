@@ -3594,14 +3594,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                         f, est >>>= 1);
         }
 
-        public void forEachRemaining(Consumer<? super K> action) {
-            if (action == null) throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super K>! action) {
             for (Node<K,V> p; (p = advance()) != null;)
                 action.accept(p.key);
         }
 
-        public boolean tryAdvance(Consumer<? super K> action) {
-            if (action == null) throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super K>! action) {
             Node<K,V> p;
             if ((p = advance()) == null)
                 return false;
@@ -3633,14 +3631,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                           f, est >>>= 1);
         }
 
-        public void forEachRemaining(Consumer<? super V> action) {
-            if (action == null) throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super V>! action) {
             for (Node<K,V> p; (p = advance()) != null;)
                 action.accept(p.val);
         }
 
-        public boolean tryAdvance(Consumer<? super V> action) {
-            if (action == null) throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super V>! action) {
             Node<K,V> p;
             if ((p = advance()) == null)
                 return false;
@@ -3673,14 +3669,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                           f, est >>>= 1, map);
         }
 
-        public void forEachRemaining(Consumer<? super Map.Entry<K,V>> action) {
-            if (action == null) throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super Map.Entry<K,V>>! action) {
             for (Node<K,V> p; (p = advance()) != null; )
                 action.accept(new MapEntry<K,V>(p.key, p.val, map));
         }
 
-        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>> action) {
-            if (action == null) throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super Map.Entry<K,V>>! action) {
             Node<K,V> p;
             if ((p = advance()) == null)
                 return false;

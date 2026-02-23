@@ -479,8 +479,7 @@ public abstract sealed class AbstractMemorySegmentImpl
         }
 
         @Override
-        public boolean tryAdvance(Consumer<? super MemorySegment> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super MemorySegment>! action) {
             if (currentIndex < elemCount) {
                 AbstractMemorySegmentImpl acquired = segment;
                 try {
@@ -498,8 +497,7 @@ public abstract sealed class AbstractMemorySegmentImpl
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super MemorySegment> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super MemorySegment>! action) {
             if (currentIndex < elemCount) {
                 AbstractMemorySegmentImpl acquired = segment;
                 try {

@@ -830,9 +830,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
                 : new DeqSpliterator(i, cursor = inc(i, n, es.length));
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public void forEachRemaining(Consumer<? super E>! action) {
             final int end = getFence(), cursor = this.cursor;
             final Object[] es = elements;
             if (cursor != end) {
@@ -849,8 +847,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             final Object[] es = elements;
             if (fence < 0) { fence = tail; cursor = head; } // late-binding
             final int i;

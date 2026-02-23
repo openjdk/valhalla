@@ -1543,8 +1543,7 @@ public class ArrayList<E> extends AbstractList<E>
                         root.new ArrayListSpliterator(lo, index = mid, expectedModCount);
                 }
 
-                public boolean tryAdvance(Consumer<? super E> action) {
-                    Objects.requireNonNull(action);
+                public boolean tryAdvance(Consumer<? super E>! action) {
                     int hi = getFence(), i = index;
                     if (i < hi) {
                         index = i + 1;
@@ -1557,8 +1556,7 @@ public class ArrayList<E> extends AbstractList<E>
                     return false;
                 }
 
-                public void forEachRemaining(Consumer<? super E> action) {
-                    Objects.requireNonNull(action);
+                public void forEachRemaining(Consumer<? super E>! action) {
                     int i, hi, mc; // hoist accesses and checks from loop
                     ArrayList<E> lst = root;
                     Object[] a;
@@ -1691,9 +1689,7 @@ public class ArrayList<E> extends AbstractList<E>
                 new ArrayListSpliterator(lo, index = mid, expectedModCount);
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            if (action == null)
-                throw new NullPointerException();
+        public boolean tryAdvance(Consumer<? super E>! action) {
             int hi = getFence(), i = index;
             if (i < hi) {
                 index = i + 1;
@@ -1706,11 +1702,9 @@ public class ArrayList<E> extends AbstractList<E>
             return false;
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
+        public void forEachRemaining(Consumer<? super E>! action) {
             int i, hi, mc; // hoist accesses and checks from loop
             Object[] a;
-            if (action == null)
-                throw new NullPointerException();
             if ((a = elementData) != null) {
                 if ((hi = fence) < 0) {
                     mc = modCount;

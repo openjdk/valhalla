@@ -1471,8 +1471,7 @@ public class ConcurrentLinkedDeque<E>
                                                    Spliterator.CONCURRENT));
         }
 
-        public void forEachRemaining(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public void forEachRemaining(Consumer<? super E>! action) {
             Node<E> p;
             if ((p = current()) != null) {
                 current = null;
@@ -1487,8 +1486,7 @@ public class ConcurrentLinkedDeque<E>
             }
         }
 
-        public boolean tryAdvance(Consumer<? super E> action) {
-            Objects.requireNonNull(action);
+        public boolean tryAdvance(Consumer<? super E>! action) {
             Node<E> p;
             if ((p = current()) != null) {
                 E e;
