@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -296,7 +296,7 @@ class CompletenessAnalyzer {
         RBRACKET(TokenKind.RBRACKET, XEXPR),  //  ]
         ELLIPSIS(TokenKind.ELLIPSIS, XEXPR),  //  ...
         EQ(TokenKind.EQ, XEXPR),  //  =
-        BANG(TokenKind.BANG, XEXPR1),  //  !
+        BANG(TokenKind.BANG, XEXPR1|XDECL1),  //  !
         TILDE(TokenKind.TILDE, XEXPR1),  //  ~
         COLON(TokenKind.COLON, XEXPR|XTERM),  //  :
         EQEQ(TokenKind.EQEQ, XEXPR, true),  //  ==
