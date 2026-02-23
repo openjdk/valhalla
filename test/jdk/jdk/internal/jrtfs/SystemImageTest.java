@@ -77,7 +77,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * @library /test/jdk/tools/lib
  *          /test/lib
  * @build tests.*
- * @run junit/othervm -esa SystemImageTest
+ * @run junit/othervm -esa -ea SystemImageTest
  */
 // FIXME: Currently the test output in Jtreg does not show the implementation.
 // This is due to using both @ParameterizedClass and @ParameterizedTest to
@@ -163,7 +163,15 @@ class SystemImageTest {
             "/modules/unknown",
             "/modules/modbar/",
             "/modules/modfoo//com",
-            "/modules/modfoo/com/"})
+            "/modules/modfoo/com/",
+            "/modules/modfoo/com/foo/.",
+            "/modules/modfoo/com/foo/./",
+            "/modules/modfoo/com/foo/./bar",
+            "/modules/modfoo/com/foo/..",
+            "/modules/modfoo/com/foo/../",
+            "/modules/modfoo/com/bar/../foo",
+            "/modules/../packages",
+            "/modules/../.."})
     public void testModuleNodes_absent(String name) throws IOException {
         try (var image = getImage(DISABLED)) {
             assertAbsent(image, name);
