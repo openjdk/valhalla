@@ -211,12 +211,7 @@ vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375
 
 # The following test failures DID NOT reproduce during Tier[1-8] testing 
 # done for 8377828. Further analysis is being done with 8376235:
-compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
-compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
-compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
 compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
-compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
-compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
 
