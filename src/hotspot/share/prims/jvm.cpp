@@ -59,14 +59,17 @@
 #include "oops/constantPool.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/refArrayOop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "prims/foreignGlobals.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -454,18 +457,28 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
   }
   if (org->is_flatArray()) {
-    FlatArrayKlass* fak = FlatArrayKlass::cast(org->klass());
-    LayoutKind lk = fak->layout_kind();
-    ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
-    array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
-    arrayHandle ah(THREAD, (arrayOop)array);
-    int end = to < oh()->length() ? to : oh()->length();
-    for (int i = from; i < end; i++) {
-      void* src = ((flatArrayOop)oh())->value_at_addr(i, fak->layout_helper());
-      void* dst = ((flatArrayOop)ah())->value_at_addr(i - from, fak->layout_helper());
-      vk->copy_payload_to_addr(src, dst, lk);
+    // The whole JVM_CopyOfSpecialArray is currently broken. Fix this in a separate bugfix.
+    int org_length = org->length();
+    int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
+    FlatArrayKlass* const fak = FlatArrayKlass::cast(org->klass());
+    flatArrayOop dst = oopFactory::new_flatArray(fak, len, CHECK_NULL);
+    assert(!ak->is_null_free_array_klass() || copy_len == len,
+           "Failed to throw the IllegalArgumentException");
+    if (copy_len != 0) {
+      int start = MIN2(from, org_length - 1);
+      FlatArrayPayload src_payload(flatArrayOop(oh()), start, fak);
+      FlatArrayPayload dst_payload(dst, 0, fak);
+      int end = to < oh()->length() ? to : oh()->length();
+      for (int i = from; i < end; i++) {
+        // Copy a value
+        src_payload.copy_to(dst_payload);
+
+        // Advance to the next element
+        src_payload.next_element();
+        dst_payload.next_element();
+      }
     }
-    array = ah();
+    array = dst;
   } else {
     ArrayKlass::ArrayProperties props = org->is_null_free_array() ? ArrayKlass::ArrayProperties::NULL_RESTRICTED : ArrayKlass::ArrayProperties::DEFAULT;
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
@@ -3113,18 +3126,14 @@ JVM_ENTRY(jboolean, JVM_HoldsLock(JNIEnv* env, jclass threadClass, jobject obj))
   return ObjectSynchronizer::current_thread_holds_lock(thread, h_obj);
 JVM_END
 
-JVM_ENTRY(jobject, JVM_GetStackTrace(JNIEnv *env, jobject jthread))
+JVM_ENTRY(jobjectArray, JVM_GetStackTrace(JNIEnv *env, jobject jthread))
   oop trace = java_lang_Thread::async_get_stack_trace(jthread, THREAD);
-  return JNIHandles::make_local(THREAD, trace);
+  return (jobjectArray) JNIHandles::make_local(THREAD, trace);
 JVM_END
 
 JVM_ENTRY(jobject, JVM_CreateThreadSnapshot(JNIEnv* env, jobject jthread))
-#if INCLUDE_JVMTI
   oop snapshot = ThreadSnapshotFactory::get_thread_snapshot(jthread, THREAD);
   return JNIHandles::make_local(THREAD, snapshot);
-#else
-  THROW_NULL(vmSymbols::java_lang_UnsupportedOperationException());
-#endif
 JVM_END
 
 JVM_ENTRY(void, JVM_SetNativeThreadName(JNIEnv* env, jobject jthread, jstring name))
@@ -3745,7 +3754,7 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
     THROW_NULL(vmSymbols::java_lang_NullPointerException());
   }
 
-  refArrayOop a = refArrayOopDesc::cast(JNIHandles::resolve_non_null(threads));
+  refArrayOop a = oop_cast<refArrayOop>(JNIHandles::resolve_non_null(threads));
   refArrayHandle ah(THREAD, a);
   int num_threads = ah->length();
   // check if threads is non-empty array

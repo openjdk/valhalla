@@ -2604,7 +2604,7 @@ void GraphBuilder::monitorenter(Value x, int bci) {
     // We are compiling a monitorenter bytecode
     if (Arguments::is_valhalla_enabled()) {
       ciType* obj_type = x->declared_type();
-      if (obj_type == nullptr || obj_type->as_klass()->can_be_inline_klass()) {
+      if (obj_type == nullptr || obj_type->can_be_inline_klass()) {
         // If we're (possibly) locking on an inline type, check for markWord::always_locked_pattern
         // and throw IMSE. (obj_type is null for Phi nodes, so let's just be conservative).
         maybe_inlinetype = true;

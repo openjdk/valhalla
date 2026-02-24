@@ -37,10 +37,11 @@
 class flatArrayOopDesc : public objArrayOopDesc {
 
  public:
-  void*  base() const;
+  void* base() const;
+  static size_t base_offset_in_bytes();
   void* value_at_addr(int index, jint lh) const;
-
-  inline static flatArrayOop cast(oop o);
+  size_t value_offset(int index, jint lh) const;
+  size_t value_offset_from_base(int index, jint lh) const;
 
   inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;

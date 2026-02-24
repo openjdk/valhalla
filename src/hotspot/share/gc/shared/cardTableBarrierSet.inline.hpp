@@ -31,8 +31,10 @@
 #include "gc/shared/cardTable.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.hpp"
+#include "utilities/debug.hpp"
 
 template <DecoratorSet decorators, typename T>
 inline void CardTableBarrierSet::write_ref_field_post(T* field) {
@@ -164,14 +166,18 @@ clone_in_heap(oop src, oop dst, size_t size) {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT>::
-value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
+  precond(src.klass() == dst.klass());
+
+  const InlineKlass* md = src.klass();
   if (!md->contains_oops()) {
     // If we do not have oops in the flat array, we can just do a raw copy.
-    Raw::value_copy(src, dst, md, lk);
+    Raw::value_copy(src, dst);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
-    // src/dst aren't oops, need offset to adjust oop map offset
-    const address dst_oop_addr_offset = ((address) dst) - md->payload_offset();
+    // addr() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
     // Pre-barriers...
@@ -179,7 +185,7 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
     OopMapBlock* const end = map + md->nonstatic_oop_map_count();
     bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
     while (map != end) {
-      address doop_address = dst_oop_addr_offset + map->offset();
+      address doop_address = oop_map_adjusted_dst_addr + map->offset();
       // The pre-barrier only impacts G1, which will emit a barrier if the destination is
       // initialized. Note that we should not emit a barrier if the destination is uninitialized,
       // as doing so will fill the SATB queue with garbage data.
@@ -187,12 +193,52 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
       map++;
     }
 
-    Raw::value_copy(src, dst, md, lk);
+    Raw::value_copy(src, dst);
 
     // Post-barriers...
     map = md->start_of_nonstatic_oop_maps();
     while (map != end) {
-      address doop_address = dst_oop_addr_offset + map->offset();
+      address doop_address = oop_map_adjusted_dst_addr + map->offset();
+      // The post-barrier needs to be called for initialized and uninitialized destinations.
+      bs->write_ref_array((HeapWord*) doop_address, map->count());
+      map++;
+    }
+  }
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+inline void CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT>::
+value_store_null_in_heap(const ValuePayload& dst) {
+  const InlineKlass* md = dst.klass();
+  if (!md->contains_oops()) {
+    // If we do not have oops in the flat array, we can just do a raw clear.
+    Raw::value_store_null(dst);
+  } else {
+    BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
+    // addr() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
+    typedef typename ValueOopType<decorators>::type OopType;
+
+    // Pre-barriers...
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+    bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
+    while (map != end) {
+      address doop_address = oop_map_adjusted_dst_addr + map->offset();
+      // The pre-barrier only impacts G1, which will emit a barrier if the destination is
+      // initialized. Note that we should not emit a barrier if the destination is uninitialized,
+      // as doing so will fill the SATB queue with garbage data.
+      bs->write_ref_array_pre((OopType*) doop_address, map->count(), is_uninitialized);
+      map++;
+    }
+
+    Raw::value_store_null(dst);
+
+    // Post-barriers...
+    map = md->start_of_nonstatic_oop_maps();
+    while (map != end) {
+      address doop_address = oop_map_adjusted_dst_addr + map->offset();
       // The post-barrier needs to be called for initialized and uninitialized destinations.
       bs->write_ref_array((HeapWord*) doop_address, map->count());
       map++;

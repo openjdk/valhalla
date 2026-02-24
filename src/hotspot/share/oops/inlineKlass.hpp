@@ -25,9 +25,12 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/valuePayload.hpp"
+#include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -143,7 +146,7 @@ class InlineKlass: public InstanceKlass {
   address unpack_handler() const                              { return members()._unpack_handler; }
   void set_unpack_handler(address unpack_handler)             { members()._unpack_handler = unpack_handler; }
 
-  int null_reset_value_offset() {
+  int null_reset_value_offset() const {
     int offset = members()._null_reset_value_offset;
     assert(offset != 0, "must not be called if not initialized");
     return offset;
@@ -210,10 +213,12 @@ class InlineKlass: public InstanceKlass {
     *null_marker_address(payload) = 0;
   }
 
-  bool is_layout_supported(LayoutKind lk);
+  inline bool layout_has_null_marker(LayoutKind lk) const;
 
-  int layout_alignment(LayoutKind kind) const;
-  int layout_size_in_bytes(LayoutKind kind) const;
+  inline bool is_layout_supported(LayoutKind lk) const;
+
+  inline int layout_alignment(LayoutKind kind) const;
+  inline int layout_size_in_bytes(LayoutKind kind) const;
 
 #if INCLUDE_CDS
   void remove_unshareable_info() override;
@@ -242,7 +247,7 @@ class InlineKlass: public InstanceKlass {
 
   // Allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
-  instanceOop allocate_instance(TRAPS);
+  inlineOop allocate_instance(TRAPS);
 
   address payload_addr(oop o) const;
 
@@ -251,17 +256,6 @@ class InlineKlass: public InstanceKlass {
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
-
-  // Methods to copy payload between containers
-  //
-  // Methods taking a LayoutKind argument expect that both the source and the destination
-  // layouts are compatible with the one specified in argument (alignment, size, presence
-  // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
-  // is compatible with all the other layouts.
-
-  void write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS);
-  oop read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS);
-  void copy_payload_to_addr(void* src, void* dst, LayoutKind lk);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
@@ -310,16 +304,17 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(Members, _null_marker_offset);
   }
 
-  oop null_reset_value();
+  oop null_reset_value() const;
   void set_null_reset_value(oop val);
 
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;
 
+  void print_on(outputStream* st) const override;
+
   // Verification
   void verify_on(outputStream* st) override;
   void oop_verify_on(oop obj, outputStream* st) override;
-
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASS_HPP

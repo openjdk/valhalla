@@ -2301,7 +2301,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     LIRItem obj_item(x->vt(), this);
 
     access_flat_array(true, array, index, obj_item,
-                      x->delayed() == nullptr ? 0 : x->delayed()->field(),
+                      x->delayed() == nullptr ? nullptr : x->delayed()->field(),
                       x->delayed() == nullptr ? 0 : x->delayed()->offset());
     set_no_result(x);
   } else if (x->delayed() != nullptr) {

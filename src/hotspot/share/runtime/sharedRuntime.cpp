@@ -22,9 +22,11 @@
  *
  */
 
+#include "cds/aotCompressedPointers.hpp"
 #include "cds/archiveBuilder.hpp"
 #include "cds/archiveUtils.inline.hpp"
 #include "classfile/classLoader.hpp"
+#include "classfile/compactHashtable.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/vmClasses.hpp"
@@ -2969,11 +2971,9 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             int last_ro = _sig_cc_ro->length();
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
-            if (bt == T_OBJECT) {
-              // Nullable inline type argument, insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
-              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
-              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
-            }
+            // Insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
+            _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
+            _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
           }
         } else {
           SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
@@ -3400,8 +3400,7 @@ public:
       assert(buffered_entry != nullptr,"sanity check");
 
       uint hash = fp->compute_hash();
-      u4 delta = _builder->buffer_to_offset_u4((address)buffered_entry);
-      _writer->add(hash, delta);
+      _writer->add(hash, AOTCompressedPointers::encode_not_null(buffered_entry));
       if (lsh.is_enabled()) {
         address fp_runtime_addr = (address)buffered_fp + ArchiveBuilder::current()->buffer_to_requested_delta();
         address entry_runtime_addr = (address)buffered_entry + ArchiveBuilder::current()->buffer_to_requested_delta();
@@ -4114,6 +4113,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     address loc = reg_map.location(pair.first(), nullptr);
+    guarantee(loc != nullptr, "bad register save location");
     switch(bt) {
     case T_BOOLEAN:
       *(jboolean*)loc = res->bool_field(off);

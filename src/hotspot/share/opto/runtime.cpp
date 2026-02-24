@@ -46,10 +46,12 @@
 #include "memory/resourceArea.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -1897,6 +1899,8 @@ JRT_ENTRY_NO_ASYNC(address, OptoRuntime::handle_exception_C_helper(JavaThread* c
   // The stack watermark barrier takes care of detecting that and ensuring the frame
   // has updated oops.
   StackWatermarkSet::after_unwind(current);
+
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
 
   // Do not confuse exception_oop with pending_exception. The exception_oop
   // is only used to pass arguments into the method. Not for general
