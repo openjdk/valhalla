@@ -37,8 +37,5 @@ jdk/jfr/event/oldobject/TestHeapDeep.java                          8374950 gener
 
 # The following test failures DID NOT reproduce during Tier[1-8] testing 
 # done for 8377828. Further analysis is being done with 8376235:
-java/foreign/TestRestricted.java                                   8372744 generic-all
-java/lang/module/ModuleReader/ModuleReaderTest.java                8372744 generic-all
-java/lang/module/ModuleReader/patched/PatchedModuleReaderTest.java 8372744 generic-all
 java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64
 jdk/jfr/event/oldobject/TestReferenceChainLimit.java               8374950 generic-all

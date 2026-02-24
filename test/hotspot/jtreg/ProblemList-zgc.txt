@@ -128,6 +128,3 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInf
 
 # Valhalla failures start here:
 
-# The following test failures DID NOT reproduce during Tier[1-8] testing 
-# done for 8377828. Further analysis is being done with 8376235:
-compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/MethodTagTest.java                   8343233 generic-aarch64
