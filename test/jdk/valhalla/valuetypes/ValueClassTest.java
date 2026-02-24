@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8377576
  * @summary Test jdk.internal.value.ValueClass
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -89,5 +90,45 @@ class ValueClassTest {
         assertEquals(PreviewFeatures.isEnabled() && expected,
                      ValueClass.isConcreteValueClass(arg),
                      () -> classification + ": " + arg.getTypeName());
+    }
+
+    @Test
+    void testSpecialCopy() {
+        if (!PreviewFeatures.isEnabled()) {
+            return;
+        }
+        Object[] original = makeArray(4);
+        assertThrows(NegativeArraySizeException.class, () -> ValueClass.copyOfSpecialArray(original, -1));
+        assertArrayEquals(original, ValueClass.copyOfSpecialArray(original, 4));
+        Object[] padded = makeArray(5);
+        padded[4] = null;
+        assertArrayEquals(padded, ValueClass.copyOfSpecialArray(original, 5));
+        Object[] truncated = makeArray(3);
+        assertArrayEquals(truncated, ValueClass.copyOfSpecialArray(original, 3));
+    }
+
+    @Test
+    void testSpecialCopyOfRange() {
+        if (!PreviewFeatures.isEnabled()) {
+            return;
+        }
+        Object[] original = makeArray(4);
+        assertThrows(ArrayIndexOutOfBoundsException.class, () -> ValueClass.copyOfRangeSpecialArray(original, -1, 5));
+        assertThrows(ArrayIndexOutOfBoundsException.class, () -> ValueClass.copyOfRangeSpecialArray(original, 5, 5));
+        assertThrows(IllegalArgumentException.class, () -> ValueClass.copyOfRangeSpecialArray(original, 4, 2));
+        assertArrayEquals(original, ValueClass.copyOfRangeSpecialArray(original, 0, 4));
+        Object[] padded = makeArray(5);
+        padded[4] = null;
+        assertArrayEquals(padded, ValueClass.copyOfRangeSpecialArray(original, 0, 5));
+        Object[] truncated = makeArray(3);
+        assertArrayEquals(truncated, ValueClass.copyOfRangeSpecialArray(original, 0, 3));
+    }
+
+    private static Object[] makeArray(int l) {
+        Object[] arr = ValueClass.newNullableAtomicArray(Integer.class, l);
+        for (int i = 0; i < l; i++) {
+            arr[i] = Integer.valueOf(i);
+        }
+        return arr;
     }
 }

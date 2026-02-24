@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.Objects;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.event.FinalFieldMutationEvent;
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.loader.ClassLoaders;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ModuleBootstrap;
@@ -277,6 +278,20 @@ class Field extends AccessibleObject implements Member {
      */
     public boolean isSynthetic() {
         return Modifier.isSynthetic(getModifiers());
+    }
+
+    /**
+     * Returns {@code true} if this field is a strictly
+     * initialized field; returns {@code false} otherwise.
+     *
+     * @return true if and only if this field is a strictly
+     * initialized field as defined by the Java Virtual Machine Specification
+     * @jvms strict-fields-4.5 Field access and property flags
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
+    public boolean isStrictInit() {
+        return accessFlags().contains(AccessFlag.STRICT_INIT);
     }
 
     /**

@@ -89,62 +89,6 @@ static void trace_type_profile(Compile* C, ciMethod* method, JVMState* jvms,
   }
 }
 
-static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
-  if (callee->is_object_constructor() && arg_idx == 0) {
-    return true;
-  }
-
-  if (arg_idx != 1 || callee->intrinsic_id() == vmIntrinsicID::_none) {
-    return false;
-  }
-
-  switch (callee->intrinsic_id()) {
-    case vmIntrinsicID::_putBoolean:
-    case vmIntrinsicID::_putBooleanOpaque:
-    case vmIntrinsicID::_putBooleanRelease:
-    case vmIntrinsicID::_putBooleanVolatile:
-    case vmIntrinsicID::_putByte:
-    case vmIntrinsicID::_putByteOpaque:
-    case vmIntrinsicID::_putByteRelease:
-    case vmIntrinsicID::_putByteVolatile:
-    case vmIntrinsicID::_putChar:
-    case vmIntrinsicID::_putCharOpaque:
-    case vmIntrinsicID::_putCharRelease:
-    case vmIntrinsicID::_putCharUnaligned:
-    case vmIntrinsicID::_putCharVolatile:
-    case vmIntrinsicID::_putShort:
-    case vmIntrinsicID::_putShortOpaque:
-    case vmIntrinsicID::_putShortRelease:
-    case vmIntrinsicID::_putShortUnaligned:
-    case vmIntrinsicID::_putShortVolatile:
-    case vmIntrinsicID::_putInt:
-    case vmIntrinsicID::_putIntOpaque:
-    case vmIntrinsicID::_putIntRelease:
-    case vmIntrinsicID::_putIntUnaligned:
-    case vmIntrinsicID::_putIntVolatile:
-    case vmIntrinsicID::_putLong:
-    case vmIntrinsicID::_putLongOpaque:
-    case vmIntrinsicID::_putLongRelease:
-    case vmIntrinsicID::_putLongUnaligned:
-    case vmIntrinsicID::_putLongVolatile:
-    case vmIntrinsicID::_putFloat:
-    case vmIntrinsicID::_putFloatOpaque:
-    case vmIntrinsicID::_putFloatRelease:
-    case vmIntrinsicID::_putFloatVolatile:
-    case vmIntrinsicID::_putDouble:
-    case vmIntrinsicID::_putDoubleOpaque:
-    case vmIntrinsicID::_putDoubleRelease:
-    case vmIntrinsicID::_putDoubleVolatile:
-    case vmIntrinsicID::_putReference:
-    case vmIntrinsicID::_putReferenceOpaque:
-    case vmIntrinsicID::_putReferenceRelease:
-    case vmIntrinsicID::_putReferenceVolatile:
-      return true;
-    default:
-      return false;
-  }
-}
-
 CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool call_does_dispatch,
                                        JVMState* jvms, bool allow_inline,
                                        float prof_factor, ciKlass* speculative_receiver_type,
@@ -699,15 +643,6 @@ void Parse::do_call() {
       return; // MUST uncommon-trap?
     }
     set_stack(sp() - nargs, casted_receiver);
-  }
-
-  // Scalarize value objects passed into this invocation if we know that they are not larval
-  for (int arg_idx = 0; arg_idx < nargs; arg_idx++) {
-    if (arg_can_be_larval(callee, arg_idx)) {
-      continue;
-    }
-
-    cast_to_non_larval(peek(nargs - 1 - arg_idx));
   }
 
   // Note:  It's OK to try to inline a virtual call.

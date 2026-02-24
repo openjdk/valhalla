@@ -136,6 +136,7 @@ PerfCounter*    ClassLoader::_perf_ik_link_methods_count = nullptr;
 PerfCounter*    ClassLoader::_perf_method_adapters_count = nullptr;
 PerfCounter*    ClassLoader::_unsafe_defineClassCallCounter = nullptr;
 PerfCounter*    ClassLoader::_perf_secondary_hash_time = nullptr;
+PerfCounter*    ClassLoader::_perf_change_wx_time = nullptr;
 
 PerfCounter*    ClassLoader::_perf_resolve_indy_time = nullptr;
 PerfCounter*    ClassLoader::_perf_resolve_invokehandle_time = nullptr;
@@ -981,7 +982,7 @@ oop ClassLoader::get_system_package(const char* name, TRAPS) {
   return nullptr;
 }
 
-objArrayOop ClassLoader::get_system_packages(TRAPS) {
+refArrayOop ClassLoader::get_system_packages(TRAPS) {
   ResourceMark rm(THREAD);
   // List of pointers to PackageEntrys that have loaded classes.
   PackageEntryTable* pe_table =
@@ -989,9 +990,10 @@ objArrayOop ClassLoader::get_system_packages(TRAPS) {
   GrowableArray<PackageEntry*>* loaded_class_pkgs = pe_table->get_system_packages();
 
   // Allocate objArray and fill with java.lang.String
-  objArrayOop r = oopFactory::new_objArray(vmClasses::String_klass(),
-                                           loaded_class_pkgs->length(), CHECK_NULL);
-  objArrayHandle result(THREAD, r);
+  refArrayOop r = oopFactory::new_refArray(vmClasses::String_klass(),
+                                           loaded_class_pkgs->length(),
+                                           CHECK_NULL);
+  refArrayHandle result(THREAD, r);
   for (int x = 0; x < loaded_class_pkgs->length(); x++) {
     PackageEntry* package_entry = loaded_class_pkgs->at(x);
     Handle str = java_lang_String::create_from_symbol(package_entry->name(), CHECK_NULL);
@@ -1457,6 +1459,7 @@ void ClassLoader::initialize(TRAPS) {
     NEWPERFBYTECOUNTER(_perf_sys_classfile_bytes_read, SUN_CLS, "sysClassBytes");
     NEWPERFEVENTCOUNTER(_unsafe_defineClassCallCounter, SUN_CLS, "unsafeDefineClassCalls");
     NEWPERFTICKCOUNTER(_perf_secondary_hash_time, SUN_CLS, "secondarySuperHashTime");
+    NEWPERFTICKCOUNTER(_perf_change_wx_time, SUN_CLS, "changeWXTime");
 
     if (log_is_enabled(Info, perf, class, link)) {
       NEWPERFTICKCOUNTER(_perf_ik_link_methods_time, SUN_CLS, "linkMethodsTime");

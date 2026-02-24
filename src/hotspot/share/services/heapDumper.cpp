@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2023, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -44,6 +44,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -1498,8 +1499,9 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
       writer->write_objectID(object_id);
     }
   } else {
+    refArrayOop rarray = oop_cast<refArrayOop>(array);
     for (int index = 0; index < length; index++) {
-      oop o = array->obj_at(index);
+      oop o = rarray->obj_at(index);
       o = mask_dormant_archived_object(o, array);
       writer->write_objectID(o);
     }

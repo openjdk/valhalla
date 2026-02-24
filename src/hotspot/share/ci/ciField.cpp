@@ -279,9 +279,13 @@ ciField::ciField(ciField* declared_field) {
   _layout_kind = LayoutKind::UNKNOWN;
 }
 
-static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
+static bool trust_final_nonstatic_fields(ciInstanceKlass* holder) {
   if (holder == nullptr)
     return false;
+  if (holder->trust_final_fields()) {
+    // Explicit opt-in from system classes
+    return true;
+  }
   // Even if general trusting is disabled, trust system-built closures in these packages.
   if (holder->is_in_package("java/lang/invoke") || holder->is_in_package("sun/invoke") ||
       holder->is_in_package("java/lang/reflect") || holder->is_in_package("jdk/internal/reflect") ||
@@ -299,14 +303,6 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   // Trust final fields in records
   if (holder->is_record())
     return true;
-  // Trust Atomic*FieldUpdaters: they are very important for performance, and make up one
-  // more reason not to use Unsafe, if their final fields are trusted. See more in JDK-8140483.
-  if (holder->name() == ciSymbols::java_util_concurrent_atomic_AtomicIntegerFieldUpdater_Impl() ||
-      holder->name() == ciSymbols::java_util_concurrent_atomic_AtomicLongFieldUpdater_CASUpdater() ||
-      holder->name() == ciSymbols::java_util_concurrent_atomic_AtomicLongFieldUpdater_LockedUpdater() ||
-      holder->name() == ciSymbols::java_util_concurrent_atomic_AtomicReferenceFieldUpdater_Impl()) {
-    return true;
-  }
   return TrustFinalNonStaticFields;
 }
 
@@ -342,7 +338,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
       // An instance field can be constant if it's a final static field or if
       // it's a final non-static field of a trusted class (classes in
       // java.lang.invoke and sun.invoke packages and subpackages).
-      _is_constant = is_stable_field || trust_final_non_static_fields(_holder);
+      _is_constant = is_stable_field || trust_final_nonstatic_fields(_holder);
     }
   } else {
     // For CallSite objects treat the target field as a compile time constant.
@@ -369,7 +365,7 @@ ciConstant ciField::constant_value() {
   if (_constant_value.basic_type() == T_ILLEGAL) {
     // Static fields are placed in mirror objects.
     ciInstance* mirror = _holder->java_mirror();
-    _constant_value = mirror->field_value_impl(type()->basic_type(), offset_in_bytes());
+    _constant_value = mirror->field_value_impl(this);
   }
   if (FoldStableValues && is_stable() && _constant_value.is_null_or_zero()) {
     return ciConstant();

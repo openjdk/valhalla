@@ -2134,6 +2134,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   const TypeOopPtr* tleft = _gvn.type(left)->isa_oopptr();
   const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   Node* cmp = CmpP(left, right);
+  record_for_igvn(cmp);
   cmp = optimize_cmp_with_klass(cmp);
   if (tleft == nullptr || !tleft->can_be_inline_type() ||
       tright == nullptr || !tright->can_be_inline_type()) {
@@ -3462,7 +3463,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
   case Bytecodes::_freturn:
-    return_current(cast_to_non_larval(pop()));
+    return_current(pop());
     break;
   case Bytecodes::_lreturn:
   case Bytecodes::_dreturn:
@@ -3517,7 +3518,7 @@ void Parse::do_one_bytecode() {
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
     a = null();
-    b = cast_to_non_larval(pop());
+    b = pop();
     if (b->is_InlineType()) {
       // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive
@@ -3546,8 +3547,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = cast_to_non_larval(pop());
-    b = cast_to_non_larval(pop());
+    a = pop();
+    b = pop();
     do_acmp(btest, b, a);
     break;
 

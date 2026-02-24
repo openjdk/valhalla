@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,13 +84,30 @@ public final class ValueClass {
     public static native Object[] newNullableAtomicArray(Class<?> componentType,
                                                          int length);
 
+    public static native Object[] newReferenceArray(Class<?> componentType,
+                                                    int length);
+
     /**
      * {@return true if the given array is a flat array}
      */
     @IntrinsicCandidate
     public static native boolean isFlatArray(Object array);
 
-    public static Object[] copyOfSpecialArray(Object[] array, int from, int to) {
+    public static Object[] copyOfSpecialArray(Object[] array, int newLength) {
+        if (newLength < 0) {
+            throw new NegativeArraySizeException("" + newLength);
+        }
+        return copyOfSpecialArray0(array, 0, newLength);
+    }
+
+    public static Object[] copyOfRangeSpecialArray(Object[] array, int from, int to) {
+        int length = array.length;
+        if (from < 0 || from > length) {
+            throw new ArrayIndexOutOfBoundsException("source index " + from + " out of bounds for object array[" + length + "]");
+        }
+        if (from > to) {
+            throw new IllegalArgumentException(from + " > " + to);
+        }
         return copyOfSpecialArray0(array, from, to);
     }
 

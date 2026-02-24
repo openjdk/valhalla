@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1506,7 +1506,13 @@ bool PhaseIdealLoop::flat_array_element_type_check(Node *n) {
     return false;
   }
 
-  assert(obj != nullptr && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
+  // TODO 8378077: The code below does not work anymore with off-heap accesses which set their bases to top with
+  // JDK-8373343. Also: flat_array_element_type_check() was introduced with JDK-8228622 for a specific check to enable
+  // split-if but JDK-8245729 changed how that check looks like. Is it still relevant? This should be revisited.
+  if (addr->in(AddPNode::Base)->is_top()) {
+    return false;
+  }
+
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
   }
@@ -1876,7 +1882,7 @@ void PhaseIdealLoop::try_sink_out_of_loop(Node* n) {
       !n->is_Proj() &&
       !n->is_MergeMem() &&
       !n->is_CMove() &&
-      !n->is_OpaqueNotNull() &&
+      !n->is_OpaqueConstantBool() &&
       !n->is_OpaqueInitializedAssertionPredicate() &&
       !n->is_OpaqueTemplateAssertionPredicate() &&
       !is_raw_to_oop_cast && // don't extend live ranges of raw oops
@@ -2094,11 +2100,6 @@ bool PhaseIdealLoop::ctrl_of_all_uses_out_of_loop(const Node* n, Node* n_ctrl, I
     if (u->is_Opaque1()) {
       return false;  // Found loop limit, bugfix for 4677003
     }
-    // We can't reuse tags in PhaseIdealLoop::dom_lca_for_get_late_ctrl_internal() so make sure calls to
-    // get_late_ctrl_with_anti_dep() use their own tag
-    _dom_lca_tags_round++;
-    assert(_dom_lca_tags_round != 0, "shouldn't wrap around");
-
     if (u->is_Phi()) {
       for (uint j = 1; j < u->req(); ++j) {
         if (u->in(j) == n && !ctrl_of_use_out_of_loop(n, n_ctrl, n_loop, u->in(0)->in(j))) {
@@ -2132,6 +2133,11 @@ bool PhaseIdealLoop::would_sink_below_pre_loop_exit(IdealLoopTree* n_loop, Node*
 
 bool PhaseIdealLoop::ctrl_of_use_out_of_loop(const Node* n, Node* n_ctrl, IdealLoopTree* n_loop, Node* ctrl) {
   if (n->is_Load()) {
+    // We can't reuse tags in PhaseIdealLoop::dom_lca_for_get_late_ctrl_internal() so make sure each call to
+    // get_late_ctrl_with_anti_dep() uses its own tag
+    _dom_lca_tags_round++;
+    assert(_dom_lca_tags_round != 0, "shouldn't wrap around");
+
     ctrl = get_late_ctrl_with_anti_dep(n->as_Load(), n_ctrl, ctrl);
   }
   IdealLoopTree *u_loop = get_loop(ctrl);
@@ -2217,14 +2223,14 @@ Node* PhaseIdealLoop::clone_iff(PhiNode* phi) {
     if (b->is_Phi()) {
       _igvn.replace_input_of(phi, i, clone_iff(b->as_Phi()));
     } else {
-      assert(b->is_Bool() || b->is_OpaqueNotNull() || b->is_OpaqueInitializedAssertionPredicate(),
-             "bool, non-null check with OpaqueNotNull or Initialized Assertion Predicate with its Opaque node");
+      assert(b->is_Bool() || b->is_OpaqueConstantBool() || b->is_OpaqueInitializedAssertionPredicate(),
+             "bool, non-null check with OpaqueConstantBool or Initialized Assertion Predicate with its Opaque node");
     }
   }
   Node* n = phi->in(1);
   Node* sample_opaque = nullptr;
   Node *sample_bool = nullptr;
-  if (n->is_OpaqueNotNull() || n->is_OpaqueInitializedAssertionPredicate()) {
+  if (n->is_OpaqueConstantBool() || n->is_OpaqueInitializedAssertionPredicate()) {
     sample_opaque = n;
     sample_bool = n->in(1);
     assert(sample_bool->is_Bool(), "wrong type");
@@ -2408,7 +2414,7 @@ void PhaseIdealLoop::clone_loop_handle_data_uses(Node* old, Node_List &old_new,
       // split if to break.
       assert(!use->is_OpaqueTemplateAssertionPredicate(),
              "should not clone a Template Assertion Predicate which should be removed once it's useless");
-      if (use->is_If() || use->is_CMove() || use->is_OpaqueNotNull() || use->is_OpaqueInitializedAssertionPredicate() ||
+      if (use->is_If() || use->is_CMove() || use->is_OpaqueConstantBool() || use->is_OpaqueInitializedAssertionPredicate() ||
           (use->Opcode() == Op_AllocateArray && use->in(AllocateNode::ValidLengthTest) == old)) {
         // Since this code is highly unlikely, we lazily build the worklist
         // of such Nodes to go split.

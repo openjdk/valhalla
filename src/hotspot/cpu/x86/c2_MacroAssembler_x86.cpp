@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,6 +91,12 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
     // We always push rbp, so that on return to interpreter rbp, will be
     // restored correctly and we can correct the stack.
     push(rbp);
+#ifdef ASSERT
+    if (sp_inc > 0) {
+      movl(Address(rsp, 0), badRegWordVal);
+      movl(Address(rsp, VMRegImpl::stack_slot_size), badRegWordVal);
+    }
+#endif
     // Save caller's stack pointer into RBP if the frame pointer is preserved.
     if (PreserveFramePointer) {
       mov(rbp, rsp);
@@ -108,6 +114,12 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
     // Save RBP register now.
     framesize -= wordSize;
     movptr(Address(rsp, framesize), rbp);
+#ifdef ASSERT
+    if (sp_inc > 0) {
+      movl(Address(rsp, framesize), badRegWordVal);
+      movl(Address(rsp, framesize + VMRegImpl::stack_slot_size), badRegWordVal);
+    }
+#endif
     // Save caller's stack pointer into RBP if the frame pointer is preserved.
     if (PreserveFramePointer) {
       movptr(rbp, rsp);
@@ -120,7 +132,7 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   if (C->needs_stack_repair()) {
     // Save stack increment just below the saved rbp (also account for fixed framesize and rbp)
     assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize + wordSize);
+    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize);
   }
 
   if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
@@ -1075,17 +1087,28 @@ void C2_MacroAssembler::signum_fp(int opcode, XMMRegister dst, XMMRegister zero,
 
   Label DONE_LABEL;
 
+  // Handle special cases +0.0/-0.0 and NaN, if argument is +0.0/-0.0 or NaN, return argument
+  // If AVX10.2 (or newer) floating point comparison instructions used, SF=1 for equal and unordered cases
+  // If other floating point comparison instructions used, ZF=1 for equal and unordered cases
   if (opcode == Op_SignumF) {
-    ucomiss(dst, zero);
-    jcc(Assembler::equal, DONE_LABEL);    // handle special case +0.0/-0.0, if argument is +0.0/-0.0, return argument
-    jcc(Assembler::parity, DONE_LABEL);   // handle special case NaN, if argument NaN, return NaN
+    if (VM_Version::supports_avx10_2()) {
+      vucomxss(dst, zero);
+      jcc(Assembler::negative, DONE_LABEL);
+    } else {
+      ucomiss(dst, zero);
+      jcc(Assembler::equal, DONE_LABEL);
+    }
     movflt(dst, one);
     jcc(Assembler::above, DONE_LABEL);
     xorps(dst, ExternalAddress(StubRoutines::x86::vector_float_sign_flip()), noreg);
   } else if (opcode == Op_SignumD) {
-    ucomisd(dst, zero);
-    jcc(Assembler::equal, DONE_LABEL);    // handle special case +0.0/-0.0, if argument is +0.0/-0.0, return argument
-    jcc(Assembler::parity, DONE_LABEL);   // handle special case NaN, if argument NaN, return NaN
+    if (VM_Version::supports_avx10_2()) {
+      vucomxsd(dst, zero);
+      jcc(Assembler::negative, DONE_LABEL);
+    } else {
+      ucomisd(dst, zero);
+      jcc(Assembler::equal, DONE_LABEL);
+    }
     movdbl(dst, one);
     jcc(Assembler::above, DONE_LABEL);
     xorpd(dst, ExternalAddress(StubRoutines::x86::vector_double_sign_flip()), noreg);

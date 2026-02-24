@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -95,15 +95,11 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
 
   DEBUG_ONLY(_thread->inc_java_call_counter());
   _thread->set_active_handles(new_handles);     // install new handle block and reset Java frame linkage
-
-  MACOS_AARCH64_ONLY(_thread->enable_wx(WXExec));
 }
 
 
 JavaCallWrapper::~JavaCallWrapper() {
   assert(_thread == JavaThread::current(), "must still be the same thread");
-
-  MACOS_AARCH64_ONLY(_thread->enable_wx(WXWrite));
 
   // restore previous handle block & Java frame linkage
   JNIHandleBlock *_old_handles = _thread->active_handles();
@@ -405,7 +401,8 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
         // The enter_interp_only_mode use handshake to set interp_only mode
         // so no safepoint should be allowed between is_interp_only_mode() and call
         NoSafepointVerifier nsv;
-        if (JvmtiExport::can_post_interpreter_events() && thread->is_interp_only_mode()) {
+        bool is_interp_only_mode = (StressCallingConvention && (os::random() % (1 << 10)) == 0) || thread->is_interp_only_mode();
+        if (JvmtiExport::can_post_interpreter_events() && is_interp_only_mode) {
           entry_point = method->interpreter_entry();
         } else {
           // Since the call stub sets up like the interpreter we call the from_interpreted_entry
@@ -427,17 +424,20 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 #endif
         }
       }
-      StubRoutines::call_stub()(
-        (address)&link,
-        // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
-        result_val_address,          // see NOTE above (compiler problem)
-        result_type,
-        method(),
-        entry_point,
-        parameter_address,
-        args->size_of_parameters(),
-        CHECK
-      );
+      {
+        MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXExec, thread));
+        StubRoutines::call_stub()(
+          (address)&link,
+          // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
+          result_val_address,          // see NOTE above (compiler problem)
+          result_type,
+          method(),
+          entry_point,
+          parameter_address,
+          args->size_of_parameters(),
+          CHECK
+        );
+      }
 
       result = link.result();  // circumvent MS C++ 5.0 compiler bug (result is clobbered across call)
       // Preserve oop return value across possible gc points

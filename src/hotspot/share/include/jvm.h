@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -304,7 +304,7 @@ JVM_Interrupt(JNIEnv *env, jobject thread);
 JNIEXPORT jboolean JNICALL
 JVM_HoldsLock(JNIEnv *env, jclass threadClass, jobject obj);
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jobjectArray JNICALL
 JVM_GetStackTrace(JNIEnv *env, jobject thread);
 
 JNIEXPORT jobject JNICALL
@@ -1102,6 +1102,9 @@ JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject
 
 JNIEXPORT jarray JNICALL
 JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint len);
+
+JNIEXPORT jarray JNICALL
+JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsFlatArray(JNIEnv *env, jobject obj);
