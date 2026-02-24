@@ -67,8 +67,9 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     super_klass_type_for_flat_in_array = super_klass_type->cast_to_exactness(false);
   }
 
-  if (sub_klass_type->is_flat_in_array() && super_klass_type_for_flat_in_array->is_not_flat_in_array()) {
-    // The subtype is in flat arrays and the supertype is not in flat arrays and no subklass can be. Must be unrelated.
+  if ((sub_klass_type->is_flat_in_array() && super_klass_type_for_flat_in_array->is_not_flat_in_array()) ||
+      (super_klass_type_for_flat_in_array->is_flat_in_array() && sub_klass_type->is_not_flat_in_array())) {
+    // The subtype is flat in array and the supertype is not in flat array or vice versa. Cannot subtype and thus unrelated.
     unrelated_classes = true;
   } else if (sub_klass_type->is_not_flat() && super_klass_type->is_flat()) {
     // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.
