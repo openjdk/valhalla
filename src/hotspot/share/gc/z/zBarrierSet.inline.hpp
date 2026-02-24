@@ -490,7 +490,10 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
   const LayoutKind lk = LayoutKindHelper::get_copy_layout(src.layout_kind(), dst.layout_kind());
   const InlineKlass* md = src.klass();
   if (md->contains_oops()) {
-    assert(!LayoutKindHelper::is_atomic_flat(lk), "ZGC cannot handle atomic flat values");
+    assert(!LayoutKindHelper::is_atomic_flat(lk) ||
+               (md->nonstatic_oop_map_count() == 1 &&
+                md->layout_size_in_bytes(lk) == sizeof(zpointer)),
+           "ZGC can only handle atomic flat values with a single oop");
 
     // Iterate over each oop map, performing:
     //   1) possibly raw copy for any primitive payload before each map
@@ -538,7 +541,10 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_nul
   const InlineKlass* md = dst.klass();
 
   if (md->contains_oops()) {
-    assert(!LayoutKindHelper::is_atomic_flat(lk), "ZGC cannot handle atomic flat values");
+    assert(!LayoutKindHelper::is_atomic_flat(lk) ||
+               (md->nonstatic_oop_map_count() == 1 &&
+                md->layout_size_in_bytes(lk) == sizeof(zpointer)),
+           "ZGC can only handle atomic flat values with a single oop");
 
     // Iterate over each oop map, performing:
     //   1) possibly raw clear for any primitive payload before each map
