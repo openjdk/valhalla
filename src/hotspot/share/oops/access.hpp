@@ -28,11 +28,11 @@
 #include "memory/allStatic.hpp"
 #include "oops/accessBackend.hpp"
 #include "oops/accessDecorators.hpp"
-#include "oops/inlineKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+class ValuePayload;
 
 // = GENERAL =
 // Access is an API for performing accesses with declarative semantics. Each access can have a number of "decorators".
@@ -222,9 +222,14 @@ public:
   // inline type heap access (when flat)...
 
   // Copy value type data from src to dst
-  static inline void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+  static inline void value_copy(const ValuePayload& src, const ValuePayload& dst) {
     verify_heap_value_decorators<IN_HEAP>();
-    AccessInternal::value_copy<decorators>(src, dst, md, lk);
+    AccessInternal::value_copy<decorators>(src, dst);
+  }
+
+  static inline void value_store_null(const ValuePayload& dst) {
+    verify_heap_value_decorators<IN_HEAP>();
+    AccessInternal::value_store_null<decorators>(dst);
   }
 
   // Primitive accesses
