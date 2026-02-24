@@ -46,6 +46,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valuePayload.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -448,8 +449,8 @@ UNSAFE_ENTRY(jobject, Unsafe_GetFlatValue(JNIEnv *env, jobject unsafe, jobject o
   InlineKlass* vk = InlineKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   LayoutKind lk = (LayoutKind)layoutKind;
-  Handle base_h(THREAD, base);
-  oop v = vk->read_payload_from_addr(base_h(), offset, lk, CHECK_NULL);
+  FlatValuePayload payload = FlatValuePayload::construct_from_parts(base, offset, vk, lk);
+  oop v = payload.read(CHECK_NULL);
   return JNIHandles::make_local(THREAD, v);
 } UNSAFE_END
 
@@ -459,13 +460,12 @@ UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj,
   if (base == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
-  InlineKlass* vk = InlineKlass::cast(k);
-  assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
+
+  InlineKlass* vk = InlineKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc)));
   assert_and_log_unsafe_value_access(base, offset, vk);
   LayoutKind lk = (LayoutKind)layoutKind;
-  oop v = JNIHandles::resolve(value);
-  vk->write_value_to_addr(v, ((char*)(oopDesc*)base) + offset, lk, CHECK);
+  FlatValuePayload payload = FlatValuePayload::construct_from_parts(base, offset, vk, lk);
+  payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetReferenceVolatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) {

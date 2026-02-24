@@ -6128,7 +6128,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // |---------------------------|  <-- start of this method's frame
     // | Saved LR #2               |
     // | Saved FP #2               |
-    // |---------------------------|  <-- FP
+    // |---------------------------|  <-- FP (with -XX:+PreserveFramePointer)
     // | sp_inc                    |
     // | method locals             |
     // |---------------------------|  <-- SP
@@ -6153,7 +6153,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // |---------------------------|  <-- caller's SP / start of this method's frame
     // | Saved LR                  |
     // | Saved FP                  |
-    // |---------------------------|  <-- FP
+    // |---------------------------|  <-- FP (with -XX:+PreserveFramePointer)
     // | sp_inc                    |
     // | method locals             |
     // |---------------------------|  <-- SP

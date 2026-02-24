@@ -26,6 +26,7 @@
 #include "utilities/align.hpp"
 #include "utilities/byteswap.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/debug.hpp"
 
 
 // Copy bytes; larger units are filled atomically if everything is aligned.
@@ -52,45 +53,75 @@ void Copy::conjoint_memory_atomic(const void* from, void* to, size_t size) {
   }
 }
 
-#define COPY_ALIGNED_SEGMENT(t) \
-  if (bits % sizeof(t) == 0) { \
-    size_t segment = remain / sizeof(t); \
-    if (segment > 0) { \
-      Copy::conjoint_##t##s_atomic((const t*) cursor_from, (t*) cursor_to, segment); \
-      remain -= segment * sizeof(t); \
-      cursor_from = (void*)(((char*)cursor_from) + segment * sizeof(t)); \
-      cursor_to = (void*)(((char*)cursor_to) + segment * sizeof(t)); \
-    } \
-  } \
-
-void Copy::copy_value_content(const void* from, void* to, size_t size) {
-  // Simple cases first
-  uintptr_t bits = (uintptr_t) from | (uintptr_t) to | (uintptr_t) size;
-  if (bits % sizeof(jlong) == 0) {
-    Copy::conjoint_jlongs_atomic((const jlong*) from, (jlong*) to, size / sizeof(jlong));
-    return;
-  } else if (bits % sizeof(jint) == 0) {
-    Copy::conjoint_jints_atomic((const jint*) from, (jint*) to, size / sizeof(jint));
-    return;
-  } else if (bits % sizeof(jshort) == 0) {
-    Copy::conjoint_jshorts_atomic((const jshort*) from, (jshort*) to, size / sizeof(jshort));
-    return;
+#define COPY_ALIGNED_SEGMENT(t)                                                \
+  if (bits % sizeof(t) == 0) {                                                 \
+    size_t segment = remaining_bytes / sizeof(t);                              \
+    if (segment > 0) {                                                         \
+      Copy::conjoint_##t##s_atomic((const t*)cursor_from, (t*)cursor_to,       \
+                                   segment);                                   \
+      remaining_bytes -= segment * sizeof(t);                                  \
+      cursor_from = (void*)(((char*)cursor_from) + segment * sizeof(t));       \
+      cursor_to = (void*)(((char*)cursor_to) + segment * sizeof(t));           \
+    }                                                                          \
   }
 
-  // Complex cases
-  bits = (uintptr_t) from | (uintptr_t) to;
+void Copy::copy_value_content(const void* from, void* to, size_t size) {
+  // The alignment of the containing object must satisfy the alignment of all
+  // its fields, as such we can safely copy atomically starting at the largest
+  // atomic size which the payloads are aligned to. Any trailing payload smaller
+  // than this atomic size must have a lower alignment requirement. This
+  // property holds recursively down to the smallest atomic size.
+  const uintptr_t bits = (uintptr_t)from | (uintptr_t)to;
   const void* cursor_from = from;
   void* cursor_to = to;
-  size_t remain = size;
+  size_t remaining_bytes = size;
   COPY_ALIGNED_SEGMENT(jlong)
   COPY_ALIGNED_SEGMENT(jint)
   COPY_ALIGNED_SEGMENT(jshort)
-  if (remain > 0) {
-    Copy::conjoint_jbytes((const void*) cursor_from, (void*) cursor_to, remain);
+  if (remaining_bytes > 0) {
+    Copy::conjoint_jbytes(cursor_from, cursor_to, remaining_bytes);
   }
 }
 
 #undef COPY_ALIGNED_SEGMENT
+
+template <typename T>
+static void clear_value_content_helper(uintptr_t* to_cursor_addr, size_t* remaining_bytes_addr) {
+  uintptr_t& to_cursor = *to_cursor_addr;
+  size_t& remaining_bytes = *remaining_bytes_addr;
+
+  if (to_cursor % sizeof(T) == 0 && remaining_bytes >= sizeof(T)) {
+    const size_t copy_bytes = align_down(remaining_bytes, sizeof(T));
+    Copy::fill_to_memory_atomic((void*)to_cursor, copy_bytes);
+    to_cursor += copy_bytes;
+    remaining_bytes -= copy_bytes;
+  }
+}
+
+void Copy::clear_value_content(void* to, size_t size) {
+  // The alignment of the containing object must satisfy the alignment of all
+  // its fields, as such we can safely copy atomically starting at the largest
+  // atomic size which the payloads are aligned to. Any trailing payload smaller
+  // than this atomic size must have a lower alignment requirement. This
+  // property holds recursively down to the smallest atomic size.
+  uintptr_t to_cursor = uintptr_t(to);
+  size_t remaining_bytes = size;
+
+  // Clear jlong alignend segments
+  clear_value_content_helper<jlong>(&to_cursor, &remaining_bytes);
+
+  // Clear jint alignend segments
+  clear_value_content_helper<jint>(&to_cursor, &remaining_bytes);
+
+  // Clear jshort alignend segments
+  clear_value_content_helper<jshort>(&to_cursor, &remaining_bytes);
+
+  // Clear remaining bytes
+  clear_value_content_helper<jbyte>(&to_cursor, &remaining_bytes);
+
+  postcond(remaining_bytes == 0);
+  postcond(to_cursor - size == uintptr_t(to));
+}
 
 class CopySwap : AllStatic {
 public:
