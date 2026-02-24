@@ -4510,10 +4510,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
       (!is_interface && major_gte_1_5 && is_annotation) ||
       (!valid_value_class)) {
     ResourceMark rm(THREAD);
-    const char* class_note = "";
-    if (!valid_value_class) {
-      class_note = " (a value class must be final or else abstract)";
-    }
     // Names are all known to be < 64k so we know this formatted message is not excessively large.
     if (inner_name == nullptr && !is_anonymous_inner_class) {
       Exceptions::fthrow(
