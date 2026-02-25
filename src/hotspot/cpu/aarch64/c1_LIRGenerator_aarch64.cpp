@@ -1310,13 +1310,10 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
     tmp3 = new_register(objectType);
   }
-
-
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
                x->profiled_method(), x->profiled_bci(), x->is_null_free());
-
 }
 
 void LIRGenerator::do_InstanceOf(InstanceOf* x) {

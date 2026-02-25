@@ -51,7 +51,7 @@ inline PSPromotionManager* PSPromotionManager::manager_array(uint index) {
 }
 
 template <class T>
-inline void PSPromotionManager::claim_or_forward_depth(T* p) {
+ALWAYSINLINE void PSPromotionManager::claim_or_forward_depth(T* p) {
   assert(ParallelScavengeHeap::heap()->is_in(p), "pointer outside heap");
   T heap_oop = RawAccess<>::oop_load(p);
   if (PSScavenge::is_obj_in_young(heap_oop)) {
@@ -299,7 +299,8 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
     // _min_array_size_for_chunking, and most of them will be arrays.
     // So, the objArray test would be very infrequent.
     if (new_obj_size > _min_array_size_for_chunking &&
-        klass->is_refArray_klass()) {
+        klass->is_objArray_klass() &&
+        new_obj->is_array_with_oops()) {
       push_objArray(o, new_obj);
     } else {
       // we'll just push its contents

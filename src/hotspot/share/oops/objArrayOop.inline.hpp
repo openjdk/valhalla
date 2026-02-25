@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,11 +36,6 @@
 #include "runtime/globals.hpp"
 
 inline HeapWord* objArrayOopDesc::base() const { return (HeapWord*) arrayOopDesc::base(T_OBJECT); }
-
-inline objArrayOop objArrayOopDesc::cast(oop o) {
-  assert(o->is_objArray(), "Must be a refArray");
-  return (objArrayOop)o;
-}
 
 template <class T> T* objArrayOopDesc::obj_at_addr(int index) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
@@ -85,7 +80,11 @@ inline void objArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
 
 template <typename OopClosureType>
 void objArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
-  ShouldNotReachHere();
+  if (is_flatArray()) {
+    ((flatArrayOopDesc* )this)->oop_iterate_elements_range(blk, start, end);
+  } else {
+    ((refArrayOopDesc* )this)->oop_iterate_elements_range(blk, start, end);
+  }
 }
 
 #endif // SHARE_OOPS_OBJARRAYOOP_INLINE_HPP

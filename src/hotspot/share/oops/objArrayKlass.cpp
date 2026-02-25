@@ -218,6 +218,7 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription ad, TRAPS) {
+  assert(ad._properties != ArrayProperties::INVALID, "Sanity check");
   assert(ArrayKlass::is_null_restricted(ad._properties) || !ArrayKlass::is_non_atomic(ad._properties), "only null-restricted array can be non-atomic");
   ObjArrayKlass* ak = nullptr;
   switch (ad._kind) {
@@ -443,6 +444,19 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
   assert(next_ak != nullptr, "should be set");
   THREAD->check_possible_safepoint();
   return next_ak->klass_from_description(ad, THREAD);
+}
+
+// Iterate the linked list of refined array klasses
+bool ObjArrayKlass::find_refined_array_klass(ObjArrayKlass* k) {
+  assert(k->is_refined_objArray_klass(), "must be");
+  ObjArrayKlass* curr = this;
+  while (curr != nullptr) {
+    if (curr == k) {
+      return true;
+    }
+    curr = curr->next_refined_array_klass();
+  }
+  return false;
 }
 
 

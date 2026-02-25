@@ -608,7 +608,7 @@ bool ConnectionGraph::can_reduce_check_users(Node* n, uint nesting) const {
         // CmpP/N used by the If controlling the cast.
         if (use->in(0)->is_IfTrue() || use->in(0)->is_IfFalse()) {
           Node* iff = use->in(0)->in(0);
-          // We may have an OpaqueNotNull node between If and Bool nodes. But we could also have a sub class of IfNode,
+          // We may have an OpaqueConstantBool node between If and Bool nodes. But we could also have a sub class of IfNode,
           // for example, an OuterStripMinedLoopEnd or a Parse Predicate. Bail out in all these cases.
           bool can_reduce = (iff->Opcode() == Op_If) && iff->in(1)->is_Bool() && iff->in(1)->in(1)->is_Cmp();
           if (can_reduce) {
@@ -3741,10 +3741,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         bt = field->layout_type();
       } else {
         // Check for unsafe oop field access
-        if (n->has_out_with(Op_StoreP, Op_LoadP, Op_StoreN, Op_LoadN) ||
-            n->has_out_with(Op_GetAndSetP, Op_GetAndSetN, Op_CompareAndExchangeP, Op_CompareAndExchangeN) ||
-            n->has_out_with(Op_CompareAndSwapP, Op_CompareAndSwapN, Op_WeakCompareAndSwapP, Op_WeakCompareAndSwapN) ||
-            BarrierSet::barrier_set()->barrier_set_c2()->escape_has_out_with_unsafe_object(n)) {
+        if (has_oop_node_outs(n)) {
           bt = T_OBJECT;
           (*unsafe) = true;
         }
@@ -3772,16 +3769,22 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
       // Allocation initialization, ThreadLocal field access, unsafe access
-      if (n->has_out_with(Op_StoreP, Op_LoadP, Op_StoreN, Op_LoadN) ||
-          n->has_out_with(Op_GetAndSetP, Op_GetAndSetN, Op_CompareAndExchangeP, Op_CompareAndExchangeN) ||
-          n->has_out_with(Op_CompareAndSwapP, Op_CompareAndSwapN, Op_WeakCompareAndSwapP, Op_WeakCompareAndSwapN) ||
-          BarrierSet::barrier_set()->barrier_set_c2()->escape_has_out_with_unsafe_object(n)) {
+      if (has_oop_node_outs(n)) {
         bt = T_OBJECT;
       }
     }
   }
   // Note: T_NARROWOOP is not classed as a real reference type
-  return (is_reference_type(bt) || bt == T_NARROWOOP);
+  bool res = (is_reference_type(bt) || bt == T_NARROWOOP);
+  assert(!has_oop_node_outs(n) || res, "sanity: AddP has oop outs, needs to be treated as oop field");
+  return res;
+}
+
+bool ConnectionGraph::has_oop_node_outs(Node* n) {
+  return n->has_out_with(Op_StoreP, Op_LoadP, Op_StoreN, Op_LoadN) ||
+         n->has_out_with(Op_GetAndSetP, Op_GetAndSetN, Op_CompareAndExchangeP, Op_CompareAndExchangeN) ||
+         n->has_out_with(Op_CompareAndSwapP, Op_CompareAndSwapN, Op_WeakCompareAndSwapP, Op_WeakCompareAndSwapN) ||
+         BarrierSet::barrier_set()->barrier_set_c2()->escape_has_out_with_unsafe_object(n);
 }
 
 // Returns unique pointed java object or null.
@@ -3988,7 +3991,8 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
   //      | |
   //     AddP  ( base == address )
   //
-  // case #3. Raw object's field reference for Initialize node:
+  // case #3. Raw object's field reference for Initialize node.
+  //          Could have an additional Phi merging multiple allocations.
   //      Allocate
   //        |
   //      Proj #5 ( oop result )
@@ -4064,30 +4068,33 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
         _igvn->type(base->in(1))->isa_oopptr()) {
       base = base->in(1); // Case #9
     } else {
+      // Case #3, #6, and #10
       Node* uncast_base = base->uncast();
       int opcode = uncast_base->Opcode();
-#ifdef ASSERT
-      if (uncast_base->is_Phi()) {
-        // Case #10
-        assert(uncast_base->req() == 3, "unexpected Phi shape");
-        Node* in1 = uncast_base->in(1);
-        Node* in2 = uncast_base->in(2);
-        assert(in1->uncast()->Opcode() == Op_LoadKlass &&
-               in2->uncast()->Opcode() == Op_LoadKlass, "must be LoadKlass");
-      } else {
-        // Case #3 and #6
-        assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
-               opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
-               (_igvn->C->is_osr_compilation() && uncast_base->is_Parm() && uncast_base->as_Parm()->_con == TypeFunc::Parms)||
-               (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != nullptr)) ||
-               (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_klassptr() != nullptr)) ||
-               is_captured_store_address(addp), "sanity");
-      }
-#endif
+      assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
+             opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
+             (_igvn->C->is_osr_compilation() && uncast_base->is_Parm() && uncast_base->as_Parm()->_con == TypeFunc::Parms)||
+             (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != nullptr)) ||
+             (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_klassptr() != nullptr)) ||
+             is_captured_store_address(addp) ||
+             is_load_array_klass_related(uncast_base), "sanity");
     }
   }
   return base;
 }
+
+#ifdef ASSERT
+// Case #10
+bool ConnectionGraph::is_load_array_klass_related(const Node* uncast_base) {
+  if (!uncast_base->is_Phi() || uncast_base->req() != 3) {
+    return false;
+  }
+  Node* in1 = uncast_base->in(1);
+  Node* in2 = uncast_base->in(2);
+  return in1->uncast()->Opcode() == Op_LoadKlass &&
+         in2->uncast()->Opcode() == Op_LoadKlass;
+}
+#endif
 
 Node* ConnectionGraph::find_second_addp(Node* addp, Node* n) {
   assert(addp->is_AddP() && addp->outcnt() > 0, "Don't process dead nodes");

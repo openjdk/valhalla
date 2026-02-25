@@ -2848,7 +2848,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // subtype which we can't check or src is the same array as dst
     // but not necessarily exactly of type default_type.
     Label known_ok, halt;
-
     __ mov_metadata(tmp, default_type->constant_encoding());
     if (UseCompressedClassPointers) {
       __ encode_klass_not_null(tmp, rscratch1);
