@@ -1621,7 +1621,9 @@ Node* GraphKit::reset_memory() {
 void GraphKit::set_all_memory(Node* newmem) {
   Node* mergemem = MergeMemNode::make(newmem);
   gvn().set_type_bottom(mergemem);
-  record_for_igvn(mergemem);
+  if (_gvn.is_IterGVN() != nullptr) {
+    record_for_igvn(mergemem);
+  }
   map()->set_memory(mergemem);
 }
 
@@ -2345,7 +2347,9 @@ void GraphKit::halt(Node* ctrl, Node* frameptr, const char* reason, bool generat
                             PRODUCT_ONLY(COMMA generate_code_in_product));
   halt = _gvn.transform(halt);
   root()->add_req(halt);
-  record_for_igvn(root());
+  if (_gvn.is_IterGVN() != nullptr) {
+    record_for_igvn(root());
+  }
 }
 
 //------------------------------uncommon_trap----------------------------------

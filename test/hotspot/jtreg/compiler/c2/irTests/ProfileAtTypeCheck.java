@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,8 +238,7 @@ public class ProfileAtTypeCheck {
     static Object fieldTest10;
     @Test
     @IR(phase = { CompilePhase.AFTER_PARSING }, counts = { IRNode.SUBTYPE_CHECK, "2" })
-    // TODO 8375442: Should be folded as early as ITER_GVN1
-    @IR(phase = { CompilePhase.BEFORE_MACRO_EXPANSION }, counts = { IRNode.SUBTYPE_CHECK, "1" })
+    @IR(phase = { CompilePhase.ITER_GVN1 }, counts = { IRNode.SUBTYPE_CHECK, "1" })
     public static void test10(boolean flag) {
         if (fieldTest10 instanceof I) {
             if (flag) {
