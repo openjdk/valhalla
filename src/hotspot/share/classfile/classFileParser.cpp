@@ -4509,8 +4509,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
   const bool is_enum       = (flags & JVM_ACC_ENUM)       != 0;
   const bool is_annotation = (flags & JVM_ACC_ANNOTATION) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
-  const bool valid_value_class = is_identity || is_interface ||
-                                 (supports_inline_types() && (!is_identity && (is_abstract || is_final)));
+  const bool valid_value_class = is_identity || is_interface || (supports_inline_types() && (is_abstract || is_final));
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
@@ -4518,10 +4517,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
       (!is_interface && major_gte_1_5 && is_annotation) ||
       (!valid_value_class)) {
     ResourceMark rm(THREAD);
-    const char* class_note = "";
-    if (!valid_value_class) {
-      class_note = " (a value class must be final or else abstract)";
-    }
     // Names are all known to be < 64k so we know this formatted message is not excessively large.
     if (inner_name == nullptr && !is_anonymous_inner_class) {
       Exceptions::fthrow(
