@@ -85,4 +85,8 @@ inline bool operator==(ArrayProperties a, ArrayProperties b) {
   return a.value() == b.value();
 }
 
+inline bool operator!=(ArrayProperties a, ArrayProperties b) {
+  return !(a == b);
+}
+
 #endif // SHARE_OOPS_ARRAYPROPERTIES_HPP

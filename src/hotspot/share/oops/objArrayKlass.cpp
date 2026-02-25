@@ -428,7 +428,8 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
 
     if (next_refined_array_klass() == nullptr) {
       ObjArrayKlass* first = this;
-      if (!is_refArray_klass() && !is_flatArray_klass() && (props.is_null_restricted() || props.is_non_atomic())) {
+      if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayProperties::Default()) {
+        assert(props.is_valid(), "must be");
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
         ArrayDescription default_ad = array_layout_selection(element_klass(), ArrayProperties::Default());
