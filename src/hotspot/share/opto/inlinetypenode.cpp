@@ -1658,9 +1658,7 @@ bool LoadFlatNode::expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const {
     return false;
   }
 
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
     if (proj_out == nullptr) {
@@ -1705,9 +1703,7 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     return false;
   }
 
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
 
@@ -1751,9 +1747,7 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
 
 void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   assert(igvn.delay_transform(), "transformation must be delayed");
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
 
@@ -1918,9 +1912,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     return false;
   }
 
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
   InlineTypeNode* value = this->value();
@@ -1962,9 +1954,7 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   // 64-bit because the next smaller (power-of-two) size would be 32-bit which could only hold one narrow oop that
   // would then be written by a normal narrow oop store. These properties are asserted in 'convert_to_payload'.
   assert(igvn.delay_transform(), "transformation must be delayed");
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
   InlineTypeNode* value = this->value();

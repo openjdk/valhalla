@@ -36,6 +36,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "opto/addnode.hpp"
+#include "opto/callnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/graphKit.hpp"
@@ -44,6 +45,7 @@
 #include "opto/intrinsicnode.hpp"
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
+#include "opto/memnode.hpp"
 #include "opto/multnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/opaquenode.hpp"
@@ -93,7 +95,26 @@ GraphKit::GraphKit()
   DEBUG_ONLY(set_bci(-99));
 }
 
-
+GraphKit::GraphKit(const SafePointNode* sft, PhaseIterGVN& igvn)
+  : Phase(Phase::Parser),
+    _env(C->env()),
+    _gvn(igvn),
+    _exceptions(nullptr),
+    _barrier_set(BarrierSet::barrier_set()->barrier_set_c2()) {
+  assert(igvn.delay_transform(), "must delay transformation during macro expansion");
+  assert(sft->next_exception() == nullptr, "must not have a pending exception");
+  JVMState* cloned_jvms = sft->jvms()->clone_deep(C);
+  SafePointNode* cloned_map = new SafePointNode(sft->req(), cloned_jvms);
+  for (uint i = 0; i < sft->req(); i++) {
+    cloned_map->init_req(i, sft->in(i));
+  }
+  igvn.record_for_igvn(cloned_map);
+  for (JVMState* current = cloned_jvms; current != nullptr; current = current->caller()) {
+    current->set_map(cloned_map);
+  }
+  set_jvms(cloned_jvms);
+  set_all_memory(reset_memory());
+}
 
 //---------------------------clean_stack---------------------------------------
 // Clear away rubbish from the stack area of the JVM state.
@@ -1600,6 +1621,7 @@ Node* GraphKit::reset_memory() {
 void GraphKit::set_all_memory(Node* newmem) {
   Node* mergemem = MergeMemNode::make(newmem);
   gvn().set_type_bottom(mergemem);
+  record_for_igvn(mergemem);
   map()->set_memory(mergemem);
 }
 
@@ -2323,6 +2345,7 @@ void GraphKit::halt(Node* ctrl, Node* frameptr, const char* reason, bool generat
                             PRODUCT_ONLY(COMMA generate_code_in_product));
   halt = _gvn.transform(halt);
   root()->add_req(halt);
+  record_for_igvn(root());
 }
 
 //------------------------------uncommon_trap----------------------------------
