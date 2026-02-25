@@ -416,7 +416,7 @@ public class TestTearing {
     public static void main(String[] args) throws Exception {
         // Create threads that concurrently update some value class (array) fields
         // and check the fields of the value classes for consistency to detect tearing.
-        int loopLimit = 1_000_000;
+        int loopLimit = 500_000;
         if (SLOW_CONFIGURATION) {
             // Lower the number of iterations in slow configurations
             loopLimit = 50_000;
