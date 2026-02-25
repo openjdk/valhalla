@@ -179,6 +179,7 @@ public:
     _layout_kind = lk;
     assert(lk == LayoutKind::REFERENCE || k != Klass::KlassKind::RefArrayKlassKind, "Sanity check");
 
+    assert(lk != LayoutKind::UNKNOWN, "Sanity check");
     if (lk == LayoutKind::REFERENCE || LayoutKindHelper::is_atomic_flat(lk)) {
       p = (ArrayKlass::ArrayProperties) (p &~ ArrayKlass::NON_ATOMIC);
     } else {
