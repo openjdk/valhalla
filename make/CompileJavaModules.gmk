@@ -169,6 +169,7 @@ ifneq ($(COMPILER), bootjdk)
             --module-path $(JDK_OUTPUTDIR)/modules \
             --system none \
             --enable-preview -source $(JDK_SOURCE_TARGET_VERSION) \
+            -Xlint:-removal -Xlint:-processing \
             -processor build.tools.valueclasses.GenValueClassList, \
     ))
 

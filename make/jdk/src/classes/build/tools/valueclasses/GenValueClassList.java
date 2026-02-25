@@ -3,7 +3,6 @@ package build.tools.valueclasses;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
@@ -18,7 +17,7 @@ import java.util.TreeSet;
  *     <li>{@code @jdk.internal.MigratedValueClass} appears on concrete and abstract value classes.
  * </ul>
  */
-@SupportedAnnotationTypes({"jdk.internal.*"})
+@SupportedAnnotationTypes({"jdk.internal.MigratedValueClass", "jdk.internal.ValueBased"})
 public final class GenValueClassList extends AbstractProcessor {
     /**
      * Override to return latest version, since the runtime in which this is
@@ -37,10 +36,10 @@ public final class GenValueClassList extends AbstractProcessor {
                 getAnnotation(annotations, "jdk.internal.MigratedValueClass");
         Optional<? extends TypeElement> valueBased =
                 getAnnotation(annotations, "jdk.internal.ValueBased");
-        if (migratedValueClass.isPresent() && valueBased.isPresent()) {
-            Set<String> valueClasses = getAnnotatedTypeNames(env, migratedValueClass.get());
-            Set<String> abstractClasses = getAnnotatedTypeNames(env, valueBased.get());
-            //valueClasses.forEach(n -> System.out.format("---> %s (%s)", n, abstractClasses.contains(n) ? "abstract" : "concrete"));
+        if (migratedValueClass.isPresent()) {
+            Set<String> allValueClasses = getAnnotatedTypeNames(env, migratedValueClass.get());
+            Set<String> concreteValueClasses = valueBased.map(a -> getAnnotatedTypeNames(env, a)).orElse(Set.of());
+            allValueClasses.forEach(n -> System.err.format("---> %s (%s)", n, concreteValueClasses.contains(n) ? "concrete" : "abstract"));
         }
         return true;
     }
