@@ -120,11 +120,14 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     EXCLUDE_PATTERNS := -files, \
     KEEP_ALL_TRANSLATIONS := $(KEEP_ALL_TRANSLATIONS), \
     TARGET_RELEASE := $(TARGET_RELEASE), \
+    PROCESSOR_PATH := $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes, \
     JAVAC_FLAGS := \
         $(DOCLINT) \
         $(JAVAC_FLAGS) \
         --module-source-path $(MODULESOURCEPATH) \
         --module-path $(MODULEPATH) \
+        -Xlint:-removal -Xlint:-processing \
+        -processor build.tools.valueclasses.GenValueClassList \
         --system none, \
 ))
 
@@ -162,15 +165,12 @@ ifneq ($(COMPILER), bootjdk)
         EXCLUDE_FILES := $(EXCLUDE_FILES) \
         KEEP_ALL_TRANSLATIONS := $(KEEP_ALL_TRANSLATIONS), \
         DEPENDS := $($(MODULE)), \
-        PROCESSOR_PATH := $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes, \
         JAVAC_FLAGS := \
             $(JAVAC_FLAGS) \
             --module-source-path $(MODULE_PREVIEW_SOURCEPATH) \
             --module-path $(JDK_OUTPUTDIR)/modules \
             --system none \
-            --enable-preview -source $(JDK_SOURCE_TARGET_VERSION) \
-            -Xlint:-removal -Xlint:-processing \
-            -processor build.tools.valueclasses.GenValueClassList, \
+            --enable-preview -source $(JDK_SOURCE_TARGET_VERSION), \
     ))
 
     # Don't add '$($(MODULE)-$(PREVIEW_CLASSES_LABEL))' to TARGETS (it's transient).
