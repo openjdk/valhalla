@@ -159,8 +159,6 @@
 
 #define JAVA_27_VERSION                   71
 
-#define CONSTANT_CLASS_DESCRIPTORS        71
-
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -5004,8 +5002,7 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
         p = skip_over_field_name(bytes, true, length);
         legal = (p != nullptr) && ((p - bytes) == (int)length);
       }
-    } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
-                   && bytes[length - 1] == ';' ) {
+    } else if (_class_name->starts_with("jdk/internal/reflect/") && bytes[length - 1] == ';' ) {
       // Support for L...; descriptors
       legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
