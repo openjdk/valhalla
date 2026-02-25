@@ -114,4 +114,14 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   payload.write_without_nullability_check(inlineOop(value));
 }
 
+template <typename OopClosureType>
+void flatArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
+  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
+  if (UseCompressedOops) {
+    faklass->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+  } else {
+    faklass->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+  }
+}
+
 #endif // SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
