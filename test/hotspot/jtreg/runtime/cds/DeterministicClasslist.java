@@ -37,14 +37,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.compiler.InMemoryJavaCompiler;
 import jdk.test.lib.helpers.ClassFileInstaller;
-import java.io.FileReader;
 
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.HashMap;
 
 public class DeterministicClasslist {
 
