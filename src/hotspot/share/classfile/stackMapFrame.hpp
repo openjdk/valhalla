@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,10 +202,12 @@ class StackMapFrame : public ResourceObj {
   // Called during merging of frames
   bool verify_unset_fields_compatibility(AssertUnsetFieldTable* target_table) const {
     bool compatible = true;
-    auto is_unset = [&] (const NameAndSig& key, const bool& value) {
-      // Successor must have same debts as current frame
-      if (!value) {
-        if (*target_table->get(key) == true) {
+    auto is_unset = [&] (const NameAndSig& key, const bool& satisfied) {
+      // Successor must have same (or more) unsatisfied debts as current frame.
+      if (!satisfied) {
+        bool* target_satisfied = target_table->get(key);
+        guarantee(target_satisfied != nullptr, "Must be present");
+        if (*target_satisfied == true) {
           compatible = false;
         }
       }

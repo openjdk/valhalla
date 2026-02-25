@@ -82,7 +82,7 @@ template <ChunkFrames frame_kind>
 inline address StackChunkFrameStream<frame_kind>::get_pc() const {
   assert(!is_done(), "");
   // Just strip it for frames on the heap.
-  return pauth_strip_pointer(*(address*)((_callee_augmented ? _unextended_sp : _sp) - 1));
+  return pauth_strip_pointer(*(address*)(_sp - 1));
 }
 
 template <ChunkFrames frame_kind>

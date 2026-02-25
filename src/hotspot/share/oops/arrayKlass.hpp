@@ -166,6 +166,7 @@ public:
     _kind = k;
     _layout_kind = lk;
     assert(lk == LayoutKind::REFERENCE || k != Klass::KlassKind::RefArrayKlassKind, "Sanity check");
+    assert(lk != LayoutKind::UNKNOWN, "Sanity check");
 
     // Atomicity depends on the layout kind, which might be different than what
     // the given properties says

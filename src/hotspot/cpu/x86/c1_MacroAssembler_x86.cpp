@@ -235,6 +235,12 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
 void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool reset_orig_pc, bool needs_stack_repair) {
   push(rbp);
+#ifdef ASSERT
+  if (sp_inc > 0) {
+    movl(Address(rsp, 0), badRegWordVal);
+    movl(Address(rsp, VMRegImpl::stack_slot_size), badRegWordVal);
+  }
+#endif
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
@@ -243,7 +249,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   if (needs_stack_repair) {
     // Save stack increment (also account for fixed framesize and rbp)
     assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    int real_frame_size = sp_inc + frame_size_in_bytes + wordSize;
+    int real_frame_size = sp_inc + frame_size_in_bytes;
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
   }
   if (reset_orig_pc) {

@@ -660,6 +660,7 @@ public:
 
   // To be used by, e.g., BarrierSetC2 impls
   Node* get_addp_base(Node* addp);
+  DEBUG_ONLY(static bool is_load_array_klass_related(const Node* uncast_base));
 
   // Utility function for nodes that load an object
   void add_objload_to_connection_graph(Node* n, Unique_Node_List* delayed_worklist);
