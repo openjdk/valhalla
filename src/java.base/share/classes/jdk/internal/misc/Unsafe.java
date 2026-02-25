@@ -1460,11 +1460,27 @@ public final class Unsafe {
         return arrayInstanceIndexScale0(array);
     }
 
-    public int[] getFieldMap(Class<? extends Object> c) {
-      if (c == null) {
-        throw new NullPointerException();
-      }
-      return getFieldMap0(c);
+    /**
+     * Returns the acmp map of this class, which must be a concrete value class.
+     * Intended to be used by substitutability test in ValueObjectMethods only.
+     * The format is subject to change.
+     */
+    public int[] getFieldMap(Class<?> c) {
+        if (c == null) {
+            throw new NullPointerException();
+        }
+        return getFieldMap0(c);
+    }
+
+    /**
+     * For a field of type {@code c}, returns true if and only if there is
+     * a possible flat layout that contains no oop.
+     * Required for numerical CAS safety.
+     */
+    public boolean isFlatPayloadBinary(Class<?> c) {
+        int[] map = getFieldMap(c);
+        int nbNonRef = map[0];
+        return nbNonRef * 2 + 1 == map.length;
     }
 
     /**

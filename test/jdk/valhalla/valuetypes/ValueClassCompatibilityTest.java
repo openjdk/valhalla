@@ -24,14 +24,15 @@
 /*
  * @test
  * @bug 8377576
- * @summary Test jdk.internal.value.ValueClass
+ * @summary Test jdk.internal.value.ValueClass with and without preview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
- * @run junit ValueClassTest
- * @run junit/othervm --enable-preview ValueClassTest
+ * @run junit ValueClassCompatibilityTest
+ * @run junit/othervm --enable-preview ValueClassCompatibilityTest
  */
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.ValueClass;
@@ -39,7 +40,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ValueClassTest {
+class ValueClassCompatibilityTest {
     @Test
     void testIsValueObjectCompatible() {
         isValueObjectCompatibleCase(false, int.class, "primitive");
@@ -93,42 +94,30 @@ class ValueClassTest {
     }
 
     @Test
-    void testSpecialCopy() {
-        if (!PreviewFeatures.isEnabled()) {
-            return;
-        }
-        Object[] original = makeArray(4);
-        assertThrows(NegativeArraySizeException.class, () -> ValueClass.copyOfSpecialArray(original, -1));
-        assertArrayEquals(original, ValueClass.copyOfSpecialArray(original, 4));
-        Object[] padded = makeArray(5);
-        padded[4] = null;
-        assertArrayEquals(padded, ValueClass.copyOfSpecialArray(original, 5));
-        Object[] truncated = makeArray(3);
-        assertArrayEquals(truncated, ValueClass.copyOfSpecialArray(original, 3));
+    void testBinaryPayload() {
+        // Actual value class cases are tested in ValueClassPreviewTest
+        assertTrue(ValueClass.hasBinaryPayload(int.class), "primitive");
+        binaryPayloadCase(false, Object.class, "Object");
+        binaryPayloadCase(false, Number.class, "abstract value class");
+        binaryPayloadCase(true, Integer.class, "final value class (wrapper)");
+        binaryPayloadCase(false, Optional.class, "final value class (reference)");
+        binaryPayloadCase(false, ClassValue.class, "abstract identity class");
+        binaryPayloadCase(false, ArrayList.class, "identity class");
+        binaryPayloadCase(false, String.class, "final identity class");
+        binaryPayloadCase(false, Comparable.class, "interface");
+        binaryPayloadCase(false, int[].class, "array class");
+        binaryPayloadCase(false, Object[].class, "array class");
+        binaryPayloadCase(false, Number[].class, "array class");
+        binaryPayloadCase(false, Integer[].class, "array class");
+        binaryPayloadCase(false, ClassValue[].class, "array class");
+        binaryPayloadCase(false, ArrayList[].class, "array class");
+        binaryPayloadCase(false, String[].class, "array class");
+        binaryPayloadCase(false, Comparable[].class, "array class");
     }
 
-    @Test
-    void testSpecialCopyOfRange() {
-        if (!PreviewFeatures.isEnabled()) {
-            return;
-        }
-        Object[] original = makeArray(4);
-        assertThrows(ArrayIndexOutOfBoundsException.class, () -> ValueClass.copyOfRangeSpecialArray(original, -1, 5));
-        assertThrows(ArrayIndexOutOfBoundsException.class, () -> ValueClass.copyOfRangeSpecialArray(original, 5, 5));
-        assertThrows(IllegalArgumentException.class, () -> ValueClass.copyOfRangeSpecialArray(original, 4, 2));
-        assertArrayEquals(original, ValueClass.copyOfRangeSpecialArray(original, 0, 4));
-        Object[] padded = makeArray(5);
-        padded[4] = null;
-        assertArrayEquals(padded, ValueClass.copyOfRangeSpecialArray(original, 0, 5));
-        Object[] truncated = makeArray(3);
-        assertArrayEquals(truncated, ValueClass.copyOfRangeSpecialArray(original, 0, 3));
-    }
-
-    private static Object[] makeArray(int l) {
-        Object[] arr = ValueClass.newNullableAtomicArray(Integer.class, l);
-        for (int i = 0; i < l; i++) {
-            arr[i] = Integer.valueOf(i);
-        }
-        return arr;
+    private static void binaryPayloadCase(boolean expected, Class<?> arg, String classification) {
+        assertEquals(PreviewFeatures.isEnabled() && expected,
+                ValueClass.hasBinaryPayload(arg),
+                () -> classification + ": " + arg.getTypeName());
     }
 }
