@@ -75,7 +75,7 @@ GENERATED_SRC_DIRS += \
     $(SUPPORT_OUTPUTDIR)/gensrc \
     #
 
-# Directories in which generated preview classes may exists.
+# Directories in which generated preview classes may exist.
 # Currently this is restricted to generated value classes, but can be extended.
 GENERATED_PREVIEW_SUBDIRS += \
     $(SUPPORT_OUTPUTDIR)/gensrc-valueclasses \
