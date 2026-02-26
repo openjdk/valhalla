@@ -3202,21 +3202,15 @@ TypePtr::FlatInArray TypePtr::compute_flat_in_array(ciInstanceKlass* instance_kl
 
 // Compute flat in array property if we don't know anything about it (i.e. old_flat_in_array == MaybeFlat).
 TypePtr::FlatInArray TypePtr::compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
-  FlatInArray old_flat_in_array) const {
-  switch (old_flat_in_array) {
-    case Flat:
-      assert(can_be_inline_type(), "only value objects can be flat in array");
-      assert(!instance_klass->is_inlinetype() || instance_klass->as_inline_klass()->is_always_flat_in_array(),
-             "a value object is only marked flat in array if it's proven to be always flat in array");
-      break;
-    case NotFlat:
-      assert(!instance_klass->maybe_flat_in_array(), "cannot be flat");
-      break;
-    case MaybeFlat:
+  FlatInArray old_flat_in_array) {
+  // It is tempting to add verification code that "NotFlat == no value class" and "Flat == value class".
+  // However, with type speculation, we could get contradicting flat in array properties that propagate through the
+  // graph. We could try to stop the introduction of contradicting speculative types in terms of their flat in array
+  // property. But this is hard because it is sometimes only recognized further down in the graph. Thus, we let an
+  // inconsistent flat in array property propagating through the graph. This could lead to fold an actual live path
+  // away. But in this case, the speculated type is wrong and we would trap earlier.
+  if (old_flat_in_array == MaybeFlat) {
       return compute_flat_in_array(instance_klass, is_exact);
-      break;
-    default:
-      break;
   }
   return old_flat_in_array;
 }
