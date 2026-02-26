@@ -56,7 +56,7 @@ public final class AccessFlagsImpl extends AbstractElement
         int minor = version >>> Character.SIZE;
 
         ClassFileFormatVersion cffv = minor == ClassFile.PREVIEW_MINOR_VERSION
-                ? ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES // Try to guess for older preview features
+                ? ClassFileFormatVersion.PREVIEW_ENABLED // Try to guess for older preview features
                 : VM.isSupportedClassFileVersion(major, minor) ? ClassFileFormatVersion.fromMajor(major)
                                                                : ClassFileFormatVersion.latest(); // Fallback
         this(location, mask, cffv);

@@ -1464,7 +1464,7 @@ public final class Class<T> implements java.io.Serializable,
         int accessFlags = location == AccessFlag.Location.CLASS ? getClassFileAccessFlags() : getModifiers();
         var reflectionFactory = getReflectionFactory();
         var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
-        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
+        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.PREVIEW_ENABLED
                 && isIdentity()) {
             var set = new HashSet<>(ans);
             set.add(AccessFlag.IDENTITY);

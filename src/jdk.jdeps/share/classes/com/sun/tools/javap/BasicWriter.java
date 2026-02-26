@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,6 @@ import java.io.PrintWriter;
 import java.lang.classfile.AccessFlags;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.ClassFileFormatVersion;
-import java.lang.reflect.Modifier;
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -60,7 +57,7 @@ public class BasicWriter {
 
     protected Set<AccessFlag> maskToAccessFlagsReportUnknown(int mask, AccessFlag.Location location, ClassFileFormatVersion cffv) {
         if (cffv == null)
-            cffv = ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES; // Aggressive fallback
+            cffv = ClassFileFormatVersion.PREVIEW_ENABLED; // Aggressive fallback
         try {
             return AccessFlag.maskToAccessFlags(mask, location, cffv);
         } catch (IllegalArgumentException ex) {

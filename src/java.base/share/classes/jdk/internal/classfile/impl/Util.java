@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -258,7 +258,7 @@ public final class Util {
     public static int flagsToBits(AccessFlag.Location location, AccessFlag... flags) {
         int i = 0;
         for (AccessFlag f : flags) {
-            if (!f.locations().contains(location) && !f.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(location)) {
+            if (!f.locations().contains(location) && !f.locations(ClassFileFormatVersion.PREVIEW_ENABLED).contains(location)) {
                 throw new IllegalArgumentException("unexpected flag: " + f + " use in target location: " + location);
             }
             i |= f.mask();
@@ -268,7 +268,7 @@ public final class Util {
 
     public static boolean has(AccessFlag.Location location, int flagsMask, AccessFlag flag) {
         return (flag.mask() & flagsMask) == flag.mask() && (flag.locations().contains(location)
-                || flag.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(location));
+                || flag.locations(ClassFileFormatVersion.PREVIEW_ENABLED).contains(location));
     }
 
     public static ClassDesc fieldTypeSymbol(Utf8Entry utf8) {

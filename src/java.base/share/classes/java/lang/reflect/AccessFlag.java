@@ -27,7 +27,6 @@ package java.lang.reflect;
 
 import jdk.internal.javac.PreviewFeature;
 
-import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.FieldModel;
 import java.lang.classfile.MethodModel;
@@ -652,7 +651,7 @@ public enum AccessFlag {
         // These 2 utilities reside in Location because Location must be initialized before AccessFlag
         private static <T> List<Map.Entry<ClassFileFormatVersion, T>> ensureHistoryOrdered(
                 List<Map.Entry<ClassFileFormatVersion, T>> history) {
-            ClassFileFormatVersion lastVersion = CURRENT_PREVIEW_FEATURES;
+            ClassFileFormatVersion lastVersion = PREVIEW_ENABLED;
             for (var e : history) {
                 var historyVersion = e.getKey();
                 if (lastVersion.compareTo(historyVersion) <= 0) {
@@ -747,10 +746,10 @@ public enum AccessFlag {
 
     private static AccessFlag[] findDefinition(Location location, ClassFileFormatVersion cffv) {
         return switch (location) {
-            case CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? CLASS_PREVIEW_FLAGS : CLASS_FLAGS;
-            case FIELD -> cffv == CURRENT_PREVIEW_FEATURES ? FIELD_PREVIEW_FLAGS : FIELD_FLAGS;
+            case CLASS -> cffv == PREVIEW_ENABLED ? CLASS_PREVIEW_FLAGS : CLASS_FLAGS;
+            case FIELD -> cffv == PREVIEW_ENABLED ? FIELD_PREVIEW_FLAGS : FIELD_FLAGS;
             case METHOD -> METHOD_FLAGS;
-            case INNER_CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? INNER_CLASS_PREVIEW_FLAGS : INNER_CLASS_FLAGS;
+            case INNER_CLASS -> cffv == PREVIEW_ENABLED ? INNER_CLASS_PREVIEW_FLAGS : INNER_CLASS_FLAGS;
             case METHOD_PARAMETER -> METHOD_PARAMETER_FLAGS;
             case MODULE -> MODULE_FLAGS;
             case MODULE_REQUIRES -> MODULE_REQUIRES_FLAGS;

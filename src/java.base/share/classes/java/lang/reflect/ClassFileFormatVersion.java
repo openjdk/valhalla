@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -407,7 +407,7 @@ public enum ClassFileFormatVersion {
     /// The preview features of Valhalla.
     /// @since Valhalla
     @PreviewFeature(feature = PreviewFeature.Feature.LANGUAGE_MODEL, reflective = true)
-    CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
+    PREVIEW_ENABLED(ClassFile.latestMajorVersion());
 
     private final int major;
 

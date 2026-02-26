@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -529,7 +529,7 @@ public class ReflectionFactory {
 
     public final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
         if (cl.isArray() || cl.isPrimitive())
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
+            return ClassFileFormatVersion.PREVIEW_ENABLED;
         int raw = SharedSecrets.getJavaLangAccess().classFileVersion(cl);
 
         int major = raw & 0xFFFF;
@@ -540,7 +540,7 @@ public class ReflectionFactory {
         if (major >= ClassFile.JAVA_12_VERSION) {
             if (minor == 0)
                 return ClassFileFormatVersion.fromMajor(raw);
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
+            return ClassFileFormatVersion.PREVIEW_ENABLED;
         } else if (major == ClassFile.JAVA_1_VERSION) {
             return minor < 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
         }

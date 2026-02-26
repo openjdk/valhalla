@@ -120,7 +120,7 @@ class AccessFlagsTest {
 
         for (boolean preview : new boolean[] {false, true}) {
             var allFlags = EnumSet.allOf(AccessFlag.class);
-            allFlags.removeIf(preview ? f -> !f.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(ctx) : f -> !f.locations().contains(ctx));
+            allFlags.removeIf(preview ? f -> !f.locations(ClassFileFormatVersion.PREVIEW_ENABLED).contains(ctx) : f -> !f.locations().contains(ctx));
 
             var r = new Random(123);
             for (int i = 0; i < 1000; i++) {
