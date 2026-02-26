@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,10 @@
  *
  */
 
+#include "code/debugInfoRec.hpp"
+#include "code/nmethod.hpp"
+#include "code/pcDesc.hpp"
+#include "jfr/periodic/sampling/jfrSampleRequest.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
@@ -131,6 +135,25 @@ static inline bool is_interpreter(const JfrSampleRequest& request) {
   return request._sample_bcp != nullptr;
 }
 
+static inline JfrSampleRequestFrameType frame_type(const JfrSampleRequest& request) {
+  const intptr_t value = p2i(request._sample_bcp);
+  if (value == 0) {
+    return JfrSampleRequestFrameType::NONE;
+  }
+  return value == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR ? JfrSampleRequestFrameType::NEEDS_STACK_REPAIR :
+                                                                    JfrSampleRequestFrameType::INTERPRETER;
+}
+
+void JfrStackTrace::record_frame(const Method* method, int bci, u1 frame_type) {
+  assert(method != nullptr, "invariant");
+  const traceid mid = JfrTraceId::load(method);
+  _hash = (_hash * 31) + mid;
+  _hash = (_hash * 31) + bci;
+  _hash = (_hash * 31) + frame_type;
+  _frames->append(JfrStackFrame(mid, bci, frame_type, method->method_holder()));
+  _count++;
+}
+
 void JfrStackTrace::record_interpreter_top_frame(const JfrSampleRequest& request) {
   assert(_hash == 0, "invariant");
   assert(_count == 0, "invariant");
@@ -139,19 +162,99 @@ void JfrStackTrace::record_interpreter_top_frame(const JfrSampleRequest& request
   _hash = 1;
   const Method* method = reinterpret_cast<Method*>(request._sample_pc);
   assert(method != nullptr, "invariant");
-  const traceid mid = JfrTraceId::load(method);
   const int bci = method->is_native() ? 0 : method->bci_from(reinterpret_cast<address>(request._sample_bcp));
   const u1 type = method->is_native() ? JfrStackFrame::FRAME_NATIVE : JfrStackFrame::FRAME_INTERPRETER;
-  _hash = (_hash * 31) + mid;
-  _hash = (_hash * 31) + bci;
-  _hash = (_hash * 31) + type;
-  _frames->append(JfrStackFrame(mid, bci, type, method->method_holder()));
-  _count++;
+  record_frame(method, bci, type);
+}
+
+class JfrUnpackForFrameRepair {
+ private:
+  const PcDesc* const _pc_desc;
+  const nmethod* const _nm;
+  const Method* _method;
+  intptr_t _decode_offset;
+  int _bci;
+
+  void step() {
+    assert(has_next(), "invariant");
+    DebugInfoReadStream reader(_nm, _decode_offset);
+    _decode_offset = reader.read_int();
+    _method = reader.read_method();
+    _bci = reader.read_bci();
+  }
+
+ public:
+  JfrUnpackForFrameRepair(const PcDesc* pc_desc, nmethod* nm) : _pc_desc(pc_desc),
+                                                                _nm(nm),
+                                                                _method(nullptr),
+                                                                _decode_offset(_pc_desc->scope_decode_offset()),
+                                                                _bci(0) {
+    assert(_pc_desc != nullptr, "invariant");
+    assert(_nm != nullptr, "invariant");
+    assert(_nm->needs_stack_repair(), "invariant");
+    assert(!_nm->is_native_method(), "invariant");
+    assert(_decode_offset != DebugInformationRecorder::serialized_null, "invariant");
+  }
+
+  bool has_next() const {
+    return _decode_offset != DebugInformationRecorder::serialized_null;
+  }
+
+  void next() {
+    assert(has_next(), "invariant");
+    step();
+  }
+
+  const Method* method() const {
+    return _method;
+  }
+
+  int bci() const {
+    return _bci == InvocationEntryBci ? 0 : _bci;
+  }
+};
+
+void JfrStackTrace::record_stack_repair(const frame& frame, const JfrSampleRequest& request, JavaThread* jt) {
+  assert(jt != nullptr, "invariant");
+  assert(p2i(request._sample_bcp) == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR, "invariant");
+  assert(_hash == 0, "invariant");
+  assert(_count == 0, "invariant");
+  assert(_frames != nullptr, "invariant");
+  assert(_frames->length() == 0, "invariant");
+  _hash = 1;
+  nmethod* const nm = static_cast<nmethod*>(request._sample_sp);
+  assert(nm != nullptr, "invariant");
+  assert(nm->needs_stack_repair(), "invariant");
+  if (nm->is_native_method()) {
+    record_frame(nm->method(), 0, JfrStackFrame::FRAME_NATIVE);
+    return;
+  }
+  const PcDesc* const pc_desc = static_cast<PcDesc*>(request._sample_pc);
+  assert(pc_desc != nullptr, "invariant");
+  JfrUnpackForFrameRepair unpack(pc_desc, nm);
+  while (unpack.has_next()) {
+    unpack.next();
+    const Method* const method = unpack.method();
+    const int bci = unpack.bci();
+    const u1 frame_type = unpack.has_next() ? JfrStackFrame::FRAME_INLINE : JfrStackFrame::FRAME_JIT;
+    record_frame(method, bci, frame_type);
+  }
 }
 
 bool JfrStackTrace::record(JavaThread* jt, const frame& frame, bool in_continuation, const JfrSampleRequest& request) {
-  if (is_interpreter(request)) {
+  const JfrSampleRequestFrameType ft = frame_type(request);
+  if (ft == JfrSampleRequestFrameType::NONE) {
+    return record(jt, frame, in_continuation, 0);
+  }
+  if (ft == JfrSampleRequestFrameType::INTERPRETER) {
     record_interpreter_top_frame(request);
+    if (frame.pc() == nullptr) {
+      // No sender frame. Done.
+      return true;
+    }
+  } else {
+    assert(ft == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR, "invariant");
+    record_stack_repair(frame, request, jt);
     if (frame.pc() == nullptr) {
       // No sender frame. Done.
       return true;
@@ -181,7 +284,6 @@ bool JfrStackTrace::record_inner(JavaThread* jt, const frame& frame, bool in_con
   assert(jt != nullptr, "invariant");
   assert(!_lineno, "invariant");
   assert(_frames != nullptr, "invariant");
-  assert(_frames->length() == 0 || _frames->length() == 1, "invariant");
   assert(!in_continuation || is_in_continuation(frame, jt), "invariant");
   Thread* const current_thread = Thread::current();
   HandleMark hm(current_thread); // RegisterMap uses Handles to support continuations.
@@ -215,7 +317,7 @@ bool JfrStackTrace::record_inner(JavaThread* jt, const frame& frame, bool in_con
     if (method->is_native()) {
       type = JfrStackFrame::FRAME_NATIVE;
     } else {
-      bci = vfs.bci();
+      bci = vfs.get_bci();
     }
 
     const intptr_t* const frame_id = vfs.frame_id();
