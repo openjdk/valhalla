@@ -36,11 +36,14 @@ import compiler.lib.ir_framework.*;
 
 public class TestOptimizePtrCompare {
     public static void main(String[] args) {
-        TestFramework.runWithFlags("--enable-preview");
+        TestFramework.runWithFlags("--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "-XX:+InlineTypeReturnedAsFields");
+        TestFramework.runWithFlags("--enable-preview", "-XX:-InlineTypePassFieldsAsArgs", "-XX:+InlineTypeReturnedAsFields");
+        TestFramework.runWithFlags("--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "-XX:-InlineTypeReturnedAsFields");
+        TestFramework.runWithFlags("--enable-preview", "-XX:-InlineTypePassFieldsAsArgs", "-XX:-InlineTypeReturnedAsFields");
     }
 
     @Test
-    @IR(failOn = {IRNode.CMP_P})
+    @IR(failOn = {IRNode.CMP_P_OR_N})
     public static void test1() {
         Object notUsed = new Object(); // make sure EA runs
         Object arg = null;
@@ -64,7 +67,10 @@ public class TestOptimizePtrCompare {
     }
 
     @Test
-    @IR(failOn = {IRNode.CMP_P})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, failOn = {IRNode.CMP_P_OR_N})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
     public static void test2() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue arg = new MyValue(null);
@@ -91,7 +97,10 @@ public class TestOptimizePtrCompare {
     static Object fieldO = new Object();
     
     @Test
-    @IR(failOn = {IRNode.CMP_P})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, failOn = {IRNode.CMP_P_OR_N})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
     public static void test3() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue2 arg = new MyValue2(null, fieldO);
@@ -107,7 +116,10 @@ public class TestOptimizePtrCompare {
     }
 
     @Test
-    @IR(counts = {IRNode.CMP_P, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
     public static void test4() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue arg = new MyValue(null);
@@ -123,7 +135,10 @@ public class TestOptimizePtrCompare {
     }
 
     @Test
-    @IR(failOn = {IRNode.CMP_P})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, failOn = {IRNode.CMP_P_OR_N})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
     public static void test5() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue2 arg = new MyValue2(fieldO, null);
