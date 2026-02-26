@@ -69,6 +69,20 @@ MODULESOURCEPATH := $(call GetModuleSrcPath)
 MODULEPATH := $(call PathList, $(IMPORT_MODULES_CLASSES))
 
 ################################################################################
+# Setup preprocessor flags
+# The output directory must be present in GENERATED_PREVIEW_SUBDIRS in Modules.gmk.
+# Temporarily restrict this to java.base, but it can be expanded later.
+
+ifeq ($(MODULE), java.base)
+    PREPROCESSOR_FLAGS := \
+        -Xlint:-removal -Xlint:-processing \
+        -Avalueclasses.outdir=$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses \
+        -processor build.tools.valueclasses.GenValueClasses
+
+    PROCESSOR_PATH += $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes
+endif
+
+################################################################################
 # Copy zh_HK properties files from zh_TW (needed by some modules)
 
 $(JDK_OUTPUTDIR)/modules/%_zh_HK.properties: $(JDK_OUTPUTDIR)/modules/%_zh_TW.properties
@@ -120,9 +134,11 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     EXCLUDE_PATTERNS := -files, \
     KEEP_ALL_TRANSLATIONS := $(KEEP_ALL_TRANSLATIONS), \
     TARGET_RELEASE := $(TARGET_RELEASE), \
+    PROCESSOR_PATH := $(PROCESSOR_PATH), \
     JAVAC_FLAGS := \
         $(DOCLINT) \
         $(JAVAC_FLAGS) \
+        $(PREPROCESSOR_FLAGS) \
         --module-source-path $(MODULESOURCEPATH) \
         --module-path $(MODULEPATH) \
         --system none, \
