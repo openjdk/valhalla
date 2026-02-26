@@ -144,7 +144,7 @@ static inline JfrSampleRequestFrameType frame_type(const JfrSampleRequest& reque
                                                                     JfrSampleRequestFrameType::INTERPRETER;
 }
 
-void JfrStackTrace::record_frame(const Method* method, int bci, u1 frame_type) {
+inline void JfrStackTrace::record_frame(const Method* method, int bci, u1 frame_type) {
   assert(method != nullptr, "invariant");
   const traceid mid = JfrTraceId::load(method);
   _hash = (_hash * 31) + mid;
@@ -172,7 +172,7 @@ class JfrUnpackForFrameRepair {
   const PcDesc* const _pc_desc;
   const nmethod* const _nm;
   const Method* _method;
-  intptr_t _decode_offset;
+  int _decode_offset;
   int _bci;
 
   void step() {
@@ -184,11 +184,11 @@ class JfrUnpackForFrameRepair {
   }
 
  public:
-  JfrUnpackForFrameRepair(const PcDesc* pc_desc, nmethod* nm) : _pc_desc(pc_desc),
-                                                                _nm(nm),
-                                                                _method(nullptr),
-                                                                _decode_offset(_pc_desc->scope_decode_offset()),
-                                                                _bci(0) {
+  JfrUnpackForFrameRepair(const PcDesc* pc_desc, const nmethod* nm) : _pc_desc(pc_desc),
+                                                                      _nm(nm),
+                                                                      _method(nullptr),
+                                                                      _decode_offset(_pc_desc->scope_decode_offset()),
+                                                                      _bci(0) {
     assert(_pc_desc != nullptr, "invariant");
     assert(_nm != nullptr, "invariant");
     assert(_nm->needs_stack_repair(), "invariant");
@@ -222,7 +222,7 @@ void JfrStackTrace::record_stack_repair(const frame& frame, const JfrSampleReque
   assert(_frames != nullptr, "invariant");
   assert(_frames->length() == 0, "invariant");
   _hash = 1;
-  nmethod* const nm = static_cast<nmethod*>(request._sample_sp);
+  const nmethod* const nm = static_cast<nmethod*>(request._sample_sp);
   assert(nm != nullptr, "invariant");
   assert(nm->needs_stack_repair(), "invariant");
   if (nm->is_native_method()) {
@@ -311,7 +311,6 @@ bool JfrStackTrace::record_inner(JavaThread* jt, const frame& frame, bool in_con
         continue;
       }
     }
-    const traceid mid = JfrTraceId::load(method);
     u1 type = vfs.is_interpreted_frame() ? JfrStackFrame::FRAME_INTERPRETER : JfrStackFrame::FRAME_JIT;
     int bci = 0;
     if (method->is_native()) {
@@ -327,11 +326,7 @@ bool JfrStackTrace::record_inner(JavaThread* jt, const frame& frame, bool in_con
       // frame, so this frame is inlined into the caller.
       type = JfrStackFrame::FRAME_INLINE;
     }
-    _hash = (_hash * 31) + mid;
-    _hash = (_hash * 31) + bci;
-    _hash = (_hash * 31) + type;
-    _frames->append(JfrStackFrame(mid, bci, type, method->method_holder()));
-    _count++;
+    record_frame(method, bci, type);
   }
   return _count > 0;
 }
