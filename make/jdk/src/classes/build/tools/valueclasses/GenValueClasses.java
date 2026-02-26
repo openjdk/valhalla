@@ -33,12 +33,27 @@ import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.util.stream.Collectors.groupingBy;
 
 /**
+ * Annotation processor for generating preview sources of existing classes which
+ * annotated as value classes for Valhalla.
+ *
+ * <p>Classes seen by this processor (annotated with {@code @MigratedValueClass}
+ * will have their source files re-written into the configured output directory
+ * for compilation as preview classes. Note that more than one class in a given
+ * source file may be annotated.
+ *
+ * <p>Class re-writing is simply a matter of injecting the new "value" keyword
+ * into a copy of the original source file after existing modifiers for all
+ * annotated elements.
+ *
+ * <p>Note that there are two annotations in use for value classes, but since
+ * we must generate sources for abstract classes, we only care about one of them.
  * <ul>
  *     <li>{@code @jdk.internal.ValueBased} appears on concrete value classes.
- *     <li>{@code @jdk.internal.MigratedValueClass} appears on concrete and abstract value classes.
+ *     <li>{@code @jdk.internal.MigratedValueClass} appears on concrete and
+ *         abstract value classes.
  * </ul>
  */
-@SupportedAnnotationTypes({"jdk.internal.MigratedValueClass", "jdk.internal.ValueBased"})
+@SupportedAnnotationTypes({"jdk.internal.MigratedValueClass"})
 @SupportedOptions("valueclasses.outdir")
 public final class GenValueClasses extends AbstractProcessor {
     // Matches preprocessor option flag in CompileJavaModules.gmk.
@@ -73,14 +88,11 @@ public final class GenValueClasses extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
-        // We don't have direct access to ValueBased or MigratedValueClass
-        // classes here, but we can find the matching type elements.
-        Optional<? extends TypeElement> migratedValueClass =
+        // We don't have direct access to MigratedValueClass classes here.
+        Optional<? extends TypeElement> valueClassAnnotation =
                 getAnnotation(annotations, "jdk.internal.MigratedValueClass");
-        Optional<? extends TypeElement> valueBased =
-                getAnnotation(annotations, "jdk.internal.ValueBased");
-        if (migratedValueClass.isPresent()) {
-            Set<TypeElement> allValueClasses = getAnnotatedTypes(env, migratedValueClass.get());
+        if (valueClassAnnotation.isPresent()) {
+            Set<TypeElement> allValueClasses = getAnnotatedTypes(env, valueClassAnnotation.get());
             Map<String, List<TypeElement>> moduleToType =
                     allValueClasses.stream().collect(groupingBy(this::getModuleName));
             for (String modName : moduleToType.keySet()) {
@@ -98,7 +110,7 @@ public final class GenValueClasses extends AbstractProcessor {
                 .findFirst();
     }
 
-    private Set<TypeElement> getAnnotatedTypes(RoundEnvironment env, TypeElement annotation) {
+    private static Set<TypeElement> getAnnotatedTypes(RoundEnvironment env, TypeElement annotation) {
         Set<TypeElement> types = new HashSet<>();
         for (Element e : env.getElementsAnnotatedWith(annotation)) {
             if (!e.getKind().isClass()) {
@@ -152,9 +164,11 @@ public final class GenValueClasses extends AbstractProcessor {
 
     private long getValueKeywordInsertPosition(TypeElement classElement) {
         TreePath classDecl = trees.getPath(classElement);
-
         ClassTree classTree = (ClassTree) classDecl.getLeaf();
         CompilationUnitTree compilationUnit = classDecl.getCompilationUnit();
+        // Since annotations are held as "modifiers", and since we only process
+        // elements with annotations, the positions for modifiers must be
+        // well-defined (otherwise we'd get -1 here).
         return trees.getSourcePositions().getEndPosition(compilationUnit, classTree.getModifiers());
     }
 
@@ -167,10 +181,6 @@ public final class GenValueClasses extends AbstractProcessor {
         return relPath;
     }
 
-    private Path getJavaSourceFile(TypeElement type) {
-        return getFilePath(processingEnv.getElementUtils().getFileObjectOf(type));
-    }
-
     private String getModuleName(TypeElement t) {
         return processingEnv.getElementUtils().getModuleOf(t).getQualifiedName().toString();
     }
@@ -179,15 +189,32 @@ public final class GenValueClasses extends AbstractProcessor {
         return processingEnv.getElementUtils().getPackageOf(t).getQualifiedName().toString();
     }
 
+    private Path getJavaSourceFile(TypeElement type) {
+        return getFilePath(processingEnv.getElementUtils().getFileObjectOf(type));
+    }
+
     private static Path getFilePath(FileObject file) {
         return Path.of(file.toUri());
     }
 
+    /**
+     * A forwarding reader which guarantees to read no more than
+     * {@code maxCharCount} characters from the underlying stream.
+     */
     private static final class LimitedReader extends Reader {
+        // Since these are expected to be short-lived, no need
+        // to null the delegate when we're closed.
         private final Reader delegate;
-        // It should never be possible for this to go negative.
+        // This should never go negative.
         private int remaining;
 
+        /**
+         * Creates a limited reader which reads up to {@code maxCharCount} chars
+         * from the given stream.
+         *
+         * @param delegate     underlying reader
+         * @param maxCharCount maximum chars to read (can be 0)
+         */
         LimitedReader(Reader delegate, int maxCharCount) {
             this.delegate = Objects.requireNonNull(delegate);
             this.remaining = Math.max(maxCharCount, 0);
