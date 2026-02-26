@@ -228,9 +228,9 @@ public final class Class<T> implements java.io.Serializable,
                               AnnotatedElement,
                               TypeDescriptor.OfField<Class<?>>,
                               Constable {
-    private static final int ANNOTATION = 0x00002000;
-    private static final int ENUM       = 0x00004000;
-    private static final int SYNTHETIC  = 0x00001000;
+    private static final int ANNOTATION= 0x00002000;
+    private static final int ENUM      = 0x00004000;
+    private static final int SYNTHETIC = 0x00001000;
 
     private static native void registerNatives();
     static {
@@ -1473,7 +1473,7 @@ public final class Class<T> implements java.io.Serializable,
         return ans;
     }
 
-   /**
+    /**
      * Gets the signers of this class.
      *
      * @return  the signers of this class, or null if there are no signers.  In
@@ -1481,7 +1481,6 @@ public final class Class<T> implements java.io.Serializable,
      *          a primitive type or void.
      * @since   1.1
      */
-
     public Object[] getSigners() {
         var signers = this.signers;
         return signers == null ? null : signers.clone();
@@ -3855,7 +3854,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.8
      */
     public AnnotatedType[] getAnnotatedInterfaces() {
-        return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
+         return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
     }
 
     private native Class<?> getNestHost0();
@@ -4196,7 +4195,6 @@ public final class Class<T> implements java.io.Serializable,
      * type is returned.  If the class is a primitive type then the latest class
      * file major version is returned and zero is returned for the minor version.
      */
-    /* package-private */
     int getClassFileVersion() {
         Class<?> c = isArray() ? elementType() : this;
         return c.getClassFileVersion0();

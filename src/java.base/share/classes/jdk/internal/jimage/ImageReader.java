@@ -980,7 +980,6 @@ public final class ImageReader implements AutoCloseable {
             this.children = Collections.unmodifiableList(children);
         }
     }
-
     /**
      * Resource node (e.g. a ".class" entry, or any other data resource).
      *

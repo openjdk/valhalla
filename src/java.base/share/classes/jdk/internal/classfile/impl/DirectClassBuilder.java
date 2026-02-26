@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static java.lang.classfile.ClassFile.PREVIEW_MINOR_VERSION;
-import static java.lang.classfile.ClassFile.latestMajorVersion;
 import static java.util.Objects.requireNonNull;
 
 public final class DirectClassBuilder
@@ -170,6 +169,7 @@ public final class DirectClassBuilder
     public void setSizeHint(int sizeHint) {
         this.sizeHint = sizeHint;
     }
+
 
     public byte[] build() {
 
