@@ -140,6 +140,7 @@ class oopDesc {
   inline bool is_refArray()         const;
   inline bool is_null_free_array()  const;
   inline bool is_refined_objArray() const;
+  inline bool is_array_with_oops()  const;
 
   inline bool is_inline_type()      const;
 

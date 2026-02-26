@@ -38,7 +38,3 @@ jdk/jfr/event/oldobject/TestReferenceChainLimit.java               8374950 gener
 jdk/jfr/event/oldobject/TestAllocationTime.java                    8374950 generic-all
 jdk/jfr/event/oldobject/TestObjectDescription.java                 8374950 generic-all
 java/lang/Thread/virtual/stress/Skynet.java#Z                      8342977 generic-all
-
-# The following test failures DID NOT reproduce during Tier[1-8] testing 
-# done for 8377828. Further analysis is being done with 8376235:
-java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64

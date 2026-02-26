@@ -2542,8 +2542,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         }
         if (bt == type && !field->is_flat()) {
           Node* value = vt->field_value_by_offset(off, false);
+          const Type* value_type = _gvn.type(value);
           if (value->is_InlineType()) {
             value = value->as_InlineType()->adjust_scalarization_depth(this);
+          } else if (value_type->is_inlinetypeptr()) {
+            value = InlineTypeNode::make_from_oop(this, value, value_type->inline_klass());
           }
           set_result(value);
           return true;
@@ -2787,7 +2790,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     return false;
   }
   assert(layout_type->get_con() >= static_cast<int>(LayoutKind::REFERENCE) &&
-         layout_type->get_con() <= static_cast<int>(LayoutKind::UNKNOWN),
+         layout_type->get_con() < static_cast<int>(LayoutKind::UNKNOWN),
          "invalid layoutKind %d", layout_type->get_con());
   LayoutKind layout = static_cast<LayoutKind>(layout_type->get_con());
   assert(layout == LayoutKind::REFERENCE || layout == LayoutKind::NULL_FREE_NON_ATOMIC_FLAT ||

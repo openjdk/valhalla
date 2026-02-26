@@ -159,8 +159,6 @@
 
 #define JAVA_27_VERSION                   71
 
-#define CONSTANT_CLASS_DESCRIPTORS        71
-
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -4509,8 +4507,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
   const bool is_enum       = (flags & JVM_ACC_ENUM)       != 0;
   const bool is_annotation = (flags & JVM_ACC_ANNOTATION) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
-  const bool valid_value_class = is_identity || is_interface ||
-                                 (supports_inline_types() && (!is_identity && (is_abstract || is_final)));
+  const bool valid_value_class = is_identity || is_interface || (supports_inline_types() && (is_abstract || is_final));
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
@@ -4518,10 +4515,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
       (!is_interface && major_gte_1_5 && is_annotation) ||
       (!valid_value_class)) {
     ResourceMark rm(THREAD);
-    const char* class_note = "";
-    if (!valid_value_class) {
-      class_note = " (a value class must be final or else abstract)";
-    }
     // Names are all known to be < 64k so we know this formatted message is not excessively large.
     if (inner_name == nullptr && !is_anonymous_inner_class) {
       Exceptions::fthrow(
@@ -5009,10 +5002,6 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
         p = skip_over_field_name(bytes, true, length);
         legal = (p != nullptr) && ((p - bytes) == (int)length);
       }
-    } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
-                   && bytes[length - 1] == ';' ) {
-      // Support for L...; descriptors
-      legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
       // 4900761: relax the constraints based on JSR202 spec
       // Class names may be drawn from the entire Unicode character set.

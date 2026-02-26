@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -168,8 +168,11 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Byte valueOf(byte b) {
-        final int offset = 128;
-        return (!PreviewFeatures.isEnabled()) ? ByteCache.cache[(int)b + offset] : new Byte(b);
+        if (!PreviewFeatures.isEnabled()) {
+            final int offset = 128;
+            return ByteCache.cache[(int) b + offset];
+        }
+        return new Byte(b);
     }
 
     /**

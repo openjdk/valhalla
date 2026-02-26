@@ -84,6 +84,9 @@ class GraphKit : public Phase {
   GraphKit();                   // empty constructor
   GraphKit(JVMState* jvms, PhaseGVN* gvn = nullptr);     // the JVM state on which to operate
 
+  // Create a GraphKit from a debug state, useful for various kinds of macro expansion
+  GraphKit(const SafePointNode* sft, PhaseIterGVN& igvn);
+
 #ifdef ASSERT
   ~GraphKit() {
     assert(failing_internal() || !has_exceptions(),
