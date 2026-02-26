@@ -74,8 +74,8 @@ public:
     if (is_invalid()) {
       return "INVALID";
     } else {
-      ss.print("%s", (is_null_restricted() != 0) ? "NULL_RESTRICTED " : "NULLABLE ");
-      ss.print("%s", (is_non_atomic() != 0) ? "NON_ATOMIC " : "ATOMIC ");
+      ss.print("%s", is_null_restricted() ? "NULL_RESTRICTED " : "NULLABLE ");
+      ss.print("%s", is_non_atomic() ? "NON_ATOMIC " : "ATOMIC ");
     }
     return ss.as_string();
   }
