@@ -1726,6 +1726,23 @@ public class TestValueConstruction {
         return (MyValue1) OSR_LARVAL_LOCAL.invokeExact(dummy, x);
     }
 
+    // Method handle with a scalarized return that will always throw an exception
+    private static final MethodHandle TEST_THROWING_MH = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+            "throwingMH",
+            MethodType.methodType(MyValue1.class, MyValue1.class),
+            CODE -> {
+                CODE.
+                        iconst_0().
+                        iconst_0().
+                        idiv(). // Division by zero
+                        aload(0).
+                        areturn();
+            });
+
+    public static MyValue1 testThrowingMethodHandle() throws Throwable {
+        return (MyValue1) TEST_THROWING_MH.invokeExact((MyValue1)null);
+    }
+
     public static void main(String[] args) throws Throwable {
         Random rand = Utils.getRandomInstance();
 
@@ -1855,6 +1872,11 @@ public class TestValueConstruction {
         check(testBackAndForthAbstract2(x), new MyValue16(x), doCheck);
         check(testMultipleOccurrencesInJVMS(x), new MyValue1(x), doCheck);
         check(testOsrLarvalLocal(x), new MyValue1(x), doCheck);
+        try {
+            testThrowingMethodHandle();
+        } catch (ArithmeticException e) {
+            // Expected
+        }
     }
 
     private static void check(Object testResult, Object expectedResult, boolean check) {
