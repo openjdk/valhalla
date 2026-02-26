@@ -13,6 +13,7 @@ import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -33,20 +33,19 @@ import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.util.stream.Collectors.groupingBy;
 
 /**
- * Annotation processor for generating preview sources of existing classes which
- * annotated as value classes for Valhalla.
+ * Annotation processor for generating preview sources of classes annotated as
+ * value classes for preview mode.
  *
  * <p>Classes seen by this processor (annotated with {@code @MigratedValueClass}
- * will have their source files re-written into the configured output directory
+ * will have their source files re-written into the specified output directory
  * for compilation as preview classes. Note that more than one class in a given
  * source file may be annotated.
  *
- * <p>Class re-writing is simply a matter of injecting the new "value" keyword
- * into a copy of the original source file after existing modifiers for all
- * annotated elements.
+ * <p>Class re-writing is achieved by injecting the "value" keyword in front of
+ * class declarations for all annotated elements in the original source file.
  *
  * <p>Note that there are two annotations in use for value classes, but since
- * we must generate sources for abstract classes, we only care about one of them.
+ * we must generate sources for abstract classes, we only process one of them.
  * <ul>
  *     <li>{@code @jdk.internal.ValueBased} appears on concrete value classes.
  *     <li>{@code @jdk.internal.MigratedValueClass} appears on concrete and
@@ -92,24 +91,22 @@ public final class GenValueClasses extends AbstractProcessor {
         Optional<? extends TypeElement> valueClassAnnotation =
                 getAnnotation(annotations, "jdk.internal.MigratedValueClass");
         if (valueClassAnnotation.isPresent()) {
-            Set<TypeElement> allValueClasses = getAnnotatedTypes(env, valueClassAnnotation.get());
-            Map<String, List<TypeElement>> moduleToType =
-                    allValueClasses.stream().collect(groupingBy(this::getModuleName));
-            for (String modName : moduleToType.keySet()) {
-                moduleToType.get(modName).stream()
-                        .collect(groupingBy(this::getJavaSourceFile))
-                        .forEach(this::generateValueClassSource);
-            }
+            getAnnotatedTypes(env, valueClassAnnotation.get()).stream()
+                    .collect(groupingBy(this::getJavaSourceFile))
+                    .forEach(this::generateValueClassSource);
         }
-        return true;
+        // We may not be the only annotation processor to consume this annotation.
+        return false;
     }
 
+    /** Find the annotation element by name in the given set. */
     private static Optional<? extends TypeElement> getAnnotation(Set<? extends TypeElement> annotations, String name) {
         return annotations.stream()
                 .filter(e -> e.getQualifiedName().toString().equals(name))
                 .findFirst();
     }
 
+    /** Find the type elements (classes) annotated with the given annotation element. */
     private static Set<TypeElement> getAnnotatedTypes(RoundEnvironment env, TypeElement annotation) {
         Set<TypeElement> types = new HashSet<>();
         for (Element e : env.getElementsAnnotatedWith(annotation)) {
@@ -127,6 +124,11 @@ public final class GenValueClasses extends AbstractProcessor {
         return types;
     }
 
+    /**
+     * Write a transformed version of the given Java source file with the
+     * {@code value} keyword inserted before the class declaration of each
+     * annotated type element.
+     */
     private void generateValueClassSource(Path srcPath, List<TypeElement> classes) {
         try {
             // We know there's at least one element per source file (by construction).
@@ -148,28 +150,37 @@ public final class GenValueClasses extends AbstractProcessor {
                         throw new IOException("Unexpected number of characters transferred."
                                 + " Expected " + nextChunkLen + " but was " + written);
                     }
-                    // Position is the end of modifier chars, so we need a leading space.
-                    // pos ------v
-                    // [modifiers] class... -->> [modifiers] value class...
-                    output.write(" value");
                     curPos = nxtPos;
+                    // curPos is at the end of the modifier section, so add a leading space.
+                    // curPos ---v
+                    // [modifiers] class...  -->>  [modifiers] value class...
+                    output.write(" value");
                 }
+                // Trailing section to end-of-file transferred from original reader.
                 reader.transferTo(output);
             }
         } catch (IOException e) {
-            // TODO: Decide about errors!
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Returns the character offset in the original source file at which to insert
+     * the {@code value} keyword. The offset is the end of the modifiers section,
+     * which must immediately precede the class declaration.
+     */
     private long getValueKeywordInsertPosition(TypeElement classElement) {
         TreePath classDecl = trees.getPath(classElement);
         ClassTree classTree = (ClassTree) classDecl.getLeaf();
         CompilationUnitTree compilationUnit = classDecl.getCompilationUnit();
         // Since annotations are held as "modifiers", and since we only process
-        // elements with annotations, the positions for modifiers must be
-        // well-defined (otherwise we'd get -1 here).
-        return trees.getSourcePositions().getEndPosition(compilationUnit, classTree.getModifiers());
+        // elements with annotations, the positions of the modifiers section must
+        // be well-defined.
+        long pos = trees.getSourcePositions().getEndPosition(compilationUnit, classTree.getModifiers());
+        if (pos == Diagnostic.NOPOS) {
+            throw new IllegalStateException("Missing position information: " + classElement);
+        }
+        return pos;
     }
 
     private Path getModuleRelativePath(Path srcPath, String pkgName) {
@@ -202,11 +213,10 @@ public final class GenValueClasses extends AbstractProcessor {
      * {@code maxCharCount} characters from the underlying stream.
      */
     private static final class LimitedReader extends Reader {
-        // Since these are expected to be short-lived, no need
-        // to null the delegate when we're closed.
+        // These are short-lived, no need to null the delegate when closed.
         private final Reader delegate;
         // This should never go negative.
-        private int remaining;
+        private int remainingChars;
 
         /**
          * Creates a limited reader which reads up to {@code maxCharCount} chars
@@ -217,29 +227,30 @@ public final class GenValueClasses extends AbstractProcessor {
          */
         LimitedReader(Reader delegate, int maxCharCount) {
             this.delegate = Objects.requireNonNull(delegate);
-            this.remaining = Math.max(maxCharCount, 0);
+            this.remainingChars = Math.max(maxCharCount, 0);
         }
 
         @Override
         public int read(char[] cbuf, int off, int len) throws IOException {
-            if (remaining == 0) {
-                return -1;
-            }
-            if (remaining > 0) {
-                int readLimit = Math.min(remaining, len);
+            if (remainingChars > 0) {
+                int readLimit = Math.min(remainingChars, len);
                 int count = delegate.read(cbuf, off, readLimit);
-                // Only update remaining if something was read.
+                // Only update remainingChars if something was read.
                 if (count > 0) {
-                    if (count > remaining) {
+                    if (count > remainingChars) {
                         throw new IOException(
                                 "Underlying Reader exceeded requested read limit." +
                                         " Expected at most " + readLimit + " but read " + count);
                     }
-                    remaining -= count;
+                    remainingChars -= count;
                 }
+                // Can return 0 or -1 here (the underlying reader could finish first).
                 return count;
+            } else if (remainingChars == 0) {
+                return -1;
+            } else {
+                throw new AssertionError("Remaining character count should never be negative!");
             }
-            throw new IllegalStateException("Remaining count should never be negative!");
         }
 
         @Override
