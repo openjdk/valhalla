@@ -167,7 +167,7 @@ void JfrStackTrace::record_interpreter_top_frame(const JfrSampleRequest& request
   record_frame(method, bci, type);
 }
 
-class JfrUnpackForFrameRepair {
+class JfrUnpackNeedStackRepair {
  private:
   const PcDesc* const _pc_desc;
   const nmethod* const _nm;
@@ -184,11 +184,11 @@ class JfrUnpackForFrameRepair {
   }
 
  public:
-  JfrUnpackForFrameRepair(const PcDesc* pc_desc, const nmethod* nm) : _pc_desc(pc_desc),
-                                                                      _nm(nm),
-                                                                      _method(nullptr),
-                                                                      _decode_offset(_pc_desc->scope_decode_offset()),
-                                                                      _bci(0) {
+  JfrUnpackNeedStackRepair(const PcDesc* pc_desc, const nmethod* nm) : _pc_desc(pc_desc),
+                                                                        _nm(nm),
+                                                                        _method(nullptr),
+                                                                        _decode_offset(_pc_desc->scope_decode_offset()),
+                                                                        _bci(0) {
     assert(_pc_desc != nullptr, "invariant");
     assert(_nm != nullptr, "invariant");
     assert(_nm->needs_stack_repair(), "invariant");
@@ -231,13 +231,10 @@ void JfrStackTrace::record_stack_repair(const frame& frame, const JfrSampleReque
   }
   const PcDesc* const pc_desc = static_cast<PcDesc*>(request._sample_pc);
   assert(pc_desc != nullptr, "invariant");
-  JfrUnpackForFrameRepair unpack(pc_desc, nm);
+  JfrUnpackNeedStackRepair unpack(pc_desc, nm);
   while (unpack.has_next()) {
     unpack.next();
-    const Method* const method = unpack.method();
-    const int bci = unpack.bci();
-    const u1 frame_type = unpack.has_next() ? JfrStackFrame::FRAME_INLINE : JfrStackFrame::FRAME_JIT;
-    record_frame(method, bci, frame_type);
+    record_frame(unpack.method(), unpack.bci(), unpack.has_next() ? JfrStackFrame::FRAME_INLINE : JfrStackFrame::FRAME_JIT);
   }
 }
 
