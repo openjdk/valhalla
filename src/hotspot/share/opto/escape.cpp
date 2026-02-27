@@ -1873,6 +1873,8 @@ private:
   int _i_sig_cc;
   uint _depth;
   uint _first_field_pos;
+  const bool _is_static;
+  uint _null_markers;
 
   void next_helper() {
     if (_sig_cc == nullptr) {
@@ -1892,6 +1894,9 @@ private:
         if (_depth == 0) {
           _i_domain++;
         }
+      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0)) {
+        _null_markers++;
+        return;
       } else {
         return;
       }
@@ -1910,7 +1915,9 @@ public:
     _i_domain_cc(TypeFunc::Parms),
     _i_sig_cc(0),
     _depth(0),
-    _first_field_pos(0) {
+    _first_field_pos(0),
+    _is_static(call->method()->is_static()),
+    _null_markers(0) {
     next_helper();
   }
 
@@ -1951,6 +1958,9 @@ public:
     return _first_field_pos;
   }
 
+  uint null_markers() const {
+    return _null_markers;
+  }
 };
 
 // Add final simple edges to graph.
@@ -2558,7 +2568,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
               call_analyzer->is_arg_returned(k) ) {
             // The call returns arguments.
             if (meth->is_scalarized_arg(k)) {
-              ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms);
+              ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1);
               if (res_proj != nullptr) {
                 assert(_igvn->type(res_proj)->isa_ptr(), "");
                 if (res_proj->_con == TypeFunc::Parms) {
