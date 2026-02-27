@@ -725,6 +725,8 @@ void CallGenerator::do_late_inline_helper() {
     ciType* return_type = inline_method->return_type();
     if (!call->tf()->returns_inline_type_as_fields() &&
         return_type->is_inlinetype() && return_type->as_inline_klass()->can_be_returned_as_fields()) {
+      assert(is_mh_late_inline(), "Unexpected return type");
+
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
       // we need to "re-execute" the call in the interpreter (to make sure the call is only executed once).
