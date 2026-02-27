@@ -77,7 +77,7 @@ ifeq ($(MODULE), java.base)
     PREPROCESSOR_FLAGS := \
         -Xlint:-removal -Xlint:-processing \
         -Avalueclasses.outdir=$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses \
-        -processor build.tools.valueclasses.GenValueClasses
+        -processor build.tools.valhalla.valuetypes.GenValueClasses
 
     PROCESSOR_PATH += $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes
 endif
