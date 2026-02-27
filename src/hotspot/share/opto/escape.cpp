@@ -1887,6 +1887,7 @@ private:
       if (bt == T_METADATA) {
         if (_depth == 0) {
           _first_field_pos = _i_domain_cc;
+          _null_markers = 0;
         }
         _depth++;
       } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
@@ -2566,6 +2567,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
           if (at->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(k) ) {
+
             // The call returns arguments.
             if (meth->is_scalarized_arg(k)) {
               ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1);
@@ -2576,7 +2578,11 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   // assert(arg_ptn != nullptr, "node should be registered");
                   // add_edge(call_ptn, arg_ptn);
                 } else {
-                  add_edge(ptnode_adr(res_proj->_idx), arg_ptn);
+                  PointsToNode* proj_ptn = ptnode_adr(res_proj->_idx);
+                  add_edge(proj_ptn, arg_ptn);
+                  if (!call_analyzer->is_return_local()) {
+                    add_edge(proj_ptn, phantom_obj);
+                  }
                 }
               }
             } else if (call_ptn != nullptr) { // Is call's result used?
