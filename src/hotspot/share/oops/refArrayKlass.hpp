@@ -44,9 +44,9 @@ class RefArrayKlass : public ObjArrayKlass {
 
  private:
   // Constructor
-  RefArrayKlass(int n, Klass* element_klass, Symbol* name, ArrayKlass::ArrayProperties props);
+  RefArrayKlass(int n, Klass* element_klass, Symbol* name, ArrayProperties props);
   static RefArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name,
-                                       ArrayKlass::ArrayProperties props, TRAPS);
+                                       ArrayProperties props, TRAPS);
 
  public:
   // For dummy objects
@@ -59,7 +59,7 @@ class RefArrayKlass : public ObjArrayKlass {
   // Allocation
   static RefArrayKlass* allocate_refArray_klass(ClassLoaderData* loader_data,
                                                 int n, Klass* element_klass,
-                                                ArrayKlass::ArrayProperties props, TRAPS);
+                                                ArrayProperties props, TRAPS);
 
  private:
   objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS) override;
