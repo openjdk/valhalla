@@ -23,7 +23,7 @@
  * questions.
  */
 
-package build.tools.valueclasses;
+package build.tools.valhalla.valuetypes;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -54,7 +54,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import static java.nio.file.StandardOpenOption.CREATE_NEW;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.util.stream.Collectors.groupingBy;
 
 /**
@@ -165,8 +166,10 @@ public final class GenValueClasses extends AbstractProcessor {
             List<Long> insertPositions =
                     classes.stream().map(this::getValueKeywordInsertPosition).sorted().toList();
 
+            // For partial rebuilds, generated sources may still exist, so we overwrite them.
             try (Reader reader = new InputStreamReader(Files.newInputStream(srcPath));
-                 Writer output = new OutputStreamWriter(Files.newOutputStream(outPath, CREATE_NEW))) {
+                 Writer output = new OutputStreamWriter(
+                         Files.newOutputStream(outPath, CREATE, TRUNCATE_EXISTING))) {
                 long curPos = 0;
                 for (long nxtPos : insertPositions) {
                     int nextChunkLen = Math.toIntExact(nxtPos - curPos);
