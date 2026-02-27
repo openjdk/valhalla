@@ -118,7 +118,7 @@ public final class GenValueClasses extends AbstractProcessor {
                 getAnnotation(annotations, "jdk.internal.MigratedValueClass");
         if (valueClassAnnotation.isPresent()) {
             getAnnotatedTypes(env, valueClassAnnotation.get()).stream()
-                    .collect(groupingBy(this::getJavaSourceFile))
+                    .collect(groupingBy(this::javaSourceFile))
                     .forEach(this::generateValueClassSource);
         }
         // We may not be the only annotation processor to consume this annotation.
@@ -159,12 +159,12 @@ public final class GenValueClasses extends AbstractProcessor {
         try {
             // We know there's at least one element per source file (by construction).
             TypeElement element = classes.getFirst();
-            Path relPath = getModuleRelativePath(srcPath, getPackageName(element));
-            Path outPath = outDir.resolve(getModuleName(element)).resolve(relPath);
+            Path relPath = moduleRelativePath(srcPath, packageName(element));
+            Path outPath = outDir.resolve(moduleName(element)).resolve(relPath);
             Files.createDirectories(outPath.getParent());
 
             List<Long> insertPositions =
-                    classes.stream().map(this::getValueKeywordInsertPosition).sorted().toList();
+                    classes.stream().map(this::valueKeywordInsertPosition).sorted().toList();
 
             // For partial rebuilds, generated sources may still exist, so we overwrite them.
             try (Reader reader = new InputStreamReader(Files.newInputStream(srcPath));
@@ -197,7 +197,7 @@ public final class GenValueClasses extends AbstractProcessor {
      * the {@code value} keyword. The offset is the end of the modifiers section,
      * which must immediately precede the class declaration.
      */
-    private long getValueKeywordInsertPosition(TypeElement classElement) {
+    private long valueKeywordInsertPosition(TypeElement classElement) {
         TreePath classDecl = trees.getPath(classElement);
         ClassTree classTree = (ClassTree) classDecl.getLeaf();
         CompilationUnitTree compilationUnit = classDecl.getCompilationUnit();
@@ -211,7 +211,7 @@ public final class GenValueClasses extends AbstractProcessor {
         return pos;
     }
 
-    private Path getModuleRelativePath(Path srcPath, String pkgName) {
+    private Path moduleRelativePath(Path srcPath, String pkgName) {
         Path relPath = Path.of(pkgName.replace('.', File.separatorChar)).resolve(srcPath.getFileName());
         if (!srcPath.endsWith(relPath)) {
             throw new IllegalStateException(String.format(
@@ -220,19 +220,19 @@ public final class GenValueClasses extends AbstractProcessor {
         return relPath;
     }
 
-    private String getModuleName(TypeElement t) {
+    private String moduleName(TypeElement t) {
         return processingEnv.getElementUtils().getModuleOf(t).getQualifiedName().toString();
     }
 
-    private String getPackageName(TypeElement t) {
+    private String packageName(TypeElement t) {
         return processingEnv.getElementUtils().getPackageOf(t).getQualifiedName().toString();
     }
 
-    private Path getJavaSourceFile(TypeElement type) {
-        return getFilePath(processingEnv.getElementUtils().getFileObjectOf(type));
+    private Path javaSourceFile(TypeElement type) {
+        return filePath(processingEnv.getElementUtils().getFileObjectOf(type));
     }
 
-    private static Path getFilePath(FileObject file) {
+    private static Path filePath(FileObject file) {
         return Path.of(file.toUri());
     }
 
