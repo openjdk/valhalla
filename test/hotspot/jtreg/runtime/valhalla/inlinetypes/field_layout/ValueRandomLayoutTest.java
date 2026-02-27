@@ -185,9 +185,6 @@ public class ValueRandomLayoutTest {
       }
       Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
-      // To help during test development
-      System.out.print(out.getOutput());
-
       // Get and parse the test output
       FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
       FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
