@@ -53,7 +53,6 @@ public class GenValueClassesTest {
 
             @jdk.internal.MigratedValueClass
             public /*VALUE*/ class SimpleValueClass {
-                int value;
             }
             """;
 
@@ -64,7 +63,6 @@ public class GenValueClassesTest {
             public class NestedValueClass {
                 @jdk.internal.MigratedValueClass
                 private static final /*VALUE*/ class Nested {
-                    int value;
                 }
             }
             """;
@@ -83,6 +81,24 @@ public class GenValueClassesTest {
 
                 @jdk.internal.MigratedValueClass
                 private static /*VALUE*/ class Third { }
+            }
+            """;
+
+    // A slightly extreme case to show that the annotation processor can cope
+    // with multiline class declarations and interleaved comments. The value
+    // keyword is insert after the last modifier with a leading space.
+    private static final String MULTILINE_CLASS_DECLARATION =
+            """
+            package test;
+
+            @jdk.internal.MigratedValueClass
+            public
+            /* Some comment */
+            final /*VALUE*/
+            /* Some other comment */
+            class
+
+            MultilineClassDeclaration {
             }
             """;
 
@@ -129,11 +145,20 @@ public class GenValueClassesTest {
         assertTrue(transformedSrc.contains(" value class Third "));
     }
 
+    @Test
+    public void multilineClassDeclaration() throws IOException {
+        Path relPath = writeTestSource("MultilineClassDeclaration", MULTILINE_CLASS_DECLARATION);
+        compileTestClass(relPath);
+        String transformedSrc = Files.readString(outDir.resolve(relPath));
+        assertEquals(MULTILINE_CLASS_DECLARATION.replace("/*VALUE*/", "value"), transformedSrc);
+    }
+
     private Path writeTestSource(String className, String source) throws IOException {
         // Remove the VALUE tokens to leave "clean" source (otherwise the
         // token will persist in the transformed output and get messy).
-        assertTrue(source.contains("/*VALUE*/ "), "invalid test source");
-        String actualSrc = source.replace("/*VALUE*/ ", "");
+        // Tokens have a leading space to match how the keyword is injected.
+        assertTrue(source.contains(" /*VALUE*/"), "invalid test source");
+        String actualSrc = source.replace(" /*VALUE*/", "");
 
         Path relPath = Path.of("test", className + ".java");
         Path srcFile = srcDir.resolve(relPath);
