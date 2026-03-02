@@ -1190,6 +1190,30 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         private static final long serialVersionUID = 0;
                     }
                     """);
+            assertOKWithWarning("compiler.warn.ineffectual.serial.method.value.class",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private void writeObject(ObjectOutputStream stream) throws IOException {}
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.ineffectual.serial.method.value.class",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {}
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.ineffectual.serial.method.value.class",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private void readObjectNoData() throws ObjectStreamException {}
+                    }
+                    """);
             assertOK(
                     """
                     import java.io.*;

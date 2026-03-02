@@ -1964,6 +1964,7 @@ public final class OffsetDateTime
      * @throws InvalidObjectException always
      */
     @java.io.Serial
+    @SuppressWarnings("serial")
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }
