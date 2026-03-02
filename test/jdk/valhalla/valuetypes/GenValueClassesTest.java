@@ -23,13 +23,22 @@
  * questions.
  */
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.spi.ToolProvider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,107 +47,99 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
- * @summary Ensure annotation processing generates expected source files
+ * @summary Tests build tool GenValueClasses annotation processor
  * @library /tools/lib
- * @compile ../../../../make/jdk/src/classes/build/tools/valhalla/valuetypes/GenValueClasses.java
  * @run junit GenValueClassesTest
  */
 public class GenValueClassesTest {
     private static final ToolProvider JAVAC_TOOL = ToolProvider.findFirst("javac")
             .orElseThrow(() -> new RuntimeException("javac tool not found"));
 
-    private static final String SIMPLE_VALUE_CLASS =
-            """
-            package test;
+    // We cannot access compiled build tools in JTREG tests, but we can find the
+    // sources and compile them. See findBuildToolsSrcRoot() for more details.
+    private static final Path SRC_ROOT = Path.of("make", "jdk", "src", "classes");
+    private static final Path PROCESSOR_SRC = Path.of(
+            "build", "tools", "valhalla", "valuetypes", "GenValueClasses.java");
 
-            @jdk.internal.MigratedValueClass
-            public /*VALUE*/ class SimpleValueClass {
-            }
-            """;
-
-    private static final String NESTED_VALUE_CLASS =
-            """
-            package test;
-
-            public class NestedValueClass {
-                @jdk.internal.MigratedValueClass
-                private static final /*VALUE*/ class Nested {
-                }
-            }
-            """;
-
-    private static final String MULTIPLE_VALUE_CLASSES =
-            """
-            package test;
-
-            @jdk.internal.MigratedValueClass
-            public /*VALUE*/ class MultipleValueClasses {
-
-                @jdk.internal.MigratedValueClass
-                private static final /*VALUE*/ class First { }
-
-                static final class Second { }
-
-                @jdk.internal.MigratedValueClass
-                private static /*VALUE*/ class Third { }
-            }
-            """;
-
-    // A slightly extreme case to show that the annotation processor can cope
-    // with multiline class declarations and interleaved comments. The value
-    // keyword is insert after the last modifier with a leading space.
-    private static final String MULTILINE_CLASS_DECLARATION =
-            """
-            package test;
-
-            @jdk.internal.MigratedValueClass
-            public
-            /* Some comment */
-            final /*VALUE*/
-            /* Some other comment */
-            class
-
-            MultilineClassDeclaration {
-            }
-            """;
-
+    // By being on a static member, this is shared across all tests.
     @TempDir
-    Path testDir = null;
-    Path srcDir = null;
-    Path outDir = null;
+    private static Path sharedTestDir = null;
+
+    @BeforeAll
+    static void compileAnnotationProcessor() {
+        compile(findBuildToolsSrcRoot().resolve(PROCESSOR_SRC), sharedTestDir.resolve("processor"));
+    }
+
+    Path perTestDir = null;
 
     @BeforeEach
-    void setupDirs() throws IOException {
-        this.srcDir = testDir.resolve("src");
-        Files.createDirectories(srcDir);
-        this.outDir = testDir.resolve("out");
-        Files.createDirectories(outDir);
+    void setupDirs(TestInfo testInfo) throws IOException {
+        // Since the test directory is shared, we make per-test directories
+        // based on the test's method name to keep everything separate.
+        String testName = testInfo.getTestMethod().orElseThrow().getName();
+        this.perTestDir = sharedTestDir.resolve(testName);
+        Files.createDirectories(perTestDir);
     }
 
     @Test
     public void simpleValueClass() throws IOException {
-        Path relPath = writeTestSource("SimpleValueClass", SIMPLE_VALUE_CLASS);
+        String simpleValueClass =
+                """
+                package test;
+
+                @jdk.internal.MigratedValueClass
+                public /*VALUE*/ class SimpleValueClass {
+                }
+                """;
+        Path relPath = writeTestSource("SimpleValueClass", simpleValueClass);
         compileTestClass(relPath);
-        String transformedSrc = Files.readString(outDir.resolve(relPath));
-        assertEquals(SIMPLE_VALUE_CLASS.replace("/*VALUE*/", "value"), transformedSrc);
+        String transformedSrc = readTransformedSource(relPath);
+        assertEquals(simpleValueClass.replace("/*VALUE*/", "value"), transformedSrc);
         assertTrue(transformedSrc.contains(" value class SimpleValueClass "));
     }
 
     @Test
     public void nestedValueClass() throws IOException {
-        Path relPath = writeTestSource("NestedValueClass", NESTED_VALUE_CLASS);
+        String nestedValueClass =
+                """
+                package test;
+
+                public class NestedValueClass {
+                    @jdk.internal.MigratedValueClass
+                    private static final /*VALUE*/ class Nested {
+                    }
+                }
+                """;
+        Path relPath = writeTestSource("NestedValueClass", nestedValueClass);
         compileTestClass(relPath);
-        String transformedSrc = Files.readString(outDir.resolve(relPath));
-        assertEquals(NESTED_VALUE_CLASS.replace("/*VALUE*/", "value"), transformedSrc);
+        String transformedSrc = readTransformedSource(relPath);
+        assertEquals(nestedValueClass.replace("/*VALUE*/", "value"), transformedSrc);
         assertTrue(transformedSrc.contains(" value class Nested "));
     }
 
     @Test
     public void multipleValueClasses() throws IOException {
-        Path relPath = writeTestSource("MultipleValueClasses", MULTIPLE_VALUE_CLASSES);
+        String multipleValueClasses =
+                """
+                package test;
+
+                @jdk.internal.MigratedValueClass
+                public /*VALUE*/ class MultipleValueClasses {
+
+                    @jdk.internal.MigratedValueClass
+                    private static final /*VALUE*/ class First { }
+
+                    static final class Second { }
+
+                    @jdk.internal.MigratedValueClass
+                    private static /*VALUE*/ class Third { }
+                }
+                """;
+
+        Path relPath = writeTestSource("MultipleValueClasses", multipleValueClasses);
         compileTestClass(relPath);
-        String transformedSrc = Files.readString(outDir.resolve(relPath));
-        assertEquals(MULTIPLE_VALUE_CLASSES.replace("/*VALUE*/", "value"), transformedSrc);
+        String transformedSrc = readTransformedSource(relPath);
+        assertEquals(multipleValueClasses.replace("/*VALUE*/", "value"), transformedSrc);
         assertTrue(transformedSrc.contains(" value class MultipleValueClasses "));
         assertTrue(transformedSrc.contains(" value class First "));
         assertFalse(transformedSrc.contains(" value class Second "));
@@ -147,10 +148,27 @@ public class GenValueClassesTest {
 
     @Test
     public void multilineClassDeclaration() throws IOException {
-        Path relPath = writeTestSource("MultilineClassDeclaration", MULTILINE_CLASS_DECLARATION);
+        // A slightly extreme case to show that the annotation processor can cope
+        // with multiline class declarations and interleaved comments. The value
+        // keyword is inserted after the last modifier with a leading space.
+        String multilineClassDeclaration =
+                """
+                package test;
+
+                @jdk.internal.MigratedValueClass
+                public
+                /* Some comment */
+                final /*VALUE*/
+                /* Some other comment */
+                class
+
+                MultilineClassDeclaration {
+                }
+                """;
+        Path relPath = writeTestSource("MultilineClassDeclaration", multilineClassDeclaration);
         compileTestClass(relPath);
-        String transformedSrc = Files.readString(outDir.resolve(relPath));
-        assertEquals(MULTILINE_CLASS_DECLARATION.replace("/*VALUE*/", "value"), transformedSrc);
+        String transformedSrc = readTransformedSource(relPath);
+        assertEquals(multilineClassDeclaration.replace("/*VALUE*/", "value"), transformedSrc);
     }
 
     private Path writeTestSource(String className, String source) throws IOException {
@@ -161,23 +179,68 @@ public class GenValueClassesTest {
         String actualSrc = source.replace(" /*VALUE*/", "");
 
         Path relPath = Path.of("test", className + ".java");
-        Path srcFile = srcDir.resolve(relPath);
+        Path srcFile = perTestDir.resolve("src").resolve(relPath);
         Files.createDirectories(srcFile.getParent());
         Files.writeString(srcFile, actualSrc);
         return relPath;
     }
 
+    private String readTransformedSource(Path relPath) throws IOException {
+        return Files.readString(perTestDir.resolve("out").resolve(relPath));
+    }
+
+    private void compileTestClass(Path srcPath) {
+        compile(perTestDir.resolve("src").resolve(srcPath), sharedTestDir.resolve("compiled"),
+                "--add-exports", "java.base/jdk.internal=ALL-UNNAMED",
+                "-Avalueclasses.outdir=" + perTestDir.resolve("out"),
+                "--processor-path", sharedTestDir.resolve("processor").toString(),
+                "-processor", "build.tools.valhalla.valuetypes.GenValueClasses");
+    }
+
     // NOTE: Since the in-memory compiler is limited and doesn't support getting
     // the Path of the "memo:" URIs is uses, it cannot be used for testing this
-    // annotation processor. Thus, we must perform on-disk compilation.
-    private void compileTestClass(Path srcPath) {
-        int exitValue = JAVAC_TOOL.run(System.out, System.err,
-                "-d", testDir.resolve("compiled").toString(),
-                "--add-exports", "java.base/jdk.internal=ALL-UNNAMED",
-                "-Avalueclasses.outdir=" + outDir,
-                "--processor-path", System.getProperty("test.classes"),
-                "-processor", "build.tools.valhalla.valuetypes.GenValueClasses",
-                srcDir.resolve(srcPath).toString());
-        assertEquals(0, exitValue);
+    // annotation processor, so we must perform on-disk compilation.
+    private static void compile(Path srcFile, Path outDir, String... extraArgs) {
+        StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
+        List<String> allArgs = new ArrayList<>();
+        allArgs.add("-d");
+        allArgs.add(outDir.toString());
+        allArgs.addAll(Arrays.asList(extraArgs));
+        allArgs.add(srcFile.toString());
+        int exitValue = JAVAC_TOOL.run(
+                new PrintWriter(out),
+                new PrintWriter(err),
+                allArgs.toArray(String[]::new));
+        Assertions.assertEquals(0, exitValue, String.format(
+                """
+                Compilation failed: %s
+                Stdout: %s
+                Stderr: %s
+                """, srcFile, out, err));
+    }
+
+    /**
+     * The source root is {@code make/jdk/src/classes} from the JDK root, but
+     * this may not be available in all test environments (and if it isn't, the
+     * test should be skipped).
+     *
+     * <p>Similar to {@code test/langtools/tools/all/RunCodingRules.java}, we
+     * attempt to locate this directory by walking from the {@code test.src}
+     * directory.
+     */
+    private static Path findBuildToolsSrcRoot() {
+        Path testSrc = Path.of(System.getProperty("test.src", "."));
+        for (Path d = testSrc; d != null; d = d.getParent()) {
+            if (Files.exists(d.resolve("TEST.ROOT"))) {
+                d = d.getParent();
+                Path srcRoot = d.resolve(SRC_ROOT);
+                if (!Files.isDirectory(srcRoot)) {
+                    break;
+                }
+                return srcRoot;
+            }
+        }
+        return Assumptions.abort("Build tools source root not found; skipping test");
     }
 }
