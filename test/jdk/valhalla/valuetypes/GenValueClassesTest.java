@@ -26,9 +26,7 @@
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -61,25 +59,17 @@ public class GenValueClassesTest {
     private static final Path PROCESSOR_SRC = Path.of(
             "build", "tools", "valhalla", "valuetypes", "GenValueClasses.java");
 
-    // By being on a static member, this is shared across all tests.
+    // Compile the annotation processor once for all test cases.
     @TempDir
-    private static Path sharedTestDir = null;
+    private static Path processorDir = null;
 
     @BeforeAll
     static void compileAnnotationProcessor() {
-        compile(findBuildToolsSrcRoot().resolve(PROCESSOR_SRC), sharedTestDir.resolve("processor"));
+        compile(findBuildToolsSrcRoot().resolve(PROCESSOR_SRC), processorDir);
     }
 
-    Path perTestDir = null;
-
-    @BeforeEach
-    void setupDirs(TestInfo testInfo) throws IOException {
-        // Since the test directory is shared, we make per-test directories
-        // based on the test's method name to keep everything separate.
-        String testName = testInfo.getTestMethod().orElseThrow().getName();
-        this.perTestDir = sharedTestDir.resolve(testName);
-        Files.createDirectories(perTestDir);
-    }
+    @TempDir
+    Path testDir = null;
 
     @Test
     public void simpleValueClass() throws IOException {
@@ -179,21 +169,21 @@ public class GenValueClassesTest {
         String actualSrc = source.replace(" /*VALUE*/", "");
 
         Path relPath = Path.of("test", className + ".java");
-        Path srcFile = perTestDir.resolve("src").resolve(relPath);
+        Path srcFile = testDir.resolve("src").resolve(relPath);
         Files.createDirectories(srcFile.getParent());
         Files.writeString(srcFile, actualSrc);
         return relPath;
     }
 
     private String readTransformedSource(Path relPath) throws IOException {
-        return Files.readString(perTestDir.resolve("out").resolve(relPath));
+        return Files.readString(testDir.resolve("out").resolve(relPath));
     }
 
     private void compileTestClass(Path srcPath) {
-        compile(perTestDir.resolve("src").resolve(srcPath), sharedTestDir.resolve("compiled"),
+        compile(testDir.resolve("src").resolve(srcPath), processorDir.resolve("compiled"),
                 "--add-exports", "java.base/jdk.internal=ALL-UNNAMED",
-                "-Avalueclasses.outdir=" + perTestDir.resolve("out"),
-                "--processor-path", sharedTestDir.resolve("processor").toString(),
+                "-Avalueclasses.outdir=" + testDir.resolve("out"),
+                "--processor-path", processorDir.toString(),
                 "-processor", "build.tools.valhalla.valuetypes.GenValueClasses");
     }
 
