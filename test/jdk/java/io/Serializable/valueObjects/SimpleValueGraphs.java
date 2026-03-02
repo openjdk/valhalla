@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal
  * @modules java.base/jdk.internal.value
- * @run testng/othervm SimpleValueGraphs
+ * @run junit/othervm SimpleValueGraphs
  */
 
 import java.io.ByteArrayInputStream;
@@ -39,6 +39,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.io.InvalidClassException;
 
@@ -47,35 +48,38 @@ import java.util.function.BiFunction;
 import java.util.Objects;
 
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
 
 import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.MigratedValueClass;
 
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
 import jdk.test.lib.hexdump.HexPrinter;
 import jdk.test.lib.hexdump.ObjectStreamPrinter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@Test
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SimpleValueGraphs implements Serializable {
 
-    private static boolean DEBUG = true;
+    private static final boolean DEBUG = true;
 
-    private static SimpleValue foo1 = new SimpleValue("One", 1);
-    private static SimpleValue foo2 = new SimpleValue("Two", 2);
+    private static final SimpleValue foo1 = new SimpleValue("One", 1);
+    private static final SimpleValue foo2 = new SimpleValue("Two", 2);
 
-    @DataProvider(name = "ValueObjects")
-    public Object[][] valueObjects() {
-        return new Object[][] {
-                {new SimpleValue(new SimpleValue(1))},
-                {new SimpleValue(new SimpleValue(2), 3)},
-                {new SimpleValue[] {foo1, foo1, foo2, foo1, foo2 }},
-        };
+    public Stream<Arguments> valueObjects() {
+        return Stream.of(
+                Arguments.of(new SimpleValue(new SimpleValue(1))),
+                Arguments.of(new SimpleValue(new SimpleValue(2), 3)),
+                Arguments.of((Object)(new SimpleValue[] {foo1, foo1, foo2, foo1, foo2 })));
     }
 
-    @Test(enabled = true, dataProvider = "ValueObjects")
+    @ParameterizedTest
+    @MethodSource("valueObjects")
     public void roundTrip(Object expected) throws Exception {
         byte[] bytes = serialize(expected);
 
@@ -84,11 +88,15 @@ public class SimpleValueGraphs implements Serializable {
 
         Object actual = deserialize(bytes);
         System.out.println("actual: " + actual.toString());
-        Assert.assertEquals(actual, expected, "Mismatch" + expected.getClass());
+        if (actual.getClass().isArray()) {
+            Assertions.assertArrayEquals((Object[]) expected, (Object[]) actual, "Mismatch " + expected.getClass());
+        } else {
+            Assertions.assertEquals(expected, actual, "Mismatch " + expected.getClass());
+        }
     }
 
-    private static Tree treeI = Tree.makeTree(3, (l, r) -> new TreeI((TreeI)l, (TreeI)l));
-    private static Tree treeV = Tree.makeTree(3, (l, r) -> new TreeV((TreeV)l, (TreeV)l));
+    private static final Tree treeI = Tree.makeTree(3, (l, r) -> new TreeI((TreeI)l, (TreeI)l));
+    private static final Tree treeV = Tree.makeTree(3, (l, r) -> new TreeV((TreeV)l, (TreeV)l));
 
     // Create a tree of identity objects with a cycle; it will serialize ok, but when deserialized as
     // a value class the cycle is broken by replacing the back ref with null.
@@ -98,14 +106,10 @@ public class SimpleValueGraphs implements Serializable {
         return tree;
     }
 
-    @DataProvider(name = "CompatibleChanges")
     public Object[][] migrationObjects() {
         return new Object[][] {
-                {treeI, "TreeI", "TreeV", treeV},       // Serialize as an identity class, deserialize as Value class
+                {treeI, "TreeI", "TreeV", treeV}, // Serialize as an identity class, deserialize as Value class
                 {treeCycle(true), "TreeI", "TreeV", treeCycle(false)},
-                // TBD: add cases for serializing TreeV and converting to TreeI:
-                // Waiting for:
-                // JDK-8293321: [lworld] PrimitiveObjectMethods.substitutableInvoker StackOverFlowError
         };
     }
 
@@ -121,7 +125,8 @@ public class SimpleValueGraphs implements Serializable {
      * @param expectedObject the expected object (graph) or an exception if it should fail
      * @throws Exception some unexpected exception may be thrown and cause the test to fail
      */
-    @Test(enabled = true, dataProvider = "CompatibleChanges")
+    @ParameterizedTest
+    @MethodSource("migrationObjects")
     public void treeVTest(Object origObj, String origName, String replName, Object expectedObject) throws Exception {
         byte[] bytes = serialize(origObj);
         if (DEBUG) {
@@ -137,18 +142,16 @@ public class SimpleValueGraphs implements Serializable {
             HexPrinter.simple().dest(System.out).formatter(ObjectStreamPrinter.formatter()).format(replBytes);
         }
         try {
-            Object actual = deserialize(replBytes);
-            if (expectedObject instanceof Exception ex) {
-                Assert.fail("Unexpected: " + expectedObject);
-            }
+            Object actual = Assertions.assertDoesNotThrow(() ->deserialize(replBytes));
+
             // Compare the shape of the actual and expected trees
-            Assert.assertEquals(actual.toString(), expectedObject.toString(),
+            Assertions.assertEquals(expectedObject.toString(), actual.toString(),
                     "Resulting object not equals: " + actual.getClass().getName());
 
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.assertEquals(ex.getClass(), expectedObject.getClass(), ex.toString());
-            Assert.assertEquals(ex.getMessage(), ((Exception)expectedObject).getMessage(), ex.toString());
+            Assertions.assertEquals(expectedObject.getClass(), ex.getClass(), ex.toString());
+            Assertions.assertEquals(((Exception)expectedObject).getMessage(), ex.getMessage(), ex.toString());
         }
     }
 
@@ -184,14 +187,13 @@ public class SimpleValueGraphs implements Serializable {
      * The strings are US_ASCII only.
      * @param bytes a byte array
      * @param orig a string, converted to bytes using US_ASCII, originally exists in the bytes
-     * @param repl a string, converted to byted using US_ASCII, to replace the original bytes
+     * @param repl a string, converted to bytes using US_ASCII, to replace the original bytes
      * @return a new byte array that has been patched
      */
     private byte[] patchBytes(byte[] bytes, String orig, String repl) {
-        byte[] alt = patchBytes(bytes,
+        return patchBytes(bytes,
                 orig.getBytes(StandardCharsets.US_ASCII),
                 repl.getBytes(StandardCharsets.US_ASCII));
-        return alt;
     }
 
     /**
@@ -199,7 +201,7 @@ public class SimpleValueGraphs implements Serializable {
      * @param bytes a byte array
      * @param orig a byte array containing existing bytes in the byte array
      * @param repl a byte array to replace the original bytes
-     * @return a copy of the bytes array with each occurence of the orig bytes with the replacement bytes
+     * @return a copy of the bytes array with each occurrence of the orig bytes with the replacement bytes
      */
     static byte[] patchBytes(byte[] bytes, byte[] orig, byte[] repl) {
         if (orig.length != repl.length && orig.length > 0)
@@ -207,9 +209,7 @@ public class SimpleValueGraphs implements Serializable {
         byte[] result = Arrays.copyOf(bytes, bytes.length);
         for (int i = 0; i < result.length - orig.length; i++) {
             if (Arrays.equals(result, i, i + orig.length, orig, 0, orig.length)) {
-                for (int j = 0; j < orig.length; j++) {
-                    result[i + j] = repl[j];
-                }
+                System.arraycopy(repl, 0, result, i, orig.length);
                 i = i + orig.length - 1;    // continue replacing after this occurrence
             }
         }
@@ -217,6 +217,7 @@ public class SimpleValueGraphs implements Serializable {
     }
 
     public static class SimpleValue implements Serializable {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         int i;
@@ -256,8 +257,7 @@ public class SimpleValueGraphs implements Serializable {
             if (depth <= 0) return null;
             Tree left = makeTree(depth - 1, genNode);
             Tree right = makeTree(depth - 1, genNode);
-            Tree t = genNode.apply(left, right);
-            return t;
+            return genNode.apply(left, right);
         }
 
         Tree left();
@@ -265,6 +265,7 @@ public class SimpleValueGraphs implements Serializable {
     }
     static class TreeI implements Tree, Serializable {
 
+        @Serial
         private static final long serialVersionUID = 2L;
         private TreeI left;
         private TreeI right;
@@ -313,6 +314,7 @@ public class SimpleValueGraphs implements Serializable {
     @MigratedValueClass
     static value class TreeV implements Tree, Serializable {
 
+        @Serial
         private static final long serialVersionUID = 2L;
         private TreeV left;
         private TreeV right;
@@ -331,7 +333,7 @@ public class SimpleValueGraphs implements Serializable {
         }
 
         public boolean equals(Object other) {
-            // avoid ==, is substutible check causes stack overflow.
+            // avoid ==, is substitutable check causes stack overflow.
             if (other instanceof TreeV tree) {
                 return compRef(this.left, tree.left) && compRef(this.right, tree.right);
             }
@@ -362,9 +364,8 @@ public class SimpleValueGraphs implements Serializable {
     @Test
     void testExternalizableNotSer() {
         var obj = new ValueExt();
-        var ex = Assert.expectThrows(InvalidClassException.class, () -> serialize(obj));
-        Assert.assertEquals(ex.getMessage(),
-                "SimpleValueGraphs$ValueExt; Externalizable not valid for value class");
+        var ex = Assertions.assertThrows(InvalidClassException.class, () -> serialize(obj));
+        Assertions.assertEquals("SimpleValueGraphs$ValueExt; Externalizable not valid for value class", ex.getMessage());
     }
 
     @Test
@@ -372,8 +373,8 @@ public class SimpleValueGraphs implements Serializable {
         var obj = new IdentExt();
         byte[] bytes = serialize(obj);
         byte[] newBytes = patchBytes(bytes, "IdentExt", "ValueExt");
-        var ex = Assert.expectThrows(InvalidClassException.class, () -> deserialize(newBytes));
-        Assert.assertTrue(ex.getMessage().contains("Externalizable not valid for value class"));
+        var ex = Assertions.assertThrows(InvalidClassException.class, () -> deserialize(newBytes));
+        Assertions.assertTrue(ex.getMessage().contains("Externalizable not valid for value class"));
     }
 
     // Exception trying to serialize
@@ -386,10 +387,11 @@ public class SimpleValueGraphs implements Serializable {
         public void readExternal(ObjectInput is) {
 
         }
+        @Serial
         private static final long serialVersionUID = 3L;
     }
 
-    // Not Desrializable or Deserializable, no writeable fields
+    // Not Deserializable or Deserializable, no writeable fields
     static value class ValueExt implements Externalizable {
         public void writeExternal(ObjectOutput is) {
 
@@ -397,7 +399,7 @@ public class SimpleValueGraphs implements Serializable {
         public void readExternal(ObjectInput is) {
 
         }
+        @Serial
         private static final long serialVersionUID = 3L;
-
     }
 }
