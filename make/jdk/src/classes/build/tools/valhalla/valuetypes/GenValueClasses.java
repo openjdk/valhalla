@@ -78,9 +78,11 @@ import static java.util.stream.Collectors.groupingBy;
  *         abstract value classes.
  * </ul>
  */
-@SupportedAnnotationTypes({"jdk.internal.MigratedValueClass"})
+@SupportedAnnotationTypes(GenValueClasses.MIGRATED_VALUE_CLASS_ANNOTATION)
 @SupportedOptions("valueclasses.outdir")
 public final class GenValueClasses extends AbstractProcessor {
+    static final String MIGRATED_VALUE_CLASS_ANNOTATION = "jdk.internal.MigratedValueClass";
+
     // Matches preprocessor option flag in CompileJavaModules.gmk.
     private static final String OUTDIR_OPTION_KEY = "valueclasses.outdir";
 
@@ -115,7 +117,7 @@ public final class GenValueClasses extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
         // We don't have direct access to MigratedValueClass classes here.
         Optional<? extends TypeElement> valueClassAnnotation =
-                getAnnotation(annotations, "jdk.internal.MigratedValueClass");
+                getAnnotation(annotations, MIGRATED_VALUE_CLASS_ANNOTATION);
         if (valueClassAnnotation.isPresent()) {
             getAnnotatedTypes(env, valueClassAnnotation.get()).stream()
                     .collect(groupingBy(this::javaSourceFile))
