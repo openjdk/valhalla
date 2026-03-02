@@ -234,14 +234,6 @@ JRT_END
 
 JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
-#ifdef ASSERT
-  InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
-  assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
-  fieldDescriptor fd;
-  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
-  assert(found, "Field not found");
-  assert(fd.is_flat(), "Field must be flat");
-#endif // ASSERT
 
   FlatFieldPayload payload(instanceOop(obj), entry);
   if (payload.is_payload_null()) {

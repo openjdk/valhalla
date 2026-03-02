@@ -169,6 +169,10 @@ class InlineLayoutInfo : public MetaspaceObj {
 
   static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
   static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
+
+  // Print
+  void print() const;
+  void print_on(outputStream* st) const;
 };
 
 class InstanceKlass: public Klass {
@@ -688,6 +692,9 @@ public:
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
+
+  bool find_local_flat_field_from_offset(int offset, fieldDescriptor* fd) const;
+  bool find_flat_field_from_offset(int offset, fieldDescriptor* fd) const;
 
  private:
   inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
