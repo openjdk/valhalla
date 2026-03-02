@@ -3024,6 +3024,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
   bool has_scalarized_arguments = false;
   bool long_prev = false;
   int long_prev_offset = -1;
+  bool _processing_inline_recv = _has_inline_recv;
 
   fingerprint->iterate_args([&] (const AdapterFingerPrint::Element& arg) {
     BasicType bt = arg.bt();
@@ -3050,7 +3051,10 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
           value_object_count--;
           SigEntry::add_entry(_sig_cc, T_VOID, nullptr, offset);
-          SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+          if (_processing_inline_recv) {
+            SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+            _processing_inline_recv = false;
+          }
           assert(value_object_count >= 0, "invalid value object count");
         } else {
           // Nothing to add for _sig: We already added an addition T_VOID in add_entry() when adding T_LONG or T_DOUBLE.
@@ -3063,7 +3067,11 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           SigEntry::add_entry(_sig, bt);
         }
         SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        if (_processing_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        } else if (value_object_count == 0) {
+          SigEntry::add_entry(_sig_cc_ro, bt);
+        }
         break;
       case T_LONG:
         long_prev = true;
@@ -3077,7 +3085,9 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       case T_ARRAY:
         assert(value_object_count > 0, "must be value object field");
         SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        if (_processing_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        }
         break;
       case T_METADATA:
         assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
@@ -3085,7 +3095,11 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           SigEntry::add_entry(_sig, T_OBJECT);
         }
         SigEntry::add_entry(_sig_cc, T_METADATA, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
+        if (_processing_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
+        } else if (value_object_count == 0) {
+          SigEntry::add_entry(_sig_cc_ro, T_OBJECT);
+        }
         value_object_count++;
         has_scalarized_arguments = true;
         break;
