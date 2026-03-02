@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3508,7 +3508,7 @@ public final class Arrays {
         Class<?> componentType = newType.getComponentType();
         Object tmp = null;
         if (original.getClass() == newType && ValueClass.isConcreteValueClass(componentType)) {
-            tmp = ValueClass.copyOfSpecialArray((Object[])original, 0, newLength);
+            tmp = ValueClass.copyOfSpecialArray((Object[])original, newLength);
         } else {
             tmp = ((Object)newType == (Object)Object[].class)
                 ? new Object[newLength]
@@ -3814,7 +3814,7 @@ public final class Arrays {
         Class<?> componentType = newType.getComponentType();
         Object tmp = null;
         if (original.getClass() == newType && ValueClass.isConcreteValueClass(componentType)) {
-            tmp = ValueClass.copyOfSpecialArray((Object[])original, from, to);
+            tmp = ValueClass.copyOfRangeSpecialArray((Object[])original, from, to);
         } else {
             tmp = ((Object)newType == (Object)Object[].class)
                     ? new Object[newLength]

@@ -67,8 +67,9 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     super_klass_type_for_flat_in_array = super_klass_type->cast_to_exactness(false);
   }
 
-  if (sub_klass_type->is_flat_in_array() && super_klass_type_for_flat_in_array->is_not_flat_in_array()) {
-    // The subtype is in flat arrays and the supertype is not in flat arrays and no subklass can be. Must be unrelated.
+  if ((sub_klass_type->is_flat_in_array() && super_klass_type_for_flat_in_array->is_not_flat_in_array()) ||
+      (super_klass_type_for_flat_in_array->is_flat_in_array() && sub_klass_type->is_not_flat_in_array())) {
+    // The subtype is flat in array and the supertype is not in flat array or vice versa. Cannot subtype and thus unrelated.
     unrelated_classes = true;
   } else if (sub_klass_type->is_not_flat() && super_klass_type->is_flat()) {
     // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.
@@ -220,7 +221,7 @@ bool SubTypeCheckNode::verify(PhaseGVN* phase) {
         return verify_helper(phase, load_klass(phase), cached_t);
       }
       case Compile::SSC_full_test: {
-        Node* p1 = phase->transform(new AddPNode(superklass, superklass, phase->MakeConX(in_bytes(Klass::super_check_offset_offset()))));
+        Node* p1 = phase->transform(new AddPNode(C->top(), superklass, phase->MakeConX(in_bytes(Klass::super_check_offset_offset()))));
         Node* chk_off = phase->transform(new LoadINode(nullptr, C->immutable_memory(), p1, phase->type(p1)->is_ptr(), TypeInt::INT, MemNode::unordered));
         record_for_cleanup(chk_off, phase);
 
@@ -232,7 +233,7 @@ bool SubTypeCheckNode::verify(PhaseGVN* phase) {
 #ifdef _LP64
           chk_off_X = phase->transform(new ConvI2LNode(chk_off_X));
 #endif
-          Node* p2 = phase->transform(new AddPNode(subklass, subklass, chk_off_X));
+          Node* p2 = phase->transform(new AddPNode(C->top(), subklass, chk_off_X));
           Node* nkls = phase->transform(LoadKlassNode::make(*phase, C->immutable_memory(), p2, phase->type(p2)->is_ptr(), TypeInstKlassPtr::OBJECT_OR_NULL));
 
           return verify_helper(phase, nkls, cached_t);

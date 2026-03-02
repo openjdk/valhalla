@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package jdk.internal.value;
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.reflect.Field;
@@ -51,6 +52,19 @@ public final class ValueClass {
     /// This excludes abstract value classes and primitives.
     public static boolean isConcreteValueClass(Class<?> clazz) {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
+    }
+
+    /// {@return whether a field of type `c` can be represented with a payload
+    /// without oops}  For example, primitive type fields and value classes with
+    /// all primitive fields recursively may be represented by a payload of a
+    /// layout without oops.  Returns false if there is no flat layout for a
+    /// field of type `c`.
+    public static boolean hasBinaryPayload(Class<?> c) {
+        // non-concrete value class type field always a reference
+        if (!ValueClass.isConcreteValueClass(c))
+            return c.isPrimitive();
+        // Check the flat layout
+        return Unsafe.getUnsafe().isFlatPayloadBinary(c);
     }
 
     /**
@@ -84,13 +98,30 @@ public final class ValueClass {
     public static native Object[] newNullableAtomicArray(Class<?> componentType,
                                                          int length);
 
+    public static native Object[] newReferenceArray(Class<?> componentType,
+                                                    int length);
+
     /**
      * {@return true if the given array is a flat array}
      */
     @IntrinsicCandidate
     public static native boolean isFlatArray(Object array);
 
-    public static Object[] copyOfSpecialArray(Object[] array, int from, int to) {
+    public static Object[] copyOfSpecialArray(Object[] array, int newLength) {
+        if (newLength < 0) {
+            throw new NegativeArraySizeException("" + newLength);
+        }
+        return copyOfSpecialArray0(array, 0, newLength);
+    }
+
+    public static Object[] copyOfRangeSpecialArray(Object[] array, int from, int to) {
+        int length = array.length;
+        if (from < 0 || from > length) {
+            throw new ArrayIndexOutOfBoundsException("source index " + from + " out of bounds for object array[" + length + "]");
+        }
+        if (from > to) {
+            throw new IllegalArgumentException(from + " > " + to);
+        }
         return copyOfSpecialArray0(array, from, to);
     }
 

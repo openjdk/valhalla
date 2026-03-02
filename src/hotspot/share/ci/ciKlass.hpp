@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,10 +104,6 @@ public:
 
   // Does this type (array, class, interface) have no subtypes?
   virtual bool is_leaf_type() {
-    return false;
-  }
-
-  virtual bool can_be_inline_klass(bool is_exact = false) {
     return false;
   }
 

@@ -37,8 +37,11 @@
 class flatArrayOopDesc : public objArrayOopDesc {
 
  public:
-  void*  base() const;
+  void* base() const;
+  static size_t base_offset_in_bytes();
   void* value_at_addr(int index, jint lh) const;
+  size_t value_offset(int index, jint lh) const;
+  size_t value_offset_from_base(int index, jint lh) const;
 
   inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;
@@ -62,6 +65,10 @@ class flatArrayOopDesc : public objArrayOopDesc {
   }
 
   int object_size(int lh) const;
+
+  // Special iterators for an element index range.
+  template <typename OopClosureType>
+  void oop_iterate_elements_range(OopClosureType* blk, int start, int end);
 
 };
 

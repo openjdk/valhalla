@@ -70,6 +70,14 @@ import static jdk.test.lib.Asserts.*;
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
   static final Unsafe UNSAFE = Unsafe.getUnsafe();
+  static boolean UseArrayFlattening;
+
+  static {
+      RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+      List<String> arguments = runtimeMxBean.getInputArguments();
+      UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
+      System.out.println("UseArrayFlattening: " + UseArrayFlattening);
+  }
 
   @LooselyConsistentValue
   static value class SmallValue {
@@ -425,10 +433,6 @@ public class FlatArraysTest {
 
   static void testArrayAccesses() throws NoSuchMethodException, InstantiationException,
   IllegalAccessException, InvocationTargetException {
-    RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-    List<String> arguments = runtimeMxBean.getInputArguments();
-    boolean UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
-    System.out.println("UseArrayFlattening: " + UseArrayFlattening);
     Class[] valueClasses = {SmallValue.class, MediumValue.class, BigValue.class};
     for (Class c: valueClasses) {
       System.out.println("Testing class " + c.getName());
@@ -564,11 +568,23 @@ public class FlatArraysTest {
     assertEquals(exception, true, "Exception not received");
   }
 
-  public static void main(String[] args) throws NoSuchMethodException, InstantiationException,
+    static value record Value4(short x, short y) {}
+
+    public static void testReferenceArrayCreation() {
+      Value4[] array0 = new Value4[1];
+      assertTrue(ValueClass.isFlatArray(array0) == UseArrayFlattening);
+      Value4[] array1 = (Value4[])ValueClass.newReferenceArray(Value4.class, 1);
+      assertFalse(ValueClass.isFlatArray(array1));
+      Value4[] array2 = new Value4[1];
+      assertTrue(ValueClass.isFlatArray(array2) == UseArrayFlattening);
+    }
+
+    public static void main(String[] args) throws NoSuchMethodException, InstantiationException,
                                                 IllegalAccessException, InvocationTargetException {
     testArrayAccesses();
     testArrayCopy();
     testSpecialArrayCreation();
+    testReferenceArrayCreation();
   }
 
  }

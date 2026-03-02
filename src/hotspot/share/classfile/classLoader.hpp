@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -186,6 +186,7 @@ class ClassLoader: AllStatic {
 
   // Count the time taken to hash the scondary superclass arrays.
   static PerfCounter* _perf_secondary_hash_time;
+  static PerfCounter* _perf_change_wx_time;
 
   // The boot class path consists of 3 ordered pieces:
   //  1. the module/path pairs specified to --patch-module
@@ -270,6 +271,9 @@ class ClassLoader: AllStatic {
   static PerfCounter* perf_secondary_hash_time() {
     return _perf_secondary_hash_time;
   }
+  static PerfCounter* perf_change_wx_time() {
+    return _perf_change_wx_time;
+  }
   static PerfCounter* perf_sys_classload_time()       { return _perf_sys_classload_time; }
   static PerfCounter* perf_app_classload_time()       { return _perf_app_classload_time; }
   static PerfCounter* perf_app_classload_selftime()   { return _perf_app_classload_selftime; }
@@ -331,7 +335,7 @@ class ClassLoader: AllStatic {
   // loaded system packages.
   // Note: The package names returned are "/"-separated and end with a
   // trailing "/".
-  static objArrayOop get_system_packages(TRAPS);
+  static refArrayOop get_system_packages(TRAPS);
 
   // Initialization
   static void initialize(TRAPS);

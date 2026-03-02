@@ -44,7 +44,10 @@
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/flatArrayKlass.inline.hpp"
+#include "oops/oopCast.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/debug.hpp"
 
 PaddedEnd<PSPromotionManager>* PSPromotionManager::_manager_array = nullptr;
 PSPromotionManager::PSScannerTasksQueueSet* PSPromotionManager::_stack_array_depth = nullptr;
@@ -249,48 +252,36 @@ void PSPromotionManager::flush_labs() {
   }
 }
 
-template <class T>
-void PSPromotionManager::process_array_chunk_work(oop obj, int start, int end) {
-  assert(start <= end, "invariant");
-  T* const base      = (T*)objArrayOop(obj)->base();
-  T* p               = base + start;
-  T* const chunk_end = base + end;
-  while (p < chunk_end) {
-    claim_or_forward_depth(p);
-    ++p;
-  }
+void PSPromotionManager::process_array_chunk(objArrayOop obj, size_t start, size_t end) {
+  PSPushContentsClosure pcc(this);
+  obj->oop_iterate_elements_range(&pcc,
+                                  checked_cast<int>(start),
+                                  checked_cast<int>(end));
 }
 
 void PSPromotionManager::process_array_chunk(PartialArrayState* state, bool stolen) {
   // Access before release by claim().
-  oop new_obj = state->destination();
+  objArrayOop to_array = oop_cast<objArrayOop>(state->destination());
+  precond(to_array->is_array_with_oops());
+
   PartialArraySplitter::Claim claim =
     _partial_array_splitter.claim(state, &_claimed_stack_depth, stolen);
-  int start = checked_cast<int>(claim._start);
-  int end = checked_cast<int>(claim._end);
-  if (UseCompressedOops) {
-    process_array_chunk_work<narrowOop>(new_obj, start, end);
-  } else {
-    process_array_chunk_work<oop>(new_obj, start, end);
-  }
+
+  process_array_chunk(to_array, claim._start, claim._end);
 }
 
 void PSPromotionManager::push_objArray(oop old_obj, oop new_obj) {
   assert(old_obj->is_forwarded(), "precondition");
   assert(old_obj->forwardee() == new_obj, "precondition");
-  assert(new_obj->is_objArray(), "precondition");
+  precond(new_obj->is_array_with_oops());
 
   objArrayOop to_array = objArrayOop(new_obj);
   size_t array_length = to_array->length();
   size_t initial_chunk_size =
     // The source array is unused when processing states.
     _partial_array_splitter.start(&_claimed_stack_depth, nullptr, to_array, array_length);
-  int end = checked_cast<int>(initial_chunk_size);
-  if (UseCompressedOops) {
-    process_array_chunk_work<narrowOop>(to_array, 0, end);
-  } else {
-    process_array_chunk_work<oop>(to_array, 0, end);
-  }
+
+  process_array_chunk(to_array, 0, initial_chunk_size);
 }
 
 oop PSPromotionManager::oop_promotion_failed(oop obj, markWord obj_mark) {

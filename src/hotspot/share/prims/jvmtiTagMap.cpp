@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,12 +37,15 @@
 #include "oops/arrayOop.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiImpl.hpp"
@@ -289,7 +292,9 @@ public:
     for (int i = 0; i < _entries.length(); i++) {
       EXCEPTION_MARK;
       Entry& entry = _entries.at(i);
-      oop obj = entry.inline_klass->read_payload_from_addr(entry.holder(), entry.offset, entry.layout_kind, JavaThread::current());
+      FlatValuePayload payload = FlatValuePayload::construct_from_parts(
+          entry.holder(), entry.offset, entry.inline_klass, entry.layout_kind);
+      oop obj = payload.read(JavaThread::current());
 
       if (HAS_PENDING_EXCEPTION) {
         tty->print_cr("Exception in JvmtiTagMapFlatEntryConverter: ");
@@ -2881,10 +2886,10 @@ VM_HeapWalkOperation::~VM_HeapWalkOperation() {
 // each element in the array
 inline bool VM_HeapWalkOperation::iterate_over_array(const JvmtiHeapwalkObject& o) {
   assert(!o.is_flat(), "Array object cannot be flattened");
-  objArrayOop array = objArrayOop(o.obj());
+  refArrayOop array = oop_cast<refArrayOop>(o.obj());
 
   // array reference to its class
-  oop mirror = ObjArrayKlass::cast(array->klass())->java_mirror();
+  oop mirror = RefArrayKlass::cast(array->klass())->java_mirror();
   if (!CallbackInvoker::report_class_reference(o, mirror)) {
     return false;
   }

@@ -252,7 +252,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
 
   // Extract the array element class
   int element_klass_offset = in_bytes(ObjArrayKlass::element_klass_offset());
-  Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
+  Node* p2 = basic_plus_adr(top(), array_klass, element_klass_offset);
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast

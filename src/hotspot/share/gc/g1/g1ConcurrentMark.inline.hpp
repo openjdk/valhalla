@@ -90,7 +90,7 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
 
   size_t num_chunks = 0;
 
-  TaskQueueEntryChunk* cur = _chunk_list;
+  TaskQueueEntryChunk* cur = _chunk_list.load_relaxed();
   while (cur != nullptr) {
     guarantee(num_chunks <= _chunks_in_chunk_list, "Found %zu oop chunks which is more than there should be", num_chunks);
 
@@ -182,24 +182,24 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool 
 }
 
 inline bool G1CMTask::should_be_sliced(oop obj) {
-  return obj->is_refArray() && ((refArrayOop)obj)->length() >= (int)ObjArrayMarkingStride;
+  return obj->is_array_with_oops() && ((objArrayOop)obj)->length() >= (int)ObjArrayMarkingStride;
 }
 
 inline void G1CMTask::process_array_chunk(objArrayOop obj, size_t start, size_t end) {
-  assert(obj->is_refArray(), "Must be");
-  refArrayOop(obj)->oop_iterate_elements_range(_cm_oop_closure,
-                                               checked_cast<int>(start),
-                                               checked_cast<int>(end));
+  precond(obj->is_array_with_oops());
+  obj->oop_iterate_elements_range(_cm_oop_closure,
+                                  checked_cast<int>(start),
+                                  checked_cast<int>(end));
 }
 
 inline void G1ConcurrentMark::update_top_at_mark_start(G1HeapRegion* r) {
   uint const region = r->hrm_index();
   assert(region < _g1h->max_num_regions(), "Tried to access TAMS for region %u out of bounds", region);
-  _top_at_mark_starts[region] = r->top();
+  _top_at_mark_starts[region].store_relaxed(r->top());
 }
 
 inline void G1ConcurrentMark::reset_top_at_mark_start(G1HeapRegion* r) {
-  _top_at_mark_starts[r->hrm_index()] = r->bottom();
+  _top_at_mark_starts[r->hrm_index()].store_relaxed(r->bottom());
 }
 
 inline HeapWord* G1ConcurrentMark::top_at_mark_start(const G1HeapRegion* r) const {
@@ -208,7 +208,7 @@ inline HeapWord* G1ConcurrentMark::top_at_mark_start(const G1HeapRegion* r) cons
 
 inline HeapWord* G1ConcurrentMark::top_at_mark_start(uint region) const {
   assert(region < _g1h->max_num_regions(), "Tried to access TARS for region %u out of bounds", region);
-  return _top_at_mark_starts[region];
+  return _top_at_mark_starts[region].load_relaxed();
 }
 
 inline bool G1ConcurrentMark::obj_allocated_since_mark_start(oop obj) const {
@@ -218,7 +218,7 @@ inline bool G1ConcurrentMark::obj_allocated_since_mark_start(oop obj) const {
 }
 
 inline HeapWord* G1ConcurrentMark::top_at_rebuild_start(G1HeapRegion* r) const {
-  return _top_at_rebuild_starts[r->hrm_index()];
+  return _top_at_rebuild_starts[r->hrm_index()].load_relaxed();
 }
 
 inline void G1ConcurrentMark::update_top_at_rebuild_start(G1HeapRegion* r) {
@@ -226,10 +226,10 @@ inline void G1ConcurrentMark::update_top_at_rebuild_start(G1HeapRegion* r) {
 
   uint const region = r->hrm_index();
   assert(region < _g1h->max_num_regions(), "Tried to access TARS for region %u out of bounds", region);
-  assert(_top_at_rebuild_starts[region] == nullptr,
+  assert(top_at_rebuild_start(r) == nullptr,
          "TARS for region %u has already been set to " PTR_FORMAT " should be null",
-         region, p2i(_top_at_rebuild_starts[region]));
-  _top_at_rebuild_starts[region] = r->top();
+         region, p2i(top_at_rebuild_start(r)));
+  _top_at_rebuild_starts[region].store_relaxed(r->top());
 }
 
 inline void G1CMTask::update_liveness(oop const obj, const size_t obj_size) {

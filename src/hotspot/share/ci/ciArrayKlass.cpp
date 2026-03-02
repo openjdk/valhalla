@@ -120,17 +120,17 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 }
 
 bool ciArrayKlass::is_elem_null_free() const {
-  ArrayKlass::ArrayProperties props = properties();
-  assert(props != ArrayKlass::INVALID, "meaningless");
-  return ArrayKlass::is_null_restricted(props);
+  ArrayProperties props = properties();
+  assert(props.is_valid(), "meaningless");
+  return props.is_null_restricted();
 }
 
 bool ciArrayKlass::is_elem_atomic() const {
-  ArrayKlass::ArrayProperties props = properties();
-  assert(props != ArrayKlass::INVALID, "meaningless");
-  return !ArrayKlass::is_non_atomic(props);
+  ArrayProperties props = properties();
+  assert(props.is_valid(), "meaningless");
+  return !props.is_non_atomic();
 }
 
-ArrayKlass::ArrayProperties ciArrayKlass::properties() const {
+ArrayProperties ciArrayKlass::properties() const {
   GUARDED_VM_ENTRY(return ArrayKlass::cast(get_Klass())->properties();)
 }

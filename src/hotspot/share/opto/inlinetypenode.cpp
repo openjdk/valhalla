@@ -661,7 +661,7 @@ bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
       if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
         return false;
       }
-    } else if (!ft->is_primitive_type() && ft->as_klass()->can_be_inline_klass()) {
+    } else if (ft->can_be_inline_klass()) {
       // Comparing this field might require (another) substitutability check, bail out
       return false;
     }
@@ -759,7 +759,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
       done_region->add_req(*ctrl);
       *ctrl = igvn->register_new_node_with_optimizer(done_region);
     } else {
-      assert(ft->is_primitive_type() || !ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
+      assert(!ft->can_be_inline_klass(), "Needs substitutability test");
       acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, this_field, other_field);
     }
   }
@@ -845,6 +845,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   vt->set_oop(kit->gvn(), res_oop);
   vt->set_is_buffered(kit->gvn());
   vt = kit->gvn().transform(vt)->as_InlineType();
+  kit->record_for_igvn(vt);
   if (safe_for_replace) {
     kit->replace_in_map(this, vt);
   }
@@ -1658,9 +1659,7 @@ bool LoadFlatNode::expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const {
     return false;
   }
 
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
     if (proj_out == nullptr) {
@@ -1705,9 +1704,7 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     return false;
   }
 
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
 
@@ -1751,9 +1748,7 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
 
 void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   assert(igvn.delay_transform(), "transformation must be delayed");
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
 
@@ -1918,9 +1913,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     return false;
   }
 
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
   InlineTypeNode* value = this->value();
@@ -1962,9 +1955,7 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   // 64-bit because the next smaller (power-of-two) size would be 32-bit which could only hold one narrow oop that
   // would then be written by a normal narrow oop store. These properties are asserted in 'convert_to_payload'.
   assert(igvn.delay_transform(), "transformation must be delayed");
-  GraphKit kit(jvms(), &igvn);
-  kit.set_all_memory(kit.reset_memory());
-
+  GraphKit kit(this, igvn);
   Node* base = this->base();
   Node* ptr = this->ptr();
   InlineTypeNode* value = this->value();
