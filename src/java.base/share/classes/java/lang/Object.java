@@ -651,6 +651,13 @@ public class Object {
      * This method will remain in place until finalizers have been removed from
      * most existing code.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          this method will never be invoked by the garbage collector.
+     *      </div>
+     * </div>
+     *
      * @throws Throwable the {@code Exception} raised by this method
      * @see java.lang.ref.WeakReference
      * @see java.lang.ref.PhantomReference
