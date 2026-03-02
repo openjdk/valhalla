@@ -95,13 +95,14 @@ public final class GenValueClasses extends AbstractProcessor {
         super.init(processingEnv);
         this.processingEnv = processingEnv;
         String outDir = this.processingEnv.getOptions().get(OUTDIR_OPTION_KEY);
-        if (outDir == null) {
-            throw new IllegalStateException(
-                    "Must specify -A" + OUTDIR_OPTION_KEY + "=<output-directory-path>"
-                            + " for annotation processor: " + GenValueClasses.class.getName());
+        if (outDir != null) {
+            // No need to convert '/' for Windows in build tools.
+            this.outDir = Path.of(outDir);
+            this.trees = Trees.instance(this.processingEnv);
+        } else {
+            processingEnv.getMessager().printError(
+                    "Must specify -A" + OUTDIR_OPTION_KEY + "=<output-directory-path>");
         }
-        this.outDir = Path.of(outDir.replace('/', File.separatorChar));
-        this.trees = Trees.instance(this.processingEnv);
     }
 
     /**
@@ -115,13 +116,16 @@ public final class GenValueClasses extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
-        // We don't have direct access to MigratedValueClass classes here.
-        Optional<? extends TypeElement> valueClassAnnotation =
-                getAnnotation(annotations, MIGRATED_VALUE_CLASS_ANNOTATION);
-        if (valueClassAnnotation.isPresent()) {
-            getAnnotatedTypes(env, valueClassAnnotation.get()).stream()
-                    .collect(groupingBy(this::javaSourceFile))
-                    .forEach(this::generateValueClassSource);
+        // Don't do anything if there was an error in init().
+        if (outDir != null) {
+            // We don't have direct access to MigratedValueClass classes here.
+            Optional<? extends TypeElement> valueClassAnnotation =
+                    getAnnotation(annotations, MIGRATED_VALUE_CLASS_ANNOTATION);
+            if (valueClassAnnotation.isPresent()) {
+                getAnnotatedTypes(env, valueClassAnnotation.get()).stream()
+                        .collect(groupingBy(this::javaSourceFile))
+                        .forEach(this::generateValueClassSource);
+            }
         }
         // We may not be the only annotation processor to consume this annotation.
         return false;
