@@ -132,24 +132,25 @@ public final class GenValueClasses extends AbstractProcessor {
     }
 
     /** Find the annotation element by name in the given set. */
-    private static Optional<? extends TypeElement> getAnnotation(Set<? extends TypeElement> annotations, String name) {
+    private static Optional<? extends TypeElement> getAnnotation(
+            Set<? extends TypeElement> annotations, String name) {
         return annotations.stream()
                 .filter(e -> e.getQualifiedName().toString().equals(name))
                 .findFirst();
     }
 
     /** Find the type elements (classes) annotated with the given annotation element. */
-    private static Set<TypeElement> getAnnotatedTypes(RoundEnvironment env, TypeElement annotation) {
+    private Set<TypeElement> getAnnotatedTypes(RoundEnvironment env, TypeElement annotation) {
         Set<TypeElement> types = new HashSet<>();
         for (Element e : env.getElementsAnnotatedWith(annotation)) {
             if (!e.getKind().isClass()) {
-                throw new IllegalStateException(
-                        "Unexpected element kind (" + e.getKind() + ") for element: " + e);
+                processingEnv.getMessager().printError("Unexpected element kind (" + e.getKind() + ")", e);
+                continue;
             }
             TypeElement type = (TypeElement) e;
             if (type.getQualifiedName().isEmpty()) {
-                throw new IllegalStateException(
-                        "Unexpected empty name for element: " + e);
+                processingEnv.getMessager().printError("Unexpected empty name", e);
+                continue;
             }
             types.add(type);
         }
@@ -162,11 +163,11 @@ public final class GenValueClasses extends AbstractProcessor {
      * annotated type element.
      */
     private void generateValueClassSource(Path srcPath, List<TypeElement> classes) {
+        // We know there's at least one element per source file (by construction).
+        TypeElement classElement = classes.getFirst();
+        Path relPath = moduleRelativePath(srcPath, packageName(classElement));
+        Path outPath = outDir.resolve(moduleName(classElement)).resolve(relPath);
         try {
-            // We know there's at least one element per source file (by construction).
-            TypeElement element = classes.getFirst();
-            Path relPath = moduleRelativePath(srcPath, packageName(element));
-            Path outPath = outDir.resolve(moduleName(element)).resolve(relPath);
             Files.createDirectories(outPath.getParent());
 
             List<Long> insertPositions =
@@ -194,6 +195,7 @@ public final class GenValueClasses extends AbstractProcessor {
                 reader.transferTo(output);
             }
         } catch (IOException e) {
+            processingEnv.getMessager().printError("Failed to write value class source: " + outPath);
             throw new RuntimeException(e);
         }
     }
@@ -226,12 +228,12 @@ public final class GenValueClasses extends AbstractProcessor {
         return relPath;
     }
 
-    private String moduleName(TypeElement t) {
-        return processingEnv.getElementUtils().getModuleOf(t).getQualifiedName().toString();
+    private String moduleName(TypeElement type) {
+        return processingEnv.getElementUtils().getModuleOf(type).getQualifiedName().toString();
     }
 
-    private String packageName(TypeElement t) {
-        return processingEnv.getElementUtils().getPackageOf(t).getQualifiedName().toString();
+    private String packageName(TypeElement type) {
+        return processingEnv.getElementUtils().getPackageOf(type).getQualifiedName().toString();
     }
 
     private Path javaSourceFile(TypeElement type) {
