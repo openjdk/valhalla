@@ -84,11 +84,7 @@ public class ValueComparisonTest {
         }
         System.out.println("Random seed for class generation: " + seed);
         var gen = new ValueClassGenerator(seed, 256);
-        gen.generatePrimitiveTypes();
-        gen.generateValueClasses(256);
-        gen.printStatistics();
-        gen.writeValueClasses();
-        gen.compileValueClasses();
+        gen.generateAll();
         for (String classname : gen.getValueClassesNames()) {
             runSubstitutabilityTest(classname);
         }

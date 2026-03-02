@@ -42,8 +42,8 @@ public class ValueClassGenerator {
     final int NUM_PREDEFINED_VALUES;
     final Random random;
     ArrayList<PrimitiveDesc> primitiveTypes = new ArrayList<>();
-    ArrayList<ClassDesc> valueTypes = new ArrayList<>();
-    ArrayList<TypeDesc> allTypes = new ArrayList<>();
+    ArrayList<ValueClassDesc> valueTypes = new ArrayList<>();
+    ArrayList<TypeDesc> referenceTypes = new ArrayList<>();
     static String classTemplate;
 
     static {
@@ -57,7 +57,7 @@ public class ValueClassGenerator {
 
     public ArrayList<String> getValueClassesNames() {
         ArrayList<String> res  = new ArrayList<>(valueTypes.size());
-        for (ClassDesc cd : valueTypes) {
+        for (ValueClassDesc cd : valueTypes) {
             res.add(cd.typeName);
         }
         return res;
@@ -276,7 +276,10 @@ public class ValueClassGenerator {
             doubleVals[i] = s;
         }
         primitiveTypes.add(new PrimitiveDesc("double", false, doubleVals));
-        allTypes.addAll(primitiveTypes);
+    }
+
+    void generateStringClass() {
+        referenceTypes.add(new StringClassDesc());
     }
 
     void printPredefinedPrimitiveValues() {
@@ -302,11 +305,23 @@ public class ValueClassGenerator {
         }
     }
 
-    public class ClassDesc extends TypeDesc {
-        ClassDesc superClass;
+    public class StringClassDesc extends TypeDesc {
+        StringClassDesc() {
+            super("String", false);
+        }
+
+        public String getPrecomputedValueAsString(int i) {
+            return "\"" + Integer.toString(i) + "\"";
+        }
+
+        public boolean isPrimitiveType() { return false; }
+    }
+
+    public class ValueClassDesc extends TypeDesc {
+        ValueClassDesc superClass;
         ArrayList<FieldDesc> fields;
 
-        public ClassDesc(String name, boolean allowDuplicates, ArrayList<FieldDesc> fields) {
+        public ValueClassDesc(String name, boolean allowDuplicates, ArrayList<FieldDesc> fields) {
             super(name, allowDuplicates);
             this.fields = fields;
             superClass = null; // no inheritance yet
@@ -397,8 +412,8 @@ public class ValueClassGenerator {
          }
     }
 
-    ClassDesc generateValueClass(int n) {
-            String name = "ValueClass"+n;
+    ValueClassDesc generateValueClass(int n) {
+        String name = "ValueClass"+n;
         int nfields = n == 0 ? 0 : randomFieldNumber(); // always create the empty value as Value0
         int nPrimitive = 0;
         int nValues = 0;
@@ -418,21 +433,21 @@ public class ValueClassGenerator {
         }
         for (int i = nPrimitive; i < nfields; i++) {
             String fieldName = "field"+i;
-            TypeDesc fieldType = valueTypes.get(random.nextInt(valueTypes.size()));
+            TypeDesc fieldType = referenceTypes.get(random.nextInt(referenceTypes.size()));
             if (fieldType.allowDuplicates) allowDuplicates = true;
             String initval = fieldType.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
             FieldDesc fd = new FieldDesc(fieldName, fieldType, initval);
             fields.add(fd);
         }
-        ClassDesc cd = new ClassDesc(name, allowDuplicates, fields);
+        ValueClassDesc cd = new ValueClassDesc(name, allowDuplicates, fields);
         return cd;
     }
 
     void generateValueClasses(int n) {
         for (int i = 0; i < n; i++) {
-            ClassDesc c = generateValueClass(i);
+            ValueClassDesc c = generateValueClass(i);
             valueTypes.add(c);
-            allTypes.add(c);
+            referenceTypes.add(c);
         }
     }
 
@@ -449,7 +464,7 @@ public class ValueClassGenerator {
         int[] primOnly = new int[FIELDS_BUCKETS];
         int[] valOnly = new int[FIELDS_BUCKETS];
         int[] mixed = new int[FIELDS_BUCKETS];
-        for (ClassDesc cd : valueTypes) {
+        for (ValueClassDesc cd : valueTypes) {
             int n = cd.fields.size();
             if (n > FIELDS_BUCKETS - 1) n = FIELDS_BUCKETS - 1;
             numberOfFields[n]++;
@@ -480,7 +495,7 @@ public class ValueClassGenerator {
     }
 
     void writeValueClasses() {
-        for (ClassDesc cd : valueTypes) {
+        for (ValueClassDesc cd : valueTypes) {
             String filename = cd.typeName + ".java";
             try (PrintWriter out = new PrintWriter(filename)) {
                 out.println(cd.generateSource());
@@ -518,6 +533,15 @@ public class ValueClassGenerator {
 
     }
 
+    public void generateAll() {
+        generatePrimitiveTypes();
+        generateStringClass();
+        generateValueClasses(256);
+        printStatistics();
+        writeValueClasses();
+        compileValueClasses();
+    }
+
     public ValueClassGenerator(long seed, int nPredefined) {
         random = new Random(seed);
         NUM_PREDEFINED_VALUES = nPredefined;
@@ -536,11 +560,6 @@ public class ValueClassGenerator {
         }
         System.out.println("Random seed for class generation: " + seed);
         var gen = new ValueClassGenerator(seed, 8);
-        gen.generatePrimitiveTypes();
-        gen.generateValueClasses(10);
-        gen.compileValueClasses();
-        // System.out.println(valueTypes.get(50).generateSource());
-        gen.printStatistics();
-        gen.writeValueClasses();
+        gen.generateAll();
     }
 }

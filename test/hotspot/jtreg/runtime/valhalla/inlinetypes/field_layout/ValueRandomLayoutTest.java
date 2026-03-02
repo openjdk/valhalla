@@ -165,11 +165,7 @@ public class ValueRandomLayoutTest {
       seed += i;
       System.out.println("Random seed for class generation: " + seed);
       var gen = new ValueClassGenerator(seed, 256);
-      gen.generatePrimitiveTypes();
-      gen.generateValueClasses(256);
-      gen.printStatistics();
-      gen.writeValueClasses();
-      gen.compileValueClasses();
+      gen.generateAll();
 
       String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
       String[] testArgs = new String[classNames.length+1];
