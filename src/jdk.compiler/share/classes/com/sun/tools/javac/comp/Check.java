@@ -5317,10 +5317,10 @@ public class Check {
             // innocuous.
 
             // private void writeObject(ObjectOutputStream stream) throws IOException
-            return isPrivateNonStaticMethod(tree, method) &&
-                    isExpectedReturnType(tree, method, syms.voidType, true) &&
-                    hasExpectedArg(tree, method, syms.objectOutputStreamType) &&
-                    hasExpectedExceptions(tree, method, true, syms.ioExceptionType) &&
+            return isPrivateNonStaticMethod(tree, method) &  // no short-circuit we need to evaluate all
+                    isExpectedReturnType(tree, method, syms.voidType, true) &
+                    hasExpectedArg(tree, method, syms.objectOutputStreamType) &
+                    hasExpectedExceptions(tree, method, true, syms.ioExceptionType) &
                     checkExternalizable(tree, e, method);
         }
 
@@ -5330,9 +5330,9 @@ public class Check {
 
             // Excluding abstract, could have a more complicated
             // rule based on abstract-ness of the class
-            return isConcreteInstanceMethod(tree, method, warn) &&
-                    isExpectedReturnType(tree, method, syms.objectType, warn) &&
-                    hasNoArgs(tree, method, warn) &&
+            return isConcreteInstanceMethod(tree, method, warn) &  // no short-circuit we need to evaluate all
+                    isExpectedReturnType(tree, method, syms.objectType, warn) &
+                    hasNoArgs(tree, method, warn) &
                     hasExpectedExceptions(tree, method, warn, syms.objectStreamExceptionType);
         }
 
@@ -5343,19 +5343,19 @@ public class Check {
 
             // private void readObject(ObjectInputStream stream)
             //   throws IOException, ClassNotFoundException
-            return isPrivateNonStaticMethod(tree, method) &&
-                    isExpectedReturnType(tree, method, syms.voidType, true) &&
-                    hasExpectedArg(tree, method, syms.objectInputStreamType) &&
-                    hasExpectedExceptions(tree, method, true, syms.ioExceptionType, syms.classNotFoundExceptionType) &&
+            return isPrivateNonStaticMethod(tree, method) & // no short-circuit we need to evaluate all
+                    isExpectedReturnType(tree, method, syms.voidType, true) &
+                    hasExpectedArg(tree, method, syms.objectInputStreamType) &
+                    hasExpectedExceptions(tree, method, true, syms.ioExceptionType, syms.classNotFoundExceptionType) &
                     checkExternalizable(tree, e, method);
         }
 
         private boolean hasAppropriateReadObjectNoData(JCClassDecl tree, Element e, MethodSymbol method) {
             // private void readObjectNoData() throws ObjectStreamException
-            return isPrivateNonStaticMethod(tree, method) &&
-                    isExpectedReturnType(tree, method, syms.voidType, true) &&
-                    hasNoArgs(tree, method, true) &&
-                    hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType) &&
+            return isPrivateNonStaticMethod(tree, method) &
+                    isExpectedReturnType(tree, method, syms.voidType, true) &
+                    hasNoArgs(tree, method, true) &
+                    hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType) &
                     checkExternalizable(tree, e, method);
         }
 
@@ -5365,9 +5365,9 @@ public class Check {
 
             // Excluding abstract, could have a more complicated
             // rule based on abstract-ness of the class
-            return isConcreteInstanceMethod(tree, method, true) &&
-                    isExpectedReturnType(tree, method, syms.objectType, true) &&
-                    hasNoArgs(tree, method, true) &&
+            return isConcreteInstanceMethod(tree, method, true) & // no short-circuit we need to evaluate all
+                    isExpectedReturnType(tree, method, syms.objectType, true) &
+                    hasNoArgs(tree, method, true) &
                     hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType);
         }
 
