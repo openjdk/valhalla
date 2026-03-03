@@ -29,6 +29,7 @@ include MakeFileStart.gmk
 
 include JavaCompilation.gmk
 include Modules.gmk
+include ToolsJdk.gmk
 
 include CopyFiles.gmk
 
@@ -77,9 +78,10 @@ ifeq ($(MODULE), java.base)
     PREPROCESSOR_FLAGS := \
         -Xlint:-removal -Xlint:-processing \
         -Avalueclasses.outdir=$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses \
-        -processor build.tools.valhalla.valuetypes.GenValueClasses
+        -processor $(VALUETYPE_GENSRC_PROCESSOR_NAME)
 
-    PROCESSOR_PATH += $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes
+    PROCESSOR_PATH += $(VALUETYPE_GENSRC_PROCESSOR_PATH)
+    EXTRA_DEPS += $(VALUETYPE_GENSRC_PROCESSOR_DEP)
 endif
 
 ################################################################################
@@ -121,6 +123,7 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     MODULE := $(MODULE), \
     SRC := $(wildcard $(MODULE_SRC_DIRS)), \
     INCLUDES := $(JDK_USER_DEFINED_FILTER), \
+    EXTRA_DEPS := $(EXTRA_DEPS), \
     FAIL_NO_SRC := $(FAIL_NO_SRC), \
     BIN := $(COMPILATION_OUTPUTDIR), \
     HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
@@ -170,6 +173,7 @@ ifneq ($(COMPILER), bootjdk)
         MODULE := $(MODULE), \
         SRC := $(wildcard $(MODULE_PREVIEW_SRC_DIRS)), \
         INCLUDES := $(JDK_USER_DEFINED_FILTER), \
+        EXTRA_DEPS := $(VALUETYPE_GENSRC_PROCESSOR_DEP), \
         FAIL_NO_SRC := $(FAIL_NO_SRC), \
         BIN := $(TEMP_OUTPUTDIR)/, \
         HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
