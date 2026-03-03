@@ -456,12 +456,10 @@ void ObjectSynchronizer::jni_enter(Handle obj, JavaThread* current) {
 
   if (obj->klass()->is_inline_klass()) {
     ResourceMark rm(THREAD);
-    const char* desc = "Cannot synchronize on an instance of value class ";
-    const char* className = obj->klass()->external_name();
-    size_t msglen = strlen(desc) + strlen(className) + 1;
-    char* message = NEW_RESOURCE_ARRAY(char, msglen);
-    assert(message != nullptr, "NEW_RESOURCE_ARRAY should have called vm_exit_out_of_memory and not return nullptr");
-    THROW_MSG(vmSymbols::java_lang_IdentityException(), className);
+    stringStream ss;
+    ss.print("Cannot synchronize on an instance of value class %s",
+             obj->klass()->external_name());
+    THROW_MSG(vmSymbols::java_lang_IdentityException(), ss.as_string());
   }
 
   // the current locking is from JNI instead of Java code
