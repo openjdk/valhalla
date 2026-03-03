@@ -2565,9 +2565,13 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           const Type* at = di.current_domain_cc();
           Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
+          assert(!call_analyzer->is_arg_returned(k) || !meth->is_scalarized_arg(k) ||
+                 di.i_domain_cc() - di.first_field_pos() - di.null_markers() == 0 ||
+                 call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1) == nullptr ||
+                 _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1)) == at,
+                 "");
           if (at->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(k) ) {
-
             // The call returns arguments.
             if (meth->is_scalarized_arg(k)) {
               ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1);
