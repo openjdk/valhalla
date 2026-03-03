@@ -50,7 +50,7 @@ import jdk.test.lib.Asserts;
  * @requires vm.hasJFR
  * @enablePreview
  * @library /test/lib
- * @run main/othervm -XX:CompileCommand=exclude,jdk.jfr.event.profiling.TestNeedStackRepair::start jdk.jfr.event.profiling.TestNeedStackRepair
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:CompileCommand=exclude,jdk.jfr.event.profiling.TestNeedStackRepair::start jdk.jfr.event.profiling.TestNeedStackRepair
  */
 public class TestNeedStackRepair {
     static final AtomicBoolean found = new AtomicBoolean();
