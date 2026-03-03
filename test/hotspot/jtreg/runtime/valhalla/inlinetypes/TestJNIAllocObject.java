@@ -25,14 +25,13 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-
 /*
  * @test
  * @summary Test JNI AllocObject with inline types
- * @library /testlibrary /test/lib
+ * @library /test/lib
  * @enablePreview
- * @compile TestJNIAllocObject.java
- * @run main/othervm/native -Xcheck:jni runtime.valhalla.inlinetypes.TestJNIAllocObject
+ * @run main/othervm/native --enable-native-access=ALL-UNNAMED -Xcheck:jni
+ *                          runtime.valhalla.inlinetypes.TestJNIAllocObject
  */
 public class TestJNIAllocObject {
 
@@ -41,14 +40,9 @@ public class TestJNIAllocObject {
 
         public Value(int i) {
             this.i = i;
-            super();
-            setI(this, 3);
         }
     }
 
-    static record Point(int x, int y) { }
-
-    native static void setI(Value v, int i);
     native static Object allocObject(Class<?> target);
 
     static {
@@ -57,10 +51,7 @@ public class TestJNIAllocObject {
 
     public static void main(String[] args) {
         Value v1 = (Value) allocObject(Value.class);
-        System.out.println(v1.i);
-        // Point p1 = (Point) allocObject(Point.class);
-        // System.out.println("(" + p1.x + ", " + p1.y + ")");
-        Value v2 = new Value(2);
-        System.out.println(v2.i);
+        Asserts.assertTrue(v1.i == 0, "Unexpected field value " + v1.i +
+                                      " after JNI AllocObject");
     }
 }
