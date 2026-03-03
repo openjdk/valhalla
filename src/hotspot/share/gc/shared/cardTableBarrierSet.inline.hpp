@@ -125,8 +125,9 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
   if ((!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) &&
       (!HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value)) {
     // Optimized covariant case
-    bs->write_ref_array_pre(dst_raw, length,
-                            HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value);
+    if (!HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
+      bs->write_ref_array_pre(dst_raw, length);
+    }
     Raw::oop_arraycopy(nullptr, 0, src_raw, nullptr, 0, dst_raw, length);
     bs->write_ref_array((HeapWord*)dst_raw, length);
   } else {
@@ -180,23 +181,24 @@ value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
     const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
-    // Pre-barriers...
-    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
-    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
-    bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
-    while (map != end) {
-      address doop_address = oop_map_adjusted_dst_addr + map->offset();
-      // The pre-barrier only impacts G1, which will emit a barrier if the destination is
-      // initialized. Note that we should not emit a barrier if the destination is uninitialized,
-      // as doing so will fill the SATB queue with garbage data.
-      bs->write_ref_array_pre((OopType*) doop_address, map->count(), is_uninitialized);
-      map++;
+    if (!HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
+      // Pre-barriers...
+      OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+      OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+
+      while (map != end) {
+        address doop_address = oop_map_adjusted_dst_addr + map->offset();
+
+        bs->write_ref_array_pre((OopType*) doop_address, map->count());
+        map++;
+      }
     }
 
     Raw::value_copy(src, dst);
 
     // Post-barriers...
-    map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
     while (map != end) {
       address doop_address = oop_map_adjusted_dst_addr + map->offset();
       // The post-barrier needs to be called for initialized and uninitialized destinations.
@@ -220,23 +222,22 @@ value_store_null_in_heap(const ValuePayload& dst) {
     const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
-    // Pre-barriers...
-    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
-    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
-    bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
-    while (map != end) {
-      address doop_address = oop_map_adjusted_dst_addr + map->offset();
-      // The pre-barrier only impacts G1, which will emit a barrier if the destination is
-      // initialized. Note that we should not emit a barrier if the destination is uninitialized,
-      // as doing so will fill the SATB queue with garbage data.
-      bs->write_ref_array_pre((OopType*) doop_address, map->count(), is_uninitialized);
-      map++;
+    if (!HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
+      // Pre-barriers...
+      OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+      OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+      while (map != end) {
+        address doop_address = oop_map_adjusted_dst_addr + map->offset();
+        bs->write_ref_array_pre((OopType*) doop_address, map->count());
+        map++;
+      }
     }
 
     Raw::value_store_null(dst);
 
     // Post-barriers...
-    map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
     while (map != end) {
       address doop_address = oop_map_adjusted_dst_addr + map->offset();
       // The post-barrier needs to be called for initialized and uninitialized destinations.
