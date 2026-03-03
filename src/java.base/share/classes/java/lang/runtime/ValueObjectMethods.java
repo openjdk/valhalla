@@ -37,18 +37,6 @@ final class ValueObjectMethods {
     private static final boolean VERBOSE =
             System.getProperty("value.bsm.debug") != null;
 
-    /**
-     * A "salt" value used for this internal hashcode implementation that
-     * needs to vary sufficiently from one run to the next so that
-     * the default hashcode for value classes will vary between JVM runs.
-     */
-    static final int SALT;
-    static {
-        long nt = System.nanoTime();
-        int value = (int)((nt >>> 32) ^ nt);
-        SALT = Integer.getInteger("value.bsm.salt", value);
-    }
-
     private ValueObjectMethods() {
     }
 
@@ -140,7 +128,7 @@ final class ValueObjectMethods {
         Class<?> type = obj.getClass();
         final Unsafe U = UNSAFE;
         int[] map = U.getFieldMap(type);
-        int result = SALT;
+        int result = System.identityHashCode(type);
         int nbNonRef = map[0];
         for (int i = 0; i < nbNonRef; i++) {
             int offset = map[i * 2 + 1];

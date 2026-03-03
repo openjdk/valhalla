@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,8 +56,6 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.util.ByteArray;
 import jdk.internal.value.DeserializeConstructor;
-
-import static java.io.ObjectInputStream.TRACE;
 
 /**
  * Serialization's descriptor for classes.  It contains the name and
@@ -1451,7 +1449,6 @@ public final class ObjectStreamClass implements Serializable {
                     }})
                 .filter(m -> matchFactoryParamTypes(clazz, m, fields))
                 .findFirst().orElse(null);
-        TRACE("DeserializeConstructor for %s, mh: %s", clazz,  mh);
         return mh;
     }
 
@@ -1464,19 +1461,14 @@ public final class ObjectStreamClass implements Serializable {
     private static boolean matchFactoryParamTypes(Class<?> clazz,
                                                        MethodHandle mh,
                                                        ObjectStreamField[] fields) {
-        TRACE("  matchFactoryParams checking class: %s, mh: %s", clazz, mh);
         var params = mh.type().parameterList();
         if (params.size() != fields.length) {
-            TRACE("   matchFactoryParams %s, arg count mismatch %d params != %d fields",
-                    clazz, params.size(), fields.length);
             return false;    // Mismatch in count of fields and parameters
         }
         for (ObjectStreamField field : fields) {
             int argIndex = field.getArgIndex();
             final Class<?> paramtype = params.get(argIndex);
             if (!field.getType().equals(paramtype)) {
-                TRACE("   matchFactoryParams %s: argIndex: %d type mismatch field: %s != param: %s",
-                        clazz, argIndex, field.getType(), paramtype);
                 return false;
             }
         }
@@ -2512,8 +2504,6 @@ public final class ObjectStreamClass implements Serializable {
                 if (field.getArgIndex() == argIndex)
                     return field;
             }
-            TRACE("field for ArgIndex is null: %s, index: %d, fields: %s",
-                    desc, argIndex, Arrays.toString(desc.fields));
             return null;
         }
 

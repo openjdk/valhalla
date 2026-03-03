@@ -48,7 +48,7 @@
 #include "utilities/macros.hpp"
 
 RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* k, Symbol *name, ArrayKlass::ArrayProperties props,
+                                       Klass* k, Symbol *name, ArrayProperties props,
                                        TRAPS) {
   assert(RefArrayKlass::header_size() <= InstanceKlass::header_size(),
          "array klasses must be same size as InstanceKlass");
@@ -59,9 +59,9 @@ RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n
 }
 
 RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* element_klass, ArrayKlass::ArrayProperties props,
+                                       Klass* element_klass, ArrayProperties props,
                                        TRAPS) {
-  assert(!ArrayKlass::is_null_restricted(props) || (n == 1 && element_klass->is_inline_klass()),
+  assert(!props.is_null_restricted() || (n == 1 && element_klass->is_inline_klass()),
          "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
@@ -98,9 +98,9 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
 }
 
 RefArrayKlass::RefArrayKlass(int n, Klass* element_klass, Symbol* name,
-                             ArrayKlass::ArrayProperties props)
+                             ArrayProperties props)
     : ObjArrayKlass(n, element_klass, name, Kind, props,
-                    ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype()) {
+                    props.is_null_restricted() ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -120,7 +120,7 @@ RefArrayKlass::RefArrayKlass(int n, Klass* element_klass, Symbol* name,
   }
 
   int lh = array_layout_helper(T_OBJECT);
-  if (ArrayKlass::is_null_restricted(props)) {
+  if (props.is_null_restricted()) {
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
 #ifdef _LP64

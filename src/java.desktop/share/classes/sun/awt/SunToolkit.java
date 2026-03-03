@@ -414,6 +414,11 @@ public abstract class SunToolkit extends Toolkit
         cont.setFocusTraversalPolicy(defaultPolicy);
     }
 
+    /* This method should be removed at the same time as targetToAppContext() */
+    public static void insertTargetMapping(Object target) {
+        insertTargetMapping(target, AppContext.getAppContext());
+    }
+
     /*
      * Insert a mapping from target to AppContext, for later retrieval
      * via targetToAppContext() above.
@@ -424,6 +429,17 @@ public abstract class SunToolkit extends Toolkit
             // instead.
             appContextMap.put(target, appContext);
         }
+    }
+
+    public static void postEvent(AWTEvent event) {
+       /* Adding AppContext is temporary to help migrate away from using app contexts
+        * It is used by code which has already been subject to that migration.
+        * However until that is complete, there is a single main app context we
+        * can retrieve to use which would be the same as if the code had
+        * not been migrated.
+        * The overload which accepts the AppContext will eventually be replaced by this.
+        */
+        postEvent(AppContext.getAppContext(), event);
     }
 
     /*

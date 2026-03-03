@@ -1363,8 +1363,9 @@ public:
   NOT_PRODUCT(static void dump_flat_in_array(FlatInArray flat_in_array, outputStream* st);)
 
   static FlatInArray compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact);
-  FlatInArray compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
-                                               FlatInArray old_flat_in_array) const;
+
+  static FlatInArray compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
+                                                      FlatInArray old_flat_in_array);
 
   virtual bool can_be_inline_type() const { return false; }
   virtual bool is_flat_in_array()     const { return flat_in_array() == Flat; }

@@ -1682,8 +1682,8 @@ public:
   Node *has_local_phi_input( Node *n );
   // Mark an IfNode as being dominated by a prior test,
   // without actually altering the CFG (and hence IDOM info).
-  void dominated_by(IfProjNode* prevdom, IfNode* iff, bool flip = false, bool pin_array_access_nodes = false);
-  void rewire_safe_outputs_to_dominator(Node* source, Node* dominator, bool pin_array_access_nodes);
+  void dominated_by(IfProjNode* prevdom, IfNode* iff, bool flip = false, bool prev_dom_not_imply_this = false);
+  void rewire_safe_outputs_to_dominator(Node* source, Node* dominator, bool dominator_not_imply_source);
 
   // Split Node 'n' through merge point
   RegionNode* split_thru_region(Node* n, RegionNode* region);
@@ -1968,7 +1968,7 @@ public:
 
   bool can_move_to_inner_loop(Node* n, LoopNode* n_loop, Node* x);
 
-  void pin_array_access_nodes_dependent_on(Node* ctrl);
+  void pin_nodes_dependent_on(Node* ctrl, bool old_iff_is_rangecheck);
 
   void collect_flat_array_checks(const IdealLoopTree* loop, Node_List& flat_array_checks) const;
 

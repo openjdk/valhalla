@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ final class VarHandles {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             Class<?> type = f.getFieldType();
             if (!type.isPrimitive()) {
-                if (type.isValue()) {
+                if (ValueClass.isConcreteValueClass(type)) {
                     int layout = f.getLayout();
                     boolean isAtomic = isAtomicFlat(f);
                     boolean isFlat = f.isFlat();
@@ -143,7 +143,7 @@ final class VarHandles {
         Class<?> type = f.getFieldType();
         if (!type.isPrimitive()) {
             assert !f.isFlat() : ("static field is flat in " + decl + "." + f.getName());
-            if (type.isValue()) {
+            if (ValueClass.isConcreteValueClass(type)) {
                 if (isAtomicFlat(f)) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                             ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
@@ -208,7 +208,7 @@ final class VarHandles {
         boolean hasAtomicAccess = (field.getModifiers() & Modifier.VOLATILE) != 0 ||
                 !(field.isNullRestricted()) ||
                 !field.getFieldType().isAnnotationPresent(LooselyConsistentValue.class);
-        return hasAtomicAccess && !HAS_OOPS.get(field.getFieldType());
+        return hasAtomicAccess && ValueClass.hasBinaryPayload(field.getFieldType());
     }
 
     static boolean isAtomicFlat(Object[] array) {
@@ -216,23 +216,8 @@ final class VarHandles {
         boolean hasAtomicAccess = ValueClass.isAtomicArray(array) ||
                 !ValueClass.isNullRestrictedArray(array) ||
                 !componentType.isAnnotationPresent(LooselyConsistentValue.class);
-        return hasAtomicAccess && !HAS_OOPS.get(componentType);
+        return hasAtomicAccess && ValueClass.hasBinaryPayload(componentType);
     }
-
-    static final ClassValue<Boolean> HAS_OOPS = new ClassValue<>() {
-        @Override
-        protected Boolean computeValue(Class<?> c) {
-            for (Field f : c.getDeclaredFields()) {
-                Class<?> ftype = f.getType();
-                if (UNSAFE.isFlatField(f) && HAS_OOPS.get(ftype)) {
-                    return true;
-                } else if (!ftype.isPrimitive()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    };
 
     // Required by instance field handles
     static Field getFieldFromReceiverAndOffset(Class<?> receiverType,

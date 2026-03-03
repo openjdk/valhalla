@@ -434,12 +434,13 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   if (!UseArrayFlattening || !vk->is_layout_supported(lk)) {
     THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "Layout not supported");
   }
-  ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
+  ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
   oop array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetFlatValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint layoutKind, jclass vc)) {
+  assert(layoutKind != (int)LayoutKind::UNKNOWN, "Sanity");
   assert(layoutKind != (int)LayoutKind::REFERENCE, "This method handles only flat layouts");
   oop base = JNIHandles::resolve(obj);
   if (base == nullptr) {
@@ -455,6 +456,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetFlatValue(JNIEnv *env, jobject unsafe, jobject o
 } UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint layoutKind, jclass vc, jobject value)) {
+  assert(layoutKind != (int)LayoutKind::UNKNOWN, "Sanity");
   assert(layoutKind != (int)LayoutKind::REFERENCE, "This method handles only flat layouts");
   oop base = JNIHandles::resolve(obj);
   if (base == nullptr) {
