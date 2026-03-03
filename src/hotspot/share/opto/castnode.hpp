@@ -355,6 +355,9 @@ class CastI2NNode : public TypeNode {
   }
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
+
+private:
+  virtual bool depends_only_on_test_impl() const { return false; }
 };
 
 //------------------------------CastP2XNode-------------------------------------
