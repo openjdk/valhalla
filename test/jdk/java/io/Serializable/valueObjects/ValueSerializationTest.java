@@ -61,13 +61,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ValueSerializationTest {
 
     static final Class<NotSerializableException> NSE = NotSerializableException.class;
     private static final Class<InvalidClassException> ICE = InvalidClassException.class;
 
-    public Stream<Arguments> doesNotImplementSerializable() {
+    public static Stream<Arguments> doesNotImplementSerializable() {
         return Stream.of(
             Arguments.of( new NonSerializablePoint(10, 100), NSE),
             Arguments.of( new NonSerializablePointNoCons(10, 100), ICE),
@@ -131,7 +130,7 @@ public class ValueSerializationTest {
             return "[ExternalizablePoint x=" + x + " y=" + y + "]"; }
     }
 
-    public Stream<Arguments> implementSerializable() {
+    public static Stream<Arguments> implementSerializable() {
         return Stream.of(
                 Arguments.of(new SerializablePoint(11, 101)),
                 Arguments.of((Object)(new SerializablePoint[]{
@@ -233,7 +232,7 @@ public class ValueSerializationTest {
         return baos.toByteArray();
     }
 
-    public Stream<Arguments> classes() {
+    public static Stream<Arguments> classes() {
         return Stream.of(
             Arguments.of( ExternalizableFoo.class, SC_EXTERNALIZABLE, ICE ),
             Arguments.of( ExternalizableFoo.class, SC_SERIALIZABLE, ICE ),

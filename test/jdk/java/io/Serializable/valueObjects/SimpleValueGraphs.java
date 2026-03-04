@@ -63,7 +63,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SimpleValueGraphs implements Serializable {
 
     private static final boolean DEBUG = true;
@@ -71,7 +70,7 @@ public class SimpleValueGraphs implements Serializable {
     private static final SimpleValue foo1 = new SimpleValue("One", 1);
     private static final SimpleValue foo2 = new SimpleValue("Two", 2);
 
-    public Stream<Arguments> valueObjects() {
+    public static Stream<Arguments> valueObjects() {
         return Stream.of(
                 Arguments.of(new SimpleValue(new SimpleValue(1))),
                 Arguments.of(new SimpleValue(new SimpleValue(2), 3)),
@@ -106,11 +105,11 @@ public class SimpleValueGraphs implements Serializable {
         return tree;
     }
 
-    public Object[][] migrationObjects() {
-        return new Object[][] {
-                {treeI, "TreeI", "TreeV", treeV}, // Serialize as an identity class, deserialize as Value class
-                {treeCycle(true), "TreeI", "TreeV", treeCycle(false)},
-        };
+    public static Stream<Arguments> migrationObjects() {
+        return Stream.of(
+                Arguments.of(treeI, "TreeI", "TreeV", treeV), // Serialize as an identity class, deserialize as Value class
+                Arguments.of(treeCycle(true), "TreeI", "TreeV", treeCycle(false))
+        );
     }
 
     /**
