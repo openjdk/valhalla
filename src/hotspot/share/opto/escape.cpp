@@ -1874,7 +1874,6 @@ private:
   uint _depth;
   uint _first_field_pos;
   const bool _is_static;
-  uint _null_markers;
 
   void next_helper() {
     if (_sig_cc == nullptr) {
@@ -1887,7 +1886,6 @@ private:
       if (bt == T_METADATA) {
         if (_depth == 0) {
           _first_field_pos = _i_domain_cc;
-          _null_markers = 0;
         }
         _depth++;
       } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
@@ -1895,9 +1893,12 @@ private:
         if (_depth == 0) {
           _i_domain++;
         }
-      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0)) {
-        _null_markers++;
-        return;
+      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
+        assert(_sig_cc->at(_i_sig_cc)._null_marker, "");
+        assert(_depth == 1, "");
+        _i_domain_cc++;
+        _first_field_pos = _i_domain_cc;
+        // return;
       } else {
         return;
       }
@@ -1917,8 +1918,7 @@ public:
     _i_sig_cc(0),
     _depth(0),
     _first_field_pos(0),
-    _is_static(call->method()->is_static()),
-    _null_markers(0) {
+    _is_static(call->method()->is_static()) {
     next_helper();
   }
 
@@ -1957,10 +1957,6 @@ public:
   uint first_field_pos() const {
     assert(_first_field_pos >= TypeFunc::Parms, "");
     return _first_field_pos;
-  }
-
-  uint null_markers() const {
-    return _null_markers;
   }
 };
 
@@ -2566,15 +2562,15 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
           assert(!call_analyzer->is_arg_returned(k) || !meth->is_scalarized_arg(k) ||
-                 di.i_domain_cc() - di.first_field_pos() - di.null_markers() == 0 ||
-                 call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1) == nullptr ||
-                 _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1)) == at,
+                 di.i_domain_cc() <= di.first_field_pos() ||
+                 call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1) == nullptr ||
+                 _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1)) == at,
                  "");
           if (at->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(k) ) {
             // The call returns arguments.
             if (meth->is_scalarized_arg(k)) {
-              ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() - di.null_markers() + TypeFunc::Parms + 1);
+              ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1);
               if (res_proj != nullptr) {
                 assert(_igvn->type(res_proj)->isa_ptr(), "");
                 if (res_proj->_con == TypeFunc::Parms) {
