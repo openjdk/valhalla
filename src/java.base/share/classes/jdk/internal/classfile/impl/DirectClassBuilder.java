@@ -170,7 +170,6 @@ public final class DirectClassBuilder
         this.sizeHint = sizeHint;
     }
 
-
     public byte[] build() {
 
         // The logic of this is very carefully ordered.  We want to avoid
