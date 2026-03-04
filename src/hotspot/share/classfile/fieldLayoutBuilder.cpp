@@ -59,6 +59,14 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     return LayoutKind::REFERENCE;
   }
 
+  if (field_info.access_flags().is_static()) {
+    assert(inline_layout_info_array == nullptr ||
+               inline_layout_info_array->adr_at(field_info.index())->klass() == nullptr,
+           "Static fields do not have inline layout info");
+    // don't flatten static fields
+    return LayoutKind::REFERENCE;
+  }
+
   if (inline_layout_info_array == nullptr || inline_layout_info_array->adr_at(field_info.index())->klass() == nullptr) {
     // field's type is not a known value class, using a reference
     return LayoutKind::REFERENCE;
@@ -884,6 +892,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         if (group != _static_fields) _nonstatic_oopmap_count++;
         group->add_oop_field(idx);
       } else {
+        assert(group != _static_fields, "Static fields are not flattened");
         assert(lk != LayoutKind::BUFFERED && lk != LayoutKind::UNKNOWN,
                "Invalid layout kind for flat field: %s", LayoutKindHelper::layout_kind_as_string(lk));
 
@@ -975,6 +984,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         }
         group->add_oop_field(idx);
       } else {
+        assert(group != _static_fields, "Static fields are not flattened");
         assert(lk != LayoutKind::BUFFERED && lk != LayoutKind::UNKNOWN,
                "Invalid layout kind for flat field: %s", LayoutKindHelper::layout_kind_as_string(lk));
 

@@ -167,6 +167,9 @@ public class TestCallingConvention {
 
             mt = MethodType.methodType(MyValue2.class, boolean.class);
             test56_mh = lookup.findVirtual(clazz, "test56_callee", mt);
+
+            mt = MethodType.methodType(MyValue2.class, MyValue2.class);
+            test59_mh = lookup.findStatic(clazz, "test59_callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -1475,5 +1478,29 @@ public class TestCallingConvention {
     @Run(test = "test58")
     public void test58_verifier() {
         Asserts.assertEQ(test58(new MyValue58A(), new MyValue58B(), new MyValue58C()), new MyValue58C());
+    }
+
+    static MethodHandle test59_mh;
+
+    public static MyValue2 test59_callee(MyValue2 arg) {
+        int div = 0;
+        int res = 42 / div; // Always throws an ArithmeticException
+        return arg;
+    }
+
+    // Method handle with a scalarized return that will always throw an exception
+    @Test
+    public static MyValue2 test59(MyValue2 val) throws Throwable {
+        return (MyValue2)test59_mh.invokeExact(val);
+    }
+
+    @Run(test = "test59")
+    @Warmup(10000) // Trigger compilation of LambdaForm method
+    public void test59_verifier() throws Throwable {
+        try {
+            test59(null);
+        } catch (ArithmeticException e) {
+            // Expected
+        }
     }
 }

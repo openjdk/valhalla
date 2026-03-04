@@ -5002,9 +5002,6 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
         p = skip_over_field_name(bytes, true, length);
         legal = (p != nullptr) && ((p - bytes) == (int)length);
       }
-    } else if (_class_name->starts_with("jdk/internal/reflect/") && bytes[length - 1] == ';' ) {
-      // Support for L...; descriptors
-      legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
       // 4900761: relax the constraints based on JSR202 spec
       // Class names may be drawn from the entire Unicode character set.
