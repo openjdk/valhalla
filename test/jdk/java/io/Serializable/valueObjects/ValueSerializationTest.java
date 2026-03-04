@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal java.base/jdk.internal.value
  * @compile ValueSerializationTest.java
- * @run testng/othervm ValueSerializationTest
+ * @run junit/othervm ValueSerializationTest
  */
 
 import static java.io.ObjectStreamConstants.*;
@@ -48,41 +48,43 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.stream.Stream;
 
 import jdk.internal.MigratedValueClass;
 import jdk.internal.value.DeserializeConstructor;
 
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class ValueSerializationTest {
 
     static final Class<NotSerializableException> NSE = NotSerializableException.class;
     private static final Class<InvalidClassException> ICE = InvalidClassException.class;
 
-    @DataProvider(name = "doesNotImplementSerializable")
-    public Object[][] doesNotImplementSerializable() {
-        return new Object[][] {
-            new Object[] { new NonSerializablePoint(10, 100), NSE},
-            new Object[] { new NonSerializablePointNoCons(10, 100), ICE},
+    public static Stream<Arguments> doesNotImplementSerializable() {
+        return Stream.of(
+            Arguments.of( new NonSerializablePoint(10, 100), NSE),
+            Arguments.of( new NonSerializablePointNoCons(10, 100), ICE),
             // an array of Points
-            new Object[] { new NonSerializablePoint[] {new NonSerializablePoint(1, 5)}, NSE},
-            new Object[] { new Object[] {new NonSerializablePoint(3, 7)}, NSE},
-            new Object[] { new ExternalizablePoint(12, 102), ICE},
-            new Object[] { new ExternalizablePoint[] {
+            Arguments.of( new NonSerializablePoint[] {new NonSerializablePoint(1, 5)}, NSE),
+            Arguments.of( Arguments.of(new NonSerializablePoint(3, 7)), NSE),
+            Arguments.of( new ExternalizablePoint(12, 102), ICE),
+            Arguments.of( new ExternalizablePoint[] {
                     new ExternalizablePoint(3, 7),
-                    new ExternalizablePoint(2, 8) }, ICE},
-            new Object[] { new Object[] {
+                    new ExternalizablePoint(2, 8) }, ICE),
+            Arguments.of( new Object[] {
                     new ExternalizablePoint(13, 17),
-                    new ExternalizablePoint(14, 18) }, ICE},
-        };
+                    new ExternalizablePoint(14, 18) }, ICE));
     }
 
     // value class that DOES NOT implement Serializable should throw ICE
-    @Test(dataProvider = "doesNotImplementSerializable")
+    @ParameterizedTest
+    @MethodSource("doesNotImplementSerializable")
     public void doesNotImplementSerializable(Object obj, Class expectedException) {
         assertThrows(expectedException, () -> serialize(obj));
     }
@@ -128,32 +130,31 @@ public class ValueSerializationTest {
             return "[ExternalizablePoint x=" + x + " y=" + y + "]"; }
     }
 
-    @DataProvider(name = "ImplementSerializable")
-    public Object[][] implementSerializable() {
-        return new Object[][]{
-                new Object[]{new SerializablePoint(11, 101)},
-                new Object[]{new SerializablePoint[]{
+    public static Stream<Arguments> implementSerializable() {
+        return Stream.of(
+                Arguments.of(new SerializablePoint(11, 101)),
+                Arguments.of((Object)(new SerializablePoint[]{
                         new SerializablePoint(1, 5),
-                        new SerializablePoint(2, 6)}},
-                new Object[]{new Object[]{
+                        new SerializablePoint(2, 6)}),
+                Arguments.of(Arguments.of(
                         new SerializablePoint(3, 7),
-                        new SerializablePoint(4, 8)}},
-                new Object[]{new SerializableFoo(45)},
-                new Object[]{new SerializableFoo[]{new SerializableFoo(46)}},
-                new Object[]{new ExternalizableFoo("hello")},
-                new Object[]{new ExternalizableFoo[]{new ExternalizableFoo("there")}},
-        };
+                        new SerializablePoint(4, 8))),
+                Arguments.of(new SerializableFoo(45)),
+                Arguments.of((Object)(new SerializableFoo[]{new SerializableFoo(46)})),
+                Arguments.of(new ExternalizableFoo("hello")),
+                Arguments.of((Object)new ExternalizableFoo[]{new ExternalizableFoo("there")})));
     }
 
     // value class that DOES implement Serializable is supported
-    @Test(dataProvider = "ImplementSerializable")
+    @ParameterizedTest
+    @MethodSource("implementSerializable")
     public void implementSerializable(Object obj) throws IOException, ClassNotFoundException {
         byte[] bytes = serialize(obj);
         Object actual = deserialize(bytes);
         if (obj.getClass().isArray())
-            assertEquals((Object[])obj, (Object[])actual);
+            Assertions.assertArrayEquals((Object[])actual, (Object[])obj);
         else
-            assertEquals(obj, actual);
+            assertEquals(actual, obj);
     }
 
     /* A Serializable value class Point */
@@ -231,30 +232,29 @@ public class ValueSerializationTest {
         return baos.toByteArray();
     }
 
-    @DataProvider(name = "classes")
-    public Object[][] classes() {
-        return new Object[][] {
-            new Object[] { ExternalizableFoo.class, SC_EXTERNALIZABLE, ICE },
-            new Object[] { ExternalizableFoo.class, SC_SERIALIZABLE, ICE },
-            new Object[] { SerializablePoint.class, SC_EXTERNALIZABLE, ICE },
-            new Object[] { SerializablePoint.class, SC_SERIALIZABLE, null },
-        };
+    public static Stream<Arguments> classes() {
+        return Stream.of(
+            Arguments.of( ExternalizableFoo.class, SC_EXTERNALIZABLE, ICE ),
+            Arguments.of( ExternalizableFoo.class, SC_SERIALIZABLE, ICE ),
+            Arguments.of( SerializablePoint.class, SC_EXTERNALIZABLE, ICE ),
+            Arguments.of( SerializablePoint.class, SC_SERIALIZABLE, null )
+        );
     }
 
     // value class read directly from a byte stream
     // a byte stream is generated containing a reference to the class with the flags  and SVID.
     // Reading the class from the stream verifies the exceptions thrown if there is a mismatch
     // between the stream and the local class.
-    @Test(dataProvider = "classes")
-    public void deserialize(Class<?> cls, byte flags, Class<?> expected) throws Exception {
+    @ParameterizedTest
+    @MethodSource("classes")
+    public void deserialize(Class<?> cls, byte flags, Class<Exception> expected) throws Exception {
         var clsDesc = ObjectStreamClass.lookup(cls);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
         byte[] serialBytes = byteStreamFor(cls.getName(), uid, flags);
-        try {
-            deserialize(serialBytes);
-            Assert.assertNull(expected, "Expected exception");
-        } catch (IOException ioe) {
-            Assert.assertEquals(ioe.getClass(), expected);
+        if (expected == null) {
+            Assertions.assertDoesNotThrow(() -> deserialize(serialBytes));
+        } else {
+            Assertions.assertThrows(expected, () -> deserialize(serialBytes));
         }
     }
 
