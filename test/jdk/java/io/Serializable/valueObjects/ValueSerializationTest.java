@@ -247,15 +247,14 @@ public class ValueSerializationTest {
     // between the stream and the local class.
     @ParameterizedTest
     @MethodSource("classes")
-    public void deserialize(Class<?> cls, byte flags, Class<?> expected) throws Exception {
+    public void deserialize(Class<?> cls, byte flags, Class<Exception> expected) throws Exception {
         var clsDesc = ObjectStreamClass.lookup(cls);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
         byte[] serialBytes = byteStreamFor(cls.getName(), uid, flags);
-        try {
-            deserialize(serialBytes);
-            Assertions.assertNull(expected, "Expected exception");
-        } catch (IOException ioe) {
-            assertEquals(expected, ioe.getClass());
+        if (expected == null) {
+            Assertions.assertDoesNotThrow(() -> deserialize(serialBytes));
+        } else {
+            Assertions.assertThrows(expected, () -> deserialize(serialBytes));
         }
     }
 
