@@ -71,6 +71,12 @@ inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   return payload.read(THREAD);
 }
 
+inline bool flatArrayOopDesc::obj_at_is_null(int index) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
+  return payload.is_payload_null();
+}
+
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
   EXCEPTION_MARK;
   return null_marker_of_obj_at(index, THREAD);
