@@ -5677,8 +5677,8 @@ public class Check {
         }
 
         private boolean hasExpectedArg(JCClassDecl tree,
-                                    MethodSymbol method,
-                                    Type expectedType) {
+                                       MethodSymbol method,
+                                       Type expectedType) {
 
             var parameters= method.getParameters();
 
