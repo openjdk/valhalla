@@ -519,14 +519,22 @@ public final class ObjectMethods {
         requireNonNull(getters);
         Arrays.stream(getters).forEach(Objects::requireNonNull);
         MethodType methodType;
-        if (type instanceof MethodType mt)
+        if (type instanceof MethodType mt) {
             methodType = mt;
-        else {
+            if (mt.parameterType(0) != recordClass) {
+                throw new IllegalArgumentException("Bad method type: " + mt);
+            }
+        } else {
             methodType = null;
             if (!MethodHandle.class.equals(type))
                 throw new IllegalArgumentException(type.toString());
         }
         List<MethodHandle> getterList = List.of(getters);
+        for (MethodHandle getter : getterList) {
+            if (getter.type().parameterType(0) != recordClass) {
+                throw new IllegalArgumentException("Bad receiver type: " + getter);
+            }
+        }
         MethodHandle handle = switch (methodName) {
             case "equals"   -> {
                 if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, recordClass, Object.class)))

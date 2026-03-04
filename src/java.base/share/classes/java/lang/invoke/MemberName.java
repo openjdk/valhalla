@@ -443,7 +443,7 @@ final class MemberName implements Member, Cloneable {
      */
     public int getLayout() { return (flags >>> MN_LAYOUT_SHIFT) & MN_LAYOUT_MASK; }
 
-    static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
+    static final String CONSTRUCTOR_NAME = "<init>";
 
     // modifiers exported by the JVM:
     static final int RECOGNIZED_MODIFIERS = 0xFFFF;
