@@ -135,15 +135,6 @@ static inline bool is_interpreter(const JfrSampleRequest& request) {
   return request._sample_bcp != nullptr;
 }
 
-static inline JfrSampleRequestFrameType frame_type(const JfrSampleRequest& request) {
-  const intptr_t value = p2i(request._sample_bcp);
-  if (value == 0) {
-    return JfrSampleRequestFrameType::NONE;
-  }
-  return value == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR ? JfrSampleRequestFrameType::NEEDS_STACK_REPAIR :
-                                                                    JfrSampleRequestFrameType::INTERPRETER;
-}
-
 inline void JfrStackTrace::record_frame(const Method* method, int bci, u1 frame_type) {
   assert(method != nullptr, "invariant");
   const traceid mid = JfrTraceId::load(method);
@@ -175,20 +166,12 @@ class JfrUnpackNeedStackRepair {
   int _decode_offset;
   int _bci;
 
-  void step() {
-    assert(has_next(), "invariant");
-    DebugInfoReadStream reader(_nm, _decode_offset);
-    _decode_offset = reader.read_int();
-    _method = reader.read_method();
-    _bci = reader.read_bci();
-  }
-
  public:
   JfrUnpackNeedStackRepair(const PcDesc* pc_desc, const nmethod* nm) : _pc_desc(pc_desc),
-                                                                        _nm(nm),
-                                                                        _method(nullptr),
-                                                                        _decode_offset(_pc_desc->scope_decode_offset()),
-                                                                        _bci(0) {
+                                                                       _nm(nm),
+                                                                       _method(nullptr),
+                                                                       _decode_offset(_pc_desc->scope_decode_offset()),
+                                                                       _bci(0) {
     assert(_pc_desc != nullptr, "invariant");
     assert(_nm != nullptr, "invariant");
     assert(_nm->needs_stack_repair(), "invariant");
@@ -202,7 +185,10 @@ class JfrUnpackNeedStackRepair {
 
   void next() {
     assert(has_next(), "invariant");
-    step();
+    DebugInfoReadStream reader(_nm, _decode_offset);
+    _decode_offset = reader.read_int();
+    _method = reader.read_method();
+    _bci = reader.read_bci();
   }
 
   const Method* method() const {
@@ -214,8 +200,7 @@ class JfrUnpackNeedStackRepair {
   }
 };
 
-void JfrStackTrace::record_stack_repair(const frame& frame, const JfrSampleRequest& request, JavaThread* jt) {
-  assert(jt != nullptr, "invariant");
+void JfrStackTrace::record_stack_repair_top_frame(const JfrSampleRequest& request) {
   assert(p2i(request._sample_bcp) == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR, "invariant");
   assert(_hash == 0, "invariant");
   assert(_count == 0, "invariant");
@@ -238,6 +223,15 @@ void JfrStackTrace::record_stack_repair(const frame& frame, const JfrSampleReque
   }
 }
 
+static inline JfrSampleRequestFrameType frame_type(const JfrSampleRequest& request) {
+  const intptr_t value = p2i(request._sample_bcp);
+  if (value == 0) {
+    return JfrSampleRequestFrameType::NONE;
+  }
+  return value == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR ? JfrSampleRequestFrameType::NEEDS_STACK_REPAIR :
+                                                                    JfrSampleRequestFrameType::INTERPRETER;
+}
+
 bool JfrStackTrace::record(JavaThread* jt, const frame& frame, bool in_continuation, const JfrSampleRequest& request) {
   const JfrSampleRequestFrameType ft = frame_type(request);
   if (ft == JfrSampleRequestFrameType::NONE) {
@@ -245,17 +239,13 @@ bool JfrStackTrace::record(JavaThread* jt, const frame& frame, bool in_continuat
   }
   if (ft == JfrSampleRequestFrameType::INTERPRETER) {
     record_interpreter_top_frame(request);
-    if (frame.pc() == nullptr) {
-      // No sender frame. Done.
-      return true;
-    }
   } else {
     assert(ft == JfrSampleRequestFrameType::NEEDS_STACK_REPAIR, "invariant");
-    record_stack_repair(frame, request, jt);
-    if (frame.pc() == nullptr) {
-      // No sender frame. Done.
-      return true;
-    }
+    record_stack_repair_top_frame(request);
+  }
+  if (frame.pc() == nullptr) {
+    // No sender frame. Done.
+    return true;
   }
   return record(jt, frame, in_continuation, 0);
 }
