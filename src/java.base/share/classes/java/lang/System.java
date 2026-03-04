@@ -2348,10 +2348,6 @@ public final class System {
                 return StackWalker.newInstance(options, null, contScope, continuation);
             }
 
-            public int classFileFormatVersion(Class<?> clazz) {
-                return clazz.getClassFileVersion();
-            }
-
             public String getLoaderNameID(ClassLoader loader) {
                 return loader != null ? loader.nameAndId() : "null";
             }

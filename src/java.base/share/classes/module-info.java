@@ -260,8 +260,6 @@ module java.base {
         jdk.jfr;
     exports jdk.internal.util.xml.impl to
         jdk.jfr;
-    exports jdk.internal.value to  // Needed by Unsafe
-        jdk.unsupported;
     exports jdk.internal.util to
         java.desktop,
         java.prefs,
