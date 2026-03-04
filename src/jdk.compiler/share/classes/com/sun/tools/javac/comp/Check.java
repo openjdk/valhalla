@@ -5317,7 +5317,7 @@ public class Check {
             // innocuous.
 
             // private void writeObject(ObjectOutputStream stream) throws IOException
-            return isPrivateNonStaticMethod(tree, method) &  // no short-circuit we need to evaluate all
+            return isPrivateNonStaticMethod(tree, method) &  // no short-circuit we need to log warnings
                     isExpectedReturnType(tree, method, syms.voidType, true) &
                     hasExpectedArg(tree, method, syms.objectOutputStreamType) &
                     hasExpectedExceptions(tree, method, true, syms.ioExceptionType) &
