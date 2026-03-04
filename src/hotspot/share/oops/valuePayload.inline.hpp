@@ -286,7 +286,7 @@ inline void ValuePayload::assert_is_flat_field(const InstanceKlass* klass, int o
   });
 
   fieldDescriptor field_descriptor;
-  postcond(klass->find_flat_field_from_offset(offset, &field_descriptor));
+  postcond(klass->find_flat_field_containing_offset(offset, &field_descriptor));
 
   const InlineLayoutInfo inline_layout_info = field_descriptor.field_holder()->inline_layout_info(field_descriptor.index());
 

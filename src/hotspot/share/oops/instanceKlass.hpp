@@ -693,8 +693,8 @@ public:
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
 
-  bool find_local_flat_field_from_offset(int offset, fieldDescriptor* fd) const;
-  bool find_flat_field_from_offset(int offset, fieldDescriptor* fd) const;
+  bool find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
+  bool find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
 
  private:
   inline static int quick_search(const Array<Method*>* methods, const Symbol* name);

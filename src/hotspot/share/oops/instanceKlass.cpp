@@ -2209,7 +2209,7 @@ bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDesc
   return false;
 }
 
-bool InstanceKlass::find_local_flat_field_from_offset(int offset, fieldDescriptor* fd) const {
+bool InstanceKlass::find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (!fs.is_flat()) {
       continue;
@@ -2236,10 +2236,10 @@ bool InstanceKlass::find_local_flat_field_from_offset(int offset, fieldDescripto
   return false;
 }
 
-bool InstanceKlass::find_flat_field_from_offset(int offset, fieldDescriptor* fd) const {
+bool InstanceKlass::find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
   const InstanceKlass* klass = this;
   while (klass != nullptr) {
-    if (klass->find_local_flat_field_from_offset(offset, fd)) {
+    if (klass->find_local_flat_field_containing_offset(offset, fd)) {
       return true;
     }
 
