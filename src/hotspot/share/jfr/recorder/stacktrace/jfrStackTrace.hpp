@@ -74,7 +74,7 @@ class JfrStackTrace : public JfrCHeapObj {
   bool record(JavaThread* jt, const frame& frame, bool in_continuation, int skip, int64_t stack_filter_id = -1);
   void record_frame(const Method* method, int bci, u1 type);
   void record_interpreter_top_frame(const JfrSampleRequest& request);
-  void record_stack_repair(const frame& frame, const JfrSampleRequest& request, JavaThread* jt);
+  void record_stack_repair_top_frame(const JfrSampleRequest& request);
 
   JfrStackTrace(traceid id, const JfrStackTrace& trace, const JfrStackTrace* next);
 
