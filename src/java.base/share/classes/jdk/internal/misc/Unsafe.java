@@ -186,7 +186,6 @@ public final class Unsafe {
     @IntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-
     /**
      * Returns true if the given field is flattened.
      */

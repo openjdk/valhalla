@@ -136,9 +136,9 @@ sealed class DirectMethodHandle extends MethodHandle {
         return make(member.getDeclaringClass(), member);
     }
     static DirectMethodHandle makeAllocator(Class<?> instanceClass, MemberName ctor) {
-        assert(ctor.isConstructor()) : ctor;
+        assert(ctor.isConstructor() && ctor.getName().equals("<init>"));
         ctor = ctor.asConstructor();
-        assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
+        assert(ctor.isConstructor() && ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
         LambdaForm lform = preparedLambdaForm(ctor);
         MemberName init = ctor.asSpecial();

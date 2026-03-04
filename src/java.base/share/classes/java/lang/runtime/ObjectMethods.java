@@ -76,9 +76,7 @@ public final class ObjectMethods {
     private static final MethodTypeDesc MTD_OBJECT_BOOLEAN = MethodTypeDesc.of(CD_boolean, CD_Object);
     private static final MethodTypeDesc MTD_INT = MethodTypeDesc.of(CD_int);
 
-    /* package-private */
-    static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
-
+    private static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
     private static final HashMap<Class<?>, MethodHandle> primitiveHashers = new HashMap<>();
 
     static {
