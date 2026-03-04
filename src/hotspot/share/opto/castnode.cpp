@@ -80,6 +80,8 @@ const Type* ConstraintCastNode::Value(PhaseGVN* phase) const {
     ft = in_type->filter_speculative(ft);
   }
 
+  // TODO we should probably assert here that speculative is more precise than non-speculative
+
 #ifdef ASSERT
   // Previous versions of this function had some special case logic,
   // which is no longer necessary.  Make sure of the required effects.

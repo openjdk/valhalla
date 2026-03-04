@@ -5162,6 +5162,9 @@ const TypeAryPtr* TypeAryPtr::cast_to_null_free(bool null_free) const {
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
+  if (res->speculative() != nullptr) {
+    assert(res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()), "precision");
+  }
   return res;
 }
 
@@ -5170,14 +5173,25 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   if (not_null_free == is_not_null_free()) {
     return this;
   }
+
   assert(!not_null_free || !is_null_free(), "inconsistency");
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), is_not_flat(), not_null_free, is_atomic());
+  const TypePtr* new_spec = _speculative;
+
+  if (new_spec != nullptr) {
+    // Speculation could be too optimistic here and infer not null, which would contradict the cast.
+    new_spec = new_spec->is_aryptr()->cast_to_null_free(false)->cast_to_not_null_free();
+  }
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
-                               _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+                               _instance_id, new_spec, _inline_depth, _is_autobox_cache);
+
   // We keep the speculative part if it contains information about flat-/nullability.
   // Make sure it's removed if it's not better than the non-speculative type anymore.
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
+  }
+  if (res->speculative() != nullptr) {
+    assert(res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()), "precision");
   }
   return res;
 }
@@ -5417,7 +5431,11 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         ptr = NotNull;
       }
     }
-    return make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_flat, res_not_flat, res_not_null_free, res_atomic), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
+    const TypeAryPtr* res = make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_flat, res_not_flat, res_not_null_free, res_atomic), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
+    // TODO this probably doesn't work because of some weird dual inconsistencies
+    // => we should only have this when dealing wiht "real" types
+    // assert(!res->is_not_null_free() || !res->is_null_free(), "array cannot be both 'not null free' and 'null free'");
+    return res;
   }
 
   // All arrays inherit from Object class
