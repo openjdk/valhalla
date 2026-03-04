@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -146,15 +146,15 @@ module java.base {
         java.security.sasl;
     exports jdk.internal to
         jdk.incubator.vector;
-    // Note: all modules in the exported list participate in preview  features
-    // and therefore if they use preview features they do not need to be
-    // compiled with "--enable-preview".
+    // Note: all modules in the exported list participate in preview features,
+    // normal or reflective.  They do not need to be compiled with "--enable-preview"
+    // to use preview features and do not need to suppress "preview" warnings.
     // It is recommended for any modules that do participate that their
-    // module declaration be annotated with jdk.internal.javac.ParticipatesInPreview
+    // module declaration be annotated with jdk.internal.javac.ParticipatesInPreview.
     exports jdk.internal.javac to
         java.compiler,
         jdk.compiler,
-        jdk.jdeps;
+        jdk.jdeps; // Uses Valhalla reflective preview APIs
     exports jdk.internal.access to
         java.desktop,
         java.logging,
