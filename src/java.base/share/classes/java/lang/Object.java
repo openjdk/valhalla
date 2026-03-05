@@ -606,6 +606,13 @@ public class Object {
      * the finalization of this object to be halted, but is otherwise
      * ignored.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          this method will never be invoked by the garbage collector.
+     *      </div>
+     * </div>
+     *
      * @apiNote
      * Classes that embed non-heap resources have many options
      * for cleanup of those resources. The class must ensure that the
@@ -650,13 +657,6 @@ public class Object {
      * <p>
      * This method will remain in place until finalizers have been removed from
      * most existing code.
-     *
-     * <div class="preview-block">
-     *      <div class="preview-comment">
-     *          If this object is a {@linkplain Class#isValue() value object},
-     *          this method will never be invoked by the garbage collector.
-     *      </div>
-     * </div>
      *
      * @throws Throwable the {@code Exception} raised by this method
      * @see java.lang.ref.WeakReference
