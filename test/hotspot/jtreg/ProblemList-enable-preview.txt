@@ -42,3 +42,12 @@ compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJav
 vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java                        8375069 generic-all
 
 serviceability/sa/TestHeapDumpForInvokeDynamic.java                                              8377387 generic-all
+
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorVMEventsTest.java#id0                      8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorVMEventsTest.java#id1                      8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorArrayAllSampledTest.java                   8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorMultiArrayTest.java                        8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorTest.java                                  8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadTest.java                            8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest.java                       8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorGCParallelTest.java                        8379258 generic-all
