@@ -95,9 +95,4 @@ import java.lang.reflect.Field;
         }
         return false;
     }
-
-    //public boolean verifyContent() {
-    //  <content_verification_code>
-    //}
-
 }
