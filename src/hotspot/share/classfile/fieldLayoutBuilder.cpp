@@ -737,7 +737,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                   b->offset(),
                   "INHERITED",
                   b->size(),
-                  b->size(), // so far, alignment constraint == size, will change with Valhalla => FIXME
+                  b->alignment(),
                   fs.name()->as_C_string(),
                   fs.signature()->as_C_string());
               found = true;
