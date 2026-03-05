@@ -51,3 +51,4 @@ serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorTest.java                 
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadTest.java                            8379258 generic-all
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest.java                       8379258 generic-all
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorGCParallelTest.java                        8379258 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorEventOnOffTest.java                        8379258 generic-all
