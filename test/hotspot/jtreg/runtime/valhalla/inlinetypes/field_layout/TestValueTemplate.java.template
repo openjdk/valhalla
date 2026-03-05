@@ -24,7 +24,7 @@
 
 import java.lang.reflect.Field;
 
-<class_modifiers> <class_name> {
+<class_modifiers> <class_name> <super_class> {
     static Object[] predefined;
     static boolean allowDuplicates = <allow_duplicates>;
 <fields declarations>
@@ -40,6 +40,7 @@ import java.lang.reflect.Field;
 
     public <class_name>(<constructor_args>) {
 <fields_initialization>
+        super(<super_constructor_args>);
     }
 
     static class Wrapper {

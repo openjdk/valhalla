@@ -102,11 +102,10 @@ public class ValueRandomLayoutTest {
   static ProcessBuilder exec(String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
-    Collections.addAll(argsList, "-Xint");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
-    Collections.addAll(argsList, "-Xmx256m");
+    Collections.addAll(argsList, "-Xmx1g");
     Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
     Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
     Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
@@ -165,7 +164,7 @@ public class ValueRandomLayoutTest {
       seed += i;
       System.out.println("Random seed for class generation: " + seed);
       var gen = new ValueClassGenerator(seed, 256);
-      gen.generateAll();
+      gen.generateAll(256);
 
       String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
       String[] testArgs = new String[classNames.length+1];
@@ -186,7 +185,12 @@ public class ValueRandomLayoutTest {
       FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
 
       // Verify that all layouts are correct
-      fla.check();
+      try {
+        fla.check();
+      } catch (Throwable t) {
+        System.out.print(out.getOutput());
+        throw t;
+      }
     }
   }
  }

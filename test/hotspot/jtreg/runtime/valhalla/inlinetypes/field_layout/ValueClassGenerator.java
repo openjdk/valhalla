@@ -26,30 +26,38 @@ package runtime.valhalla.inlinetypes.field_layout;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
+
+import jdk.test.lib.Asserts;
 
 public class ValueClassGenerator {
 
     final int NUM_PREDEFINED_VALUES;
     final Random random;
     ArrayList<PrimitiveDesc> primitiveTypes = new ArrayList<>();
-    ArrayList<ValueClassDesc> valueTypes = new ArrayList<>();
+    ArrayList<ConcreteValueClassDesc> valueTypes = new ArrayList<>();
+    ArrayList<AbstractValueClassDesc> abstractValueTypes = new ArrayList<>();
     ArrayList<TypeDesc> referenceTypes = new ArrayList<>();
     static String classTemplate;
+    static String abstractValueClassTemplate;
 
     static {
         try {
             String path = System.getProperty("test.src");
             classTemplate = Files.readString(Path.of(path + File.separator + "TestValueTemplate.java.template"));
+            abstractValueClassTemplate = Files.readString(Path.of(path + File.separator + "TestAbstractValueTemplate.java.template"));
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -57,7 +65,7 @@ public class ValueClassGenerator {
 
     public ArrayList<String> getValueClassesNames() {
         ArrayList<String> res  = new ArrayList<>(valueTypes.size());
-        for (ValueClassDesc cd : valueTypes) {
+        for (ConcreteValueClassDesc cd : valueTypes) {
             res.add(cd.typeName);
         }
         return res;
@@ -65,6 +73,10 @@ public class ValueClassGenerator {
 
     public static abstract class TypeDesc {
         String typeName;
+        // Some types simply don't have a value set large enough to allow generating of precomputed
+        // values without duplicates, or it would be too complex to try to determine if their value set
+        // is large enough. For those types we allow duplicates in the precomputed values, and we record
+        // the information in the generated class for the substitutability test.
         boolean allowDuplicates;
 
         public TypeDesc(String name, boolean duplicates) {
@@ -278,10 +290,6 @@ public class ValueClassGenerator {
         primitiveTypes.add(new PrimitiveDesc("double", false, doubleVals));
     }
 
-    void generateStringClass() {
-        referenceTypes.add(new StringClassDesc());
-    }
-
     void printPredefinedPrimitiveValues() {
         for (PrimitiveDesc desc : primitiveTypes) {
             System.out.print(desc.typeName + ": ");
@@ -290,6 +298,24 @@ public class ValueClassGenerator {
             }
             System.out.println("");
         }
+    }
+
+    // We need at least one identity class to test identity fields
+    // We just use String for that, no need to store pregenerated values
+    public class StringClassDesc extends TypeDesc {
+        StringClassDesc() {
+            super("String", false);
+        }
+
+        public String getPrecomputedValueAsString(int i) {
+            return "\"" + Integer.toString(i) + "\"";
+        }
+
+        public boolean isPrimitiveType() { return false; }
+    }
+
+    void generateStringClass() {
+        referenceTypes.add(new StringClassDesc());
     }
 
     public static class FieldDesc {
@@ -305,30 +331,14 @@ public class ValueClassGenerator {
         }
     }
 
-    public class StringClassDesc extends TypeDesc {
-        StringClassDesc() {
-            super("String", false);
-        }
-
-        public String getPrecomputedValueAsString(int i) {
-            return "\"" + Integer.toString(i) + "\"";
-        }
-
-        public boolean isPrimitiveType() { return false; }
-    }
-
-    public class ValueClassDesc extends TypeDesc {
-        ValueClassDesc superClass;
+    public abstract class ValueClassDesc extends TypeDesc {
+        AbstractValueClassDesc superClass;
         ArrayList<FieldDesc> fields;
 
-        public ValueClassDesc(String name, boolean allowDuplicates, ArrayList<FieldDesc> fields) {
+        ValueClassDesc(String name, boolean allowDuplicates, AbstractValueClassDesc superClass, ArrayList<FieldDesc> fields) {
             super(name, allowDuplicates);
+            this.superClass = superClass;
             this.fields = fields;
-            superClass = null; // no inheritance yet
-        }
-
-        public String getPrecomputedValueAsString(int i) {
-            return typeName+".getPredefinedValue("+i+")";
         }
 
         public boolean isPrimitiveType() { return false; }
@@ -342,11 +352,31 @@ public class ValueClassGenerator {
             return sb.toString();
         }
 
-        String generateConstructorArguments() {
+        String generateConstructorArgumentsWithTypes() {
             StringBuilder sb = new StringBuilder();
+            if (superClass != null) {
+                sb.append(superClass.generateConstructorArgumentsWithTypes());
+                if (fields.size() != 0) sb.append(", ");
+            }
+            int offset = superClass != null ? superClass.getNumberOfConstructorArguments() : 0;
             for (int i = 0; i < fields.size(); i++) {
                 FieldDesc fd = fields.get(i);
-                sb.append(fd.type.typeName).append(" a").append(i);
+                sb.append(fd.type.typeName).append(" a").append(i + offset);
+                if (i != fields.size() - 1) sb.append(", ");
+            }
+            return sb.toString();
+        }
+
+        String generateConstructorArguments() {
+            StringBuilder sb = new StringBuilder();
+            if (superClass != null) {
+                sb.append(superClass.generateConstructorArguments());
+                if (fields.size() != 0) sb.append(", ");
+            }
+            int offset = superClass != null ? superClass.getNumberOfConstructorArguments() : 0;
+            for (int i = 0; i < fields.size(); i++) {
+                FieldDesc fd = fields.get(i);
+                sb.append("a").append(i + offset);
                 if (i != fields.size() - 1) sb.append(", ");
             }
             return sb.toString();
@@ -354,11 +384,71 @@ public class ValueClassGenerator {
 
         String generateFieldInitialization() {
             StringBuilder sb = new StringBuilder();
+            int offset = superClass != null ? superClass.getNumberOfConstructorArguments() : 0;
             for (int i = 0; i < fields.size(); i++) {
                 FieldDesc fd = fields.get(i);
-                sb.append("\t").append(fd.name).append(" = a").append(i).append(";\n");
+                sb.append("\t").append(fd.name).append(" = a").append(i + offset).append(";\n");
             }
             return sb.toString();
+        }
+
+        public String getRandomConstructorArgumentAsString() {
+            StringBuilder sb = new StringBuilder();
+            if (superClass != null) {
+              sb.append(superClass.getRandomConstructorArgumentAsString());
+              if (fields.size() != 0) sb.append(", ");
+            }
+            for (int i = 0; i < fields.size(); i++) {
+                FieldDesc fd = fields.get(i);
+                sb.append(fd.type.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES)));
+                if (i != fields.size() - 1) sb.append(", ");
+            }
+            return sb.toString();
+        }
+
+        int getNumberOfConstructorArguments() {
+            int res = fields.size();
+            if (superClass != null) {
+                res += superClass.getNumberOfConstructorArguments();
+            }
+            return res;
+        }
+    }
+
+    public class AbstractValueClassDesc extends ValueClassDesc {
+        AbstractValueClassDesc(String name, boolean allowDuplicates, AbstractValueClassDesc superClass, ArrayList<FieldDesc> fields) {
+            super(name, allowDuplicates, superClass, fields);
+        }
+
+        public String getPrecomputedValueAsString(int i) {
+            throw new RuntimeException("Abstract value classes don't have predefined values");
+        }
+
+        String generateSource() {
+            String src = abstractValueClassTemplate.replaceAll("<class_modifiers>", "public abstract value class");
+            src = src.replaceAll("<class_name>", typeName);
+            if (superClass != null) {
+                src = src.replaceAll("<super_class>", "extends " + superClass.typeName);
+            } else {
+                src = src.replaceAll("<super_class>", "");
+            }
+            src = src.replaceAll("<super_class>", superClass != null ? superClass.typeName : "Object");
+            src = src.replaceAll("<fields declarations>", generateFieldsDeclarations());
+            src = src.replaceAll("<constructor_args>", generateConstructorArgumentsWithTypes());
+            src = src.replaceAll("<fields_initialization>", generateFieldInitialization());
+            src = src.replaceAll("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
+            return src;
+         }
+    }
+
+    public class ConcreteValueClassDesc extends ValueClassDesc {
+
+        public ConcreteValueClassDesc(String name, boolean allowDuplicates, AbstractValueClassDesc superClass, ArrayList<FieldDesc> fields) {
+            super(name, allowDuplicates, superClass, fields);
+        }
+
+        public String getPrecomputedValueAsString(int i) {
+            return typeName+".getPredefinedValue("+i+")";
         }
 
         String generatePrecomputedValues() {
@@ -375,12 +465,7 @@ public class ValueClassGenerator {
                 boolean validNewVal = false;
                 while (!validNewVal) {
                   StringBuffer sb2 = new StringBuffer();
-                  for (int j = 0; j < nfields; j++) {
-                    FieldDesc fd = fields.get(j);
-                    String initArg = fd.type.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
-                    sb2.append(initArg);
-                    if (j != nfields - 1) sb2.append(", ");
-                  }
+                  sb2.append(getRandomConstructorArgumentAsString());
                   rndVal[i] = sb2.toString();
                   if (allowDuplicates()) {
                     validNewVal = true;
@@ -401,62 +486,104 @@ public class ValueClassGenerator {
         String generateSource() {
             String src = classTemplate.replaceAll("<class_modifiers>", "public value class");
             src = src.replaceAll("<class_name>", typeName);
+            if (superClass != null) {
+                src = src.replaceAll("<super_class>", "extends " + superClass.typeName);
+            } else {
+                src = src.replaceAll("<super_class>", "");
+            }
             src = src.replaceAll("<allow_duplicates>", allowDuplicates() ? "true" : "false");
             src = src.replaceAll("<fields declarations>", generateFieldsDeclarations());
             src = src.replaceAll("<NUM_PREDEFINED>", Integer.toString(NUM_PREDEFINED_VALUES));
             // replace precomputed value generation
             src = src.replaceAll("<predefined_values_generation>", generatePrecomputedValues());
-            src = src.replaceAll("<constructor_args>", generateConstructorArguments());
+            src = src.replaceAll("<constructor_args>", generateConstructorArgumentsWithTypes());
             src = src.replaceAll("<fields_initialization>", generateFieldInitialization());
+            src = src.replaceAll("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
             return src;
          }
     }
 
+    boolean selectFields(ArrayList<FieldDesc> fields, int nfields) {
+      int nPrimitive = 0;
+      int nValues = 0;
+      if (nfields != 0) {
+        nPrimitive = random.nextInt(nfields+1);
+        nValues = nfields - nPrimitive;
+      }
+      boolean allowDuplicates = nfields == 0 ? true : false;
+      for (int i = 0; i < nPrimitive; i++) {
+        String fieldName = "field"+i;
+          TypeDesc fieldType = primitiveTypes.get(random.nextInt(primitiveTypes.size()));
+          if (fieldType.allowDuplicates) allowDuplicates = true;
+          String initval = fieldType.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
+          FieldDesc fd = new FieldDesc(fieldName, fieldType, initval);
+          fields.add(fd);
+      }
+      for (int i = nPrimitive; i < nfields; i++) {
+          String fieldName = "field"+i;
+          TypeDesc fieldType = referenceTypes.get(random.nextInt(referenceTypes.size()));
+          if (fieldType.allowDuplicates) allowDuplicates = true;
+          String initval = fieldType.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
+          FieldDesc fd = new FieldDesc(fieldName, fieldType, initval);
+          fields.add(fd);
+      }
+      return allowDuplicates;
+    }
+
     ValueClassDesc generateValueClass(int n) {
-        String name = "ValueClass"+n;
-        int nfields = n == 0 ? 0 : randomFieldNumber(); // always create the empty value as Value0
-        int nPrimitive = 0;
-        int nValues = 0;
-        if (nfields != 0) {
-          nPrimitive = random.nextInt(nfields+1);
-          nValues = nfields - nPrimitive;
+        boolean isAbstract;
+        boolean hasSuper;
+        int nfields;
+        if (n == 0) { // always create the empty value as Value0
+          nfields = 0;
+          isAbstract = false;
+          hasSuper = false;
+        } else {
+          isAbstract = random.nextInt(16) == 1;
+          hasSuper = !abstractValueTypes.isEmpty() && (random.nextInt(16) == 1);
+          nfields = randomFieldNumber();
+        }
+        AbstractValueClassDesc superClass = null;
+        if (hasSuper) {
+          superClass = abstractValueTypes.get(random.nextInt(abstractValueTypes.size()));
         }
         ArrayList<FieldDesc> fields = new ArrayList<>(nfields);
-        boolean allowDuplicates = nfields == 0 ? true : false;
-        for (int i = 0; i < nPrimitive; i++) {
-          String fieldName = "field"+i;
-            TypeDesc fieldType = primitiveTypes.get(random.nextInt(primitiveTypes.size()));
-            if (fieldType.allowDuplicates) allowDuplicates = true;
-            String initval = fieldType.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
-            FieldDesc fd = new FieldDesc(fieldName, fieldType, initval);
-            fields.add(fd);
+        boolean allowDuplicates = selectFields(fields, nfields);
+        String name = (isAbstract ? "AbstractValueClass" : "ValueClass") + n;
+        ValueClassDesc cd;
+        if (isAbstract) {
+          cd = new AbstractValueClassDesc(name, allowDuplicates, superClass, fields);
+        } else {
+          cd = new ConcreteValueClassDesc(name, allowDuplicates, superClass, fields);
         }
-        for (int i = nPrimitive; i < nfields; i++) {
-            String fieldName = "field"+i;
-            TypeDesc fieldType = referenceTypes.get(random.nextInt(referenceTypes.size()));
-            if (fieldType.allowDuplicates) allowDuplicates = true;
-            String initval = fieldType.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
-            FieldDesc fd = new FieldDesc(fieldName, fieldType, initval);
-            fields.add(fd);
-        }
-        ValueClassDesc cd = new ValueClassDesc(name, allowDuplicates, fields);
         return cd;
     }
 
+    ConcreteValueClassDesc generateEmptyValueClass() {
+        return (ConcreteValueClassDesc)generateValueClass(0);
+    }
+
     void generateValueClasses(int n) {
-        for (int i = 0; i < n; i++) {
+      ConcreteValueClassDesc empty = generateEmptyValueClass();
+        valueTypes.add(empty);
+        referenceTypes.add(empty);
+        for (int i = 1; i < n; i++) {
             ValueClassDesc c = generateValueClass(i);
-            valueTypes.add(c);
-            referenceTypes.add(c);
+            if (c instanceof AbstractValueClassDesc) {
+              abstractValueTypes.add((AbstractValueClassDesc)c);
+            } else {
+              valueTypes.add((ConcreteValueClassDesc)c);
+              referenceTypes.add(c);
+            }
         }
     }
 
     int randomFieldNumber() {
-        return (int)Math.round(0.4/Math.exp(-random.nextInt(16)*0.2)+0.6);
+        return (int)Math.ceil(Math.exp(random.nextInt(16)/7.0));
     }
 
-    void printStatistics() {
-        int nClasses = valueTypes.size();
+    void printStatistics(ArrayList<? extends ValueClassDesc> list) {
+        int nClasses = list.size();
         System.out.println("Number of value classes generated: " + nClasses);
         final int FIELDS_BUCKETS = 16;
         int maxFields = 0;
@@ -464,8 +591,10 @@ public class ValueClassGenerator {
         int[] primOnly = new int[FIELDS_BUCKETS];
         int[] valOnly = new int[FIELDS_BUCKETS];
         int[] mixed = new int[FIELDS_BUCKETS];
-        for (ValueClassDesc cd : valueTypes) {
+        int nWithSuperClass = 0;
+        for (ValueClassDesc cd : list) {
             int n = cd.fields.size();
+            nWithSuperClass += cd.superClass != null ? 1 : 0;
             if (n > FIELDS_BUCKETS - 1) n = FIELDS_BUCKETS - 1;
             numberOfFields[n]++;
             if (n > maxFields) maxFields = n;
@@ -482,6 +611,7 @@ public class ValueClassGenerator {
             else if (nVal == 0) valOnly[n]++;
             else mixed[n]++;
         }
+        System.out.println("Number of classes with super class: " + nWithSuperClass + " (" + (nWithSuperClass*100/nClasses) + "%)");
         System.out.println("Number of fields distribution:");
         for (int i = 0; i <= maxFields; i++) {
             System.out.print(i + " fields: " + numberOfFields[i] + " (" + (numberOfFields[i]*100/nClasses) + "%)");
@@ -495,7 +625,28 @@ public class ValueClassGenerator {
     }
 
     void writeValueClasses() {
-        for (ValueClassDesc cd : valueTypes) {
+        // Do some cleanup first
+        Path currentDirectory = Paths.get(".");
+        try (Stream<Path> walk = Files.walk(currentDirectory)) {
+            walk.filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".java") || path.toString().endsWith(".class"))
+                .map(Path::toFile)
+                .forEach(File::delete);
+        } catch (IOException e) {
+            System.err.println("Failed to cleanup directory: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+        // Then write the new Java source files
+        for (ConcreteValueClassDesc cd : valueTypes) {
+            String filename = cd.typeName + ".java";
+            try (PrintWriter out = new PrintWriter(filename)) {
+                out.println(cd.generateSource());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+        for (AbstractValueClassDesc cd : abstractValueTypes) {
             String filename = cd.typeName + ".java";
             try (PrintWriter out = new PrintWriter(filename)) {
                 out.println(cd.generateSource());
@@ -506,14 +657,14 @@ public class ValueClassGenerator {
     }
 
     void compileValueClasses() {
-        // File sourceFile = new File("test/Test.java");
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        // compiler.run(null, null, null, sourceFile.getPath());
-        File[] files = new File[valueTypes.size()];
+        File[] files = new File[valueTypes.size() + abstractValueTypes.size()];
         String path = System.getProperty("java.io.tmpdir");
         for (int i = 0; i < valueTypes.size(); i++) {
-          //System.out.println(path + File.separator + valueTypes.get(i).typeName + ".java");
           files[i] = new File(valueTypes.get(i).typeName + ".java");
+        }
+        for (int i = 0; i < abstractValueTypes.size(); i++) {
+          files[valueTypes.size() + i] = new File(abstractValueTypes.get(i).typeName + ".java");
         }
         ArrayList<String> optionList = new ArrayList<>();
         optionList.addAll(Arrays.asList("-source", "27"));
@@ -533,11 +684,15 @@ public class ValueClassGenerator {
 
     }
 
-    public void generateAll() {
+    public void generateAll(int numClasses) {
         generatePrimitiveTypes();
         generateStringClass();
-        generateValueClasses(256);
-        printStatistics();
+        generateValueClasses(numClasses);
+        System.out.println("Generated " + valueTypes.size() + " concrete value classes and " + abstractValueTypes.size() + " abstract value classes");
+        System.out.println("Abstract value classes statistics:");
+        printStatistics(abstractValueTypes);
+        System.out.println("Concrete value classes statistics:");
+        printStatistics(valueTypes);
         writeValueClasses();
         compileValueClasses();
     }
@@ -545,21 +700,5 @@ public class ValueClassGenerator {
     public ValueClassGenerator(long seed, int nPredefined) {
         random = new Random(seed);
         NUM_PREDEFINED_VALUES = nPredefined;
-    }
-
-    public static void main(String[] args) {
-        long seed = 0;
-        String seedString = System.getProperty("CLASS_GENERATION_SEED");
-        if (seedString != null) {
-            try {
-                seed = Long.parseLong(seedString);
-            } catch(NumberFormatException e) { }
-        }
-        if (seed == 0) {
-            seed = System.nanoTime();
-        }
-        System.out.println("Random seed for class generation: " + seed);
-        var gen = new ValueClassGenerator(seed, 8);
-        gen.generateAll();
     }
 }
