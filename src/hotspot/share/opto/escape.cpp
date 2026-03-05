@@ -1603,7 +1603,7 @@ void ConnectionGraph::add_proj(Node* n, Unique_Node_List* delayed_worklist) {
       for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
         if (d->field_at(i)->isa_ptr() != nullptr &&
             call_analyzer->is_arg_returned(i - TypeFunc::Parms) &&
-            meth->is_scalarized_arg(i - TypeFunc::Parms)) {
+            scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
           ret_arg = true;
           break;
         }
@@ -2348,7 +2348,7 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
           if (d->field_at(i)->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(i - TypeFunc::Parms) &&
-              !meth->is_scalarized_arg(i - TypeFunc::Parms)) {
+              !scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
             ret_arg = true;
             break;
           }
@@ -2367,6 +2367,15 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     assert(call->Opcode() == Op_CallDynamicJava, "add failed case check");
     map_ideal_node(call, phantom_obj);
   }
+}
+
+bool ConnectionGraph::scalarized_arg_with_compatible_return(CallJavaNode* call, uint k) {
+  ciMethod* meth = call->method();
+  BCEscapeAnalyzer* call_analyzer = meth->get_bcea();
+  assert(call_analyzer->is_arg_returned(k - TypeFunc::Parms), "");
+  return meth->is_scalarized_arg(k - TypeFunc::Parms) &&
+         call->tf()->domain_sig()->field_at(k)->meet(TypePtr::NULL_PTR)->higher_equal(
+           call->tf()->range_sig()->field_at(TypeFunc::Parms));
 }
 
 void ConnectionGraph::process_call_arguments(CallNode *call) {
@@ -2561,15 +2570,14 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           const Type* at = di.current_domain_cc();
           Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
-          assert(!call_analyzer->is_arg_returned(k) || !meth->is_scalarized_arg(k) ||
-                 di.i_domain_cc() <= di.first_field_pos() ||
+          assert(!call_analyzer->is_arg_returned(k) || !scalarized_arg_with_compatible_return(call->as_CallJava(), di.i_domain()) ||
                  call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1) == nullptr ||
                  _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1)) == at,
                  "");
           if (at->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(k) ) {
+              call_analyzer->is_arg_returned(k)) {
             // The call returns arguments.
-            if (meth->is_scalarized_arg(k)) {
+            if (scalarized_arg_with_compatible_return(call->as_CallJava(), di.i_domain())) {
               ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1);
               if (res_proj != nullptr) {
                 assert(_igvn->type(res_proj)->isa_ptr(), "");

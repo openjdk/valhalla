@@ -166,9 +166,9 @@ public class TestOptimizePtrCompare {
 
     @Test
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, failOn = {IRNode.CMP_P_OR_N})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "4", IRNode.CMP_I, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "5"})
     public static void test6() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue v1 = new MyValue(fieldO);
@@ -187,9 +187,9 @@ public class TestOptimizePtrCompare {
 
     @Test
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "1"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
     public static void test7() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue2 arg = new MyValue2(fieldO, null);
@@ -209,9 +209,9 @@ public class TestOptimizePtrCompare {
 
     @Test
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "1"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
-    // @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
+    @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "3"})
     public static void test8() {
         Object notUsed = new Object(); // make sure EA runs
         MyValue2 arg = new MyValue2(fieldO, null);
