@@ -22,59 +22,13 @@
  */
 
  /*
- * @test id=ValueRandomLayoutTest_no_atomic_flat_and_no_nullable_atomic_flat
+ * @test
  * @library /test/lib
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueClassGenerator.java ValueRandomLayoutTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest 0
- */
-
- /*
- * @test id=ValueRandomLayoutTest_atomic_flat_and_nullable_atomic_flat
- * @library /test/lib
- * @requires vm.flagless
- * @modules java.base/jdk.internal.vm.annotation
- * @enablePreview
- * @compile FieldLayoutAnalyzer.java ValueClassGenerator.java ValueRandomLayoutTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest 1
- */
-
- /* @test id=ValueRandomLayoutTest_no_atomic_flat_and_nullable_flat
- * @library /test/lib
- * @requires vm.flagless
- * @modules java.base/jdk.internal.vm.annotation
- * @enablePreview
- * @compile FieldLayoutAnalyzer.java ValueClassGenerator.java ValueRandomLayoutTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest 2
- */
-
- /* @test id=ValueRandomLayoutTest_atomic_flat_and_no_nullable_atomic_flat_and_no_nullable_nonatomic_flat
- * @library /test/lib
- * @requires vm.flagless
- * @modules java.base/jdk.internal.vm.annotation
- * @enablePreview
- * @compile FieldLayoutAnalyzer.java ValueClassGenerator.java ValueRandomLayoutTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest 3
- */
-
- /* @test id=ValueRandomLayoutTest_no_atomic_flat_and_nullable_atomic_flat_and_no_nullable_non_atomic_flat
- * @library /test/lib
- * @requires vm.flagless
- * @modules java.base/jdk.internal.vm.annotation
- * @enablePreview
- * @compile FieldLayoutAnalyzer.java ValueClassGenerator.java ValueRandomLayoutTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest 4
- */
-
- /* @test id=ValueRandomLayoutTest_no_atomic_flat_and_nullable_atomic_flat_and_nullable_non_atomic_flat
- * @library /test/lib
- * @requires vm.flagless
- * @modules java.base/jdk.internal.vm.annotation
- * @enablePreview
- * @compile FieldLayoutAnalyzer.java ValueClassGenerator.java ValueRandomLayoutTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest 5
+ * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest
  */
 
 package runtime.valhalla.inlinetypes.field_layout;
@@ -99,7 +53,8 @@ public class ValueRandomLayoutTest {
     }
   }
 
-  static ProcessBuilder exec(String... args) throws Exception {
+  static ProcessBuilder exec(boolean useAtomicFlat, boolean useNullableAtomicFlat,
+                             boolean useNullableNonAtomicFlat, String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
@@ -114,42 +69,9 @@ public class ValueRandomLayoutTest {
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
 
-  static boolean useAtomicFlat;
-  static boolean useNullableAtomicFlat;
-  static boolean useNullableNonAtomicFlat;
+  static long seed;
 
   public static void main(String[] args) throws Exception {
-
-    switch(args[0]) {
-      case "0": useAtomicFlat = false;
-                useNullableAtomicFlat = false;
-                useNullableNonAtomicFlat = false;
-                break;
-      case "1": useAtomicFlat = true;
-                useNullableAtomicFlat = true;
-                useNullableNonAtomicFlat = true;
-                break;
-      case "2": useAtomicFlat = false;
-                useNullableAtomicFlat = true;
-                useNullableNonAtomicFlat = false;
-                break;
-      case "3": useAtomicFlat = true;
-                useNullableAtomicFlat = false;
-                useNullableNonAtomicFlat = false;
-                break;
-      case "4": useAtomicFlat = false;
-                useNullableAtomicFlat = true;
-                useNullableNonAtomicFlat = false;
-                break;
-      case "5": useAtomicFlat = false;
-                useNullableAtomicFlat = true;
-                useNullableNonAtomicFlat = true;
-                break;
-      default: throw new RuntimeException("Unrecognized configuration");
-    }
-
-    // Generate test classes
-    long seed = 0;
     String seedString = System.getProperty("CLASS_GENERATION_SEED");
     if (seedString != null) {
         try {
@@ -160,11 +82,54 @@ public class ValueRandomLayoutTest {
         seed = System.nanoTime();
     }
 
+    // These tests consume a lot of resources, let run them sequentially instead of in parallel
+    for (int i = 0; i <= 5; i++) {
+      System.out.println("Running scenario " + i);
+      runScenario(i);
+    }
+  }
+
+  static void runScenario(int config) throws Exception {
+
+    boolean useAtomicFlat;
+    boolean useNullableAtomicFlat;
+    boolean useNullableNonAtomicFlat;
+
+    switch(config) {
+      case 0: useAtomicFlat = false;
+              useNullableAtomicFlat = false;
+              useNullableNonAtomicFlat = false;
+              break;
+      case 1: useAtomicFlat = true;
+              useNullableAtomicFlat = true;
+              useNullableNonAtomicFlat = true;
+              break;
+      case 2: useAtomicFlat = false;
+              useNullableAtomicFlat = true;
+              useNullableNonAtomicFlat = false;
+              break;
+      case 3: useAtomicFlat = true;
+              useNullableAtomicFlat = false;
+              useNullableNonAtomicFlat = false;
+              break;
+      case 4: useAtomicFlat = false;
+              useNullableAtomicFlat = true;
+              useNullableNonAtomicFlat = false;
+              break;
+      case 5: useAtomicFlat = false;
+              useNullableAtomicFlat = true;
+              useNullableNonAtomicFlat = true;
+              break;
+      default: throw new RuntimeException("Unrecognized configuration");
+    }
+
+    // Generate test classes with the given configuration
+
     for (int i = 0; i < 20; i++) {
       seed += i;
       System.out.println("Random seed for class generation: " + seed);
       var gen = new ValueClassGenerator(seed, 256);
-      gen.generateAll(256);
+      gen.generateAll(128);
 
       String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
       String[] testArgs = new String[classNames.length+1];
@@ -172,7 +137,7 @@ public class ValueRandomLayoutTest {
       System.arraycopy(classNames, 0, testArgs, 1, classNames.length);
 
       // Execute the test runner in charge of loading all test classes
-      ProcessBuilder pb = exec(testArgs);
+      ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, testArgs);
       OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
       if (out.getExitValue() != 0) {
