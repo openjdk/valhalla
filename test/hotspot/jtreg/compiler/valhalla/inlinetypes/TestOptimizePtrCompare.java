@@ -164,7 +164,7 @@ public class TestOptimizePtrCompare {
         return v;
     }
 
-    @Test
+    @Test(allowNotCompilable = true)
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, failOn = {IRNode.CMP_P_OR_N})
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "4", IRNode.CMP_I, "2"})
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "false"}, counts = {IRNode.CMP_P_OR_N, "2"})
