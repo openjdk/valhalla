@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -412,7 +412,6 @@ public final class StackMapGenerator {
         return framesCount == 0 ? null : new UnboundAttribute.AdHocAttribute<>(Attributes.stackMapTable()) {
             @Override
             public void writeBody(BufWriterImpl b) {
-                int countPos = b.size();
                 if (framesCount != (char) framesCount) {
                     throw generatorError("Too many frames: " + framesCount);
                 }
@@ -486,7 +485,8 @@ public final class StackMapGenerator {
         boolean verified_exc_handlers = false;
         int bci = bcs.bci();
         Type type1, type2, type3, type4;
-        if (RawBytecodeHelper.isStoreIntoLocal(opcode) && bci >= exMin && bci < exMax) {
+        if ((RawBytecodeHelper.isStoreIntoLocal(opcode) || (opcode == PUTFIELD && OBJECT_INITIALIZER_NAME.equals(methodName)))
+                && bci >= exMin && bci < exMax) {
             processExceptionHandlerTargets(bci, this_uninit);
             verified_exc_handlers = true;
         }
@@ -709,14 +709,14 @@ public final class StackMapGenerator {
 
     private void processExceptionHandlerTargets(int bci, boolean this_uninit) {
         for (var ex : rawHandlers) {
-            if (bci == ex.start || (currentFrame.localsChanged && bci > ex.start && bci < ex.end)) {
+            if (bci == ex.start || (currentFrame.localsOrUnsetsChanged && bci > ex.start && bci < ex.end)) {
                 int flags = currentFrame.flags;
                 if (this_uninit) flags |= FLAG_THIS_UNINIT;
                 Frame newFrame = currentFrame.frameInExceptionHandler(flags, ex.catchType);
                 checkJumpTarget(newFrame, ex.handler);
             }
         }
-        currentFrame.localsChanged = false;
+        currentFrame.localsOrUnsetsChanged = false;
     }
 
     private void processLdc(int index) {
@@ -980,28 +980,30 @@ public final class StackMapGenerator {
         int flags;
         int frameMaxStack = 0, frameMaxLocals = 0;
         boolean dirty = false;
-        boolean localsChanged = false;
+        boolean localsOrUnsetsChanged = false;
 
         private final ClassHierarchyImpl classHierarchy;
 
         private Type[] locals, stack;
-        private UnsetField[] unsetFields = UnsetField.EMPTY_ARRAY; // sorted, modifiable oversized array
+        private UnsetField[] unsetFields; // sorted, modifiable oversized array
 
         Frame(ClassHierarchyImpl classHierarchy) {
-            this(-1, 0, 0, 0, null, null, classHierarchy);
+            this(-1, 0, 0, 0, 0, null, null, UnsetField.EMPTY_ARRAY, classHierarchy);
         }
 
         Frame(int offset, ClassHierarchyImpl classHierarchy) {
-            this(offset, -1, 0, 0, null, null, classHierarchy);
+            this(offset, -1, 0, 0, 0, null, null, UnsetField.EMPTY_ARRAY, classHierarchy);
         }
 
-        Frame(int offset, int flags, int locals_size, int stack_size, Type[] locals, Type[] stack, ClassHierarchyImpl classHierarchy) {
+        Frame(int offset, int flags, int locals_size, int stack_size, int unsetFieldsSize, Type[] locals, Type[] stack, UnsetField[] unsetFields, ClassHierarchyImpl classHierarchy) {
             this.offset = offset;
             this.localsSize = locals_size;
             this.stackSize = stack_size;
+            this.unsetFieldsSize = unsetFieldsSize;
             this.flags = flags;
             this.locals = locals;
             this.stack = stack;
+            this.unsetFields = unsetFields;
             this.classHierarchy = classHierarchy;
         }
 
@@ -1048,7 +1050,8 @@ public final class StackMapGenerator {
         }
 
         Frame frameInExceptionHandler(int flags, Type excType) {
-            return new Frame(offset, flags, localsSize, 1, locals, new Type[] {excType}, classHierarchy);
+            return new Frame(offset, flags, localsSize, 1, unsetFieldsSize,
+                    locals, new Type[] {excType}, unsetFields, classHierarchy);
         }
 
         void initializeObject(Type old_object, Type new_object) {
@@ -1056,7 +1059,7 @@ public final class StackMapGenerator {
             for (i = 0; i < localsSize; i++) {
                 if (locals[i].equals(old_object)) {
                     locals[i] = new_object;
-                    localsChanged = true;
+                    localsOrUnsetsChanged = true;
                 }
             }
             for (i = 0; i < stackSize; i++) {
@@ -1097,6 +1100,8 @@ public final class StackMapGenerator {
             }
             if (shift > 1) {
                 throw generatorError(nat + "; discovered " + shift);
+            } else if (shift == 1) {
+                localsOrUnsetsChanged = true;
             }
             unsetFieldsSize -= shift;
         }
@@ -1115,7 +1120,7 @@ public final class StackMapGenerator {
 
         private void setLocalRawInternal(int index, Type type) {
             checkLocal(index);
-            localsChanged |= !type.equals(locals[index]);
+            localsOrUnsetsChanged |= !type.equals(locals[index]);
             locals[index] = type;
         }
 
@@ -1176,7 +1181,7 @@ public final class StackMapGenerator {
             unsetFieldsSize = src.unsetFieldsSize;
             unsetFields = UnsetField.copyArray(src.unsetFields, src.unsetFieldsSize);
             flags = src.flags;
-            localsChanged = true;
+            localsOrUnsetsChanged = true;
         }
 
         void checkAssignableTo(Frame target) {

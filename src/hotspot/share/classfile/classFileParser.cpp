@@ -159,8 +159,6 @@
 
 #define JAVA_27_VERSION                   71
 
-#define CONSTANT_CLASS_DESCRIPTORS        71
-
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -1021,7 +1019,8 @@ public:
 };
 
 
-static int skip_annotation_value(const u1*, int, int); // fwd decl
+static int skip_annotation_value(const u1* buffer, int limit, int index, int recursion_depth); // fwd decl
+static const int max_recursion_depth = 5;
 
 // Safely increment index by val if does not pass limit
 #define SAFE_ADD(index, limit, val) \
@@ -1029,23 +1028,29 @@ if (index >= limit - val) return limit; \
 index += val;
 
 // Skip an annotation.  Return >=limit if there is any problem.
-static int skip_annotation(const u1* buffer, int limit, int index) {
+static int skip_annotation(const u1* buffer, int limit, int index, int recursion_depth = 0) {
   assert(buffer != nullptr, "invariant");
+  if (recursion_depth > max_recursion_depth) {
+    return limit;
+  }
   // annotation := atype:u2 do(nmem:u2) {member:u2 value}
   // value := switch (tag:u1) { ... }
   SAFE_ADD(index, limit, 4); // skip atype and read nmem
   int nmem = Bytes::get_Java_u2((address)buffer + index - 2);
   while (--nmem >= 0 && index < limit) {
     SAFE_ADD(index, limit, 2); // skip member
-    index = skip_annotation_value(buffer, limit, index);
+    index = skip_annotation_value(buffer, limit, index, recursion_depth + 1);
   }
   return index;
 }
 
 // Skip an annotation value.  Return >=limit if there is any problem.
-static int skip_annotation_value(const u1* buffer, int limit, int index) {
+static int skip_annotation_value(const u1* buffer, int limit, int index, int recursion_depth) {
   assert(buffer != nullptr, "invariant");
 
+  if (recursion_depth > max_recursion_depth) {
+    return limit;
+  }
   // value := switch (tag:u1) {
   //   case B, C, I, S, Z, D, F, J, c: con:u2;
   //   case e: e_class:u2 e_name:u2;
@@ -1077,12 +1082,12 @@ static int skip_annotation_value(const u1* buffer, int limit, int index) {
       SAFE_ADD(index, limit, 2); // read nval
       int nval = Bytes::get_Java_u2((address)buffer + index - 2);
       while (--nval >= 0 && index < limit) {
-        index = skip_annotation_value(buffer, limit, index);
+        index = skip_annotation_value(buffer, limit, index, recursion_depth + 1);
       }
     }
     break;
     case '@':
-      index = skip_annotation(buffer, limit, index);
+      index = skip_annotation(buffer, limit, index, recursion_depth + 1);
       break;
     default:
       return limit;  //  bad tag byte
@@ -4502,8 +4507,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
   const bool is_enum       = (flags & JVM_ACC_ENUM)       != 0;
   const bool is_annotation = (flags & JVM_ACC_ANNOTATION) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
-  const bool valid_value_class = is_identity || is_interface ||
-                                 (supports_inline_types() && (!is_identity && (is_abstract || is_final)));
+  const bool valid_value_class = is_identity || is_interface || (supports_inline_types() && (is_abstract || is_final));
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
@@ -4511,10 +4515,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_nam
       (!is_interface && major_gte_1_5 && is_annotation) ||
       (!valid_value_class)) {
     ResourceMark rm(THREAD);
-    const char* class_note = "";
-    if (!valid_value_class) {
-      class_note = " (a value class must be final or else abstract)";
-    }
     // Names are all known to be < 64k so we know this formatted message is not excessively large.
     if (inner_name == nullptr && !is_anonymous_inner_class) {
       Exceptions::fthrow(
@@ -5002,10 +5002,6 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
         p = skip_over_field_name(bytes, true, length);
         legal = (p != nullptr) && ((p - bytes) == (int)length);
       }
-    } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
-                   && bytes[length - 1] == ';' ) {
-      // Support for L...; descriptors
-      legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
       // 4900761: relax the constraints based on JSR202 spec
       // Class names may be drawn from the entire Unicode character set.
@@ -5589,7 +5585,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
       map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
       acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
     }
-    assert(acmp_maps_array->length() == map->length(), "sanity");
+    assert(acmp_maps_array->length() == map_h->length(), "sanity");
     ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
     ik->set_acmp_maps_array(acmp_maps_array);
   }

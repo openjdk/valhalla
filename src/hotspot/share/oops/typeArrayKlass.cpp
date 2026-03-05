@@ -83,7 +83,7 @@ u2 TypeArrayKlass::compute_modifier_flags() const {
 }
 
 TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name)
-    : ArrayKlass(1, name, Kind, ArrayKlass::ArrayProperties::DEFAULT) {
+    : ArrayKlass(1, name, Kind, ArrayProperties::Default()) {
   set_layout_helper(array_layout_helper(type));
   assert(is_array_klass(), "sanity");
   assert(is_typeArray_klass(), "sanity");

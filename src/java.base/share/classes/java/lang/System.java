@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.module.ModuleDescriptor;
-import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -56,7 +55,6 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
@@ -2193,8 +2191,8 @@ public final class System {
                 return String.decodeASCII(src, srcOff, dst, dstOff, len);
             }
 
-            public int uncheckedEncodeASCII(char[] src, int srcOff, byte[] dst, int dstOff, int len) {
-                return StringCoding.implEncodeAsciiArray(src, srcOff, dst, dstOff, len);
+            public int encodeASCII(char[] sa, int sp, byte[] da, int dp, int len) {
+                return StringCoding.encodeAsciiArray(sa, sp, da, dp, len);
             }
 
             public InputStream initialSystemIn() {
@@ -2294,6 +2292,14 @@ public final class System {
                 return Thread.scopedValueBindings();
             }
 
+            public long nativeThreadID(Thread thread) {
+                return thread.nativeThreadID();
+            }
+
+            public void setThreadNativeID(long id) {
+                Thread.currentThread().setNativeThreadID(id);
+            }
+
             public Continuation getContinuation(Thread thread) {
                 return thread.getContinuation();
             }
@@ -2328,7 +2334,7 @@ public final class System {
                 if (thread instanceof BaseVirtualThread vthread) {
                     vthread.unpark();
                 } else {
-                    throw new WrongThreadException();
+                    throw new IllegalArgumentException();
                 }
             }
 
@@ -2340,10 +2346,6 @@ public final class System {
                                                       ContinuationScope contScope,
                                                       Continuation continuation) {
                 return StackWalker.newInstance(options, null, contScope, continuation);
-            }
-
-            public int classFileFormatVersion(Class<?> clazz) {
-                return clazz.getClassFileVersion();
             }
 
             public String getLoaderNameID(ClassLoader loader) {
@@ -2358,6 +2360,11 @@ public final class System {
             @Override
             public boolean bytesCompatible(String string, Charset charset, int srcIndex, int numChars) {
                 return string.bytesCompatible(charset, srcIndex, numChars);
+            }
+
+            @Override
+            public void finishInit(StackTraceElement[] stackTrace) {
+                StackTraceElement.finishInit(stackTrace);
             }
         });
     }

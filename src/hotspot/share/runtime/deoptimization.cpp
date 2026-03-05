@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -135,6 +135,7 @@ void DeoptimizationScope::mark(nmethod* nm, bool inc_recompile_counts) {
     return;
   }
 
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
   nmethod::DeoptimizationStatus status =
     inc_recompile_counts ? nmethod::deoptimize : nmethod::deoptimize_noupdate;
   AtomicAccess::store(&nm->_deoptimization_status, status);
@@ -308,11 +309,11 @@ static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, Obj
     nmethod* nm = fr->cb()->as_nmethod_or_null();
     if (nm->is_compiled_by_c2()) {
       assert(sv->has_properties(), "Property information is missing");
-      ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint());
+      ArrayProperties props(checked_cast<ArrayProperties::Type>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint()));
       k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
     } else {
       // TODO Graal needs to be fixed. Just go with the default properties for now
-      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties::Default(), THREAD);
     }
   }
   return k;
@@ -2283,7 +2284,9 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
       // Lock to read ProfileData, and ensure lock is not broken by a safepoint
       // We must do this already now, since we cannot acquire this lock while
       // holding the tty lock (lock ordering by rank).
-      MutexLocker ml(trap_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
+      ConditionalMutexLocker ml((trap_mdo != nullptr) ? trap_mdo->extra_data_lock() : nullptr,
+                                (trap_mdo != nullptr),
+                                Mutex::_no_safepoint_check_flag);
 
       ttyLocker ttyl;
 

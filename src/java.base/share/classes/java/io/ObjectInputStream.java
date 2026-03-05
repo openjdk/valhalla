@@ -39,7 +39,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 import jdk.internal.access.JavaLangAccess;
@@ -259,16 +258,6 @@ import jdk.internal.util.ByteArray;
 public class ObjectInputStream
     extends InputStream implements ObjectInput, ObjectStreamConstants
 {
-    private static final String TRACE_DEST =
-            System.getProperty("TRACE");
-
-    static void TRACE(String format, Object... args) {
-        if (TRACE_DEST != null) {
-            var ps = "OUT".equals(TRACE_DEST.toUpperCase(Locale.ROOT)) ? System.out : System.err;
-            ps.println(("TRACE " + format).formatted(args));
-        }
-    }
-
     /** handle value representing null */
     private static final int NULL_HANDLE = -1;
 
@@ -2201,7 +2190,6 @@ public class ObjectInputStream
      */
     private Object readObjectValue(ObjectStreamClass desc, boolean unshared) throws IOException {
         final ObjectStreamClass localDesc = desc.getLocalDesc();
-        TRACE("readObjectValue: %s, local class: %s", desc.getName(), localDesc.getName());
         // Check for un-expected fields in superclasses
         List<ClassDataSlot> slots = desc.getClassDataLayout();
         for (int i = 0; i < slots.size()-1; i++) {
@@ -2243,8 +2231,6 @@ public class ObjectInputStream
     private Object readExternalObject(ObjectStreamClass desc, boolean unshared)
         throws IOException
     {
-        TRACE("readExternalObject: %s", desc.getName());
-
         // For Externalizable objects,
         // create the instance, publish the ref, and read the data
         Externalizable obj = null;
@@ -2314,7 +2300,6 @@ public class ObjectInputStream
      * the exit of {@link #readObject(Class)}.
      */
     private Object readRecord(ObjectStreamClass desc, boolean unshared) throws IOException {
-        TRACE("invoking readRecord: %s", desc.getName());
         List<ClassDataSlot> slots = desc.getClassDataLayout();
         if (slots.size() != 1) {
             // skip any superclass stream field values
@@ -2371,7 +2356,6 @@ public class ObjectInputStream
             // No local class to create, read and discard
             return readAbsentLocalClass(desc, unshared);
         }
-        TRACE("readSerialDefaultObject: %s", desc.getName());
         try {
             final Object obj = desc.newInstance();
             if (!unshared)
@@ -2422,7 +2406,6 @@ public class ObjectInputStream
             return readAbsentLocalClass(desc, unshared);
         }
 
-        TRACE("readSerialCustomData: %s, ex: %s", desc.getName(), handles.lookupException(passHandle));
         try {
             Object obj = desc.newInstance();
             if (!unshared)
@@ -2448,7 +2431,6 @@ public class ObjectInputStream
      *         underlying {@code InputStream}
      */
     private Object readSerialCustomSlots(Object obj, List<ClassDataSlot> slots) throws IOException {
-        TRACE("    readSerialCustomSlots: %s", slots);
 
         for (ClassDataSlot slot : slots) {
             ObjectStreamClass slotDesc = slot.desc;
@@ -2486,7 +2468,6 @@ public class ObjectInputStream
      *         underlying {@code InputStream}
      */
     private void readSlotViaReadObject(Object obj, ObjectStreamClass slotDesc) throws IOException {
-        TRACE("readSlotViaReadObject: %s", slotDesc.getName());
         assert obj != null : "readSlotViaReadObject called when obj == null";
 
         SerialCallbackContext oldContext = curContext;
@@ -2541,7 +2522,6 @@ public class ObjectInputStream
      */
     private Object readAbsentLocalClass(ObjectStreamClass desc, boolean unshared)
             throws IOException {
-        TRACE("readAbsentLocalClass: %s", desc.getName());
         desc.getClassDataLayout().stream()
                 .filter(s -> s.hasData)
                 .forEach(s2 -> {new FieldValues(s2.desc, true); finishBlockData(s2.desc);});
@@ -2658,7 +2638,6 @@ public class ObjectInputStream
         FieldValues(ObjectStreamClass desc, boolean recordDependencies) throws UncheckedIOException {
             try {
                 this.desc = desc;
-                TRACE("    reading FieldValues: %s", desc.getName());
                 int primDataSize = desc.getPrimDataSize();
                 primValues = (primDataSize > 0) ? new byte[primDataSize] : null;
                 if (primDataSize > 0) {

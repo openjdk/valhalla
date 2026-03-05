@@ -38,6 +38,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/arrayProperties.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -45,6 +46,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
@@ -514,7 +516,7 @@ class CompileReplay : public StackObj {
       obj = ciReplay::obj_field(obj, field);
       // TODO 8350865 I think we need to handle null-free/flat arrays here
       if (obj != nullptr && obj->is_refArray()) {
-        refArrayOop arr = refArrayOopDesc::cast(obj);
+        refArrayOop arr = oop_cast<refArrayOop>(obj);
         int index = parse_int("index");
         if (index >= arr->length()) {
           report_error("bad array index");
@@ -890,19 +892,13 @@ class CompileReplay : public StackObj {
   }
 
   ObjArrayKlass* create_concrete_object_array_klass(ObjArrayKlass* obj_array_klass, TRAPS) {
-    ArrayKlass::ArrayProperties array_properties =
-    static_cast<ArrayKlass::ArrayProperties>(parse_int("array_properties"));
+    const ArrayProperties array_properties(checked_cast<ArrayProperties::Type>(parse_int("array_properties")));
     if (!Arguments::is_valhalla_enabled()) {
       // Ignore array properties.
       return obj_array_klass;
     }
 
-    if (array_properties != ArrayKlass::DEFAULT &&
-        array_properties != ArrayKlass::NULL_RESTRICTED &&
-        array_properties != ArrayKlass::NON_ATOMIC &&
-        array_properties != (ArrayKlass::NULL_RESTRICTED | ArrayKlass::NON_ATOMIC)) {
-      guarantee(false, "invalid array_properties: %d", array_properties);
-    }
+    guarantee(array_properties.is_valid(), "invalid array_properties: %d", array_properties.value());
 
     return obj_array_klass->klass_with_properties(array_properties, THREAD);
   }

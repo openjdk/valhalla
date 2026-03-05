@@ -33,6 +33,7 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedKlass.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/markWord.inline.hpp"
 #include "oops/objLayout.inline.hpp"
@@ -236,14 +237,24 @@ size_t oopDesc::size_given_klass(Klass* klass)  {
   return s;
 }
 
-bool oopDesc::is_instance()    const { return klass()->is_instance_klass();             }
-bool oopDesc::is_instanceRef() const { return klass()->is_reference_instance_klass();   }
-bool oopDesc::is_stackChunk()  const { return klass()->is_stack_chunk_instance_klass(); }
-bool oopDesc::is_array()       const { return klass()->is_array_klass();                }
-bool oopDesc::is_objArray()    const { return klass()->is_objArray_klass();             }
-bool oopDesc::is_refArray()    const { return klass()->is_refArray_klass();             }
-bool oopDesc::is_typeArray()   const { return klass()->is_typeArray_klass();            }
-bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass(); }
+bool oopDesc::is_instance()         const { return klass()->is_instance_klass();             }
+bool oopDesc::is_inline()           const { return klass()->is_inline_klass();               }
+bool oopDesc::is_instanceRef()      const { return klass()->is_reference_instance_klass();   }
+bool oopDesc::is_stackChunk()       const { return klass()->is_stack_chunk_instance_klass(); }
+bool oopDesc::is_array()            const { return klass()->is_array_klass();                }
+bool oopDesc::is_objArray()         const { return klass()->is_objArray_klass();             }
+bool oopDesc::is_refArray()         const { return klass()->is_refArray_klass();             }
+bool oopDesc::is_typeArray()        const { return klass()->is_typeArray_klass();            }
+bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass();     }
+
+bool oopDesc::is_array_with_oops() const {
+  if (!is_objArray()) {
+    return false;
+  }
+
+  assert(is_refined_objArray(), "Must be");
+  return is_refArray() || FlatArrayKlass::cast(klass())->contains_oops();
+}
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
 #ifdef _LP64

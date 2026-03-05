@@ -65,6 +65,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objLayout.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
@@ -516,7 +517,7 @@ void Universe::genesis(TRAPS) {
     oak->append_to_sibling_list();
 
     // Create a RefArrayKlass (which is the default) and initialize.
-    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayProperties::Default(), THREAD);
     _objectArrayKlass = rak;
   }
 
@@ -680,10 +681,10 @@ bool Universe::on_page_boundary(void* addr) {
 
 // the array of preallocated errors with backtraces
 refArrayOop Universe::preallocated_out_of_memory_errors() {
-  return refArrayOopDesc::cast(_preallocated_out_of_memory_error_array.resolve());
+  return oop_cast<refArrayOop>(_preallocated_out_of_memory_error_array.resolve());
 }
 
-refArrayOop Universe::out_of_memory_errors() { return refArrayOopDesc::cast(_out_of_memory_errors.resolve()); }
+refArrayOop Universe::out_of_memory_errors() { return oop_cast<refArrayOop>(_out_of_memory_errors.resolve()); }
 
 oop Universe::out_of_memory_error_java_heap() {
   return gen_out_of_memory_error(out_of_memory_errors()->obj_at(_oom_java_heap));
@@ -1198,12 +1199,11 @@ bool universe_post_init() {
     Universe::heap()->update_capacity_and_used_at_gc();
   }
 
-  // ("weak") refs processing infrastructure initialization
+  // Initialize serviceability
+  MemoryService::initialize(Universe::heap());
+
+  // Complete initialization
   Universe::heap()->post_initialize();
-
-  MemoryService::add_metaspace_memory_pools();
-
-  MemoryService::set_universe_heap(Universe::heap());
 
 #if INCLUDE_CDS
   AOTMetaspace::post_initialize(CHECK_false);
