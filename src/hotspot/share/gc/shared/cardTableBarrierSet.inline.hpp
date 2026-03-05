@@ -181,8 +181,8 @@ value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
     const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
+    // Pre-barriers...
     if (!HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
-      // Pre-barriers...
       OopMapBlock* map = md->start_of_nonstatic_oop_maps();
       OopMapBlock* const end = map + md->nonstatic_oop_map_count();
 
