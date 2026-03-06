@@ -36,7 +36,7 @@ class JfrVframeStream : public vframeStreamCommon {
  public:
   JfrVframeStream(JavaThread* jt, const frame& fr, bool in_continuation, bool stop_at_java_call_stub);
   void next_vframe();
-  int get_bci() const;
+  int normalized_bci() const;
 };
 
 #endif // SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP

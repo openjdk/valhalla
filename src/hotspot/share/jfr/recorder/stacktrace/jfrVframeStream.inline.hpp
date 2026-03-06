@@ -87,7 +87,7 @@ inline void JfrVframeStream::next_vframe() {
   next_frame();
 }
 
-inline int JfrVframeStream::get_bci() const {
+inline int JfrVframeStream::normalized_bci() const {
   const int value = bci();
   return value == InvocationEntryBci ? 0 : value;
 }

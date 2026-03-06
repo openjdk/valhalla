@@ -195,7 +195,7 @@ class JfrUnpackNeedStackRepair {
     return _method;
   }
 
-  int bci() const {
+  int normalized_bci() const {
     return _bci == InvocationEntryBci ? 0 : _bci;
   }
 };
@@ -219,7 +219,7 @@ void JfrStackTrace::record_stack_repair_top_frame(const JfrSampleRequest& reques
   JfrUnpackNeedStackRepair unpack(pc_desc, nm);
   while (unpack.has_next()) {
     unpack.next();
-    record_frame(unpack.method(), unpack.bci(), unpack.has_next() ? JfrStackFrame::FRAME_INLINE : JfrStackFrame::FRAME_JIT);
+    record_frame(unpack.method(), unpack.normalized_bci(), unpack.has_next() ? JfrStackFrame::FRAME_INLINE : JfrStackFrame::FRAME_JIT);
   }
 }
 
@@ -303,7 +303,7 @@ bool JfrStackTrace::record_inner(JavaThread* jt, const frame& frame, bool in_con
     if (method->is_native()) {
       type = JfrStackFrame::FRAME_NATIVE;
     } else {
-      bci = vfs.get_bci();
+      bci = vfs.normalized_bci();
     }
 
     const intptr_t* const frame_id = vfs.frame_id();
