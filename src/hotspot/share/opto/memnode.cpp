@@ -177,7 +177,7 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
       base_local = base_uncasted->as_Proj();
       return nullptr;
     } else if (multi->is_Call()) {
-      if (!multi->is_CallJava() || multi->as_CallJava()->method() == nullptr || !multi->as_CallJava()->method()->return_maybe_larval()) {
+      if (!multi->is_CallJava() || multi->as_CallJava()->method() == nullptr || !multi->as_CallJava()->method()->return_value_is_larval()) {
         // The oop is returned from a call, the memory can be the fallthrough output of the call
         return find_call_fallthrough_mem_output(multi->as_Call());
       }

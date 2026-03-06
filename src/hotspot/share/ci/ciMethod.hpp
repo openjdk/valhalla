@@ -399,7 +399,7 @@ class ciMethod : public ciMetadata {
   // Generally, a method cannot return a larval object or receive a larval argument. There are some
   // exceptions.
   bool receiver_maybe_larval() const;
-  bool return_maybe_larval() const;
+  bool return_value_is_larval() const;
 };
 
 #endif // SHARE_CI_CIMETHOD_HPP

@@ -1642,7 +1642,7 @@ bool ciMethod::receiver_maybe_larval() const {
   return res;
 }
 
-bool ciMethod::return_maybe_larval() const {
+bool ciMethod::return_value_is_larval() const {
   if (intrinsic_id() == vmIntrinsics::_allocateInstance) {
     return true;
   }

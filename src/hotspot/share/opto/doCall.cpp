@@ -812,7 +812,7 @@ void Parse::do_call() {
     if (!rtype->is_void()) {
       Node* retnode = peek();
       const Type* rettype = gvn().type(retnode);
-      if (!cg->method()->return_maybe_larval() && !retnode->is_InlineType() && rettype->is_inlinetypeptr()) {
+      if (!cg->method()->return_value_is_larval() && !retnode->is_InlineType() && rettype->is_inlinetypeptr()) {
         retnode = InlineTypeNode::make_from_oop(this, retnode, rettype->inline_klass());
         dec_sp(1);
         push(retnode);
