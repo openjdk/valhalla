@@ -27,7 +27,7 @@
  */
 public class JniVersion {
 
-    public static final int JNI_VERSION_28 = 0x0010000;
+    public static final int JNI_VERSION_24 = 0x00180000;
 
     public static void main(String... args) throws Exception {
         System.loadLibrary("JniVersion");
