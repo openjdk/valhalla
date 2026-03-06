@@ -3408,13 +3408,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
     test = _gvn.transform(new SubINode(inst, bits));
     // The 'test' is non-zero if we need to take a slow path.
   }
-  Node* obj = nullptr;
-  const TypeInstKlassPtr* tkls = _gvn.type(kls)->isa_instklassptr();
-  if (tkls != nullptr && tkls->instance_klass()->is_inlinetype()) {
-    obj = InlineTypeNode::make_all_zero(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
-  } else {
-    obj = new_instance(kls, test);
-  }
+  Node* obj = new_instance(kls, test);
   set_result(obj);
   return true;
 }

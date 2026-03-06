@@ -33,6 +33,7 @@
 #include "ci/ciSymbol.hpp"
 #include "ci/ciSymbols.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "compiler/abstractCompiler.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/compilerOracle.hpp"
@@ -1633,4 +1634,20 @@ bool ciMethod::mismatch() const {
 bool ciMethod::is_old() const {
   ASSERT_IN_VM;
   return get_Method()->is_old();
+}
+
+bool ciMethod::receiver_maybe_larval() const {
+  bool res = is_object_constructor() || intrinsic_id() == vmIntrinsics::_linkToSpecial;
+  assert(!res || !is_scalarized_arg(0), "larval argument must not be passed as fields");
+  return res;
+}
+
+bool ciMethod::return_maybe_larval() const {
+  if (intrinsic_id() == vmIntrinsics::_allocateInstance) {
+    return true;
+  }
+  if (holder()->name()->equals(ciSymbols::java_lang_invoke_DirectMethodHandle()) && name()->equals(ciSymbols::allocateInstance_name())) {
+    return true;
+  }
+  return false;
 }
