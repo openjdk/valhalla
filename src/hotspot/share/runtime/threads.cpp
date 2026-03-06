@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -1081,6 +1081,7 @@ jboolean Threads::is_supported_jni_version(jint version) {
   if (version == JNI_VERSION_20) return JNI_TRUE;
   if (version == JNI_VERSION_21) return JNI_TRUE;
   if (version == JNI_VERSION_24) return JNI_TRUE;
+  if (version == JNI_VERSION_28) return JNI_TRUE;
   return JNI_FALSE;
 }
 
