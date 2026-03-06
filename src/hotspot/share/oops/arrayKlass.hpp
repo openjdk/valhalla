@@ -56,9 +56,6 @@ class ArrayKlass: public Klass {
   ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props);
   ArrayKlass();
 
-  // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(Klass* element_klass, JavaThread* current);
-
  public:
 
   // Testing operation

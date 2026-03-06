@@ -130,25 +130,6 @@ ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties prop
   log_array_class_load(this);
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, JavaThread* current) {
-  ResourceMark rm(current);
-  char *name_str = element_klass->name()->as_C_string();
-  int len = element_klass->name()->utf8_length();
-  char *new_str = NEW_RESOURCE_ARRAY_IN_THREAD(current, char, len + 4);
-  int idx = 0;
-  new_str[idx++] = JVM_SIGNATURE_ARRAY;
-  if (element_klass->is_instance_klass()) { // it could be an array or simple type
-    new_str[idx++] = JVM_SIGNATURE_CLASS;
-  }
-  memcpy(&new_str[idx], name_str, len * sizeof(char));
-  idx += len;
-  if (element_klass->is_instance_klass()) {
-    new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
-  }
-  new_str[idx++] = '\0';
-  return SymbolTable::new_symbol(new_str);
-}
-
 // Initialization of vtables and mirror object is done separately from base_create_array_klass,
 // since a GC can happen. At this point all instance variables of the ArrayKlass must be setup.
 void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module_entry, TRAPS) {
