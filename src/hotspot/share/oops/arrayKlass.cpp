@@ -44,7 +44,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
-ArrayKlass::ArrayKlass() {
+ArrayKlass::ArrayKlass() : _properties() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
@@ -115,9 +115,9 @@ static markWord calc_prototype_header(Klass::KlassKind kind, ArrayProperties pro
 ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props)
     : Klass(kind, calc_prototype_header(kind, props)),
   _dimension(n),
-  _properties(props),
   _higher_dimension(nullptr),
-  _lower_dimension(nullptr) {
+  _lower_dimension(nullptr),
+  _properties(props) {
   // Arrays don't add any new methods, so their vtable is the same size as
   // the vtable of klass Object.
   set_vtable_length(Universe::base_vtable_size());
