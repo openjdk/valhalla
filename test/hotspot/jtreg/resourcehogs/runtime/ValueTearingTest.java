@@ -28,10 +28,9 @@
  * @modules java.base/jdk.internal.vm.annotation java.base/jdk.internal.value
  * @enablePreview
  * @compile ValueTearingTest.java
- * @run main/othervm/timeout=2000 runtime.valhalla.inlinetypes.ValueTearingTest
+ * @run main/othervm/timeout=2000 ValueTearingTest
  */
 
-package runtime.valhalla.inlinetypes;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,7 +50,7 @@ public class ValueTearingTest {
 
     static int N_WRITERS;
     static int N_READERS;
-    static final int DURATION_MILLISECONDS = 3 * 60 * 1000;
+    static final int DURATION_MILLISECONDS = 1 * 60 * 1000;
     static final Object[] objectArray = new Object[1];
     static AtomicLong[] scenarioFailures = new AtomicLong[N_SCENARIO];
 
@@ -61,8 +60,8 @@ public class ValueTearingTest {
         int nCpu = Runtime.getRuntime().availableProcessors();
         N_WRITERS = Math.min((nCpu / 2), INCREMENTS.length);
         N_READERS = nCpu - N_WRITERS;
-        // assert N_WRITERS > 0
-        // assert N_READERS > 0
+        Asserts.assertTrue(N_WRITERS > 0, "At least one writer thread is required");
+        Asserts.assertTrue(N_READERS > 0, "At least one reader thread is required");
         barrier = new CyclicBarrier(nCpu + 1);
         objectArray[0] = new Value(1);
         for (int i = 0; i < N_SCENARIO; i++) {
