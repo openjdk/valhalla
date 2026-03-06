@@ -5033,8 +5033,11 @@ public class Check {
 
             checkCtorAccess(p, c);
 
-            // Check for missing serialVersionUID; check *not* done
-            // for enums or records.
+            /* Check for missing serialVersionUID; check *not* done
+             * for enums or records.
+             * Migrated value classes, need the value class and its corresponding
+             * identity class to have the same SVUID.
+             */
             VarSymbol svuidSym = null;
             for (Symbol sym : c.members().getSymbolsByName(names.serialVersionUID)) {
                 if (sym.kind == VAR) {
