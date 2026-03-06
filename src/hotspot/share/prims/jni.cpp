@@ -1815,7 +1815,7 @@ static void log_debug_if_read_strict_instance_field(JavaThread* current, const c
     assert(!fd.is_static(), "static/instance mismatch");
     if (fd.is_strict()) {
       ResourceMark rm(current);
-      log_debug(jni)("%s read strict instance field %s.%s (initialization not guaranteed)", func_name, ik->external_name(), fd.name()->as_C_string());
+      log_debug(jni)("%s read strictly-initialized instance field %s.%s (initialization not guaranteed)", func_name, ik->external_name(), fd.name()->as_C_string());
     }
   }
 }
