@@ -211,7 +211,7 @@ static bool needs_backwards_copy(arrayOop s, int src_pos,
 void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
                                 arrayOop d, int dst_pos, int length, TRAPS) {
 
-  assert(s->is_refArray() || s->is_flatArray(), "must be ref or flat array");
+  assert(s->is_refined_objArray(), "must be ref or flat array");
 
   // Check destination
   if (!d->is_refined_objArray()) {
