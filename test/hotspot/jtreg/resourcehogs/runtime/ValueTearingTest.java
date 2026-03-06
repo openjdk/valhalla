@@ -24,10 +24,8 @@
  /*
  * @test
  * @library /test/lib
- * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation java.base/jdk.internal.value
  * @enablePreview
- * @compile ValueTearingTest.java
  * @run main/othervm/timeout=2000 ValueTearingTest
  */
 
