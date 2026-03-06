@@ -146,7 +146,6 @@ PANDOC_HTML_MANPAGE_FILTER := $(BUILDTOOLS_OUTPUTDIR)/manpages/pandoc-html-manpa
 
 VALUETYPE_GENSRC_PROCESSOR_NAME := build.tools.valhalla.valuetypes.GenValueClasses
 VALUETYPE_GENSRC_PROCESSOR_PATH := $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc
-VALUETYPE_GENSRC_PROCESSOR_DEP := $(VALUETYPE_GENSRC_PROCESSOR_PATH)/_the.COMPILE_VALUETYPE_GENSRC_batch
 
 ################################################################################
 

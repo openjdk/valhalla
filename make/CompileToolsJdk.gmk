@@ -158,7 +158,8 @@ endif
 
 $(eval $(call SetupJavaCompilation, COMPILE_VALUETYPE_GENSRC, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    SRC := $(TOPDIR)/make/jdk/src/classes/build/tools/valhalla/valuetypes/GenValueClasses.java, \
+    SRC := $(TOPDIR)/make/jdk/src/classes, \
+    INCLUDES := build/tools/valhalla/valuetypes, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc, \
 ))
 

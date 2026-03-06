@@ -189,7 +189,7 @@ public final class GenValueClasses extends AbstractProcessor {
                     // curPos is at the end of the modifier section, so add a leading space.
                     // curPos ---v
                     // [modifiers] class...  -->>  [modifiers] value class...
-                    output.write(" value");
+                    output.write(" value /*qq*/ ");
                 }
                 // Trailing section to end-of-file transferred from original reader.
                 reader.transferTo(output);

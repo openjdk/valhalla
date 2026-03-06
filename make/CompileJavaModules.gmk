@@ -73,6 +73,7 @@ MODULEPATH := $(call PathList, $(IMPORT_MODULES_CLASSES))
 # Setup preprocessor flags
 # The output directory must be present in GENERATED_PREVIEW_SUBDIRS in Modules.gmk.
 # Temporarily restrict this to java.base, but it can be expanded later.
+# TODO: Remove Xlint directives below once the fix in JDK-8378740 is merged into lworld.
 
 ifeq ($(MODULE), java.base)
     PREPROCESSOR_FLAGS := \
@@ -81,7 +82,7 @@ ifeq ($(MODULE), java.base)
         -processor $(VALUETYPE_GENSRC_PROCESSOR_NAME)
 
     PROCESSOR_PATH += $(VALUETYPE_GENSRC_PROCESSOR_PATH)
-    EXTRA_DEPS += $(VALUETYPE_GENSRC_PROCESSOR_DEP)
+    DEPENDS += $(VALUETYPE_GENSRC_PROCESSOR_PATH)
 endif
 
 ################################################################################
@@ -123,7 +124,7 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     MODULE := $(MODULE), \
     SRC := $(wildcard $(MODULE_SRC_DIRS)), \
     INCLUDES := $(JDK_USER_DEFINED_FILTER), \
-    EXTRA_DEPS := $(EXTRA_DEPS), \
+    DEPENDS := $(DEPENDS), \
     FAIL_NO_SRC := $(FAIL_NO_SRC), \
     BIN := $(COMPILATION_OUTPUTDIR), \
     HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
@@ -173,7 +174,6 @@ ifneq ($(COMPILER), bootjdk)
         MODULE := $(MODULE), \
         SRC := $(wildcard $(MODULE_PREVIEW_SRC_DIRS)), \
         INCLUDES := $(JDK_USER_DEFINED_FILTER), \
-        EXTRA_DEPS := $(VALUETYPE_GENSRC_PROCESSOR_DEP), \
         FAIL_NO_SRC := $(FAIL_NO_SRC), \
         BIN := $(TEMP_OUTPUTDIR)/, \
         HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
