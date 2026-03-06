@@ -781,7 +781,7 @@ struct JNINativeInterface_ {
     /* Large UTF8 Support */
 
     jlong (JNICALL *GetStringUTFLengthAsLong)
-      (JNIEnv *env, jstring str);
+      (JNIEnv* env, jstring str);
 
     /* Value classes */
 
