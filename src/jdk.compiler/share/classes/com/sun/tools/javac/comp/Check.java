@@ -5131,14 +5131,14 @@ public class Check {
                         var method = (MethodSymbol)enclosed;
                         name = method.getSimpleName().toString();
                         if (serialMethodNames.contains(name)) {
-                            switch (name) {
-                            case "writeObject"      -> isSerialMethodCorrect[0] = hasAppropriateWriteObject(tree, e, method);
-                            case "writeReplace"     -> isSerialMethodCorrect[0] = hasAppropriateWriteReplace(tree, method, true);
-                            case "readObject"       -> isSerialMethodCorrect[0] = hasAppropriateReadObject(tree, e, method);
-                            case "readObjectNoData" -> isSerialMethodCorrect[0] = hasAppropriateReadObjectNoData(tree, e, method);
-                            case "readResolve"      -> isSerialMethodCorrect[0] = hasAppropriateReadResolve(tree, e, method);
-                            default ->  throw new AssertionError();
-                            }
+                            isSerialMethodCorrect[0] = switch (name) {
+                                case "writeObject"      -> hasAppropriateWriteObject(tree, e, method);
+                                case "writeReplace"     -> hasAppropriateWriteReplace(tree, method, true);
+                                case "readObject"       -> hasAppropriateReadObject(tree, e, method);
+                                case "readObjectNoData" -> hasAppropriateReadObjectNoData(tree, e, method);
+                                case "readResolve"      -> hasAppropriateReadResolve(tree, e, method);
+                                default ->  throw new AssertionError();
+                            };
                             if (isSerialMethodCorrect[0]) {
                                 declaredSerialMethodNames.put(name, el);
                             }
@@ -5151,7 +5151,10 @@ public class Check {
                     (c.isValueClass() || hasAbstractValueSuperClass(c, Set.of(syms.numberType.tsym))) &&
                     !c.isAbstract() && !c.isRecord() &&
                     types.unboxedType(c.type) == Type.noType) {
-                // we need to check if the class is inheriting an appropriate writeReplace method
+                /* if we are dealing with a value class or with a class with a super class that happens to
+                 * be an abstract value class, that is not declaring a proper `writeReplace` method, then we
+                 * need to make sure then that it is inheriting an appropriate one.
+                 */
                 MethodSymbol ms = null;
                 Log.DiagnosticHandler discardHandler = log.new DiscardDiagnosticHandler();
                 try {
@@ -5168,6 +5171,12 @@ public class Check {
                 }
             }
             if (c.isValueClass()) {
+                /* methods:
+                 *  - writeObject
+                 *  - readObject and
+                 *  - readObjectNoData
+                 * are not invoked for value classes, we need to warn the user about this
+                 */
                 for (Map.Entry<String, Symbol> entry : declaredSerialMethodNames.entrySet()) {
                     String key = entry.getKey();
                     if (key.equals("writeObject") || key.equals("readObject") || key.equals("readObjectNoData")) {
