@@ -27,7 +27,7 @@ import java.lang.reflect.Field;
 <class_modifiers> <class_name> <super_class> {
     static Object[] predefined;
     static boolean allowDuplicates = <allow_duplicates>;
-<fields declarations>
+<fields_declarations>
 
     static {
         predefined = new Object[<NUM_PREDEFINED>];
@@ -47,52 +47,46 @@ import java.lang.reflect.Field;
       <class_name> val;
 
       Wrapper(<class_name> v) {
-        val = v;
+          val = v;
       }
     }
 
     static public void substitutabilityTest() {
-      Class<?> c = predefined[1].getClass();
-      Field[] fields = c.getDeclaredFields();
-      int instanceFields = 0;
-      for (Field f : fields) {
-          if (!java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
-              instanceFields++;
-          }
-      }
-      boolean empty = instanceFields == 0;
-      <class_name>[] array = new <class_name>[1];
-      for (int i = 0; i < <NUM_PREDEFINED>; i++) {
-        Wrapper w = new Wrapper(getPredefinedValue(i));
-        array[0] = getPredefinedValue(i);
-        if (w.val != array[0]) {
-          throw new RuntimeException("Unexpected non-equal field/array comparison with value at index " + i);
+        Class<?> c = predefined[1].getClass();
+        Field[] fields = c.getDeclaredFields();
+        int instanceFields = 0;
+        for (Field f : fields) {
+            if (!java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                instanceFields++;
+            }
         }
-	      for (int j = 0; j < <NUM_PREDEFINED>; j++) {
-		      if (i == j || (empty && (i != 0 && j != 0))) {
-		        if (w.val != getPredefinedValue(j)) {
-			        throw new RuntimeException("Unexpected non-equal field comparison between predefined value at index " + i + " and " + j);
-		        }
-            if (array[0] != getPredefinedValue(j)) {
-			        throw new RuntimeException("Unexpected non-equal array element comparison between predefined value at index " + i + " and " + j);
-		        }
-		      } else {
-            boolean expectedEqual = allowDuplicates && (getPredefinedValue(i) == getPredefinedValue(j));
-		        if ((w.val == getPredefinedValue(j)) != expectedEqual) {
-			        throw new RuntimeException("Unexpected field comparison result between predefined values at index " + i + " and " + j + " expectedEqual was " + expectedEqual);
-		        }
-            if ((array[0] == getPredefinedValue(j)) != expectedEqual) {
-			        throw new RuntimeException("Unexpected array comparison result between predefined values at index " + i + " and " + j + " expectedEqual was " + expectedEqual);
-		        }
-		      }
-	      }
-	    }
+        boolean empty = instanceFields == 0;
+        <class_name>[] array = new <class_name>[1];
+        for (int i = 0; i < <NUM_PREDEFINED>; i++) {
+            Wrapper w = new Wrapper(getPredefinedValue(i));
+            array[0] = getPredefinedValue(i);
+            if (w.val != array[0]) {
+                throw new RuntimeException("Unexpected non-equal field/array comparison with value at index " + i);
+            }
+            for (int j = 0; j < <NUM_PREDEFINED>; j++) {
+                if (i == j || (empty && (i != 0 && j != 0))) {
+                    if (w.val != getPredefinedValue(j)) {
+                        throw new RuntimeException("Unexpected non-equal field comparison between predefined value at index " + i + " and " + j);
+                    }
+                    if (array[0] != getPredefinedValue(j)) {
+                        throw new RuntimeException("Unexpected non-equal array element comparison between predefined value at index " + i + " and " + j);
+                    }
+                } else {
+                    boolean expectedEqual = allowDuplicates && (getPredefinedValue(i) == getPredefinedValue(j));
+                    if ((w.val == getPredefinedValue(j)) != expectedEqual) {
+                        throw new RuntimeException("Unexpected field comparison result between predefined values at index " + i + " and " + j + " expectedEqual was " + expectedEqual);
+                    }
+                    if ((array[0] == getPredefinedValue(j)) != expectedEqual) {
+                        throw new RuntimeException("Unexpected array comparison result between predefined values at index " + i + " and " + j + " expectedEqual was " + expectedEqual);
+                    }
+                }
+            }
+        }
     }
 
-    public boolean existInPredefinedValueSet() {
-        for(int i = 0; i < <NUM_PREDEFINED>; i++ ) {
-            if (this == getPredefinedValue(i)) return true;
-        }
-        return false;
-    }
 }

@@ -52,11 +52,12 @@ public class ValueClassGenerator {
     ArrayList<TypeDesc> referenceTypes = new ArrayList<>();
     static String classTemplate;
     static String abstractValueClassTemplate;
+    Path workDir = null;
 
     static {
         try {
             String path = System.getProperty("test.src");
-            classTemplate = Files.readString(Path.of(path + File.separator + "TestValueTemplate.java.template"));
+            classTemplate = Files.readString(Path.of(path, "TestValueTemplate.java.template"));
             abstractValueClassTemplate = Files.readString(Path.of(path + File.separator + "TestAbstractValueTemplate.java.template"));
         } catch (Throwable t) {
             t.printStackTrace();
@@ -134,16 +135,16 @@ public class ValueClassGenerator {
             boolean foundNewVal = false;
             String s = null;
             while (!foundNewVal) {
-              char c = (char)random.nextInt();
-              if (c == Character.MAX_VALUE || c == Character.MIN_VALUE) continue;
-              s = "(char)"+Integer.toString(c);
-              boolean alreadyExist = false;
-              for (int j = 0; j < i; j++) {
-                if (s.compareTo(charVals[j]) == 0) {
-                  alreadyExist = true;
+                char c = (char)random.nextInt();
+                if (c == Character.MAX_VALUE || c == Character.MIN_VALUE) continue;
+                s = "(char)"+Integer.toString(c);
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(charVals[j]) == 0) {
+                        alreadyExist = true;
+                    }
                 }
-              }
-              foundNewVal = !alreadyExist;
+                foundNewVal = !alreadyExist;
             }
             charVals[i] = s;
         }
@@ -160,16 +161,16 @@ public class ValueClassGenerator {
             boolean foundNewVal = false;
             String s = null;
             while (!foundNewVal) {
-              short v = (short)random.nextInt();
-              if (v == Short.MAX_VALUE || v == Short.MIN_VALUE) continue;
-              s = "(short)"+Integer.toString(v);
-              boolean alreadyExist = false;
-              for (int j = 0; j < i; j++) {
-                if (s.compareTo(shortVals[j]) == 0) {
-                  alreadyExist = true;
+                short v = (short)random.nextInt();
+                if (v == Short.MAX_VALUE || v == Short.MIN_VALUE) continue;
+                s = "(short)"+Integer.toString(v);
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(shortVals[j]) == 0) {
+                      alreadyExist = true;
+                    }
                 }
-              }
-              foundNewVal = !alreadyExist;
+                foundNewVal = !alreadyExist;
             }
             shortVals[i] = s;
         }
@@ -186,16 +187,16 @@ public class ValueClassGenerator {
             boolean foundNewVal = false;
             String s = null;
             while (!foundNewVal) {
-              int v = random.nextInt();
-              if (v == Integer.MAX_VALUE || v == Integer.MIN_VALUE) continue;
-              s = Integer.toString(v);
-              boolean alreadyExist = false;
-              for (int j = 0; j < i; j++) {
-                if (s.compareTo(intVals[j]) == 0) {
-                  alreadyExist = true;
+                int v = random.nextInt();
+                if (v == Integer.MAX_VALUE || v == Integer.MIN_VALUE) continue;
+                s = Integer.toString(v);
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(intVals[j]) == 0) {
+                      alreadyExist = true;
+                    }
                 }
-              }
-              foundNewVal = !alreadyExist;
+                foundNewVal = !alreadyExist;
             }
             intVals[i] = s;
         }
@@ -212,16 +213,16 @@ public class ValueClassGenerator {
             boolean foundNewVal = false;
             String s = null;
             while (!foundNewVal) {
-              long v = random.nextLong();
-              if (v == Long.MAX_VALUE || v == Long.MIN_VALUE) continue;
-              s = Long.toString(v)+"L";
-              boolean alreadyExist = false;
-              for (int j = 0; j < i; j++) {
-                if (s.compareTo(longVals[j]) == 0) {
-                  alreadyExist = true;
+                long v = random.nextLong();
+                if (v == Long.MAX_VALUE || v == Long.MIN_VALUE) continue;
+                s = Long.toString(v)+"L";
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(longVals[j]) == 0) {
+                        alreadyExist = true;
+                    }
                 }
-              }
-              foundNewVal = !alreadyExist;
+                foundNewVal = !alreadyExist;
             }
             longVals[i] = s;
         }
@@ -242,17 +243,17 @@ public class ValueClassGenerator {
             boolean foundNewVal = false;
             String s = null;
             while (!foundNewVal) {
-              float v = random.nextFloat();
-              if (v == Float.MAX_VALUE || v == Float.MIN_NORMAL || v == Float.MIN_NORMAL
-                  || v == Float.NEGATIVE_INFINITY || v == Float.POSITIVE_INFINITY) continue;
-              s = Float.toString(v)+"f";
-              boolean alreadyExist = false;
-              for (int j = 0; j < i; j++) {
-                if (s.compareTo(floatVals[j]) == 0) {
-                  alreadyExist = true;
+                float v = random.nextFloat();
+                if (v == Float.MAX_VALUE || v == Float.MIN_NORMAL || v == Float.MIN_NORMAL
+                    || v == Float.NEGATIVE_INFINITY || v == Float.POSITIVE_INFINITY) continue;
+                s = Float.toString(v)+"f";
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(floatVals[j]) == 0) {
+                        alreadyExist = true;
+                    }
                 }
-              }
-              foundNewVal = !alreadyExist;
+                foundNewVal = !alreadyExist;
             }
             floatVals[i] = s;
         }
@@ -273,17 +274,17 @@ public class ValueClassGenerator {
             boolean foundNewVal = false;
             String s = null;
             while (!foundNewVal) {
-              double v = random.nextDouble();
-              if (v == Double.MAX_VALUE || v == Double.MIN_NORMAL || v == Double.MIN_NORMAL
-                  || v == Double.NEGATIVE_INFINITY || v == Double.POSITIVE_INFINITY) continue;
-              s = Double.toString(v);
-              boolean alreadyExist = false;
-              for (int j = 0; j < i; j++) {
-                if (s.compareTo(doubleVals[j]) == 0) {
-                  alreadyExist = true;
+                double v = random.nextDouble();
+                if (v == Double.MAX_VALUE || v == Double.MIN_NORMAL || v == Double.MIN_NORMAL
+                    || v == Double.NEGATIVE_INFINITY || v == Double.POSITIVE_INFINITY) continue;
+                s = Double.toString(v);
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(doubleVals[j]) == 0) {
+                        alreadyExist = true;
+                    }
                 }
-              }
-              foundNewVal = !alreadyExist;
+                foundNewVal = !alreadyExist;
             }
             doubleVals[i] = s;
         }
@@ -322,7 +323,6 @@ public class ValueClassGenerator {
         String name;
         TypeDesc type;
         String initVal;
-        // Qualifiers
 
         FieldDesc(String name, TypeDesc type, String initval) {
             this.name = name;
@@ -395,8 +395,8 @@ public class ValueClassGenerator {
         public String getRandomConstructorArgumentAsString() {
             StringBuilder sb = new StringBuilder();
             if (superClass != null) {
-              sb.append(superClass.getRandomConstructorArgumentAsString());
-              if (fields.size() != 0) sb.append(", ");
+                sb.append(superClass.getRandomConstructorArgumentAsString());
+                if (fields.size() != 0) sb.append(", ");
             }
             for (int i = 0; i < fields.size(); i++) {
                 FieldDesc fd = fields.get(i);
@@ -433,7 +433,7 @@ public class ValueClassGenerator {
                 src = src.replaceAll("<super_class>", "");
             }
             src = src.replaceAll("<super_class>", superClass != null ? superClass.typeName : "Object");
-            src = src.replaceAll("<fields declarations>", generateFieldsDeclarations());
+            src = src.replaceAll("<fields_declarations>", generateFieldsDeclarations());
             src = src.replaceAll("<constructor_args>", generateConstructorArgumentsWithTypes());
             src = src.replaceAll("<fields_initialization>", generateFieldInitialization());
             src = src.replaceAll("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
@@ -464,18 +464,18 @@ public class ValueClassGenerator {
                 sb.append("\tpredefined[").append(i).append("] = new ").append(typeName).append("(");
                 boolean validNewVal = false;
                 while (!validNewVal) {
-                  StringBuffer sb2 = new StringBuffer();
-                  sb2.append(getRandomConstructorArgumentAsString());
-                  rndVal[i] = sb2.toString();
-                  if (allowDuplicates()) {
-                    validNewVal = true;
-                  } else {
-                    boolean alreadyUsed = false;
-                    for (int k = 0; k < i; k++) {
-                      if (rndVal[i].compareTo(rndVal[k]) == 0) alreadyUsed = true;
+                    StringBuffer sb2 = new StringBuffer();
+                    sb2.append(getRandomConstructorArgumentAsString());
+                    rndVal[i] = sb2.toString();
+                    if (allowDuplicates()) {
+                        validNewVal = true;
+                    } else {
+                        boolean alreadyUsed = false;
+                        for (int k = 0; k < i; k++) {
+                            if (rndVal[i].compareTo(rndVal[k]) == 0) alreadyUsed = true;
+                        }
+                        validNewVal = !alreadyUsed;
                     }
-                    validNewVal = !alreadyUsed;
-                  }
                 }
                 sb.append(rndVal[i]);
                 sb.append(");\n");
@@ -492,9 +492,8 @@ public class ValueClassGenerator {
                 src = src.replaceAll("<super_class>", "");
             }
             src = src.replaceAll("<allow_duplicates>", allowDuplicates() ? "true" : "false");
-            src = src.replaceAll("<fields declarations>", generateFieldsDeclarations());
+            src = src.replaceAll("<fields_declarations>", generateFieldsDeclarations());
             src = src.replaceAll("<NUM_PREDEFINED>", Integer.toString(NUM_PREDEFINED_VALUES));
-            // replace precomputed value generation
             src = src.replaceAll("<predefined_values_generation>", generatePrecomputedValues());
             src = src.replaceAll("<constructor_args>", generateConstructorArgumentsWithTypes());
             src = src.replaceAll("<fields_initialization>", generateFieldInitialization());
@@ -507,12 +506,12 @@ public class ValueClassGenerator {
       int nPrimitive = 0;
       int nValues = 0;
       if (nfields != 0) {
-        nPrimitive = random.nextInt(nfields+1);
-        nValues = nfields - nPrimitive;
+          nPrimitive = random.nextInt(nfields+1);
+          nValues = nfields - nPrimitive;
       }
       boolean allowDuplicates = nfields == 0 ? true : false;
       for (int i = 0; i < nPrimitive; i++) {
-        String fieldName = "field"+i;
+          String fieldName = "field"+i;
           TypeDesc fieldType = primitiveTypes.get(random.nextInt(primitiveTypes.size()));
           if (fieldType.allowDuplicates) allowDuplicates = true;
           String initval = fieldType.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
@@ -535,26 +534,26 @@ public class ValueClassGenerator {
         boolean hasSuper;
         int nfields;
         if (n == 0) { // always create the empty value as Value0
-          nfields = 0;
-          isAbstract = false;
-          hasSuper = false;
+            nfields = 0;
+            isAbstract = false;
+            hasSuper = false;
         } else {
-          isAbstract = random.nextInt(16) == 1;
-          hasSuper = !abstractValueTypes.isEmpty() && (random.nextInt(16) == 1);
-          nfields = randomFieldNumber();
+            isAbstract = random.nextInt(16) == 1;
+            hasSuper = !abstractValueTypes.isEmpty() && (random.nextInt(16) == 1);
+            nfields = randomFieldNumber();
         }
         AbstractValueClassDesc superClass = null;
         if (hasSuper) {
-          superClass = abstractValueTypes.get(random.nextInt(abstractValueTypes.size()));
+            superClass = abstractValueTypes.get(random.nextInt(abstractValueTypes.size()));
         }
         ArrayList<FieldDesc> fields = new ArrayList<>(nfields);
         boolean allowDuplicates = selectFields(fields, nfields);
         String name = (isAbstract ? "AbstractValueClass" : "ValueClass") + n;
         ValueClassDesc cd;
         if (isAbstract) {
-          cd = new AbstractValueClassDesc(name, allowDuplicates, superClass, fields);
+            cd = new AbstractValueClassDesc(name, allowDuplicates, superClass, fields);
         } else {
-          cd = new ConcreteValueClassDesc(name, allowDuplicates, superClass, fields);
+            cd = new ConcreteValueClassDesc(name, allowDuplicates, superClass, fields);
         }
         return cd;
     }
@@ -564,16 +563,16 @@ public class ValueClassGenerator {
     }
 
     void generateValueClasses(int n) {
-      ConcreteValueClassDesc empty = generateEmptyValueClass();
+        ConcreteValueClassDesc empty = generateEmptyValueClass();
         valueTypes.add(empty);
         referenceTypes.add(empty);
         for (int i = 1; i < n; i++) {
             ValueClassDesc c = generateValueClass(i);
             if (c instanceof AbstractValueClassDesc) {
-              abstractValueTypes.add((AbstractValueClassDesc)c);
+                abstractValueTypes.add((AbstractValueClassDesc)c);
             } else {
-              valueTypes.add((ConcreteValueClassDesc)c);
-              referenceTypes.add(c);
+                valueTypes.add((ConcreteValueClassDesc)c);
+                referenceTypes.add(c);
             }
         }
     }
@@ -601,11 +600,11 @@ public class ValueClassGenerator {
             int nPrim = 0;
             int nVal = 0;
             for (FieldDesc fd : cd.fields) {
-              if (fd.type.isPrimitiveType()) {
-                nPrim++;
-              } else {
-                nVal++;
-              }
+                if (fd.type.isPrimitiveType()) {
+                    nPrim++;
+                } else {
+                    nVal++;
+                }
             }
             if (nPrim == 0) primOnly[n]++;
             else if (nVal == 0) valOnly[n]++;
@@ -616,39 +615,26 @@ public class ValueClassGenerator {
         for (int i = 0; i <= maxFields; i++) {
             System.out.print(i + " fields: " + numberOfFields[i] + " (" + (numberOfFields[i]*100/nClasses) + "%)");
             if (numberOfFields[i] != 0) {
-              System.out.print(" : primOnly: " + primOnly[i] + " (" + primOnly[i]*100/numberOfFields[i] + "%)");
-              System.out.print(" valOnly: " + valOnly[i] + " (" + valOnly[i]*100/numberOfFields[i] + "%)");
-              System.out.print(" mixed: " + mixed[i] + " (" + mixed[i]*100/numberOfFields[i] + "%)");
+                System.out.print(" : primOnly: " + primOnly[i] + " (" + primOnly[i]*100/numberOfFields[i] + "%)");
+                System.out.print(" valOnly: " + valOnly[i] + " (" + valOnly[i]*100/numberOfFields[i] + "%)");
+                System.out.print(" mixed: " + mixed[i] + " (" + mixed[i]*100/numberOfFields[i] + "%)");
             }
             System.out.println("");
         }
     }
 
     void writeValueClasses() {
-        // Do some cleanup first
-        Path currentDirectory = Paths.get(".");
-        try (Stream<Path> walk = Files.walk(currentDirectory)) {
-            walk.filter(Files::isRegularFile)
-                .filter(path -> path.toString().endsWith(".java") || path.toString().endsWith(".class"))
-                .map(Path::toFile)
-                .forEach(File::delete);
-        } catch (IOException e) {
-            System.err.println("Failed to cleanup directory: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
-        // Then write the new Java source files
         for (ConcreteValueClassDesc cd : valueTypes) {
-            String filename = cd.typeName + ".java";
-            try (PrintWriter out = new PrintWriter(filename)) {
+            File file = new File(workDir.toFile(), cd.typeName + ".java" );
+            try (PrintWriter out = new PrintWriter(file)) {
                 out.println(cd.generateSource());
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
         }
         for (AbstractValueClassDesc cd : abstractValueTypes) {
-            String filename = cd.typeName + ".java";
-            try (PrintWriter out = new PrintWriter(filename)) {
+            File file = new File(workDir.toFile(), cd.typeName + ".java" );
+            try (PrintWriter out = new PrintWriter(file)) {
                 out.println(cd.generateSource());
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -659,16 +645,16 @@ public class ValueClassGenerator {
     void compileValueClasses() {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         File[] files = new File[valueTypes.size() + abstractValueTypes.size()];
-        String path = System.getProperty("java.io.tmpdir");
         for (int i = 0; i < valueTypes.size(); i++) {
-          files[i] = new File(valueTypes.get(i).typeName + ".java");
+            files[i] = new File(workDir.toFile(), valueTypes.get(i).typeName + ".java");
         }
         for (int i = 0; i < abstractValueTypes.size(); i++) {
-          files[valueTypes.size() + i] = new File(abstractValueTypes.get(i).typeName + ".java");
+            files[valueTypes.size() + i] = new File(workDir.toFile(), abstractValueTypes.get(i).typeName + ".java");
         }
         ArrayList<String> optionList = new ArrayList<>();
         optionList.addAll(Arrays.asList("-source", "27"));
         optionList.addAll(Arrays.asList("--enable-preview"));
+        optionList.addAll(Arrays.asList("-d", workDir.toString()));
         StandardJavaFileManager sjfm = compiler.getStandardFileManager(null, null, null);
         Iterable<? extends JavaFileObject> fileObjects = sjfm.getJavaFileObjects(files);
         JavaCompiler.CompilationTask task = compiler.getTask(null, null, null, optionList, null, fileObjects);
@@ -676,15 +662,15 @@ public class ValueClassGenerator {
             throw new AssertionError("test failed due to a compilation error");
         }
         try {
-          sjfm.close();
+            sjfm.close();
         } catch (IOException e) {
-          e.printStackTrace();
-          throw new RuntimeException(e);
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-
     }
 
-    public void generateAll(int numClasses) {
+    public void generateAll(int numClasses, Path workDir) {
+        this.workDir = workDir;
         generatePrimitiveTypes();
         generateStringClass();
         generateValueClasses(numClasses);

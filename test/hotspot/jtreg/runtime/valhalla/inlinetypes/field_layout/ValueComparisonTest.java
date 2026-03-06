@@ -23,6 +23,7 @@
 
  /*
  * @test
+ * @key randomness
  * @library /test/lib
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
@@ -42,16 +43,16 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class ValueComparisonTest {
 
-    static void runSubstitutabilityTest(String classname) {
+    static void runSubstitutabilityTest(String classname, Path tempWorkDir) {
         Class<?> c = null;
 
-        File f = new File(".");
         URL[] cp = null;
         try {
-            cp = new URL[]{f.toURI().toURL()};
+            cp = new URL[]{tempWorkDir.toFile().toURI().toURL()};
         } catch (MalformedURLException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -83,10 +84,20 @@ public class ValueComparisonTest {
             seed = System.nanoTime();
         }
         System.out.println("Random seed for class generation: " + seed);
+        Path currentDir =  Paths.get("").toAbsolutePath();
+        Path tempWorkDir;
+        try {
+            tempWorkDir = Files.createTempDirectory(currentDir, "generatedClasses_" + seed);
+        } catch (Exception e) {
+            System.err.println("Failed to create temporary directory: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
         var gen = new ValueClassGenerator(seed, 256);
-        gen.generateAll(128);
+        gen.generateAll(128,  tempWorkDir);
         for (String classname : gen.getValueClassesNames()) {
-            runSubstitutabilityTest(classname);
+            runSubstitutabilityTest(classname, tempWorkDir);
         }
     }
 }

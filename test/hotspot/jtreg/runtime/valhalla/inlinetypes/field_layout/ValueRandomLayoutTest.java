@@ -23,6 +23,7 @@
 
  /*
  * @test
+ * @key randomness
  * @library /test/lib
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
@@ -35,6 +36,9 @@ package runtime.valhalla.inlinetypes.field_layout;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,116 +50,128 @@ import jdk.test.lib.process.ProcessTools;
 public class ValueRandomLayoutTest {
 
   static class TestRunner {
-    public static void main(String[] args) throws Exception {
-      for (String s : args) {
-        Class.forName(s);
+      public static void main(String[] args) throws Exception {
+          for (String s : args) {
+              Class.forName(s);
+          }
       }
-    }
   }
 
   static ProcessBuilder exec(boolean useAtomicFlat, boolean useNullableAtomicFlat,
-                             boolean useNullableNonAtomicFlat, String... args) throws Exception {
-    List<String> argsList = new ArrayList<>();
-    Collections.addAll(argsList, "--enable-preview");
-    Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
-    Collections.addAll(argsList, "-XX:+PrintFieldLayout");
-    Collections.addAll(argsList, "-Xshare:off");
-    Collections.addAll(argsList, "-Xmx1g");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
-    Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
-    Collections.addAll(argsList, args);
-    return ProcessTools.createTestJavaProcessBuilder(argsList);
+                             boolean useNullableNonAtomicFlat, Path tempWorkDir, String... args) throws Exception {
+      List<String> argsList = new ArrayList<>();
+      String classpath = System.getProperty("java.class.path") + System.getProperty("path.separator") + "."
+                         + System.getProperty("path.separator") + tempWorkDir.toString();
+      Collections.addAll(argsList, "-cp", ".:"+classpath);
+      Collections.addAll(argsList, "--enable-preview");
+      Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+      Collections.addAll(argsList, "-XX:+PrintFieldLayout");
+      Collections.addAll(argsList, "-Xshare:off");
+      Collections.addAll(argsList, "-Xmx1g");
+      Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
+      Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
+      Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
+      Collections.addAll(argsList, args);
+      return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
 
   static long seed;
 
   public static void main(String[] args) throws Exception {
-    String seedString = System.getProperty("CLASS_GENERATION_SEED");
-    if (seedString != null) {
-        try {
-            seed = Long.parseLong(seedString);
-        } catch(NumberFormatException e) { }
-    }
-    if (seed == 0) {
-        seed = System.nanoTime();
-    }
+      String seedString = System.getProperty("CLASS_GENERATION_SEED");
+      if (seedString != null) {
+          try {
+              seed = Long.parseLong(seedString);
+          } catch(NumberFormatException e) { }
+      }
+      if (seed == 0) {
+          seed = System.nanoTime();
+      }
 
-    // These tests consume a lot of resources, let run them sequentially instead of in parallel
-    for (int i = 0; i <= 5; i++) {
-      System.out.println("Running scenario " + i);
-      runScenario(i);
-    }
+      // These tests consume a lot of resources, let run them sequentially instead of in parallel
+      for (int i = 0; i <= 5; i++) {
+          System.out.println("Running scenario " + i);
+          runScenario(i);
+      }
   }
 
   static void runScenario(int config) throws Exception {
 
-    boolean useAtomicFlat;
-    boolean useNullableAtomicFlat;
-    boolean useNullableNonAtomicFlat;
+      boolean useAtomicFlat;
+      boolean useNullableAtomicFlat;
+      boolean useNullableNonAtomicFlat;
 
-    switch(config) {
-      case 0: useAtomicFlat = false;
-              useNullableAtomicFlat = false;
-              useNullableNonAtomicFlat = false;
-              break;
-      case 1: useAtomicFlat = true;
-              useNullableAtomicFlat = true;
-              useNullableNonAtomicFlat = true;
-              break;
-      case 2: useAtomicFlat = false;
-              useNullableAtomicFlat = true;
-              useNullableNonAtomicFlat = false;
-              break;
-      case 3: useAtomicFlat = true;
-              useNullableAtomicFlat = false;
-              useNullableNonAtomicFlat = false;
-              break;
-      case 4: useAtomicFlat = false;
-              useNullableAtomicFlat = true;
-              useNullableNonAtomicFlat = false;
-              break;
-      case 5: useAtomicFlat = false;
-              useNullableAtomicFlat = true;
-              useNullableNonAtomicFlat = true;
-              break;
-      default: throw new RuntimeException("Unrecognized configuration");
-    }
-
-    // Generate test classes with the given configuration
-
-    for (int i = 0; i < 20; i++) {
-      seed += i;
-      System.out.println("Random seed for class generation: " + seed);
-      var gen = new ValueClassGenerator(seed, 256);
-      gen.generateAll(128);
-
-      String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
-      String[] testArgs = new String[classNames.length+1];
-      testArgs[0] = "runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest$TestRunner";
-      System.arraycopy(classNames, 0, testArgs, 1, classNames.length);
-
-      // Execute the test runner in charge of loading all test classes
-      ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, testArgs);
-      OutputAnalyzer out = new OutputAnalyzer(pb.start());
-
-      if (out.getExitValue() != 0) {
-        System.out.print(out.getOutput());
+      switch(config) {
+          case 0: useAtomicFlat = false;
+                  useNullableAtomicFlat = false;
+                  useNullableNonAtomicFlat = false;
+                  break;
+          case 1: useAtomicFlat = true;
+                  useNullableAtomicFlat = true;
+                  useNullableNonAtomicFlat = true;
+                  break;
+          case 2: useAtomicFlat = false;
+                  useNullableAtomicFlat = true;
+                  useNullableNonAtomicFlat = false;
+                  break;
+          case 3: useAtomicFlat = true;
+                  useNullableAtomicFlat = false;
+                  useNullableNonAtomicFlat = false;
+                  break;
+          case 4: useAtomicFlat = false;
+                  useNullableAtomicFlat = true;
+                  useNullableNonAtomicFlat = false;
+                  break;
+          case 5: useAtomicFlat = false;
+                  useNullableAtomicFlat = true;
+                  useNullableNonAtomicFlat = true;
+                  break;
+          default: throw new RuntimeException("Unrecognized configuration");
       }
-      Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
-      // Get and parse the test output
-      FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
-      FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
+      Path tempWorkDir;
+      // Generate test classes with the given configuration
 
-      // Verify that all layouts are correct
-      try {
-        fla.check();
-      } catch (Throwable t) {
-        System.out.print(out.getOutput());
-        throw t;
-      }
+        for (int i = 0; i < 20; i++) {
+            seed += i;
+            System.out.println("Random seed for class generation: " + seed);
+            Path currentDir =  Paths.get("").toAbsolutePath();
+            try {
+                tempWorkDir = Files.createTempDirectory(currentDir, "generatedClasses_" + seed);
+            } catch (Exception e) {
+                System.err.println("Failed to create temporary directory: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+
+            var gen = new ValueClassGenerator(seed, 256);
+            gen.generateAll(128, tempWorkDir);
+
+            String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
+            String[] testArgs = new String[classNames.length+1];
+            testArgs[0] = "runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest$TestRunner";
+            System.arraycopy(classNames, 0, testArgs, 1, classNames.length);
+
+            // Execute the test runner in charge of loading all test classes
+            ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, tempWorkDir,testArgs);
+            OutputAnalyzer out = new OutputAnalyzer(pb.start());
+
+            if (out.getExitValue() != 0) {
+                System.out.print(out.getOutput());
+            }
+            Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+
+            // Get and parse the test output
+            FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
+            FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
+
+            // Verify that all layouts are correct
+            try {
+                fla.check();
+            } catch (Throwable t) {
+                System.out.print(out.getOutput());
+                throw t;
+            }
+        }
     }
-  }
  }
