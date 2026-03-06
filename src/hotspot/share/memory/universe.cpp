@@ -395,7 +395,7 @@ static void initialize_basic_type_klass(Klass* k, TRAPS) {
     if (k->is_instance_klass()) {
       InstanceKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), nullptr, CHECK);
     } else {
-      ArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
+      TypeArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
     }
   } else
 #endif
