@@ -2055,6 +2055,15 @@ JNI_ENTRY_CHECKED(jboolean,
     return result;
 JNI_END
 
+JNI_ENTRY_CHECKED(jboolean,
+  checked_jni_IsValueObject(JNIEnv *env,
+                            jobject obj))
+    functionEnter(thr);
+    jboolean result = UNCHECKED()->IsValueObject(env, obj);
+    functionExit(thr);
+    return result;
+JNI_END
+
 /*
  * Structure containing all checked jni functions
  */
@@ -2348,7 +2357,11 @@ struct JNINativeInterface_  checked_jni_NativeInterface = {
 
     // Large UTF8 support
 
-    checked_jni_GetStringUTFLengthAsLong
+    checked_jni_GetStringUTFLengthAsLong,
+
+    // Value classes
+
+    checked_jni_IsValueObject
 
 };
 
