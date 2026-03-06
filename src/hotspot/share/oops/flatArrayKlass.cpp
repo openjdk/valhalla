@@ -214,7 +214,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
   assert(s->is_refArray() || s->is_flatArray(), "must be ref or flat array");
 
   // Check destination
-  if (!d->is_flatArray() && !d->is_refArray()) {
+  if (!d->is_refined_objArray()) {
     THROW(vmSymbols::java_lang_ArrayStoreException());
   }
 
