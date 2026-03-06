@@ -3371,7 +3371,7 @@ bool VM_HeapWalkOperation::visit(const JvmtiHeapwalkObject& o) {
 
   // flat object array
   if (klass->is_flatArray_klass()) {
-      return iterate_over_flat_array(o);
+    return iterate_over_flat_array(o);
   }
 
   // object array

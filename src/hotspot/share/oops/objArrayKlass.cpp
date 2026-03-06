@@ -255,7 +255,7 @@ objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, 
   objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
     ak, size, length,
     /* do_zero */ true, CHECK_NULL);
-  assert(array->is_refArray() || array->is_flatArray(), "Must be");
+  assert(array->is_refined_objArray(), "Must be");
   return array;
 }
 
@@ -264,7 +264,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   ArrayKlass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
   ObjArrayKlass* oak = klass_with_properties(ArrayProperties::Default(), CHECK_NULL);
-  assert(oak->is_refArray_klass() || oak->is_flatArray_klass(), "Must be");
+  assert(oak->is_refined_objArray_klass(), "Must be");
   objArrayOop array = oak->allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
   if (rank > 1) {
@@ -398,7 +398,7 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
   const ArrayProperties props = ad._properties;
 
   if (properties() == props && kind() == ad._kind) {
-    assert(is_refArray_klass() || is_flatArray_klass(), "Must be a concrete array klass");
+    assert(is_refined_objArray_klass(), "Must be a refined array klass");
     return this;
   }
 
@@ -409,7 +409,7 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
 
     if (next_refined_array_klass() == nullptr) {
       ObjArrayKlass* first = this;
-      if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayProperties::Default()) {
+      if (is_unrefined_objArray_klass() && props != ArrayProperties::Default()) {
         assert(props.is_valid(), "must be");
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).

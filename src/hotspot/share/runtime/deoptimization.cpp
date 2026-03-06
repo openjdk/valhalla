@@ -305,7 +305,7 @@ JRT_END
 static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, ObjectValue* sv, TRAPS) {
   // If it's an array, get the properties
   if (k->is_array_klass() && !k->is_typeArray_klass()) {
-    assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
+    assert(k->is_unrefined_objArray_klass(), "Expected unrefined array klass");
     nmethod* nm = fr->cb()->as_nmethod_or_null();
     if (nm->is_compiled_by_c2()) {
       assert(sv->has_properties(), "Property information is missing");

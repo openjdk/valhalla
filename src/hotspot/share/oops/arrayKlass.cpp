@@ -144,7 +144,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
          "module entry not available post " JAVA_BASE_NAME " definition");
   oop module_oop = (module_entry != nullptr) ? module_entry->module_oop() : (oop)nullptr;
 
-  if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+  if (k->is_refined_objArray_klass()) {
     assert(super_klass != nullptr, "Must be");
     assert(k->super() != nullptr, "Must be");
     assert(k->super() == super_klass, "Must be");
