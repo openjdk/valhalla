@@ -60,9 +60,10 @@ public class ValueRandomLayoutTest {
   static ProcessBuilder exec(boolean useAtomicFlat, boolean useNullableAtomicFlat,
                              boolean useNullableNonAtomicFlat, Path tempWorkDir, String... args) throws Exception {
       List<String> argsList = new ArrayList<>();
-      String classpath = System.getProperty("java.class.path") + System.getProperty("path.separator") + "."
-                         + System.getProperty("path.separator") + tempWorkDir.toString();
-      Collections.addAll(argsList, "-cp", ".:"+classpath);
+      String classpath = System.getProperty("java.class.path") + System.getProperty("path.separator") +
+                         Paths.get("").toAbsolutePath() +
+                         System.getProperty("path.separator") + tempWorkDir.toString();
+      Collections.addAll(argsList, "-cp", classpath);
       Collections.addAll(argsList, "--enable-preview");
       Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
       Collections.addAll(argsList, "-XX:+PrintFieldLayout");
