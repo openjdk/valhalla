@@ -26,6 +26,7 @@
 package jdk.internal.reflect;
 
 import java.lang.reflect.AccessFlag;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -80,7 +81,7 @@ public final class PreviewAccessFlags {
                     " for location " + location +
                     " for preview class files");
         }
-        return Set.copyOf(ans);
+        return Collections.unmodifiableSet(ans); // Preserve iteration order
     }
 
     private static final AccessFlag[]

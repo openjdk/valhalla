@@ -26,6 +26,7 @@
 package jdk.internal.reflect;
 
 import java.lang.reflect.*;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -473,7 +474,7 @@ public class Reflection {
         if (injectStrict) {
             Set<AccessFlag> buf = EnumSet.copyOf(ans);
             buf.add(AccessFlag.STRICT);
-            return Set.copyOf(buf);
+            return Collections.unmodifiableSet(buf); // Preserve iteration order
         }
         return ans;
     }

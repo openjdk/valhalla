@@ -92,7 +92,7 @@ public final class ClassAccessFlagPreviewTest {
         ExpectedClassFlags expected =
             clazz.getAnnotation(ExpectedClassFlags.class);
         if (expected != null) {
-            String actual = clazz.accessFlags().stream().sorted().toList().toString();
+            String actual = clazz.accessFlags().toString();
             String expectedFlags = (PreviewFeatures.isEnabled() && !expected.preview().isEmpty())
                     ? expected.preview() : expected.value();
             if (!expectedFlags.equals(actual)) {

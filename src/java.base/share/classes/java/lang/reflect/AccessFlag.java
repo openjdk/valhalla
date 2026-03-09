@@ -457,7 +457,7 @@ public enum AccessFlag {
          * @see Modifier#interfaceModifiers()
          * @jvms 4.1 The {@code ClassFile} Structure
          */
-        CLASS(ACC_PUBLIC | ACC_FINAL | ACC_IDENTITY |
+        CLASS(ACC_PUBLIC | ACC_FINAL | ACC_SUPER |
               ACC_INTERFACE | ACC_ABSTRACT |
               ACC_SYNTHETIC | ACC_ANNOTATION |
               ACC_ENUM | ACC_MODULE,
