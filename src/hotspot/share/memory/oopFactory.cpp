@@ -77,8 +77,8 @@ typeArrayOop oopFactory::new_longArray(int length, TRAPS) {
 }
 
 // create java.lang.Object[]
-objArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
-  return Universe::objectArrayKlass()->allocate_instance(length, ArrayProperties::Default(), THREAD);
+refArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
+  return Universe::objectArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {

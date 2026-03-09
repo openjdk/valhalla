@@ -120,7 +120,7 @@ static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethod
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
-ObjArrayKlass* Universe::_objectArrayKlass            = nullptr;
+RefArrayKlass* Universe::_objectArrayKlass            = nullptr;
 Klass* Universe::_fillerArrayKlass                    = nullptr;
 OopHandle Universe::_basic_type_mirrors[T_VOID+1];
 #if INCLUDE_CDS_JAVA_HEAP
@@ -518,7 +518,7 @@ void Universe::genesis(TRAPS) {
 
     // Create a RefArrayKlass (which is the default) and initialize.
     ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayProperties::Default(), THREAD);
-    _objectArrayKlass = rak;
+    _objectArrayKlass = RefArrayKlass::cast(rak);
   }
 
   #ifdef ASSERT

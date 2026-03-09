@@ -46,7 +46,7 @@ class oopFactory: AllStatic {
   static typeArrayOop    new_longArray  (int length, TRAPS);
 
   // create java.lang.Object[]
-  static objArrayOop     new_objectArray(int length, TRAPS);
+  static refArrayOop     new_objectArray(int length, TRAPS);
 
   static typeArrayOop    new_charArray(const char* utf8_str,  TRAPS);
 
