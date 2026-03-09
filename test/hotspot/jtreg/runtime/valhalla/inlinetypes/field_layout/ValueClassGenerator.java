@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -104,191 +105,103 @@ public class ValueClassGenerator {
         public boolean isPrimitiveType() { return true; }
     }
 
+
+    String[] getPregeneratedValues(Supplier<String> gen, boolean allowDuplicates, String[] startingVals) {
+        String[] vals = new String[NUM_PREDEFINED_VALUES];
+        System.arraycopy(startingVals, 0, vals, 0, startingVals.length);
+        for (int i = startingVals.length; i < NUM_PREDEFINED_VALUES; i++) {
+            boolean foundNewVal = false;
+            String s = null;
+            while (!foundNewVal) {
+                s = gen.get();
+                if (allowDuplicates) {
+                    break;
+                }
+                boolean alreadyExist = false;
+                for (int j = 0; j < i; j++) {
+                    if (s.compareTo(vals[j]) == 0) {
+                        alreadyExist = true;
+                        break;
+                    }
+                }
+                foundNewVal = !alreadyExist;
+            }
+            vals[i] = s;
+        }
+        return vals;
+    }
+
     void generatePrimitiveTypes() {
-        // Generating boolean values
-        String[] boolVals = new String[NUM_PREDEFINED_VALUES];
-        boolVals[0] = "true";
-        boolVals[1] = "false";
-        for (int i = 2; i < NUM_PREDEFINED_VALUES; i++) {
-            boolVals[i] = Boolean.toString(random.nextBoolean());
-        }
-        primitiveTypes.add(new PrimitiveDesc("boolean", true, boolVals));
+      String[] boolVals = getPregeneratedValues(() -> Boolean.toString(random.nextBoolean()),
+                              true, new String[] {"true", "false"});
+      primitiveTypes.add(new PrimitiveDesc("boolean", true, boolVals));
+      String[] byteVals = getPregeneratedValues(() -> "(byte)"+Byte.toString((byte)random.nextInt()),
+                              true, new String[] {"(byte)0", "(byte)-1", "(byte)1", "Byte.MAX_VALUE", "Byte.MIN_VALUE"});
+      primitiveTypes.add(new PrimitiveDesc("byte", true, byteVals));
+      String[] charVals = getPregeneratedValues(() -> {
+                                                    char c = 0;
+                                                    do {
+                                                        c = (char)random.nextInt(Character.MAX_VALUE+1);
 
-        // Generating byte values
-        String[] byteVals = new String[NUM_PREDEFINED_VALUES];
-        byteVals[0] = "(byte)0";
-        byteVals[1] = "(byte)-1";
-        byteVals[2] = "(byte)1";
-        byteVals[3] = "Byte.MAX_VALUE";
-        byteVals[4] = "Byte.MIN_VALUE";
-        for (int i = 5; i < NUM_PREDEFINED_VALUES; i++) {
-            byteVals[i] = "(byte)"+Byte.toString((byte)random.nextInt());
-        }
-        primitiveTypes.add(new PrimitiveDesc("byte", true, byteVals));
-
-        // Generating char values
-        String[] charVals = new String[NUM_PREDEFINED_VALUES];
-        charVals[0] = "(char)1";
-        charVals[1] = "Character.MAX_VALUE";
-        charVals[2] = "Character.MIN_VALUE";
-        for (int i = 3; i < NUM_PREDEFINED_VALUES; i++) {
-            boolean foundNewVal = false;
-            String s = null;
-            while (!foundNewVal) {
-                char c = (char)random.nextInt();
-                if (c == Character.MAX_VALUE || c == Character.MIN_VALUE) continue;
-                s = "(char)"+Integer.toString(c);
-                boolean alreadyExist = false;
-                for (int j = 0; j < i; j++) {
-                    if (s.compareTo(charVals[j]) == 0) {
-                        alreadyExist = true;
-                    }
-                }
-                foundNewVal = !alreadyExist;
-            }
-            charVals[i] = s;
-        }
-        primitiveTypes.add(new PrimitiveDesc("char", false, charVals));
-
-        // Generating short values
-        String[] shortVals = new String[NUM_PREDEFINED_VALUES];
-        shortVals[0] = "(short)0";
-        shortVals[1] = "(short)-1";
-        shortVals[2] = "(short)1";
-        shortVals[3] = "Short.MAX_VALUE";
-        shortVals[4] = "Short.MIN_VALUE";
-        for (int i = 5; i < NUM_PREDEFINED_VALUES; i++) {
-            boolean foundNewVal = false;
-            String s = null;
-            while (!foundNewVal) {
-                short v = (short)random.nextInt();
-                if (v == Short.MAX_VALUE || v == Short.MIN_VALUE) continue;
-                s = "(short)"+Integer.toString(v);
-                boolean alreadyExist = false;
-                for (int j = 0; j < i; j++) {
-                    if (s.compareTo(shortVals[j]) == 0) {
-                      alreadyExist = true;
-                    }
-                }
-                foundNewVal = !alreadyExist;
-            }
-            shortVals[i] = s;
-        }
-        primitiveTypes.add(new PrimitiveDesc("short", false, shortVals));
-
-        // Generating int values
-        String[] intVals = new String[NUM_PREDEFINED_VALUES];
-        intVals[0] = "0";
-        intVals[1] = "-1";
-        intVals[2] = "1";
-        intVals[3] = "Integer.MAX_VALUE";
-        intVals[4] = "Integer.MIN_VALUE";
-        for (int i = 5; i < NUM_PREDEFINED_VALUES; i++) {
-            boolean foundNewVal = false;
-            String s = null;
-            while (!foundNewVal) {
-                int v = random.nextInt();
-                if (v == Integer.MAX_VALUE || v == Integer.MIN_VALUE) continue;
-                s = Integer.toString(v);
-                boolean alreadyExist = false;
-                for (int j = 0; j < i; j++) {
-                    if (s.compareTo(intVals[j]) == 0) {
-                      alreadyExist = true;
-                    }
-                }
-                foundNewVal = !alreadyExist;
-            }
-            intVals[i] = s;
-        }
-        primitiveTypes.add(new PrimitiveDesc("int", false, intVals));
-
-        // Generating long values
-        String[] longVals = new String[NUM_PREDEFINED_VALUES];
-        longVals[0] = "0L";
-        longVals[1] = "-1L";
-        longVals[2] = "1L";
-        longVals[3] = "Long.MAX_VALUE";
-        longVals[4] = "Long.MIN_VALUE";
-        for (int i = 5; i < NUM_PREDEFINED_VALUES; i++) {
-            boolean foundNewVal = false;
-            String s = null;
-            while (!foundNewVal) {
-                long v = random.nextLong();
-                if (v == Long.MAX_VALUE || v == Long.MIN_VALUE) continue;
-                s = Long.toString(v)+"L";
-                boolean alreadyExist = false;
-                for (int j = 0; j < i; j++) {
-                    if (s.compareTo(longVals[j]) == 0) {
-                        alreadyExist = true;
-                    }
-                }
-                foundNewVal = !alreadyExist;
-            }
-            longVals[i] = s;
-        }
-        primitiveTypes.add(new PrimitiveDesc("long", false, longVals));
-
-        // Generating float values
-        String[] floatVals = new String[NUM_PREDEFINED_VALUES];
-        floatVals[0] = "0.0f";
-        floatVals[1] = "-1.0f";
-        floatVals[2] = "1.0f";
-        floatVals[3] = "Float.MAX_VALUE";
-        floatVals[4] = "Float.MIN_VALUE";
-        floatVals[5] = "Float.MIN_NORMAL";
-        floatVals[6] = "Float.NEGATIVE_INFINITY";
-        floatVals[7] = "Float.POSITIVE_INFINITY";
-        // Should NaN be part of the pre-computed values?
-        for (int i = 8; i < NUM_PREDEFINED_VALUES; i++) {
-            boolean foundNewVal = false;
-            String s = null;
-            while (!foundNewVal) {
-                float v = random.nextFloat();
-                if (v == Float.MAX_VALUE || v == Float.MIN_NORMAL || v == Float.MIN_NORMAL
-                    || v == Float.NEGATIVE_INFINITY || v == Float.POSITIVE_INFINITY) continue;
-                s = Float.toString(v)+"f";
-                boolean alreadyExist = false;
-                for (int j = 0; j < i; j++) {
-                    if (s.compareTo(floatVals[j]) == 0) {
-                        alreadyExist = true;
-                    }
-                }
-                foundNewVal = !alreadyExist;
-            }
-            floatVals[i] = s;
-        }
-        primitiveTypes.add(new PrimitiveDesc("float", false, floatVals));
-
-        // Generating double values
-        String[] doubleVals = new String[NUM_PREDEFINED_VALUES];
-        doubleVals[0] = "0.0";
-        doubleVals[1] = "-1.0";
-        doubleVals[2] = "1.0";
-        doubleVals[3] = "Double.MAX_VALUE";
-        doubleVals[4] = "Double.MIN_VALUE";
-        doubleVals[5] = "Double.MIN_NORMAL";
-        doubleVals[6] = "Double.NEGATIVE_INFINITY";
-        doubleVals[7] = "Double.POSITIVE_INFINITY";
-        // Should NaN be part of the pre-computed values?
-        for (int i = 8; i < NUM_PREDEFINED_VALUES; i++) {
-            boolean foundNewVal = false;
-            String s = null;
-            while (!foundNewVal) {
-                double v = random.nextDouble();
-                if (v == Double.MAX_VALUE || v == Double.MIN_NORMAL || v == Double.MIN_NORMAL
-                    || v == Double.NEGATIVE_INFINITY || v == Double.POSITIVE_INFINITY) continue;
-                s = Double.toString(v);
-                boolean alreadyExist = false;
-                for (int j = 0; j < i; j++) {
-                    if (s.compareTo(doubleVals[j]) == 0) {
-                        alreadyExist = true;
-                    }
-                }
-                foundNewVal = !alreadyExist;
-            }
-            doubleVals[i] = s;
-        }
-        primitiveTypes.add(new PrimitiveDesc("double", false, doubleVals));
+                                                    } while (c == Character.MAX_VALUE || c == Character.MIN_VALUE);
+                                                    return "(char)"+Integer.toString(c);
+                                                  },
+                              false, new String[] {"(char)1", "Character.MAX_VALUE", "Character.MIN_VALUE"});
+      primitiveTypes.add(new PrimitiveDesc("char", false, charVals));
+      String[] shortVals = getPregeneratedValues(() -> {
+                                                    short v = 0;
+                                                    do {
+                                                        v = (short)random.nextInt(Short.MAX_VALUE+1);
+                                                    } while (v == Short.MAX_VALUE || v == Short.MIN_VALUE ||
+                                                             v == 0 || v == -1 || v == 1);
+                                                    return "(short)"+Integer.toString(v);
+                                                  },
+                                false, new String[] {"(short)0", "(short)-1", "(short)1", "Short.MAX_VALUE", "Short.MIN_VALUE"});
+      primitiveTypes.add(new PrimitiveDesc("short", false, shortVals));
+      String[] intVals = getPregeneratedValues(() -> {
+                                                    int v = 0;
+                                                    do {
+                                                        v = random.nextInt();
+                                                    } while (v == Integer.MAX_VALUE || v == Integer.MIN_VALUE ||
+                                                             v == 0 || v == -1 || v == 1);
+                                                    return Integer.toString(v);
+                                                  },
+                              false, new String[] {"0", "-1", "1", "Integer.MAX_VALUE", "Integer.MIN_VALUE"});
+      primitiveTypes.add(new PrimitiveDesc("int", false, intVals));
+      String[] longVals = getPregeneratedValues(() -> {
+                                                    long v = 0;
+                                                    do {
+                                                        v = random.nextLong();
+                                                    } while (v == Long.MAX_VALUE || v == Long.MIN_VALUE ||
+                                                             v == 0 || v == -1 || v == 1);
+                                                    return Long.toString(v)+"L";
+                                                  },
+                              false, new String[] {"0L", "-1L", "1L", "Long.MAX_VALUE", "Long.MIN_VALUE"});
+      primitiveTypes.add(new PrimitiveDesc("long", false, longVals));
+      String[] floatVals = getPregeneratedValues(() -> {
+                                                    float v = 0;
+                                                    do {
+                                                        v = random.nextFloat();
+                                                    } while (v == Float.MAX_VALUE || v == Float.MIN_NORMAL || v == Float.MIN_VALUE ||
+                                                             v == Float.NEGATIVE_INFINITY || v == Float.POSITIVE_INFINITY ||
+                                                             v == 0.0f || v == -1.0f || v == 1.0f);
+                                                    return Float.toString(v)+"f";
+                                                  },
+                              false, new String[] {"0.0f", "-1.0f", "1.0f", "Float.MAX_VALUE", "Float.MIN_VALUE",
+                                                   "Float.MIN_NORMAL", "Float.NEGATIVE_INFINITY", "Float.POSITIVE_INFINITY"});
+      primitiveTypes.add(new PrimitiveDesc("float", false, floatVals));
+      String[] doubleVals = getPregeneratedValues(() -> {
+                                                    double v = 0;
+                                                    do {
+                                                        v = random.nextDouble();
+                                                    } while (v == Double.MAX_VALUE || v == Double.MIN_NORMAL || v == Double.MIN_VALUE ||
+                                                             v == Double.NEGATIVE_INFINITY || v == Double.POSITIVE_INFINITY ||
+                                                             v == 0.0 || v == -1.0 || v == 1.0);
+                                                    return Double.toString(v);
+                                                  },
+                              false, new String[] {"0.0", "-1.0", "1.0", "Double.MAX_VALUE", "Double.MIN_VALUE",
+                                                   "Double.MIN_NORMAL", "Double.NEGATIVE_INFINITY", "Double.POSITIVE_INFINITY"});
+      primitiveTypes.add(new PrimitiveDesc("double", false, doubleVals));
     }
 
     void printPredefinedPrimitiveValues() {

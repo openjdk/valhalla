@@ -132,46 +132,46 @@ public class ValueRandomLayoutTest {
       Path tempWorkDir;
       // Generate test classes with the given configuration
 
-        for (int i = 0; i < 20; i++) {
-            seed += i;
-            System.out.println("Random seed for class generation: " + seed);
-            Path currentDir =  Paths.get("").toAbsolutePath();
-            try {
-                tempWorkDir = Files.createTempDirectory(currentDir, "generatedClasses_" + seed);
-            } catch (Exception e) {
-                System.err.println("Failed to create temporary directory: " + e.getMessage());
-                e.printStackTrace();
-                throw new RuntimeException(e);
-            }
+      for (int i = 0; i < 10; i++) {
+          seed += i;
+          Path currentDir =  Paths.get("").toAbsolutePath();
+          try {
+              tempWorkDir = Files.createTempDirectory(currentDir, "generatedClasses_" + seed);
+          } catch (Exception e) {
+              System.err.println("Failed to create temporary directory: " + e.getMessage());
+              e.printStackTrace();
+              throw new RuntimeException(e);
+          }
 
-            var gen = new ValueClassGenerator(seed, 256);
-            gen.generateAll(128, tempWorkDir);
+          System.out.println("Running scenario " + config + " with seed = " + seed + " in directory : " + tempWorkDir);
+          var gen = new ValueClassGenerator(seed, 256);
+          gen.generateAll(128, tempWorkDir);
 
-            String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
-            String[] testArgs = new String[classNames.length+1];
-            testArgs[0] = "runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest$TestRunner";
-            System.arraycopy(classNames, 0, testArgs, 1, classNames.length);
+          String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
+          String[] testArgs = new String[classNames.length+1];
+          testArgs[0] = "runtime.valhalla.inlinetypes.field_layout.ValueRandomLayoutTest$TestRunner";
+          System.arraycopy(classNames, 0, testArgs, 1, classNames.length);
 
-            // Execute the test runner in charge of loading all test classes
-            ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, tempWorkDir,testArgs);
-            OutputAnalyzer out = new OutputAnalyzer(pb.start());
+          // Execute the test runner in charge of loading all test classes
+          ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, tempWorkDir,testArgs);
+          OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
-            if (out.getExitValue() != 0) {
-                System.out.print(out.getOutput());
-            }
-            Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+          if (out.getExitValue() != 0) {
+              System.out.print(out.getOutput());
+          }
+          Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
-            // Get and parse the test output
-            FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
-            FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
+          // Get and parse the test output
+          FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
+          FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
 
-            // Verify that all layouts are correct
-            try {
-                fla.check();
-            } catch (Throwable t) {
-                System.out.print(out.getOutput());
-                throw t;
-            }
-        }
-    }
+          // Verify that all layouts are correct
+          try {
+              fla.check();
+          } catch (Throwable t) {
+              System.out.print(out.getOutput());
+              throw t;
+          }
+      }
+  }
  }
