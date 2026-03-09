@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,8 +113,10 @@ void fieldDescriptor::reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo
 void fieldDescriptor::print_on(outputStream* st, int base_offset) const {
   access_flags().print_on(st);
   if (field_flags().is_injected()) st->print("injected ");
+  bool flat = field_flags().is_flat();
+  if (flat) st->print("flat ");
   name()->print_value_on(st);
-  st->print(" ");
+  st->print(" (fields 0x%08x) ", field_flags().as_uint());
   signature()->print_value_on(st);
   st->print(" @%d ", offset() + base_offset);
   if (WizardMode && has_initial_value()) {
@@ -129,7 +131,9 @@ void fieldDescriptor::print_on(outputStream* st, int base_offset) const {
     } else if (t.is_double()){
       st->print("double %lf)", double_initial_value());
     }
+    st->print(" ");
   }
+  if (flat) LayoutKindHelper::print_on(layout_kind(), st);
 }
 
 void fieldDescriptor::print() const { print_on(tty); }
