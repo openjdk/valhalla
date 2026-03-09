@@ -240,33 +240,25 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription a
 objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   ObjArrayKlass* ak = klass_with_properties(props, CHECK_NULL);
-  size_t size = 0;
-  switch(ak->kind()) {
+  switch (ak->kind()) {
     case Klass::RefArrayKlassKind:
-      size = refArrayOopDesc::object_size(length);
-      break;
+      return RefArrayKlass::cast(ak)->allocate_instance(length, CHECK_NULL);
     case Klass::FlatArrayKlassKind:
-      size = flatArrayOopDesc::object_size(ak->layout_helper(), length);
-      break;
+      return FlatArrayKlass::cast(ak)->allocate_instance(length, CHECK_NULL);
     default:
       ShouldNotReachHere();
   }
-  assert(size != 0, "Sanity check");
-  objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
-    ak, size, length,
-    /* do_zero */ true, CHECK_NULL);
-  assert(array->is_refined_objArray(), "Must be");
-  return array;
 }
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass* ld_klass = lower_dimension();
+
   // If length < 0 allocate will throw an exception.
-  ObjArrayKlass* oak = klass_with_properties(ArrayProperties::Default(), CHECK_NULL);
-  assert(oak->is_refined_objArray_klass(), "Must be");
-  objArrayOop array = oak->allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
-  objArrayHandle h_array (THREAD, array);
+  objArrayOop array = allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
+  assert(array->is_refined_objArray(), "Must be");
+
+  objArrayHandle h_array(THREAD, array);
   if (rank > 1) {
     if (length != 0) {
       for (int index = 0; index < length; index++) {

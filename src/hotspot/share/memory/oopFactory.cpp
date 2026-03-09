@@ -120,13 +120,12 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 }
 
 refArrayOop oopFactory::new_refArray(Klass* klass, int length, ArrayProperties properties, TRAPS) {
-  ArrayKlass* array_type = klass->array_klass(CHECK_NULL);
+  ArrayKlass* ak = klass->array_klass(CHECK_NULL);
   ArrayDescription ad(Klass::RefArrayKlassKind, properties, LayoutKind::REFERENCE);
-  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_from_description(ad, CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::cast(ak)->klass_from_description(ad, CHECK_NULL);
   // Cast below must pass because the array description required a RefArrayKlass
   RefArrayKlass* rak = RefArrayKlass::cast(oak);
-  oop array = rak->RefArrayKlass::allocate_instance(length, properties, CHECK_NULL);
-  return oop_cast<refArrayOop>(array);
+  return rak->allocate_instance(length, CHECK_NULL);
 }
 
 refArrayOop oopFactory::new_refArray(Klass* klass, int length, TRAPS) {
@@ -134,23 +133,17 @@ refArrayOop oopFactory::new_refArray(Klass* klass, int length, TRAPS) {
 }
 
 flatArrayOop oopFactory::new_flatArray(FlatArrayKlass* klass, int length, TRAPS) {
-  return flatArrayOop(klass->allocate_instance(length, klass->properties(), THREAD));
+  return klass->allocate_instance(length, THREAD);
 }
 
 flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
 
-  ArrayKlass* array_type = klass->array_klass(CHECK_NULL);
-  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_with_properties(props, CHECK_NULL);
+  ArrayKlass* ak = klass->array_klass(CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::cast(ak)->klass_with_properties(props, CHECK_NULL);
 
-  assert(oak->is_flatArray_klass(), "Expected to be");
-  assert(FlatArrayKlass::cast(oak)->layout_kind() == lk, "Unexpected layout kind");
-
-  flatArrayOop oop = (flatArrayOop)FlatArrayKlass::cast(oak)->allocate_instance(length, props, CHECK_NULL);
-  assert(oop == nullptr || oop->is_flatArray(), "sanity");
-  assert(oop == nullptr || oop->klass()->is_flatArray_klass(), "sanity");
-
-  return oop;
+  FlatArrayKlass* fak = FlatArrayKlass::cast(oak);
+  return fak->allocate_instance(length, CHECK_NULL);
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {

@@ -40,6 +40,7 @@
 #include "oops/markWord.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/refArrayKlass.inline.hpp"
 #include "oops/refArrayOop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -111,15 +112,12 @@ size_t RefArrayKlass::oop_size(oop obj) const {
   return refArrayOop(obj)->object_size();
 }
 
-objArrayOop RefArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
-  check_array_allocation_length(
-      length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
+refArrayOop RefArrayKlass::allocate_instance(int length, TRAPS) {
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = refArrayOopDesc::object_size(length);
-  objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
-      this, size, length,
-      /* do_zero */ true, CHECK_NULL);
-  assert(array->is_refArray(), "Must be");
-  return array;
+  oop array = Universe::heap()->array_allocate(
+      this, size, length, /* do_zero */ true, CHECK_NULL);
+  return oop_cast<refArrayOop>(array);
 }
 
 static void throw_array_null_pointer_store_exception(arrayOop src, arrayOop dst, TRAPS) {

@@ -61,7 +61,7 @@ class ObjArrayKlass : public ArrayKlass {
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayProperties props, TRAPS);
 
   ObjArrayKlass* allocate_klass_with_properties(ArrayProperties props, TRAPS);
-  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
  protected:
   // Create array_name for element klass
