@@ -565,7 +565,7 @@ public class ValueClassGenerator {
             files[valueTypes.size() + i] = new File(workDir.toFile(), abstractValueTypes.get(i).typeName + ".java");
         }
         ArrayList<String> optionList = new ArrayList<>();
-        optionList.addAll(Arrays.asList("-source", "27"));
+        optionList.addAll(Arrays.asList("-source", Integer.toString(Runtime.version().feature())));
         optionList.addAll(Arrays.asList("--enable-preview"));
         optionList.addAll(Arrays.asList("-d", workDir.toString()));
         StandardJavaFileManager sjfm = compiler.getStandardFileManager(null, null, null);
