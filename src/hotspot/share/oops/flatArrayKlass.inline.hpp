@@ -120,7 +120,6 @@ void FlatArrayKlass::oop_oop_iterate_elements_bounded(flatArrayOop a, OopClosure
   }
 }
 
-
 template <typename T, typename OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
   flatArrayOop a = flatArrayOop(obj);

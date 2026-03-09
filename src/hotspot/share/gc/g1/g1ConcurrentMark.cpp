@@ -2325,8 +2325,8 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
     _cm_oop_closure->do_klass(obj_array->klass());
 
     if (obj_array->is_flatArray()) {
-      FlatArrayKlass* faklass = FlatArrayKlass::cast(obj_array->klass());
-      _cm_oop_closure->do_klass(faklass->element_klass());
+      FlatArrayKlass* fak = FlatArrayKlass::cast(obj_array->klass());
+      _cm_oop_closure->do_klass(fak->element_klass());
     }
   }
 

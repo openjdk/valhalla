@@ -220,21 +220,18 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
 ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription ad, TRAPS) {
   assert(ad._properties.is_valid(), "Sanity check");
   assert(ad._properties.is_null_restricted() || !ad._properties.is_non_atomic(), "only null-restricted array can be non-atomic");
-  ObjArrayKlass* ak = nullptr;
+
   switch (ad._kind) {
-    case Klass::RefArrayKlassKind: {
-      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
-      break;
-    }
-    case Klass::FlatArrayKlassKind: {
+    case Klass::RefArrayKlassKind:
+      return RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
+
+    case Klass::FlatArrayKlassKind:
       assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
-      ak = FlatArrayKlass::allocate_klass(element_klass(), ad._properties, ad._layout_kind, CHECK_NULL);
-      break;
-    }
+      return FlatArrayKlass::allocate_klass(element_klass(), ad._properties, ad._layout_kind, CHECK_NULL);
+
     default:
       ShouldNotReachHere();
   }
-  return ak;
 }
 
 objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
@@ -243,8 +240,10 @@ objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, 
   switch (ak->kind()) {
     case Klass::RefArrayKlassKind:
       return RefArrayKlass::cast(ak)->allocate_instance(length, CHECK_NULL);
+
     case Klass::FlatArrayKlassKind:
       return FlatArrayKlass::cast(ak)->allocate_instance(length, CHECK_NULL);
+
     default:
       ShouldNotReachHere();
   }
@@ -278,6 +277,11 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
     }
   }
   return h_array();
+}
+
+void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
+                               int dst_pos, int length, TRAPS) {
+  ShouldNotReachHere();
 }
 
 bool ObjArrayKlass::can_be_primary_super_slow() const {
@@ -384,7 +388,6 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayProperties props, TRAPS
 }
 
 ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS) {
-
   element_klass()->validate_array_description(ad);
 
   const ArrayProperties props = ad._properties;
@@ -433,7 +436,6 @@ bool ObjArrayKlass::find_refined_array_klass(ObjArrayKlass* k) {
   return false;
 }
 
-
 // Printing
 
 void ObjArrayKlass::print_on(outputStream* st) const {
@@ -476,7 +478,7 @@ void ObjArrayKlass::verify_on(outputStream* st) {
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
   Klass* bk = bottom_klass();
-  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass() || bk->is_flatArray_klass(),
+  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass(),
             "invalid bottom klass");
 }
 

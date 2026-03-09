@@ -49,8 +49,8 @@
 #include "utilities/macros.hpp"
 
 RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* k, Symbol *name, ArrayProperties props,
-                                       TRAPS) {
+                                             Klass* k, Symbol *name, ArrayProperties props,
+                                             TRAPS) {
   assert(RefArrayKlass::header_size() <= InstanceKlass::header_size(),
          "array klasses must be same size as InstanceKlass");
 
@@ -60,8 +60,8 @@ RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n
 }
 
 RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* element_klass, ArrayProperties props,
-                                       TRAPS) {
+                                                      Klass* element_klass, ArrayProperties props,
+                                                      TRAPS) {
   assert(!props.is_null_restricted() || (n == 1 && element_klass->is_inline_klass()),
          "null-free unsupported");
 
@@ -79,7 +79,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
 
   // Initialize instance variables
   RefArrayKlass* oak = RefArrayKlass::allocate_klass(loader_data, n, element_klass,
-                                               name, props, CHECK_NULL);
+                                                     name, props, CHECK_NULL);
 
   ModuleEntry* module = oak->module();
   assert(module != nullptr, "No module entry for array");
@@ -146,7 +146,6 @@ static void throw_array_store_exception(arrayOop src, arrayOop dst, TRAPS) {
   }
   THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
 }
-
 
 // Either oop or narrowOop depending on UseCompressedOops.
 void RefArrayKlass::do_copy(arrayOop s, size_t src_offset, arrayOop d,
@@ -244,6 +243,7 @@ void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
     THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(),
               ss.as_string());
   }
+
   // Check if the ranges are valid
   if ((((unsigned int)length + (unsigned int)src_pos) >
        (unsigned int)s->length()) ||
@@ -369,15 +369,14 @@ void RefArrayKlass::verify_on(outputStream* st) {
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
   Klass *bk = bottom_klass();
-  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass() ||
-                bk->is_flatArray_klass(),
+  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass(),
             "invalid bottom klass");
 }
 
 void RefArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_refArray(), "must be refArray");
-  guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),
+  guarantee(obj->is_null_free_array() || !is_null_free_array_klass(),
             "null-free klass but not object");
   refArrayOop oa = refArrayOop(obj);
   for (int index = 0; index < oa->length(); index++) {

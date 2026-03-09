@@ -125,8 +125,8 @@ void ParCompactionManager::push_objArray(objArrayOop obj) {
   _mark_and_push_closure.do_klass(obj->klass());
 
   if (obj->is_flatArray()) {
-    FlatArrayKlass* faklass = FlatArrayKlass::cast(obj->klass());
-    _mark_and_push_closure.do_klass(faklass->element_klass());
+    FlatArrayKlass* fak = FlatArrayKlass::cast(obj->klass());
+    _mark_and_push_closure.do_klass(fak->element_klass());
   }
 
   size_t array_length = obj->length();

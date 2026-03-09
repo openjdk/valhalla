@@ -392,8 +392,8 @@ void SerialFullGC::follow_array(objArrayOop array) {
   mark_and_push_closure.do_klass(array->klass());
 
   if (array->is_flatArray()) {
-    FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
-    mark_and_push_closure.do_klass(faklass->element_klass());
+    FlatArrayKlass* fak = FlatArrayKlass::cast(array->klass());
+    mark_and_push_closure.do_klass(fak->element_klass());
   }
 
   // Don't push empty arrays to avoid unnecessary work.

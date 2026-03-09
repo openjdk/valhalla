@@ -63,7 +63,7 @@ class RefArrayKlass : public ObjArrayKlass {
 
   refArrayOop allocate_instance(int length, TRAPS);
 
-  // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
+  // Copying
   void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) override;
 
   void metaspace_pointers_do(MetaspaceClosure* iter) override;
