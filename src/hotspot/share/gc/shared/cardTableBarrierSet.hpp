@@ -83,10 +83,8 @@ public:
   // optimized by some barriers.
 
   // Below length is the # array elements being written
-  virtual void write_ref_array_pre(oop* dst, size_t length,
-                                   bool dest_uninitialized) {}
-  virtual void write_ref_array_pre(narrowOop* dst, size_t length,
-                                   bool dest_uninitialized) {}
+  virtual void write_ref_array_pre(oop* dst, size_t length) {}
+  virtual void write_ref_array_pre(narrowOop* dst, size_t length) {}
   // Below count is the # array elements being written, starting
   // at the address "start", which may not necessarily be HeapWord-aligned
   inline void write_ref_array(HeapWord* start, size_t count);
