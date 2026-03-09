@@ -4006,27 +4006,6 @@ static void print_vtable(vtableEntry* start, int len, outputStream* st) {
   return print_vtable(nullptr, reinterpret_cast<intptr_t*>(start), len, st);
 }
 
-template<typename T>
- static void print_array_on(outputStream* st, Array<T>* array) {
-   if (array == nullptr) { st->print_cr("nullptr"); return; }
-   array->print_value_on(st); st->cr();
-   if (Verbose || WizardMode) {
-     for (int i = 0; i < array->length(); i++) {
-       st->print("%d : ", i); array->at(i)->print_value_on(st); st->cr();
-     }
-   }
- }
-
-static void print_array_on(outputStream* st, Array<int>* array) {
-  if (array == nullptr) { st->print_cr("nullptr"); return; }
-  array->print_value_on(st); st->cr();
-  if (Verbose || WizardMode) {
-    for (int i = 0; i < array->length(); i++) {
-      st->print("%d : %d", i, array->at(i)); st->cr();
-    }
-  }
-}
-
 const char* InstanceKlass::init_state_name() const {
   return state_names[init_state()];
 }
@@ -4064,11 +4043,21 @@ void InstanceKlass::print_on(outputStream* st) const {
     }
   }
 
+
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
-  st->print(BULLET"methods:           "); print_array_on(st, methods());
-  st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
+  st->print(BULLET"methods:           ");
+  print_array_on(st, methods(), [](outputStream* ost, Method* method) {
+    method->print_value_on(ost);
+  });
+  st->print(BULLET"method ordering:   ");
+  print_array_on(st, method_ordering(), [](outputStream* ost, int i) {
+    ost->print("%d", i);
+  });
   if (default_methods() != nullptr) {
-    st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
+    st->print(BULLET"default_methods:   ");
+    print_array_on(st, default_methods(), [](outputStream* ost, Method* method) {
+      method->print_value_on(ost);
+    });
   }
   print_on_maybe_null(st, BULLET"default vtable indices:   ", default_vtable_indices());
   st->print(BULLET"local interfaces:  "); local_interfaces()->print_value_on(st);      st->cr();

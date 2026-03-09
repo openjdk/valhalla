@@ -100,6 +100,8 @@ class InlineKlass: public InstanceKlass {
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
     Members();
+
+    void print_on(outputStream* st) const;
   };
 
   InlineKlass();

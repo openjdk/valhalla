@@ -1306,6 +1306,9 @@ public:
 
   const char* internal_name() const override;
 
+  template<typename T, typename TClosureType>
+  static void print_array_on(outputStream* st, Array<T>* array, TClosureType elem_printer);
+
   // Verification
   void verify_on(outputStream* st) override;
 
