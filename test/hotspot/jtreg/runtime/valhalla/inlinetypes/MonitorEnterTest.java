@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 * @library /test/lib
 * @enablePreview
 * @compile MonitorEnterTest.java
-* @run main runtime.valhalla.inlinetypes.MonitorEnterTest
+* @run main/othervm/native -Xcheck:jni runtime.valhalla.inlinetypes.MonitorEnterTest
 */
 
 package runtime.valhalla.inlinetypes;
@@ -35,20 +35,45 @@ import jdk.test.lib.Asserts;
 
 public class MonitorEnterTest {
 
-  static void monitorEnter(Object o, boolean expectSuccess, String message) {
-      try {
-          synchronized(o) {
-            Asserts.assertTrue(expectSuccess, "MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
-          }
-      } catch (IdentityException e) {
-          Asserts.assertFalse(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
-          if (message != null) {
-              Asserts.assertEQ(e.getMessage(), message, "Exception message mismatch");
-          }
-      }
-  }
+    static {
+        System.loadLibrary("MonitorEnterTest");
+    }
 
-  static value class MyValue { }
+    native static void JNIMonitorEnter(Object o);
+    native static void JNIMonitorExit(Object o);
+
+    static void monitorEnter(Object o, boolean expectSuccess, String message) {
+        try {
+            synchronized(o) {
+                Asserts.assertTrue(expectSuccess, "MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
+            }
+        } catch (IdentityException e) {
+            Asserts.assertFalse(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
+            if (message != null) {
+                Asserts.assertEQ(e.getMessage(), message, "Exception message mismatch");
+            }
+        }
+
+        try {
+            JNIMonitorEnter(o);
+            Asserts.assertTrue(expectSuccess, "JNI MonitorEnter should not have succeeded on an instance of " + o.getClass().getName());
+        } catch (IdentityException e) {
+            Asserts.assertFalse(expectSuccess, "Unexpected IdentityException with an instance of " + o.getClass().getName());
+            if (message != null) {
+                Asserts.assertEQ(e.getMessage(), message, "Exception message mismatch");
+            }
+        }
+
+        try {
+            JNIMonitorExit(o);
+            Asserts.assertTrue(expectSuccess, "JNI MonitorExit should not have succeeded on an instance of " + o.getClass().getName());
+        } catch (IllegalMonitorStateException e) {
+            Asserts.assertFalse(expectSuccess, "Unexpected IllegalMonitorStateException with an instance of " + o.getClass().getName());
+        }
+
+    }
+
+    static value class MyValue { }
 
     public static void main(String[] args) {
         // Attempts to lock the instance are repeated many time to ensure that the different paths

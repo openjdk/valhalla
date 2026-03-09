@@ -235,15 +235,7 @@ value_store_null_in_heap(const ValuePayload& dst) {
 
     Raw::value_store_null(dst);
 
-    // Post-barriers...
-    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
-    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
-    while (map != end) {
-      address doop_address = oop_map_adjusted_dst_addr + map->offset();
-      // The post-barrier needs to be called for initialized and uninitialized destinations.
-      bs->write_ref_array((HeapWord*) doop_address, map->count());
-      map++;
-    }
+    // Storing null does not require post-barriers
   }
 }
 
