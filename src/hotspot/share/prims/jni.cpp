@@ -3175,10 +3175,13 @@ JNI_ENTRY(jboolean, jni_IsVirtualThread(JNIEnv* env, jobject obj))
 JNI_END
 
 JNI_ENTRY(jboolean, jni_IsValueObject(JNIEnv* env, jobject obj))
+  HOTSPOT_JNI_ISVALUEOBJECT_ENTRY(env, jobject obj);
   oop o = JNIHandles::resolve(obj);
   if (o != nullptr && o->klass()->is_inline_klass()) {
+    HOTSPOT_JNI_ISVALUEOBJECT_RETURN(JNI_TRUE);
     return JNI_TRUE;
   } else {
+    HOTSPOT_JNI_ISVALUEOBJECT_RETURN(JNI_FALSE);
     return JNI_FALSE;
   }
 JNI_END
