@@ -44,7 +44,7 @@ template <class T> T* objArrayOopDesc::obj_at_addr(int index) const {
 
 inline oop objArrayOopDesc::obj_at(int index) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  assert(is_refArray(), "Should only be called with ref arrays");  
+  assert(is_refArray(), "Should only be called with ref arrays");
   return ((const refArrayOopDesc*)this)->obj_at(index);
 }
 
