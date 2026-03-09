@@ -26,6 +26,7 @@
 package jdk.internal.reflect;
 
 import java.lang.reflect.*;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -33,10 +34,12 @@ import java.util.Set;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
-import jdk.internal.module.ModuleBootstrap;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+
+import static java.lang.classfile.ClassFile.ACC_STRICT;
 
 /** Common utility routines used by both java.lang and
     java.lang.reflect */
@@ -445,4 +448,33 @@ public class Reflection {
      */
     public static native boolean areNestMates(Class<?> currentClass,
                                               Class<?> memberClass);
+
+    /// Parses a runtime modifier from core reflection/Hotspot into access flags.
+    /// Note that there is one unique representation in hotspot, so we don't need version argument.
+    /// Technically this should never through IAE.
+    public static Set<AccessFlag> modifiersToFlags(int modifiers, AccessFlag.Location location) {
+        boolean injectStrict; // Compatibility
+        if (location == AccessFlag.Location.METHOD) {
+            injectStrict = (modifiers & ACC_STRICT) != 0;
+            modifiers &= ~ACC_STRICT; // Hotspot does not drop this dead bit
+        } else {
+            injectStrict = false;
+        }
+        Set<AccessFlag> ans;
+        try {
+            if (PreviewFeatures.isEnabled()) {
+                ans = PreviewAccessFlags.parse(modifiers, location);
+            } else {
+                ans = AccessFlag.maskToAccessFlags(modifiers, location);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new InternalError("Inconsistent hotspot representation", e);
+        }
+        if (injectStrict) {
+            Set<AccessFlag> buf = EnumSet.copyOf(ans);
+            buf.add(AccessFlag.STRICT);
+            return Set.copyOf(buf);
+        }
+        return ans;
+    }
 }

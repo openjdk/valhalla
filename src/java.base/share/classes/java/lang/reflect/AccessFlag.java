@@ -169,8 +169,8 @@ public enum AccessFlag {
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
     SUPER(0x0000_0020, false,
-          Location.EMPTY_SET,
-          List.of(Map.entry(latest(), Location.SET_CLASS))),
+          Location.SET_CLASS,
+          List.of()),
 
     /**
      * The access flag {@code ACC_IDENTITY} with a mask value of
@@ -181,8 +181,8 @@ public enum AccessFlag {
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     IDENTITY(ACC_IDENTITY, false,
-             Location.SET_CLASS_INNER_CLASS,
-             List.of(Map.entry(latest(), Location.EMPTY_SET))),
+             Location.EMPTY_SET,
+             List.of()),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -292,8 +292,8 @@ public enum AccessFlag {
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective=true)
     STRICT_INIT(ACC_STRICT_INIT, false,
-                Location.SET_FIELD,
-                List.of(Map.entry(latest(), Location.EMPTY_SET))),
+                Location.EMPTY_SET,
+                List.of()),
 
     /**
      * The access flag {@code ACC_SYNTHETIC} with a mask value of
@@ -479,12 +479,8 @@ public enum AccessFlag {
          */
         FIELD(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
               ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
-              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT,
-              List.of(Map.entry(latest(), // no strict_init
-                                ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
-                                ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
-                                ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM),
-                      Map.entry(RELEASE_4, // no synthetic, enum
+              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM,
+              List.of(Map.entry(RELEASE_4, // no synthetic, enum
                                 ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                                 ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
                                 ACC_TRANSIENT))),
@@ -525,14 +521,10 @@ public enum AccessFlag {
          * @see Modifier#interfaceModifiers()
          * @jvms 4.7.6 The {@code InnerClasses} Attribute
          */
-        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | ACC_IDENTITY |
+        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                     ACC_STATIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
                     ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM,
-                    List.of(Map.entry(latest(), // no identity
-                                      ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
-                                      ACC_STATIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
-                                      ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM),
-                            Map.entry(RELEASE_4, // no synthetic, annotation, enum
+                    List.of(Map.entry(RELEASE_4, // no synthetic, annotation, enum
                                       ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                                       ACC_STATIC | ACC_FINAL | ACC_INTERFACE |
                                       ACC_ABSTRACT),
@@ -652,7 +644,7 @@ public enum AccessFlag {
         // These 2 utilities reside in Location because Location must be initialized before AccessFlag
         private static <T> List<Map.Entry<ClassFileFormatVersion, T>> ensureHistoryOrdered(
                 List<Map.Entry<ClassFileFormatVersion, T>> history) {
-            ClassFileFormatVersion lastVersion = CURRENT_PREVIEW_FEATURES;
+            ClassFileFormatVersion lastVersion = latest();
             for (var e : history) {
                 var historyVersion = e.getKey();
                 if (lastVersion.compareTo(historyVersion) <= 0) {
@@ -747,10 +739,10 @@ public enum AccessFlag {
 
     private static AccessFlag[] findDefinition(Location location, ClassFileFormatVersion cffv) {
         return switch (location) {
-            case CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? CLASS_PREVIEW_FLAGS : CLASS_FLAGS;
-            case FIELD -> cffv == CURRENT_PREVIEW_FEATURES ? FIELD_PREVIEW_FLAGS : FIELD_FLAGS;
+            case CLASS -> CLASS_FLAGS;
+            case FIELD -> FIELD_FLAGS;
             case METHOD -> METHOD_FLAGS;
-            case INNER_CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? INNER_CLASS_PREVIEW_FLAGS : INNER_CLASS_FLAGS;
+            case INNER_CLASS -> INNER_CLASS_FLAGS;
             case METHOD_PARAMETER -> METHOD_PARAMETER_FLAGS;
             case MODULE -> MODULE_FLAGS;
             case MODULE_REQUIRES -> MODULE_REQUIRES_FLAGS;
@@ -760,13 +752,10 @@ public enum AccessFlag {
     }
 
     private static final @Stable AccessFlag[] // Can use stable array and lazy init in the future
-            CLASS_FLAGS         = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
-            CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE), // identity
-            FIELD_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
-            FIELD_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT), // strict
+            CLASS_FLAGS = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
+            FIELD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
             METHOD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),
-            INNER_CLASS_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
-            INNER_CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),  // identity
+            INNER_CLASS_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
             METHOD_PARAMETER_FLAGS = createDefinition(FINAL, SYNTHETIC, MANDATED),
             MODULE_FLAGS = createDefinition(OPEN, SYNTHETIC, MANDATED),
             MODULE_REQUIRES_FLAGS = createDefinition(TRANSITIVE, STATIC_PHASE, SYNTHETIC, MANDATED),

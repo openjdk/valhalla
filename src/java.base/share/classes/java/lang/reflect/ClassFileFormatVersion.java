@@ -403,11 +403,7 @@ public enum ClassFileFormatVersion {
     // Reduce code churn when appending new constants
     // Note to maintainers: when adding constants for newer releases,
     // the implementation of latest() must be updated too.
-
-    /// The preview features of Valhalla.
-    /// @since Valhalla
-    @PreviewFeature(feature = PreviewFeature.Feature.LANGUAGE_MODEL, reflective = true)
-    CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
+    ;
 
     private final int major;
 

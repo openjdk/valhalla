@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import jdk.internal.reflect.PreviewAccessFlags;
+
 /*
  *  A writer similar to a PrintWriter but which does not hide exceptions.
  *  The standard print calls are line-buffered; report calls write messages directly.
@@ -59,8 +61,15 @@ public class BasicWriter {
     }
 
     protected Set<AccessFlag> maskToAccessFlagsReportUnknown(int mask, AccessFlag.Location location, ClassFileFormatVersion cffv) {
-        if (cffv == null)
-            cffv = ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES; // Aggressive fallback
+        if (cffv == null) {
+            try {
+                return PreviewAccessFlags.parse(mask, location);
+            } catch (IllegalArgumentException ex) {
+                mask &= PreviewAccessFlags.flagsMask(location);
+                report("Access Flags: " + ex.getMessage());
+                return PreviewAccessFlags.parse(mask, location);
+            }
+        }
         try {
             return AccessFlag.maskToAccessFlags(mask, location, cffv);
         } catch (IllegalArgumentException ex) {

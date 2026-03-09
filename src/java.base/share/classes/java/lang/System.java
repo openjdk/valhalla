@@ -2044,9 +2044,6 @@ public final class System {
             E[] getEnumConstantsShared(Class<E> klass) {
                 return klass.getEnumConstantsShared();
             }
-            public int classFileVersion(Class<?> clazz) {
-                return clazz.getClassFileVersion();
-            }
             public void blockedOn(Interruptible b) {
                 Thread.currentThread().blockedOn(b);
             }

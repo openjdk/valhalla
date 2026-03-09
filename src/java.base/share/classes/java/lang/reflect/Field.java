@@ -249,7 +249,7 @@ class Field extends AccessibleObject implements Member {
      */
     @Override
     public Set<AccessFlag> accessFlags() {
-        return reflectionFactory.parseAccessFlags(getModifiers(), AccessFlag.Location.FIELD, getDeclaringClass());
+        return Reflection.modifiersToFlags(getModifiers(), AccessFlag.Location.FIELD);
     }
 
     /**

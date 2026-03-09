@@ -1462,15 +1462,7 @@ public final class Class<T> implements java.io.Serializable,
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
         int accessFlags = location == AccessFlag.Location.CLASS ? getClassFileAccessFlags() : getModifiers();
-        var reflectionFactory = getReflectionFactory();
-        var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
-        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
-                && isIdentity()) {
-            var set = new HashSet<>(ans);
-            set.add(AccessFlag.IDENTITY);
-            return Set.copyOf(set);
-        }
-        return ans;
+        return Reflection.modifiersToFlags(accessFlags, location);
     }
 
     /**

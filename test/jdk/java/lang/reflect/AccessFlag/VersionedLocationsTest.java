@@ -118,18 +118,6 @@ public class VersionedLocationsTest {
                                removeInnerClass(STATIC.locations()),
                                ClassFileFormatVersion.RELEASE_1),
 
-            new StepFunctionTC(SUPER,
-                               Set.of(AccessFlag.Location.CLASS),
-                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
-
-            new StepFunctionTC(IDENTITY,
-                               Set.of(),
-                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
-
-            new StepFunctionTC(STRICT_INIT,
-                               Set.of(),
-                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
-
             new StepFunctionTC(OPEN,
                                Set.of(),
                                ClassFileFormatVersion.RELEASE_9),
@@ -203,7 +191,7 @@ public class VersionedLocationsTest {
                                   ClassFileFormatVersion transition) {
 
         public Set<AccessFlag.Location> finalLocs() {
-            return accessFlag.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
+            return accessFlag.locations();
         }
     }
 
