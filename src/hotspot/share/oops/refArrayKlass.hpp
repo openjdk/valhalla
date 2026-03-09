@@ -54,7 +54,7 @@ class RefArrayKlass : public ObjArrayKlass {
 
   // Dispatched operation
   DEBUG_ONLY(bool is_refArray_klass_slow() const override { return true; })
-  size_t oop_size(oop obj) const override;  // TODO FIXME make it virtual in objArrayKlass
+  size_t oop_size(oop obj) const override;
 
   // Allocation
   static RefArrayKlass* allocate_refArray_klass(ClassLoaderData* loader_data,
