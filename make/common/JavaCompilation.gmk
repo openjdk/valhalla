@@ -291,6 +291,7 @@ define SetupJavaCompilationBody
   endif
 
   $1_AUGMENTED_CLASSPATH := $$($1_CLASSPATH)
+  $1_AUGMENTED_PROCESSOR_PATH := $$($1_PROCESSOR_PATH)
   $1_API_TARGET := $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$1_pubapi
   $1_API_INTERNAL := $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$1_internalapi
 
@@ -306,15 +307,15 @@ define SetupJavaCompilationBody
     # compilations in unnamed module can refer to other classes from the same
     # source root, which are not being recompiled in this compilation:
     $1_AUGMENTED_CLASSPATH += $$($1_BIN)
-    $1_PROCESSOR_PATH += $$(BUILDTOOLS_OUTPUTDIR)/depend
+    $1_AUGMENTED_PROCESSOR_PATH += $$(BUILDTOOLS_OUTPUTDIR)/depend
   endif
 
   ifneq ($$($1_AUGMENTED_CLASSPATH), )
     $1_FLAGS += -cp $$(call PathList, $$($1_AUGMENTED_CLASSPATH))
   endif
 
-  ifneq ($$($1_PROCESSOR_PATH), )
-    $1_FLAGS += --processor-path $$(call PathList, $$($1_PROCESSOR_PATH))
+  ifneq ($$($1_AUGMENTED_PROCESSOR_PATH), )
+    $1_FLAGS += --processor-path $$(call PathList, $$($1_AUGMENTED_PROCESSOR_PATH))
   endif
 
   # Make sure the dirs exist, or that one of the EXTRA_FILES, that may not
