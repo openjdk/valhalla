@@ -82,7 +82,7 @@ ifeq ($(MODULE), java.base)
         -processor $(VALUETYPE_GENSRC_PROCESSOR_NAME)
 
     PROCESSOR_PATH += $(VALUETYPE_GENSRC_PROCESSOR_PATH)
-    DEPENDS += $(VALUETYPE_GENSRC_PROCESSOR_PATH)
+    DEPENDS += $(BUILD_VALUETYPE_GENSRC)
 endif
 
 ################################################################################

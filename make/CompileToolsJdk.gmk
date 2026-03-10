@@ -156,14 +156,14 @@ endif
 
 ################################################################################
 
-$(eval $(call SetupJavaCompilation, COMPILE_VALUETYPE_GENSRC, \
+$(eval $(call SetupJavaCompilation, BUILD_VALUETYPE_GENSRC, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     SRC := $(TOPDIR)/make/jdk/src/classes, \
     INCLUDES := build/tools/valhalla/valuetypes, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc, \
 ))
 
-TARGETS += $(COMPILE_VALUETYPE_GENSRC)
+TARGETS += $(BUILD_VALUETYPE_GENSRC)
 
 ################################################################################
 
