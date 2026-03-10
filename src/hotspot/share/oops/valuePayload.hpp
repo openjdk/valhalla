@@ -121,8 +121,10 @@ protected:
   inline oop& container();
   inline oop container() const;
 
-private:
   inline void print_on(outputStream* st) const NOT_DEBUG_RETURN;
+
+private:
+  inline void assert_is_flat_field(const InstanceKlass* klass, int offset) const NOT_DEBUG_RETURN;
   inline void assert_post_construction_invariants() const NOT_DEBUG_RETURN;
   static inline void assert_pre_copy_invariants(const ValuePayload& src,
                                                 const ValuePayload& dst,
@@ -220,6 +222,13 @@ private:
   inline FlatFieldPayload(instanceOop container,
                           ptrdiff_t offset,
                           InlineLayoutInfo* inline_layout_info);
+
+  inline void assert_post_construction_invariants(instanceOop container,
+                                                  ResolvedFieldEntry* resolved_field_entry,
+                                                  InstanceKlass* klass) const NOT_DEBUG_RETURN;
+  inline void assert_post_construction_invariants(instanceOop container,
+                                                  fieldDescriptor* field_descriptor,
+                                                  InstanceKlass* klass) const NOT_DEBUG_RETURN;
 
 public:
   FlatFieldPayload() = default;

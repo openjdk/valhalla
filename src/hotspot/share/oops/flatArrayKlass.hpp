@@ -52,17 +52,20 @@ class FlatArrayKlass : public ObjArrayKlass {
 
   FlatArrayKlass() {} // used by CppVtableCloner<T>::initialize()
 
-  InlineKlass* element_klass() const override { return InlineKlass::cast(_element_klass); }
-  void set_element_klass(Klass* k) override { assert(k->is_inline_klass(), "Must be"); _element_klass = k; }
+  InlineKlass* element_klass() const { return InlineKlass::cast(ObjArrayKlass::element_klass()); }
 
   LayoutKind layout_kind() const  { return _layout_kind; }
-  void set_layout_kind(LayoutKind lk) { _layout_kind = lk; }
   static ByteSize layout_kind_offset() { return in_ByteSize(offset_of(FlatArrayKlass, _layout_kind)); }
 
   // Casting from Klass*
   static FlatArrayKlass* cast(Klass* k) {
+    return const_cast<FlatArrayKlass*>(cast(const_cast<const Klass*>(k)));
+  }
+
+  static const FlatArrayKlass* cast(const Klass* k) {
+    assert(k != nullptr, "k should not be null");
     assert(k->is_flatArray_klass(), "cast to FlatArrayKlass");
-    return (FlatArrayKlass*) k;
+    return static_cast<const FlatArrayKlass*>(k);
   }
 
   // klass allocation
@@ -70,12 +73,7 @@ class FlatArrayKlass : public ObjArrayKlass {
 
   void initialize(TRAPS) override;
 
-  ModuleEntry* module() const override;
-  PackageEntry* package() const override;
-
   bool can_be_primary_super_slow() const override;
-  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<InstanceKlass*>* transitive_interfaces) override;
 
   int element_byte_size() const { return 1 << layout_helper_log2_element_size(_layout_helper); }
 

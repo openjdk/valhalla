@@ -39,7 +39,6 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.module.ModuleDescriptor;
-import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -2347,10 +2346,6 @@ public final class System {
                                                       ContinuationScope contScope,
                                                       Continuation continuation) {
                 return StackWalker.newInstance(options, null, contScope, continuation);
-            }
-
-            public int classFileFormatVersion(Class<?> clazz) {
-                return clazz.getClassFileVersion();
             }
 
             public String getLoaderNameID(ClassLoader loader) {

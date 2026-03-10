@@ -606,6 +606,13 @@ public class Object {
      * the finalization of this object to be halted, but is otherwise
      * ignored.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          this method will never be invoked by the garbage collector.
+     *      </div>
+     * </div>
+     *
      * @apiNote
      * Classes that embed non-heap resources have many options
      * for cleanup of those resources. The class must ensure that the
