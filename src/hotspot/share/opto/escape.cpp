@@ -1854,7 +1854,6 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
   return;
 }
 
-
 // Add final simple edges to graph.
 void ConnectionGraph::add_final_edges(Node *n) {
   PointsToNode* n_ptn = ptnode_adr(n->_idx);
@@ -2157,7 +2156,7 @@ private:
     BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
     while (_i_sig_cc < _sig_cc->length()) {
       BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
-      assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "");
+      assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "incorrect prev bt");
       if (bt == T_METADATA) {
         if (_depth == 0) {
           _first_field_pos = _i_domain_cc;
@@ -2169,11 +2168,10 @@ private:
           _i_domain++;
         }
       } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
-        assert(_sig_cc->at(_i_sig_cc)._null_marker, "");
+        assert(_sig_cc->at(_i_sig_cc)._null_marker, "null marker expected right after T_METADATA");
         assert(_depth == 1, "");
         _i_domain_cc++;
         _first_field_pos = _i_domain_cc;
-        // return;
       } else {
         return;
       }
@@ -2230,7 +2228,7 @@ public:
   }
 
   uint first_field_pos() const {
-    assert(_first_field_pos >= TypeFunc::Parms, "");
+    assert(_first_field_pos >= TypeFunc::Parms, "not yet updated?");
     return _first_field_pos;
   }
 };
