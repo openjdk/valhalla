@@ -33,16 +33,10 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
+import static compiler.lib.ir_framework.IRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
-
-import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.NULL_ASSERT_TRAP;
-import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.RANGE_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
-import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
 
 /*
  * @test
@@ -1228,5 +1222,26 @@ public class TestLWorldProfiling {
     public void test42_verifier() {
         Long[] arg = (Long[])ValueClass.newNullRestrictedNonAtomicArray(Long.class, 1, 0L);
         test42(arg);
+    }
+
+    @Test
+    @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+        counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    )
+    @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+        failOn = {LOAD_OF_CLASS, "MyValue1"},
+        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    )
+    public static boolean test43(Object a, Object b) {
+        return a == b;
+    }
+
+    @Run(test = "test43")
+    @Warmup(10000)
+    public void test43_verifier() {
+        var other = MyValue1.createWithFieldsInline(rI + 1, rL);
+        Asserts.assertTrue(test43(testValue1, testValue1));
+        Asserts.assertFalse(test43(testValue1, other));
     }
 }

@@ -2019,11 +2019,14 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
   return cast;
 }
 
-void Parse::acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
+void Parse::acmp_type_check(Node*& input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
   Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
+  Node* cast;
+  if (input_type != nullptr && input_type->is_inlinetype()) {
+    cast = null_check(input);
+  } else {
+    cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
+  }
 
   if (input_type != nullptr) {
     Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
@@ -2039,12 +2042,19 @@ void Parse::acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKin
       }
       uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
     }
+    if (input_type->is_inlinetype()) {
+      input = cast;
+      return;
+    }
   } else {
     // No specific type, check for inline type
     BuildCutout unless(this, inline_type_test(cast, /* is_inline = */ false), PROB_MAX);
     inc_sp(2);
     uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
   }
+
+  Node* ne_region = new RegionNode(1);
+  ne_region->add_req(null_ctl);
 
   ne_region->add_req(control());
 
@@ -2229,25 +2239,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     acmp_type_check(right, tright, right_ptr, nullptr, btest, eq_region);
     return;
   }
-  // TODO check if profile information suggests that one operand is an inline type, that's sufficient because we check below that the other operand has the same type. Is it?
   if (left_type != nullptr && left_type->is_inlinetype()) {
-    left = null_check(left);
-    Node* slow_ctl = type_check_receiver(left, left_type, 1.0, &left);
-    {
-      PreserveJVMState pjvms(this);
-      inc_sp(2);
-      set_control(slow_ctl);
-      uncommon_trap_exact(Deoptimization::Reason_speculate_class_check, Deoptimization::Action_maybe_recompile);
-    }
+    acmp_type_check(left, tleft, left_ptr, left_type, btest, eq_region);
   } else if (right_type != nullptr && right_type->is_inlinetype()) {
-    right = null_check(right);
-    Node* slow_ctl = type_check_receiver(right, right_type, 1.0, &right);
-    {
-      PreserveJVMState pjvms(this);
-      inc_sp(2);
-      set_control(slow_ctl);
-      uncommon_trap_exact(Deoptimization::Reason_speculate_class_check, Deoptimization::Action_maybe_recompile);
-    }
+    acmp_type_check(right, tright, right_ptr, right_type, btest, eq_region);
   }
 
   // Pointers are not equal, check if first operand is non-null
