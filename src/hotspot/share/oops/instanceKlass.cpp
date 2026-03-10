@@ -70,6 +70,7 @@
 #include "oops/instanceOop.hpp"
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -100,6 +101,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/nativeStackPrinter.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/stringUtils.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
@@ -155,6 +157,25 @@
 void InlineLayoutInfo::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(cds)("Iter(InlineFieldInfo): %p", this);
   it->push(&_klass);
+}
+
+void InlineLayoutInfo::print() const {
+  print_on(tty);
+}
+
+void InlineLayoutInfo::print_on(outputStream* st) const {
+  st->print_cr("_klass: " PTR_FORMAT, p2i(_klass));
+  if (_klass != nullptr) {
+    StreamIndentor si(st);
+    _klass->print_on(st);
+    st->cr();
+  }
+
+  st->print("_layout: ");
+  LayoutKindHelper::print_on(_kind, st);
+  st->cr();
+
+  st->print("_null_marker_offset: %d", _null_marker_offset);
 }
 
 bool InstanceKlass::_finalization_enabled = true;
@@ -2177,7 +2198,6 @@ bool InstanceKlass::find_local_field_from_offset(int offset, bool is_static, fie
   return false;
 }
 
-
 bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const {
   const InstanceKlass* klass = this;
   while (klass != nullptr) {
@@ -2189,6 +2209,45 @@ bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDesc
   return false;
 }
 
+bool InstanceKlass::find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+    if (!fs.is_flat()) {
+      continue;
+    }
+
+    if (fs.offset() > offset) {
+      continue;
+    }
+
+    const int offset_in_flat_field = offset - fs.offset();
+    const InlineLayoutInfo layout_info = inline_layout_info(fs.index());
+    const int field_size = layout_info.klass()->layout_size_in_bytes(layout_info.kind());
+
+    assert(LayoutKindHelper::is_flat(layout_info.kind()), "Must be flat");
+
+    if (offset_in_flat_field < field_size) {
+      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.to_FieldInfo());
+      assert(!fd->is_static(), "Static fields are not flattened");
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool InstanceKlass::find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
+  const InstanceKlass* klass = this;
+  while (klass != nullptr) {
+    if (klass->find_local_flat_field_containing_offset(offset, fd)) {
+      return true;
+    }
+
+    klass = klass->super();
+  }
+
+  return false;
+}
 
 void InstanceKlass::methods_do(void f(Method* method)) {
   // Methods aren't stable until they are loaded.  This can be read outside
