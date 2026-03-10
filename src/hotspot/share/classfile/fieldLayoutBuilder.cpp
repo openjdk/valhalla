@@ -202,7 +202,7 @@ FieldGroup::FieldGroup(int contended_group) :
 void FieldGroup::add_primitive_field(int idx, BasicType type) {
   int size = type2aelembytes(type);
   LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::REGULAR, size, size /* alignment == size for primitive types */);
-  if (size >= heapOopSize) {
+  if (size >= oopSize) {
     add_to_big_primitive_list(block);
   } else {
     add_to_small_primitive_list(block);
