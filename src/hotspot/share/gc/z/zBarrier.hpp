@@ -27,7 +27,6 @@
 #include "gc/z/zAddress.hpp"
 #include "memory/allStatic.hpp"
 #include "memory/iterator.hpp"
-#include "oops/inlineKlass.hpp"
 
 // == Shift based load barrier ==
 //

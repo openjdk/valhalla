@@ -2319,11 +2319,6 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
   // Mark objArray klass metadata
   if (_cm_oop_closure->do_metadata()) {
     _cm_oop_closure->do_klass(obj_array->klass());
-
-    if (obj_array->is_flatArray()) {
-      FlatArrayKlass* fak = FlatArrayKlass::cast(obj_array->klass());
-      _cm_oop_closure->do_klass(fak->element_klass());
-    }
   }
 
   process_array_chunk(obj_array, 0, initial_chunk_size);

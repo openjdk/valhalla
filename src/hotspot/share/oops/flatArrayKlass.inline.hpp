@@ -96,12 +96,11 @@ void FlatArrayKlass::oop_oop_iterate_elements(flatArrayOop a, OopClosureType* cl
 
 template <typename T, typename OopClosureType>
 void FlatArrayKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
-  assert(obj->klass()->is_flatArray_klass(),"must be a flat array");
+  assert(obj->is_flatArray(), "must be a flat array");
   flatArrayOop a = flatArrayOop(obj);
 
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, obj->klass());
-    Devirtualizer::do_klass(closure, FlatArrayKlass::cast(obj->klass())->element_klass());
   }
 
   oop_oop_iterate_elements<T>(a, closure);
@@ -125,7 +124,6 @@ void FlatArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, M
   flatArrayOop a = flatArrayOop(obj);
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, a->klass());
-    Devirtualizer::do_klass(closure, FlatArrayKlass::cast(obj->klass())->element_klass());
   }
   oop_oop_iterate_elements_bounded<T>(a, closure, mr);
 }
