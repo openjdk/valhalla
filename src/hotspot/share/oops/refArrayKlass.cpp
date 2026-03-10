@@ -377,7 +377,7 @@ void RefArrayKlass::verify_on(outputStream* st) {
 }
 
 void RefArrayKlass::oop_verify_on(oop obj, outputStream* st) {
-  ObjArrayKlass::oop_verify_on(obj, st);
+  ObjArrayKlass::non_virtual_oop_verify_on(obj, st);
   guarantee(obj->is_refArray(), "must be refArray");
 
   refArrayOop oa = refArrayOop(obj);

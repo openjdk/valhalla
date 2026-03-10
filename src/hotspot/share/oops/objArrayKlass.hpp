@@ -177,6 +177,10 @@ class ObjArrayKlass : public ArrayKlass {
   void verify_on(outputStream* st) override;
 
   void oop_verify_on(oop obj, outputStream* st) override;
+
+protected:
+  void non_virtual_oop_verify_on(oop obj, outputStream* st);
+
 };
 
 #endif // SHARE_OOPS_OBJARRAYKLASS_HPP
