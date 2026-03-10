@@ -490,6 +490,7 @@ void ObjArrayKlass::verify_on(outputStream* st) {
 
 void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
+  guarantee(is_refined_objArray_klass(), "Must be called with refined obj array klass");
   guarantee(obj->is_objArray(), "must be objArray");
   guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),
             "null-free klass but not object");
