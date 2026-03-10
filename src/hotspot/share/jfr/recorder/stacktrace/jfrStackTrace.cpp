@@ -131,10 +131,6 @@ static inline bool is_in_continuation(const frame& frame, JavaThread* jt) {
     (Continuation::is_frame_in_continuation(jt, frame) || Continuation::is_continuation_enterSpecial(frame));
 }
 
-static inline bool is_interpreter(const JfrSampleRequest& request) {
-  return request._sample_bcp != nullptr;
-}
-
 inline void JfrStackTrace::record_frame(const Method* method, int bci, u1 frame_type) {
   assert(method != nullptr, "invariant");
   const traceid mid = JfrTraceId::load(method);
