@@ -37,7 +37,6 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.constant.ModuleDesc;
 import java.lang.reflect.AccessFlag;
-import java.lang.reflect.ClassFileFormatVersion;
 import java.util.AbstractList;
 import java.util.Collection;
 import java.util.List;
