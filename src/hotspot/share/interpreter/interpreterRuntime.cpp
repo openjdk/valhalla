@@ -802,14 +802,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
-  entry->set_flags(info.access_flags().is_volatile(),
-                   info.access_flags().is_final(),
-                   info.is_flat(),
-                   info.is_null_free_inline_type(),
-                   info.has_null_marker());
-
-  entry->fill_in(info.field_holder(), info.offset(),
-                 checked_cast<u2>(info.index()), checked_cast<u1>(state),
+  entry->fill_in(info, checked_cast<u1>(state),
                  static_cast<u1>(get_code), static_cast<u1>(put_code));
 }
 
@@ -1298,11 +1291,9 @@ JRT_LEAF(void, InterpreterRuntime::at_unwind(JavaThread* current))
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDesc* obj,
-                                                      ResolvedFieldEntry *entry))
+                                                      ResolvedFieldEntry* entry))
 
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   // check the access_flags for the field in the klass
-
   InstanceKlass* ik = entry->field_holder();
   int index = entry->field_index();
   if (!ik->field_status(index).is_access_watched()) return;
@@ -1325,10 +1316,8 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current, oopDesc* obj,
                                                             ResolvedFieldEntry *entry, jvalue *value))
 
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
-  InstanceKlass* ik = entry->field_holder();
-
   // check the access_flags for the field in the klass
+  InstanceKlass* ik = entry->field_holder();
   int index = entry->field_index();
   // bail out if field modifications are not watched
   if (!ik->field_status(index).is_modification_watched()) return;
