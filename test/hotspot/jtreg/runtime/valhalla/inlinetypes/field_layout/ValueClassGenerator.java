@@ -151,7 +151,7 @@ public class ValueClassGenerator {
       String[] shortVals = getPregeneratedValues(() -> {
                                                     short v = 0;
                                                     do {
-                                                        v = (short)random.nextInt(Short.MAX_VALUE+1);
+                                                        v = (short)random.nextInt();
                                                     } while (v == Short.MAX_VALUE || v == Short.MIN_VALUE ||
                                                              v == 0 || v == -1 || v == 1);
                                                     return "(short)"+Integer.toString(v);
