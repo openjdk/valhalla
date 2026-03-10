@@ -50,7 +50,6 @@
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 
 ObjArrayKlass* ObjArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
@@ -490,10 +489,6 @@ void ObjArrayKlass::verify_on(outputStream* st) {
 }
 
 void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
-  ShouldNotReachHere();
-}
-
-void ObjArrayKlass::non_virtual_oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_objArray(), "must be objArray");
   guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),
