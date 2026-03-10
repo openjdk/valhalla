@@ -799,7 +799,7 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double(va_arg(_ap, jdouble)); break;
 
     case T_ARRAY:
-    case T_OBJECT: push_object(va_arg(_ap, jobject)); break;
+    case T_OBJECT:      push_object(va_arg(_ap, jobject)); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -966,13 +966,7 @@ JNI_ENTRY(jobject, jni_AllocObject(JNIEnv *env, jclass clazz))
   jobject ret = nullptr;
   DT_RETURN_MARK(AllocObject, jobject, (const jobject&)ret);
 
-  oop clazzoop = JNIHandles::resolve_non_null(clazz);
-  Klass* k = java_lang_Class::as_Klass(clazzoop);
-  if (k == nullptr || k->is_inline_klass()) {
-    ResourceMark rm(THREAD);
-    THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
-  }
-  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
   ret = JNIHandles::make_local(THREAD, i);
   return ret;
 JNI_END
@@ -986,21 +980,13 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
   jobject obj = nullptr;
   DT_RETURN_MARK(NewObjectA, jobject, (const jobject&)obj);
 
-  oop clazzoop = JNIHandles::resolve_non_null(clazz);
-  Klass* k = java_lang_Class::as_Klass(clazzoop);
-  if (k == nullptr) {
-    ResourceMark rm(THREAD);
-    THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
-  }
-
-  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
   obj = JNIHandles::make_local(THREAD, i);
   JavaValue jvalue(T_VOID);
   JNI_ArgumentPusherArray ap(methodID, args);
   jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
-
   return obj;
-  JNI_END
+JNI_END
 
 
 DT_RETURN_MARK_DECL(NewObjectV, jobject
@@ -1012,19 +998,11 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
   jobject obj = nullptr;
   DT_RETURN_MARK(NewObjectV, jobject, (const jobject&)obj);
 
-  oop clazzoop = JNIHandles::resolve_non_null(clazz);
-  Klass* k = java_lang_Class::as_Klass(clazzoop);
-  if (k == nullptr) {
-    ResourceMark rm(THREAD);
-    THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
-  }
-
-  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
   obj = JNIHandles::make_local(THREAD, i);
   JavaValue jvalue(T_VOID);
   JNI_ArgumentPusherVaArg ap(methodID, args);
   jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
-
   return obj;
 JNI_END
 
@@ -1038,14 +1016,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   jobject obj = nullptr;
   DT_RETURN_MARK(NewObject, jobject, (const jobject&)obj);
 
-  oop clazzoop = JNIHandles::resolve_non_null(clazz);
-  Klass* k = java_lang_Class::as_Klass(clazzoop);
-  if (k == nullptr) {
-    ResourceMark rm(THREAD);
-    THROW_(vmSymbols::java_lang_InstantiationException(), nullptr);
-  }
-
-  instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+  instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
   obj = JNIHandles::make_local(THREAD, i);
   va_list args;
   va_start(args, methodID);
@@ -1053,7 +1024,6 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   JNI_ArgumentPusherVaArg ap(methodID, args);
   jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   va_end(args);
-
   return obj;
 JNI_END
 
@@ -1961,7 +1931,8 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     assert(k->is_instance_klass(), "Only instances can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
-    ik->find_field_from_offset(offset, false, &fd);
+    bool found = ik->find_field_from_offset(offset, false, &fd);
+    assert(found, "Field not found");
     FlatFieldPayload payload(instanceOop(o), &fd);
     payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
   }
@@ -2416,9 +2387,9 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
  HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
   DT_VOID_RETURN_MARK(SetObjectArrayElement);
 
-   objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-   oop v = JNIHandles::resolve(value);
-   if (a->is_within_bounds(index)) {
+  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+  oop v = JNIHandles::resolve(value);
+  if (a->is_within_bounds(index)) {
     Klass* ek = a->is_flatArray() ? FlatArrayKlass::cast(a->klass())->element_klass() : RefArrayKlass::cast(a->klass())->element_klass();
     if (v == nullptr || v->is_a(ek)) {
       a->obj_at_put(index, v, CHECK);
@@ -2435,12 +2406,12 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
       }
       THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
     }
-   } else {
-     ResourceMark rm(THREAD);
-     stringStream ss;
-     ss.print("Index %d out of bounds for length %d", index, a->length());
-     THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
-   }
+  } else {
+    ResourceMark rm(THREAD);
+    stringStream ss;
+    ss.print("Index %d out of bounds for length %d", index, a->length());
+    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
+  }
 JNI_END
 
 

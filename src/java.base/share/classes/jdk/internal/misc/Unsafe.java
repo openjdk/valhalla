@@ -42,14 +42,55 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * Although the class and all methods are public, use of this class is
  * limited because only trusted code can obtain instances of it.
  *
- * <em>Note:</em> It is the responsibility of the caller to make sure
- * arguments are checked before methods of this class are
- * called. While some rudimentary checks are performed on the input,
- * the checks are best effort and when performance is an overriding
- * priority, as when methods of this class are optimized by the
- * runtime compiler, some or all checks (if any) may be elided. Hence,
- * the caller must not rely on the checks and corresponding
- * exceptions!
+ * <h2><a id="undefined-behavior">Undefined Behavior</a></h2>
+ * For performance reasons, {@code Unsafe} is allowed to work outside the
+ * restrictions enforced by the JVM. As a result, it is the responsibility of
+ * the caller to ensure that an invocation of an {@code Unsafe} method is
+ * conformant, and failure to do so will result in undefined behavior. The
+ * runtime and the JIT compiler may assume that undefined behavior never
+ * happens, and operate accordingly. For example, the runtime assumes that each
+ * object has a header with a particular layout, and if the users use
+ * {@code Unsafe} to overwrite this header with invalid data, the behavior of
+ * the runtime becomes unpredictable. Another example is that the JIT compiler
+ * may assume that accesses on separate objects are unrelated, and schedule
+ * each of them without taking into consideration the others. If there is an
+ * {@code Unsafe} access that is out of bounds and points to object different
+ * from the declared base, the program may execute in a way that a variable
+ * seems to have multiple values at the same time. As a result, when a program
+ * exhibits undefined behavior, there is no restrictions on its behaviors. Such
+ * behaviors may include but not be limited to:
+ *
+ * <ul>
+ * <li>Working as expected.
+ * <li>Crashing the VM.
+ * <li>Corruption of the heap or JVM memory.
+ * <li>Nonsensical variable value. E.g. an {@code int} may appear to be
+ * simultaneously 0 and 1.
+ * <li>Impossible code execution. E.g. the branches of an {@code if} are
+ * both executed or both not executed.
+ * <li>Wiping out the hard drive.
+ * </ul>
+ *
+ * Undefined behavior, as described in this class, is analogous to the
+ * terminology with the same name in the C++ language.
+ * <p>
+ * Some methods (e.g. {@link #getInt}) exhibit undefined behavior if they
+ * are invoked at runtime with illegal arguments. This means that they will
+ * never exhibit undefined behavior if they are not actually reachable at
+ * runtime. On the other hands, other methods (e.g.
+ * {@link #allocateInstance(Class)}) exhibit undefined behavior if they are
+ * used incorrectly, even if the invocation may not be reachable at runtime.
+ * The analogous terminology in C++ is that such programs are ill-formed.
+ * <p>
+ * For methods exhibiting undefined behavior if they are invoked at runtime
+ * with illegal arguments, undefined behavior may time travel. That is, if a
+ * control path may eventually reach an invocation of an {@code Unsafe} method
+ * with illegal arguments, the symptoms of undefined behavior may be present
+ * even before the invocation of the {@code Unsafe} method. This is because the
+ * JIT compiler may have certain assumptions about the inputs of an
+ * {@code Unsafe} invocation, these assumptions may propagate backward to
+ * previous statements, leading to wrong executions if the assumptions are
+ * invalid.
  *
  * @author John R. Rose
  * @see #getUnsafe
@@ -185,7 +226,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
-
 
     /**
      * Returns true if the given field is flattened.
@@ -1597,6 +1637,11 @@ public final class Unsafe {
     /**
      * Allocates an instance but does not run any constructor.
      * Initializes the class if it has not yet been.
+     * <p>
+     * This method returns an uninitialized instance. In general, this is undefined behavior, this
+     * method is treated specially by the JVM to allow this behavior. The returned value must be
+     * passed into a constructor using {@link MethodHandle#linkToSpecial} before any other
+     * operation can be performed on it. Otherwise, the program is ill-formed.
      */
     @IntrinsicCandidate
     public native Object allocateInstance(Class<?> cls)

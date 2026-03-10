@@ -396,15 +396,15 @@ import sun.invoke.util.Wrapper;
                 new Consumer<>() {
                     @Override
                     public void accept(CodeBuilder cob) {
-                        cob.aload(0)
-                           .invokespecial(CD_Object, INIT_NAME, MTD_void);
                         int parameterCount = factoryType.parameterCount();
                         for (int i = 0; i < parameterCount; i++) {
                             cob.aload(0)
                                .loadLocal(TypeKind.from(factoryType.parameterType(i)), cob.parameterSlot(i))
                                .putfield(pool.fieldRefEntry(lambdaClassEntry, pool.nameAndTypeEntry(argName(i), argDescs[i])));
                         }
-                        cob.return_();
+                        cob.aload(0)
+                           .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                           .return_();
                     }
                 });
     }

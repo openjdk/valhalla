@@ -5084,7 +5084,7 @@ public class TestLWorld {
     }
 
     // Test acmp with deep nesting of flat fields
-    @Test
+    @Test(allowNotCompilable = true) // TODO 8378943: reason should be "failed spill-split-recycle sanity check"
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test178(Value178 x, Value178 y) {
         return getter(x) == getter(y);
