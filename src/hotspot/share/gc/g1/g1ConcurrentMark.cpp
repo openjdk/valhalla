@@ -2336,8 +2336,8 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
   if (obj_array->is_refArray()) {
     return refArrayOopDesc::object_size(checked_cast<int>(initial_chunk_size));
   } else {
-    FlatArrayKlass* faKlass = FlatArrayKlass::cast(obj_array->klass());
-    return flatArrayOopDesc::object_size(faKlass->layout_helper(), checked_cast<int>(initial_chunk_size));
+    FlatArrayKlass* fak = FlatArrayKlass::cast(obj_array->klass());
+    return flatArrayOopDesc::object_size(fak->layout_helper(), checked_cast<int>(initial_chunk_size));
   }
 }
 
