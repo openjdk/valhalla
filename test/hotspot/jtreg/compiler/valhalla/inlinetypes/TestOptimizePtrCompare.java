@@ -84,7 +84,7 @@ public class TestOptimizePtrCompare {
     static MyValue notInlined2(MyValue v) {
         return v;
     }
-    
+
     static value class MyValue2 {
         Object o1;
         Object o2;
@@ -106,7 +106,7 @@ public class TestOptimizePtrCompare {
     }
 
     static Object fieldO = new Object();
-    
+
     @Test
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "true", "InlineTypeReturnedAsFields", "true"}, failOn = {IRNode.CMP_P_OR_N})
     @IR(applyIfAnd = {"InlineTypePassFieldsAsArgs", "false", "InlineTypeReturnedAsFields", "true"}, counts = {IRNode.CMP_P_OR_N, "2", IRNode.CMP_I, "1"})
