@@ -207,16 +207,8 @@ void JfrStackTrace::record_stack_repair_top_frame(const JfrSampleRequest& reques
   assert(_frames != nullptr, "invariant");
   assert(_frames->length() == 0, "invariant");
   _hash = 1;
-  const nmethod* const nm = static_cast<nmethod*>(request._sample_sp);
-  assert(nm != nullptr, "invariant");
-  assert(nm->needs_stack_repair(), "invariant");
-  if (nm->is_native_method()) {
-    record_frame(nm->method(), 0, JfrStackFrame::FRAME_NATIVE);
-    return;
-  }
-  const PcDesc* const pc_desc = static_cast<PcDesc*>(request._sample_pc);
-  assert(pc_desc != nullptr, "invariant");
-  JfrUnpackNeedStackRepair unpack(pc_desc, nm);
+  JfrUnpackNeedStackRepair unpack(static_cast<PcDesc*>(request._sample_pc),
+                                  static_cast<nmethod*>(request._sample_sp));
   while (unpack.has_next()) {
     unpack.next();
     record_frame(unpack.method(), unpack.normalized_bci(), unpack.has_next() ? JfrStackFrame::FRAME_INLINE : JfrStackFrame::FRAME_JIT);

@@ -38,12 +38,13 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
- * @comment The purpose of this test is to verify that jdk.ExecutionSample events taken inside non-scalarized frames
- *          are processed correctly, even though the sp_inc field of the sampled frame is overwritten by the SafepointBlob.
- *          We must be able to resolve samples from non-scalarized frames, even though we cannot reconstruct them.
+ * @comment The purpose of this test is to verify that jdk.ExecutionSample events taken
+ *          inside frames classified as needing stack repair are processed correctly,
+ *          even though the sp_inc field of the sampled frame is overwritten by the SafepointBlob.
+ *          We must be able to resolve samples correctly, even though we cannot reconstruct these frames.
  *          The sender is jdk.jfr.event.profiling.TestNeedStackRepair::start, which is excluded from compilation,
- *          forcing it to invoke the non-scalarized entry point for the callee Holder::<init> constructor,
- *          which unpacks fields into the stack extension space. The compiled JIT frame for Holder::<init> is resolved,
+ *          causing it to invoke a specific entry point of the callee, Holder::<init> that, once JIT-compiled,
+ *          unpacks fields into the stack extension space. The compiled JIT frame for Holder::<init> is resolved,
  *          not by frame reconstruction, but by directly iterating the scope_decode_offsets of the nmethod.
  *
  * @requires vm.flagless
