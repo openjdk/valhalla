@@ -38,7 +38,7 @@ package runtime.valhalla.inlinetypes;
  * @compile Point.java UnsafeTest.java
  * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions
                      -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening
-                     -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
+                     -XX:+PrintInlineLayout -Xlog:valuetypes=trace runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 // TODO 8350865 Implement unsafe intrinsics for nullable flat fields/arrays in C2
@@ -50,6 +50,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 import java.lang.reflect.*;
+import java.util.function.*;
 import java.util.List;
 import static jdk.test.lib.Asserts.*;
 
@@ -193,6 +194,144 @@ public class UnsafeTest {
         Asserts.assertNull(c.v);
     }
 
+    static value record E() {}
+
+    static value record B(byte b) {}
+
+    static value record BC(@NullRestricted B b) {}
+
+    static value record BBC(@NullRestricted B b1, @NullRestricted B b2) {}
+
+    static value record BBCEBCC(@NullRestricted BBC bbc, @NullRestricted E e, @NullRestricted BC bc) {}
+
+    public static void test2() throws Throwable {
+        printValueClass(BBCEBCC.class, 0);
+
+        final B b1_def = new B((byte)0);
+        final B b2_def = new B((byte)0);
+        final BBC bbc_def = new BBC(b1_def, b2_def);
+        final E e_def = new E();
+        final B b3_def = new B((byte)0);
+        final BC bc_def = new BC(b3_def);
+        final BBCEBCC bbcebcc_def = new BBCEBCC(bbc_def, e_def, bc_def);
+
+        final B b1 = new B((byte)1);
+        final B b2 = new B((byte)2);
+        final BBC bbc = new BBC(b1, b2);
+        final E e = new E();
+        final B b3 = new B((byte)3);
+        final BC bc = new BC(b3);
+        final BBCEBCC bbcebcc = new BBCEBCC(bbc, e, bc);
+
+        final long bc_header_size = U.valueHeaderSize(BC.class);
+        final long bc_b_payload_offset = U.objectFieldOffset(BC.class, "b") - bc_header_size;
+        final int bc_b_layout = U.fieldLayout(BC.class.getDeclaredField("b"));
+
+        final long bbc_header_size = U.valueHeaderSize(BBC.class);
+        final long bbc_b1_payload_offset = U.objectFieldOffset(BBC.class, "b1") - bbc_header_size;
+        final long bbc_b2_payload_offset = U.objectFieldOffset(BBC.class, "b2") - bbc_header_size;
+        final int bbc_b1_layout = U.fieldLayout(BBC.class.getDeclaredField("b1"));
+        final int bbc_b2_layout = U.fieldLayout(BBC.class.getDeclaredField("b2"));
+
+        final long bbcebcc_header_size = U.valueHeaderSize(BBCEBCC.class);
+        final long bbcebcc_bbc_payload_offset = U.objectFieldOffset(BBCEBCC.class, "bbc") - bbcebcc_header_size;
+        final long bbcebcc_e_payload_offset = U.objectFieldOffset(BBCEBCC.class, "e") - bbcebcc_header_size;
+        final long bbcebcc_bc_payload_offset = U.objectFieldOffset(BBCEBCC.class, "bc") - bbcebcc_header_size;
+        final int bbcebcc_bbc_layout = U.fieldLayout(BBCEBCC.class.getDeclaredField("bbc"));
+        final int bbcebcc_e_layout = U.fieldLayout(BBCEBCC.class.getDeclaredField("e"));
+        final int bbcebcc_bc_layout = U.fieldLayout(BBCEBCC.class.getDeclaredField("bc"));
+
+        final Consumer<BBCEBCC> assertEqualDef = (value) -> {
+            assertEquals(value, bbcebcc_def);
+            assertEquals(value.bbc, bbc_def);
+            assertEquals(value.bbc.b1, b1_def);
+            assertEquals(value.bbc.b1.b, (byte)0);
+            assertEquals(value.bbc.b2, b2_def);
+            assertEquals(value.bbc.b2.b, (byte)0);
+            assertEquals(value.e, e_def);
+            assertEquals(value.bc, bc_def);
+            assertEquals(value.bc.b, b3_def);
+            assertEquals(value.bc.b.b, (byte)0);
+        };
+
+        final Consumer<BBCEBCC> assertEqualNew = (value) -> {
+            assertEquals(value, bbcebcc);
+            assertEquals(value.bbc, bbc);
+            assertEquals(value.bbc.b1, b1);
+            assertEquals(value.bbc.b1.b, (byte)1);
+            assertEquals(value.bbc.b2, b2);
+            assertEquals(value.bbc.b2.b, (byte)2);
+            assertEquals(value.e, e);
+            assertEquals(value.bc, bc);
+            assertEquals(value.bc.b, b3);
+            assertEquals(value.bc.b.b, (byte)3);
+        };
+
+        final Supplier<BBCEBCC[]> getConstructionArray = () -> {
+            BBCEBCC[] array = (BBCEBCC[]) ValueClass.newNullRestrictedNonAtomicArray(BBCEBCC.class, 1, bbcebcc_def);
+            assertTrue(ValueClass.isFlatArray(array));
+            return array;
+        };
+
+        {
+            final BBCEBCC[] array = getConstructionArray.get();
+
+            assertEqualDef.accept(array[0]);
+
+            final long base_offset = U.arrayInstanceBaseOffset(array);
+            final int array_layout = U.arrayLayout(array);
+            // patch array[0]
+            U.putFlatValue(array, base_offset, array_layout, BBCEBCC.class, bbcebcc);
+
+            assertEqualNew.accept(array[0]);
+        }
+
+        {
+            final BBCEBCC[] array = getConstructionArray.get();
+
+            assertEqualDef.accept(array[0]);
+
+            final long base_offset = U.arrayInstanceBaseOffset(array);
+
+            // patch BBCEBCC.bbc
+            final long array_bbc_offset = base_offset + bbcebcc_bbc_payload_offset;
+            U.putFlatValue(array, array_bbc_offset, bbcebcc_bbc_layout, BBC.class, bbc);
+            // patch BBCEBCC.e
+            final long array_e_offset = base_offset + bbcebcc_e_payload_offset;
+            U.putFlatValue(array, array_e_offset, bbcebcc_e_layout, E.class, e);
+            // patch BBCEBCC.bc
+            final long array_bc_offset = base_offset + bbcebcc_bc_payload_offset;
+            U.putFlatValue(array, array_bc_offset, bbcebcc_bc_layout, BC.class, bc);
+
+            assertEqualNew.accept(array[0]);
+        }
+
+        {
+            final BBCEBCC[] array = getConstructionArray.get();
+
+            assertEqualDef.accept(array[0]);
+
+            final long base_offset = U.arrayInstanceBaseOffset(array);
+
+            final long array_bbc_offset = base_offset + bbcebcc_bbc_payload_offset;
+            // patch BBCEBCC.bbc.b1
+            final long array_bbc_b1_offset = array_bbc_offset + bbc_b1_payload_offset;
+            U.putFlatValue(array, array_bbc_b1_offset, bbc_b1_layout, B.class, b1);
+            // patch BBCEBCC.bbc.b2
+            final long array_bbc_b2_offset = array_bbc_offset + bbc_b2_payload_offset;
+            U.putFlatValue(array, array_bbc_b2_offset, bbc_b2_layout, B.class, b2);
+            // patch BBCEBCC.e
+            final long array_e_offset = base_offset + bbcebcc_e_payload_offset;
+            U.putFlatValue(array, array_e_offset, bbcebcc_e_layout, E.class, e);
+            // patch BBCEBCC.bc.b
+            final long array_bc_offset = base_offset + bbcebcc_bc_payload_offset;
+            final long array_bc_b_offset = array_bc_offset + bc_b_payload_offset;
+            U.putFlatValue(array, array_bc_b_offset, bc_b_layout, B.class, b3);
+
+            assertEqualNew.accept(array[0]);
+        }
+    }
+
     static value class TestValue1  {
         short s0,s1;
 
@@ -316,6 +455,7 @@ public class UnsafeTest {
     public static void main(String[] args) throws Throwable {
         test0();
         test1();
+        test2();
         testNullableFlatFields();
         testNullableFlatArrays();
     }
