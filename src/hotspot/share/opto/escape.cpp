@@ -1597,19 +1597,21 @@ void ConnectionGraph::add_proj(Node* n, Unique_Node_List* delayed_worklist) {
     assert(call->tf()->returns_inline_type_as_fields(), "");
     ciMethod* meth = n->in(0)->as_CallJava()->method();
     BCEscapeAnalyzer* call_analyzer = (meth != nullptr) ? meth->get_bcea() : nullptr;
-    bool ret_arg = false;
+    const TypeTuple* d = call->tf()->domain_sig();
+    uint i = d->cnt();
     if (call_analyzer != nullptr) {
-      const TypeTuple* d = call->tf()->domain_sig();
-      for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+      for (i = TypeFunc::Parms; i < d->cnt(); i++) {
         if (d->field_at(i)->isa_ptr() != nullptr &&
-            call_analyzer->is_arg_returned(i - TypeFunc::Parms) &&
-            scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
-          ret_arg = true;
+            call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
           break;
         }
       }
     }
-    if (n->as_Proj()->_con == TypeFunc::Parms || !ret_arg) {
+    if (n->as_Proj()->_con == TypeFunc::Parms || i >= d->cnt() || !scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
+      // either:
+      // - not an argument returned
+      // - the returned buffer for a returned scalarized argument
+      // - an incompatible  returned scalarized argument
       add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
     } else {
       add_local_var(n, PointsToNode::NoEscape);
@@ -1852,113 +1854,6 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
   return;
 }
 
-// Iterate over the domains for the scalarized and non scalarized calling conventions: Only move to the next element
-// in the non scalarized calling convention once all elements of the scalarized calling convention for that parameter
-// have been iterated over. So (ignoring hidden arguments such as the null marker) iterating over:
-// value class MyValue {
-//   int f1;
-//   float f2;
-// }
-// void m(Object o, MyValue v, int i)
-// produces the pairs:
-// (Object, Object), (Myvalue, int), (MyValue, float), (int, int)
-class DomainIterator : public StackObj {
-private:
-  const TypeTuple* _domain;
-  const TypeTuple* _domain_cc;
-  const GrowableArray<SigEntry>* _sig_cc;
-
-  uint _i_domain;
-  uint _i_domain_cc;
-  int _i_sig_cc;
-  uint _depth;
-  uint _first_field_pos;
-  const bool _is_static;
-
-  void next_helper() {
-    if (_sig_cc == nullptr) {
-      return;
-    }
-    BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
-    while (_i_sig_cc < _sig_cc->length()) {
-      BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
-      assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "");
-      if (bt == T_METADATA) {
-        if (_depth == 0) {
-          _first_field_pos = _i_domain_cc;
-        }
-        _depth++;
-      } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
-        _depth--;
-        if (_depth == 0) {
-          _i_domain++;
-        }
-      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
-        assert(_sig_cc->at(_i_sig_cc)._null_marker, "");
-        assert(_depth == 1, "");
-        _i_domain_cc++;
-        _first_field_pos = _i_domain_cc;
-        // return;
-      } else {
-        return;
-      }
-      prev_bt = bt;
-      _i_sig_cc++;
-    }
-  }
-
-public:
-
-  DomainIterator(CallJavaNode* call) :
-    _domain(call->tf()->domain_sig()),
-    _domain_cc(call->tf()->domain_cc()),
-    _sig_cc(call->method()->get_sig_cc()),
-    _i_domain(TypeFunc::Parms),
-    _i_domain_cc(TypeFunc::Parms),
-    _i_sig_cc(0),
-    _depth(0),
-    _first_field_pos(0),
-    _is_static(call->method()->is_static()) {
-    next_helper();
-  }
-
-  bool has_next() const {
-    assert(_sig_cc == nullptr || (_i_sig_cc < _sig_cc->length()) == (_i_domain < _domain->cnt()), "should reach end in sync");
-    assert((_i_domain < _domain->cnt()) == (_i_domain_cc < _domain_cc->cnt()), "should reach end in sync");
-    return _i_domain < _domain->cnt();
-  }
-
-  void next() {
-    assert(_depth != 0 || _domain->field_at(_i_domain) == _domain_cc->field_at(_i_domain_cc), "should produce same non scalarized elements");
-    _i_sig_cc++;
-    if (_depth == 0) {
-      _i_domain++;
-    }
-    _i_domain_cc++;
-    next_helper();
-  }
-
-  uint i_domain() const {
-    return _i_domain;
-  }
-
-  uint i_domain_cc() const {
-    return _i_domain_cc;
-  }
-
-  const Type* current_domain() const {
-    return _domain->field_at(_i_domain);
-  }
-
-  const Type* current_domain_cc() const {
-    return _domain_cc->field_at(_i_domain_cc);
-  }
-
-  uint first_field_pos() const {
-    assert(_first_field_pos >= TypeFunc::Parms, "");
-    return _first_field_pos;
-  }
-};
 
 // Add final simple edges to graph.
 void ConnectionGraph::add_final_edges(Node *n) {
@@ -2232,6 +2127,113 @@ bool ConnectionGraph::add_final_edges_unsafe_access(Node* n, uint opcode) {
   return false;
 }
 
+// Iterate over the domains for the scalarized and non scalarized calling conventions: Only move to the next element
+// in the non scalarized calling convention once all elements of the scalarized calling convention for that parameter
+// have been iterated over. So (ignoring hidden arguments such as the null marker) iterating over:
+// value class MyValue {
+//   int f1;
+//   float f2;
+// }
+// void m(Object o, MyValue v, int i)
+// produces the pairs:
+// (Object, Object), (Myvalue, int), (MyValue, float), (int, int)
+class DomainIterator : public StackObj {
+private:
+  const TypeTuple* _domain;
+  const TypeTuple* _domain_cc;
+  const GrowableArray<SigEntry>* _sig_cc;
+
+  uint _i_domain;
+  uint _i_domain_cc;
+  int _i_sig_cc;
+  uint _depth;
+  uint _first_field_pos;
+  const bool _is_static;
+
+  void next_helper() {
+    if (_sig_cc == nullptr) {
+      return;
+    }
+    BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
+    while (_i_sig_cc < _sig_cc->length()) {
+      BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
+      assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "");
+      if (bt == T_METADATA) {
+        if (_depth == 0) {
+          _first_field_pos = _i_domain_cc;
+        }
+        _depth++;
+      } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
+        _depth--;
+        if (_depth == 0) {
+          _i_domain++;
+        }
+      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
+        assert(_sig_cc->at(_i_sig_cc)._null_marker, "");
+        assert(_depth == 1, "");
+        _i_domain_cc++;
+        _first_field_pos = _i_domain_cc;
+        // return;
+      } else {
+        return;
+      }
+      prev_bt = bt;
+      _i_sig_cc++;
+    }
+  }
+
+public:
+
+  DomainIterator(CallJavaNode* call) :
+    _domain(call->tf()->domain_sig()),
+    _domain_cc(call->tf()->domain_cc()),
+    _sig_cc(call->method()->get_sig_cc()),
+    _i_domain(TypeFunc::Parms),
+    _i_domain_cc(TypeFunc::Parms),
+    _i_sig_cc(0),
+    _depth(0),
+    _first_field_pos(0),
+    _is_static(call->method()->is_static()) {
+    next_helper();
+  }
+
+  bool has_next() const {
+    assert(_sig_cc == nullptr || (_i_sig_cc < _sig_cc->length()) == (_i_domain < _domain->cnt()), "should reach end in sync");
+    assert((_i_domain < _domain->cnt()) == (_i_domain_cc < _domain_cc->cnt()), "should reach end in sync");
+    return _i_domain < _domain->cnt();
+  }
+
+  void next() {
+    assert(_depth != 0 || _domain->field_at(_i_domain) == _domain_cc->field_at(_i_domain_cc), "should produce same non scalarized elements");
+    _i_sig_cc++;
+    if (_depth == 0) {
+      _i_domain++;
+    }
+    _i_domain_cc++;
+    next_helper();
+  }
+
+  uint i_domain() const {
+    return _i_domain;
+  }
+
+  uint i_domain_cc() const {
+    return _i_domain_cc;
+  }
+
+  const Type* current_domain() const {
+    return _domain->field_at(_i_domain);
+  }
+
+  const Type* current_domain_cc() const {
+    return _domain_cc->field_at(_i_domain_cc);
+  }
+
+  uint first_field_pos() const {
+    assert(_first_field_pos >= TypeFunc::Parms, "");
+    return _first_field_pos;
+  }
+};
 
 void ConnectionGraph::add_call_node(CallNode* call) {
   assert(call->returns_pointer() || call->tf()->returns_inline_type_as_fields(), "only for call which returns pointer");
@@ -2342,21 +2344,25 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         add_java_object(call, PointsToNode::NoEscape);
         set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of call"));
       } else {
-        bool ret_arg = false;
         // Determine whether any arguments are returned.
         const TypeTuple* d = call->tf()->domain_sig();
-        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+        uint i = TypeFunc::Parms;
+        for (; i < d->cnt(); i++) {
           if (d->field_at(i)->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(i - TypeFunc::Parms) &&
-              !scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
-            ret_arg = true;
+              call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
             break;
           }
         }
-        if (ret_arg) {
+        // For non scalarized argument/return: add_proj() adds an edge between the return projection and the call,
+        // process_call_arguments() adds an edge between the call and the argument
+        // For scalarized argument/return: process_call_arguments() adds an edge between a call projection for a field
+        // and the argument input to the call for that field. An edge is added between the projection for the returned
+        // buffer and the call.
+        if (i < d->cnt() && !scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
+          // returns non scalarized argument or incompatible return
           add_local_var(call, PointsToNode::ArgEscape);
         } else {
-          // Returns unknown object.
+          // Returns unknown object or scalarized argument being returned
           map_ideal_node(call, phantom_obj);
         }
       }
@@ -2369,13 +2375,14 @@ void ConnectionGraph::add_call_node(CallNode* call) {
   }
 }
 
+// Check that the return type is compatible with the type of the argument being returned i.e. that there's no cast that
+// fails in the method
 bool ConnectionGraph::scalarized_arg_with_compatible_return(CallJavaNode* call, uint k) {
   ciMethod* meth = call->method();
   BCEscapeAnalyzer* call_analyzer = meth->get_bcea();
-  assert(call_analyzer->is_arg_returned(k - TypeFunc::Parms), "");
+  assert(call_analyzer->is_arg_returned(k - TypeFunc::Parms), "only for returned arg");
   return meth->is_scalarized_arg(k - TypeFunc::Parms) &&
-         call->tf()->domain_sig()->field_at(k)->meet(TypePtr::NULL_PTR)->higher_equal(
-           call->tf()->range_sig()->field_at(TypeFunc::Parms));
+         call->tf()->domain_sig()->field_at(k)->meet(TypePtr::NULL_PTR)->higher_equal(call->tf()->range_sig()->field_at(TypeFunc::Parms));
 }
 
 void ConnectionGraph::process_call_arguments(CallNode *call) {
@@ -2573,19 +2580,16 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           assert(!call_analyzer->is_arg_returned(k) || !scalarized_arg_with_compatible_return(call->as_CallJava(), di.i_domain()) ||
                  call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1) == nullptr ||
                  _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1)) == at,
-                 "");
+                 "scalarized return and scalarized argument should match");
           if (at->isa_ptr() != nullptr &&
               call_analyzer->is_arg_returned(k)) {
             // The call returns arguments.
             if (scalarized_arg_with_compatible_return(call->as_CallJava(), di.i_domain())) {
               ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1);
               if (res_proj != nullptr) {
-                assert(_igvn->type(res_proj)->isa_ptr(), "");
-                if (res_proj->_con == TypeFunc::Parms) {
-                  // assert(call_ptn->is_LocalVar(), "node should be registered");
-                  // assert(arg_ptn != nullptr, "node should be registered");
-                  // add_edge(call_ptn, arg_ptn);
-                } else {
+                assert(_igvn->type(res_proj)->isa_ptr(), "scalarized return and scalarized argument should match");
+                if (res_proj->_con != TypeFunc::Parms) {
+                  // add an edge between the result projection for a field and the argument projection for the same argument field
                   PointsToNode* proj_ptn = ptnode_adr(res_proj->_idx);
                   add_edge(proj_ptn, arg_ptn);
                   if (!call_analyzer->is_return_local()) {
