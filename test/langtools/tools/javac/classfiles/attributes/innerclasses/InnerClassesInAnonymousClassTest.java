@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,7 @@ public class InnerClassesInAnonymousClassTest extends InnerClassesTestBase {
     @Override
     public List<TestCase> generateTestCases() {
         currentClassType = ClassType.CLASS;
-        setPrefix("class Anonymous { int f; } {new Anonymous() {"); // impose identity to make testing predictable.
+        setPrefix("class Anonymous {} {new Anonymous() {");
         List<TestCase> sources = super.generateTestCases();
 
         currentClassType = ClassType.INTERFACE;
@@ -77,6 +77,6 @@ public class InnerClassesInAnonymousClassTest extends InnerClassesTestBase {
     public void getAdditionalFlags(Map<String, Set<String>> class2Flags, ClassType type, Modifier... flags) {
         super.getAdditionalFlags(class2Flags, type, flags);
         class2Flags.put("Anonymous", getFlags(currentClassType, Arrays.asList(flags)));
-        class2Flags.put("1", Set.of());
+        class2Flags.put("1", new HashSet<>() {});
     }
 }
