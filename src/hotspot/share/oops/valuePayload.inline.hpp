@@ -547,6 +547,9 @@ inline inlineOop FlatValuePayload::read(TRAPS) {
       // In this case we have copied a null value into the buffer the payload.
       return nullptr;
     }
+    // Must ensure the content of the buffered value is visible
+    // before publishing the buffered value oop
+    OrderAccess::storestore();
     return res;
   } break;
   default:
