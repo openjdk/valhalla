@@ -120,35 +120,23 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
 
         @Stable
         static final Byte[] cache;
-        @Stable
-        static final Byte[] unused;
         static Byte[] archivedCache;
 
         static {
-            unused = new Byte[0];
-            if (!PreviewFeatures.isEnabled()) {
-                final int size = -(-128) + 127 + 1;
+            final int size = -(-128) + 127 + 1;
 
-                // Load and use the archived cache if it exists
-                CDS.initializeFromArchive(ByteCache.class);
-                if (archivedCache == null) {
-                    Byte[] c = new Byte[size];
-                    byte value = (byte)-128;
-                    for(int i = 0; i < size; i++) {
-                        c[i] = new Byte(value++);
-                    }
-                    archivedCache = c;
+            // Load and use the archived cache if it exists
+            CDS.initializeFromArchive(ByteCache.class);
+            if (archivedCache == null) {
+                Byte[] c = new Byte[size];
+                byte value = (byte)-128;
+                for(int i = 0; i < size; i++) {
+                    c[i] = new Byte(value++);
                 }
-                cache = archivedCache;
-                assert cache.length == size;
-            } else {
-                cache = unused;
-                assert !isEnabled();
+                archivedCache = c;
             }
-        }
-
-        static boolean isEnabled() {
-            return cache != unused;
+            cache = archivedCache;
+            assert cache.length == size;
         }
     }
 
@@ -180,9 +168,9 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Byte valueOf(byte b) {
-        if (ByteCache.isEnabled()) {
+        if (!PreviewFeatures.isEnabled()) {
             final int offset = 128;
-            return ByteCache.cache[(int)b + offset];
+            return ByteCache.cache[(int) b + offset];
         }
         return new Byte(b);
     }
