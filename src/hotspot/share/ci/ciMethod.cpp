@@ -1636,12 +1636,17 @@ bool ciMethod::is_old() const {
   return get_Method()->is_old();
 }
 
+// A larval object can be passed into a constructor, or it can be passed into
+// MethodHandle::linkToSpecial, which, in turn, will pass it into a constructor
 bool ciMethod::receiver_maybe_larval() const {
   bool res = is_object_constructor() || intrinsic_id() == vmIntrinsics::_linkToSpecial;
   assert(!res || !is_scalarized_arg(0), "larval argument must not be passed as fields");
   return res;
 }
 
+// Normally, a larval object cannot be returned. However, Unsafe::allocateInstance and
+// DirectMethodHandle::allocateInstance return an uninitialized larval object, this is required for
+// the construction of an object using the reflection API.
 bool ciMethod::return_value_is_larval() const {
   if (intrinsic_id() == vmIntrinsics::_allocateInstance) {
     return true;
