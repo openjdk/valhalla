@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 8033148 8141409
  * @summary tests for array equals and compare
+ * @enablePreview
  * @run testng ArraysEqCmpTest
 */
 
@@ -52,6 +53,14 @@ public class ArraysEqCmpTest {
     static final int MAX_WIDTH = 512;
 
     static final Map<Class, Integer> typeToWidth;
+
+    value record Point(int x, int y) implements Comparable<Point> {
+        @Override
+        public int compareTo(Point o) {
+            int r = Integer.compare(this.x, o.x);
+            return (r != 0) ? r : Integer.compare(this.y, o.y);
+        }
+    }
 
     static {
         typeToWidth = new HashMap<>();
@@ -584,6 +593,24 @@ public class ArraysEqCmpTest {
                 ((double[]) a)[i] = pv;
             }
         }
+
+        static class ValuePoints extends ArrayType<Point[]> {
+            public ValuePoints() {
+                super(Point[].class);
+            }
+
+            @Override
+            void set(Object a, int i, Object v) {
+                if (v == null) {
+                    ((Point[]) a)[i] = null;
+                } else if (v instanceof Point) {
+                    ((Point[]) a)[i] = (Point) v;
+                } else if (v instanceof Integer) {
+                    int val = (Integer) v;
+                    ((Point[]) a)[i] = new Point(val, val);
+                } else throw new IllegalStateException();
+            }
+        }
     }
 
     static Object[][] arrayTypes;
@@ -606,6 +633,7 @@ public class ArraysEqCmpTest {
                     new Object[]{new ArrayType.Longs(true)},
                     new Object[]{new ArrayType.Floats()},
                     new Object[]{new ArrayType.Doubles()},
+                    new Object[]{new ArrayType.ValuePoints()}
             };
         }
         return arrayTypes;

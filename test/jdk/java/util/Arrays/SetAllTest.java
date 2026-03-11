@@ -25,6 +25,7 @@
  * @test
  * @bug 8012650
  * @summary Unit test for setAll, parallelSetAll variants
+ * @enablePreview
  * @run testng SetAllTest
  */
 
@@ -93,6 +94,22 @@ public class SetAllTest {
         { "fill", 3, fillDouble, new double[] { 3.14, 3.14, 3.14 }}
     };
 
+    static value record Point(int x, int y) { }
+    private static final IntFunction<Point> toPoint = i -> new Point(i, i * 2);
+    private static final IntFunction<Point> fillPoint = i -> new Point(0, 0);
+    private static final Point[] pr0  = {};
+    private static final Point[] pr1  = { new Point(0, 0) };
+    private static final Point[] pr10 = { new Point(0,0), new Point(1, 2), new Point(2, 4),
+            new Point(3, 6), new Point(4, 8), new Point(5, 10), new Point(6, 12),
+            new Point(7, 14), new Point(8, 16), new Point(9, 18) };
+
+    private Object[][] pointData = new Object[][] {
+            { "empty", 0, toPoint, pr0 },
+            { "one",   1, toPoint, pr1 },
+            { "ten",  10, toPoint, pr10 },
+            { "fill",  3, fillPoint, new Point[] { new Point(0,0), new Point(0,0), new Point(0,0) }}
+    };
+
     @DataProvider(name="string")
     public Object[][] stringTests() { return stringData; }
 
@@ -104,6 +121,9 @@ public class SetAllTest {
 
     @DataProvider(name="double")
     public Object[][] doubleTests() { return doubleData; }
+
+    @DataProvider(name="point")
+    public Object[][] pointTests() { return pointData; }
 
     @Test(dataProvider = "string")
     public void testSetAllString(String name, int size, IntFunction<String> generator, String[] expected) {
@@ -277,5 +297,16 @@ public class SetAllTest {
         } catch (NullPointerException npe) {
             // expected
         }
+    }
+
+    @Test(dataProvider = "point")
+    public void testSetAllPoint(String name, int size, IntFunction<Point> generator, Point[] expected) {
+        Point[] result = new Point[size];
+        Arrays.setAll(result, generator);
+        assertEquals(result, expected, "setAll(Point[], IntFunction<Point>) case " + name + " failed.");
+
+        result = new Point[size];
+        Arrays.parallelSetAll(result, generator);
+        assertEquals(result, expected, "parallelSetAll(Point[], IntFunction<Point>) case " + name + " failed.");
     }
 }

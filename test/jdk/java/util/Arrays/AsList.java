@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,15 @@
  * @test
  * @bug 8155600
  * @summary Tests for Arrays.asList()
+ * @enablePreview
  * @run testng AsList
  */
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import org.testng.annotations.Test;
@@ -44,6 +47,9 @@ public class AsList {
     /*
      * Iterator contract test
      */
+
+    value record V(int x) {}
+
     @Test(dataProvider = "Arrays")
     public void testIterator(Object[] array) {
         Iterator<Object> itr = Arrays.asList(array).iterator();
@@ -85,7 +91,11 @@ public class AsList {
             { new Object[] { null, null, null } },
             { new Object[] { 1, 2, 3, null, 4 } },
             { new Object[] { "a", "a", "a", "a" } },
-            { IntStream.range(0, 100).boxed().toArray() }
+            { IntStream.range(0, 100).boxed().toArray() },
+            { new Object[] { new V(1), new V(2), null, new V(3) } },
+            { new Object[] { Integer.valueOf(1), Integer.valueOf(2), null, Integer.valueOf(3) } },
+            { new Object[] { LocalDate.of(2020, 1, 1), LocalDate.of(2021, 6, 15), LocalDate.now() } },
+            { new Object[] { Optional.of(1), Optional.empty(), Optional.of("x") } }
         };
 
         return arrays;

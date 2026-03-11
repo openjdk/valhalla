@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,10 @@
  * @summary Test for array cloning and slicing methods.
  * @author  John Rose
  * @key randomness
+ * @enablePreview
  */
 
+import java.time.LocalDate;
 import java.util.*;
 import java.lang.reflect.*;
 
@@ -41,6 +43,8 @@ public class CopyMethods {
 
     static int testCasesRun = 0;
     static long consing = 0;
+
+    value record Point(int x, int y) {}
 
     // very simple tests, mainly to test the framework itself
     static void simpleTests() {
@@ -353,6 +357,9 @@ public class CopyMethods {
     static float   coerceToFloat(int x) { return x; }
     static double  coerceToDouble(int x) { return x; }
     static boolean coerceToBoolean(int x) { return (x&1) != 0; }
+    static Point coerceToPoint(int x) { return (x == 0) ? null : new Point(x, x); }
+    static LocalDate coerceToLocalDate(int x) { return (x == 0) ? null : LocalDate.ofEpochDay(x); }
+    static Optional coerceToOptional(int x) { return (x == 0) ? null : Optional.of(x); }
 
     static Integer[] copyOfIntegerArray(Object[] a, int len) {
         // This guy exercises the API based on a type-token.
@@ -370,7 +377,8 @@ public class CopyMethods {
                         {   Object.class, String.class, Integer.class,
                             byte.class, short.class, int.class, long.class,
                             char.class, float.class, double.class,
-                            boolean.class
+                            boolean.class, LocalDate.class, Optional.class,
+                            Point.class,
                         });
     static final HashMap<Class<?>,Method> coercers;
     static final HashMap<Class<?>,Method> cloners;
@@ -417,9 +425,16 @@ public class CopyMethods {
         cloners.put(Integer.class, cia);
         assert(ciar != null);
         cloneRangers.put(Integer.class, ciar);
+        cloners.put(Point.class, cloners.get(Object.class));
+        cloneRangers.put(Point.class, cloneRangers.get(Object.class));
+        cloners.put(LocalDate.class, cloners.get(Object.class));
+        cloneRangers.put(LocalDate.class, cloneRangers.get(Object.class));
+        cloners.put(Optional.class, cloners.get(Object.class));
+        cloneRangers.put(Optional.class, cloneRangers.get(Object.class));
         nullValues = new HashMap<Class<?>,Object>();
         for (Class<?> c : allTypes) {
             nullValues.put(c, invoke(coercers.get(c), 0));
         }
     }
 }
+
