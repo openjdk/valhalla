@@ -131,3 +131,4 @@ public class T4975569 {
     protected class Prot { }
     private class Priv { int i; }
 }
+

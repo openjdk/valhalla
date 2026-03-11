@@ -16,6 +16,16 @@ public class DA_DUConstructors {
         }
     }
 
+    class C2 {
+        final int x;
+        C2() {
+            this(x = 3); // error
+        }
+        C2(int i) {
+            x = 4;
+        }
+    }
+
     class C3 {
         C3(int i) {}
     }
