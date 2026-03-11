@@ -996,7 +996,7 @@ void AOTStreamedHeapLoader::initialize() {
   // We can't retire a TLAB until the filler klass is set; set it to the archived object klass.
   CollectedHeap::set_filler_object_klass(vmClasses::Object_klass());
 
-  objArrayOop roots = oopFactory::new_objectArray(_num_roots, CHECK);
+  refArrayOop roots = oopFactory::new_objectArray(_num_roots, CHECK);
   _roots = OopHandle(Universe::vm_global(), roots);
 
   _object_index_to_buffer_offset_table = (size_t*)(((address)_heap_region->mapped_base()) + forwarding_offset);

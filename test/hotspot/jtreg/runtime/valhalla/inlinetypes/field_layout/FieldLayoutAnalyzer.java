@@ -497,7 +497,7 @@ public class FieldLayoutAnalyzer {
     }
   }
 
-  void checkSizeAndAlignmentForField(FieldBlock block) {
+  void checkSizeAndAlignmentForField(FieldBlock block, ClassLayout layout) {
     Asserts.assertTrue(block.size() > 0);
     if (block.type == BlockType.RESERVED) {
       Asserts.assertTrue(block.alignment == -1);
@@ -545,7 +545,9 @@ public class FieldLayoutAnalyzer {
           throw new RuntimeException("Unknown signature type: " + block.signature);
         }
       }
-      Asserts.assertTrue(block.offset % block.alignment == 0);
+      Asserts.assertTrue(block.offset % block.alignment == 0, "Alignment issue found at offset " + block.offset
+                                                              + " of class " + layout.name
+                                                              + " expected alignment: " + block.alignment);
     }
   }
 
@@ -553,7 +555,7 @@ public class FieldLayoutAnalyzer {
     for (ClassLayout layout : layouts) {
       try {
         for (FieldBlock block : layout.staticFields) {
-          checkSizeAndAlignmentForField(block);
+          checkSizeAndAlignmentForField(block, layout);
         }
       } catch(Throwable t) {
         System.out.println("Unexpected exception when checking size and alignment in static fields of class " + layout.name);
@@ -561,7 +563,7 @@ public class FieldLayoutAnalyzer {
       }
       try {
         for (FieldBlock block : layout.nonStaticFields) {
-          checkSizeAndAlignmentForField(block);
+          checkSizeAndAlignmentForField(block, layout);
         }
       } catch(Throwable t) {
         System.out.println("Unexpected exception when checking size and alignment in non-static fields of class " + layout.name);
@@ -602,7 +604,7 @@ public class FieldLayoutAnalyzer {
           }
         }
       } catch(Throwable t) {
-        System.out.println("Unexpexted exception when checking inherited fields in class " + layout.name);
+        System.out.println("Unexpected exception when checking inherited fields in class " + layout.name);
       }
     }
   }
@@ -689,7 +691,7 @@ public class FieldLayoutAnalyzer {
             Asserts.assertTrue(layout.hasNullableAtomicLayout() || layout.hasNullableNonAtomicLayout());
             Asserts.assertEQ(block.offset(), layout.nullMarkerOffset);
           }
-          if (block.type() == BlockType.EMPTY) has_empty_slot = true;
+          if (block.type() == BlockType.EMPTY && block.offset() >= layout.firstFieldOffset) has_empty_slot = true;
         }
         // null marker should not be added at the end of the layout if there's an empty slot
         Asserts.assertTrue(last_type != BlockType.NULL_MARKER || has_empty_slot == false,

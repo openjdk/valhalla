@@ -42,21 +42,21 @@ template <class T> T* objArrayOopDesc::obj_at_addr(int index) const {
   return &((T*)base())[index];
 }
 
-inline oop objArrayOopDesc::obj_at(int index) const {
-  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  if (is_flatArray()) {
-    return ((const flatArrayOopDesc* )this)->obj_at(index);
-  } else {
-    return ((const refArrayOopDesc* )this)->obj_at(index);
-  }
-}
-
 inline oop objArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   if (is_flatArray()) {
     return ((const flatArrayOopDesc* )this)->obj_at(index, CHECK_NULL);
   } else {
-    return ((const refArrayOopDesc* )this)->obj_at(index, CHECK_NULL);
+    return ((const refArrayOopDesc* )this)->obj_at(index);
+  }
+}
+
+inline bool objArrayOopDesc::obj_at_is_null(int index) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  if (is_flatArray()) {
+    return ((const flatArrayOopDesc*)this)->obj_at_is_null(index);
+  } else {
+    return ((const refArrayOopDesc*)this)->obj_at(index) == nullptr;
   }
 }
 

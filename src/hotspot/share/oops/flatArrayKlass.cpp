@@ -439,7 +439,7 @@ class VerifyElementClosure: public BasicOopIterateClosure {
 };
 
 void FlatArrayKlass::oop_verify_on(oop obj, outputStream* st) {
-  ArrayKlass::oop_verify_on(obj, st);
+  ObjArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_flatArray(), "must be flatArray");
 
   if (contains_oops()) {
