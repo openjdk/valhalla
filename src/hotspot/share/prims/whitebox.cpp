@@ -2037,8 +2037,8 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
     map++;
   }
 
-  objArrayHandle result_array =
-      oopFactory::new_objArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
+  refArrayHandle result_array =
+      oopFactory::new_refArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
   map = klass->start_of_nonstatic_oop_maps();
   int index = 0;
   while (map < end) {
@@ -2075,8 +2075,8 @@ class CollectObjectOops : public BasicOopIterateClosure {
   void do_oop(narrowOop* v) { add_oop(v); }
 
   jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    objArrayHandle result_array =
-        oopFactory::new_objArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
+    refArrayHandle result_array =
+        oopFactory::new_refArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
     for (int i = 0 ; i < _array->length(); i++) {
       result_array->obj_at_put(i, _array->at(i)());
     }

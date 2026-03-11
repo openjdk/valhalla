@@ -43,8 +43,12 @@ class flatArrayOopDesc : public objArrayOopDesc {
   size_t value_offset(int index, jint lh) const;
   size_t value_offset_from_base(int index, jint lh) const;
 
-  inline oop obj_at(int index) const;
+  // oop obj_at(...) must always allocate when reading a non-null flat element,
+  // as such only obj_at(int, TRAPS) is provided. To null-check element without
+  // allocating use obj_at_is_null(int);
+  inline oop obj_at(int index) const = delete;
   inline oop obj_at(int index, TRAPS) const;
+  inline bool obj_at_is_null(int index) const;
   inline jboolean null_marker_of_obj_at(int index) const;
   inline jboolean null_marker_of_obj_at(int index, TRAPS) const;
   inline void obj_at_put(int index, oop value);

@@ -1192,7 +1192,7 @@ JVM_ENTRY(jobject, MHN_getMemberVMInfo(JNIEnv *env, jobject igcls, jobject mname
   if (mname_jh == nullptr)  return nullptr;
   Handle mname(THREAD, JNIHandles::resolve_non_null(mname_jh));
   intptr_t vmindex  = java_lang_invoke_MemberName::vmindex(mname());
-  objArrayHandle result = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 2, CHECK_NULL);
+  refArrayHandle result = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 2, CHECK_NULL);
   jvalue vmindex_value; vmindex_value.j = (long)vmindex;
   oop x = java_lang_boxing_object::create(T_LONG, &vmindex_value, CHECK_NULL);
   result->obj_at_put(0, x);
