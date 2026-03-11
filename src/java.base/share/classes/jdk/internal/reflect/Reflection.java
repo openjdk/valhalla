@@ -452,7 +452,6 @@ public class Reflection {
 
     /// Parses a runtime modifier from core reflection/Hotspot into access flags.
     /// Note that there is one unique representation in hotspot, so we don't need version argument.
-    /// Technically this should never through IAE.
     public static Set<AccessFlag> modifiersToFlags(int modifiers, AccessFlag.Location location) {
         boolean injectStrict; // Compatibility
         if (location == AccessFlag.Location.METHOD) {
@@ -463,15 +462,14 @@ public class Reflection {
         }
         Set<AccessFlag> ans;
         try {
-            if (PreviewFeatures.isEnabled()) {
-                ans = PreviewAccessFlags.parse(modifiers, location);
-            } else {
-                ans = AccessFlag.maskToAccessFlags(modifiers, location);
-            }
+            ans = PreviewFeatures.isEnabled() ? PreviewAccessFlags.maskToAccessFlags(modifiers, location)
+                                              : AccessFlag.maskToAccessFlags(modifiers, location);
         } catch (IllegalArgumentException e) {
-            throw new InternalError("Inconsistent hotspot representation", e);
+            // Hotspot/ClassFileParser passed some bits we don't recognize
+            throw new InternalError(e);
         }
         if (injectStrict) {
+            // Very few methods actually set strictfp - okay if this path is slightly slower
             Set<AccessFlag> buf = EnumSet.copyOf(ans);
             buf.add(AccessFlag.STRICT);
             return Collections.unmodifiableSet(buf); // Preserve iteration order

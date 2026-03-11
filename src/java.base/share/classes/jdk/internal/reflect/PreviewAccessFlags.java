@@ -33,8 +33,15 @@ import java.util.Set;
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.reflect.AccessFlag.*;
 
-/// Provides access to preview Access Flag information.
+/// Support for [AccessFlag] reflection for the preview VM features supported by
+/// the current Java SE release.
+///
+/// These preview features appear when VM is running with --enable-preview, or
+/// in x.65535 class files.  Tools must handle x.65535 class files when their
+/// own VM is not running in preview, so this class may be used by tools when
+///  preview features are not enabled,
 public final class PreviewAccessFlags {
+    /// Preview variant of [Location#flagsMask()].
     public static int flagsMask(Location location) {
         return switch (location) {
             case FIELD -> ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
@@ -47,6 +54,7 @@ public final class PreviewAccessFlags {
         };
     }
 
+    /// Preview variant of [AccessFlag#locations()].
     public static Set<Location> locations(AccessFlag flag) {
         return switch (flag) {
             case SUPER -> Set.of();
@@ -56,18 +64,18 @@ public final class PreviewAccessFlags {
         };
     }
 
-    /// Parses access flag for preview class files.
+    /// Preview variant of [AccessFlag#maskToAccessFlags].
     /// @throws IllegalArgumentException if there is unrecognized flag bit
-    public static Set<AccessFlag> parse(int flags, Location location) {
+    public static Set<AccessFlag> maskToAccessFlags(int flags, Location location) {
         return switch (location) {
-            case CLASS -> doParse(flags, Location.CLASS, CLASS_PREVIEW_FLAGS);
-            case INNER_CLASS -> doParse(flags, Location.INNER_CLASS, INNER_CLASS_PREVIEW_FLAGS);
-            case FIELD -> doParse(flags, Location.FIELD, FIELD_PREVIEW_FLAGS);
-            default -> maskToAccessFlags(flags, location);
+            case CLASS -> decodeFlags(flags, Location.CLASS, CLASS_PREVIEW_FLAGS);
+            case INNER_CLASS -> decodeFlags(flags, Location.INNER_CLASS, INNER_CLASS_PREVIEW_FLAGS);
+            case FIELD -> decodeFlags(flags, Location.FIELD, FIELD_PREVIEW_FLAGS);
+            default -> AccessFlag.maskToAccessFlags(flags, location);
         };
     }
 
-    private static Set<AccessFlag> doParse(int flags, Location location, AccessFlag[] known) {
+    private static Set<AccessFlag> decodeFlags(int flags, Location location, AccessFlag[] known) {
         EnumSet<AccessFlag> ans = EnumSet.noneOf(AccessFlag.class);
         for (var flag : known) {
             if ((flags & flag.mask()) != 0) {

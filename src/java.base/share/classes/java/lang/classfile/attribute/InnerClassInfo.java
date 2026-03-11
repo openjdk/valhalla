@@ -85,7 +85,7 @@ public sealed interface InnerClassInfo
      * @see AccessFlag.Location#INNER_CLASS
      */
     default Set<AccessFlag> flags() {
-        return PreviewAccessFlags.parse(flagsMask(), AccessFlag.Location.INNER_CLASS);
+        return PreviewAccessFlags.maskToAccessFlags(flagsMask(), AccessFlag.Location.INNER_CLASS);
     }
 
     /**

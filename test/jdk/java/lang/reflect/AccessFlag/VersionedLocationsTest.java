@@ -52,7 +52,7 @@ import java.util.Set;
  * PROTECTED    step
  * STATIC       step
  * FINAL        two-step
- * SUPER        step
+ * SUPER        invariant
  * OPEN         step
  * TRANSITIVE   step
  * SYNCHRONIZED invariant
@@ -90,7 +90,7 @@ public class VersionedLocationsTest {
      */
     private static void testInvariantAccessFlags() {
         Set<AccessFlag> invariantAccessFlags =
-            Set.of(SYNCHRONIZED, VOLATILE, TRANSIENT, NATIVE);
+            Set.of(SUPER, SYNCHRONIZED, VOLATILE, TRANSIENT, NATIVE);
         for(var accessFlag : invariantAccessFlags) {
             Set<AccessFlag.Location> expected = accessFlag.locations();
 

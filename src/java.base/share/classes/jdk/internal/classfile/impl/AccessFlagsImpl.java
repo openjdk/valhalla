@@ -77,7 +77,8 @@ public final class AccessFlagsImpl extends AbstractElement
     @Override
     public Set<AccessFlag> flags() {
         if (flags == null)
-            flags = formatVersion == null ? PreviewAccessFlags.parse(flagsMask, location) : AccessFlag.maskToAccessFlags(flagsMask, location, formatVersion);
+            flags = formatVersion == null ? PreviewAccessFlags.maskToAccessFlags(flagsMask, location)
+                                          : AccessFlag.maskToAccessFlags(flagsMask, location, formatVersion);
         return flags;
     }
 

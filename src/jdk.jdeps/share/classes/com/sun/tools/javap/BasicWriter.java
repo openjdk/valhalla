@@ -29,9 +29,6 @@ import java.io.PrintWriter;
 import java.lang.classfile.AccessFlags;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.ClassFileFormatVersion;
-import java.lang.reflect.Modifier;
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -63,11 +60,11 @@ public class BasicWriter {
     protected Set<AccessFlag> maskToAccessFlagsReportUnknown(int mask, AccessFlag.Location location, ClassFileFormatVersion cffv) {
         if (cffv == null) {
             try {
-                return PreviewAccessFlags.parse(mask, location);
+                return PreviewAccessFlags.maskToAccessFlags(mask, location);
             } catch (IllegalArgumentException ex) {
                 mask &= PreviewAccessFlags.flagsMask(location);
                 report("Access Flags: " + ex.getMessage());
-                return PreviewAccessFlags.parse(mask, location);
+                return PreviewAccessFlags.maskToAccessFlags(mask, location);
             }
         }
         try {
