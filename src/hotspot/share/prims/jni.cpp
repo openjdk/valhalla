@@ -1931,7 +1931,8 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     assert(k->is_instance_klass(), "Only instances can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
-    ik->find_field_from_offset(offset, false, &fd);
+    bool found = ik->find_field_from_offset(offset, false, &fd);
+    assert(found, "Field not found");
     FlatFieldPayload payload(instanceOop(o), &fd);
     payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
   }
