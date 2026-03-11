@@ -59,8 +59,13 @@ class FlatArrayKlass : public ObjArrayKlass {
 
   // Casting from Klass*
   static FlatArrayKlass* cast(Klass* k) {
+    return const_cast<FlatArrayKlass*>(cast(const_cast<const Klass*>(k)));
+  }
+
+  static const FlatArrayKlass* cast(const Klass* k) {
+    assert(k != nullptr, "k should not be null");
     assert(k->is_flatArray_klass(), "cast to FlatArrayKlass");
-    return (FlatArrayKlass*) k;
+    return static_cast<const FlatArrayKlass*>(k);
   }
 
   // klass allocation

@@ -67,7 +67,7 @@ class oopFactory: AllStatic {
   static flatArrayOop    new_flatArray(Klass* klass, int length, ArrayProperties props, LayoutKind lk, TRAPS);
 
   // Helper that returns a Handle
-  static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
+  static refArrayHandle  new_refArray_handle(Klass* klass, int length, TRAPS);
 };
 
 #endif // SHARE_MEMORY_OOPFACTORY_HPP

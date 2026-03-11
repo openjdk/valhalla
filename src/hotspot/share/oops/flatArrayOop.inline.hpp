@@ -65,16 +65,16 @@ inline int flatArrayOopDesc::object_size(int lh) const {
   return object_size(lh, length());
 }
 
-inline oop flatArrayOopDesc::obj_at(int index) const {
-  fatal("Should not be used with flat arrays");
-  EXCEPTION_MARK;
-  return obj_at(index, THREAD);
-}
-
 inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
   return payload.read(THREAD);
+}
+
+inline bool flatArrayOopDesc::obj_at_is_null(int index) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
+  return payload.is_payload_null();
 }
 
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {

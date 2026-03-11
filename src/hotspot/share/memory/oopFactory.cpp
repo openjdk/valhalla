@@ -38,6 +38,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopCast.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
@@ -146,7 +147,7 @@ flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayProperties pro
   return fak->allocate_instance(length, CHECK_NULL);
 }
 
-objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {
-  objArrayOop obj = new_objArray(klass, length, CHECK_(objArrayHandle()));
-  return objArrayHandle(THREAD, obj);
+refArrayHandle oopFactory::new_refArray_handle(Klass* klass, int length, TRAPS) {
+  refArrayOop obj = new_refArray(klass, length, CHECK_(refArrayHandle()));
+  return refArrayHandle(THREAD, obj);
 }

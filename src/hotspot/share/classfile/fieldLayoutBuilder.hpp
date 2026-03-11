@@ -160,7 +160,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment);
+  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
