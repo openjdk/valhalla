@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.lang.classfile.ClassFile;
 import java.lang.constant.ClassDesc;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -115,8 +114,8 @@ public class BasicTest {
         Class<?>[] intfs = c.getInterfaces();
         assertTrue(c.isHidden());
         assertFalse(c.isPrimitive());
-        assertTrue(intfs.length == 1 || intfs.length == 2);
-        assertTrue(intfs[0] == HiddenTest.class || (intfs.length == 2 && intfs[1] == HiddenTest.class));
+        assertEquals(1, intfs.length);
+        assertSame(HiddenTest.class, intfs[0]);
         assertNull(c.getCanonicalName());
 
         String hcName = "HiddenClass";
@@ -250,9 +249,9 @@ public class BasicTest {
 
     private static Object[][] emptyClasses() {
         return new Object[][] {
-                new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC | ACC_IDENTITY },
-                new Object[] { "EmptyHiddenEnum", ACC_ENUM | ACC_IDENTITY },
-                new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT | ACC_IDENTITY },
+                new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC },
+                new Object[] { "EmptyHiddenEnum", ACC_ENUM },
+                new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT },
                 new Object[] { "EmptyHiddenInterface", ACC_ABSTRACT|ACC_INTERFACE },
                 new Object[] { "EmptyHiddenAnnotation", ACC_ANNOTATION|ACC_ABSTRACT|ACC_INTERFACE },
         };
@@ -269,23 +268,23 @@ public class BasicTest {
     @ParameterizedTest
     @MethodSource("emptyClasses")
     public void emptyHiddenClass(String name, int accessFlags) throws Exception {
-        byte[] bytes = (accessFlags == (ACC_ENUM | ACC_IDENTITY)) ? classBytes(name, CD_Enum, accessFlags)
+        byte[] bytes = (accessFlags == ACC_ENUM) ? classBytes(name, CD_Enum, accessFlags)
                 : classBytes(name, accessFlags);
         Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
         switch (accessFlags) {
-            case (ACC_SYNTHETIC | ACC_IDENTITY):
+            case ACC_SYNTHETIC:
                 assertTrue(hc.isSynthetic());
                 assertFalse(hc.isEnum());
                 assertFalse(hc.isAnnotation());
                 assertFalse(hc.isInterface());
                 break;
-            case (ACC_ENUM | ACC_IDENTITY):
+            case ACC_ENUM:
                 assertFalse(hc.isSynthetic());
                 assertTrue(hc.isEnum());
                 assertFalse(hc.isAnnotation());
                 assertFalse(hc.isInterface());
                 break;
-            case ACC_ABSTRACT | ACC_IDENTITY:
+            case ACC_ABSTRACT:
                 assertFalse(hc.isSynthetic());
                 assertFalse(hc.isEnum());
                 assertFalse(hc.isAnnotation());
@@ -307,7 +306,8 @@ public class BasicTest {
                 throw new IllegalArgumentException("unexpected access flag: " + accessFlags);
         }
         assertTrue(hc.isHidden());
-        assertEquals(hc.getModifiers(), (ACC_PUBLIC|accessFlags));
+        // ACC_SUPER bit may appear spuriously if preview is enabled
+        assertEquals(hc.getModifiers() & (~ACC_SUPER), (ACC_PUBLIC | accessFlags));
         assertFalse(hc.isLocalClass());
         assertFalse(hc.isMemberClass());
         assertFalse(hc.isAnonymousClass());
