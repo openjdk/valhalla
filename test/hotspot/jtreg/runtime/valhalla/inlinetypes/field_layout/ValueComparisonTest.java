@@ -43,7 +43,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import jdk.test.lib.Utils;
 
 public class ValueComparisonTest {
 
@@ -84,10 +84,9 @@ public class ValueComparisonTest {
             seed = System.nanoTime();
         }
         System.out.println("Random seed for class generation: " + seed);
-        Path currentDir =  Paths.get("").toAbsolutePath();
         Path tempWorkDir;
         try {
-            tempWorkDir = Files.createTempDirectory(currentDir, "generatedClasses_" + seed);
+            tempWorkDir = Utils.createTempDirectory("generatedClasses_" + seed);
         } catch (Exception e) {
             System.err.println("Failed to create temporary directory: " + e.getMessage());
             e.printStackTrace();

@@ -38,13 +38,13 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 
 public class ValueRandomLayoutTest {
@@ -61,8 +61,7 @@ public class ValueRandomLayoutTest {
                              boolean useNullableNonAtomicFlat, Path tempWorkDir, String... args) throws Exception {
       List<String> argsList = new ArrayList<>();
       String classpath = System.getProperty("java.class.path") + System.getProperty("path.separator") +
-                         Paths.get("").toAbsolutePath() +
-                         System.getProperty("path.separator") + tempWorkDir.toString();
+                         tempWorkDir.toString();
       Collections.addAll(argsList, "-cp", classpath);
       Collections.addAll(argsList, "--enable-preview");
       Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
@@ -135,9 +134,8 @@ public class ValueRandomLayoutTest {
 
       for (int i = 0; i < 10; i++) {
           seed += i;
-          Path currentDir =  Paths.get("").toAbsolutePath();
           try {
-              tempWorkDir = Files.createTempDirectory(currentDir, "generatedClasses_" + seed);
+              tempWorkDir = Utils.createTempDirectory("generatedClasses_" + seed);
           } catch (Exception e) {
               System.err.println("Failed to create temporary directory: " + e.getMessage());
               e.printStackTrace();

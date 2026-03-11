@@ -338,18 +338,18 @@ public class ValueClassGenerator {
         }
 
         String generateSource() {
-            String src = abstractValueClassTemplate.replaceAll("<class_modifiers>", "public abstract value class");
-            src = src.replaceAll("<class_name>", typeName);
+            String src = abstractValueClassTemplate.replace("<class_modifiers>", "public abstract value class");
+            src = src.replace("<class_name>", typeName);
             if (superClass != null) {
-                src = src.replaceAll("<super_class>", "extends " + superClass.typeName);
+                src = src.replace("<super_class>", "extends " + superClass.typeName);
             } else {
-                src = src.replaceAll("<super_class>", "");
+                src = src.replace("<super_class>", "");
             }
-            src = src.replaceAll("<super_class>", superClass != null ? superClass.typeName : "Object");
-            src = src.replaceAll("<fields_declarations>", generateFieldsDeclarations());
-            src = src.replaceAll("<constructor_args>", generateConstructorArgumentsWithTypes());
-            src = src.replaceAll("<fields_initialization>", generateFieldInitialization());
-            src = src.replaceAll("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
+            src = src.replace("<super_class>", superClass != null ? superClass.typeName : "Object");
+            src = src.replace("<fields_declarations>", generateFieldsDeclarations());
+            src = src.replace("<constructor_args>", generateConstructorArgumentsWithTypes());
+            src = src.replace("<fields_initialization>", generateFieldInitialization());
+            src = src.replace("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
             return src;
          }
     }
@@ -397,20 +397,20 @@ public class ValueClassGenerator {
         }
 
         String generateSource() {
-            String src = classTemplate.replaceAll("<class_modifiers>", "public value class");
-            src = src.replaceAll("<class_name>", typeName);
+            String src = classTemplate.replace("<class_modifiers>", "public value class");
+            src = src.replace("<class_name>", typeName);
             if (superClass != null) {
-                src = src.replaceAll("<super_class>", "extends " + superClass.typeName);
+                src = src.replace("<super_class>", "extends " + superClass.typeName);
             } else {
-                src = src.replaceAll("<super_class>", "");
+                src = src.replace("<super_class>", "");
             }
-            src = src.replaceAll("<allow_duplicates>", allowDuplicates() ? "true" : "false");
-            src = src.replaceAll("<fields_declarations>", generateFieldsDeclarations());
-            src = src.replaceAll("<NUM_PREDEFINED>", Integer.toString(NUM_PREDEFINED_VALUES));
-            src = src.replaceAll("<predefined_values_generation>", generatePrecomputedValues());
-            src = src.replaceAll("<constructor_args>", generateConstructorArgumentsWithTypes());
-            src = src.replaceAll("<fields_initialization>", generateFieldInitialization());
-            src = src.replaceAll("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
+            src = src.replace("<allow_duplicates>", allowDuplicates() ? "true" : "false");
+            src = src.replace("<fields_declarations>", generateFieldsDeclarations());
+            src = src.replace("<NUM_PREDEFINED>", Integer.toString(NUM_PREDEFINED_VALUES));
+            src = src.replace("<predefined_values_generation>", generatePrecomputedValues());
+            src = src.replace("<constructor_args>", generateConstructorArgumentsWithTypes());
+            src = src.replace("<fields_initialization>", generateFieldInitialization());
+            src = src.replace("<super_constructor_args>", superClass != null ? superClass.generateConstructorArguments() : "");
             return src;
          }
     }
