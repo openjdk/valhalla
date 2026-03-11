@@ -512,19 +512,19 @@ bool AOTCodeCache::Config::verify(AOTCodeCache* cache) const {
   // AOT stub/adapters caching if they are incompatible with runtime settings.
 
   if (((_flags & compressedOops) != 0) != UseCompressedOops) {
-    log_debug(aot, codecache, init)("AOT Stub/Adapter caching disabled: incompatible UseCompressedOops = %s", UseCompressedOops ? "false" : "true");
+    log_debug(aot, codecache, init)("AOT Stub/Adapter Cache disabled: it was created with UseCompressedOops = %s", UseCompressedOops ? "false" : "true");
     AOTStubCaching = false;
     AOTAdapterCaching = false;
   }
   if (_compressedOopShift != (uint)CompressedOops::shift()) {
-    log_debug(aot, codecache, init)("AOT Stub/Adapter caching disabled: incompatible CompressedOops::shift(): %d vs current %d", _compressedOopShift, CompressedOops::shift());
+    log_debug(aot, codecache, init)("AOT Stub/Adapter Cache disabled: it was created with different CompressedOops::shift(): %d vs current %d", _compressedOopShift, CompressedOops::shift());
     AOTStubCaching = false;
     AOTAdapterCaching = false;
   }
 
   // This should be the last check as it only disables AOTStub/AdapterCaching
   if ((_compressedOopBase == nullptr || CompressedOops::base() == nullptr) && (_compressedOopBase != CompressedOops::base())) {
-    log_debug(aot, codecache, init)("AOT Stub/Adapter caching disabled: incompatible CompressedOops::base(): %p vs current %p", _compressedOopBase, CompressedOops::base());
+    log_debug(aot, codecache, init)("AOT Stub/Adapter Cache disabled: incompatible CompressedOops::base(): %p vs current %p", _compressedOopBase, CompressedOops::base());
     AOTStubCaching = false;
     AOTAdapterCaching = false;
   }

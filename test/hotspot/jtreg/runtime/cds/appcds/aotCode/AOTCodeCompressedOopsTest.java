@@ -202,9 +202,9 @@ public class AOTCodeCompressedOopsTest {
                      throw new RuntimeException("Failed to find CompressedOops settings");
                  }
                  if (aotCacheShift != currentShift) {
-                     out.shouldContain("AOT Stub/Adapter caching disabled: incompatible CompressedOops::shift()");
+                     out.shouldContain("AOT Stub/Adapter Cache disabled: it was created with different CompressedOops::shift()");
                  } else if ((aotCacheBase == 0 || currentBase == 0) && (aotCacheBase != currentBase)) {
-                     out.shouldContain("AOT Stub/Adapter caching disabled: incompatible CompressedOops::base()");
+                     out.shouldContain("AOT Stub/Adapter Cache disabled: incompatible CompressedOops::base()");
                  } else {
                      out.shouldMatch("Read \\d+ entries table at offset \\d+ from AOT Code Cache");
                  }
