@@ -2481,7 +2481,8 @@ public class TestLWorld {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
+        // LOAD_UNKNOWN_INLINE is in both main and post loop
+        counts = {COUNTED_LOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2502,7 +2503,7 @@ public class TestLWorld {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {COUNTED_LOOP, "= 2"})
+        counts = {COUNTED_LOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
