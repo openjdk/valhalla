@@ -987,6 +987,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     }
     if (!fieldinfo.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
   }
+  _root_group->sort_by_size();
   _payload_alignment = alignment;
   assert(_has_nonstatic_fields || _is_abstract_value, "Concrete value types do not support zero instance size yet");
 }
