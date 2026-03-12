@@ -2311,7 +2311,7 @@ bool Method::is_scalarized_buffer_arg(int idx) const {
     }
     if (idx == 0) {
       if (sig->at(i)._vt_oop) {
-        assert(depth == 1, "");
+        assert(depth == 1, "only for root value");
         return true;
       }
       break; // Argument found

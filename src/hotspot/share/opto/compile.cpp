@@ -1985,7 +1985,7 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   return some_allocations;
 }
 
-bool Compile::only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn) {
+bool Compile::clear_argument_if_only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn) {
   ResourceMark rm;
   Unique_Node_List wq;
   wq.push(result_cast);
@@ -2037,7 +2037,7 @@ bool Compile::only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn
     for (uint k = TypeFunc::Parms; k < nargs; k++) {
       Node* in = call->in(k);
       if (wq.member(in)) {
-        assert(call->method()->is_scalarized_buffer_arg(k - TypeFunc::Parms), "");
+        assert(call->method()->is_scalarized_buffer_arg(k - TypeFunc::Parms), "only buffer argument removed here");
         igvn.replace_input_of(call, k, igvn.zerocon(T_OBJECT));
       }
     }
@@ -2066,6 +2066,8 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       }
     }
   }
+  // if a newly allocated object is a value that's only passed as argument to calls as (possibly null) buffers, then
+  // clear the call argument inputs so the allocation node can be removed
   for (int i = 0; i < C->macro_count(); ++i) {
     Node* macro_node = C->macro_node(i);
     if (macro_node->Opcode() == Op_Allocate) {
@@ -2074,8 +2076,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       if (result_cast != nullptr) {
         const Type* result_type = igvn.type(result_cast);
         if (result_type->is_inlinetypeptr()) {
-          if (only_used_as_buffer_at_calls(result_cast, igvn)) {
-          }
+          clear_argument_if_only_used_as_buffer_at_calls(result_cast, igvn);
         }
       }
     }

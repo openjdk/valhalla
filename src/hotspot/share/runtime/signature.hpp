@@ -582,7 +582,7 @@ class SigEntry {
   int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
   Symbol* _name;      // Symbol for printing
   bool _null_marker;  // Is it a null marker? For printing
-  bool _vt_oop;
+  bool _vt_oop;       // Is it a possibly nyll buffer
 
   SigEntry()
     : _bt(T_ILLEGAL), _offset(-1), _name(nullptr), _null_marker(false), _vt_oop(false) {}

@@ -6497,6 +6497,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       continue;
     }
     if (sig->at(stream.sig_index())._vt_oop) {
+      // buffer argument: use if non null
       if (fromReg->is_stack()) {
         int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         movptr(val_obj, Address(rsp, ld_off));
@@ -6505,7 +6506,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       }
       testptr(val_obj, val_obj);
       jcc(Assembler::notEqual, L_null);
-      // get the buffer from the just allocated pool of buffers
+      // otherwise get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
       load_heap_oop(val_obj, Address(val_array, index));
       continue;

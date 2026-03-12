@@ -2901,7 +2901,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
           (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
-        _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true));
+        _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
         has_scalarized = true;
         _has_inline_recv = true;
         _num_inline_args++;
@@ -2973,9 +2973,10 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
-              // Nullable inline type argument, insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
+              // buffer argument
               _sig_cc->insert_before(last+1, SigEntry(T_OBJECT, 0, nullptr, false, true));
               _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_OBJECT, 0, nullptr, false, true));
+              // Insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
               _sig_cc->insert_before(last+2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
               _sig_cc_ro->insert_before(last_ro+2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
             }
@@ -3017,8 +3018,6 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 75) {
       return; // Success
     }
-    // tty->print_cr("XXX %d", MAX2(_args_on_stack_cc, _args_on_stack_cc_ro));
-    // ShouldNotReachHere();
   }
 
   // No scalarized args
@@ -3055,7 +3054,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       if (value_object_count == 0) {
         SigEntry::add_entry(_sig, bt_to_add);
       }
-      assert(long_prev_offset != 0, "");
+      assert(long_prev_offset != 0, "no buffer argument here");
       SigEntry::add_entry(_sig_cc, bt_to_add, nullptr, long_prev_offset);
       SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
     }
@@ -3092,7 +3091,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       case T_OBJECT:
       case T_ARRAY:
         assert(value_object_count > 0, "must be value object field");
-        assert(offset != 0 || (bt == T_OBJECT && prev_bt == T_METADATA), "");
+        assert(offset != 0 || (bt == T_OBJECT && prev_bt == T_METADATA), "buffer input expected here");
         SigEntry::add_entry(_sig_cc, bt, nullptr, offset, false, offset == 0);
         SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
         break;
@@ -4034,6 +4033,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
 
+  // Retrieve arguments passed at the call
   RegisterMap reg_map2(THREAD,
                        RegisterMap::UpdateMap::include,
                        RegisterMap::ProcessFrames::include,
@@ -4043,7 +4043,6 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   if (from_c1) {
     callerFrame = callerFrame.sender(&reg_map2);
   }
-  // Handle(current, callerFrame.retrieve_receiver(&reg_map2));
   int arg_size;
   const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
   assert(sig != nullptr, "sig should never be null");
@@ -4074,19 +4073,20 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   uint depth = 0;
   uint ignored = 0;
   if (allocate_receiver) {
-    assert(sig->at(pos)._bt == T_METADATA, "");
+    assert(sig->at(pos)._bt == T_METADATA, "scalarized value expected");
     pos++;
     ignored++;
     depth++;
-    assert(sig->at(pos)._bt == T_OBJECT, "");
+    assert(sig->at(pos)._bt == T_OBJECT, "buffer argument");
     uint reg_pos = 0;
     assert(reg_pos < (uint)arg_size, "");
     VMRegPair reg_pair = reg_pairs[reg_pos];
     oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
     InlineKlass* vk = InlineKlass::cast(holder);
     if (*buffer != nullptr) {
-      assert((*buffer)->klass() == vk, "");
+      assert((*buffer)->klass() == vk, "buffer not of expected class");
     } else {
+      // Only allocate if buffer passed at the call is null
       if (array_oop == nullptr) {
         array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
         array = objArrayHandle(THREAD, array_oop);
@@ -4114,17 +4114,17 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
         pos++;
       }
       pos++;
-      assert(sig->at(pos)._bt == T_OBJECT, "");
+      assert(sig->at(pos)._bt == T_OBJECT, "buffer argument expected");
       uint reg_pos = pos - ignored;
-      assert(reg_pos < (uint)arg_size, "");
+      assert(reg_pos < (uint)arg_size, "out of bound register?");
       VMRegPair reg_pair = reg_pairs[reg_pos];
       oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
       InlineKlass* vk = ss.as_inline_klass(holder);
       assert(vk != nullptr, "Unexpected klass");
       if (*buffer != nullptr) {
-        assert((*buffer)->klass() == vk, "");
-        // array->obj_at_put(i++, *buffer);
+        assert((*buffer)->klass() == vk, "buffer not of expected class");
       } else {
+        // Only allocate if buffer passed at the call is null
         if (array_oop == nullptr) {
           array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
           array = objArrayHandle(THREAD, array_oop);

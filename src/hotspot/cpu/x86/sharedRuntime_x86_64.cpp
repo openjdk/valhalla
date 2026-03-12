@@ -1048,6 +1048,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           vt--;
           ignored++;
         } else if (sig_extended->at(next_arg_comp)._vt_oop) {
+          // buffer argument: use if non null
           VMReg buffer = regs[next_arg_comp-ignored].first();
           if (buffer->is_stack()) {
             int ld_off = buffer->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
@@ -1057,7 +1058,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           }
           __ testptr(r14, r14);
           __ jcc(Assembler::notEqual, not_null_buffer);
-          // get the buffer from the just allocated pool of buffers
+          // otherwise get the buffer from the just allocated pool of buffers
           int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
           __ load_heap_oop(r14, Address(rscratch2, index));
           next_vt_arg++;

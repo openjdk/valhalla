@@ -812,7 +812,7 @@ public:
   void add_inline_type(Node* n);
   void remove_inline_type(Node* n);
 
-  bool only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn);
+  bool clear_argument_if_only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn);
 
   void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
 
