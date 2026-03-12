@@ -2732,6 +2732,14 @@ Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk) {
   // sanity check the alias category against the created node type
   const TypePtr* adr_type = adr->bottom_type()->isa_ptr();
+#ifndef PRODUCT
+  if (adr_type == nullptr) {
+    adr->dump(3);
+    tty->print("bottom_type: ");
+    adr->bottom_type()->dump();
+    tty->print_cr("");
+  }
+#endif
   assert(adr_type != nullptr, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
