@@ -509,7 +509,8 @@ bool AOTCodeCache::Config::verify(AOTCodeCache* cache) const {
   }
 
   // The following checks do not affect AOT code, but can disable
-  // AOT stub/adapters caching if they are incompatible with runtime settings.
+  // AOT stub/adapters caching if they are incompatible with runtime settings
+  // (adapters too as they decode flattened inline types during c2i transitions).
 
   if (((_flags & compressedOops) != 0) != UseCompressedOops) {
     log_debug(aot, codecache, init)("AOT Stub/Adapter Cache disabled: it was created with UseCompressedOops = %s", UseCompressedOops ? "false" : "true");
