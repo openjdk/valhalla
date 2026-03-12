@@ -2154,6 +2154,7 @@ private:
       return;
     }
     BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
+    BasicType prev_prev_bt = _i_sig_cc > 1 ? _sig_cc->at(_i_sig_cc-2)._bt : T_ILLEGAL;
     while (_i_sig_cc < _sig_cc->length()) {
       BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
       assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "incorrect prev bt");
@@ -2167,7 +2168,12 @@ private:
         if (_depth == 0) {
           _i_domain++;
         }
-      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
+      } else if (bt == T_OBJECT && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == 0) {
+        assert(_sig_cc->at(_i_sig_cc)._vt_oop, "buffer expected right after T_METADATA");
+        assert(_depth == 1, "only root value has buffer");
+        _i_domain_cc++;
+        _first_field_pos = _i_domain_cc;
+      } else if (bt == T_BOOLEAN && prev_prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
         assert(_sig_cc->at(_i_sig_cc)._null_marker, "null marker expected right after T_METADATA");
         assert(_depth == 1, "only root value null marker");
         _i_domain_cc++;
@@ -2175,6 +2181,7 @@ private:
       } else {
         return;
       }
+      prev_prev_bt = prev_bt;
       prev_bt = bt;
       _i_sig_cc++;
     }
@@ -2568,7 +2575,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       }
       BCEscapeAnalyzer* call_analyzer = (meth !=nullptr) ? meth->get_bcea() : nullptr;
       // fall-through if not a Java method or no analyzer information
-      if (call_analyzer != nullptr && !meth->has_scalarized_args()) {
+      if (call_analyzer != nullptr) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
         for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
           int k = di.i_domain() - TypeFunc::Parms;
