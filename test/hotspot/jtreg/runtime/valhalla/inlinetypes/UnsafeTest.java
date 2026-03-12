@@ -72,10 +72,10 @@ public class UnsafeTest {
     static value class Value2 {
         int i;
         @NullRestricted
-        Value1 v;
+        Value1 v1;
 
         Value2(Value1 v, int i) {
-            this.v = v;
+            this.v1 = v;
             this.i = i;
         }
     }
@@ -84,10 +84,10 @@ public class UnsafeTest {
     static value class Value3 {
         Object o;
         @NullRestricted
-        Value2 v;
+        Value2 v2;
 
         Value3(Value2 v, Object ref) {
-            this.v = v;
+            this.v2 = v;
             this.o = ref;
         }
 
@@ -100,10 +100,9 @@ public class UnsafeTest {
         Value2 v2 = new Value2(v1, 20);
         Value3 v3 = new Value3(v2, List.of("Value3"));
         long off_o = U.objectFieldOffset(Value3.class, "o");
-        long off_v = U.objectFieldOffset(Value3.class, "v");
+        long off_v = U.objectFieldOffset(Value3.class, "v2");
         long off_i = U.objectFieldOffset(Value2.class, "i");
-        long off_v2 = U.objectFieldOffset(Value2.class, "v");
-        int layout_v2 = U.fieldLayout(Value2.class.getDeclaredField("v"));
+        long off_v1 = U.objectFieldOffset(Value2.class, "v1");
 
         long off_point = U.objectFieldOffset(Value1.class, "point");
         int layout_point = U.fieldLayout(Value1.class.getDeclaredField("point"));
@@ -115,28 +114,30 @@ public class UnsafeTest {
             long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
             // patch v3.o
             U.putReference(array, baseOff + off_o, list);
-            // patch v3.v.i;
+            // patch v3.v2.i;
             U.putInt(array, baseOff + off_v + off_i - U.valueHeaderSize(Value2.class), 999);
-            // patch v3.v.v.point
-            U.putFlatValue(array, baseOff + off_v + off_v2 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
+            // patch v3.v2.v1.point
+            U.putFlatValue(array, baseOff + off_v + off_v1 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
                            layout_point, Point.class, new Point(100, 100));
         } finally {
             v = array[0];
         }
 
-        assertEquals(v.v.v.point, new Point(100, 100));
-        assertEquals(v.v.i, 999);
+        assertEquals(v.v2.v1.point, new Point(100, 100));
+        assertEquals(v.v2.i, 999);
         assertEquals(v.o, list);
-        assertEquals(v.v.v.array, v1.array);
+        assertEquals(v.v2.v1.array, v1.array);
 
         Value1 nv1 = new Value1(new Point(70,70), new Point(80,80), new Point(90,90));
         Value2 nv2 = new Value2(nv1, 100);
         Value3 nv3 = new Value3(nv2, list);
 
+        int layout_v2 = U.fieldLayout(Value3.class.getDeclaredField("v2"));
+        long off_v2 = U.objectFieldOffset(Value3.class, "v2");
         array = (Value3[]) ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v);
         try {
             long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
-            // patch v3.v
+            // patch v3.v2
             U.putFlatValue(array, baseOff + off_v2, layout_v2, Value2.class, nv2);
         } finally {
             v = array[0];
