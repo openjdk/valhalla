@@ -1504,10 +1504,10 @@ run:
           ARRAY_INTRO(-2);
           if (((objArrayOop) arrObj)->is_flatArray()) {
             CALL_VM(InterpreterRuntime::flat_array_load(THREAD, (objArrayOop) arrObj, index), handle_exception);
-            SET_STACK_OBJECT(THREAD->vm_result_oop(),-2);
+            SET_STACK_OBJECT(THREAD->vm_result_oop(), -2);
             THREAD->set_vm_result_oop(nullptr);
           } else {
-            SET_STACK_OBJECT(((objArrayOop) arrObj)->obj_at(index), -2);
+            SET_STACK_OBJECT(((refArrayOop) arrObj)->obj_at(index), -2);
           }
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -1);
       }

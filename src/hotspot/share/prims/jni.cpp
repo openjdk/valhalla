@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2024 Red Hat, Inc.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -3175,6 +3175,18 @@ JNI_ENTRY(jboolean, jni_IsVirtualThread(JNIEnv* env, jobject obj))
   }
 JNI_END
 
+JNI_ENTRY(jboolean, jni_IsValueObject(JNIEnv* env, jobject obj))
+  HOTSPOT_JNI_ISVALUEOBJECT_ENTRY(env, obj);
+  oop o = JNIHandles::resolve(obj);
+  if (o != nullptr && o->klass()->is_inline_klass()) {
+    HOTSPOT_JNI_ISVALUEOBJECT_RETURN(JNI_TRUE);
+    return JNI_TRUE;
+  } else {
+    HOTSPOT_JNI_ISVALUEOBJECT_RETURN(JNI_FALSE);
+    return JNI_FALSE;
+  }
+JNI_END
+
 
 // Structure containing all jni functions
 struct JNINativeInterface_ jni_NativeInterface = {
@@ -3467,7 +3479,11 @@ struct JNINativeInterface_ jni_NativeInterface = {
 
     // Large UTF8 support
 
-    jni_GetStringUTFLengthAsLong
+    jni_GetStringUTFLengthAsLong,
+
+    // Value classes
+
+    jni_IsValueObject
 };
 
 

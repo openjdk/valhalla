@@ -28,7 +28,6 @@
  * @enablePreview
  * @compile -g UnnamedLocalVariableTable.java
  * @run main UnnamedLocalVariableTable
- * @ignore Verifier error
  */
 public class UnnamedLocalVariableTable {
     public static void main(String... args) {

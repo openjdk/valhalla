@@ -48,10 +48,6 @@ inline oop refArrayOopDesc::obj_at(int index) const {
   return HeapAccess<IS_ARRAY>::oop_load_at(as_oop(), offset);
 }
 
-inline oop refArrayOopDesc::obj_at(int index, TRAPS) const {
-  return obj_at(index);
-}
-
 inline void refArrayOopDesc::obj_at_put(int index, oop value) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   assert(!is_null_free_array() || value != nullptr, "Trying to write null to a null free array");

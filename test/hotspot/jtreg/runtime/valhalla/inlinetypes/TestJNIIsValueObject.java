@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,24 +19,40 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP
-#define SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP
+package runtime.valhalla.inlinetypes;
 
-#include "runtime/vframe.hpp"
+import jdk.test.lib.Asserts;
 
-class JfrVframeStream : public vframeStreamCommon {
- private:
-  bool _vthread;
+/*
+ * @test
+ * @summary Test JNI IsValueObject with inline types
+ * @library /test/lib
+ * @enablePreview
+ * @run main/othervm/native --enable-native-access=ALL-UNNAMED
+ *                          runtime.valhalla.inlinetypes.TestJNIIsValueObject
+ */
+public class TestJNIIsValueObject {
 
-  void next_frame();
-  static RegisterMap::WalkContinuation walk_continuation(JavaThread* jt);
- public:
-  JfrVframeStream(JavaThread* jt, const frame& fr, bool in_continuation, bool stop_at_java_call_stub);
-  void next_vframe();
-  int normalized_bci() const;
-};
+    static value class Value {
+        int i;
 
-#endif // SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP
+        public Value(int i) {
+            this.i = i;
+        }
+    }
+
+    native static boolean isValueObject(Object target);
+
+    static {
+        System.loadLibrary("JNIIsValueObject");
+    }
+
+    public static void main(String[] args) {
+        Asserts.assertTrue(isValueObject(new Value(1)));
+        Asserts.assertTrue(isValueObject(Integer.valueOf("25")));
+        Asserts.assertFalse(isValueObject(new String("Hello")));
+        Asserts.assertFalse(isValueObject(null));
+    }
+}

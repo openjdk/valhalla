@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,24 +19,11 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP
-#define SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP
+#include <jni.h>
 
-#include "runtime/vframe.hpp"
-
-class JfrVframeStream : public vframeStreamCommon {
- private:
-  bool _vthread;
-
-  void next_frame();
-  static RegisterMap::WalkContinuation walk_continuation(JavaThread* jt);
- public:
-  JfrVframeStream(JavaThread* jt, const frame& fr, bool in_continuation, bool stop_at_java_call_stub);
-  void next_vframe();
-  int normalized_bci() const;
-};
-
-#endif // SHARE_JFR_RECORDER_STACKTRACE_JFRVFRAMESTREAM_HPP
+JNIEXPORT jboolean JNICALL
+Java_runtime_valhalla_inlinetypes_TestJNIIsValueObject_isValueObject(JNIEnv* env, jclass klass, jobject target) {
+  return (*env)->IsValueObject(env, target);
+}

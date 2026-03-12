@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -811,6 +811,10 @@
 #define HOTSPOT_JNI_ISSAMEOBJECT_ENTRY_ENABLED()  0
 #define HOTSPOT_JNI_ISSAMEOBJECT_RETURN(arg0)
 #define HOTSPOT_JNI_ISSAMEOBJECT_RETURN_ENABLED()  0
+#define HOTSPOT_JNI_ISVALUEOBJECT_ENTRY(arg0, arg1)
+#define HOTSPOT_JNI_ISVALUEOBJECT_ENTRY_ENABLED()  0
+#define HOTSPOT_JNI_ISVALUEOBJECT_RETURN(arg0)
+#define HOTSPOT_JNI_ISVALUEOBJECT_RETURN_ENABLED()  0
 #define HOTSPOT_JNI_MONITORENTER_ENTRY(arg0, arg1)
 #define HOTSPOT_JNI_MONITORENTER_ENTRY_ENABLED()  0
 #define HOTSPOT_JNI_MONITORENTER_RETURN(arg0)
