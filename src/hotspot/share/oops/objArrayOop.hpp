@@ -61,8 +61,14 @@ class objArrayOopDesc : public arrayOopDesc {
   HeapWord* base() const;
 
   // Accessing
-  oop obj_at(int index) const;
+
+  // Accessing an object array element may have to allocate in case of a
+  // flattened value. To access an object array element without allocating the
+  // caller must first type check the oop and ensure that it is a refArray.
+  [[deprecated("Type check and cast to refArrayOop to use the non-allocating obj_at")]]
+  oop obj_at(int index) const = delete;
   oop obj_at(int index, TRAPS) const;
+  bool obj_at_is_null(int index) const;
 
   void obj_at_put(int index, oop value);
   void obj_at_put(int index, oop value, TRAPS);

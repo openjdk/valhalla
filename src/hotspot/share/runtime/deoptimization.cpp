@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,7 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/vectorSupport.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/basicLock.inline.hpp"
 #include "runtime/continuation.hpp"
@@ -309,11 +310,11 @@ static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, Obj
     nmethod* nm = fr->cb()->as_nmethod_or_null();
     if (nm->is_compiled_by_c2()) {
       assert(sv->has_properties(), "Property information is missing");
-      ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint());
+      ArrayProperties props(checked_cast<ArrayProperties::Type>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint()));
       k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
     } else {
       // TODO Graal needs to be fixed. Just go with the default properties for now
-      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties::Default(), THREAD);
     }
   }
   return k;
@@ -1144,13 +1145,14 @@ template<typename PrimitiveType, typename CacheType, typename BoxType> class Box
 protected:
   static BoxCache<PrimitiveType, CacheType, BoxType> *_singleton;
   BoxCache(Thread* thread) {
+    assert(!Arguments::is_valhalla_enabled(), "Should not use box caches with enable preview");
     InstanceKlass* ik = BoxCacheBase<CacheType>::find_cache_klass(thread, CacheType::symbol());
     if (ik->is_in_error_state()) {
       _low = 1;
       _high = 0;
       _cache = nullptr;
     } else {
-      objArrayOop cache = CacheType::cache(ik);
+      refArrayOop cache = CacheType::cache(ik);
       assert(cache->length() > 0, "Empty cache");
       _low = BoxType::value(cache->obj_at(0));
       _high = checked_cast<PrimitiveType>(_low + cache->length() - 1);
@@ -1173,7 +1175,7 @@ public:
   oop lookup(PrimitiveType value) {
     if (_low <= value && value <= _high) {
       int offset = checked_cast<int>(value - _low);
-      return objArrayOop(JNIHandles::resolve_non_null(_cache))->obj_at(offset);
+      return refArrayOop(JNIHandles::resolve_non_null(_cache))->obj_at(offset);
     }
     return nullptr;
   }
@@ -1253,6 +1255,10 @@ public:
 BooleanBoxCache* BooleanBoxCache::_singleton = nullptr;
 
 oop Deoptimization::get_cached_box(AutoBoxObjectValue* bv, frame* fr, RegisterMap* reg_map, bool& cache_init_error, TRAPS) {
+  if (Arguments::enable_preview()) {
+    // Box caches are not used with enable preview.
+    return nullptr;
+  }
    Klass* k = java_lang_Class::as_Klass(bv->klass()->as_ConstantOopReadValue()->value()());
    BasicType box_type = vmClasses::box_klass_type(k);
    if (box_type != T_OBJECT) {
@@ -2284,7 +2290,9 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
       // Lock to read ProfileData, and ensure lock is not broken by a safepoint
       // We must do this already now, since we cannot acquire this lock while
       // holding the tty lock (lock ordering by rank).
-      MutexLocker ml(trap_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
+      ConditionalMutexLocker ml((trap_mdo != nullptr) ? trap_mdo->extra_data_lock() : nullptr,
+                                (trap_mdo != nullptr),
+                                Mutex::_no_safepoint_check_flag);
 
       ttyLocker ttyl;
 

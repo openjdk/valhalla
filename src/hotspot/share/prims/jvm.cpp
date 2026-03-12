@@ -480,7 +480,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
     array = dst;
   } else {
-    ArrayKlass::ArrayProperties props = org->is_null_free_array() ? ArrayKlass::ArrayProperties::NULL_RESTRICTED : ArrayKlass::ArrayProperties::DEFAULT;
+    const ArrayProperties props = ArrayProperties::Default().with_null_restricted(org->is_null_free_array());
+
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
@@ -508,8 +509,10 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Type mismatch between array and initial value");
   }
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  const ArrayProperties props = ArrayProperties::Default()
+    .with_null_restricted()
+    .with_non_atomic();
+
   objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
@@ -529,8 +532,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Type mismatch between array and initial value");
   }
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  const ArrayProperties props = ArrayProperties::Default().with_null_restricted();
   objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
@@ -543,9 +545,7 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   Klass* klass = java_lang_Class::as_Klass(mirror);
   klass->initialize(CHECK_NULL);
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
-  objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
+  objArrayOop array = oopFactory::new_objArray(klass, len, ArrayProperties::Default(), CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -553,9 +553,7 @@ JVM_ENTRY(jarray, JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len))
   oop mirror = JNIHandles::resolve_non_null(elmClass);
   Klass* klass = java_lang_Class::as_Klass(mirror);
   validate_array_arguments(klass, len, CHECK_NULL);
-  InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
-  refArrayOop array = oopFactory::new_refArray(klass, len, props, CHECK_NULL);
+  refArrayOop array = oopFactory::new_refArray(klass, len, ArrayProperties::Default(), CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -700,8 +698,8 @@ JVM_END
 
 JVM_ENTRY(void, JVM_InitStackTraceElementArray(JNIEnv *env, jobjectArray elements, jobject backtrace, jint depth))
   Handle backtraceh(THREAD, JNIHandles::resolve(backtrace));
-  objArrayOop st = objArrayOop(JNIHandles::resolve(elements));
-  objArrayHandle stack_trace(THREAD, st);
+  refArrayOop st = refArrayOop(JNIHandles::resolve(elements));
+  refArrayHandle stack_trace(THREAD, st);
   // Fill in the allocated stack trace
   java_lang_Throwable::get_stack_trace_elements(depth, backtraceh, stack_trace, CHECK);
 JVM_END
@@ -744,8 +742,8 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
 
   if (frames_array_h->length() < buffer_size) {
     THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers", nullptr);
@@ -763,8 +761,8 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
 
   if (frames_array_h->length() < buffer_size) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers");
@@ -776,8 +774,8 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
 JVM_END
 
 JVM_ENTRY(void, JVM_SetStackWalkContinuation(JNIEnv *env, jobject stackStream, jlong anchor, jobjectArray frames, jobject cont))
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
   Handle cont_h(THREAD, JNIHandles::resolve_non_null(cont));
 
@@ -3864,7 +3862,9 @@ JVM_ENTRY(jobjectArray, JVM_GetVmArguments(JNIEnv *env))
 
   int index = 0;
   for (int j = 0; j < num_flags; j++, index++) {
-    Handle h = java_lang_String::create_from_platform_dependent_str(vm_flags[j], CHECK_NULL);
+    stringStream prefixed;
+    prefixed.print("-XX:%s", vm_flags[j]);
+    Handle h = java_lang_String::create_from_platform_dependent_str(prefixed.base(), CHECK_NULL);
     result_h->obj_at_put(index, h());
   }
   for (int i = 0; i < num_args; i++, index++) {

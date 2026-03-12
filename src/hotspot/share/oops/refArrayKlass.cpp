@@ -48,7 +48,7 @@
 #include "utilities/macros.hpp"
 
 RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* k, Symbol *name, ArrayKlass::ArrayProperties props,
+                                       Klass* k, Symbol *name, ArrayProperties props,
                                        TRAPS) {
   assert(RefArrayKlass::header_size() <= InstanceKlass::header_size(),
          "array klasses must be same size as InstanceKlass");
@@ -59,9 +59,9 @@ RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n
 }
 
 RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* element_klass, ArrayKlass::ArrayProperties props,
+                                       Klass* element_klass, ArrayProperties props,
                                        TRAPS) {
-  assert(!ArrayKlass::is_null_restricted(props) || (n == 1 && element_klass->is_inline_klass()),
+  assert(!props.is_null_restricted() || (n == 1 && element_klass->is_inline_klass()),
          "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
@@ -74,7 +74,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
   }
 
   // Create type name for klass.
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = create_element_klass_array_name(THREAD, element_klass);
 
   // Initialize instance variables
   RefArrayKlass* oak = RefArrayKlass::allocate_klass(loader_data, n, element_klass,
@@ -98,37 +98,8 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
 }
 
 RefArrayKlass::RefArrayKlass(int n, Klass* element_klass, Symbol* name,
-                             ArrayKlass::ArrayProperties props)
-    : ObjArrayKlass(n, element_klass, name, Kind, props,
-                    ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype()) {
-  set_dimension(n);
-  set_element_klass(element_klass);
-
-  Klass* bk;
-  if (element_klass->is_objArray_klass()) {
-    bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
-  } else {
-    bk = element_klass;
-  }
-  assert(bk != nullptr && (bk->is_instance_klass() || bk->is_typeArray_klass()),
-         "invalid bottom klass");
-  set_bottom_klass(bk);
-  set_class_loader_data(bk->class_loader_data());
-
-  if (element_klass->is_array_klass()) {
-    set_lower_dimension(ArrayKlass::cast(element_klass));
-  }
-
-  int lh = array_layout_helper(T_OBJECT);
-  if (ArrayKlass::is_null_restricted(props)) {
-    assert(n == 1, "Bytecode does not support null-free multi-dim");
-    lh = layout_helper_set_null_free(lh);
-#ifdef _LP64
-    assert(prototype_header().is_null_free_array(), "sanity");
-#endif
-  }
-  set_layout_helper(lh);
-  assert(is_array_klass(), "sanity");
+                             ArrayProperties props)
+    : ObjArrayKlass(n, element_klass, name, Kind, props) {
   assert(is_refArray_klass(), "sanity");
 }
 
@@ -238,15 +209,9 @@ void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
                                int length, TRAPS) {
   assert(s->is_refArray(), "must be a reference array");
 
-  if (UseArrayFlattening) {
-    if (d->is_flatArray()) {
-      FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
-    if (s->is_flatArray()) {
-      FlatArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
+  if (UseArrayFlattening && d->is_flatArray()) {
+    FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+    return;
   }
 
   if (!d->is_refArray()) {
@@ -412,10 +377,9 @@ void RefArrayKlass::verify_on(outputStream* st) {
 }
 
 void RefArrayKlass::oop_verify_on(oop obj, outputStream* st) {
-  ArrayKlass::oop_verify_on(obj, st);
+  ObjArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_refArray(), "must be refArray");
-  guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),
-            "null-free klass but not object");
+
   refArrayOop oa = refArrayOop(obj);
   for (int index = 0; index < oa->length(); index++) {
     guarantee(oopDesc::is_oop_or_null(oa->obj_at(index)), "should be oop");

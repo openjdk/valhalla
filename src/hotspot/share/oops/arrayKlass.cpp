@@ -91,9 +91,30 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
-Klass(kind, prototype_header),
-  _dimension(1),
+static markWord calc_prototype_header(Klass::KlassKind kind, ArrayProperties props) {
+  switch (kind) {
+  case Klass::KlassKind::TypeArrayKlassKind:
+    return markWord::prototype();
+
+  case Klass::KlassKind::FlatArrayKlassKind:
+    return markWord::flat_array_prototype(props.is_null_restricted());
+
+  case Klass::KlassKind::ObjArrayKlassKind:
+  case Klass::KlassKind::RefArrayKlassKind:
+    if (props.is_null_restricted()) {
+      return markWord::null_free_array_prototype();
+    } else {
+      return markWord::prototype();
+    }
+
+  default:
+    ShouldNotReachHere();
+  };
+}
+
+ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props)
+    : Klass(kind, calc_prototype_header(kind, props)),
+  _dimension(n),
   _properties(props),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {
@@ -107,26 +128,6 @@ Klass(kind, prototype_header),
   set_is_cloneable_fast();
   JFR_ONLY(INIT_ID(this);)
   log_array_class_load(this);
-}
-
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
-  ResourceMark rm(THREAD);
-  Symbol* name = nullptr;
-  char *name_str = element_klass->name()->as_C_string();
-  int len = element_klass->name()->utf8_length();
-  char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
-  int idx = 0;
-  new_str[idx++] = JVM_SIGNATURE_ARRAY;
-  if (element_klass->is_instance_klass()) { // it could be an array or simple type
-    new_str[idx++] = JVM_SIGNATURE_CLASS;
-  }
-  memcpy(&new_str[idx], name_str, len * sizeof(char));
-  idx += len;
-  if (element_klass->is_instance_klass()) {
-    new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
-  }
-  new_str[idx++] = '\0';
-  return SymbolTable::new_symbol(new_str);
 }
 
 // Initialization of vtables and mirror object is done separately from base_create_array_klass,
@@ -167,7 +168,7 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+      ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");
@@ -219,36 +220,18 @@ oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
 
-ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
-  ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
   switch(lk) {
     case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-      break;
+      return ArrayProperties::Default().with_null_restricted();
     case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
-      break;
+      return ArrayProperties::Default().with_null_restricted().with_non_atomic();
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::DEFAULT;
-      break;
+      return ArrayProperties::Default();
     default:
       ShouldNotReachHere();
   }
-  return props;
 }
-
-  const char* ArrayKlass::array_properties_as_string(ArrayProperties props) {
-    // Caller must have set a ResourceMark
-    stringStream ss;
-    if (props == DEFAULT) {
-      ss.print("DEFAULT (NULLABLE ATOMIC)");
-    } else {
-      ss.print("%s", ((props & NULL_RESTRICTED) != 0) ? "NULL_RESTRICTED " : "NULLABLE ");
-      ss.print("%s", ((props & NON_ATOMIC) != 0) ? "NON_ATOMIC " : "ATOMIC ");
-    }
-    return ss.as_string();
-  }
-
 
 // JVMTI support
 
@@ -349,6 +332,7 @@ void ArrayKlass::verify_on(outputStream* st) {
 }
 
 void ArrayKlass::oop_verify_on(oop obj, outputStream* st) {
+  Klass::oop_verify_on(obj, st);
   guarantee(obj->is_array(), "must be array");
   arrayOop a = arrayOop(obj);
   guarantee(a->length() >= 0, "array with negative length?");

@@ -47,9 +47,6 @@ import static java.lang.classfile.ClassFile.ACC_SYNTHETIC;
 import static java.lang.classfile.attribute.StackMapFrameInfo.*;
 import static java.lang.classfile.instruction.CharacterRange.*;
 
-import com.sun.tools.javac.util.Assert;
-import com.sun.tools.javac.util.StringUtils;
-
 /*
  *  A writer for writing Attributes as text.
  *

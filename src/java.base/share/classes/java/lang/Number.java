@@ -24,6 +24,7 @@
  */
 
 package java.lang;
+
 /**
  * The abstract class {@code Number} is the superclass of platform
  * classes representing numeric values that are convertible to the

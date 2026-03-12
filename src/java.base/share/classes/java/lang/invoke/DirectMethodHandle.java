@@ -136,9 +136,9 @@ sealed class DirectMethodHandle extends MethodHandle {
         return make(member.getDeclaringClass(), member);
     }
     static DirectMethodHandle makeAllocator(Class<?> instanceClass, MemberName ctor) {
-        assert(ctor.isConstructor()) : ctor;
+        assert(ctor.isConstructor() && ctor.getName().equals("<init>"));
         ctor = ctor.asConstructor();
-        assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
+        assert(ctor.isConstructor() && ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
         LambdaForm lform = preparedLambdaForm(ctor);
         MemberName init = ctor.asSpecial();
@@ -504,6 +504,15 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     /*non-public*/
+
+    /**
+     * This method returns an uninitialized instance. In general, this is undefined behavior, this
+     * method is treated specially by the JVM to allow this behavior. The returned value must be
+     * passed into a constructor using {@link MethodHandle#linkToSpecial} before any other
+     * operation can be performed on it. Otherwise, the program is ill-formed.
+     *
+     * @see Unsafe
+     */
     static Object allocateInstance(Object mh) throws InstantiationException {
         Constructor dmh = (Constructor)mh;
         return UNSAFE.allocateInstance(dmh.instanceClass);

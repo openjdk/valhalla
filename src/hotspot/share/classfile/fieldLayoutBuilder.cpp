@@ -128,29 +128,6 @@ static bool field_is_inlineable(FieldInfo fieldinfo, LayoutKind lk, Array<Inline
   return false;
 }
 
-static void get_size_and_alignment(InlineKlass* vk, LayoutKind kind, int* size, int* alignment) {
-  switch(kind) {
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      *size = vk->null_free_non_atomic_size_in_bytes();
-      *alignment = vk->null_free_non_atomic_alignment();
-      break;
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      *size = vk->null_free_atomic_size_in_bytes();
-      *alignment = *size;
-      break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      *size = vk->nullable_atomic_size_in_bytes();
-      *alignment = *size;
-      break;
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-      *size = vk->nullable_non_atomic_size_in_bytes();
-      *alignment = vk->null_free_non_atomic_alignment();
-      break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
 LayoutRawBlock::LayoutRawBlock(Kind kind, int size) :
   _next_block(nullptr),
   _prev_block(nullptr),
@@ -219,7 +196,10 @@ void FieldGroup::add_oop_field(int idx) {
   _oop_count++;
 }
 
-void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment) {
+void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
+  const int size = vk->layout_size_in_bytes(lk);
+  const int alignment = vk->layout_alignment(lk);
+
   LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::FLAT, size, alignment);
   block->set_inline_klass(vk);
   block->set_layout_kind(lk);
@@ -737,7 +717,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                   b->offset(),
                   "INHERITED",
                   b->size(),
-                  b->size(), // so far, alignment constraint == size, will change with Valhalla => FIXME
+                  b->alignment(),
                   fs.name()->as_C_string(),
                   fs.signature()->as_C_string());
               found = true;
@@ -901,9 +881,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
         InlineKlass* vk = _inline_layout_info_array->adr_at(field_index)->klass();
-        int size, alignment;
-        get_size_and_alignment(vk, lk, &size, &alignment);
-        group->add_flat_field(idx, vk, lk, size, alignment);
+        group->add_flat_field(idx, vk, lk);
         _inline_layout_info_array->adr_at(field_index)->set_kind(lk);
         _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
         _field_info->adr_at(idx)->field_flags_addr()->update_flat(true);
@@ -994,12 +972,10 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         _has_inlined_fields = true;
         InlineKlass* vk = _inline_layout_info_array->adr_at(field_index)->klass();
         if (!vk->is_naturally_atomic()) _has_non_naturally_atomic_fields = true;
-        int size, alignment;
-        get_size_and_alignment(vk, lk, &size, &alignment);
-        group->add_flat_field(idx, vk, lk, size, alignment);
+        group->add_flat_field(idx, vk, lk);
         _inline_layout_info_array->adr_at(field_index)->set_kind(lk);
         _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
-        field_alignment = alignment;
+        field_alignment = vk->layout_alignment(lk);
         _field_info->adr_at(idx)->field_flags_addr()->update_flat(true);
         _field_info->adr_at(idx)->set_layout_kind(lk);
       }
@@ -1607,7 +1583,6 @@ void FieldLayoutBuilder::epilogue() {
 #endif // ASSERT
 
   static bool first_layout_print = true;
-
 
   if (PrintFieldLayout || (PrintInlineLayout && (_has_inlineable_fields || _is_inline_type || _is_abstract_value))) {
     ResourceMark rm;
