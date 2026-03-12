@@ -73,11 +73,10 @@ MODULEPATH := $(call PathList, $(IMPORT_MODULES_CLASSES))
 # Setup preprocessor flags
 # The output directory must be present in GENERATED_PREVIEW_SUBDIRS in Modules.gmk.
 # Temporarily restrict this to java.base, but it can be expanded later.
-# TODO: Remove Xlint directives below once the fix in JDK-8378740 is merged into lworld.
 
 ifeq ($(MODULE), java.base)
     PREPROCESSOR_FLAGS := \
-        -Xlint:-removal -Xlint:-processing \
+        -Xlint:-processing \
         -Avalueclasses.outdir=$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses \
         -processor $(VALUETYPE_GENSRC_PROCESSOR_NAME)
 
