@@ -1244,4 +1244,50 @@ public class TestLWorldProfiling {
         Asserts.assertTrue(test43(testValue1, testValue1));
         Asserts.assertFalse(test43(testValue1, other));
     }
+
+    @Test
+    @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+            failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+            counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    )
+    @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+            failOn = {LOAD_OF_CLASS, "MyValue1"},
+            counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    )
+    public static boolean test44(Object a, Object b) {
+        return a == b;
+    }
+
+    @Run(test = "test44")
+    @Warmup(10000)
+    public void test44_verifier() {
+        Asserts.assertTrue(test44(testValue1, testValue1));
+        Asserts.assertFalse(test44(testValue1, null));
+        Asserts.assertFalse(test44(null, testValue1));
+        Asserts.assertTrue(test44(null, null));
+    }
+
+    @Test
+    @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+            failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+            counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    )
+    @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+            failOn = {LOAD_OF_CLASS, "MyValue1"},
+            counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    )
+    public static boolean test45(Object a, Object b) {
+        return a == b;
+    }
+
+    @Run(test = "test45")
+    @Warmup(10000)
+    public void test45_verifier(RunInfo info) {
+        Asserts.assertTrue(test45(testValue1, testValue1));
+        if (!info.isWarmUp()) {
+            Asserts.assertFalse(test45(testValue1, null));
+            Asserts.assertFalse(test45(null, testValue1));
+            Asserts.assertTrue(test45(null, null));
+        }
+    }
 }
