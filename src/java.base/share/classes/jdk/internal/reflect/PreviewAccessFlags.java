@@ -26,9 +26,13 @@
 package jdk.internal.reflect;
 
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Set;
+
+import jdk.internal.vm.annotation.Stable;
 
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.reflect.AccessFlag.*;
@@ -41,6 +45,12 @@ import static java.lang.reflect.AccessFlag.*;
 /// own VM is not running in preview, so this class may be used by tools when
 ///  preview features are not enabled,
 public final class PreviewAccessFlags {
+
+    private static final @Stable AccessFlag[]
+            CLASS_PREVIEW_FLAGS = AccessFlagSet.createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
+            FIELD_PREVIEW_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT),
+            INNER_CLASS_PREVIEW_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM);
+
     /// Preview variant of [Location#flagsMask()].
     public static int flagsMask(Location location) {
         return switch (location) {
@@ -64,38 +74,30 @@ public final class PreviewAccessFlags {
         };
     }
 
-    /// Preview variant of [AccessFlag#maskToAccessFlags].
-    /// @throws IllegalArgumentException if there is unrecognized flag bit
-    public static Set<AccessFlag> maskToAccessFlags(int flags, Location location) {
+    /// Preview variant of [AccessFlagSet#findDefinition].
+    public static AccessFlag[] findDefinition(Location location) {
         return switch (location) {
-            case CLASS -> decodeFlags(flags, Location.CLASS, CLASS_PREVIEW_FLAGS);
-            case INNER_CLASS -> decodeFlags(flags, Location.INNER_CLASS, INNER_CLASS_PREVIEW_FLAGS);
-            case FIELD -> decodeFlags(flags, Location.FIELD, FIELD_PREVIEW_FLAGS);
-            default -> AccessFlag.maskToAccessFlags(flags, location);
+            case CLASS -> CLASS_PREVIEW_FLAGS;
+            case FIELD -> FIELD_PREVIEW_FLAGS;
+            case INNER_CLASS -> INNER_CLASS_PREVIEW_FLAGS;
+            default -> AccessFlagSet.findDefinition(location);
         };
     }
 
-    private static Set<AccessFlag> decodeFlags(int flags, Location location, AccessFlag[] known) {
-        EnumSet<AccessFlag> ans = EnumSet.noneOf(AccessFlag.class);
-        for (var flag : known) {
-            if ((flags & flag.mask()) != 0) {
-                ans.add(flag);
-                flags &= ~flag.mask();
-            }
-        }
-        if (flags != 0) {
+    /// Preview variant of [AccessFlag#maskToAccessFlags].
+    /// The method body should be in parity.
+    /// @throws IllegalArgumentException if there is unrecognized flag bit
+    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
+        var definition = findDefinition(location);  // null checks location
+        int unmatchedMask = mask & (~flagsMask(location));
+        if (unmatchedMask != 0) {
             throw new IllegalArgumentException("Unmatched bit position 0x" +
-                    Integer.toHexString(flags) +
+                    Integer.toHexString(unmatchedMask) +
                     " for location " + location +
                     " for preview class files");
         }
-        return Collections.unmodifiableSet(ans); // Preserve iteration order
+        return AccessFlagSet.ofValidated(definition, mask);
     }
-
-    private static final AccessFlag[]
-            CLASS_PREVIEW_FLAGS = {PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE},
-            FIELD_PREVIEW_FLAGS = {PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT},
-            INNER_CLASS_PREVIEW_FLAGS = {PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM};
 
     private PreviewAccessFlags() {
     }

@@ -26,8 +26,6 @@
 package jdk.internal.reflect;
 
 import java.lang.reflect.*;
-import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -39,8 +37,6 @@ import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
-
-import static java.lang.classfile.ClassFile.ACC_STRICT;
 
 /** Common utility routines used by both java.lang and
     java.lang.reflect */
@@ -452,28 +448,11 @@ public class Reflection {
 
     /// Parses a runtime modifier from core reflection/Hotspot into access flags.
     /// Note that there is one unique representation in hotspot, so we don't need version argument.
+    /// This API is only designed to accept trusted modifiers from Hotspot!
     public static Set<AccessFlag> modifiersToFlags(int modifiers, AccessFlag.Location location) {
-        boolean injectStrict; // Compatibility
-        if (location == AccessFlag.Location.METHOD) {
-            injectStrict = (modifiers & ACC_STRICT) != 0;
-            modifiers &= ~ACC_STRICT; // Hotspot does not drop this dead bit
-        } else {
-            injectStrict = false;
-        }
-        Set<AccessFlag> ans;
-        try {
-            ans = PreviewFeatures.isEnabled() ? PreviewAccessFlags.maskToAccessFlags(modifiers, location)
-                                              : AccessFlag.maskToAccessFlags(modifiers, location);
-        } catch (IllegalArgumentException e) {
-            // Hotspot/ClassFileParser passed some bits we don't recognize
-            throw new InternalError(e);
-        }
-        if (injectStrict) {
-            // Very few methods actually set strictfp - okay if this path is slightly slower
-            Set<AccessFlag> buf = EnumSet.copyOf(ans);
-            buf.add(AccessFlag.STRICT);
-            return Collections.unmodifiableSet(buf); // Preserve iteration order
-        }
-        return ans;
+        AccessFlag[] definition = PreviewFeatures.isEnabled() ? PreviewAccessFlags.findDefinition(location) : AccessFlagSet.findDefinition(location);
+        // A direct parse is more lenient than maskToAccessFlags, which rejects
+        // obsolete like STRICT that is retained by Hotspot
+        return AccessFlagSet.ofValidated(definition, modifiers);
     }
 }
