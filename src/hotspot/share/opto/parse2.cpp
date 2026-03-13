@@ -2270,14 +2270,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     // The first operand is an inline type, check if the second operand is non-null
     not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
     ne_region->init_req(3, null_ctl);
-
-    // Check if lhs operand is of a specific speculative inline type (see above).
-    // If not, we don't need to enforce that the lhs is a value object since we know
-    // it already for the rhs, and must enforce that they have the same type.
-    if (left_type != nullptr && left_type->is_inlinetype()) {
-      acmp_type_check_or_trap(&not_null_left, left_type, Deoptimization::Reason_speculate_class_check);
-    }
     if (!stopped()) {
+      // Check if lhs operand is of a specific speculative inline type (see above).
+      // If not, we don't need to enforce that the lhs is a value object since we know
+      // it already for the rhs, and must enforce that they have the same type.
+      if (left_type != nullptr && left_type->is_inlinetype()) {
+        acmp_type_check_or_trap(&not_null_left, left_type, Deoptimization::Reason_speculate_class_check);
+      }
       // Check if both operands are of the same class.
       Node* kls_left = load_object_klass(not_null_left);
       Node* kls_right = load_object_klass(not_null_right);

@@ -2734,6 +2734,7 @@ Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at
   const TypePtr* adr_type = adr->bottom_type()->isa_ptr();
 #ifndef PRODUCT
   if (adr_type == nullptr) {
+    tty->print("adr: ");
     adr->dump(3);
     tty->print("bottom_type: ");
     adr->bottom_type()->dump();
