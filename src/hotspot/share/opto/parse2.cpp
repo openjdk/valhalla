@@ -2027,6 +2027,9 @@ void Parse::acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, 
     tty->print("input_type: ");
     input_type->print();
     tty->print_cr("");
+    tty->print_cr("stopped: %d", stopped());
+    tty->print_cr("control:");
+    control()->dump();
   }
 #endif
   Node* slow_ctl = type_check_receiver(*non_null_input, input_type, 1.0, non_null_input);
