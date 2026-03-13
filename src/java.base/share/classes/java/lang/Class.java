@@ -1453,20 +1453,18 @@ public final class Class<T> implements java.io.Serializable,
      */
     public Set<AccessFlag> accessFlags() {
         if (!PreviewFeatures.isEnabled()) {
-            // Location.CLASS allows SUPER which INNER_CLASS forbids.
-            // Module descriptors are never represented with Class objects, so
-            // we don't need to worry about MODULE.
-            // INNER_CLASS allows PRIVATE, PROTECTED, and STATIC, which are not allowed on Location.CLASS.
-            // Use getClassFileAccessFlags to expose SUPER status.
-            // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
-            boolean usesInnerClass = (isMemberClass() || isLocalClass() ||
-                    isAnonymousClass() || isArray());
-            AccessFlag[] definition = usesInnerClass ? AccessFlagSet.INNER_CLASS_FLAGS : AccessFlagSet.CLASS_FLAGS;
-            int modifiers = usesInnerClass ? getModifiers() : getClassFileAccessFlags();
-            return AccessFlagSet.ofValidated(definition, modifiers);
+            // INNER_CLASS_FLAGS exclusively defines PRIVATE, PROTECTED, and STATIC.
+            // CLASS_FLAGS exclusively defines SUPER and MODULE.
+            // Nested classes and interfaces need to report PRIVATE/PROTECTED/STATIC.
+            // Arrays need to report PRIVATE/PROTECTED.
+            // Top-level classes need to report SUPER, using getClassFileAccessFlags.
+            // Module descriptors do not have Class objects so nothing reports MODULE.
+            return (isArray() || getEnclosingClass() != null)
+                    ? AccessFlagSet.ofValidated(AccessFlagSet.INNER_CLASS_FLAGS, getModifiers())
+                    : AccessFlagSet.ofValidated(AccessFlagSet.CLASS_FLAGS, getClassFileAccessFlags());
         }
-        // Module descriptors are never represented with Class objects, so
-        // MODULE will never surface and inner class flags definition always works
+        // CLASS_FLAGS exclusively defines MODULE, but module descriptors are
+        // never represented with Class objects, so INNER_CLASS_FLAGS works
         return AccessFlagSet.ofValidated(PreviewAccessFlags.INNER_CLASS_PREVIEW_FLAGS, getModifiers());
     }
 
