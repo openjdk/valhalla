@@ -829,19 +829,19 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFieldFlattening, true,                                   \
           "Allow the VM to flatten value fields")                           \
                                                                             \
-  product(bool, UseNonAtomicValueFlattening, true,                          \
+  product(bool, UseNonAtomicValueFlattening, true, DIAGNOSTIC,              \
           "Allow the JVM to flatten some non-atomic null-free values")      \
                                                                             \
-  product(bool, UseNullableValueFlattening, true,                           \
+  product(bool, UseNullableValueFlattening, true, DIAGNOSTIC,               \
           "Allow the JVM to flatten some nullable values")                  \
                                                                             \
-  product(bool, UseAtomicValueFlattening, true,                             \
+  product(bool, UseAtomicValueFlattening, true, DIAGNOSTIC,                 \
           "Allow the JVM to flatten some atomic values")                    \
                                                                             \
-  product(bool, UseNullableNonAtomicValueFlattening, true,                  \
+  product(bool, UseNullableNonAtomicValueFlattening, true, DIAGNOSTIC,      \
           "Allow the JVM to flatten some strict final non-static fields")   \
                                                                             \
-  product(intx, FlatArrayElementMaxOops, 4,                                 \
+  product(intx, FlatArrayElementMaxOops, 4, DIAGNOSTIC,                     \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
                                                                             \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \

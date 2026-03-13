@@ -3880,7 +3880,7 @@ jint Arguments::apply_ergo() {
   if (!is_valhalla_enabled()) {
 #define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
     if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
-      warning("Valhalla-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
+      warning("Preview-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
     }
 
 #define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
@@ -3894,9 +3894,12 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNonAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableNonAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(IgnoreAssertUnsetFields);
     WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
+    WARN_IF_NOT_DEFAULT_FLAG(ForceNonTearable);
 #ifdef ASSERT
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(StressCallingConvention);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PreloadClasses);
