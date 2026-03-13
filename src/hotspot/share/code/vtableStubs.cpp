@@ -266,7 +266,7 @@ inline uint VtableStubs::unsafe_hash(address entry_point) {
   address vtable_caller_type_addr = vtable_stub_addr + offset_of(VtableStub, _caller_type);
   address vtable_index_addr = vtable_stub_addr + offset_of(VtableStub, _index);
   bool is_vtable_stub = *vtable_type_addr == static_cast<uint8_t>(VtableStub::Type::vtable_stub);
-  bool caller_is_c1 = *vtable_caller_type_addr == static_cast<uint8_t>(VtableStub::CallerType::c1);
+  bool caller_is_c1 = (*vtable_caller_type_addr == static_cast<uint8_t>(VtableStub::CallerType::c1));
   short vtable_index;
   static_assert(sizeof(VtableStub::_index) == sizeof(vtable_index), "precondition");
   memcpy(&vtable_index, vtable_index_addr, sizeof(vtable_index));
