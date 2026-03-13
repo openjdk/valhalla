@@ -44,7 +44,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
-ArrayKlass::ArrayKlass() {
+ArrayKlass::ArrayKlass() : _dimension() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
