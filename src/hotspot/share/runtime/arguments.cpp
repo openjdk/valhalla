@@ -3896,7 +3896,7 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullFreeAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableNonAtomicValueFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintValueLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(IgnoreAssertUnsetFields);
     WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
@@ -3927,6 +3927,7 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullFreeAtomicValueFlattening, false);
     DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableNonAtomicValueFlattening, false);
     DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(FlatArrayElementMaxOops, 0);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(ForceNonTearable, "");
 #undef DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING
     if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
       // Disable calling convention optimizations if inline types are not supported.

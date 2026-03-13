@@ -33,7 +33,7 @@
  *                          -XX:+UseFieldFlattening
  *                          -XX:+UseNullFreeAtomicValueFlattening
  *                          -XX:+UseNullableAtomicValueFlattening
- *                          -XX:+PrintInlineLayout
+ *                          -XX:+PrintValueLayout
  *                          -XX:+PrintFlatArrayLayout
  *                          -Xlog:jvmti+table
  *                          ValueHeapwalkingTest
