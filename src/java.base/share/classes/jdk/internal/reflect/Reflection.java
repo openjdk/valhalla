@@ -452,7 +452,7 @@ public class Reflection {
     public static Set<AccessFlag> modifiersToFlags(int modifiers, AccessFlag.Location location) {
         AccessFlag[] definition = PreviewFeatures.isEnabled() ? PreviewAccessFlags.findDefinition(location) : AccessFlagSet.findDefinition(location);
         // A direct parse is more lenient than maskToAccessFlags, which rejects
-        // obsolete like STRICT that is retained by Hotspot
+        // obsolete flags like STRICT that is retained by Hotspot
         return AccessFlagSet.ofValidated(definition, modifiers);
     }
 }

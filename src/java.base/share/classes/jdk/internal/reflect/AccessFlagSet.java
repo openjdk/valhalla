@@ -57,16 +57,16 @@ import static java.lang.reflect.AccessFlag.*;
 /// array entry is `null`.
 public final class AccessFlagSet extends AbstractSet<AccessFlag> {
 
-    private static final @Stable AccessFlag[] // Can use lazy init in the future
-            CLASS_FLAGS = AccessFlagSet.createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
-            FIELD_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
-            METHOD_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),
-            INNER_CLASS_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
-            METHOD_PARAMETER_FLAGS = AccessFlagSet.createDefinition(FINAL, SYNTHETIC, MANDATED),
-            MODULE_FLAGS = AccessFlagSet.createDefinition(OPEN, SYNTHETIC, MANDATED),
-            MODULE_REQUIRES_FLAGS = AccessFlagSet.createDefinition(TRANSITIVE, STATIC_PHASE, SYNTHETIC, MANDATED),
-            MODULE_EXPORTS_FLAGS = AccessFlagSet.createDefinition(SYNTHETIC, MANDATED),
-            MODULE_OPENS_FLAGS = AccessFlagSet.createDefinition(SYNTHETIC, MANDATED);
+    private static final @Stable AccessFlag[]
+            CLASS_FLAGS = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
+            FIELD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
+            METHOD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),
+            INNER_CLASS_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
+            METHOD_PARAMETER_FLAGS = createDefinition(FINAL, SYNTHETIC, MANDATED),
+            MODULE_FLAGS = createDefinition(OPEN, SYNTHETIC, MANDATED),
+            MODULE_REQUIRES_FLAGS = createDefinition(TRANSITIVE, STATIC_PHASE, SYNTHETIC, MANDATED),
+            MODULE_EXPORTS_FLAGS = createDefinition(SYNTHETIC, MANDATED),
+            MODULE_OPENS_FLAGS = createDefinition(SYNTHETIC, MANDATED);
 
     /// Finds a definition that works for access flags for a classfile location for the latest class file format.
     /// @see #findDefinition(Location, ClassFileFormatVersion)
