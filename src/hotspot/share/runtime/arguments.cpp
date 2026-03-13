@@ -55,6 +55,7 @@
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/flags/jvmFlagAccess.hpp"
 #include "runtime/flags/jvmFlagLimit.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
@@ -3881,23 +3882,26 @@ jint Arguments::apply_ergo() {
   if (!is_valhalla_enabled()) {
 #define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
     if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
-      warning("Valhalla-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
+      warning("Preview-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag);  \
     }
 
 #define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
     WARN_IF_NOT_DEFAULT_FLAG(flag)                  \
     FLAG_SET_DEFAULT(flag, false);
 
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypePassFieldsAsArgs);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypeReturnedAsFields);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(ValueTypePassFieldsAsArgs);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(ValueTypeReturnedAsFields);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseArrayFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseFieldFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNonAtomicValueFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableValueFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseAtomicValueFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullFreeNonAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullFreeAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableNonAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintValueLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(IgnoreAssertUnsetFields);
     WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
+    WARN_IF_NOT_DEFAULT_FLAG(ForceNonTearable);
 #ifdef ASSERT
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(StressCallingConvention);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PreloadClasses);
@@ -3913,14 +3917,30 @@ jint Arguments::apply_ergo() {
 #undef DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT
 #undef WARN_IF_NOT_DEFAULT_FLAG
   } else {
+#define DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(flag, fallback)                                        \
+    if (!FLAG_IS_DEFAULT(flag) && !UseArrayFlattening && !UseFieldFlattening) {                       \
+      warning("Flattening flag \"%s\" has no effect when all flattening modes are disabled.", #flag); \
+      FLAG_SET_DEFAULT(flag, fallback);                                                               \
+    }
+
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullFreeNonAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullFreeAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableNonAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(FlatArrayElementMaxOops, 0);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(ForceNonTearable, "");
+#undef DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING
     if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
       // Disable calling convention optimizations if inline types are not supported.
       // Also these aren't useful in -Xint. However, don't disable them when dumping or using
       // the CDS archive, as the values must match between dumptime and runtime.
-      FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
-      FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
+      FLAG_SET_DEFAULT(ValueTypePassFieldsAsArgs, false);
+      FLAG_SET_DEFAULT(ValueTypeReturnedAsFields, false);
     }
-    if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
+    if (!UseNullFreeNonAtomicValueFlattening
+        && !UseNullableAtomicValueFlattening
+        && !UseNullFreeAtomicValueFlattening
+        && !UseNullableNonAtomicValueFlattening) {
       // Flattening is disabled
       FLAG_SET_DEFAULT(UseArrayFlattening, false);
       FLAG_SET_DEFAULT(UseFieldFlattening, false);

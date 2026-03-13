@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -45,14 +46,15 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
             new Scenario(1,
                          "--enable-preview",
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -60,14 +62,15 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:-InlineTypePassFieldsAsArgs",
-                         "-XX:-InlineTypeReturnedAsFields"
+                         "-XX:-ValueTypePassFieldsAsArgs",
+                         "-XX:-ValueTypeReturnedAsFields"
             ),
             new Scenario(2,
                          "--enable-preview",
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -75,35 +78,37 @@ public class InlineTypes {
                          "-XX:-UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
             new Scenario(3,
                          "--enable-preview",
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:+AlwaysIncrementalInline",
                          "-XX:FlatArrayElementMaxOops=0",
                          "-XX:-UseArrayFlattening",
                          "-XX:-UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
             new Scenario(4,
                          "--enable-preview",
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:FlatArrayElementMaxOops=-1",
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:-InlineTypeReturnedAsFields",
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:-ValueTypeReturnedAsFields",
                          "-XX:-ReduceInitialCardMarks"
             ),
             new Scenario(5,
@@ -111,6 +116,7 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -118,14 +124,15 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:-InlineTypePassFieldsAsArgs",
-                         "-XX:-InlineTypeReturnedAsFields"
+                         "-XX:-ValueTypePassFieldsAsArgs",
+                         "-XX:-ValueTypeReturnedAsFields"
             ),
             new Scenario(6,
                          "--enable-preview",
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+UnlockDiagnosticVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -133,11 +140,11 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+UseNullableValueFlattening",
-                         "-XX:+UseAtomicValueFlattening",
-                         "-XX:+UseNonAtomicValueFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+UseNullableAtomicValueFlattening",
+                         "-XX:+UseNullFreeAtomicValueFlattening",
+                         "-XX:+UseNullFreeNonAtomicValueFlattening",
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
     };
 

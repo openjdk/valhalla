@@ -764,7 +764,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
-  if (InlineTypePassFieldsAsArgs) {
+  if (ValueTypePassFieldsAsArgs) {
     for (int i = 0; i < sig_extended->length(); i++) {
       BasicType bt = sig_extended->at(i)._bt;
       if (bt == T_METADATA) {
@@ -912,7 +912,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  if (InlineTypePassFieldsAsArgs) {
+  if (ValueTypePassFieldsAsArgs) {
     // Is there an inline type argument?
     bool has_inline_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
@@ -1008,7 +1008,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
-    if (!InlineTypePassFieldsAsArgs || bt != T_METADATA) {
+    if (!ValueTypePassFieldsAsArgs || bt != T_METADATA) {
       int next_off = st_off - Interpreter::stackElementSize;
       const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];

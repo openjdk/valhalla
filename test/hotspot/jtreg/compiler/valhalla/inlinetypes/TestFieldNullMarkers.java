@@ -57,7 +57,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:-UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -74,7 +75,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:-UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -91,7 +93,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:-UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -108,7 +111,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:-UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -125,7 +129,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -142,7 +147,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -159,7 +165,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -176,7 +183,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -193,7 +201,8 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                               -XX:CompileCommand=dontinline,*::testHelper*
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -211,8 +220,9 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                               -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+ValueTypeReturnedAsFields -XX:+ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -229,8 +239,9 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                               -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:-ValueTypeReturnedAsFields -XX:-ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -247,8 +258,9 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                               -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+ValueTypeReturnedAsFields -XX:-ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -265,8 +277,9 @@ import jdk.test.lib.helpers.StrictInit;
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                               -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
+ *                               -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:-ValueTypeReturnedAsFields -XX:+ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 

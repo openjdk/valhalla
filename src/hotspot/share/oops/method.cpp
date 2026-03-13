@@ -756,7 +756,7 @@ int Method::extra_stack_words() {
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
 InlineKlass* Method::returns_inline_type() const {
-  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  assert(ValueTypeReturnedAsFields, "Inline types should never be returned as fields");
   if (is_native()) {
     return nullptr;
   }
@@ -1329,7 +1329,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
-  if (InlineTypeReturnedAsFields && returns_inline_type() && !has_scalarized_return()) {
+  if (ValueTypeReturnedAsFields && returns_inline_type() && !has_scalarized_return()) {
     set_has_scalarized_return();
   }
 

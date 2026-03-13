@@ -850,7 +850,7 @@
           "Take advantage of profiling at array load/store")                \
                                                                             \
   product(bool, UseACmpProfile, true,                                       \
-          "Take advantage of profiling at acmp")                            \
+          "Take advantage of profiling at if_acmp<cond>")                   \
                                                                             \
   develop(uintx, StressLongCountedLoop, 0,                                  \
           "if > 0, convert int counted loops to long counted loops"         \

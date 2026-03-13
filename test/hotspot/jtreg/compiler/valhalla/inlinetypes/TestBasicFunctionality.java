@@ -195,10 +195,10 @@ public class TestBasicFunctionality {
 
     // Return incoming value object without accessing fields
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 19"},
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test3(MyValue1 v) {
         return v;
@@ -250,10 +250,10 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and pass it to
     // the interpreter via a call.
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test6() {
@@ -305,11 +305,11 @@ public class TestBasicFunctionality {
 static MyValue1 tmp = null;
     // Merge value objects created from two branches
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", LOAD_OF_ANY_KLASS, "= 19",
                   STORE_OF_ANY_KLASS, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
         failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "= 2", STORE_OF_ANY_KLASS, "= 19"},
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
@@ -450,10 +450,10 @@ static MyValue1 tmp = null;
     // Create a value object in a non-inlined method and then call a
     // non-inlined method on that value object.
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
         counts = {LOAD_OF_ANY_KLASS, "= 19"})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test14() {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -469,10 +469,10 @@ static MyValue1 tmp = null;
     // Create a value object in an inlined method and then call a
     // non-inlined method on that value object.
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}) // 1 MyValue2 allocation (if not the all-zero value)
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
     public long test15() {
@@ -520,10 +520,10 @@ static MyValue1 tmp = null;
     // interpreter via a call. The value object is live at the first call so
     // debug info should include a reference to all its fields.
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test18() {
@@ -542,10 +542,10 @@ static MyValue1 tmp = null;
     // interpreter via a call. The value object is passed twice but
     // should only be allocated once.
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test19() {
@@ -569,11 +569,11 @@ static MyValue1 tmp = null;
     // trap: verify that deoptimization causes the value object to be
     // correctly allocated.
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD_OF_ANY_KLASS})
     // TODO 8350865
-    //@IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    //@IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
     //    counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
     //    failOn = LOAD_OF_ANY_KLASS)
     public long test20(boolean deopt, Method m) {
@@ -816,7 +816,7 @@ static MyValue1 tmp = null;
 
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test31() {
         // C2 can re-use the oop returned by createDontInline()
@@ -838,7 +838,7 @@ static MyValue1 tmp = null;
 
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test32(MyValue3 vt) {
         // C2 can re-use the oop of vt because vt is equal to 'copy'.
@@ -1125,7 +1125,7 @@ static MyValue1 tmp = null;
 
     // Test detection of value object copies and removal of the MemBarRelease following the value buffer initialization
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public void test41(MyValue41 val) {
         field41 = new MyValue41(val.x);
@@ -1145,7 +1145,7 @@ static MyValue1 tmp = null;
 
     // Same as test41 but with call argument requiring buffering
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public void test42(MyValue41 val) {
         test42_helper(new MyValue41(val.x));
@@ -1243,7 +1243,7 @@ static MyValue1 tmp = null;
 
     @Test
     // TODO 8357580 more aggressive flattening
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
     public Integer test45(Object arg) {
         return ((MyValue45ValueHolder) arg).v.v;
     }
@@ -1258,8 +1258,8 @@ static MyValue1 tmp = null;
 
     @Test
     // TODO 8357580 more aggressive flattening
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
     public Integer test46(Object arg) {
         return ((MyValue45Holder) arg).v.v;
     }
@@ -1304,8 +1304,8 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
     public MyValue47Holder test47(MyValue47HolderHolder arg) {
         return arg.v;
     }
@@ -1319,8 +1319,8 @@ static MyValue1 tmp = null;
     static final MyValue47Holder[] MY_VALUE_47_HOLDERS = (MyValue47Holder[]) ValueClass.newNullRestrictedAtomicArray(MyValue47Holder.class, 2, new MyValue47Holder(rI));
 
     @Test
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
     public MyValue47Holder test48() {
         return MY_VALUE_47_HOLDERS[0];
     }

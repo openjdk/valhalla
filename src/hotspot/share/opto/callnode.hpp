@@ -849,7 +849,7 @@ public:
       C->add_macro_node(this);
     }
     const TypeTuple *r = tf->range_sig();
-    if (InlineTypeReturnedAsFields &&
+    if (ValueTypeReturnedAsFields &&
         method != nullptr &&
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&

@@ -132,7 +132,7 @@ protected:
       _call_node(nullptr),
       _separate_io_proj(separate_io_proj)
   {
-    if (InlineTypeReturnedAsFields && method->is_method_handle_intrinsic()) {
+    if (ValueTypeReturnedAsFields && method->is_method_handle_intrinsic()) {
       // If that call has not been optimized by the time optimizations are over,
       // we'll need to add a call to create an inline type instance from the klass
       // returned by the call (see PhaseMacroExpand::expand_mh_intrinsic_return).

@@ -29,7 +29,7 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm/native --enable-native-access=ALL-UNNAMED -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.InlineWithJni
+ * @run main/othervm/native --enable-native-access=ALL-UNNAMED -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.InlineWithJni
  */
 
 

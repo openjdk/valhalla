@@ -31,9 +31,9 @@
  *                          -XX:+UnlockDiagnosticVMOptions
  *                          -XX:+UseArrayFlattening
  *                          -XX:+UseFieldFlattening
- *                          -XX:+UseAtomicValueFlattening
- *                          -XX:+UseNullableValueFlattening
- *                          -XX:+PrintInlineLayout
+ *                          -XX:+UseNullFreeAtomicValueFlattening
+ *                          -XX:+UseNullableAtomicValueFlattening
+ *                          -XX:+PrintValueLayout
  *                          -XX:+PrintFlatArrayLayout
  *                          -Xlog:jvmti+table
  *                          ValueHeapwalkingTest

@@ -1445,7 +1445,7 @@ public class TestLWorld {
 
     // Test instanceof with inline types and arrays
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
     public long test40(Object o, int index) {
         if (o instanceof MyValue1) {
@@ -2621,7 +2621,7 @@ public class TestLWorld {
 
     @Test
     // TODO 8355382 The optimization only applies to null-free, flat arrays
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableAtomicValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC, MEMBAR})
     public Object test92(Object[] array) {
@@ -2689,7 +2689,7 @@ public class TestLWorld {
 
     @Test
     // TODO 8355382 The optimization only applies to null-free, flat arrays
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableAtomicValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC, MEMBAR})
     public int test94(Object[] array) {
@@ -3659,7 +3659,7 @@ public class TestLWorld {
 
     // Verify that empty inline type field loads check for null holder
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC})
     public MyValueEmpty test122(TestLWorld t) {
         return t.fEmpty3;
@@ -4053,7 +4053,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC})
     @IR(failOn = {LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValueEmpty test139() {
@@ -4218,7 +4218,7 @@ public class TestLWorld {
 
     // Test post-parse call devirtualization with inline type receiver
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
     @IR(failOn = {DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
         counts = {STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
@@ -4894,7 +4894,7 @@ public class TestLWorld {
     // Verify that the substitutability runtime call is removed if (at least) one of the arguments has a known type
     @Test
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 2"}) // Need to load from non-flat 'integerValue' fields
     public boolean test174(AllPrimitives x, AllPrimitives y) {
         return getter(x) == getter(y);
@@ -4934,7 +4934,7 @@ public class TestLWorld {
     // Same as test174 but only one operand has a known type
     @Test
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 15"}) // Need to load the fields from 'y'
     public boolean test176(AllPrimitives x, Object y) {
         return getter(x) == getter(y);
@@ -4960,7 +4960,7 @@ public class TestLWorld {
     // Same as above but type of 'y' is only known after loop opts
     @Test
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {LOAD, "= 14"}) // Need to load the fields from 'x'
     public boolean test177(Object x, AllPrimitives y) {
         Object val = null;

@@ -235,7 +235,7 @@ PhaseOutput::PhaseOutput()
       fixed_slots -= 2;
     }
     // TODO 8284443 Only reserve extra slot if needed
-    if (InlineTypeReturnedAsFields) {
+    if (ValueTypeReturnedAsFields) {
       fixed_slots -= 2;
     }
     _orig_pc_slot = fixed_slots - (sizeof(address) / VMRegImpl::stack_slot_size);

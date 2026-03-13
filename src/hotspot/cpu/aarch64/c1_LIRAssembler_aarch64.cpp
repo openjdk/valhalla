@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -482,7 +482,7 @@ void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
 void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     // Check if we are returning an non-null inline type and load its fields into registers
     ciType* return_type = compilation()->method()->return_type();
     if (return_type->is_inlinetype()) {

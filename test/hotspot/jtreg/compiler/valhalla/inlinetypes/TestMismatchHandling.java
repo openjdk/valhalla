@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,12 +47,12 @@
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
- *                   -XX:-InlineTypePassFieldsAsArgs
+ *                   -XX:-ValueTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-Inline -XX:-InlineAccessors -XX:-UseBimorphicInlining -XX:-UseCHA -XX:-UseTypeProfile
- *                   -XX:-InlineTypeReturnedAsFields
+ *                   -XX:-ValueTypeReturnedAsFields
  *                   compiler.valhalla.inlinetypes.TestMismatchHandling
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

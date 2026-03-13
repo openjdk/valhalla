@@ -49,8 +49,8 @@ import java.util.function.Function;
  * @summary Test atomic access modes on var handles for flattened values
  * @enablePreview
  * @modules java.base/jdk.internal.value java.base/jdk.internal.vm.annotation
- * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening FlatVarHandleTest
- * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening -XX:-UseNullableAtomicValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening FlatVarHandleTest
  */
 public class FlatVarHandleTest {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ import jdk.test.whitebox.WhiteBox;
  *                   compiler.valhalla.inlinetypes.TestLoadingDefaultRefinedArrayKlass
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*TestLoadingDefaultRefinedArrayKlass::test*
- *                   -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestLoadingDefaultRefinedArrayKlass
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*TestLoadingDefaultRefinedArrayKlass::test*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1057,7 +1057,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   movptr(rbx,
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
-  if (state == atos && InlineTypeReturnedAsFields) {
+  if (state == atos && ValueTypeReturnedAsFields) {
     Label skip;
     Label not_null;
     testptr(rax, rax);
