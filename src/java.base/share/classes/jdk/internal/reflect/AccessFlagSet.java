@@ -57,7 +57,7 @@ import static java.lang.reflect.AccessFlag.*;
 /// array entry is `null`.
 public final class AccessFlagSet extends AbstractSet<AccessFlag> {
 
-    private static final @Stable AccessFlag[]
+    public static final @Stable AccessFlag[]
             CLASS_FLAGS = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
             FIELD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
             METHOD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),

@@ -46,7 +46,7 @@ import static java.lang.reflect.AccessFlag.*;
 ///  preview features are not enabled,
 public final class PreviewAccessFlags {
 
-    private static final @Stable AccessFlag[]
+    public static final @Stable AccessFlag[]
             CLASS_PREVIEW_FLAGS = AccessFlagSet.createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
             FIELD_PREVIEW_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT),
             INNER_CLASS_PREVIEW_FLAGS = AccessFlagSet.createDefinition(PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM);

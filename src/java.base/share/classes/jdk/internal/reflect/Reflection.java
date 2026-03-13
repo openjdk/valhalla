@@ -33,7 +33,6 @@ import java.util.Set;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -445,14 +444,4 @@ public class Reflection {
      */
     public static native boolean areNestMates(Class<?> currentClass,
                                               Class<?> memberClass);
-
-    /// Parses a runtime modifier from core reflection/Hotspot into access flags.
-    /// Note that there is one unique representation in hotspot, so we don't need version argument.
-    /// This API is only designed to accept trusted modifiers from Hotspot!
-    public static Set<AccessFlag> modifiersToFlags(int modifiers, AccessFlag.Location location) {
-        AccessFlag[] definition = PreviewFeatures.isEnabled() ? PreviewAccessFlags.findDefinition(location) : AccessFlagSet.findDefinition(location);
-        // A direct parse is more lenient than maskToAccessFlags, which rejects
-        // obsolete flags like STRICT that is retained by Hotspot
-        return AccessFlagSet.ofValidated(definition, modifiers);
-    }
 }

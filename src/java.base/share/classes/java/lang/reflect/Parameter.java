@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
 
-import jdk.internal.reflect.Reflection;
+import jdk.internal.reflect.AccessFlagSet;
 import sun.reflect.annotation.AnnotationSupport;
 
 /**
@@ -174,7 +174,7 @@ public final class Parameter implements AnnotatedElement {
      * @since 20
      */
     public Set<AccessFlag> accessFlags() {
-        return Reflection.modifiersToFlags(getModifiers(), AccessFlag.Location.METHOD_PARAMETER);
+        return AccessFlagSet.ofValidated(AccessFlagSet.METHOD_PARAMETER_FLAGS, modifiers);
     }
 
     /**

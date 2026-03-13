@@ -34,7 +34,7 @@ import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.reflect.Reflection;
+import jdk.internal.reflect.AccessFlagSet;
 import jdk.internal.vm.annotation.Stable;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.AnnotationSupport;
@@ -227,7 +227,7 @@ public abstract sealed class Executable extends AccessibleObject
      */
     @Override
     public Set<AccessFlag> accessFlags() {
-        return Reflection.modifiersToFlags(getModifiers(), AccessFlag.Location.METHOD);
+        return AccessFlagSet.ofValidated(AccessFlagSet.METHOD_FLAGS, getModifiers());
     }
 
     /**

@@ -76,9 +76,11 @@ import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.module.Resources;
+import jdk.internal.reflect.AccessFlagSet;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
+import jdk.internal.reflect.PreviewAccessFlags;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.util.ModifiedUtf;
@@ -1450,17 +1452,22 @@ public final class Class<T> implements java.io.Serializable,
      * @since 20
      */
     public Set<AccessFlag> accessFlags() {
-        // Location.CLASS allows SUPER and AccessFlag.MODULE which
-        // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
-        // and STATIC, which are not allowed on Location.CLASS.
-        // Use getClassFileAccessFlags to expose SUPER status.
-        // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
-        var location = (isMemberClass() || isLocalClass() ||
-                        isAnonymousClass() || isArray()) ?
-            AccessFlag.Location.INNER_CLASS :
-            AccessFlag.Location.CLASS;
-        int accessFlags = location == AccessFlag.Location.CLASS ? getClassFileAccessFlags() : getModifiers();
-        return Reflection.modifiersToFlags(accessFlags, location);
+        if (!PreviewFeatures.isEnabled()) {
+            // Location.CLASS allows SUPER which INNER_CLASS forbids.
+            // Module descriptors are never represented with Class objects, so
+            // we don't need to worry about MODULE.
+            // INNER_CLASS allows PRIVATE, PROTECTED, and STATIC, which are not allowed on Location.CLASS.
+            // Use getClassFileAccessFlags to expose SUPER status.
+            // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
+            boolean usesInnerClass = (isMemberClass() || isLocalClass() ||
+                    isAnonymousClass() || isArray());
+            AccessFlag[] definition = usesInnerClass ? AccessFlagSet.INNER_CLASS_FLAGS : AccessFlagSet.CLASS_FLAGS;
+            int modifiers = usesInnerClass ? getModifiers() : getClassFileAccessFlags();
+            return AccessFlagSet.ofValidated(definition, modifiers);
+        }
+        // Module descriptors are never represented with Class objects, so
+        // MODULE will never surface and inner class flags definition always works
+        return AccessFlagSet.ofValidated(PreviewAccessFlags.INNER_CLASS_PREVIEW_FLAGS, getModifiers());
     }
 
     /**
