@@ -140,9 +140,9 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+UseNullableValueFlattening",
-                         "-XX:+UseAtomicValueFlattening",
-                         "-XX:+UseNonAtomicValueFlattening",
+                         "-XX:+UseNullableAtomicValueFlattening",
+                         "-XX:+UseNullFreeAtomicValueFlattening",
+                         "-XX:+UseNullFreeNonAtomicValueFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
                          "-XX:+InlineTypeReturnedAsFields"
             ),

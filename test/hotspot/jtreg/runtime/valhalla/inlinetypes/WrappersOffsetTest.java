@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,56 +26,56 @@
  * @test id=nf-na-nn
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test id=nf-na-n
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test id=nf-a-nn
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test id=f-na-nn
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test id=f-na-n
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test id=nf-a-n
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test id=f-a-nn
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
 /*
  * @test id=f-a-n
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
 package runtime.valhalla.inlinetypes;

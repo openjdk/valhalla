@@ -31,8 +31,8 @@
  *                          -XX:+UnlockDiagnosticVMOptions
  *                          -XX:+UseArrayFlattening
  *                          -XX:+UseFieldFlattening
- *                          -XX:+UseAtomicValueFlattening
- *                          -XX:+UseNullableValueFlattening
+ *                          -XX:+UseNullFreeAtomicValueFlattening
+ *                          -XX:+UseNullableAtomicValueFlattening
  *                          -XX:+PrintInlineLayout
  *                          -XX:+PrintFlatArrayLayout
  *                          -Xlog:jvmti+table

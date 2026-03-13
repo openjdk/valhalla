@@ -123,7 +123,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -141,7 +141,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -159,7 +159,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -178,7 +178,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -197,7 +197,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline

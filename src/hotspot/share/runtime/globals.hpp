@@ -822,7 +822,7 @@ const int ObjectAlignmentInBytes = 8;
           "inlined value fields")                                           \
                                                                             \
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
-          "Print array layout for each inline type array")                  \
+          "Print array layout for each flattened value array")              \
                                                                             \
   product(bool, UseArrayFlattening, true,                                   \
           "Allow the JVM to flatten arrays of concrete value objects "      \
@@ -832,14 +832,14 @@ const int ObjectAlignmentInBytes = 8;
           "Allow the JVM to inline the fields of concrete value objects "   \
           "when it determines it is possible and beneficial to do so")      \
                                                                             \
-  product(bool, UseNonAtomicValueFlattening, true, DIAGNOSTIC,              \
-          "Allow the JVM to flatten some non-atomic null-free values")      \
+  product(bool, UseNullFreeNonAtomicValueFlattening, true, DIAGNOSTIC,      \
+          "Allow the JVM to flatten some null-free non-atomic values")      \
                                                                             \
-  product(bool, UseNullableValueFlattening, true, DIAGNOSTIC,               \
-          "Allow the JVM to flatten some nullable values")                  \
+  product(bool, UseNullableAtomicValueFlattening, true, DIAGNOSTIC,         \
+          "Allow the JVM to flatten some nullable atomic values")           \
                                                                             \
-  product(bool, UseAtomicValueFlattening, true, DIAGNOSTIC,                 \
-          "Allow the JVM to flatten some atomic values")                    \
+  product(bool, UseNullFreeAtomicValueFlattening, true, DIAGNOSTIC,         \
+          "Allow the JVM to flatten some null-free atomic values")          \
                                                                             \
   product(bool, UseNullableNonAtomicValueFlattening, true, DIAGNOSTIC,      \
           "Allow the JVM to flatten some strict final non-static fields")   \

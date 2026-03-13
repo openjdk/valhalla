@@ -41,7 +41,7 @@
  *                   -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   -Xbatch -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 

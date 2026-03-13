@@ -352,8 +352,8 @@ public class ValueCompositionTest {
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
     Collections.addAll(argsList, "-Xmx512m");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
+    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseNullFreeAtomicValueFlattening" : "-XX:-UseNullFreeAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableAtomicValueFlattening" : "-XX:-UseNullableAtomicValueFlattening");
     Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);

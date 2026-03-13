@@ -24,8 +24,8 @@
 /*
  * @test
  * @enablePreview
- * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening NullRestrictedArraysTest
- * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening NullRestrictedArraysTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening -XX:-UseNullableAtomicValueFlattening NullRestrictedArraysTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;

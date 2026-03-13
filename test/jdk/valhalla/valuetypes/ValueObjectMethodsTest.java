@@ -29,7 +29,7 @@
  * @enablePreview
  * @run junit/othervm ValueObjectMethodsTest
  * @run junit/othervm -XX:+UseFieldFlattening ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseNullFreeAtomicValueFlattening ValueObjectMethodsTest
  */
 import java.lang.classfile.ClassFile;
 import java.util.Optional;

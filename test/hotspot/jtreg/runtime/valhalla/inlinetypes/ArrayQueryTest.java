@@ -30,7 +30,7 @@
  *          java.base/jdk.internal.value
  * @enablePreview
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening
- *           -XX:+UseNonAtomicValueFlattening -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *           -XX:+UseNullFreeNonAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening
  *           runtime.valhalla.inlinetypes.ArrayQueryTest
  */
 
