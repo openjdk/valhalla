@@ -28,6 +28,7 @@
 #include "gc/z/zAddress.hpp"
 
 class ZBarrierSetAssembler;
+class ValuePayload;
 
 class ZBarrierSet : public BarrierSet {
 private:
