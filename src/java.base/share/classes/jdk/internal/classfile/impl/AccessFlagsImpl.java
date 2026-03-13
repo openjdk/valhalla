@@ -31,13 +31,14 @@ import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Set;
 
 import jdk.internal.misc.VM;
+import jdk.internal.reflect.PreviewAccessFlags;
 
 public final class AccessFlagsImpl extends AbstractElement
         implements AccessFlags {
 
     private final AccessFlag.Location location;
     private final int flagsMask;
-    private final ClassFileFormatVersion formatVersion;
+    private final ClassFileFormatVersion formatVersion; // null for preview
     private Set<AccessFlag> flags;
 
     public AccessFlagsImpl(AccessFlag.Location location, AccessFlag... flags) {
@@ -56,7 +57,7 @@ public final class AccessFlagsImpl extends AbstractElement
         int minor = version >>> Character.SIZE;
 
         ClassFileFormatVersion cffv = minor == ClassFile.PREVIEW_MINOR_VERSION
-                ? ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES // Try to guess for older preview features
+                ? null // Try to guess for older preview features
                 : VM.isSupportedClassFileVersion(major, minor) ? ClassFileFormatVersion.fromMajor(major)
                                                                : ClassFileFormatVersion.latest(); // Fallback
         this(location, mask, cffv);
@@ -76,7 +77,8 @@ public final class AccessFlagsImpl extends AbstractElement
     @Override
     public Set<AccessFlag> flags() {
         if (flags == null)
-            flags = AccessFlag.maskToAccessFlags(flagsMask, location, formatVersion);
+            flags = formatVersion == null ? PreviewAccessFlags.maskToAccessFlags(flagsMask, location)
+                                          : AccessFlag.maskToAccessFlags(flagsMask, location, formatVersion);
         return flags;
     }
 

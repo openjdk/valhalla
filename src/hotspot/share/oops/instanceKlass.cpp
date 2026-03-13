@@ -3781,6 +3781,10 @@ u2 InstanceKlass::compute_modifier_flags() const {
       break;
     }
   }
+  if (!Arguments::is_valhalla_enabled()) {
+    // Remember to strip ACC_SUPER bit without Valhalla
+    access &= (~JVM_ACC_SUPER);
+  }
   return access;
 }
 

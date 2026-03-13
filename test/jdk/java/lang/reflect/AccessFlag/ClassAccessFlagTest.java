@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,21 +24,13 @@
 /*
  * @test
  * @bug 8266670 8291734 8296743
+ * @requires !java.enablePreview
  * @summary Test expected AccessFlag's on classes.
- * @modules java.base/jdk.internal.misc
- * @library /test/lib ..
- * @enablePreview
  */
-
-
-import jdk.internal.misc.PreviewFeatures;
 
 import java.lang.annotation.*;
 import java.lang.reflect.*;
 import java.util.*;
-
-import jtreg.SkippedException;
-
 
 import static java.lang.reflect.AccessFlag.*;
 
@@ -61,9 +53,6 @@ import static java.lang.reflect.AccessFlag.*;
 @ExpectedClassFlags({PUBLIC, FINAL, SUPER})
 public final class ClassAccessFlagTest {
     public static void main(String... args) {
-        if (PreviewFeatures.isEnabled()) {
-            throw new SkippedException("Preview mode not supported");
-        }
         // Top-level and auxiliary classes; i.e. non-inner classes
         Class<?>[] testClasses = {
             ClassAccessFlagTest.class,

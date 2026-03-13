@@ -62,7 +62,7 @@ import jdk.internal.javac.ParticipatesInPreview;
  * @moduleGraph
  * @since 9
  */
-@ParticipatesInPreview  // Uses Valhalla reflective preview APIs
+@ParticipatesInPreview  // Uses Valhalla reflective preview APIs, StackMapTable
 module jdk.jdeps {
     requires java.compiler;
     requires jdk.compiler;

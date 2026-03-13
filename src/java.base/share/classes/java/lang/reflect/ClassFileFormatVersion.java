@@ -25,10 +25,6 @@
 
 package java.lang.reflect;
 
-import java.lang.classfile.ClassFile;
-
-import jdk.internal.javac.PreviewFeature;
-
 /**
  * Class file format versions of the Java virtual machine.
  *
@@ -399,15 +395,10 @@ public enum ClassFileFormatVersion {
      * <cite>The Java Virtual Machine Specification, Java SE 27 Edition</cite></a>
      */
     RELEASE_27(71),
+    ; // Reduce code churn when appending new constants
 
-    // Reduce code churn when appending new constants
     // Note to maintainers: when adding constants for newer releases,
     // the implementation of latest() must be updated too.
-
-    /// The preview features of Valhalla.
-    /// @since Valhalla
-    @PreviewFeature(feature = PreviewFeature.Feature.LANGUAGE_MODEL, reflective = true)
-    CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
 
     private final int major;
 

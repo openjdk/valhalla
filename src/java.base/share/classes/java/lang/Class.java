@@ -38,7 +38,6 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
-import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
@@ -61,7 +60,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -78,9 +76,11 @@ import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.module.Resources;
+import jdk.internal.reflect.AccessFlagSet;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
+import jdk.internal.reflect.PreviewAccessFlags;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.util.ModifiedUtf;
@@ -1425,7 +1425,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     public int getModifiers() { return modifiers; }
 
-   /**
+    /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
      * flags} for this class, possibly empty}
      * The {@code AccessFlags} may depend on the class file format version of the class.
@@ -1452,25 +1452,20 @@ public final class Class<T> implements java.io.Serializable,
      * @since 20
      */
     public Set<AccessFlag> accessFlags() {
-        // Location.CLASS allows SUPER and AccessFlag.MODULE which
-        // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
-        // and STATIC, which are not allowed on Location.CLASS.
-        // Use getClassFileAccessFlags to expose SUPER status.
-        // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
-        var location = (isMemberClass() || isLocalClass() ||
-                        isAnonymousClass() || isArray()) ?
-            AccessFlag.Location.INNER_CLASS :
-            AccessFlag.Location.CLASS;
-        int accessFlags = location == AccessFlag.Location.CLASS ? getClassFileAccessFlags() : getModifiers();
-        var reflectionFactory = getReflectionFactory();
-        var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
-        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
-                && isIdentity()) {
-            var set = new HashSet<>(ans);
-            set.add(AccessFlag.IDENTITY);
-            return Set.copyOf(set);
+        if (!PreviewFeatures.isEnabled()) {
+            // INNER_CLASS_FLAGS exclusively defines PRIVATE, PROTECTED, and STATIC.
+            // CLASS_FLAGS exclusively defines SUPER and MODULE.
+            // Nested classes and interfaces need to report PRIVATE/PROTECTED/STATIC.
+            // Arrays need to report PRIVATE/PROTECTED.
+            // Top-level classes need to report SUPER, using getClassFileAccessFlags.
+            // Module descriptors do not have Class objects so nothing reports MODULE.
+            return (isArray() || getEnclosingClass() != null)
+                    ? AccessFlagSet.ofValidated(AccessFlagSet.INNER_CLASS_FLAGS, getModifiers())
+                    : AccessFlagSet.ofValidated(AccessFlagSet.CLASS_FLAGS, getClassFileAccessFlags());
         }
-        return ans;
+        // CLASS_FLAGS exclusively defines MODULE, but module descriptors are
+        // never represented with Class objects, so INNER_CLASS_FLAGS works
+        return AccessFlagSet.ofValidated(PreviewAccessFlags.INNER_CLASS_PREVIEW_FLAGS, getModifiers());
     }
 
     /**
