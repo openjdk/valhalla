@@ -98,9 +98,8 @@ class FlatArrayKlass : public ObjArrayKlass {
   size_t oop_size(oop obj) const override;
 
   // Oop Allocation
- private:
-  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS) override;
- public:
+  flatArrayOop allocate_instance(int length, TRAPS);
+
   oop multi_allocate(int rank, jint* sizes, TRAPS) override;
 
   // Naming
