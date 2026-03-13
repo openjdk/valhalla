@@ -1050,8 +1050,8 @@ bool InstanceKlass::verify_code(TRAPS) {
 }
 
 static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, TRAPS) {
-  ResourceMark rm(THREAD);
-  if (ik->loadable_descriptors() != nullptr && PreloadClasses) {
+  if (ik->loadable_descriptors() != Universe::the_empty_short_array() && PreloadClasses) {
+    ResourceMark rm(THREAD);
     HandleMark hm(THREAD);
     for (int i = 0; i < ik->loadable_descriptors()->length(); i++) {
       Symbol* sig = ik->constants()->symbol_at(ik->loadable_descriptors()->at(i));
