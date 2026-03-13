@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -469,7 +469,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // and null it as marker that esp is now tos until next java call
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
-  if (state == atos && InlineTypeReturnedAsFields) {
+  if (state == atos && ValueTypeReturnedAsFields) {
     __ store_inline_type_fields_to_buf(nullptr, true);
   }
 

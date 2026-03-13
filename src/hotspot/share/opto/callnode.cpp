@@ -787,7 +787,7 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
     if (tf()->returns_inline_type_as_fields()) {
       // The call returns multiple values (inline type fields): we
       // create one projection per returned value.
-      assert(con <= TypeFunc::Parms+1 || InlineTypeReturnedAsFields, "only for multi value return");
+      assert(con <= TypeFunc::Parms+1 || ValueTypeReturnedAsFields, "only for multi value return");
       uint ideal_reg = range_cc->field_at(con)->ideal_reg();
       return new MachProjNode(this, con, mask[con-TypeFunc::Parms], ideal_reg);
     } else {

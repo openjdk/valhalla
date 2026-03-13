@@ -452,7 +452,7 @@ public class TestCallingConventionC1 {
     static RefPoint refPointField2 = new RefPoint(56789, 0x12345678);
 
     // This value class has too many fields to fit in registers on x64 for
-    // InlineTypeReturnedAsFields.
+    // ValueTypeReturnedAsFields.
     @LooselyConsistentValue
     static value class TooBigToReturnAsFields {
         int a0 = 0;
@@ -1593,9 +1593,9 @@ public class TestCallingConventionC1 {
     }
 
     //-------------------------------------------------------------------------------
-    // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns
+    // Tests for how C1 handles ValueTypeReturnedAsFields in both calls and returns
     //-------------------------------------------------------------------------------
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (Point)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (Point)
     @Test(compLevel = CompLevel.C2)
     public int test78(Point p) {
         Point np = test78_helper(p);
@@ -1615,7 +1615,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C2)
     public int test79(RefPoint p) {
         RefPoint np = test79_helper(p);
@@ -1635,7 +1635,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-    // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint)
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test80(RefPoint p) {
         RefPoint np = test80_helper(p);
@@ -1655,7 +1655,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-    // Interpreter->C1 invokestatic with InlineTypeReturnedAsFields (Point)
+    // Interpreter->C1 invokestatic with ValueTypeReturnedAsFields (Point)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public Point test81(Point p) {
         return p;
@@ -1671,7 +1671,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(p.y, pointField2.y);
     }
 
-    // C1->Interpreter invokestatic with InlineTypeReturnedAsFields (RefPoint)
+    // C1->Interpreter invokestatic with ValueTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test82(RefPoint p) {
         RefPoint np = test82_helper(p);
@@ -1691,10 +1691,10 @@ public class TestCallingConventionC1 {
     }
 
     //-------------------------------------------------------------------------------
-    // Tests for InlineTypeReturnedAsFields vs the value class TooBigToReturnAsFields
+    // Tests for ValueTypeReturnedAsFields vs the value class TooBigToReturnAsFields
     //-------------------------------------------------------------------------------
 
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
     @Test(compLevel = CompLevel.C2)
     public int test83(TooBigToReturnAsFields p) {
         TooBigToReturnAsFields np = test83_helper(p);
@@ -1714,7 +1714,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-    // C1->C2 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test84(TooBigToReturnAsFields p) {
         TooBigToReturnAsFields np = test84_helper(p);
@@ -1734,7 +1734,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(result, n);
     }
 
-    // Interpreter->C1 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
+    // Interpreter->C1 invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public TooBigToReturnAsFields test85(TooBigToReturnAsFields p) {
         return p;
@@ -1747,7 +1747,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(p.a2, tooBig.a2);
     }
 
-    // C1->Interpreter invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
+    // C1->Interpreter invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test86(TooBigToReturnAsFields p) {
         TooBigToReturnAsFields np = test86_helper(p);
@@ -1767,10 +1767,10 @@ public class TestCallingConventionC1 {
     }
 
     //-------------------------------------------------------------------------------
-    // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns
+    // Tests for how C1 handles ValueTypeReturnedAsFields in both calls and returns
     //-------------------------------------------------------------------------------
 
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C2)
     public RefPoint test87(RefPoint p) {
         return test87_helper(p);
@@ -1788,7 +1788,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(test87(refPointField1), refPointField1);
     }
 
-    // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint with constant null)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint with constant null)
     @Test(compLevel = CompLevel.C2)
     public RefPoint test88() {
         return test88_helper();
@@ -1805,7 +1805,7 @@ public class TestCallingConventionC1 {
         Asserts.assertEQ(test88(), null);
     }
 
-    // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint)
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (RefPoint)
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public RefPoint test89(RefPoint p) {
         return test89_helper(p);

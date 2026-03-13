@@ -267,9 +267,9 @@ public class TestMethodHandles {
     static final MethodHandle test1_mh;
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STATIC_CALL})
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "false"},
         counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 14"})
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
@@ -412,7 +412,7 @@ public class TestMethodHandles {
     static final MethodHandle test6_mh;
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STORE_INLINE_FIELDS})
     public MyValue3 test6() throws Throwable {
         return (MyValue3)test6_mh.invokeExact(this);
@@ -532,7 +532,7 @@ public class TestMethodHandles {
     static final MethodHandle test9_mh;
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STORE_INLINE_FIELDS})
    public MyValue3 test9() throws Throwable {
         return (MyValue3)test9_mh.invokeExact(this);

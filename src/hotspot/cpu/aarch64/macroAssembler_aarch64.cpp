@@ -7158,7 +7158,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 #endif // COMPILER2
 
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
-  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  assert(ValueTypeReturnedAsFields, "Inline types should never be returned as fields");
   // An inline type might be returned. If fields are in registers we
   // need to allocate an inline type instance and initialize it with
   // the value of the fields.

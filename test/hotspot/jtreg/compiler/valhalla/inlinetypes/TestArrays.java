@@ -2001,9 +2001,9 @@ public class TestArrays {
 
     // Verify that writing an object of a non-flattenable value class to an array marks the array as not flat
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
     public Object test82(Object[] array, NotFlattenable vt, Object o, int i) {
         array[0] = vt;
@@ -2133,10 +2133,10 @@ public class TestArrays {
 
     // Same as test85 but with not flattenable value class array
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC, "= 1"})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test86(NotFlattenable[] array, NotFlattenable o, boolean b) {
@@ -2169,10 +2169,10 @@ public class TestArrays {
 
     // Same as test85 but with value class array
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC, "= 1"})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test87(MyValue1[] array, MyValue1 o, boolean b) {
@@ -3320,7 +3320,7 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
@@ -3764,7 +3764,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS,})
     static Test151Value test151(int i) {
         return Test151Value.ARRAY[i];
@@ -3792,7 +3792,7 @@ public class TestArrays {
     // Test that EA works for null-free arrays
     @Test
     // TODO 8350865 Scalar replacement does not work well for flat arrays
-    //@IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    //@IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
     //    failOn = {ALLOC, ALLOCA})
     public MyValue152 test152() {
         MyValue152[] array = (MyValue152[])ValueClass.newNullRestrictedNonAtomicArray(MyValue152.class, 1, new MyValue152());
@@ -3813,7 +3813,7 @@ public class TestArrays {
     // Same as test152 but triggers a slightly different asserts
     @Test
     // TODO 8350865 Scalar replacement does not work well for flat arrays
-    //@IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    //@IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
     //    failOn = {ALLOC, ALLOCA})
     public MyValue153 test153() {
         MyValue153[] array = (MyValue153[])ValueClass.newNullRestrictedNonAtomicArray(MyValue153.class, 1, new MyValue153());

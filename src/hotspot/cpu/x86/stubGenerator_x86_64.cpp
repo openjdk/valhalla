@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -386,7 +386,7 @@ address StubGenerator::generate_call_stub(address& return_address) {
 
   // handle return types different from T_INT
   __ BIND(check_prim);
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     // Check for scalarized return value
     __ testptr(rax, 1);
     __ jcc(Assembler::zero, is_long);
@@ -3767,7 +3767,7 @@ address StubGenerator::generate_floatToFloat16() {
 
 static void save_return_registers(MacroAssembler* masm) {
   masm->push_ppx(rax);
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     masm->push(rdi);
     masm->push(rsi);
     masm->push(rdx);
@@ -3776,7 +3776,7 @@ static void save_return_registers(MacroAssembler* masm) {
     masm->push(r9);
   }
   masm->push_d(xmm0);
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     masm->push_d(xmm1);
     masm->push_d(xmm2);
     masm->push_d(xmm3);
@@ -3805,7 +3805,7 @@ static void save_return_registers(MacroAssembler* masm) {
 }
 
 static void restore_return_registers(MacroAssembler* masm) {
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     masm->pop_d(xmm7);
     masm->pop_d(xmm6);
     masm->pop_d(xmm5);
@@ -3815,7 +3815,7 @@ static void restore_return_registers(MacroAssembler* masm) {
     masm->pop_d(xmm1);
   }
   masm->pop_d(xmm0);
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     masm->pop(r9);
     masm->pop(r8);
     masm->pop(rcx);
@@ -4134,7 +4134,7 @@ void StubGenerator::generate_initial_stubs() {
   StubRoutines::_forward_exception_entry = generate_forward_exception();
 
   // Generate these first because they are called from other stubs
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     StubRoutines::_load_inline_type_fields_in_regs =
       generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs),
                                  "load_inline_type_fields_in_regs", false);

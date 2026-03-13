@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1062,7 +1062,7 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
 
 bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
   ciType* return_type = method()->return_type();
-  if (InlineTypeReturnedAsFields) {
+  if (ValueTypeReturnedAsFields) {
     if (return_type->is_inlinetype()) {
       ciInlineKlass* vk = return_type->as_inline_klass();
       if (vk->can_be_returned_as_fields()) {

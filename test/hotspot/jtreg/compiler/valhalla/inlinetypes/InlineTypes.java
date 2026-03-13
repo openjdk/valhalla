@@ -46,8 +46,8 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
             new Scenario(1,
                          "--enable-preview",
@@ -62,8 +62,8 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:-InlineTypePassFieldsAsArgs",
-                         "-XX:-InlineTypeReturnedAsFields"
+                         "-XX:-ValueTypePassFieldsAsArgs",
+                         "-XX:-ValueTypeReturnedAsFields"
             ),
             new Scenario(2,
                          "--enable-preview",
@@ -78,8 +78,8 @@ public class InlineTypes {
                          "-XX:-UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
             new Scenario(3,
                          "--enable-preview",
@@ -93,8 +93,8 @@ public class InlineTypes {
                          "-XX:FlatArrayElementMaxOops=0",
                          "-XX:-UseArrayFlattening",
                          "-XX:-UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
             new Scenario(4,
                          "--enable-preview",
@@ -107,8 +107,8 @@ public class InlineTypes {
                          "-XX:FlatArrayElementMaxOops=-1",
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseFieldFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:-InlineTypeReturnedAsFields",
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:-ValueTypeReturnedAsFields",
                          "-XX:-ReduceInitialCardMarks"
             ),
             new Scenario(5,
@@ -124,8 +124,8 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:-InlineTypePassFieldsAsArgs",
-                         "-XX:-InlineTypeReturnedAsFields"
+                         "-XX:-ValueTypePassFieldsAsArgs",
+                         "-XX:-ValueTypeReturnedAsFields"
             ),
             new Scenario(6,
                          "--enable-preview",
@@ -143,8 +143,8 @@ public class InlineTypes {
                          "-XX:+UseNullableAtomicValueFlattening",
                          "-XX:+UseNullFreeAtomicValueFlattening",
                          "-XX:+UseNullFreeNonAtomicValueFlattening",
-                         "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields"
+                         "-XX:+ValueTypePassFieldsAsArgs",
+                         "-XX:+ValueTypeReturnedAsFields"
             ),
     };
 

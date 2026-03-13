@@ -468,7 +468,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue3 test15() {
         return test15_interp();
@@ -484,7 +484,7 @@ public class TestCallingConvention {
     final MyValue3 test16_vt;
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue3 test16() {
         return test16_vt;
@@ -506,7 +506,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue3 test17() {
         return test17_comp();
@@ -1139,7 +1139,7 @@ public class TestCallingConvention {
     // Empty value object return
     @Test
     @IR(failOn = {LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValueEmpty test42() {
         EmptyContainer c = new EmptyContainer(new MyValueEmpty());

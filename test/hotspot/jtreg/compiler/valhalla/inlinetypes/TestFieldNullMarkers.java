@@ -222,7 +222,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
- *                               -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
+ *                               -XX:+ValueTypeReturnedAsFields -XX:+ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -241,7 +241,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
- *                               -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
+ *                               -XX:-ValueTypeReturnedAsFields -XX:-ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -260,7 +260,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
- *                               -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
+ *                               -XX:+ValueTypeReturnedAsFields -XX:-ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -279,7 +279,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
- *                               -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
+ *                               -XX:-ValueTypeReturnedAsFields -XX:+ValueTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 

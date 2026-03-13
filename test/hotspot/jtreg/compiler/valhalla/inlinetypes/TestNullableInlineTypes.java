@@ -283,7 +283,7 @@ public class TestNullableInlineTypes {
 
     @Test
     // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
-    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
+    @IR(applyIfOr = {"ValueTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test5(MyValue1 vt) {
         Object o = vt;
@@ -621,7 +621,7 @@ public class TestNullableInlineTypes {
 
     @Test
     // TODO 8284443 When passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
-    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
+    @IR(applyIfOr = {"ValueTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Test17Value test17(boolean b) {
         Test17Value vt1 = new Test17Value(null);
@@ -783,9 +783,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
-    @IR(applyIfAnd = {"UseArrayFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "false", "ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test23(MyValue1 val) {
         MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
@@ -2507,10 +2507,10 @@ public class TestNullableInlineTypes {
 
     // Test scalarization with phi referencing itself
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS},
         counts = {LOAD_OF_ANY_KLASS, " = 4"}) // 4 loads from the non-flattened MyValue1.v4 fields
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public long test86(MyValue1 vt) {
         ObjectWrapper val = new ObjectWrapper(vt);
@@ -2639,7 +2639,7 @@ public class TestNullableInlineTypes {
 
     // Test that scalarization does not introduce redundant/unused checks
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, CMP_N, CMP_P})
     public Object test91(MyValue1 vt) {
         return vt;
@@ -2703,9 +2703,9 @@ public class TestNullableInlineTypes {
 
     // Test that calling convention optimization prevents buffering of arguments
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     public MyValue1 test94(MyValue1 vt) {
         MyValue1 res = test94_helper1(vt);
@@ -2739,9 +2739,9 @@ public class TestNullableInlineTypes {
 
     // Same as test94 but with static methods to trigger simple adapter logic
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     public static MyValue1 test95(MyValue1 vt) {
         MyValue1 res = test95_helper1(vt);
@@ -2775,9 +2775,9 @@ public class TestNullableInlineTypes {
 
     // Test that calling convention optimization prevents buffering of return values
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC})
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "false"},
         counts = {ALLOC, " <= 1"}) // No allocation required if the MyValue2 return is the all-zero value
     public MyValue2 test96(int c, boolean b) {
         MyValue2 res = null;
@@ -2824,9 +2824,9 @@ public class TestNullableInlineTypes {
 
     // Same as test96 but with MyValue3 return
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
         failOn = {ALLOC})
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+    @IR(applyIf = {"ValueTypeReturnedAsFields", "false"},
         counts = {ALLOC, " <= 1"}) // No allocation required if the MyValue3 return is the all-zero value
     public MyValue3 test97(int c, boolean b) {
         MyValue3 res = null;

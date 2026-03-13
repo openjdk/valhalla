@@ -399,7 +399,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // handle return types different from T_INT
     __ BIND(check_prim);
-    if (InlineTypeReturnedAsFields) {
+    if (ValueTypeReturnedAsFields) {
       // Check for scalarized return value
       __ tbz(r0, 0, is_long);
       // Load pack handler address
@@ -10482,7 +10482,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif // LINUX
 
   static void save_return_registers(MacroAssembler* masm) {
-    if (InlineTypeReturnedAsFields) {
+    if (ValueTypeReturnedAsFields) {
       masm->push(RegSet::range(r0, r7), sp);
       masm->sub(sp, sp, 4 * wordSize);
       masm->st1(v0, v1, v2, v3, masm->T1D, Address(sp));
@@ -10495,7 +10495,7 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   static void restore_return_registers(MacroAssembler* masm) {
-    if (InlineTypeReturnedAsFields) {
+    if (ValueTypeReturnedAsFields) {
       masm->ld1(v4, v5, v6, v7, masm->T1D, Address(masm->post(sp, 4 * wordSize)));
       masm->ld1(v0, v1, v2, v3, masm->T1D, Address(masm->post(sp, 4 * wordSize)));
       masm->pop(RegSet::range(r0, r7), sp);
@@ -11872,7 +11872,7 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_f2hf = generate_floatToFloat16();
     }
 
-    if (InlineTypeReturnedAsFields) {
+    if (ValueTypeReturnedAsFields) {
       StubRoutines::_load_inline_type_fields_in_regs =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
       StubRoutines::_store_inline_type_fields_to_buf =

@@ -1986,11 +1986,11 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product_pd(bool, InlineTypePassFieldsAsArgs,                              \
-          "Pass each inline type field as an argument at calls")            \
+  product_pd(bool, ValueTypePassFieldsAsArgs,                               \
+          "Pass each value type field as an argument at calls")             \
                                                                             \
-  product_pd(bool, InlineTypeReturnedAsFields,                              \
-          "Return fields instead of an inline type reference")              \
+  product_pd(bool, ValueTypeReturnedAsFields,                               \
+          "Return fields instead of a value type reference")                \
                                                                             \
   develop(bool, StressCallingConvention, false,                             \
           "Stress the scalarized calling convention.")                      \

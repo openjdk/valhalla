@@ -2378,11 +2378,11 @@ private:
       BasicType bt = sig_entry._bt;
       if (bt == T_METADATA) {
         // Found start of inline type in signature
-        assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
+        assert(ValueTypePassFieldsAsArgs, "unexpected start of inline type");
         vt_count++;
       } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
         // Found end of inline type in signature
-        assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
+        assert(ValueTypePassFieldsAsArgs, "unexpected end of inline type");
         vt_count--;
         assert(vt_count >= 0, "invalid vt_count");
       } else if (vt_count == 0) {
@@ -2747,14 +2747,14 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
     return _no_arg_handler;
   } else if (total_args_passed == 1) {
     if (!method->is_static()) {
-      if (InlineTypePassFieldsAsArgs && method->method_holder()->is_inline_klass()) {
+      if (ValueTypePassFieldsAsArgs && method->method_holder()->is_inline_klass()) {
         return nullptr;
       }
       return _obj_arg_handler;
     }
     switch (method->signature()->char_at(1)) {
       case JVM_SIGNATURE_CLASS: {
-        if (InlineTypePassFieldsAsArgs) {
+        if (ValueTypePassFieldsAsArgs) {
           SignatureStream ss(method->signature());
           InlineKlass* vk = ss.as_inline_klass(method->method_holder());
           if (vk != nullptr) {
@@ -2773,10 +2773,10 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
         return _int_arg_handler;
     }
   } else if (total_args_passed == 2 &&
-             !method->is_static() && (!InlineTypePassFieldsAsArgs || !method->method_holder()->is_inline_klass())) {
+             !method->is_static() && (!ValueTypePassFieldsAsArgs || !method->method_holder()->is_inline_klass())) {
     switch (method->signature()->char_at(1)) {
       case JVM_SIGNATURE_CLASS: {
-        if (InlineTypePassFieldsAsArgs) {
+        if (ValueTypePassFieldsAsArgs) {
           SignatureStream ss(method->signature());
           InlineKlass* vk = ss.as_inline_klass(method->method_holder());
           if (vk != nullptr) {
@@ -3055,7 +3055,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
     switch (bt) {
       case T_VOID:
         if (prev_bt != T_LONG && prev_bt != T_DOUBLE) {
-          assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
+          assert(ValueTypePassFieldsAsArgs, "unexpected end of inline type");
           value_object_count--;
           SigEntry::add_entry(_sig_cc, T_VOID, nullptr, offset);
           SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
@@ -3088,7 +3088,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
         SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
         break;
       case T_METADATA:
-        assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
+        assert(ValueTypePassFieldsAsArgs, "unexpected start of inline type");
         if (value_object_count == 0) {
           SigEntry::add_entry(_sig, T_OBJECT);
         }
@@ -4022,7 +4022,7 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* current) {
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
 oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS) {
-  assert(InlineTypePassFieldsAsArgs, "no reason to call this");
+  assert(ValueTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
 
   int nb_slots = 0;

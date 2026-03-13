@@ -2070,7 +2070,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
-    if (!t->is_loaded() && InlineTypeReturnedAsFields) {
+    if (!t->is_loaded() && ValueTypeReturnedAsFields) {
       // The return type is unloaded but the callee might later be C2 compiled and then return
       // in scalarized form when the return type is loaded. Handle this similar to what we do in
       // PhaseMacroExpand::expand_mh_intrinsic_return by calling into the runtime to buffer.
@@ -2259,11 +2259,11 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
     // If the inlined code is dead, the result projections for an inline type returned as
     // fields have not been replaced. They will go away once the call is replaced by TOP below.
     assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()) ||
-           (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()),
+           (C->strength_reduction() && ValueTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()),
            "unexpected number of results");
     // If we are doing strength reduction and the return type is not loaded we
     // need to rewire all projections since store_inline_type_fields_to_buf is already present
-    if (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()) {
+    if (C->strength_reduction() && ValueTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()) {
       const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
       for (uint i = TypeFunc::Parms; i < domain->cnt(); i++) {
         C->gvn_replace_by(callprojs->resproj[0], final_state->in(i));

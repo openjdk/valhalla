@@ -224,7 +224,7 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since inline type klasses do
   // not have a vtable, the vtable offset is used to store these addresses.
-  if (InlineTypeReturnedAsFields || InlineTypePassFieldsAsArgs) {
+  if (ValueTypeReturnedAsFields || ValueTypePassFieldsAsArgs) {
     ResourceMark rm;
     GrowableArray<SigEntry> sig_vk;
     int nb_fields = collect_fields(&sig_vk);
@@ -310,12 +310,12 @@ void InlineKlass::cleanup_blobs() {
 
 // Can this inline type be passed as multiple values?
 bool InlineKlass::can_be_passed_as_fields() const {
-  return InlineTypePassFieldsAsArgs;
+  return ValueTypePassFieldsAsArgs;
 }
 
 // Can this inline type be returned as multiple values?
 bool InlineKlass::can_be_returned_as_fields(bool init) const {
-  return InlineTypeReturnedAsFields && (init || return_regs() != nullptr);
+  return ValueTypeReturnedAsFields && (init || return_regs() != nullptr);
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint
@@ -350,7 +350,7 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
 
 // Update oop fields in registers from handles after a safepoint
 void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
-  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  assert(ValueTypeReturnedAsFields, "Inline types should never be returned as fields");
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
   assert(regs != nullptr, "inconsistent");
