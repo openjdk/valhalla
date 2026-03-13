@@ -1332,7 +1332,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
       // Inline type array must be zeroed because not all memory is reassigned
-      // FIXME: Is this missing an InternalOOMEMark?
+      InternalOOMEMark iom(THREAD);
       obj = ak->allocate_instance(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
