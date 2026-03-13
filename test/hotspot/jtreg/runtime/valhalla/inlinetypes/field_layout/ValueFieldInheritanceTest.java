@@ -282,7 +282,12 @@ public class ValueFieldInheritanceTest {
       }
 
     // Verify that all layouts are correct
-    fla.check();
+    try {
+      fla.check();
+    } catch (Throwable t) {
+      System.out.print(out.getOutput());
+      throw t;
+    }
   }
 
 }

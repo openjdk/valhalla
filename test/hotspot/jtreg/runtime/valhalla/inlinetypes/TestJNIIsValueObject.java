@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,29 +21,38 @@
  * questions.
  */
 
+package runtime.valhalla.inlinetypes;
+
+import jdk.test.lib.Asserts;
+
 /*
  * @test
- * @bug 8294583
- * @summary JShell: NPE in switch with non existing record pattern
- * @build KullaTesting TestingInputStream
- * @run junit Test8294583
+ * @summary Test JNI IsValueObject with inline types
+ * @library /test/lib
+ * @enablePreview
+ * @run main/othervm/native --enable-native-access=ALL-UNNAMED
+ *                          runtime.valhalla.inlinetypes.TestJNIIsValueObject
  */
+public class TestJNIIsValueObject {
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+    static value class Value {
+        int i;
 
-public class Test8294583 extends KullaTesting {
-
-    @Test
-    public void test() {
-        assertEvalFail("switch (new Object()) {\n" +
-                        "   case Foo() -> {}\n" +
-                        "};");
+        public Value(int i) {
+            this.i = i;
+        }
     }
 
-    @BeforeEach
-    public void setUp() {
-        super.setUp(bc -> bc.compilerOptions("--source", System.getProperty("java.specification.version"), "--enable-preview").remoteVMOptions("--enable-preview"));
+    native static boolean isValueObject(Object target);
+
+    static {
+        System.loadLibrary("JNIIsValueObject");
+    }
+
+    public static void main(String[] args) {
+        Asserts.assertTrue(isValueObject(new Value(1)));
+        Asserts.assertTrue(isValueObject(Integer.valueOf("25")));
+        Asserts.assertFalse(isValueObject(new String("Hello")));
+        Asserts.assertFalse(isValueObject(null));
     }
 }
