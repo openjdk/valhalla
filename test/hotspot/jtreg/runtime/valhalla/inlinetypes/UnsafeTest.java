@@ -100,7 +100,7 @@ public class UnsafeTest {
         Value2 v2 = new Value2(v1, 20);
         Value3 v3 = new Value3(v2, List.of("Value3"));
         long off_o = U.objectFieldOffset(Value3.class, "o");
-        long off_v = U.objectFieldOffset(Value3.class, "v2");
+        long off_v2 = U.objectFieldOffset(Value3.class, "v2");
         long off_i = U.objectFieldOffset(Value2.class, "i");
         long off_v1 = U.objectFieldOffset(Value2.class, "v1");
 
@@ -115,9 +115,9 @@ public class UnsafeTest {
             // patch v3.o
             U.putReference(array, baseOff + off_o, list);
             // patch v3.v2.i;
-            U.putInt(array, baseOff + off_v + off_i - U.valueHeaderSize(Value2.class), 999);
+            U.putInt(array, baseOff + off_v2 + off_i - U.valueHeaderSize(Value2.class), 999);
             // patch v3.v2.v1.point
-            U.putFlatValue(array, baseOff + off_v + off_v1 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
+            U.putFlatValue(array, baseOff + off_v2 + off_v1 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
                            layout_point, Point.class, new Point(100, 100));
         } finally {
             v = array[0];
@@ -133,7 +133,7 @@ public class UnsafeTest {
         Value3 nv3 = new Value3(nv2, list);
 
         int layout_v2 = U.fieldLayout(Value3.class.getDeclaredField("v2"));
-        long off_v2 = U.objectFieldOffset(Value3.class, "v2");
+
         array = (Value3[]) ValueClass.newNullRestrictedNonAtomicArray(Value3.class, 1, v);
         try {
             long baseOff = U.arrayInstanceBaseOffset(array) - U.valueHeaderSize(Value3.class);
