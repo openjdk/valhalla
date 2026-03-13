@@ -3880,7 +3880,7 @@ jint Arguments::apply_ergo() {
   if (!is_valhalla_enabled()) {
 #define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
     if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
-      warning("Preview-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
+      warning("Preview-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag);  \
     }
 
 #define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
@@ -3915,6 +3915,18 @@ jint Arguments::apply_ergo() {
 #undef DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT
 #undef WARN_IF_NOT_DEFAULT_FLAG
   } else {
+#define DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(flag, fallback)                                \
+    if (!FLAG_IS_DEFAULT(flag) && !UseArrayFlattening && !UseFieldFlattening) {               \
+      warning("Flattening flag \"%s\" has no effect when VM flattening is disabled.", #flag); \
+      FLAG_SET_DEFAULT(flag, fallback);                                                       \
+    }
+
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNonAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableNonAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(FlatArrayElementMaxOops, 0);
+#undef DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING
     if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
       // Disable calling convention optimizations if inline types are not supported.
       // Also these aren't useful in -Xint. However, don't disable them when dumping or using

@@ -818,16 +818,19 @@ const int ObjectAlignmentInBytes = 8;
           "Print field layout for each class")                              \
                                                                             \
   product(bool, PrintInlineLayout, false, DIAGNOSTIC,                       \
-          "Print field layout for each inline type or class with inline fields") \
+          "Print field layout for each value class or class containing "    \
+          "inlined value fields")                                           \
                                                                             \
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
           "Print array layout for each inline type array")                  \
                                                                             \
   product(bool, UseArrayFlattening, true,                                   \
-          "Allow the VM to flatten arrays")                                 \
+          "Allow the JVM to flatten arrays of concrete value objects "      \
+          "when it determines it is possible and beneficial to do so")      \
                                                                             \
   product(bool, UseFieldFlattening, true,                                   \
-          "Allow the VM to flatten value fields")                           \
+          "Allow the JVM to inline the fields of concrete value objects "   \
+          "when it determines it is possible and beneficial to do so")      \
                                                                             \
   product(bool, UseNonAtomicValueFlattening, true, DIAGNOSTIC,              \
           "Allow the JVM to flatten some non-atomic null-free values")      \
@@ -842,7 +845,8 @@ const int ObjectAlignmentInBytes = 8;
           "Allow the JVM to flatten some strict final non-static fields")   \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4, DIAGNOSTIC,                     \
-          "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
+          "Max number of embedded object references in a value container "  \
+          "before no flattening attempts are made, <0 indicates no limit")  \
                                                                             \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \
           "Print fields collected by InlineKlass::collect_fields")          \
