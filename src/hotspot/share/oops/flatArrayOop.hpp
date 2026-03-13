@@ -29,12 +29,15 @@
 #include "oops/objArrayOop.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+class FlatArrayKlass;
+
 // A flatArrayOop points to a flat array containing inline types (no indirection).
 // It may include embedded oops in its elements.
 
 class flatArrayOopDesc : public objArrayOopDesc {
-
  public:
+  inline FlatArrayKlass* klass() const;
+
   void* base() const;
   static size_t base_offset_in_bytes();
   void* value_at_addr(int index, jint lh) const;
