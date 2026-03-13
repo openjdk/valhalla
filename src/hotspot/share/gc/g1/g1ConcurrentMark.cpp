@@ -582,6 +582,11 @@ PartialArrayStateManager* G1ConcurrentMark::partial_array_state_manager() const 
   return _partial_array_state_manager;
 }
 
+G1ConcurrentMarkThread* G1ConcurrentMark::cm_thread() const {
+  assert(is_fully_initialized(), "must be");
+  return _cm_thread;
+}
+
 void G1ConcurrentMark::reset() {
   _has_aborted.store_relaxed(false);
 
@@ -716,7 +721,6 @@ public:
 private:
   // Heap region closure used for clearing the _mark_bitmap.
   class G1ClearBitmapHRClosure : public G1HeapRegionClosure {
-  private:
     G1ConcurrentMark* _cm;
     G1CMBitMap* _bitmap;
     bool _suspendible; // If suspendible, do yield checks.
@@ -814,10 +818,6 @@ public:
     SuspendibleThreadSetJoiner sts_join(_suspendible);
     G1CollectedHeap::heap()->heap_region_par_iterate_from_worker_offset(&_cl, &_hr_claimer, worker_id);
   }
-
-  bool is_complete() {
-    return _cl.is_complete();
-  }
 };
 
 void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
@@ -832,7 +832,6 @@ void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
 
   log_debug(gc, ergo)("Running %s with %u workers for %zu work units.", cl.name(), num_workers, num_chunks);
   workers->run_task(&cl, num_workers);
-  guarantee(may_yield || cl.is_complete(), "Must have completed iteration when not yielding.");
 }
 
 void G1ConcurrentMark::cleanup_for_next_mark() {
@@ -960,7 +959,7 @@ void G1ConcurrentMark::pre_concurrent_start(GCCause::Cause cause) {
   _gc_tracer_cm->set_gc_cause(cause);
 }
 
-void G1ConcurrentMark::post_concurrent_mark_start() {
+void G1ConcurrentMark::start_full_concurrent_cycle() {
   // Start Concurrent Marking weak-reference discovery.
   ReferenceProcessor* rp = _g1h->ref_processor_cm();
   rp->start_discovery(false /* always_clear */);
@@ -977,10 +976,26 @@ void G1ConcurrentMark::post_concurrent_mark_start() {
   // when marking is on. So, it's also called at the end of the
   // concurrent start pause to update the heap end, if the heap expands
   // during it. No need to call it here.
+
+  // Signal the thread to start work.
+  cm_thread()->start_full_mark();
 }
 
-void G1ConcurrentMark::post_concurrent_undo_start() {
+void G1ConcurrentMark::start_undo_concurrent_cycle() {
   root_regions()->cancel_scan();
+
+  // Signal the thread to start work.
+  cm_thread()->start_undo_mark();
+}
+
+void G1ConcurrentMark::notify_concurrent_cycle_completed() {
+  cm_thread()->set_idle();
+}
+
+void G1ConcurrentMark::stop() {
+  if (is_fully_initialized()) {
+    cm_thread()->stop();
+  }
 }
 
 /*
@@ -1944,7 +1959,7 @@ bool G1ConcurrentMark::concurrent_cycle_abort() {
   // has been signalled is already rare), and this work should be negligible compared
   // to actual full gc work.
 
-  if (!is_fully_initialized() || (!cm_thread()->in_progress() && !_g1h->concurrent_mark_is_terminating())) {
+  if (!is_fully_initialized() || (!cm_thread()->in_progress() && !cm_thread()->should_terminate())) {
     return false;
   }
 
@@ -2319,11 +2334,6 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
   // Mark objArray klass metadata
   if (_cm_oop_closure->do_metadata()) {
     _cm_oop_closure->do_klass(obj_array->klass());
-
-    if (obj_array->is_flatArray()) {
-      FlatArrayKlass* faklass = FlatArrayKlass::cast(obj_array->klass());
-      _cm_oop_closure->do_klass(faklass->element_klass());
-    }
   }
 
   process_array_chunk(obj_array, 0, initial_chunk_size);
@@ -2332,8 +2342,8 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
   if (obj_array->is_refArray()) {
     return refArrayOopDesc::object_size(checked_cast<int>(initial_chunk_size));
   } else {
-    FlatArrayKlass* faKlass = FlatArrayKlass::cast(obj_array->klass());
-    return flatArrayOopDesc::object_size(faKlass->layout_helper(), checked_cast<int>(initial_chunk_size));
+    FlatArrayKlass* fak = FlatArrayKlass::cast(obj_array->klass());
+    return flatArrayOopDesc::object_size(fak->layout_helper(), checked_cast<int>(initial_chunk_size));
   }
 }
 

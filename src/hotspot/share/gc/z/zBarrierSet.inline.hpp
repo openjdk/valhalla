@@ -467,6 +467,7 @@ static inline void copy_primitive_payload(const void* src, const void* dst, cons
   if (payload_size_bytes == 0) {
     return;
   }
+
   void* src_payload = (void*)(address(src) + copied_bytes);
   void* dst_payload = (void*)(address(dst) + copied_bytes);
   Copy::copy_value_content(src_payload, dst_payload, payload_size_bytes);

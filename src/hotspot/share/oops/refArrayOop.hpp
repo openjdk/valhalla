@@ -28,8 +28,6 @@
 #include "oops/objArrayOop.hpp"
 #include "utilities/align.hpp"
 
-#include <type_traits>
-
 class Klass;
 
 // A refArrayOop is an array containing references (oops).
@@ -71,7 +69,7 @@ class refArrayOopDesc : public objArrayOopDesc {
   oop replace_if_null(int index, oop exchange_value);
 
   // Sizing
-  size_t object_size()        { return object_size(length()); }
+  size_t object_size() { return object_size(length()); }
 
   static size_t object_size(int length) {
     // This returns the object size in HeapWords.
@@ -82,9 +80,6 @@ class refArrayOopDesc : public objArrayOopDesc {
     return osz;
   }
 
-  Klass* element_klass();
-
-public:
   // special iterators for index ranges, returns size of object
   template <typename OopClosureType>
   void oop_iterate_elements_range(OopClosureType* blk, int start, int end);

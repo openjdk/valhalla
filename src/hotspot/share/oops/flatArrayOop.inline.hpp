@@ -84,10 +84,10 @@ inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
 
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
+  FlatArrayKlass* fak = FlatArrayKlass::cast(klass());
+  InlineKlass* vk = InlineKlass::cast(fak->element_klass());
   char* this_oop = (char*) (oopDesc*) this;
-  char* val = (char*) value_at_addr(index, faklass->layout_helper());
+  char* val = (char*) value_at_addr(index, fak->layout_helper());
   ptrdiff_t offset = val - this_oop + (ptrdiff_t)vk->null_marker_offset_in_payload();
   return bool_field(offset);
 }
@@ -99,8 +99,8 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value) {
 
 inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
+  FlatArrayKlass* fak = FlatArrayKlass::cast(klass());
+  InlineKlass* vk = InlineKlass::cast(fak->element_klass());
   if (value != nullptr) {
     if (value->klass() != vk) {
       THROW(vmSymbols::java_lang_ArrayStoreException());
@@ -109,18 +109,17 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
 
-  FlatArrayPayload payload(flatArrayOop(this), index, faklass);
+  FlatArrayPayload payload(flatArrayOop(this), index, fak);
   // The value and klass has already been checked for null compatibility.
   payload.write_without_nullability_check(inlineOop(value));
 }
 
 template <typename OopClosureType>
 void flatArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
   if (UseCompressedOops) {
-    faklass->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+    FlatArrayKlass::cast(klass())->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
   } else {
-    faklass->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+    FlatArrayKlass::cast(klass())->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
   }
 }
 

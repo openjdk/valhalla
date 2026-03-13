@@ -2127,12 +2127,6 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
     }
-    if (t->is_klass()) {
-      const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
-      if (type->is_inlinetypeptr()) {
-        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass());
-      }
-    }
   }
 
   return ret;
@@ -4887,7 +4881,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   return nullptr;
 }
 
-Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
+Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type, bool maybe_larval) {
   const Type* obj_type = obj->bottom_type();
   const TypeOopPtr* sig_type = TypeOopPtr::make_from_klass(type);
   if (obj_type->isa_oopptr() && sig_type->is_loaded() && !obj_type->higher_equal(sig_type)) {
@@ -4895,7 +4889,7 @@ Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
     Node* casted_obj = gvn().transform(new CheckCastPPNode(control(), obj, narrow_obj_type));
     obj = casted_obj;
   }
-  if (sig_type->is_inlinetypeptr()) {
+  if (!maybe_larval && sig_type->is_inlinetypeptr()) {
     obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass());
   }
   return obj;

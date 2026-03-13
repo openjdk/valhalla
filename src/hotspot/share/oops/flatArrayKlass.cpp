@@ -47,6 +47,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/valuePayload.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/arguments.hpp"
@@ -137,12 +138,12 @@ void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 // Oops allocation...
-objArrayOop FlatArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
+flatArrayOop FlatArrayKlass::allocate_instance(int length, TRAPS) {
   assert(UseArrayFlattening, "Must be enabled");
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
-  flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
-  return array;
+  oop array = Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
+  return oop_cast<flatArrayOop>(array);
 }
 
 oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
