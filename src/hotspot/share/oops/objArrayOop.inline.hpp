@@ -45,9 +45,9 @@ template <class T> T* objArrayOopDesc::obj_at_addr(int index) const {
 inline oop objArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   if (is_flatArray()) {
-    return ((const flatArrayOopDesc* )this)->obj_at(index, CHECK_NULL);
+    return ((const flatArrayOopDesc*)this)->obj_at(index, CHECK_NULL);
   } else {
-    return ((const refArrayOopDesc* )this)->obj_at(index);
+    return ((const refArrayOopDesc*)this)->obj_at(index);
   }
 }
 
@@ -63,27 +63,27 @@ inline bool objArrayOopDesc::obj_at_is_null(int index) const {
 inline void objArrayOopDesc::obj_at_put(int index, oop value) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   if (is_flatArray()) {
-    ((flatArrayOopDesc* )this)->obj_at_put(index, value);
+    ((flatArrayOopDesc*)this)->obj_at_put(index, value);
   } else {
-    ((refArrayOopDesc* )this)->obj_at_put(index, value);
+    ((refArrayOopDesc*)this)->obj_at_put(index, value);
   }
 }
 
 inline void objArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   if (is_flatArray()) {
-    ((flatArrayOopDesc* )this)->obj_at_put(index, value, CHECK);
+    ((flatArrayOopDesc*)this)->obj_at_put(index, value, CHECK);
   } else {
-    ((refArrayOopDesc* )this)->obj_at_put(index, value, CHECK);
+    ((refArrayOopDesc*)this)->obj_at_put(index, value, CHECK);
   }
 }
 
 template <typename OopClosureType>
 void objArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
   if (is_flatArray()) {
-    ((flatArrayOopDesc* )this)->oop_iterate_elements_range(blk, start, end);
+    ((flatArrayOopDesc*)this)->oop_iterate_elements_range(blk, start, end);
   } else {
-    ((refArrayOopDesc* )this)->oop_iterate_elements_range(blk, start, end);
+    ((refArrayOopDesc*)this)->oop_iterate_elements_range(blk, start, end);
   }
 }
 
