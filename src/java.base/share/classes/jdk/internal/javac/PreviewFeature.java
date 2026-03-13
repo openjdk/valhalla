@@ -68,26 +68,6 @@ public @interface PreviewFeature {
         STRICT_FIELDS,
         @JEP(number=401, title="Value Classes and Objects", status = "Preview")
         VALUE_OBJECTS,
-
-        // The JDK build process involves creating an interim javac which is then
-        // used to compile the rest of the JDK. The jdk.internal.javac.PreviewFeature
-        // annotation from the current sources is used when compiling interim javac.
-        // That's because the javac APIs of the current sources may be annotated with
-        // this annotation and they may be using the enum constants of the current sources.
-        // Furthermore, when compiling interim javac, the class files from the bootstrap JDK get
-        // used and those may also contain the PreviewFeature annotation. However, they may be
-        // using the enum constants of the bootstrap JDK's PreviewFeature annotation.
-        // If javac sees an annotation with an unknown enum constant, it produces a warning,
-        // and that in turn fails the build.
-        // So, in the current sources, we need to preserve the PreviewFeature enum constants
-        // for as long as the interim javac build needs it. As a result, we retain PreviewFeature
-        // enum constants for preview features that are present in the bootstrap JDK.
-        // Older constants can be removed.
-        //
-        // For example, Class-File API became final in JDK 24. As soon as JDK 23 was dropped as
-        // the bootstrap JDK, the CLASSFILE_API enum constant became eligible for removal.
-
-        //---
         @JEP(number=525, title="Structured Concurrency", status="Sixth Preview")
         STRUCTURED_CONCURRENCY,
         @JEP(number = 526, title = "Lazy Constants", status = "Second Preview")

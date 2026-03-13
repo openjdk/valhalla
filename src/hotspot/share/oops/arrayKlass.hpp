@@ -44,7 +44,6 @@ class ArrayKlass: public Klass {
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ArrayKlass::metaspace_pointers_do().
-
   int                     _dimension;         // This is n'th-dimensional array.
   ObjArrayKlass* volatile _higher_dimension;  // Refers the (n+1)'th-dimensional array (if present).
   ArrayKlass* volatile    _lower_dimension;   // Refers the (n-1)'th-dimensional array (if present).
