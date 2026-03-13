@@ -2277,15 +2277,17 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       if (left_type != nullptr && left_type->is_inlinetype()) {
         acmp_type_check_or_trap(&not_null_left, left_type, Deoptimization::Reason_speculate_class_check);
       }
-      // Check if both operands are of the same class.
-      Node* kls_left = load_object_klass(not_null_left);
-      Node* kls_right = load_object_klass(not_null_right);
-      Node* kls_cmp = CmpP(kls_left, kls_right);
-      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-      ne_region->init_req(4, kls_ne);
+      if (!stopped()) {
+        // Check if both operands are of the same class.
+        Node* kls_left = load_object_klass(not_null_left);
+        Node* kls_right = load_object_klass(not_null_right);
+        Node* kls_cmp = CmpP(kls_left, kls_right);
+        Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+        IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+        Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+        set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+        ne_region->init_req(4, kls_ne);
+      }
     }
   }
 
