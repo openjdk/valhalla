@@ -44,10 +44,11 @@ class ArrayKlass: public Klass {
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ArrayKlass::metaspace_pointers_do().
-  const int               _dimension;         // This is n'th-dimensional array.
-  ArrayProperties         _properties;
+  int                     _dimension;         // This is n'th-dimensional array.
   ObjArrayKlass* volatile _higher_dimension;  // Refers the (n+1)'th-dimensional array (if present).
   ArrayKlass* volatile    _lower_dimension;   // Refers the (n-1)'th-dimensional array (if present).
+
+  const ArrayProperties   _properties;
 
  protected:
   // Constructors
@@ -57,7 +58,6 @@ class ArrayKlass: public Klass {
   ArrayKlass();
 
  public:
-
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const override { return true; })
 
@@ -72,9 +72,8 @@ class ArrayKlass: public Klass {
   // Instance variables
   int dimension() const                 { return _dimension;      }
 
-  ArrayProperties properties() const { return _properties; }
-  void set_properties(ArrayProperties props) { _properties = props; }
-  static ByteSize properties_offset() { return byte_offset_of(ArrayKlass, _properties); }
+  ArrayProperties properties() const    { return _properties; }
+  static ByteSize properties_offset()   { return byte_offset_of(ArrayKlass, _properties); }
 
   ObjArrayKlass* higher_dimension() const     { return _higher_dimension; }
   inline ObjArrayKlass* higher_dimension_acquire() const; // load with acquire semantics

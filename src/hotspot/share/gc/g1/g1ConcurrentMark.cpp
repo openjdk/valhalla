@@ -2334,11 +2334,6 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
   // Mark objArray klass metadata
   if (_cm_oop_closure->do_metadata()) {
     _cm_oop_closure->do_klass(obj_array->klass());
-
-    if (obj_array->is_flatArray()) {
-      FlatArrayKlass* faklass = FlatArrayKlass::cast(obj_array->klass());
-      _cm_oop_closure->do_klass(faklass->element_klass());
-    }
   }
 
   process_array_chunk(obj_array, 0, initial_chunk_size);
@@ -2347,8 +2342,8 @@ size_t G1CMTask::start_partial_array_processing(oop obj) {
   if (obj_array->is_refArray()) {
     return refArrayOopDesc::object_size(checked_cast<int>(initial_chunk_size));
   } else {
-    FlatArrayKlass* faKlass = FlatArrayKlass::cast(obj_array->klass());
-    return flatArrayOopDesc::object_size(faKlass->layout_helper(), checked_cast<int>(initial_chunk_size));
+    FlatArrayKlass* fak = FlatArrayKlass::cast(obj_array->klass());
+    return flatArrayOopDesc::object_size(fak->layout_helper(), checked_cast<int>(initial_chunk_size));
   }
 }
 

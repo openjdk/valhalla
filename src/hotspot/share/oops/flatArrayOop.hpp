@@ -25,11 +25,9 @@
 #ifndef SHARE_VM_OOPS_FLATARRAYOOP_HPP
 #define SHARE_VM_OOPS_FLATARRAYOOP_HPP
 
-#include "oops/arrayOop.hpp"
-#include "oops/inlineKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/objArrayOop.hpp"
-#include "runtime/handles.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // A flatArrayOop points to a flat array containing inline types (no indirection).
 // It may include embedded oops in its elements.

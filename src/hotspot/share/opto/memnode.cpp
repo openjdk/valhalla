@@ -27,6 +27,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -176,11 +177,13 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
       base_local = base_uncasted->as_Proj();
       return nullptr;
     } else if (multi->is_Call()) {
-      // The oop is returned from a call, the memory can be the fallthrough output of the call
-      return find_call_fallthrough_mem_output(multi->as_Call());
+      if (!multi->is_CallJava() || multi->as_CallJava()->method() == nullptr || !multi->as_CallJava()->method()->return_value_is_larval()) {
+        // The oop is returned from a call, the memory can be the fallthrough output of the call
+        return find_call_fallthrough_mem_output(multi->as_Call());
+      }
     } else if (multi->is_Start()) {
       // The oop is a parameter
-      if (phase->C->method()->is_object_constructor() && base_uncasted->as_Proj()->_con == TypeFunc::Parms) {
+      if (base_uncasted->as_Proj()->_con == TypeFunc::Parms && phase->C->method()->receiver_maybe_larval()) {
         // The receiver of a constructor is similar to the result of an AllocateNode
         base_local = base_uncasted->as_Proj();
         return nullptr;
@@ -204,7 +207,13 @@ static bool call_can_modify_local_object(ciField* field, CallNode* call) {
   }
 
   ciMethod* target = call->as_CallJava()->method();
-  if (target == nullptr || !target->is_object_constructor()) {
+  if (target == nullptr) {
+    return false;
+  } else if (target->intrinsic_id() == vmIntrinsicID::_linkToSpecial) {
+    // linkToSpecial can be used to call a constructor, used in the construction of objects in the
+    // reflection API
+    return true;
+  } else if (!target->is_object_constructor()) {
     return false;
   }
 

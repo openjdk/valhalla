@@ -65,7 +65,7 @@ class Universe: AllStatic {
  private:
   // Known classes in the VM
   static TypeArrayKlass* _typeArrayKlasses[T_LONG+1];
-  static ObjArrayKlass* _objectArrayKlass;
+  static RefArrayKlass* _objectArrayKlass;
   // Special int-Array that represents filler objects that are used by GC to overwrite
   // dead objects. References to them are generally an error.
   static Klass* _fillerArrayKlass;
@@ -185,8 +185,8 @@ class Universe: AllStatic {
   static TypeArrayKlass* floatArrayKlass()       { return typeArrayKlass(T_FLOAT); }
   static TypeArrayKlass* doubleArrayKlass()      { return typeArrayKlass(T_DOUBLE); }
 
-  static ObjArrayKlass* objectArrayKlass() {
-    ObjArrayKlass* k = _objectArrayKlass;
+  static RefArrayKlass* objectArrayKlass() {
+    RefArrayKlass* k = _objectArrayKlass;
     assert(k != nullptr, "Object array klass should be initialized; too early?");
     return k;
   }
