@@ -733,3 +733,12 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = '\0';
   return SymbolTable::new_symbol(sig_str);
 }
+
+void SigEntry::print_on(outputStream* st) const {
+  st->print("SigEntry: type=%d offset=%d null_marker=%d ", _bt, _offset, _null_marker);
+  if (_name != nullptr) {
+    _name->print_on(st);
+  } else {
+    st->print("name=nullptr");
+  }
+}

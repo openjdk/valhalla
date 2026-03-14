@@ -87,7 +87,9 @@ public:
 };
 
 // Print fields.
-// If "obj" argument to constructor is null, prints static fields, otherwise prints non-static fields.
+// If "obj" argument to constructor is null, prints fields as if they are static fields,
+// otherwise prints non-static fields. It is possible to print non-static fields the same
+// way as static fields when no oops are available, such as when debug printing classes.
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
@@ -1312,6 +1314,9 @@ public:
 #endif
 
   const char* internal_name() const override;
+
+  template<typename T, typename TClosureType>
+  static void print_array_on(outputStream* st, Array<T>* array, TClosureType elem_printer);
 
   // Verification
   void verify_on(outputStream* st) override;

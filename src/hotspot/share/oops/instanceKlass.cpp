@@ -4065,27 +4065,6 @@ static void print_vtable(vtableEntry* start, int len, outputStream* st) {
   return print_vtable(nullptr, reinterpret_cast<intptr_t*>(start), len, st);
 }
 
-template<typename T>
- static void print_array_on(outputStream* st, Array<T>* array) {
-   if (array == nullptr) { st->print_cr("nullptr"); return; }
-   array->print_value_on(st); st->cr();
-   if (Verbose || WizardMode) {
-     for (int i = 0; i < array->length(); i++) {
-       st->print("%d : ", i); array->at(i)->print_value_on(st); st->cr();
-     }
-   }
- }
-
-static void print_array_on(outputStream* st, Array<int>* array) {
-  if (array == nullptr) { st->print_cr("nullptr"); return; }
-  array->print_value_on(st); st->cr();
-  if (Verbose || WizardMode) {
-    for (int i = 0; i < array->length(); i++) {
-      st->print("%d : %d", i, array->at(i)); st->cr();
-    }
-  }
-}
-
 const char* InstanceKlass::init_state_name() const {
   return state_names[init_state()];
 }
@@ -4123,11 +4102,21 @@ void InstanceKlass::print_on(outputStream* st) const {
     }
   }
 
+
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
-  st->print(BULLET"methods:           "); print_array_on(st, methods());
-  st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
+  st->print(BULLET"methods:           ");
+  print_array_on(st, methods(), [](outputStream* ost, Method* method) {
+    method->print_value_on(ost);
+  });
+  st->print(BULLET"method ordering:   ");
+  print_array_on(st, method_ordering(), [](outputStream* ost, int i) {
+    ost->print("%d", i);
+  });
   if (default_methods() != nullptr) {
-    st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
+    st->print(BULLET"default_methods:   ");
+    print_array_on(st, default_methods(), [](outputStream* ost, Method* method) {
+      method->print_value_on(ost);
+    });
   }
   print_on_maybe_null(st, BULLET"default vtable indices:   ", default_vtable_indices());
   st->print(BULLET"local interfaces:  "); local_interfaces()->print_value_on(st);      st->cr();
@@ -4199,14 +4188,14 @@ void InstanceKlass::print_on(outputStream* st) const {
   if (vtable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_vtable(), vtable_length(), st);
   st->print(BULLET"itable length      %d (start addr: " PTR_FORMAT ")", itable_length(), p2i(start_of_itable())); st->cr();
   if (itable_length() > 0 && (Verbose || WizardMode))  print_vtable(nullptr, start_of_itable(), itable_length(), st);
-  st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
 
-  FieldPrinter print_static_field(st);
-  ((InstanceKlass*)this)->do_local_static_fields(&print_static_field);
-  st->print_cr(BULLET"---- non-static fields (%d words):", nonstatic_field_size());
-  FieldPrinter print_nonstatic_field(st);
   InstanceKlass* ik = const_cast<InstanceKlass*>(this);
-  ik->print_nonstatic_fields(&print_nonstatic_field);
+  // There is no oop so static and nonstatic printing can use the same printer.
+  FieldPrinter field_printer(st);
+    st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
+  ik->do_local_static_fields(&field_printer);
+  st->print_cr(BULLET"---- non-static fields (%d words):", nonstatic_field_size());
+  ik->print_nonstatic_fields(&field_printer);
 
   st->print(BULLET"non-static oop maps (%d entries): ", nonstatic_oop_map_count());
   OopMapBlock* map     = start_of_nonstatic_oop_maps();
@@ -4232,13 +4221,14 @@ void InstanceKlass::print_value_on(outputStream* st) const {
 void FieldPrinter::do_field(fieldDescriptor* fd) {
   for (int i = 0; i < _indent; i++) _st->print("  ");
   _st->print(BULLET);
-   if (_obj == nullptr) {
-     fd->print_on(_st, _base_offset);
-     _st->cr();
-   } else {
-     fd->print_on_for(_st, _obj, _indent, _base_offset);
-     if (!fd->field_flags().is_flat()) _st->cr();
-   }
+  // Handles the cases of static fields or instance fields but no oop is given.
+  if (_obj == nullptr) {
+    fd->print_on(_st, _base_offset);
+    _st->cr();
+  } else {
+    fd->print_on_for(_st, _obj, _indent, _base_offset);
+    if (!fd->field_flags().is_flat()) _st->cr();
+  }
 }
 
 
