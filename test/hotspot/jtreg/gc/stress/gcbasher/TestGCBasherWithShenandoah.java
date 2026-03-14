@@ -30,6 +30,7 @@ import java.io.IOException;
 /*
  * @test id=passive
  * @key stress
+ * @enablePreview
  * @library /
  * @requires vm.gc.Shenandoah
  * @requires vm.flavor == "server" & !vm.emulatedClient
@@ -49,6 +50,7 @@ import java.io.IOException;
 /*
  * @test id=aggressive
  * @key stress
+ * @enablePreview
  * @library /
  * @requires vm.gc.Shenandoah
  * @requires vm.flavor == "server" & !vm.emulatedClient
