@@ -535,23 +535,9 @@ static void event_storage_add(EventStorage* storage,
 
   err = jvmti->GetStackTrace(thread, 0, 64, frames, &count);
   if (err == JVMTI_ERROR_NONE && count >= 1) {
-    jweak weak_ref = jni->NewWeakGlobalRef(object);
-    // NewWeakGlobalRef can throw IdentityException for value objects
-    jthrowable exc = jni->ExceptionOccurred();
-    if (exc != nullptr) {
-      static jclass identity_exception_class = nullptr;
-      if (identity_exception_class == nullptr) {
-        identity_exception_class = (jclass)jni->NewGlobalRef(jni->FindClass("java/lang/IdentityException"));
-        if (identity_exception_class == nullptr) {
-          jni->FatalError("Error in event_storage_add: FindClass(IdentityException)");
-        }
-      }
-      if (jni->IsInstanceOf(exc, identity_exception_class)) {
-        // skip value objects
-        jni->ExceptionClear();
+    if (jni->IsValueObject(object)) {
+        // weak references are prohibited for value objects, skip them
         return;
-      }
-      jni->FatalError("Error in event_storage_add: Exception in jni NewWeakGlobalRef");
     }
 
     ObjectTrace* live_object;
@@ -563,7 +549,10 @@ static void event_storage_add(EventStorage* storage,
     live_object->frame_count = count;
     live_object->size = size;
     live_object->thread = thread;
-    live_object->object = weak_ref;
+    live_object->object = jni->NewWeakGlobalRef(object);
+    if (jni->ExceptionOccurred()) {
+      jni->FatalError("Error in event_storage_add: Exception in jni NewWeakGlobalRef");
+    }
 
     // Only now lock and get things done quickly.
     event_storage_lock(storage);
