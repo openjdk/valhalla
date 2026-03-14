@@ -550,6 +550,7 @@ static void event_storage_add(EventStorage* storage,
     live_object->size = size;
     live_object->thread = thread;
     live_object->object = jni->NewWeakGlobalRef(object);
+
     if (jni->ExceptionOccurred()) {
       jni->FatalError("Error in event_storage_add: Exception in jni NewWeakGlobalRef");
     }
