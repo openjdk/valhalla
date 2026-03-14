@@ -29,6 +29,7 @@ include MakeFileStart.gmk
 
 include JavaCompilation.gmk
 include Modules.gmk
+include ToolsJdk.gmk
 
 include CopyFiles.gmk
 
@@ -69,6 +70,21 @@ MODULESOURCEPATH := $(call GetModuleSrcPath)
 MODULEPATH := $(call PathList, $(IMPORT_MODULES_CLASSES))
 
 ################################################################################
+# Setup preprocessor flags
+# The output directory must be present in GENERATED_PREVIEW_SUBDIRS in Modules.gmk.
+# Temporarily restrict this to java.base, but it can be expanded later.
+
+ifeq ($(MODULE), java.base)
+    PREPROCESSOR_FLAGS := \
+        -Xlint:-processing \
+        -Avalueclasses.outdir=$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses \
+        -processor $(VALUETYPE_GENSRC_PROCESSOR_NAME)
+
+    PROCESSOR_PATH += $(VALUETYPE_GENSRC_PROCESSOR_PATH)
+    DEPENDS += $(BUILD_VALUETYPE_GENSRC)
+endif
+
+################################################################################
 # Copy zh_HK properties files from zh_TW (needed by some modules)
 
 $(JDK_OUTPUTDIR)/modules/%_zh_HK.properties: $(JDK_OUTPUTDIR)/modules/%_zh_TW.properties
@@ -107,6 +123,7 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     MODULE := $(MODULE), \
     SRC := $(wildcard $(MODULE_SRC_DIRS)), \
     INCLUDES := $(JDK_USER_DEFINED_FILTER), \
+    DEPENDS := $(DEPENDS), \
     FAIL_NO_SRC := $(FAIL_NO_SRC), \
     BIN := $(COMPILATION_OUTPUTDIR), \
     HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
@@ -120,9 +137,11 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     EXCLUDE_PATTERNS := -files, \
     KEEP_ALL_TRANSLATIONS := $(KEEP_ALL_TRANSLATIONS), \
     TARGET_RELEASE := $(TARGET_RELEASE), \
+    PROCESSOR_PATH := $(PROCESSOR_PATH), \
     JAVAC_FLAGS := \
         $(DOCLINT) \
         $(JAVAC_FLAGS) \
+        $(PREPROCESSOR_FLAGS) \
         --module-source-path $(MODULESOURCEPATH) \
         --module-path $(MODULEPATH) \
         --system none, \

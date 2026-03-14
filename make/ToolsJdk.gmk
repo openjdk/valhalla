@@ -142,5 +142,16 @@ PANDOC_HTML_MANPAGE_FILTER := $(BUILDTOOLS_OUTPUTDIR)/manpages/pandoc-html-manpa
 
 ################################################################################
 
+# Annotation processor for generating preview sources of annotated value classes.
+
+VALUETYPE_GENSRC_PROCESSOR_NAME := build.tools.valhalla.valuetypes.GenValueClasses
+VALUETYPE_GENSRC_PROCESSOR_PATH := $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc
+
+# Same trick as BUILD_TOOLS_JDK but for the annotation processor.
+BUILD_VALUETYPE_GENSRC := $(call SetupJavaCompilationCompileTarget, \
+    BUILD_VALUETYPE_GENSRC, $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc)
+
+################################################################################
+
 endif # include guard
 include MakeIncludeEnd.gmk
