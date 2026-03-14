@@ -32,6 +32,11 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
+inline RefArrayKlass* refArrayOopDesc::klass() const {
+  Klass* k = oopDesc::klass();
+  return RefArrayKlass::cast(k);
+}
+
 inline HeapWord *refArrayOopDesc::base() const {
   return (HeapWord *)arrayOopDesc::base(T_OBJECT);
 }
@@ -66,9 +71,9 @@ inline void refArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
 template <typename OopClosureType>
 void refArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
   if (UseCompressedOops) {
-    RefArrayKlass::cast(klass())->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
   } else {
-    RefArrayKlass::cast(klass())->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
   }
 }
 
