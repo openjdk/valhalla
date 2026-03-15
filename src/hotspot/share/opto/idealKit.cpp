@@ -312,7 +312,7 @@ Node* IdealKit::delay_transform(Node* n) {
 Node* IdealKit::new_cvstate() {
   uint sz = _var_ct + first_var;
   Node* state = new Node(sz);
-  C->record_for_igvn(state);
+  gvn().record_for_igvn(state);
   return state;
 }
 
@@ -321,7 +321,9 @@ Node* IdealKit::copy_cvstate() {
   Node* ns = new_cvstate();
   for (uint i = 0; i < ns->req(); i++) ns->init_req(i, _cvstate->in(i));
   // We must clone memory since it will be updated as we do stores.
-  ns->set_req(TypeFunc::Memory, MergeMemNode::make(ns->in(TypeFunc::Memory)));
+  Node* mem = MergeMemNode::make(ns->in(TypeFunc::Memory));
+  gvn().record_for_igvn(mem);
+  ns->set_req(TypeFunc::Memory, mem);
   return ns;
 }
 

@@ -859,7 +859,7 @@ bool ShenandoahBarrierSetC2::clone_needs_barrier(Node* src, PhaseGVN& gvn) {
         }
   } else if (src_type->isa_aryptr()) {
     BasicType src_elem = src_type->isa_aryptr()->elem()->array_element_basic_type();
-    if (is_reference_type(src_elem, true)) {
+    if (is_reference_type(src_elem, true) && !src_type->is_flat()) {
       return true;
     }
   } else {

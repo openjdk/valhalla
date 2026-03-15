@@ -335,6 +335,8 @@ tier1_gc_shenandoah = \
 tier2_gc_shenandoah = \
   runtime/MemberName/MemberNameLeak.java \
   runtime/CompressedOops/UseCompressedOops.java \
+  runtime/valhalla/inlinetypes/FlatArrayCopyingTest.java \
+  runtime/valhalla/inlinetypes/InlineOops.java \
   gc/TestHumongousReferenceObject.java \
   gc/TestSystemGC.java \
   gc/arguments/TestDisableDefaultGC.java \
