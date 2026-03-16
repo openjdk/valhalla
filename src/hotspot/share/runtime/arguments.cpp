@@ -3936,10 +3936,10 @@ jint Arguments::apply_ergo() {
       FLAG_SET_DEFAULT(ValueTypePassFieldsAsArgs, false);
       FLAG_SET_DEFAULT(ValueTypeReturnedAsFields, false);
     }
-    if (!UseNullFreeNonAtomicValueFlattening
-        && !UseNullableAtomicValueFlattening
-        && !UseNullFreeAtomicValueFlattening
-        && !UseNullableNonAtomicValueFlattening) {
+    if (!UseNullFreeNonAtomicValueFlattening &&
+        !UseNullableAtomicValueFlattening &&
+        !UseNullFreeAtomicValueFlattening &&
+        !UseNullableNonAtomicValueFlattening) {
       // Flattening is disabled
       FLAG_SET_DEFAULT(UseArrayFlattening, false);
       FLAG_SET_DEFAULT(UseFieldFlattening, false);
