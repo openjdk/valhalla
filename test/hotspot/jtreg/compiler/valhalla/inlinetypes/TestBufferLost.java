@@ -52,7 +52,7 @@ public class TestBufferLost {
         }
     }
 
-    
+
     static value class MyValue implements I {
         long a = 1;
         long b = 2;
@@ -86,7 +86,7 @@ public class TestBufferLost {
             VAL = val;
         }
     }
-    
+
     static MyValue VAL = new MyValue();
     static MyValue VAL2 = new MyValue();
     static MyValue VAL3 = new MyValue();
