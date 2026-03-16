@@ -2020,18 +2020,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
 }
 
 void Parse::acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason reason) {
-#ifndef PRODUCT
-  if (UseNewCode) {
-    tty->print_cr("non_null_input:");
-    (*non_null_input)->dump(3);
-    tty->print("input_type: ");
-    input_type->print();
-    tty->print_cr("");
-    tty->print_cr("stopped: %d", stopped());
-    tty->print_cr("control:");
-    control()->dump();
-  }
-#endif
   Node* slow_ctl = type_check_receiver(*non_null_input, input_type, 1.0, non_null_input);
   {
     PreserveJVMState pjvms(this);

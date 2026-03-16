@@ -1274,14 +1274,6 @@ Node* GraphKit::load_object_klass(Node* obj) {
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != nullptr)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-#ifndef PRODUCT
-  if (UseNewCode) {
-    tty->print_cr("obj:");
-    obj->dump(3);
-    tty->print_cr("oopDesc::klass_offset_in_bytes(): %d; k_adr:", oopDesc::klass_offset_in_bytes());
-    k_adr->dump(3);
-  }
-#endif
   return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
 }
 
