@@ -533,13 +533,13 @@ static void event_storage_add(EventStorage* storage,
   jint count;
   jvmtiError err;
 
+  if (jni->IsValueObject(object)) {
+    // weak references are prohibited for value objects, skip them
+    return;
+  }
+
   err = jvmti->GetStackTrace(thread, 0, 64, frames, &count);
   if (err == JVMTI_ERROR_NONE && count >= 1) {
-    if (jni->IsValueObject(object)) {
-        // weak references are prohibited for value objects, skip them
-        return;
-    }
-
     ObjectTrace* live_object;
     jvmtiFrameInfo* allocated_frames = (jvmtiFrameInfo*) malloc(count * sizeof(*allocated_frames));
     memcpy(allocated_frames, frames, count * sizeof(*allocated_frames));
