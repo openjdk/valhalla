@@ -546,7 +546,7 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, arrayOopDesc* ar
   if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
-    assert(array->is_flatArray(), "should not be called");
+    // Here we know that we have a flat array
     oop_cast<flatArrayOop>(array)->obj_at_put(index, value, CHECK);
   }
 JRT_END
