@@ -1474,6 +1474,8 @@ void AOTCodeAddressTable::init_extrs() {
   SET_ADDRESS(_extrs, MacroAssembler::debug64);
 #endif
 #endif // ZERO
+  // Address of the verify_oop stub entry pointer used by MacroAssembler::_verify_oop*
+  SET_ADDRESS(_extrs, StubRoutines::verify_oop_subroutine_entry_address());
 
   if (UseCompressedOops) {
     SET_ADDRESS(_extrs, CompressedOops::base_addr());
