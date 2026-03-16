@@ -665,8 +665,6 @@ public:
   // Utility function for nodes that load an object
   void add_objload_to_connection_graph(Node* n, Unique_Node_List* delayed_worklist);
 
-  void add_proj(Node* n, Unique_Node_List* delayed_worklist);
-
   // Add LocalVar node and edge if possible
   void add_local_var_and_edge(Node* n, PointsToNode::EscapeState es, Node* to,
                               Unique_Node_List *delayed_worklist) {
@@ -691,8 +689,6 @@ public:
 
   void add_to_congraph_unsafe_access(Node* n, uint opcode, Unique_Node_List* delayed_worklist);
   bool add_final_edges_unsafe_access(Node* n, uint opcode);
-
-  bool scalarized_arg_with_compatible_return(CallJavaNode* call, uint k);
 
 #ifndef PRODUCT
   static int _no_escape_counter;
