@@ -27,13 +27,13 @@
  * @summary [lworld] Keep buffer oop on scalarized calls
  * @requires vm.flagless
  * @enablePreview
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
+ * @run main/othervm -Xmx20M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
  *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
  *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileOnly=*TestBufferLost*::*Callee
  *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:-TieredCompilation ${test.main.class}
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost*::*Callee
+ * @run main/othervm -Xmx20M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost*::*Callee
  *                   -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:-TieredCompilation ${test.main.class}
- * @run main/othervm -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
+ * @run main/othervm -Xmx20M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileOnly=*TestBufferLost::test1
  *                   -XX:CompileOnly=*TestBufferLost::test2 -XX:CompileOnly=*TestBufferLost::test3 -XX:CompileOnly=*TestBufferLost::test4
  *                   -XX:CompileOnly=*TestBufferLost::test5 -XX:CompileCommand=dontinline,*::*Callee
  *                   -Xbatch -XX:-TieredCompilation ${test.main.class}
@@ -133,7 +133,7 @@ public class TestBufferLost {
     }
 
     public static void main(String[] args) {
-        for (int i = 0; i < 10_000_000; ++i) {
+        for (int i = 0; i < 1_000_000; ++i) {
             test1();
             test2();
             test3();
