@@ -44,11 +44,7 @@ package compiler.valhalla.inlinetypes;
 
 import java.lang.management.*;
 
-// java --enable-preview -Xmx200M -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:CompileCommand=dontinline,*::*Callee -Xbatch -XX:-TieredCompilation TestBufferLost.java
 public class TestBufferLost {
-
-    // TODO we need more tests cases with more variants (virtual calls etc.)
-
 
     interface I {
         default void test5Callee(MyValue val) {
