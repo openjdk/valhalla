@@ -1,0 +1,118 @@
+#
+# Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+include MakeFileStart.gmk
+
+################################################################################
+# Builds two JARs used by jtreg to test value classes (JEP 401):
+#
+#  valueClassAnnotation.jar  -- contains only @ValueClass, compiled WITHOUT
+#                               --enable-preview so tests that do not activate
+#                               the plugin can still reference the annotation
+#                               type without a compiler error.
+#
+#  valueClassPlugin.jar      -- contains ValueClassPlugin (a javac Plugin that
+#                               rewrites @ValueClass classes to value classes
+#                               at parse time) together with the META-INF
+#                               service descriptor, compiled WITH
+#                               --enable-preview and the required internal-API
+#                               exports.
+#
+# Usage in test runs (via RunTests.gmk):
+#   make test TEST=... JTREG=VALUE_CLASS_PLUGIN=true
+################################################################################
+
+include CopyFiles.gmk
+include JavaCompilation.gmk
+
+VCP_BASEDIR := $(TOPDIR)/test/jtreg_value_class_plugin
+VCP_SUPPORT := $(SUPPORT_OUTPUTDIR)/test/jtreg_value_class_plugin
+
+################################################################################
+# Step 1: compile @ValueClass annotation WITHOUT --enable-preview.
+#
+# The resulting class file must NOT have the preview minor-version flag
+# (0xFFFF) so that tests compiled without --enable-preview can reference
+# the annotation type on the classpath.
+################################################################################
+
+$(eval $(call SetupJavaCompilation, BUILD_VCP_ANNOTATION, \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
+    SRC := $(VCP_BASEDIR)/annotation, \
+    BIN := $(VCP_SUPPORT)/annotation_classes, \
+    JAR := $(VCP_SUPPORT)/valueClassAnnotation.jar, \
+))
+
+################################################################################
+# Step 2: compile ValueClassPlugin WITH --enable-preview and the required
+# --add-exports for internal javac APIs.
+#
+# The plugin/ source directory contains META-INF/services/com.sun.source.util.Plugin
+# which SetupJavaCompilation automatically copies to BIN (all META-INF/** files
+# are always copied), so it ends up inside valueClassPlugin.jar.
+################################################################################
+
+$(eval $(call SetupJavaCompilation, BUILD_VCP_PLUGIN, \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
+    SRC := $(VCP_BASEDIR)/plugin, \
+    BIN := $(VCP_SUPPORT)/plugin_classes, \
+    JAR := $(VCP_SUPPORT)/valueClassPlugin.jar, \
+    CLASSPATH := $(VCP_SUPPORT)/valueClassAnnotation.jar, \
+    JAVAC_FLAGS := \
+        --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+        --enable-preview, \
+    DISABLED_WARNINGS := preview, \
+))
+
+# Ensure the annotation JAR is ready before compiling the plugin.
+$(BUILD_VCP_PLUGIN): $(BUILD_VCP_ANNOTATION)
+
+TARGETS += $(BUILD_VCP_ANNOTATION) $(BUILD_VCP_PLUGIN)
+
+################################################################################
+# Targets for building test-image.
+################################################################################
+
+$(eval $(call SetupCopyFiles, COPY_VCP, \
+    SRC := $(VCP_SUPPORT), \
+    DEST := $(TEST_IMAGE_DIR)/jtreg_value_class_plugin, \
+    FILES := \
+        $(VCP_SUPPORT)/valueClassAnnotation.jar \
+        $(VCP_SUPPORT)/valueClassPlugin.jar, \
+))
+
+IMAGES_TARGETS += $(COPY_VCP)
+
+build: $(TARGETS)
+images: $(IMAGES_TARGETS)
+
+.PHONY: images
+
+################################################################################
+
+include MakeFileEnd.gmk
