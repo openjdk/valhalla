@@ -257,7 +257,7 @@ public class PreloadCircularityTest {
     void test_7() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class7a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[warning][class,preload] After preloading of class PreloadCircularityTest$Class7a during loading of class PreloadCircularityTest$Class7a failed,field was annotated with @NullRestricted but class is unknown, the annotation is ignored");
+        out.shouldContain("[warning][class,preload] During loading of class PreloadCircularityTest$Class7a, class PreloadCircularityTest$Class7a is unknown, but a field of this type was annotated with @NullRestricted, the annotation is ignored");
     }
 
     static value class Class8a {
@@ -267,7 +267,7 @@ public class PreloadCircularityTest {
     void test_8() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class8a");
         out.shouldHaveExitValue(0);
-        out.shouldNotContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class8a during loading of class PreloadCircularityTest$Class8a. Cause: a null-free non-static field is declared with this type");
+        out.shouldNotContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class8a during loading of class PreloadCircularityTest$Class8a. Cause: field type in LoadableDescriptors attribute");
     }
 
     static value class Class9a {
@@ -280,7 +280,7 @@ public class PreloadCircularityTest {
     void test_9() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class9a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[warning][class,preload] After preloading of class PreloadCircularityTest$Class9b during loading of class PreloadCircularityTest$Class9a failed,field was annotated with @NullRestricted but class is unknown, the annotation is ignored");
+        out.shouldContain("[warning][class,preload] During loading of class PreloadCircularityTest$Class9a, class PreloadCircularityTest$Class9b is unknown, but a field of this type was annotated with @NullRestricted, the annotation is ignored");
     }
 
     public static class TestHelper {

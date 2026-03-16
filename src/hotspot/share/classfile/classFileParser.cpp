@@ -6382,20 +6382,20 @@ void ClassFileParser::preload_classes(ConstantPool* cp, TRAPS) {
         InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
         if (klass != nullptr && klass->is_inline_klass()) {
           set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
-          log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                   "(cause: field type not in LoadableDescriptors attribute) succeeded",
-                                   name->as_C_string(), _class_name->as_C_string());
+          log_info(class, preload)("During loading of class %s , class %s found in local system dictionary"
+                                   "(field type not in LoadableDescriptors attribute)",
+                                   _class_name->as_C_string(), name->as_C_string());
         } else if (fieldinfo.field_flags().is_null_free_inline_type()) {
           if (klass == nullptr) {
-          log_warning(class, preload)("After preloading of class %s during loading of class %s failed,"
-                                 "field was annotated with @NullRestricted but class is unknown, "
+          log_warning(class, preload)("During loading of class %s, class %s is unknown, "
+                                 "but a field of this type was annotated with @NullRestricted, "
                                  "the annotation is ignored",
-                                 name->as_C_string(), _class_name->as_C_string());
+                                 _class_name->as_C_string(), name->as_C_string());
           } else {
-            log_warning(class, preload)("After preloading of class %s during loading of class %s failed,"
-                                 "field was annotated with @NullRestricted but class is not a concrete value class, "
-                                 "the annotation is ignored",
-                                 name->as_C_string(), _class_name->as_C_string());
+            log_warning(class, preload)("During loading of class %s, class %s was found in the local system dictionary "
+                                 "and is not a concrete value class, but a field of this type was annotated with "
+                                 "@NullRestricted, the annotation is ignored",
+                                 _class_name->as_C_string(), name->as_C_string());
           }
           fieldinfo.field_flags().update_null_free_inline_type(false);
         }
