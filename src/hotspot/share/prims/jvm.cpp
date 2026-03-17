@@ -456,7 +456,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
     }
   }
-  if (org->is_flatArray()) {
+  if (ak->is_flatArray_klass()) {
     // The whole JVM_CopyOfSpecialArray is currently broken. Fix this in a separate bugfix.
     int org_length = org->length();
     int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
@@ -480,7 +480,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
     array = dst;
   } else {
-    const ArrayProperties props = ArrayProperties::Default().with_null_restricted(org->is_null_free_array());
+    const ArrayProperties props = ArrayProperties::Default().with_null_restricted(ak->is_null_free_array_klass());
 
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
     int end = to < oh()->length() ? to : oh()->length();

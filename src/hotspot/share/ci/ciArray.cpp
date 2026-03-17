@@ -27,6 +27,7 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -137,7 +138,7 @@ ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
 
 bool ciArray::is_null_free() {
   VM_ENTRY_MARK;
-  return get_oop()->is_null_free_array();
+  return get_arrayOop()->is_null_free_array();
 }
 
 bool ciArray::is_atomic() {

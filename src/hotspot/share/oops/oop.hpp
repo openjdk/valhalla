@@ -138,7 +138,6 @@ class oopDesc {
   inline bool is_typeArray()        const;
   inline bool is_flatArray()        const;
   inline bool is_refArray()         const;
-  inline bool is_null_free_array()  const;
   inline bool is_refined_objArray() const;
   inline bool is_array_with_oops()  const;
 
@@ -153,7 +152,6 @@ class oopDesc {
   bool is_refArray_noinline()         const;
   bool is_typeArray_noinline()        const;
   bool is_flatArray_noinline()        const;
-  bool is_null_free_array_noinline()  const;
 
  protected:
   inline oop        as_oop() const { return const_cast<oopDesc*>(this); }
