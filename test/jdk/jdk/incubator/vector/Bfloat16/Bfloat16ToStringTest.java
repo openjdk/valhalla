@@ -38,7 +38,6 @@ public class Bfloat16ToStringTest {
         checkRoundTrips();
     }
 
-
     private static void checkSpecialValues() {
         checkToString((short) 0x0000, "0.0", "+0.0");
         checkToString((short) 0x8000, "-0.0", "-0.0");
