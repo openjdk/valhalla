@@ -6269,7 +6269,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != nullptr, "invariant");
 
   if (Arguments::is_valhalla_enabled()) {
-    preload_classes(cp, CHECK);
+    fetch_field_classes(cp, CHECK);
   }
 
   _layout_info = new FieldLayoutInfo();
@@ -6318,16 +6318,28 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 }
 
-void ClassFileParser::preload_classes(ConstantPool* cp, TRAPS) {
-  for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
-    FieldInfo fieldinfo = *it;
+// In order to be able to optimize fields layouts by applying heap flattening,
+// the JVM needs to know the layout of the class of the fields, which implies
+// having these classes loaded. The strategy has two folds:
+//  1 - if the current class has a LoadableDescriptors attribute containing the
+//      name of the class of the field and PreloadClasses is true, the JVM will
+//      try to speculatively load this class. Failures to load the class are
+//      silently discarded, and loadings resulting in a non-optimizable class
+//      are ignored
+//  2 - if step 1 cannot be applied, the JVM will simply check if the class
+//      loader of the current class already knows these classes (no class
+//      loading triggered in this case). Note that the migrated value classes
+//      of the JDK are automatically registered to all class loaders, and
+//      are guaranteed to be found in this step even if the current class
+//      has not been recompiled with JEP 401 features enabled
+void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
+  for (FieldInfo fieldinfo : *_temp_field_info) {
     if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
     Symbol* sig = fieldinfo.signature(cp);
-    if (Signature::has_envelope(sig) && PreloadClasses) {
-      // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
-      // Those classes would be required later for the flattening of nullable inline type fields
+    if (Signature::has_envelope(sig)) {
       TempNewSymbol name = Signature::strip_envelope(sig);
-      if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
+      if (name == _class_name) continue;
+      if (PreloadClasses && is_class_in_loadable_descriptors_attribute(sig)) {
         log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                  "Cause: field type in LoadableDescriptors attribute",
                                  name->as_C_string(), _class_name->as_C_string());
@@ -6375,9 +6387,6 @@ void ClassFileParser::preload_classes(ConstantPool* cp, TRAPS) {
           CLEAR_PENDING_EXCEPTION;
         }
       } else {
-        // Just poking the system dictionary to see if the class has already be loaded. Looking for migrated classes
-        // used when --enable-preview when jdk isn't compiled with --enable-preview so doesn't include LoadableDescriptors.
-        // This is temporary.
         oop loader = loader_data()->class_loader();
         InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
         if (klass != nullptr && klass->is_inline_klass()) {

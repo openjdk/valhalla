@@ -257,7 +257,7 @@ public class PreloadCircularityTest {
     void test_7() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class7a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[warning][class,preload] During loading of class PreloadCircularityTest$Class7a, class PreloadCircularityTest$Class7a is unknown, but a field of this type was annotated with @NullRestricted, the annotation is ignored");
+        out.shouldNotContain("[warning][class,preload] During loading of class PreloadCircularityTest$Class7a, class PreloadCircularityTest$Class7a is unknown, but a field of this type was annotated with @NullRestricted, the annotation is ignored");
     }
 
     static value class Class8a {
