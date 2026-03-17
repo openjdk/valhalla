@@ -2438,7 +2438,7 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
 void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
                                          Label& is_flat_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_mask_in_place, true, is_flat_array);
 #else
   load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
@@ -2449,7 +2449,7 @@ void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
 void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
                                              Label& is_non_flat_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_mask_in_place, false, is_non_flat_array);
 #else
   load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
@@ -2459,7 +2459,7 @@ void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_mask_in_place, true, is_null_free_array);
 #else
   Unimplemented();
 #endif
@@ -2467,7 +2467,7 @@ void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, L
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_mask_in_place, false, is_non_null_free_array);
 #else
   Unimplemented();
 #endif
@@ -10716,7 +10716,7 @@ void MacroAssembler::fast_lock(Register basic_lock, Register obj, Register reg_r
   andptr(tmp, ~(int32_t)markWord::unlocked_value);
   orptr(reg_rax, markWord::unlocked_value);
   // Mask inline_type bit such that we go to the slow path if object is an inline type
-  andptr(reg_rax, ~((int) markWord::inline_type_bit_in_place));
+  andptr(reg_rax, ~((int) markWord::inline_type_mask_in_place));
 
   lock(); cmpxchgptr(tmp, Address(obj, oopDesc::mark_offset_in_bytes()));
   jcc(Assembler::notEqual, slow);

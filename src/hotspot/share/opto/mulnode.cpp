@@ -895,7 +895,7 @@ Node *AndLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           set_req_X(1, phase->longcon(0), phase);
           return this;
         }
-      } else if (mask == markWord::null_free_array_bit_in_place) {
+      } else if (mask == markWord::null_free_array_mask_in_place) {
         if (adr_t1->is_null_free()) {
           set_req_X(1, in(2), phase);
           return this;
@@ -903,7 +903,7 @@ Node *AndLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           set_req_X(1, phase->longcon(0), phase);
           return this;
         }
-      } else if (mask == markWord::flat_array_bit_in_place) {
+      } else if (mask == markWord::flat_array_mask_in_place) {
         if (adr_t1->is_flat()) {
           set_req_X(1, in(2), phase);
           return this;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ class markWord {
   // Conversion
   uintptr_t value() const { return _value; }
 
-  // Constants, in least significant bit order
+  // Bit field widths, in least significant bit order
   static const int lock_bits                      = 2;
   static const int self_fwd_bits                  = 1;
   // instance state
@@ -130,6 +130,7 @@ class markWord {
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - larval_bits - flat_array_bits - null_free_array_bits - self_fwd_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
 
+  // Bit field shifts, in least significant bit order
   static const int lock_shift                     = 0;
   static const int self_fwd_shift                 = lock_shift + lock_bits;
   static const int age_shift                      = self_fwd_shift + self_fwd_bits;
@@ -139,27 +140,29 @@ class markWord {
   static const int larval_shift                   = flat_array_shift + flat_array_bits;
   static const int hash_shift                     = larval_shift + larval_bits;
 
+  // Bit field masks
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
   static const uintptr_t self_fwd_mask            = right_n_bits(self_fwd_bits);
   static const uintptr_t self_fwd_mask_in_place   = self_fwd_mask << self_fwd_shift;
-  static const uintptr_t inline_type_bit_in_place = right_n_bits(inline_type_bits) << inline_type_shift;
-  static const uintptr_t inline_type_mask_in_place = inline_type_bit_in_place + lock_mask;
-  static const uintptr_t null_free_array_mask     = right_n_bits(null_free_array_bits);
-  static const uintptr_t null_free_array_mask_in_place = (null_free_array_mask << null_free_array_shift) | lock_mask_in_place;
-  static const uintptr_t null_free_array_bit_in_place  = (right_n_bits(null_free_array_bits) << null_free_array_shift);
-  static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
-  static const uintptr_t flat_array_mask_in_place = (flat_array_mask << flat_array_shift) | null_free_array_mask_in_place | lock_mask_in_place;
-  static const uintptr_t flat_array_bit_in_place  = right_n_bits(flat_array_bits) << flat_array_shift;
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
   static const uintptr_t age_mask_in_place        = age_mask << age_shift;
-
+  static const uintptr_t inline_type_mask         = right_n_bits(inline_type_bits);
+  static const uintptr_t inline_type_mask_in_place = inline_type_mask << inline_type_shift;
+  static const uintptr_t null_free_array_mask     = right_n_bits(null_free_array_bits);
+  static const uintptr_t null_free_array_mask_in_place = null_free_array_mask << null_free_array_shift;
+  static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
+  static const uintptr_t flat_array_mask_in_place = flat_array_mask << flat_array_shift;
   static const uintptr_t larval_mask              = right_n_bits(larval_bits);
-  static const uintptr_t larval_mask_in_place     = (larval_mask << larval_shift) | inline_type_mask_in_place;
-  static const uintptr_t larval_bit_in_place      = right_n_bits(larval_bits) << larval_shift;
-
+  static const uintptr_t larval_mask_in_place     = larval_mask << larval_shift;
   static const uintptr_t hash_mask                = right_n_bits(hash_bits);
   static const uintptr_t hash_mask_in_place       = hash_mask << hash_shift;
+
+  // Derived masks
+  static const uintptr_t inline_type_pattern_mask = inline_type_mask_in_place | lock_mask_in_place;
+  static const uintptr_t null_free_array_pattern_mask = null_free_array_mask_in_place | lock_mask_in_place;
+  static const uintptr_t flat_array_pattern_mask  = flat_array_mask_in_place | null_free_array_pattern_mask;
+  static const uintptr_t larval_pattern_mask      = larval_mask_in_place | inline_type_pattern_mask;
 
 #ifdef _LP64
   // Used only with compact headers:
@@ -180,12 +183,12 @@ class markWord {
   static const uintptr_t monitor_value            = 2;
   static const uintptr_t marked_value             = 3;
 
-  static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
-  static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
-  static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
-  static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
+  static const uintptr_t inline_type_pattern      = inline_type_mask_in_place | unlocked_value;
+  static const uintptr_t null_free_array_pattern  = null_free_array_mask_in_place | unlocked_value;
+  static const uintptr_t null_free_flat_array_pattern = flat_array_mask_in_place | null_free_array_pattern;
+  static const uintptr_t nullable_flat_array_pattern = flat_array_mask_in_place | unlocked_value;
 
-  static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
+  static const uintptr_t larval_pattern           = larval_mask_in_place | inline_type_pattern;
 
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
   static const uintptr_t no_hash_in_place         = (uintptr_t)no_hash << hash_shift;
@@ -197,7 +200,7 @@ class markWord {
   static markWord zero() { return markWord(uintptr_t(0)); }
 
   bool is_inline_type() const {
-    return (mask_bits(value(), inline_type_mask_in_place) == inline_type_pattern);
+    return (mask_bits(value(), inline_type_pattern_mask) == inline_type_pattern);
   }
 
   // lock accessors (note that these assume lock_shift == 0)
@@ -214,7 +217,7 @@ class markWord {
   // is unlocked and not an inline type (which cannot be involved in locking, displacement or inflation)
   // i.e. test both lock bits and the inline type bit together
   bool is_neutral()  const {  // Not locked, or marked - a "clean" neutral state
-    return (mask_bits(value(), inline_type_mask_in_place) == unlocked_value);
+    return (mask_bits(value(), inline_type_pattern_mask) == unlocked_value);
   }
 
   bool is_forwarded() const {
@@ -293,19 +296,19 @@ class markWord {
 
   // private buffered value operations
   markWord enter_larval_state() const {
-    return markWord(value() | larval_bit_in_place);
+    return markWord(value() | larval_mask_in_place);
   }
   markWord exit_larval_state() const {
-    return markWord(value() & ~larval_bit_in_place);
+    return markWord(value() & ~larval_mask_in_place);
   }
   bool is_larval_state() const {
-    return (mask_bits(value(), larval_mask_in_place) == larval_pattern);
+    return (mask_bits(value(), larval_pattern_mask) == larval_pattern);
   }
 
   bool is_flat_array() const {
 #ifdef _LP64 // 64 bit encodings only
-    return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
-           || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
+    return (mask_bits(value(), flat_array_pattern_mask) == null_free_flat_array_pattern)
+           || (mask_bits(value(), flat_array_pattern_mask) == nullable_flat_array_pattern);
 #else
     return false;
 #endif
@@ -313,7 +316,7 @@ class markWord {
 
   bool is_null_free_array() const {
 #ifdef _LP64 // 64 bit encodings only
-    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
+    return (mask_bits(value(), null_free_array_pattern_mask) == null_free_array_pattern);
 #else
     return false;
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -328,11 +328,11 @@ Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem
 }
 
 Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* array, MergeMemNode* mem, RegionNode* region) {
-  return mark_word_test(ctrl, array, mem, markWord::flat_array_bit_in_place, region);
+  return mark_word_test(ctrl, array, mem, markWord::flat_array_mask_in_place, region);
 }
 
 Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array, MergeMemNode* mem, RegionNode* region) {
-  return mark_word_test(ctrl, array, mem, markWord::null_free_array_bit_in_place, region);
+  return mark_word_test(ctrl, array, mem, markWord::null_free_array_mask_in_place, region);
 }
 
 void PhaseMacroExpand::finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type) {

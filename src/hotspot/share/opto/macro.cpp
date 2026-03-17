@@ -2958,7 +2958,7 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
 //   // One array is locked, load prototype header from the klass
 //   mark = array1.klass.proto | array2.klass.proto | ...
 // }
-// if ((mark & markWord::flat_array_bit_in_place) == 0) {
+// if ((mark & markWord::flat_array_mask_in_place) == 0) {
 //    ...
 // }
 void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
@@ -3013,7 +3013,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       mark_phi->init_req(2, proto);
 
       // Check if flat array bits are set
-      Node* mask = MakeConX(markWord::flat_array_bit_in_place);
+      Node* mask = MakeConX(markWord::flat_array_mask_in_place);
       Node* masked = _igvn.transform(new AndXNode(_igvn.transform(mark_phi), mask));
       cmp = _igvn.transform(new CmpXNode(masked, MakeConX(0)));
       Node* is_not_flat = _igvn.transform(new BoolNode(cmp, BoolTest::eq));

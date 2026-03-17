@@ -2434,20 +2434,20 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
 }
 
 void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_mask_in_place, true, is_flat_array);
 }
 
 void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
                                                   Label&is_non_flat_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_mask_in_place, false, is_non_flat_array);
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_mask_in_place, true, is_null_free_array);
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_mask_in_place, false, is_non_null_free_array);
 }
 
 void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
@@ -7988,7 +7988,7 @@ void MacroAssembler::fast_lock(Register basic_lock, Register obj, Register t1, R
   assert(oopDesc::mark_offset_in_bytes() == 0, "required to avoid lea");
   orr(mark, mark, markWord::unlocked_value);
   // Mask inline_type bit such that we go to the slow path if object is an inline type
-  andr(mark, mark, ~((int) markWord::inline_type_bit_in_place));
+  andr(mark, mark, ~((int) markWord::inline_type_mask_in_place));
 
   eor(t, mark, markWord::unlocked_value);
   cmpxchg(/*addr*/ obj, /*expected*/ mark, /*new*/ t, Assembler::xword,

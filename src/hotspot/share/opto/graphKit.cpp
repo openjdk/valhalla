@@ -3910,7 +3910,7 @@ Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
 }
 
 Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
-  return mark_word_test(array, markWord::null_free_array_bit_in_place, null_free);
+  return mark_word_test(array, markWord::null_free_array_mask_in_place, null_free);
 }
 
 Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
