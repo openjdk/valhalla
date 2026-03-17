@@ -39,6 +39,7 @@
 #include "memory/memoryReserver.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -1474,7 +1475,10 @@ void AOTCodeAddressTable::init_extrs() {
   SET_ADDRESS(_extrs, MacroAssembler::debug64);
 #endif
 #endif // ZERO
-  SET_ADDRESS(_extrs, StubRoutines::verify_oop_subroutine_entry_address());
+
+  if (VerifyOops) {
+    SET_ADDRESS(_extrs, StubRoutines::verify_oop_subroutine_entry_address());
+  }
 
   if (UseCompressedOops) {
     SET_ADDRESS(_extrs, CompressedOops::base_addr());
