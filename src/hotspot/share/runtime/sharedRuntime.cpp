@@ -3033,6 +3033,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
   bool long_prev = false;
   int long_prev_offset = -1;
   bool skipping_inline_recv = false;
+  bool receiver_handled = false;
 
   fingerprint->iterate_args([&] (const AdapterFingerPrint::Element& arg) {
     BasicType bt = arg.bt();
@@ -3105,9 +3106,10 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
         }
         SigEntry::add_entry(_sig_cc, T_METADATA, nullptr, offset);
         if (!skipping_inline_recv) {
-          if (_has_inline_recv && value_object_count == 0) {
+          if (!receiver_handled && _has_inline_recv && value_object_count == 0) {
             SigEntry::add_entry(_sig_cc_ro, T_OBJECT);
             skipping_inline_recv = true;
+            receiver_handled = true;
           } else {
             SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
           }
