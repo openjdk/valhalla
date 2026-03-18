@@ -3130,6 +3130,17 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
   }
   assert(value_object_count == 0, "invalid value object count");
 
+#ifdef ASSERT
+  if (_has_inline_recv) {
+    // In RO signatures, inline receivers must be represented as a single T_OBJECT
+    assert(_sig_cc_ro->length() >= 1, "sig_cc_ro must include receiver");
+    assert(_sig_cc_ro->at(0)._bt == T_OBJECT,
+           "sig_cc_ro must represent inline receiver as T_OBJECT");
+    assert(_sig_cc_ro->length() <= _sig_cc->length(),
+           "sig_cc_ro must not be longer than sig_cc");
+  }
+#endif
+
   _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
 
