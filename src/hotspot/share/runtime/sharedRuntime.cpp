@@ -3061,10 +3061,10 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
           value_object_count--;
           SigEntry::add_entry(_sig_cc, T_VOID, nullptr, offset);
-          if (skipping_inline_recv && value_object_count == 0) {
-            skipping_inline_recv = false;
-          } else if (!skipping_inline_recv) {
+          if (!skipping_inline_recv) {
             SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+          } else if (value_object_count == 0) {
+            skipping_inline_recv = false;
           }
           assert(value_object_count >= 0, "invalid value object count");
         } else {
