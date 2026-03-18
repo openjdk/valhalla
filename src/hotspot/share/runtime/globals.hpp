@@ -824,11 +824,11 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
           "Print array layout for each flattened value array")              \
                                                                             \
-  product(bool, UseArrayFlattening, true,                                   \
+  product(bool, UseArrayFlattening, true, DIAGNOSTIC,                       \
           "Allow the JVM to flatten arrays of concrete value objects "      \
           "when it determines it is possible and beneficial to do so")      \
                                                                             \
-  product(bool, UseFieldFlattening, true,                                   \
+  product(bool, UseFieldFlattening, true, DIAGNOSTIC,                       \
           "Allow the JVM to inline the fields of concrete value objects "   \
           "when it determines it is possible and beneficial to do so")      \
                                                                             \
@@ -1986,10 +1986,10 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product_pd(bool, InlineTypePassFieldsAsArgs,                              \
+  product_pd(bool, InlineTypePassFieldsAsArgs, DIAGNOSTIC,                  \
           "Pass each inline type field as an argument at calls")            \
                                                                             \
-  product_pd(bool, InlineTypeReturnedAsFields,                              \
+  product_pd(bool, InlineTypeReturnedAsFields, DIAGNOSTIC,                  \
           "Return fields instead of an inline type reference")              \
                                                                             \
   develop(bool, StressCallingConvention, false,                             \
