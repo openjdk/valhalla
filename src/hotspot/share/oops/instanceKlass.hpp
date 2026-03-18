@@ -87,7 +87,9 @@ public:
 };
 
 // Print fields.
-// If "obj" argument to constructor is null, prints static fields, otherwise prints non-static fields.
+// If "obj" argument to constructor is null, prints fields as if they are static fields,
+// otherwise prints non-static fields. It is possible to print non-static fields the same
+// way as static fields when no oops are available, such as when debug printing classes.
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
@@ -169,6 +171,10 @@ class InlineLayoutInfo : public MetaspaceObj {
 
   static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
   static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
+
+  // Print
+  void print() const;
+  void print_on(outputStream* st) const;
 };
 
 class InstanceKlass: public Klass {
@@ -688,6 +694,9 @@ public:
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
+
+  bool find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
+  bool find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
 
  private:
   inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
@@ -1305,6 +1314,9 @@ public:
 #endif
 
   const char* internal_name() const override;
+
+  template<typename T, typename TClosureType>
+  static void print_array_on(outputStream* st, Array<T>* array, TClosureType elem_printer);
 
   // Verification
   void verify_on(outputStream* st) override;

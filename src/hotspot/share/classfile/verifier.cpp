@@ -640,9 +640,6 @@ static bool supports_strict_fields(InstanceKlass* klass) {
 void ClassVerifier::verify_class(TRAPS) {
   log_info(verification)("Verifying class %s with new format", _klass->external_name());
 
-  // Either verifying both local and remote classes or just remote classes.
-  assert(BytecodeVerificationRemote, "Should not be here");
-
   Array<Method*>* methods = _klass->methods();
   int num_methods = methods->length();
 

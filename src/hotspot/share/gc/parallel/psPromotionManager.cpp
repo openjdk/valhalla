@@ -43,8 +43,6 @@
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
-#include "oops/flatArrayKlass.inline.hpp"
-#include "oops/oopCast.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/debug.hpp"
@@ -261,7 +259,7 @@ void PSPromotionManager::process_array_chunk(objArrayOop obj, size_t start, size
 
 void PSPromotionManager::process_array_chunk(PartialArrayState* state, bool stolen) {
   // Access before release by claim().
-  objArrayOop to_array = oop_cast<objArrayOop>(state->destination());
+  objArrayOop to_array = objArrayOop(state->destination());
   precond(to_array->is_array_with_oops());
 
   PartialArraySplitter::Claim claim =

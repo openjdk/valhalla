@@ -70,6 +70,7 @@
 #include "oops/instanceOop.hpp"
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -100,6 +101,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/nativeStackPrinter.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/stringUtils.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
@@ -155,6 +157,25 @@
 void InlineLayoutInfo::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(cds)("Iter(InlineFieldInfo): %p", this);
   it->push(&_klass);
+}
+
+void InlineLayoutInfo::print() const {
+  print_on(tty);
+}
+
+void InlineLayoutInfo::print_on(outputStream* st) const {
+  st->print_cr("_klass: " PTR_FORMAT, p2i(_klass));
+  if (_klass != nullptr) {
+    StreamIndentor si(st);
+    _klass->print_on(st);
+    st->cr();
+  }
+
+  st->print("_layout: ");
+  LayoutKindHelper::print_on(_kind, st);
+  st->cr();
+
+  st->print("_null_marker_offset: %d", _null_marker_offset);
 }
 
 bool InstanceKlass::_finalization_enabled = true;
@@ -1029,8 +1050,8 @@ bool InstanceKlass::verify_code(TRAPS) {
 }
 
 static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, TRAPS) {
-  ResourceMark rm(THREAD);
-  if (ik->loadable_descriptors() != nullptr && PreloadClasses) {
+  if (ik->loadable_descriptors() != Universe::the_empty_short_array() && PreloadClasses) {
+    ResourceMark rm(THREAD);
     HandleMark hm(THREAD);
     for (int i = 0; i < ik->loadable_descriptors()->length(); i++) {
       Symbol* sig = ik->constants()->symbol_at(ik->loadable_descriptors()->at(i));
@@ -2177,7 +2198,6 @@ bool InstanceKlass::find_local_field_from_offset(int offset, bool is_static, fie
   return false;
 }
 
-
 bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const {
   const InstanceKlass* klass = this;
   while (klass != nullptr) {
@@ -2189,6 +2209,45 @@ bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDesc
   return false;
 }
 
+bool InstanceKlass::find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+    if (!fs.is_flat()) {
+      continue;
+    }
+
+    if (fs.offset() > offset) {
+      continue;
+    }
+
+    const int offset_in_flat_field = offset - fs.offset();
+    const InlineLayoutInfo layout_info = inline_layout_info(fs.index());
+    const int field_size = layout_info.klass()->layout_size_in_bytes(layout_info.kind());
+
+    assert(LayoutKindHelper::is_flat(layout_info.kind()), "Must be flat");
+
+    if (offset_in_flat_field < field_size) {
+      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.to_FieldInfo());
+      assert(!fd->is_static(), "Static fields are not flattened");
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool InstanceKlass::find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
+  const InstanceKlass* klass = this;
+  while (klass != nullptr) {
+    if (klass->find_local_flat_field_containing_offset(offset, fd)) {
+      return true;
+    }
+
+    klass = klass->super();
+  }
+
+  return false;
+}
 
 void InstanceKlass::methods_do(void f(Method* method)) {
   // Methods aren't stable until they are loaded.  This can be read outside
@@ -3722,6 +3781,10 @@ u2 InstanceKlass::compute_modifier_flags() const {
       break;
     }
   }
+  if (!Arguments::is_valhalla_enabled()) {
+    // Remember to strip ACC_SUPER bit without Valhalla
+    access &= (~JVM_ACC_SUPER);
+  }
   return access;
 }
 
@@ -4006,27 +4069,6 @@ static void print_vtable(vtableEntry* start, int len, outputStream* st) {
   return print_vtable(nullptr, reinterpret_cast<intptr_t*>(start), len, st);
 }
 
-template<typename T>
- static void print_array_on(outputStream* st, Array<T>* array) {
-   if (array == nullptr) { st->print_cr("nullptr"); return; }
-   array->print_value_on(st); st->cr();
-   if (Verbose || WizardMode) {
-     for (int i = 0; i < array->length(); i++) {
-       st->print("%d : ", i); array->at(i)->print_value_on(st); st->cr();
-     }
-   }
- }
-
-static void print_array_on(outputStream* st, Array<int>* array) {
-  if (array == nullptr) { st->print_cr("nullptr"); return; }
-  array->print_value_on(st); st->cr();
-  if (Verbose || WizardMode) {
-    for (int i = 0; i < array->length(); i++) {
-      st->print("%d : %d", i, array->at(i)); st->cr();
-    }
-  }
-}
-
 const char* InstanceKlass::init_state_name() const {
   return state_names[init_state()];
 }
@@ -4064,11 +4106,21 @@ void InstanceKlass::print_on(outputStream* st) const {
     }
   }
 
+
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
-  st->print(BULLET"methods:           "); print_array_on(st, methods());
-  st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
+  st->print(BULLET"methods:           ");
+  print_array_on(st, methods(), [](outputStream* ost, Method* method) {
+    method->print_value_on(ost);
+  });
+  st->print(BULLET"method ordering:   ");
+  print_array_on(st, method_ordering(), [](outputStream* ost, int i) {
+    ost->print("%d", i);
+  });
   if (default_methods() != nullptr) {
-    st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
+    st->print(BULLET"default_methods:   ");
+    print_array_on(st, default_methods(), [](outputStream* ost, Method* method) {
+      method->print_value_on(ost);
+    });
   }
   print_on_maybe_null(st, BULLET"default vtable indices:   ", default_vtable_indices());
   st->print(BULLET"local interfaces:  "); local_interfaces()->print_value_on(st);      st->cr();
@@ -4140,14 +4192,14 @@ void InstanceKlass::print_on(outputStream* st) const {
   if (vtable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_vtable(), vtable_length(), st);
   st->print(BULLET"itable length      %d (start addr: " PTR_FORMAT ")", itable_length(), p2i(start_of_itable())); st->cr();
   if (itable_length() > 0 && (Verbose || WizardMode))  print_vtable(nullptr, start_of_itable(), itable_length(), st);
-  st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
 
-  FieldPrinter print_static_field(st);
-  ((InstanceKlass*)this)->do_local_static_fields(&print_static_field);
-  st->print_cr(BULLET"---- non-static fields (%d words):", nonstatic_field_size());
-  FieldPrinter print_nonstatic_field(st);
   InstanceKlass* ik = const_cast<InstanceKlass*>(this);
-  ik->print_nonstatic_fields(&print_nonstatic_field);
+  // There is no oop so static and nonstatic printing can use the same printer.
+  FieldPrinter field_printer(st);
+    st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
+  ik->do_local_static_fields(&field_printer);
+  st->print_cr(BULLET"---- non-static fields (%d words):", nonstatic_field_size());
+  ik->print_nonstatic_fields(&field_printer);
 
   st->print(BULLET"non-static oop maps (%d entries): ", nonstatic_oop_map_count());
   OopMapBlock* map     = start_of_nonstatic_oop_maps();
@@ -4173,13 +4225,14 @@ void InstanceKlass::print_value_on(outputStream* st) const {
 void FieldPrinter::do_field(fieldDescriptor* fd) {
   for (int i = 0; i < _indent; i++) _st->print("  ");
   _st->print(BULLET);
-   if (_obj == nullptr) {
-     fd->print_on(_st, _base_offset);
-     _st->cr();
-   } else {
-     fd->print_on_for(_st, _obj, _indent, _base_offset);
-     if (!fd->field_flags().is_flat()) _st->cr();
-   }
+  // Handles the cases of static fields or instance fields but no oop is given.
+  if (_obj == nullptr) {
+    fd->print_on(_st, _base_offset);
+    _st->cr();
+  } else {
+    fd->print_on_for(_st, _obj, _indent, _base_offset);
+    if (!fd->field_flags().is_flat()) _st->cr();
+  }
 }
 
 

@@ -22,7 +22,7 @@
  */
 
 /** @test
- *  @bug 8034854
+ *  @bug 8034854 8287203
  *  @summary Verify that the InnerClasses attribute has outer_class_info_index zero if it has
  *           inner_name_index zero (for synthetic classes)
  *  @compile SyntheticClasses.java

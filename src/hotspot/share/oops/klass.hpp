@@ -730,6 +730,7 @@ public:
   bool is_refArray_klass()              const { return assert_same_query( _kind == RefArrayKlassKind, is_refArray_klass_slow()); }
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   bool is_refined_objArray_klass()      const { return is_refArray_klass() || is_flatArray_klass(); }
+  bool is_unrefined_objArray_klass()    const { return _kind == ObjArrayKlassKind; }
   #undef assert_same_query
 
   inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }

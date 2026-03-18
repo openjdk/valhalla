@@ -64,7 +64,6 @@ public interface JavaLangReflectAccess {
     /** Tests if this is a trusted final field */
     public boolean isTrustedFinalField(Field f);
 
-
     /** Tests if this is a null-restricted field */
     public boolean isNullRestrictedField(Field f);
 

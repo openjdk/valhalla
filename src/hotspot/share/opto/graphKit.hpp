@@ -459,7 +459,7 @@ class GraphKit : public Phase {
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 
-  Node* maybe_narrow_object_type(Node* obj, ciKlass* type);
+  Node* maybe_narrow_object_type(Node* obj, ciKlass* type, bool maybe_larval);
 
   void  push(Node* n)     { map_not_null();        _map->set_stack(_map->_jvms,   _sp++        , n); }
   Node* pop()             { map_not_null(); return _map->stack(    _map->_jvms, --_sp             ); }

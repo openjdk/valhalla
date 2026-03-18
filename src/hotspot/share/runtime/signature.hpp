@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -594,6 +594,8 @@ class SigEntry {
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);
+
+  void print_on(outputStream* st) const;
 };
 
 class SigEntryFilter {

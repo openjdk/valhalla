@@ -44,7 +44,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
-ArrayKlass::ArrayKlass() {
+ArrayKlass::ArrayKlass() : _properties() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
@@ -91,12 +91,33 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
-Klass(kind, prototype_header),
-  _dimension(1),
-  _properties(props),
+static markWord calc_prototype_header(Klass::KlassKind kind, ArrayProperties props) {
+  switch (kind) {
+  case Klass::KlassKind::TypeArrayKlassKind:
+    return markWord::prototype();
+
+  case Klass::KlassKind::FlatArrayKlassKind:
+    return markWord::flat_array_prototype(props.is_null_restricted());
+
+  case Klass::KlassKind::ObjArrayKlassKind:
+  case Klass::KlassKind::RefArrayKlassKind:
+    if (props.is_null_restricted()) {
+      return markWord::null_free_array_prototype();
+    } else {
+      return markWord::prototype();
+    }
+
+  default:
+    ShouldNotReachHere();
+  };
+}
+
+ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props)
+    : Klass(kind, calc_prototype_header(kind, props)),
+  _dimension(n),
   _higher_dimension(nullptr),
-  _lower_dimension(nullptr) {
+  _lower_dimension(nullptr),
+  _properties(props) {
   // Arrays don't add any new methods, so their vtable is the same size as
   // the vtable of klass Object.
   set_vtable_length(Universe::base_vtable_size());
@@ -107,26 +128,6 @@ Klass(kind, prototype_header),
   set_is_cloneable_fast();
   JFR_ONLY(INIT_ID(this);)
   log_array_class_load(this);
-}
-
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
-  ResourceMark rm(THREAD);
-  Symbol* name = nullptr;
-  char *name_str = element_klass->name()->as_C_string();
-  int len = element_klass->name()->utf8_length();
-  char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
-  int idx = 0;
-  new_str[idx++] = JVM_SIGNATURE_ARRAY;
-  if (element_klass->is_instance_klass()) { // it could be an array or simple type
-    new_str[idx++] = JVM_SIGNATURE_CLASS;
-  }
-  memcpy(&new_str[idx], name_str, len * sizeof(char));
-  idx += len;
-  if (element_klass->is_instance_klass()) {
-    new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
-  }
-  new_str[idx++] = '\0';
-  return SymbolTable::new_symbol(new_str);
 }
 
 // Initialization of vtables and mirror object is done separately from base_create_array_klass,
@@ -142,7 +143,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
          "module entry not available post " JAVA_BASE_NAME " definition");
   oop module_oop = (module_entry != nullptr) ? module_entry->module_oop() : (oop)nullptr;
 
-  if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+  if (k->is_refined_objArray_klass()) {
     assert(super_klass != nullptr, "Must be");
     assert(k->super() != nullptr, "Must be");
     assert(k->super() == super_klass, "Must be");
@@ -167,7 +168,8 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+      ObjArrayKlass* ak =
+          ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");
@@ -331,6 +333,7 @@ void ArrayKlass::verify_on(outputStream* st) {
 }
 
 void ArrayKlass::oop_verify_on(oop obj, outputStream* st) {
+  Klass::oop_verify_on(obj, st);
   guarantee(obj->is_array(), "must be array");
   arrayOop a = arrayOop(obj);
   guarantee(a->length() >= 0, "array with negative length?");

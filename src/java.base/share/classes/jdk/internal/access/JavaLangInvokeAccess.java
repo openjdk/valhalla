@@ -63,12 +63,6 @@ public interface JavaLangInvokeAccess {
     boolean isHiddenMember(int flags);
 
     /**
-     * Returns true if the member of the given method handle is a null-restricted
-     * field.
-     */
-    boolean isNullRestrictedField(MethodHandle mh);
-
-    /**
      * Returns a map of class name in internal forms to its corresponding
      * class bytes per the given stream of LF_RESOLVE and SPECIES_RESOLVE
      * trace logs. Used by GenerateJLIClassesPlugin to enable generation
@@ -176,14 +170,4 @@ public interface JavaLangInvokeAccess {
      * This method should only be used by ReflectionFactory::newConstructorForSerialization.
      */
     MethodHandle serializableConstructor(Class<?> decl, Constructor<?> ctorToCall) throws IllegalAccessException;
-
-    /**
-     * Asserts a method handle to be another type without the conversion adaptions.
-     * Useful to avoid many redundant casts.
-     *
-     * @param original original MH
-     * @param assertedType the asserted type the origina MH can execute as
-     * @return the cheap view without extra adaptions
-     */
-    MethodHandle assertAsType(MethodHandle original, MethodType assertedType);
 }

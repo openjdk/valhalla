@@ -25,8 +25,6 @@
 
 package java.lang.reflect;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.util.StringJoiner;
 
 /**

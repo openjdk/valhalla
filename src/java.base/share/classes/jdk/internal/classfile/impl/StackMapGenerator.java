@@ -412,7 +412,6 @@ public final class StackMapGenerator {
         return framesCount == 0 ? null : new UnboundAttribute.AdHocAttribute<>(Attributes.stackMapTable()) {
             @Override
             public void writeBody(BufWriterImpl b) {
-                int countPos = b.size();
                 if (framesCount != (char) framesCount) {
                     throw generatorError("Too many frames: " + framesCount);
                 }

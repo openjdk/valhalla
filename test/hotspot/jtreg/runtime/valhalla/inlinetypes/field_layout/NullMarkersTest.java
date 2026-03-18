@@ -414,6 +414,11 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
       }
 
     // Verify that all layouts are correct
-    fla.check();
+    try {
+        fla.check();
+    } catch (Throwable t) {
+        System.out.print(out.getOutput());
+        throw t;
+    }
   }
 }

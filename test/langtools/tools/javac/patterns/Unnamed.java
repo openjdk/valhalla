@@ -27,7 +27,6 @@
  * @summary Compiler Implementation for Unnamed patterns and variables
  * @compile Unnamed.java
  * @run main Unnamed
- * @ignore Verifier error
  */
 
 import java.util.Objects;

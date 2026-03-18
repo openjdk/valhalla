@@ -28,8 +28,6 @@
  * @library ..
  * @enablePreview
  * @run main/othervm FieldWatchpointsTest
- *                   -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlineLayout -XX:+PrintFlatArrayLayout
  */
 import com.sun.jdi.Field;
 import com.sun.jdi.ClassType;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -196,6 +196,19 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_bounded(oop obj, OopClosureType
   }
 
   oop_oop_iterate_oop_maps_bounded<T>(obj, closure, mr);
+}
+
+template<typename T, typename TConsumerType>
+inline void InstanceKlass::print_array_on(outputStream* st, Array<T>* array, TConsumerType elem_printer) {
+   if (array == nullptr) { st->print_cr("nullptr"); return; }
+   array->print_value_on(st); st->cr();
+   if (Verbose || WizardMode) {
+     for (int i = 0; i < array->length(); i++) {
+       st->print("%d : ", i);
+       elem_printer(st, array->at(i));
+       st->cr();
+     }
+   }
 }
 
 #endif // SHARE_OOPS_INSTANCEKLASS_INLINE_HPP

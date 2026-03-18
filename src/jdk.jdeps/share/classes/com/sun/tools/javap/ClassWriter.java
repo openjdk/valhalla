@@ -123,7 +123,7 @@ public class ClassWriter extends BasicWriter {
             // something not representable by CFFV, let's fall back
             return ClassFileFormatVersion.latest();
         if (major >= JAVA_12_VERSION && classModel.minorVersion() != 0) {
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
+            return null;
         }
         return ClassFileFormatVersion.fromMajor(major);
     }

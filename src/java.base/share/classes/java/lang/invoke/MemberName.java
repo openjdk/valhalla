@@ -772,7 +772,7 @@ final class MemberName implements Member, Cloneable {
      *  The resulting name will in an unresolved state.
      */
     public MemberName(Class<?> defClass, String name, MethodType type, byte refKind) {
-        int initFlags = CONSTRUCTOR_NAME.equals(name) ? IS_CONSTRUCTOR : IS_METHOD;
+        int initFlags = (name != null && name.equals(CONSTRUCTOR_NAME) ? IS_CONSTRUCTOR : IS_METHOD);
         init(defClass, name, type, flagsMods(initFlags, 0, refKind));
         initResolved(false);
     }

@@ -1370,7 +1370,7 @@ void Parse::do_method_entry() {
     if (t->is_inlinetypeptr()) {
       // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
       // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
-      if (!(method()->is_object_constructor() && i == 0)) {
+      if (!(i == 0 && method()->receiver_maybe_larval())) {
         // Create InlineTypeNode from the oop and replace the parameter
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);

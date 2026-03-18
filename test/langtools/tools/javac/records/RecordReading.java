@@ -25,7 +25,6 @@
  * @test
  * @summary test the records can be read by javac properly
  * @library /tools/lib
- * @bug 8273018
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  * @build toolbox.ToolBox toolbox.JavacTask
@@ -36,7 +35,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Objects;
 import toolbox.TestRunner;
 import toolbox.ToolBox;
@@ -126,4 +124,5 @@ public class RecordReading extends TestRunner {
             throw new AssertionError("Unexpected output: " + output);
         }
     }
+
 }

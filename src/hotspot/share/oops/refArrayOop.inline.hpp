@@ -32,6 +32,11 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
+inline RefArrayKlass* refArrayOopDesc::klass() const {
+  Klass* k = oopDesc::klass();
+  return RefArrayKlass::cast(k);
+}
+
 inline HeapWord *refArrayOopDesc::base() const {
   return (HeapWord *)arrayOopDesc::base(T_OBJECT);
 }
@@ -46,10 +51,6 @@ inline oop refArrayOopDesc::obj_at(int index) const {
   ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index)
                                        : obj_at_offset<oop>(index);
   return HeapAccess<IS_ARRAY>::oop_load_at(as_oop(), offset);
-}
-
-inline oop refArrayOopDesc::obj_at(int index, TRAPS) const {
-  return obj_at(index);
 }
 
 inline void refArrayOopDesc::obj_at_put(int index, oop value) {
@@ -70,9 +71,9 @@ inline void refArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
 template <typename OopClosureType>
 void refArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
   if (UseCompressedOops) {
-    ((RefArrayKlass*)klass())->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
   } else {
-    ((RefArrayKlass*)klass())->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
   }
 }
 

@@ -24,11 +24,12 @@
 // key: compiler.err.cant.ref.before.ctor.called
 
 class Base {
-    int i;
     Base(int i) { }
 }
 
 class CantRefBeforeConstr extends Base {
+    int i;
+
     CantRefBeforeConstr() {
         super(i);
     }

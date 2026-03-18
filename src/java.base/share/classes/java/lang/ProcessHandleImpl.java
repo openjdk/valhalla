@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,12 +87,13 @@ final class ProcessHandleImpl implements ProcessHandle {
     private static final Executor processReaperExecutor = initReaper();
 
     private static Executor initReaper() {
-        // Initialize ThreadLocalRandom and now to avoid using the smaller stack
+        // Initialize ThreadLocalRandom now to avoid using the smaller stack
         // of the processReaper threads.
         ThreadLocalRandom.current();
+
         // For a debug build, the stack shadow zone is larger;
         // Increase the total stack size to avoid potential stack overflow.
-        int debugDelta = "release".equals(System.getProperty("jdk.debug")) ? 0 : (4*4096);
+        int debugDelta = "release".equals(System.getProperty("jdk.debug")) ? 0 : (4 * 4096);
         final long stackSize = Boolean.getBoolean("jdk.lang.processReaperUseDefaultStackSize")
                 ? 0 : REAPER_DEFAULT_STACKSIZE + debugDelta;
 

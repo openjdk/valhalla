@@ -4041,8 +4041,8 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
       arg_num++;
     }
   }
-  objArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
-  objArrayHandle array(THREAD, array_oop);
+  refArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
+  refArrayHandle array(THREAD, array_oop);
   arg_num = callee->is_static() ? 0 : 1;
   int i = 0;
   if (allocate_receiver) {

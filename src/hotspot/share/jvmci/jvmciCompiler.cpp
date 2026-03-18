@@ -143,7 +143,7 @@ bool JVMCICompiler::force_comp_at_level_simple(const methodHandle& method) {
         return false;
       }
       JVMCIEnv* ignored_env = nullptr;
-      objArrayHandle excludeModules(JavaThread::current(), HotSpotJVMCI::HotSpotJVMCIRuntime::excludeFromJVMCICompilation(ignored_env, HotSpotJVMCI::resolve(receiver)));
+      refArrayHandle excludeModules(JavaThread::current(), HotSpotJVMCI::HotSpotJVMCIRuntime::excludeFromJVMCICompilation(ignored_env, HotSpotJVMCI::resolve(receiver)));
       if (excludeModules.not_null()) {
         ModuleEntry* moduleEntry = method->method_holder()->module();
         for (int i = 0; i < excludeModules->length(); i++) {

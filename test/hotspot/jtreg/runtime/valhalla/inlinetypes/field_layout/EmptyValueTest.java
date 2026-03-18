@@ -128,7 +128,6 @@ public class EmptyValueTest {
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
         Collections.addAll(argsList, "--enable-preview");
-        Collections.addAll(argsList, "-Xint");
         Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
         Collections.addAll(argsList, "-XX:+PrintFieldLayout");
         Collections.addAll(argsList, "-Xshare:off");
@@ -153,9 +152,6 @@ public class EmptyValueTest {
         }
         Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
-        // To help during test development
-        System.out.print(out.getOutput());
-
         // Get and parse the test output
         FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
         FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
@@ -172,6 +168,11 @@ public class EmptyValueTest {
         }
 
         // Verify that all layouts are correct
-        fla.check();
+        try {
+            fla.check();
+        } catch (Throwable t) {
+            System.out.print(out.getOutput());
+            throw t;
+        }
     }
 }

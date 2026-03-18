@@ -2663,8 +2663,6 @@ ProcessBuilder pb = (ProcessBuilder)
   MH_newProcessBuilder.invoke("x", "y", "z");
 assertEquals("[x, y, z]", pb.command().toString());
          * }
-         *
-         *
          * @param refc the class or interface from which the method is accessed
          * @param type the type of the method, with the receiver argument omitted, and a void return type
          * @return the desired method handle
@@ -2677,9 +2675,6 @@ assertEquals("[x, y, z]", pb.command().toString());
         public MethodHandle findConstructor(Class<?> refc, MethodType type) throws NoSuchMethodException, IllegalAccessException {
             if (refc.isArray()) {
                 throw new NoSuchMethodException("no constructor for array class: " + refc.getName());
-            }
-            if (type.returnType() != void.class) {
-                throw new NoSuchMethodException("Constructors must have void return type: " + refc.getName());
             }
             String name = ConstantDescs.INIT_NAME;
             MemberName ctor = resolveOrFail(REF_newInvokeSpecial, refc, name, type);
@@ -3853,6 +3848,7 @@ return mh1;
                                                    Lookup boundCaller) throws IllegalAccessException {
             checkMethod(refKind, refc, method);
             assert(!method.isMethodHandleInvoke());
+
             if (refKind == REF_invokeSpecial &&
                 refc != lookupClass() &&
                 !refc.isInterface() && !lookupClass().isInterface() &&

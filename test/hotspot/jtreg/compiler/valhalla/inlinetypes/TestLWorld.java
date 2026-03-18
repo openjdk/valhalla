@@ -2480,8 +2480,10 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
-        counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
+    @IR(applyIf = {"UseArrayFlattening", "true"},
+        counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"},
+        // Match on PHASEIDEALLOOP2 before load_unkown_inline gets duplicated in pre/main/post
+        phase = {CompilePhase.PHASEIDEALLOOP2})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2501,8 +2503,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
-        counts = {COUNTED_LOOP, "= 2"})
+    @IR(applyIf = {"UseArrayFlattening", "true"},
+        counts = {COUNTED_LOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -5084,7 +5086,7 @@ public class TestLWorld {
     }
 
     // Test acmp with deep nesting of flat fields
-    @Test
+    @Test(allowNotCompilable = true) // TODO 8378943: reason should be "failed spill-split-recycle sanity check"
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test178(Value178 x, Value178 y) {
         return getter(x) == getter(y);

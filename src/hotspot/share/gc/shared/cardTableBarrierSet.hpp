@@ -83,10 +83,8 @@ public:
   // optimized by some barriers.
 
   // Below length is the # array elements being written
-  virtual void write_ref_array_pre(oop* dst, size_t length,
-                                   bool dest_uninitialized) {}
-  virtual void write_ref_array_pre(narrowOop* dst, size_t length,
-                                   bool dest_uninitialized) {}
+  virtual void write_ref_array_pre(oop* dst, size_t length) {}
+  virtual void write_ref_array_pre(narrowOop* dst, size_t length) {}
   // Below count is the # array elements being written, starting
   // at the address "start", which may not necessarily be HeapWord-aligned
   inline void write_ref_array(HeapWord* start, size_t count);
@@ -102,6 +100,10 @@ public:
   virtual void on_slowpath_allocation_exit(JavaThread* thread, oop new_obj);
 
   virtual void print_on(outputStream* st) const;
+
+  // The AOT code cache manager needs to know the region grain size
+  // shift for some barrier sets.
+  virtual uint grain_shift() { return 0; }
 
   template <DecoratorSet decorators, typename BarrierSetT = CardTableBarrierSet>
   class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {

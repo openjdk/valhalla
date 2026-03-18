@@ -28,7 +28,6 @@
 #include "cppstdlib/type_traits.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/compressedKlass.hpp"
-#include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/vmEnums.hpp"
@@ -342,7 +341,7 @@ class markWord {
   }
 
 #ifdef _LP64 // 64 bit encodings only
-  static markWord flat_array_prototype(LayoutKind lk);
+  static markWord flat_array_prototype(bool null_free);
 
   static markWord null_free_array_prototype() {
     return markWord(null_free_array_pattern);
