@@ -817,7 +817,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintFieldLayout, false, DIAGNOSTIC,                        \
           "Print field layout for each class")                              \
                                                                             \
-  product(bool, PrintValueLayout, false, DIAGNOSTIC,                        \
+  product(bool, PrintInlineLayout, false, DIAGNOSTIC,                       \
           "Print field layout for each value class or class containing "    \
           "inlined value fields")                                           \
                                                                             \

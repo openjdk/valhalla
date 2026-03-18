@@ -66,7 +66,7 @@ public class NullableFlatFieldDynamicTest extends DynamicArchiveTestBase {
              "--enable-preview",
              "-XX:+UnlockDiagnosticVMOptions",
              "-XX:+UseNullableAtomicValueFlattening",
-             "-XX:+PrintValueLayout",
+             "-XX:+PrintInlineLayout",
              "-Xlog:cds",
              "-Xlog:cds+dynamic=debug",
              "-cp", appJar, mainClass)
@@ -77,7 +77,7 @@ public class NullableFlatFieldDynamicTest extends DynamicArchiveTestBase {
             "--enable-preview",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+UseNullableAtomicValueFlattening",
-            "-XX:+PrintValueLayout",
+            "-XX:+PrintInlineLayout",
             "-Xlog:class+load",
             "-Xlog:cds+dynamic=debug,cds=debug",
             "-cp", appJar, mainClass)
