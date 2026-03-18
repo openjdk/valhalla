@@ -600,9 +600,9 @@ public class TestValueClasses {
 
     // Test that calling convention optimization prevents buffering of arguments
     @Test
-    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
-    @IR(applyIf = {"ValueTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
     public MyValueClass1 test15(MyValueClass1 vt) {
         MyValueClass1 res = test15_helper1(vt);
@@ -637,9 +637,9 @@ public class TestValueClasses {
 
     // Test that calling convention optimization prevents buffering of return values
     @Test
-    @IR(applyIf = {"ValueTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         counts = {ALLOC, " <= 1"}) // 1 MyValueClass2Inline allocation (if not the all-zero value)
-    @IR(applyIf = {"ValueTypeReturnedAsFields", "false"},
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
         counts = {ALLOC, " <= 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation  (if not the all-zero value)
     public MyValueClass2 test16(int c, boolean b) {
         MyValueClass2 res = null;

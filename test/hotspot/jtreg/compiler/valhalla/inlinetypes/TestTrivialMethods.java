@@ -36,7 +36,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:.
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields
+ *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-StressCallingConvention
  *                   -XX:CompileCommand=dontinline,*::getter* -XX:CompileCommand=dontinline,*::setter*
  *                   -XX:CompileCommand=dontinline,*::constantGetter*

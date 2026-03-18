@@ -106,8 +106,8 @@ public:
 #define CDS_MUST_MATCH_FLAGS_DO(f) \
   f(UseArrayFlattening) \
   f(UseFieldFlattening) \
-  f(ValueTypePassFieldsAsArgs) \
-  f(ValueTypeReturnedAsFields) \
+  f(InlineTypePassFieldsAsArgs) \
+  f(InlineTypeReturnedAsFields) \
   f(UseNullFreeNonAtomicValueFlattening) \
   f(UseNullFreeAtomicValueFlattening) \
   f(UseNullableAtomicValueFlattening) \
