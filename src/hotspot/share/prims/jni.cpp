@@ -2945,7 +2945,16 @@ JNI_END
 
 JNI_ENTRY(jweak, jni_NewWeakGlobalRef(JNIEnv *env, jobject ref))
   HOTSPOT_JNI_NEWWEAKGLOBALREF_ENTRY(env, ref);
+
   Handle ref_handle(thread, JNIHandles::resolve(ref));
+
+  if (!ref_handle.is_null() && ref_handle->klass()->is_inline_klass()) {
+    ResourceMark rm(THREAD);
+    stringStream ss;
+    ss.print("%s is not an identity class", ref_handle->klass()->external_name());
+    THROW_MSG_(vmSymbols::java_lang_IdentityException(), ss.as_string(), nullptr);
+  }
+
   jweak ret = JNIHandles::make_weak_global(ref_handle, AllocFailStrategy::RETURN_NULL);
   if (ret == nullptr && ref_handle.not_null()) {
     THROW_OOP_(Universe::out_of_memory_error_c_heap(), nullptr);
