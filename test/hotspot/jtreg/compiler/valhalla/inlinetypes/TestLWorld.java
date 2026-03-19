@@ -5229,5 +5229,39 @@ public class TestLWorld {
         Asserts.assertFalse(test182(val2, val3));
         Asserts.assertTrue(test182(val3, val4));
     }
+
+    @LooselyConsistentValue
+    static value class V1MismatchedStore {
+        int x;
+
+        V1MismatchedStore(int x) {
+            this.x = x;
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class V2MismatchedStore {
+        double d;
+
+        V2MismatchedStore(double d) {
+            this.d = d;
+        }
+    }
+
+    static final V1MismatchedStore v1Mismatched = new V1MismatchedStore(0);
+    static final V2MismatchedStore v2Mismatched = new V2MismatchedStore(0);
+    static final V1MismatchedStore[] v1MismatchedArr = (V1MismatchedStore[]) ValueClass.newNullRestrictedNonAtomicArray(V1MismatchedStore.class, 1, v1Mismatched);
+    static final V2MismatchedStore[] v2MismatchedArr = (V2MismatchedStore[]) ValueClass.newNullRestrictedNonAtomicArray(V2MismatchedStore.class, 1, v2Mismatched);
+
+    @Test
+    static void testMismatchedStoresNotOnInlinesSlice() {
+        v1MismatchedArr[0] = v1Mismatched;
+        v2MismatchedArr[0] = v2Mismatched;
+    }
+
+    @Run(test = "testMismatchedStoresNotOnInlinesSlice")
+    public void testMismatchedStoresNotOnInlinesSlice_verifier() {
+        testMismatchedStoresNotOnInlinesSlice();
+    }
 }
 
