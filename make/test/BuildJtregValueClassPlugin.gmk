@@ -50,14 +50,7 @@ include JavaCompilation.gmk
 VCP_BASEDIR := $(TOPDIR)/test/jtreg_value_class_plugin
 VCP_SUPPORT := $(SUPPORT_OUTPUTDIR)/test/jtreg_value_class_plugin
 
-################################################################################
-# Step 1: compile @ValueClass annotation WITHOUT --enable-preview.
-#
-# The resulting class file must NOT have the preview minor-version flag
-# (0xFFFF) so that tests compiled without --enable-preview can reference
-# the annotation type on the classpath.
-################################################################################
-
+# Compile @ValueClass annotation WITHOUT --enable-preview.
 $(eval $(call SetupJavaCompilation, BUILD_VCP_ANNOTATION, \
     TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SRC := $(VCP_BASEDIR)/annotation, \
@@ -65,15 +58,7 @@ $(eval $(call SetupJavaCompilation, BUILD_VCP_ANNOTATION, \
     JAR := $(VCP_SUPPORT)/valueClassAnnotation.jar, \
 ))
 
-################################################################################
-# Step 2: compile ValueClassPlugin WITH --enable-preview and the required
-# --add-exports for internal javac APIs.
-#
-# The plugin/ source directory contains META-INF/services/com.sun.source.util.Plugin
-# which SetupJavaCompilation automatically copies to BIN (all META-INF/** files
-# are always copied), so it ends up inside valueClassPlugin.jar.
-################################################################################
-
+# Compile ValueClassPlugin WITH --enable-preview
 $(eval $(call SetupJavaCompilation, BUILD_VCP_PLUGIN, \
     TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SRC := $(VCP_BASEDIR)/plugin, \

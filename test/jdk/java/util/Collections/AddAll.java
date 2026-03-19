@@ -47,16 +47,17 @@ public class AddAll {
         test(new LinkedList<Integer>());
         test(new HashSet<Integer>());
         test(new LinkedHashSet<Integer>());
-        testIntValue(new ArrayList<IntValue>());
         checkValueClass();
+        testPoint(new ArrayList<Point>());
     }
 
     private static Random rnd = new Random();
 
     @ValueClass
-    static class IntValue {
-        int val;
-        IntValue(int val) { this.val = val; }
+    static class Point {
+        int x;
+        int y;
+        Point(int x, int y) { this.x = x; this.y = y; }
     }
 
     static void test(Collection<Integer> c) {
@@ -85,38 +86,33 @@ public class AddAll {
     }
 
     static void checkValueClass() {
-        // jtreg sets jtreg.value.class=true when VALUE_CLASS_PLUGIN=true;
-        // use that to know if the plugin should have transformed @ValueClass
-        // into a real value class.
         boolean pluginActive = "true".equals(System.getProperty("jtreg.value.class"));
-        // isIdentity() reflects the class file's ACC_IDENTITY flag directly
-        // without requiring preview features to be enabled at runtime.
-        boolean isValue = !IntValue.class.isIdentity();
+        boolean isValue = !Point.class.isIdentity();
         if (pluginActive && !isValue) {
             throw new RuntimeException(
-                "ValueClassPlugin did not transform IntValue into a value class");
+                "ValueClassPlugin did not transform Point into a value class");
         }
         if (!pluginActive && isValue) {
             throw new RuntimeException(
-                "IntValue is a value class but ValueClassPlugin is not active");
+                "Point is a value class but ValueClassPlugin is not active");
         }
     }
 
-    static void testIntValue(Collection<IntValue> c) {
+    static void testPoint(Collection<Point> c) {
         int x = 0;
         for (int i = 0; i < N; i++) {
             int rangeLen = rnd.nextInt(10);
-            if (Collections.addAll(c, rangeIntValue(x, x + rangeLen)) !=
+            if (Collections.addAll(c, rangePoint(x, x + rangeLen)) !=
                     (rangeLen != 0))
                 throw new RuntimeException("" + rangeLen);
             x += rangeLen;
         }
     }
 
-    private static IntValue[] rangeIntValue(int from, int to) {
-        IntValue[] result = new IntValue[to - from];
+    private static Point[] rangePoint(int from, int to) {
+        Point[] result = new Point[to - from];
         for (int i = from, j = 0; i < to; i++, j++)
-            result[j] = new IntValue(i);
+            result[j] = new Point(i, i);
         return result;
     }
 }

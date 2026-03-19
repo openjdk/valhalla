@@ -881,10 +881,6 @@ define SetupRunJtregTestBody
     ))
   endif
 
-  # Always add the annotation JAR so tests can reference @ValueClass without
-  # needing --enable-preview (the annotation is compiled without it).
-  # When VALUE_CLASS_PLUGIN is set, combine both JARs in a single -cpa to
-  # avoid the "Duplicate option: -cpa" jtreg error.
   ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_ANNOTATION_JAR)), )
     ifneq ($$(JTREG_VALUE_CLASS_PLUGIN), )
       $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_ANNOTATION_JAR):$$(JTREG_VALUE_CLASS_PLUGIN_JAR)
@@ -893,8 +889,6 @@ define SetupRunJtregTestBody
     endif
   endif
 
-  # When VALUE_CLASS_PLUGIN is set, activate the plugin and enable preview for
-  # both compilation (-javacoption:) and test execution (-vmoption:).
   ifneq ($$(JTREG_VALUE_CLASS_PLUGIN), )
     $1_JTREG_BASIC_OPTIONS += -vmoption:-Djtreg.value.class=true
     $1_JTREG_BASIC_OPTIONS += -vmoption:--enable-preview
