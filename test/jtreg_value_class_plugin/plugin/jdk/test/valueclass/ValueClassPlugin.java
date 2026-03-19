@@ -80,15 +80,13 @@ public class ValueClassPlugin implements Plugin {
                         boolean hasAnnotation = tree.mods.annotations.stream()
                                 .anyMatch(a -> a.annotationType.toString()
                                         .endsWith("ValueClass"));
-                        if (hasAnnotation) {
+                        if (hasAnnotation && preview.isEnabled()) {
                             tree.mods.flags |= Flags.VALUE_CLASS;
                             tree.mods.flags &= ~Flags.IDENTITY_TYPE;
                             // Mark the source file as using a preview feature so
-                            // the class file gets minor version 65535, which the
-                            // JVM requires to recognise the class as a value class.
-                            if (preview.isEnabled()) {
-                                preview.markUsesPreview(null);
-                            }
+                            // the class file gets minor version 0xFFFF, which the
+                            // JVM requires to recognize the class as a value class.
+                            preview.markUsesPreview(null);
                         }
                         super.visitClassDef(tree);
                     }
