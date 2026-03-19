@@ -29,7 +29,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening
  *           -XX:+UseNullFreeNonAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening
  *           runtime.valhalla.inlinetypes.ArrayQueryTest
  */

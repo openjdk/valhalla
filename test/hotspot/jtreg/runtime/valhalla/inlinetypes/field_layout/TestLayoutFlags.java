@@ -201,6 +201,7 @@ public class TestLayoutFlags {
         List<String> argsList = new ArrayList<>();
         Collections.addAll(argsList, "--enable-preview");
         Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+        Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
         Collections.addAll(argsList, "-XX:+PrintFieldLayout");
         Collections.addAll(argsList, "-Xshare:off");
         Collections.addAll(argsList, "-Xmx256m");

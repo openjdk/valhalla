@@ -43,7 +43,7 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   compiler.valhalla.inlinetypes.TestLoadingDefaultRefinedArrayKlass
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*TestLoadingDefaultRefinedArrayKlass::test*
  *                   -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestLoadingDefaultRefinedArrayKlass

@@ -29,6 +29,7 @@
  * @enablePreview
  * @run main/othervm/native -agentlib:ValueHeapwalkingTest
  *                          -XX:+UnlockDiagnosticVMOptions
+ *                          -XX:+UnlockExperimentalVMOptions
  *                          -XX:+UseArrayFlattening
  *                          -XX:+UseFieldFlattening
  *                          -XX:+UseNullFreeAtomicValueFlattening

@@ -36,7 +36,7 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.internal.value
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=0
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=0
  *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 0
  */
@@ -49,7 +49,7 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.internal.value
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=1
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=1
  *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 1
  */
@@ -62,7 +62,7 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.internal.value
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=2
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=2
  *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 2
  */
