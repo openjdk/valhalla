@@ -5428,11 +5428,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         ptr = NotNull;
       }
     }
-    const TypeAryPtr* res = make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_flat, res_not_flat, res_not_null_free, res_atomic), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
-    // TODO this probably doesn't work because of some weird dual inconsistencies
-    // => we should only have this when dealing wiht "real" types
-    // assert(!res->is_not_null_free() || !res->is_null_free(), "array cannot be both 'not null free' and 'null free'");
-    return res;
+    return make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_flat, res_not_flat, res_not_null_free, res_atomic), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
   }
 
   // All arrays inherit from Object class
