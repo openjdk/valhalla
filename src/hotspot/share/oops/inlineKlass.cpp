@@ -427,11 +427,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
       break;
     }
     case T_LONG: {
-#ifdef _LP64
-      new_vt->double_field_put(off,  *(jdouble*)loc);
-#else
-      Unimplemented();
-#endif
+      new_vt->long_field_put(off,  *(jlong*)loc);
       break;
     }
     case T_OBJECT:
