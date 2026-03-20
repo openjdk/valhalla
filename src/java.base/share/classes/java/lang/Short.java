@@ -247,23 +247,35 @@ public final class Short extends Number implements Comparable<Short>, Constable 
 
         @Stable
         static final Short[] cache;
+        @Stable
+        static final Short[] unused;
         static Short[] archivedCache;
 
         static {
-            int size = -(-128) + 127 + 1;
+            unused = new Short[0];
+            if (!PreviewFeatures.isEnabled()) {
+                int size = -(-128) + 127 + 1;
 
-            // Load and use the archived cache if it exists
-            CDS.initializeFromArchive(ShortCache.class);
-            if (archivedCache == null) {
-                Short[] c = new Short[size];
-                short value = -128;
-                for(int i = 0; i < size; i++) {
-                    c[i] = new Short(value++);
+                // Load and use the archived cache if it exists
+                CDS.initializeFromArchive(ShortCache.class);
+                if (archivedCache == null) {
+                    Short[] c = new Short[size];
+                    short value = -128;
+                    for(int i = 0; i < size; i++) {
+                        c[i] = new Short(value++);
+                    }
+                    archivedCache = c;
                 }
-                archivedCache = c;
+                cache = archivedCache;
+                assert cache.length == size;
+            } else {
+                cache = unused;
+                assert !isEnabled();
             }
-            cache = archivedCache;
-            assert cache.length == size;
+        }
+
+        static boolean isEnabled() {
+            return cache != unused;
         }
     }
 
@@ -297,7 +309,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Short valueOf(short s) {
-        if (!PreviewFeatures.isEnabled()) {
+        if (ShortCache.isEnabled()) {
             final int offset = 128;
             int sAsInt = s;
             if (sAsInt >= -128 && sAsInt <= 127) { // must cache
