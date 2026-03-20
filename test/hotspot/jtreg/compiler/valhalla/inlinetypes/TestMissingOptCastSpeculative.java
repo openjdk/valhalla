@@ -77,6 +77,6 @@ public class TestMissingOptCastSpeculative {
 
     private void test(MyValue1[] va, int index) throws Throwable {
         setArrayElementNull.invoke(this, va, index);
-    }   
+    }
 }
 
