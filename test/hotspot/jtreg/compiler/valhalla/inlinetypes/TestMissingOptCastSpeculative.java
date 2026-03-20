@@ -38,7 +38,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @bug 8367624
  * @summary Writing a null value to an inline type array casts the array to
  *          'not null free'. If there is a speculative type before the cast,
- *          we have to make sure to cast it as well, otherwise we get
+ *          we have to make sure to cast it as well, otherwise we get a
  *          missed value optimization.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @enablePreview
