@@ -5162,9 +5162,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_null_free(bool null_free) const {
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
-  if (res->speculative() != nullptr) {
-    assert(res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()), "precision");
-  }
+  assert(res->speculative() == nullptr || res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()),
+           "speculative type must not be narrower than non-speculative type");
   return res;
 }
 
@@ -5177,7 +5176,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), is_not_flat(), not_null_free, is_atomic());
   const TypePtr* new_spec = _speculative;
   if (new_spec != nullptr) {
-    // Speculation could be too optimistic here and infer not null, which would contradict the cast.
+    // Could be 'null free' from profiling, which would contradict the cast.
     new_spec = new_spec->is_aryptr()->cast_to_null_free(false)->cast_to_not_null_free();
   }
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
@@ -5187,9 +5186,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
-  if (res->speculative() != nullptr) {
-    assert(res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()), "precision");
-  }
+  assert(res->speculative() == nullptr || res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()),
+           "speculative type must not be narrower than non-speculative type");
   return res;
 }
 

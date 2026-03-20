@@ -36,7 +36,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 /*
  * @test
  * @bug 8367624
- * @summary TODO
+ * @summary Writing a null value to an inline type array casts the array to
+ *          'not null free'. If there is a speculative type before the cast,
+ *          we have to make sure to cast it as well, otherwise we get
+ *          missed value optimization.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -60,7 +63,6 @@ public class TestMissingOptCastSpeculative {
         }
     }
 
-    // Test writing constant null to a (flattened) inline type array
     private static final MethodHandle setArrayElementNull = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestMissingOptCastSpeculative.class, MyValue1[].class, int.class),
