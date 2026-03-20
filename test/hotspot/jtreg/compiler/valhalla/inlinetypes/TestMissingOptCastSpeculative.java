@@ -23,7 +23,6 @@
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.test.lib.Asserts;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
@@ -31,7 +30,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.NullRestricted;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
@@ -52,39 +50,13 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  */
 
 public class TestMissingOptCastSpeculative {
-
-    public TestMissingOptCastSpeculative() {
-        valueField1 = testValue1;
-        super();
-    }
-
     public static void main(String[] args) {
         TestMissingOptCastSpeculative t = new TestMissingOptCastSpeculative();
+        MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 3, MyValue1.DEFAULT);
         for (int i = 0; i < 10000; i++) {
             try {
-                int index = Math.abs(rI) % 3;
-                t.test(testValue1Array, index);
-            } catch (Throwable e) {
-                
-            }
-        }
-    }
-
-    static {
-        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
-        RuntimeException tmp = new RuntimeException("42");
-    }
-
-    @NullRestricted
-    private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-
-    @NullRestricted
-    MyValue1 valueField1;
-
-    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 3, MyValue1.DEFAULT);
-    static {
-        for (int i = 0; i < 3; ++i) {
-            testValue1Array[i] = testValue1;
+                t.test(testValue1Array, 0);
+            } catch (Throwable e) {}
         }
     }
 
@@ -101,7 +73,7 @@ public class TestMissingOptCastSpeculative {
             return_();
         });
 
-    public void test(MyValue1[] va, int index) throws Throwable {
+    private void test(MyValue1[] va, int index) throws Throwable {
         setArrayElementNull.invoke(this, va, index);
     }   
 }
