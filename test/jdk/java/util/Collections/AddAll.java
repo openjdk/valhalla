@@ -27,9 +27,13 @@
  * @summary Basic test for Collections.addAll
  * @author  Josh Bloch
  * @key randomness
+ * @library /test/lib
+ * @build jdk.test.lib.valueclass.ValueClass
+ * @run main AddAll
  */
 
-import jdk.test.valueclass.ValueClass;
+import jdk.test.lib.valueclass.ValueClass;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -86,15 +90,26 @@ public class AddAll {
     }
 
     static void checkValueClass() {
-        boolean pluginActive = "true".equals(System.getProperty("jtreg.value.class"));
-        boolean isValue = !Point.class.isIdentity();
-        if (pluginActive && !isValue) {
-            throw new RuntimeException(
-                "ValueClassPlugin did not transform Point into a value class");
-        }
-        if (!pluginActive && isValue) {
-            throw new RuntimeException(
-                "Point is a value class but ValueClassPlugin is not active");
+        boolean transformed = !Point.class.isIdentity();
+
+        try (var is = Point.class.getResourceAsStream("AddAll$Point.class")) {
+            if (is == null) {
+                throw new RuntimeException("Cannot read Point.class");
+            }
+
+            byte[] header = is.readNBytes(8);
+            boolean pointClassUsesPreview =
+                    (header[4] & 0xFF) == 0xFF &&
+                    (header[5] & 0xFF) == 0xFF;
+
+            if (pointClassUsesPreview && !transformed) {
+                throw new RuntimeException("ValueClassPlugin did not transform Point");
+            }
+            if (!pointClassUsesPreview && transformed) {
+                throw new RuntimeException("Point is a value class but Point.class is not preview-marked");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read Point.class", e);
         }
     }
 

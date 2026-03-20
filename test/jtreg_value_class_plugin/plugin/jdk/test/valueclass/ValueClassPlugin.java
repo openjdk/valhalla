@@ -70,8 +70,6 @@ public class ValueClassPlugin implements Plugin {
             @Override
             public void finished(TaskEvent e) {
                 if (e.getKind() != TaskEvent.Kind.PARSE) return;
-
-                if (!"true".equals(System.getProperty("jtreg.value.class"))) return;
                 
                 Preview preview = Preview.instance(ctx);
                 new TreeScanner() {

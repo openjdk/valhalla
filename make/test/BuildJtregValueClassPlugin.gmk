@@ -53,7 +53,8 @@ VCP_SUPPORT := $(SUPPORT_OUTPUTDIR)/test/jtreg_value_class_plugin
 # Compile @ValueClass annotation WITHOUT --enable-preview.
 $(eval $(call SetupJavaCompilation, BUILD_VCP_ANNOTATION, \
     TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
-    SRC := $(VCP_BASEDIR)/annotation, \
+    SRC := $(TOPDIR)/test/lib, \
+    INCLUDE_FILES := jdk/test/lib/valueclass/ValueClass.java, \
     BIN := $(VCP_SUPPORT)/annotation_classes, \
     JAR := $(VCP_SUPPORT)/valueClassAnnotation.jar, \
 ))

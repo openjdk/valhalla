@@ -890,7 +890,6 @@ define SetupRunJtregTestBody
   endif
 
   ifneq ($$(JTREG_VALUE_CLASS_PLUGIN), )
-    $1_JTREG_BASIC_OPTIONS += -vmoption:-Djtreg.value.class=true
     $1_JTREG_BASIC_OPTIONS += -vmoption:--enable-preview
     $1_JTREG_BASIC_OPTIONS += -javacoption:-XDaccessInternalAPI
     $1_JTREG_BASIC_OPTIONS += -javacoption:--source -javacoption:$(VERSION_FEATURE)

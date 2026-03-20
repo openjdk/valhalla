@@ -21,7 +21,7 @@
  * questions.
  */
 
-package jdk.test.valueclass;
+package jdk.test.lib.valueclass;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
