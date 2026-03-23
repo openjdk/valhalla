@@ -5018,6 +5018,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // write barrier. Conservatively, go to slow path.
     // TODO 8251971: Optimize for the case when flat src/dst are later found
     // to not contain oops (i.e., move this check to the macro expansion phase).
+    // TODO 8382226: Revisit for flat abstract value class arrays
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
     const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();

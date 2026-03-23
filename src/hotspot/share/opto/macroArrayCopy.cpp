@@ -1321,10 +1321,11 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
                                                        Node*& dest_offset, Node*& length, BasicType& dest_elem,
                                                        Node*& dest_length) {
 #ifdef ASSERT
+  assert(top_dest->elem()->make_ptr()->is_instptr()->is_inlinetypeptr(), "must be value klass");
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bool needs_barriers = top_dest->elem()->inline_klass()->contains_oops() &&
     bs->array_copy_requires_gc_barriers(dest_length != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization);
-  assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
+  assert(!needs_barriers || StressReflectiveCode, "Flat arraycopy would require GC barriers");
 #endif
   int elem_size = top_dest->flat_elem_size();
   if (elem_size >= 8) {
@@ -1491,13 +1492,16 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
-  // We have no stub to copy flat inline type arrays with oop
-  // fields if we need to emit write barriers.
-  //
+  // We have no stub to copy flat value class arrays with oop fields
+  // if we need to emit write barriers. We also cannot use the stub
+  // if we deal with a flat abstract value class array because we
+  // don't know the exact layout. Go to slow path in both cases.
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID ||
-      (top_src->is_flat() && top_dest->elem()->inline_klass()->contains_oops() &&
-       bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization))) {
+      (top_src->is_flat() &&
+       bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization) &&
+       (!top_dest->elem()->make_ptr()->is_inlinetypeptr() || // Abstract value class
+        top_dest->elem()->inline_klass()->contains_oops()))) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
     {
@@ -1541,6 +1545,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
   RegionNode* slow_region = new RegionNode(1);
   transform_later(slow_region);
+  const bool both_flat = top_src->is_flat() && top_dest->is_flat();
+  const bool both_exact = top_src->klass_is_exact() && top_dest->klass_is_exact();
+  const bool same_nullness = top_src->is_null_free() == top_dest->is_null_free();
 
   if (!ac->is_arraycopy_validated()) {
     // (3) operands must not be null
@@ -1581,7 +1588,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
-    if (!(top_src->is_flat() && top_dest->is_flat() && top_src->is_null_free() == top_dest->is_null_free())) {
+    if (!both_flat || !same_nullness || !both_exact) {
+      // Go to slow path. This could be improved by directly going to the slow_region instead of letting it handle by
+      // generate_array_copy(). But we might want to improve the situation in the future.
+      // Note that we also need to make sure to exclude flat abstract value class arrays (i.e. !both_exact).
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
       generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
@@ -1591,8 +1601,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // This is where the memory effects are placed:
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
-  if (top_src->is_flat() && top_dest->is_flat() &&
-      top_src->is_null_free() == top_dest->is_null_free()) {
+  if (both_flat && same_nullness && both_exact) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
