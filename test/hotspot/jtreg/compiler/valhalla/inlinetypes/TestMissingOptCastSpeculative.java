@@ -63,6 +63,7 @@ public class TestMissingOptCastSpeculative {
         }
     }
 
+    // stores null at the specified index in the array
     private static final MethodHandle setArrayElementNull = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestMissingOptCastSpeculative.class, MyValue1[].class, int.class),
