@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
  * @bug 4229892
  * @summary Arrays.fill(Object[], ...) should throw ArrayStoreException
  * @author Martin Buchholz
- * @enablePreview
  */
 
 import java.io.*;
@@ -56,20 +55,6 @@ public class Fill {
         }
         catch (ArrayIndexOutOfBoundsException e) { pass(); }
         catch (Throwable t) { unexpected(t); }
-
-        try {
-            Arrays.fill(new MyValue[3], "foo");
-            fail("Expected ArrayStoreException");
-        }
-        catch (ArrayStoreException e) { pass(); }
-        catch (Throwable t) { unexpected(t); }
-
-        try {
-            Arrays.fill(new MyValue[3], 0, 4, "foo");
-            fail("Expected ArrayIndexOutOfBoundsException");
-        }
-        catch (ArrayIndexOutOfBoundsException e) { pass(); }
-        catch (Throwable t) { unexpected(t); }
     }
 
     //--------------------- Infrastructure ---------------------------
@@ -86,6 +71,4 @@ public class Fill {
         try {realMain(args);} catch (Throwable t) {unexpected(t);}
         System.out.printf("%nPassed = %d, failed = %d%n%n", passed, failed);
         if (failed > 0) throw new AssertionError("Some tests failed");}
-
-    static value record MyValue(int value) {};
 }
