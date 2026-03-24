@@ -179,7 +179,7 @@ FieldGroup::FieldGroup(int contended_group) :
 void FieldGroup::add_primitive_field(int idx, BasicType type) {
   int size = type2aelembytes(type);
   LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::REGULAR, size, size /* alignment == size for primitive types */);
-  if (size >= oopSize) {
+  if (size >= heapOopSize) {
     add_to_big_primitive_list(block);
   } else {
     add_to_small_primitive_list(block);
@@ -203,9 +203,10 @@ void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
   LayoutRawBlock* block = new LayoutRawBlock(idx, LayoutRawBlock::FLAT, size, alignment);
   block->set_inline_klass(vk);
   block->set_layout_kind(lk);
-  if (block->size() >= oopSize) {
+  if (block->size() >= heapOopSize) {
     add_to_big_primitive_list(block);
   } else {
+    assert(!vk->contains_oops(), "Size of Inline klass with oops should be >= heapOopSize");
     add_to_small_primitive_list(block);
   }
 }
@@ -986,6 +987,8 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     }
     if (!fieldinfo.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
   }
+  _root_group->sort_by_size();
+  _static_fields->sort_by_size();
   _payload_alignment = alignment;
   assert(_has_nonstatic_fields || _is_abstract_value, "Concrete value types do not support zero instance size yet");
 }
@@ -1062,7 +1065,7 @@ void FieldLayoutBuilder::compute_regular_layout() {
  * of inline classes is to be embedded into other containers, it is critical
  * to keep their size as small as possible. For this reason, the allocation
  * strategy is:
- *   - big primitive fields (primitive types and flat inline type smaller
+ *   - big primitive fields (primitive types and flat inline types larger
  *     than an oop) are allocated first (from the biggest to the smallest)
  *   - then oop fields
  *   - then small primitive fields (from the biggest to the smallest)
@@ -1341,7 +1344,6 @@ void FieldLayoutBuilder::register_embedded_oops(OopMapBlocksBuilder* nonstatic_o
     }
   }
   register_embedded_oops_from_list(nonstatic_oop_maps, group->big_primitive_fields());
-  register_embedded_oops_from_list(nonstatic_oop_maps, group->small_primitive_fields());
 }
 
 static int insert_segment(GrowableArray<Pair<int,int>>* map, int offset, int size, int last_idx) {

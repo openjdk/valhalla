@@ -1211,7 +1211,7 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
           ptr = base;
         }
         // Emit IR for field-wise comparison
-        vt->check_substitutability(igvn, region, phi, &ctrl, in(MemNode::Memory), base, ptr);
+        vt->check_substitutability(igvn, region, phi, &ctrl, in(TypeFunc::Memory), base, ptr);
 
         // Equals
         region->add_req(ctrl);

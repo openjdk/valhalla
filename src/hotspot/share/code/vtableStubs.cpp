@@ -258,13 +258,15 @@ inline uint VtableStubs::hash(bool is_vtable_stub, int vtable_index, bool caller
 }
 
 
-inline uint VtableStubs::unsafe_hash(address entry_point, bool caller_is_c1) {
+inline uint VtableStubs::unsafe_hash(address entry_point) {
   // The entrypoint may or may not be a VtableStub. Generate a hash as if it was.
   address vtable_stub_addr = entry_point - VtableStub::entry_offset();
   assert(CodeCache::contains(vtable_stub_addr), "assumed to always be the case");
   address vtable_type_addr = vtable_stub_addr + offset_of(VtableStub, _type);
+  address vtable_caller_type_addr = vtable_stub_addr + offset_of(VtableStub, _caller_type);
   address vtable_index_addr = vtable_stub_addr + offset_of(VtableStub, _index);
   bool is_vtable_stub = *vtable_type_addr == static_cast<uint8_t>(VtableStub::Type::vtable_stub);
+  bool caller_is_c1 = (*vtable_caller_type_addr == static_cast<uint8_t>(VtableStub::CallerType::c1));
   short vtable_index;
   static_assert(sizeof(VtableStub::_index) == sizeof(vtable_index), "precondition");
   memcpy(&vtable_index, vtable_index_addr, sizeof(vtable_index));
@@ -296,8 +298,7 @@ VtableStub* VtableStubs::entry_point(address pc) {
   // _table will only succeed if there is a VtableStub with an entry point at
   // the pc.
   MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
-  VtableStub* stub = (VtableStub*)(pc - VtableStub::entry_offset());
-  uint hash = VtableStubs::unsafe_hash(pc, stub->caller_is_c1());
+  uint hash = VtableStubs::unsafe_hash(pc);
   VtableStub* s;
   for (s = AtomicAccess::load(&_table[hash]); s != nullptr && s->entry_point() != pc; s = s->next()) {}
   return (s != nullptr && s->entry_point() == pc) ? s : nullptr;

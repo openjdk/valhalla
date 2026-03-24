@@ -28,7 +28,7 @@
 #include "oops/objArrayOop.hpp"
 #include "utilities/align.hpp"
 
-class Klass;
+class RefArrayKlass;
 
 // A refArrayOop is an array containing references (oops).
 // Evaluating "String arg[10]" will create a refArrayOop.
@@ -52,6 +52,8 @@ class refArrayOopDesc : public objArrayOopDesc {
   }
 
  public:
+  inline RefArrayKlass* klass() const;
+
   // Returns the offset of the first element.
   static int base_offset_in_bytes() {
     return arrayOopDesc::base_offset_in_bytes(T_OBJECT);

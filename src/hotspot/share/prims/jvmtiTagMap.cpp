@@ -37,6 +37,7 @@
 #include "oops/arrayOop.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -1424,12 +1425,12 @@ void IterateThroughHeapObjectClosure::visit_flat_fields(const JvmtiHeapwalkObjec
 void IterateThroughHeapObjectClosure::visit_flat_array_elements(const JvmtiHeapwalkObject& obj) {
   assert(!obj.is_flat() && obj.obj()->is_flatArray() , "sanity check");
   flatArrayOop array = flatArrayOop(obj.obj());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
+  FlatArrayKlass* fak = array->klass();
+  InlineKlass* vk = fak->element_klass();
+  bool need_null_check = LayoutKindHelper::is_nullable_flat(fak->layout_kind());
 
   for (int index = 0; index < array->length(); index++) {
-    address addr = (address)array->value_at_addr(index, faklass->layout_helper());
+    address addr = (address)array->value_at_addr(index, fak->layout_helper());
     // check for null
     if (need_null_check) {
       if (vk->is_payload_marked_as_null(addr)) {
@@ -1439,7 +1440,7 @@ void IterateThroughHeapObjectClosure::visit_flat_array_elements(const JvmtiHeapw
 
     // offset in the array oop
     int offset = (int)(addr - cast_from_oop<address>(array));
-    JvmtiHeapwalkObject elem(obj.obj(), offset, vk, faklass->layout_kind());
+    JvmtiHeapwalkObject elem(obj.obj(), offset, vk, fak->layout_kind());
 
     visit_object(elem);
 
@@ -2889,7 +2890,7 @@ inline bool VM_HeapWalkOperation::iterate_over_array(const JvmtiHeapwalkObject& 
   refArrayOop array = oop_cast<refArrayOop>(o.obj());
 
   // array reference to its class
-  oop mirror = RefArrayKlass::cast(array->klass())->java_mirror();
+  oop mirror = array->klass()->java_mirror();
   if (!CallbackInvoker::report_class_reference(o, mirror)) {
     return false;
   }
@@ -2914,12 +2915,12 @@ inline bool VM_HeapWalkOperation::iterate_over_array(const JvmtiHeapwalkObject& 
 inline bool VM_HeapWalkOperation::iterate_over_flat_array(const JvmtiHeapwalkObject& o) {
   assert(!o.is_flat(), "Array object cannot be flattened");
   flatArrayOop array = flatArrayOop(o.obj());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
+  FlatArrayKlass* fak = array->klass();
+  InlineKlass* vk = fak->element_klass();
+  bool need_null_check = LayoutKindHelper::is_nullable_flat(fak->layout_kind());
 
   // array reference to its class
-  oop mirror = faklass->java_mirror();
+  oop mirror = fak->java_mirror();
   if (!CallbackInvoker::report_class_reference(o, mirror)) {
     return false;
   }
@@ -2927,7 +2928,7 @@ inline bool VM_HeapWalkOperation::iterate_over_flat_array(const JvmtiHeapwalkObj
   // iterate over the array and report each reference to a
   // non-null element
   for (int index = 0; index < array->length(); index++) {
-    address addr = (address)array->value_at_addr(index, faklass->layout_helper());
+    address addr = (address)array->value_at_addr(index, fak->layout_helper());
 
     // check for null
     if (need_null_check) {
@@ -2938,7 +2939,7 @@ inline bool VM_HeapWalkOperation::iterate_over_flat_array(const JvmtiHeapwalkObj
 
     // offset in the array oop
     int offset = (int)(addr - cast_from_oop<address>(array));
-    JvmtiHeapwalkObject elem(o.obj(), offset, vk, faklass->layout_kind());
+    JvmtiHeapwalkObject elem(o.obj(), offset, vk, fak->layout_kind());
 
     // report the array reference
     if (!CallbackInvoker::report_array_element_reference(o, elem, index)) {

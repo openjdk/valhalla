@@ -36,7 +36,6 @@
 #include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
-#include "oops/flatArrayKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
@@ -123,11 +122,6 @@ ParCompactionManager::gc_thread_compaction_manager(uint index) {
 void ParCompactionManager::push_objArray(objArrayOop obj) {
   assert(obj->is_array_with_oops(), "precondition");
   _mark_and_push_closure.do_klass(obj->klass());
-
-  if (obj->is_flatArray()) {
-    FlatArrayKlass* fak = FlatArrayKlass::cast(obj->klass());
-    _mark_and_push_closure.do_klass(fak->element_klass());
-  }
 
   size_t array_length = obj->length();
   size_t initial_chunk_size =
