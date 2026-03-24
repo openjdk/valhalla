@@ -1122,6 +1122,10 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     }
     Node* m = kit.map()->in(i);
     Node* n = slow_map->in(i);
+    if (m->is_InlineType() != n->is_InlineType()) {
+      InlineTypeNode* unique_vt = m->is_InlineType() ? m->as_InlineType() : n->as_InlineType();
+      assert(unique_vt->is_allocated(&gvn), "InlineType can be merged with an only if it is allocated");
+    }
     if (m != n) {
       const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
       Node* phi = PhiNode::make(region, m, t);
