@@ -38,15 +38,15 @@
 //
 //  32 bits:
 //  --------
-//             hash:25 ------------>| age:4  self-fwd:1  lock:2 (normal object)
+//             hash:25 ------------->|  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  64 bits:
 //  --------
-//  unused:22 hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
+//  unused:22  hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  64 bits (with compact headers):
 //  -------------------------------
-//  klass:22  hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
+//  klass:22   hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  - hash contains the identity hash value: largest value is
 //    31 bits, see os::random().  Also, 64-bit vm's require
@@ -122,10 +122,10 @@ class markWord {
   // instance state
   static const int age_bits                       = 4;
   // prototype header bits (fast path instead of klass layout_helper)
-  static const int inline_type_bits               = 1;
+  static const int inline_type_bits               = LP64_ONLY(1) NOT_LP64(0);
   static const int null_free_array_bits           = LP64_ONLY(1) NOT_LP64(0);
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
-  static const int valhalla_reserved_bits         = 1;
+  static const int valhalla_reserved_bits         = LP64_ONLY(1) NOT_LP64(0);
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - valhalla_reserved_bits - flat_array_bits - null_free_array_bits - self_fwd_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
 
@@ -191,7 +191,11 @@ class markWord {
   static markWord zero() { return markWord(uintptr_t(0)); }
 
   bool is_inline_type() const {
+#ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), inline_type_mask_in_place) == inline_type_pattern);
+#else
+    return false;
+#endif
   }
 
   // lock accessors (note that these assume lock_shift == 0)
@@ -205,10 +209,9 @@ class markWord {
     return (mask_bits(value(), lock_mask_in_place) == marked_value);
   }
 
-  // is unlocked and not an inline type (which cannot be involved in locking, displacement or inflation)
-  // i.e. test both lock bits and the inline type bit together
   bool is_neutral()  const {  // Not locked, or marked - a "clean" neutral state
-    return (mask_bits(value(), inline_type_mask_in_place) == unlocked_value);
+    assert(mask_bits(value(), inline_type_bit_in_place) == 0, "Should not be involved in locking");
+    return (mask_bits(value(), lock_mask_in_place) == unlocked_value);
   }
 
   bool is_forwarded() const {
@@ -323,16 +326,23 @@ class markWord {
   }
 
   static markWord inline_type_prototype() {
+    NOT_LP64(assert(false, "Should not be called in 32 bit mode"));
     return markWord(inline_type_pattern);
   }
 
-#ifdef _LP64 // 64 bit encodings only
-  static markWord flat_array_prototype(bool null_free);
+  static markWord flat_array_prototype(bool null_free) {
+    NOT_LP64(assert(false, "Should not be called in 32 bit mode"));
+    if (null_free) {
+      return markWord(null_free_flat_array_pattern);
+    } else {
+      return markWord(nullable_flat_array_pattern);
+    }
+  }
 
   static markWord null_free_array_prototype() {
+    NOT_LP64(assert(false, "Should not be called in 32 bit mode"));
     return markWord(null_free_array_pattern);
   }
-#endif
 
   // Debugging
   void print_on(outputStream* st, bool print_monitor_info = true) const;
