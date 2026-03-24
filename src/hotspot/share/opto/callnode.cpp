@@ -2012,7 +2012,9 @@ Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
     if (Arguments::is_valhalla_enabled()) {
       mark_node = phase->transform(mark_node);
       // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-      mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+      // TODO: Could this be removed now that we don't use larval bits
+      assert(!_larval, "Larval bits are not in use at the moment");
+      mark_node = new OrXNode(mark_node, phase->MakeConX(0));
     }
     return mark_node;
   } else {
