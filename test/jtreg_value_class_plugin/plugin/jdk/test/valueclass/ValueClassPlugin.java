@@ -70,7 +70,7 @@ public class ValueClassPlugin implements Plugin {
             @Override
             public void finished(TaskEvent e) {
                 if (e.getKind() != TaskEvent.Kind.PARSE) return;
-                
+
                 Preview preview = Preview.instance(ctx);
                 new TreeScanner() {
                     @Override
