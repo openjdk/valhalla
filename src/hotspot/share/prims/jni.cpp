@@ -2393,6 +2393,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
     assert(a->klass()->is_refined_objArray_klass(), "must be");
     if (v == nullptr || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
       a->obj_at_put(index, v, THREAD);
+      return;
     } else {
       ResourceMark rm(THREAD);
       stringStream ss;
