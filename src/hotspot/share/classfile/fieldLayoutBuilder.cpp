@@ -1382,15 +1382,15 @@ static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, Growab
                                 const InstanceKlass* ik, int offset, int payload_offset, int last_idx) {
   Array<int>* super_map = ik->acmp_maps_array();
   assert(super_map != nullptr, "super class must have an acmp map");
-  int nb_nonoop_field = super_map->at(0);
+  int num_nonoop_field = super_map->at(0);
   int field_offset = offset - payload_offset;
-  for (int i = 0; i < nb_nonoop_field; i++) {
+  for (int i = 0; i < num_nonoop_field; i++) {
     last_idx = insert_segment(nonoop_map,
                               field_offset + super_map->at( i * 2 + 1),
                               super_map->at( i * 2 + 2), last_idx);
   }
   int len = super_map->length();
-  for (int i = nb_nonoop_field * 2 + 1; i < len; i++) {
+  for (int i = num_nonoop_field * 2 + 1; i < len; i++) {
       oop_map->append(field_offset + super_map->at(i));
   }
   return last_idx;
