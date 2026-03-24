@@ -24,10 +24,6 @@
 
 package runtime.valhalla.inlinetypes;
 
-import java.lang.management.MemoryPoolMXBean;
-
-import com.sun.jdi.NativeMethodException;
-
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -39,7 +35,6 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=compressed-oops
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
@@ -54,7 +49,6 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=no-compressed-oops
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
@@ -69,7 +63,6 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=no-explicit-compression
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
@@ -84,7 +77,6 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=force-non-tearable
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
@@ -273,82 +265,49 @@ public class InlineTypeDensity {
     @LooselyConsistentValue
     static value class MyLong  { long  v = 0; }
 
-    void assertArraySameSize(Object a, Object b, int nofElements) {
-        long aSize = WHITE_BOX.getObjectSize(a);
-        long bSize = WHITE_BOX.getObjectSize(b);
-        Asserts.assertEquals(aSize, bSize,
-            a + "(" + aSize + " bytes) not equivalent size " +
-            b + "(" + bSize + " bytes)" +
-            (nofElements >= 0 ? " (array of " + nofElements + " elements)" : ""));
-    }
-
-    void testByteArraySizesSame(int[] testSizes) {
-        for (int testSize : testSizes) {
-            byte[] ba = new byte[testSize];
-            MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedNonAtomicArray(MyByte.class, testSize, new MyByte());
-            assertArraySameSize(ba, mba, testSize);
-        }
-    }
-
-    void testShortArraySizesSame(int[] testSizes) {
-        for (int testSize : testSizes) {
-            short[] sa = new short[testSize];
-            MyShort[] msa = (MyShort[])ValueClass.newNullRestrictedNonAtomicArray(MyShort.class, testSize, new MyShort());
-            assertArraySameSize(sa, msa, testSize);
-        }
-    }
-
-    void testIntArraySizesSame(int[] testSizes) {
-        for (int testSize : testSizes) {
-            int[] ia = new int[testSize];
-            MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, testSize, new MyInt());
-            assertArraySameSize(ia, mia, testSize);
-        }
-    }
-
-    void testLongArraySizesSame(int[] testSizes) {
-        for (int testSize : testSizes) {
-            long[] la = new long[testSize];
-            MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedNonAtomicArray(MyLong.class, testSize, new MyLong());
-            assertArraySameSize(la, mla, testSize);
-        }
-    }
-
-    public void testPrimitiveArraySizesSame() {
+    public void testPrimitiveLikeArraysAreFlattened() {
         int[] testSizes = new int[] { 0, 1, 2, 3, 4, 7, 10, 257 };
-        testByteArraySizesSame(testSizes);
-        testShortArraySizesSame(testSizes);
-        testIntArraySizesSame(testSizes);
-        testLongArraySizesSame(testSizes);
+        for (int testSize : testSizes) {
+            MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedNonAtomicArray(MyByte.class, testSize, new MyByte());
+            MyShort[] msa = (MyShort[])ValueClass.newNullRestrictedNonAtomicArray(MyShort.class, testSize, new MyShort());
+            MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, testSize, new MyInt());
+            MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedNonAtomicArray(MyLong.class, testSize, new MyLong());
+
+            Asserts.assertTrue(ValueClass.isFlatArray(mba),  "MyByte array should be flat");
+            Asserts.assertTrue(ValueClass.isFlatArray(msa), "MyShort array should be flat");
+            Asserts.assertTrue(ValueClass.isFlatArray(mia),   "MyInt array should be flat");
+            Asserts.assertTrue(ValueClass.isFlatArray(mla),  "MyLong array should be flat");
+        }
     }
 
     @LooselyConsistentValue
-    static value class bbValue { byte b = 0; byte b2 = 0;}
+    static value class MyBB { byte b = 0; byte b2 = 0;}
     @LooselyConsistentValue
-    static value class bsValue { byte b = 0; short s = 0;}
+    static value class MyBS { byte b = 0; short s = 0;}
     @LooselyConsistentValue
-    static value class siValue { short s = 0; int i = 0;}
+    static value class MySI { short s = 0; int i = 0;}
     @LooselyConsistentValue
-    static value class ssiValue { short s = 0; short s2 = 0; int i = 0;}
-    @LooselyConsistentValue
-    static value class blValue { byte b = 0; long l = 0; }
+    static value class MySSI { short s = 0; short s2 = 0; int i = 0;}
 
-    // Expect aligned array addressing to nearest pow2
-    void testAlignedSize() {
-        int testSize = 10;
-        assertArraySameSize(new short[testSize], ValueClass.newNullRestrictedNonAtomicArray(bbValue.class, testSize, new bbValue()), testSize);
-        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedNonAtomicArray(siValue.class, testSize, new siValue()), testSize);
-        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedNonAtomicArray(ssiValue.class, testSize, new ssiValue()), testSize);
-        assertArraySameSize(new long[testSize*2], ValueClass.newNullRestrictedNonAtomicArray(blValue.class, testSize, new blValue()), testSize);
-        assertArraySameSize(new int[testSize], ValueClass.newNullRestrictedNonAtomicArray(bsValue.class, testSize, new bsValue()), testSize);
+    public void testTupleArraysAreFlattened() {
+        int[] testSizes = new int[] { 0, 1, 2, 3, 4, 7, 10, 257 };
+        for (int testSize : testSizes) {
+            MyBB[] mbb = (MyBB[])ValueClass.newNullRestrictedNonAtomicArray(MyBB.class, testSize, new MyBB());
+            MyBS[] mbs = (MyBS[])ValueClass.newNullRestrictedNonAtomicArray(MyBS.class, testSize, new MyBS());
+            MySI[] msi = (MySI[])ValueClass.newNullRestrictedNonAtomicArray(MySI.class, testSize, new MySI());
+            MySSI[] mssi = (MySSI[])ValueClass.newNullRestrictedNonAtomicArray(MySSI.class, testSize, new MySSI());
+
+            Asserts.assertTrue(ValueClass.isFlatArray(mbb),   "MyBB array should be flat");
+            Asserts.assertTrue(ValueClass.isFlatArray(mbs),   "MyBS array should be flat");
+            Asserts.assertTrue(ValueClass.isFlatArray(msi),   "MySI array should be flat");
+            Asserts.assertTrue(ValueClass.isFlatArray(mssi), "MySSI array should be flat");
+        }
     }
 
     public void test() {
         ensureArraySizeWin();
-        testPrimitiveArraySizesSame();
-        if (!VM_FLAG_FORCENONTEARABLE) {
-          testAlignedSize();
-        }
+        testPrimitiveLikeArraysAreFlattened();
+        testTupleArraysAreFlattened();
     }
 
     public static void main(String[] args) {
