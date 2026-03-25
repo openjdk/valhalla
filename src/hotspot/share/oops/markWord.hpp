@@ -218,7 +218,9 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    assert(!is_unlocked() || mask_bits(value(),  valhalla_reserved_mask_in_place) == 0, "Should be unused");
+    // The reserved bits are only guaranteed to be unset if the mark word is "unlocked"
+    assert(!is_unlocked() || mask_bits(value(),  valhalla_reserved_mask_in_place) == 0,
+           "Reserved bits should not be used. _value: " PTR_FORMAT, _value);
     return !is_unlocked() || !has_no_hash();
   }
 
