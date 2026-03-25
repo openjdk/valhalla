@@ -226,8 +226,7 @@ public final /* value */ class Float8_E5M2
      * @see Float#POSITIVE_INFINITY
      * @see Double#POSITIVE_INFINITY
      */
-    public static final Float8_E5M2 POSITIVE_INFINITY = byteBitsToFloat8((byte)0b0_11111_00);
-        // valueOf(Float.POSITIVE_INFINITY);
+    public static final Float8_E5M2 POSITIVE_INFINITY = valueOf(Float.POSITIVE_INFINITY);
 
     /**
      * A constant holding the negative infinity of type {@code
@@ -236,8 +235,7 @@ public final /* value */ class Float8_E5M2
      * @see Float#NEGATIVE_INFINITY
      * @see Double#NEGATIVE_INFINITY
      */
-    public static final Float8_E5M2 NEGATIVE_INFINITY = byteBitsToFloat8((byte)0b1_11111_00);
-        // valueOf(Float.NEGATIVE_INFINITY);
+    public static final Float8_E5M2 NEGATIVE_INFINITY = valueOf(Float.NEGATIVE_INFINITY);
 
     /**
      * A constant holding a Not-a-Number (NaN) value of type {@code
@@ -246,8 +244,7 @@ public final /* value */ class Float8_E5M2
      * @see Float#NaN
      * @see Double#NaN
      */
-    public static final Float8_E5M2 NaN = byteBitsToFloat8((byte)0b0_11111_11);
-        // valueOf(Float.NaN);
+    public static final Float8_E5M2 NaN = valueOf(Float.NaN);
 
     /**
      * A constant holding a zero (0.0) of type {@code Float8_E5M2}.
@@ -534,7 +531,7 @@ public final /* value */ class Float8_E5M2
             // Preserve sign and attempt to preserve significand bits
             return (byte)(sign_bit // UPDATE
                           | 0x7c // max exponent + 1
-                          | 0x1); // Some non-zero value; don't try to
+                          | 0x3); // Some non-zero value; don't try to
                                   // preserve NaN payload
         }
 
