@@ -558,13 +558,22 @@ JVM_ENTRY(jarray, JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len))
 JVM_END
 
 JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jobject obj))
-  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  return oop->is_flatArray();
+  oop o = JNIHandles::resolve_non_null(obj);
+  Klass* klass = o->klass();
+
+  return klass->is_flatArray_klass();
 JVM_END
 
 JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj))
-  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  return oop->is_null_free_array();
+  oop o = JNIHandles::resolve_non_null(obj);
+  Klass* klass = o->klass();
+
+  // Some tests pass in a String
+  if (!klass->is_array_klass()) {
+    return false;
+  }
+
+  return klass->is_null_free_array_klass();
 JVM_END
 
 JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
@@ -572,14 +581,36 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
   //   - the array is a reference array
   //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or NULL_FREE_ATOMIC_FLAT
   //   - the array is flat and its component type is naturally atomic
-  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  if (oop->is_refArray()) return true;
-  if (oop->is_flatArray()) {
-    FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
-    if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) return true;
-    if (fak->element_klass()->is_naturally_atomic()) return true;
+  oop o = JNIHandles::resolve_non_null(obj);
+  Klass* klass = o->klass();
+
+  // Some tests pass in a String
+  if (!klass->is_array_klass()) {
+    return false;
   }
-  return false;
+
+  // Some tests expects this to return false
+  if (klass->is_typeArray_klass()) {
+    return false;
+  }
+
+  if (klass->is_refArray_klass()) {
+    return true;
+  }
+
+  if (klass->is_flatArray_klass()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(klass);
+    if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) {
+      return true;
+    }
+    if (fak->element_klass()->is_naturally_atomic()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  ShouldNotReachHere();
 JVM_END
 
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
