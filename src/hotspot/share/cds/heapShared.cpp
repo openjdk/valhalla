@@ -437,8 +437,25 @@ void HeapShared::make_archived_object_cache_gc_safe() {
 
   // Copy all CachedOopInfo into a new table using a different hashing algorithm
   archived_object_cache()->iterate_all([&] (OopHandle oh, CachedOopInfo info) {
-      new_cache->put_when_absent(oh, info);
-    });
+      if (Arguments::is_valhalla_enabled() && oh.resolve()->klass()->is_inline_klass()) {
+        // After make_archived_object_cache_gc_safe() returns,
+        // _archived_object_cache->get() is called only from the (future) AOT code
+        // compiler to access heap oops referenced by AOT-compiled method.
+        //
+        // As planned in JDK 27 (JDK-8335368), AOT-compiled methods will only reference
+        // oops that are Strings, mirrors, or exceptions, all of which are not value
+        // objects.
+        //
+        // We exclude value objects from new_cache, as we don't know how to track them
+        // after the GC moves them. This should be fixed when AOT-compiled methods
+        // need to reference value objects.
+        //
+        // Also TODO: the AOT heap should de-duplicate value objects with identical
+        // values.
+      } else {
+        new_cache->put_when_absent(oh, info);
+      }
+  });
 
   destroy_archived_object_cache();
   _archived_object_cache = new_cache;
