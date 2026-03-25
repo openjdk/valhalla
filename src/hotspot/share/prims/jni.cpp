@@ -2390,9 +2390,10 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
   objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
   oop v = JNIHandles::resolve(value);
   if (a->is_within_bounds(index)) {
-    Klass* ek = a->is_flatArray() ? FlatArrayKlass::cast(a->klass())->element_klass() : RefArrayKlass::cast(a->klass())->element_klass();
-    if (v == nullptr || v->is_a(ek)) {
-      a->obj_at_put(index, v, CHECK);
+    assert(a->klass()->is_refined_objArray_klass(), "must be");
+    if (v == nullptr || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
+      a->obj_at_put(index, v, THREAD);
+      return;
     } else {
       ResourceMark rm(THREAD);
       stringStream ss;
