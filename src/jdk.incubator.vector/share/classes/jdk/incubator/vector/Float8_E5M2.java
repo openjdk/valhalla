@@ -219,9 +219,6 @@ public final /* value */ class Float8_E5M2
         this.value = bits;
     }
 
-    // For the Float8_E5M2 constants, use bit patterns listed in
-    // "FP8 Formats for Deep Learning" by Micikevicius et al.
-
     /**
      * A constant holding the positive infinity of type {@code
      * Float8_E5M2}.
@@ -255,8 +252,7 @@ public final /* value */ class Float8_E5M2
     /**
      * A constant holding a zero (0.0) of type {@code Float8_E5M2}.
      */
-    private static final Float8_E5M2 ZERO = byteBitsToFloat8((byte)0b0_00000_00);
-        // valueOf(0);
+    private static final Float8_E5M2 ZERO = valueOf(0);
 
     /**
      * A constant holding a one (1.0) of type {@code Float8_E5M2}.
@@ -271,8 +267,7 @@ public final /* value */ class Float8_E5M2
      * @see Float#MAX_VALUE
      * @see Double#MAX_VALUE
      */
-    public static final Float8_E5M2 MAX_VALUE = byteBitsToFloat8((byte)0b0_11110_11);
-        // valueOf(0x1.cp15f);
+    public static final Float8_E5M2 MAX_VALUE = valueOf(0x1.cp15f);
 
     /**
      * A constant holding the smallest positive normal value of type
@@ -281,8 +276,7 @@ public final /* value */ class Float8_E5M2
      * @see Float#MIN_NORMAL
      * @see Double#MIN_NORMAL
      */
-    public static final Float8_E5M2 MIN_NORMAL = byteBitsToFloat8((byte)0b0_00001_00);
-        // valueOf(0x1.0p-14f);
+    public static final Float8_E5M2 MIN_NORMAL = valueOf(0x1.0p-14f);
 
     /**
      * A constant holding the smallest positive nonzero value of type
@@ -291,8 +285,7 @@ public final /* value */ class Float8_E5M2
      * @see Float#MIN_VALUE
      * @see Double#MIN_VALUE
      */
-    public static final Float8_E5M2 MIN_VALUE = byteBitsToFloat8((byte)0b0_00000_01);
-        // valueOf(0x1.0p-16f);
+    public static final Float8_E5M2 MIN_VALUE = valueOf(0x1.0p-16f);
 
     /**
      * The number of bits used to represent a {@code Float8_E5M2} value,

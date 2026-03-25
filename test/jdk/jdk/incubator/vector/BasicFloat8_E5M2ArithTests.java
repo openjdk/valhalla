@@ -29,7 +29,6 @@
  */
 
 import jdk.incubator.vector.Float8_E5M2;
-import jdk.incubator.vector.Float16; // TODO: remove later
 import static jdk.incubator.vector.Float8_E5M2.*;
 import java.util.HashSet;
 import java.util.List;
@@ -155,6 +154,24 @@ public class BasicFloat8_E5M2ArithTests {
         checkFloat8(POSITIVE_INFINITY,   InfinityF,  "+infinity");
         checkFloat8(NEGATIVE_INFINITY,  -InfinityF,  "-infinity");
         checkFloat8(NaN,                 NaNf,            "NaN");
+
+        // Additional check of Float8_E5M2 constants based on bit
+        // patterns listed in "FP8 Formats for Deep Learning" by
+        // Micikevicius et al.
+        var ZERO = Float8_E5M2.valueOf(0);
+        var NEG_ZERO = Float8_E5M2.negate(ZERO);
+        checkInt(float8toUnsignedInt(POSITIVE_INFINITY), 0b0_11111_00,  "+infinity");
+        checkInt(float8toUnsignedInt(NEGATIVE_INFINITY), 0b1_11111_00,  "-infinity");
+        checkInt(float8toUnsignedInt(NaN),               0b0_11111_11,   "NaN");
+        checkInt(float8toUnsignedInt(ZERO),              0b0_00000_00,   "0.0");
+        checkInt(float8toUnsignedInt(NEG_ZERO),          0b1_00000_00,  "-0.0");
+        checkInt(float8toUnsignedInt(MAX_VALUE),         0b0_11110_11,   "Float8.MAX_VALUE");
+        checkInt(float8toUnsignedInt(MIN_NORMAL),        0b0_00001_00,   "Float8.MIN_NORMAL");
+        checkInt(float8toUnsignedInt(MIN_VALUE),         0b0_00000_01,   "Float8.MIN_VALUE");
+    }
+
+    private static int float8toUnsignedInt(Float8_E5M2 f8) {
+        return Byte.toUnsignedInt(float8ToRawByteBits(f8));
     }
 
     private static void checkBoolean(Float8_E5M2 op1, Float8_E5M2 op2, boolean result,
@@ -181,11 +198,6 @@ public class BasicFloat8_E5M2ArithTests {
                                   message, expected, expected, value, value));
         }
     }
-
-    private static void checkFloat16(Float16 value16, float expected, String message) {
-        throw new RuntimeException("Test needs to be ported");
-    }
-
 
     private static void checkNegate() {
         float[][] testCases = {
