@@ -492,7 +492,7 @@ public class BasicFloat8_E5M2ArithTests {
             {-MIN_VAL_FP8,  MIN_EXPONENT - 1},
             { MIN_NORM_FP8, MIN_EXPONENT},
             {-MIN_NORM_FP8, MIN_EXPONENT},
-            
+
             // Normal values
             { 1.0f,       0},
             { 2.0f,       1},

@@ -230,7 +230,7 @@ public final /* value */ class Float8_E5M2
      * @see Double#POSITIVE_INFINITY
      */
     public static final Float8_E5M2 POSITIVE_INFINITY = byteBitsToFloat8((byte)0b0_11111_00);
-        // valueOf(Float.POSITIVE_INFINITY);        
+        // valueOf(Float.POSITIVE_INFINITY);
 
     /**
      * A constant holding the negative infinity of type {@code
@@ -562,7 +562,7 @@ public final /* value */ class Float8_E5M2
         // (when rounding is done, could still round up)
         int exp = Math.getExponent(f);
         assert
-            (MIN_EXPONENT - (PRECISION - 1)) <= exp && 
+            (MIN_EXPONENT - (PRECISION - 1)) <= exp &&
             exp <= MAX_EXPONENT;
 
         // For binary8 subnormals, beside forcing exp to -15, retain
@@ -741,7 +741,7 @@ public final /* value */ class Float8_E5M2
             noDoubleRoundingToFloat8_E5M2(trialResult)) {
             return valueOf(trialResult);
         } else {
-            // If double rounding is not ruled out, re-parse, create a 
+            // If double rounding is not ruled out, re-parse, create a
             // BigDecimal to hold the exact numerical value, round and
             // return.
 
