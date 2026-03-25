@@ -40,8 +40,6 @@ include MakeFileStart.gmk
 #                               --enable-preview and the required internal-API
 #                               exports.
 #
-# Usage in test runs (via RunTests.gmk):
-#   make test TEST=... JTREG=VALUE_CLASS_PLUGIN=true
 ################################################################################
 
 include CopyFiles.gmk

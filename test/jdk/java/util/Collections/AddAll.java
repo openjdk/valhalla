@@ -29,7 +29,12 @@
  * @key randomness
  * @library /test/lib
  * @build jdk.test.lib.valueclass.ValueClass
+ *
+ * @compile AddAll.java
  * @run main AddAll
+ *
+ * @compile -XDaccessInternalAPI --enable-preview --source ${java.specification.version} -Xplugin:ValueClassPlugin AddAll.java
+ * @run main/othervm --enable-preview AddAll
  */
 
 import jdk.test.lib.valueclass.ValueClass;
