@@ -263,7 +263,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool* pool, int index, jint size))
   Klass*    klass = pool->klass_at(index, CHECK);
-  arrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
+  objArrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 
@@ -286,7 +286,7 @@ JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* fi
   ConstantPool* constants = last_frame.method()->constants();
   int i = last_frame.get_index_u2(Bytecodes::_multianewarray);
   Klass* klass = constants->klass_at(i, CHECK);
-  int   nof_dims = last_frame.number_of_dimensions();
+  int nof_dims = last_frame.number_of_dimensions();
   assert(klass->is_klass(), "not a class");
   assert(nof_dims >= 1, "multianewarray rank must be nonzero");
 
@@ -684,11 +684,6 @@ JRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorVerbose(JavaThread*
   methodHandle mh = methodHandle(current, missingMethod);
   LinkResolver::throw_abstract_method_error(mh, recvKlass, THREAD);
 JRT_END
-
-JRT_ENTRY(void, InterpreterRuntime::throw_InstantiationError(JavaThread* current))
-  THROW(vmSymbols::java_lang_InstantiationError());
-JRT_END
-
 
 JRT_ENTRY(void, InterpreterRuntime::throw_IncompatibleClassChangeError(JavaThread* current))
   THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
@@ -1306,7 +1301,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDe
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current, oopDesc* obj,
-                                                            ResolvedFieldEntry *entry, jvalue *value))
+                                                            ResolvedFieldEntry* entry, jvalue* value))
 
   // check the access_flags for the field in the klass
   InstanceKlass* ik = entry->field_holder();
