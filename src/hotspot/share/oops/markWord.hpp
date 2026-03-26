@@ -288,6 +288,8 @@ class markWord {
 
   bool has_no_hash() const {
     return hash() == no_hash;
+  }
+
   bool is_flat_array() const {
 #ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
