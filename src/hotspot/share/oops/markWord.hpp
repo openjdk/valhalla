@@ -209,7 +209,8 @@ class markWord {
   }
 
   bool is_neutral()  const {  // Not locked, or marked - a "clean" neutral state
-    assert(mask_bits(value(), inline_type_bit_in_place) == 0, "Should not be involved in locking");
+    LP64_ONLY(assert(!is_unlocked() || mask_bits(value(), inline_type_bit_in_place) == 0,
+                     "Inline types should not be used for locking. _value: " PTR_FORMAT, _value));
     return (mask_bits(value(), lock_mask_in_place) == unlocked_value);
   }
 
@@ -221,8 +222,8 @@ class markWord {
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
     // The reserved bits are only guaranteed to be unset if the mark word is "unlocked"
-    assert(!is_unlocked() || mask_bits(value(),  valhalla_reserved_mask_in_place) == 0,
-           "Reserved bits should not be used. _value: " PTR_FORMAT, _value);
+    LP64_ONLY(assert(!is_unlocked() || mask_bits(value(),  valhalla_reserved_mask_in_place) == 0,
+                     "Reserved bits should not be used. _value: " PTR_FORMAT, _value));
     return !is_unlocked() || !has_no_hash();
   }
 
