@@ -1355,7 +1355,6 @@ static int insert_segment(GrowableArray<AcmpMapSegment>* map, int offset, int si
   if (map->is_empty()) {
     return map->append(AcmpMapSegment(offset, size));
   }
-  last_idx = last_idx == -1 ? 0 : last_idx;
   int start = map->adr_at(last_idx)->_offset > offset ? 0 : last_idx;
   bool inserted = false;
   for (int c = start; c < map->length(); c++) {
@@ -1379,11 +1378,10 @@ static int insert_segment(GrowableArray<AcmpMapSegment>* map, int offset, int si
 }
 
 static int insert_map_at_offset(GrowableArray<AcmpMapSegment>* nonoop_map, GrowableArray<int>* oop_map,
-                                const InstanceKlass* ik, int offset, int payload_offset, int last_idx) {
+                                const InstanceKlass* ik, int field_offset, int last_idx) {
   Array<int>* super_map = ik->acmp_maps_array();
   assert(super_map != nullptr, "super class must have an acmp map");
   int num_nonoop_field = super_map->at(0);
-  int field_offset = offset - payload_offset;
   for (int i = 0; i < num_nonoop_field; i++) {
     last_idx = insert_segment(nonoop_map,
                               field_offset + super_map->at( i * 2 + 1),
@@ -1417,9 +1415,9 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   // Local fields are processed in ascending offset order, so an insertion is very likely be performed
   // next to the previous insertion. However, in some cases local fields and inherited fields can be
   // interleaved, in which case the search of the insertion position cannot depend on the previous insertion.
-  int last_idx = -1;
+  int last_idx = 0;
   if (_super_klass != nullptr && _super_klass != vmClasses::Object_klass()) {  // Assumes j.l.Object cannot have fields
-    last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, 0, last_idx);
+    last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, last_idx);
   }
 
   // Processing local fields
@@ -1448,7 +1446,8 @@ void FieldLayoutBuilder::generate_acmp_maps() {
       case LayoutRawBlock::FLAT:
         {
           InlineKlass* vk = b->inline_klass();
-          last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, b->offset(), vk->payload_offset(), last_idx);
+          int field_offset = b->offset() - vk->payload_offset();
+          last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, field_offset, last_idx);
           if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
             int null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
             last_idx = insert_segment(_nonoop_acmp_map, null_marker_offset, 1, last_idx);

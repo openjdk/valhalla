@@ -1499,7 +1499,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
           }
           is_null_restricted = true;
         }
-        parsed_annotations.set_field_annotations(nullptr);
       }
       if (parsed_annotations.field_type_annotations() != nullptr) {
         if (_fields_type_annotations == nullptr) {
