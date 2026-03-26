@@ -255,7 +255,7 @@ public:
   ATTRIBUTE_NO_UBSAN
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
-    assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
+    assert(_obj == nullptr || !_obj->is_inline_type(), "receiver cannot be an instance of a value class because they are immutable");
     *addr() = normalize_for_write(x);
   }
 
@@ -309,7 +309,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  assert(!p->is_inline_type() || p->mark().is_larval_state(), "must be an object instance or a larval inline type");
+  assert(!p->is_inline_type(), "receiver cannot be an instance of a value class because they are immutable");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 

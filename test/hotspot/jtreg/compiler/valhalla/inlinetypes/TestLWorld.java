@@ -4646,13 +4646,13 @@ public class TestLWorld {
     static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedNonAtomicArray(SubValueClassWithInt.class, 2, new SubValueClassWithInt(0));
     static final SubValueClassWithDouble[] SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY = (SubValueClassWithDouble[]) ValueClass.newNullRestrictedNonAtomicArray(SubValueClassWithDouble.class, 2, new SubValueClassWithDouble(0));
 
-// TODO: Can only be enabled once JDK-8343835 is fixed. Otherwise, we hit the mismatched stores assert.
-//    static {
-//        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
-//        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
-//        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
-//        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
-//    }
+
+    static {
+        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+    }
 
     @Test
     static void testFlatArrayInexactObjectStore(Object o, boolean flag) {
@@ -4716,12 +4716,6 @@ public class TestLWorld {
                  "testFlatArrayInexactAbstractValueClassStore",
                  "testFlatArrayInexactAbstractValueClassLoad"})
     static void runFlatArrayInexactLoadAndStore() {
-        // TODO: Remove these again once JDK-8343835 is fixed and uncomment static initializer above
-        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
-        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
-        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
-        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
-
         boolean flag = true;
         ValueClassWithInt valueClassWithInt = new ValueClassWithInt(15);
         ValueClassWithDouble valueClassWithDouble = new ValueClassWithDouble(16);
@@ -5234,6 +5228,40 @@ public class TestLWorld {
         Asserts.assertFalse(test182(val1, val2));
         Asserts.assertFalse(test182(val2, val3));
         Asserts.assertTrue(test182(val3, val4));
+    }
+
+    @LooselyConsistentValue
+    static value class V1MismatchedStore {
+        int x;
+
+        V1MismatchedStore(int x) {
+            this.x = x;
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class V2MismatchedStore {
+        double d;
+
+        V2MismatchedStore(double d) {
+            this.d = d;
+        }
+    }
+
+    static final V1MismatchedStore v1Mismatched = new V1MismatchedStore(0);
+    static final V2MismatchedStore v2Mismatched = new V2MismatchedStore(0);
+    static final V1MismatchedStore[] v1MismatchedArr = (V1MismatchedStore[]) ValueClass.newNullRestrictedNonAtomicArray(V1MismatchedStore.class, 1, v1Mismatched);
+    static final V2MismatchedStore[] v2MismatchedArr = (V2MismatchedStore[]) ValueClass.newNullRestrictedNonAtomicArray(V2MismatchedStore.class, 1, v2Mismatched);
+
+    @Test
+    static void testMismatchedStoresNotOnInlinesSlice() {
+        v1MismatchedArr[0] = v1Mismatched;
+        v2MismatchedArr[0] = v2Mismatched;
+    }
+
+    @Run(test = "testMismatchedStoresNotOnInlinesSlice")
+    public void testMismatchedStoresNotOnInlinesSlice_verifier() {
+        testMismatchedStoresNotOnInlinesSlice();
     }
 }
 
