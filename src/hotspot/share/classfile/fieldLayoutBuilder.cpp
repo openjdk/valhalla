@@ -1645,7 +1645,7 @@ void FieldLayoutBuilder::epilogue() {
       if (_null_marker_offset != -1) {
         st.print_cr("Null marker offset = %d", _null_marker_offset);
       }
-      st.print("Non-oop acmp map: ");
+      st.print("Non-oop acmp map <offset,size>: ");
       for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
         st.print("<%d,%d>, ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
       }
