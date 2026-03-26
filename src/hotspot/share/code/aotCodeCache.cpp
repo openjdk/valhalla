@@ -1475,10 +1475,6 @@ void AOTCodeAddressTable::init_extrs() {
 #endif
 #endif // ZERO
 
-  if (VerifyOops) {
-    SET_ADDRESS(_extrs, StubRoutines::verify_oop_subroutine_entry_address());
-  }
-
   if (UseCompressedOops) {
     SET_ADDRESS(_extrs, CompressedOops::base_addr());
   }

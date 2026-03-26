@@ -2042,7 +2042,6 @@ void MacroAssembler::_verify_oop(Register reg, const char* s, const char* file, 
     stringStream ss;
     ss.print("verify_oop: %s: %s (%s:%d)", reg->name(), s, file, line);
     b = code_string(ss.as_string());
-    b = AOTCodeCache::add_C_string(b);
   }
   BLOCK_COMMENT("verify_oop {");
 
@@ -2079,7 +2078,6 @@ void MacroAssembler::_verify_oop_addr(Address addr, const char* s, const char* f
     stringStream ss;
     ss.print("verify_oop_addr: %s (%s:%d)", s, file, line);
     b = code_string(ss.as_string());
-    b = AOTCodeCache::add_C_string(b);
   }
   BLOCK_COMMENT("verify_oop_addr {");
 
