@@ -33,7 +33,7 @@
  *                   -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-UseArrayFlattening -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
- * @run main/othervm -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
  */
 
