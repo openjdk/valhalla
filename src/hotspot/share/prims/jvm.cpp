@@ -557,42 +557,31 @@ JVM_ENTRY(jarray, JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len))
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jobject obj))
-  oop o = JNIHandles::resolve_non_null(obj);
+JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jarray array))
+  oop o = JNIHandles::resolve_non_null(array);
   Klass* klass = o->klass();
 
   return klass->is_flatArray_klass();
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj))
-  oop o = JNIHandles::resolve_non_null(obj);
+JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jarray array))
+  oop o = JNIHandles::resolve_non_null(array);
   Klass* klass = o->klass();
 
-  // Some tests pass in a String
-  if (!klass->is_array_klass()) {
-    return false;
-  }
+  assert(klass->is_objArray_klass(), "Expects an object array");
 
   return klass->is_null_free_array_klass();
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
+JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jarray array))
   // There are multiple cases where an array can/must support atomic access:
   //   - the array is a reference array
   //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or NULL_FREE_ATOMIC_FLAT
   //   - the array is flat and its component type is naturally atomic
-  oop o = JNIHandles::resolve_non_null(obj);
+  oop o = JNIHandles::resolve_non_null(array);
   Klass* klass = o->klass();
 
-  // Some tests pass in a String
-  if (!klass->is_array_klass()) {
-    return false;
-  }
-
-  // Some tests expects this to return false
-  if (klass->is_typeArray_klass()) {
-    return false;
-  }
+  assert(klass->is_objArray_klass(), "Expects an object array");
 
   if (klass->is_refArray_klass()) {
     return true;

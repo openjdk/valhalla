@@ -1107,13 +1107,13 @@ JNIEXPORT jarray JNICALL
 JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len);
 
 JNIEXPORT jboolean JNICALL
-JVM_IsFlatArray(JNIEnv *env, jobject obj);
+JVM_IsFlatArray(JNIEnv *env, jarray array);
 
 JNIEXPORT jboolean JNICALL
-JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj);
+JVM_IsNullRestrictedArray(JNIEnv *env, jarray array);
 
 JNIEXPORT jboolean JNICALL
-JVM_IsAtomicArray(JNIEnv *env, jobject obj);
+JVM_IsAtomicArray(JNIEnv *env, jarray array);
 
 /* Generics reflection support.
  *
