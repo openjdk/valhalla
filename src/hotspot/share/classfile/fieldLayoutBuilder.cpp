@@ -35,6 +35,7 @@
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
+#include "utilities/align.hpp"
 #include "utilities/powerOfTwo.hpp"
 
 static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayoutInfo>* inline_layout_info_array,
@@ -328,6 +329,7 @@ void FieldLayout::add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* star
       assert(cursor != nullptr, "Sanity check");
       last_search_success = true;
 
+      assert(start->block_kind() != LayoutRawBlock::EMPTY, "");
       while (cursor != start) {
         if (cursor->block_kind() == LayoutRawBlock::EMPTY && cursor->fit(b->size(), b->alignment())) {
           if (candidate == nullptr || cursor->size() < candidate->size()) {
@@ -427,7 +429,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     LayoutRawBlock* adj = new LayoutRawBlock(LayoutRawBlock::EMPTY, adjustment);
     insert(slot, adj);
   }
-  assert(block->size() >= block->size(), "Enough space must remain after adjustment");
+  assert(slot->size() >= block->size(), "Enough space must remain after adjustment");
   insert(slot, block);
   if (slot->size() == 0) {
     remove(slot);
@@ -602,6 +604,7 @@ void FieldLayout::remove(LayoutRawBlock* block) {
 
 void FieldLayout::shift_fields(int shift) {
   LayoutRawBlock* b = first_field_block();
+  assert(b != nullptr, "shift_fields must not be called if layout has no fields");
   LayoutRawBlock* previous = b->prev_block();
   if (previous->block_kind() == LayoutRawBlock::EMPTY) {
     previous->set_size(previous->size() + shift);
@@ -637,6 +640,7 @@ LayoutRawBlock* FieldLayout::find_null_marker() {
     b = b->next_block();
   }
   ShouldNotReachHere();
+  return nullptr;
 }
 
 void FieldLayout::remove_null_marker() {
@@ -1262,12 +1266,13 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     if (has_nullable_atomic_layout() && required_alignment < nullable_atomic_layout_size_in_bytes()) {
       required_alignment = nullable_atomic_layout_size_in_bytes();
     }
-    int shift = first_field->offset() % required_alignment;
+    int shift = (required_alignment - (first_field->offset() % required_alignment)) % required_alignment;
     if (shift != 0) {
       if (required_alignment > _payload_alignment && !_layout->has_inherited_fields()) {
         assert(_layout->first_field_block() != nullptr, "A concrete value class must have at least one (possible dummy) field");
         _layout->shift_fields(shift);
         _payload_offset = _layout->first_field_block()->offset();
+        assert(is_aligned(_payload_offset, required_alignment), "Fields should have been shifted to respect the required alignment");
         if (has_nullable_atomic_layout() || has_nullable_non_atomic_layout()) {
           assert(!_is_empty_inline_class, "Should not get here with empty values");
           _null_marker_offset = _layout->find_null_marker()->offset();
@@ -1375,21 +1380,18 @@ static int insert_segment(GrowableArray<Pair<int,int>>* map, int offset, int siz
 
 static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, GrowableArray<int>* oop_map,
                                 const InstanceKlass* ik, int offset, int payload_offset, int last_idx) {
-  oop mirror = ik->java_mirror();
-  oop array = mirror->obj_field(ik->acmp_maps_offset());
-  assert(array != nullptr, "Sanity check");
-  typeArrayOop fmap = (typeArrayOop)array;
-  typeArrayHandle fmap_h(Thread::current(), fmap);
-  int nb_nonoop_field = fmap_h->int_at(0);
+  Array<int>* super_map = ik->acmp_maps_array();
+  assert(super_map != nullptr, "super class must have an acmp map");
+  int num_nonoop_field = super_map->at(0);
   int field_offset = offset - payload_offset;
-  for (int i = 0; i < nb_nonoop_field; i++) {
+  for (int i = 0; i < num_nonoop_field; i++) {
     last_idx = insert_segment(nonoop_map,
-                              field_offset + fmap_h->int_at( i * 2 + 1),
-                              fmap_h->int_at( i * 2 + 2), last_idx);
+                              field_offset + super_map->at( i * 2 + 1),
+                              super_map->at( i * 2 + 2), last_idx);
   }
-  int len = fmap_h->length();
-  for (int i = nb_nonoop_field * 2 + 1; i < len; i++) {
-      oop_map->append(field_offset + fmap_h->int_at(i));
+  int len = super_map->length();
+  for (int i = num_nonoop_field * 2 + 1; i < len; i++) {
+      oop_map->append(field_offset + super_map->at(i));
   }
   return last_idx;
 }

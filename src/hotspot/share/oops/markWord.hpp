@@ -180,7 +180,6 @@ class markWord {
   static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
   static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
   static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
-
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
   static const uintptr_t no_hash_in_place         = (uintptr_t)no_hash << hash_shift;
   static const uintptr_t no_lock_in_place         = unlocked_value;
@@ -289,8 +288,6 @@ class markWord {
 
   bool has_no_hash() const {
     return hash() == no_hash;
-  }
-
   bool is_flat_array() const {
 #ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)

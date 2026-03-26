@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -422,9 +422,7 @@ class Bytecodes: AllStatic {
                                                            || code == _fconst_0 || code == _dconst_0); }
   static bool        is_return      (Code code)    { return (_ireturn <= code && code <= _return); }
   static bool        is_invoke      (Code code)    { return (_invokevirtual <= code && code <= _invokedynamic); }
-  static bool        is_field_code  (Code code)    {
-    return (_getstatic <= java_code(code) && java_code(code) <= _putfield);
-  }
+  static bool        is_field_code  (Code code)    { return (_getstatic <= java_code(code) && java_code(code) <= _putfield); }
   static bool        has_receiver   (Code code)    { assert(is_invoke(code), "");  return code == _invokevirtual ||
                                                                                           code == _invokespecial ||
                                                                                           code == _invokeinterface; }
