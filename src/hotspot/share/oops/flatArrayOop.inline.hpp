@@ -35,6 +35,11 @@
 #include "oops/valuePayload.inline.hpp"
 #include "runtime/globals.hpp"
 
+inline FlatArrayKlass* flatArrayOopDesc::klass() const {
+  Klass* k = oopDesc::klass();
+  return FlatArrayKlass::cast(k);
+}
+
 inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
 
 inline size_t flatArrayOopDesc::base_offset_in_bytes() {
@@ -84,8 +89,8 @@ inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
 
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* fak = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(fak->element_klass());
+  FlatArrayKlass* fak = klass();
+  InlineKlass* vk = fak->element_klass();
   char* this_oop = (char*) (oopDesc*) this;
   char* val = (char*) value_at_addr(index, fak->layout_helper());
   ptrdiff_t offset = val - this_oop + (ptrdiff_t)vk->null_marker_offset_in_payload();
@@ -99,8 +104,8 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value) {
 
 inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* fak = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(fak->element_klass());
+  FlatArrayKlass* fak = klass();
+  InlineKlass* vk = fak->element_klass();
   if (value != nullptr) {
     if (value->klass() != vk) {
       THROW(vmSymbols::java_lang_ArrayStoreException());
@@ -117,9 +122,9 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
 template <typename OopClosureType>
 void flatArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
   if (UseCompressedOops) {
-    FlatArrayKlass::cast(klass())->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
   } else {
-    FlatArrayKlass::cast(klass())->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
   }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,35 +25,57 @@
  * @test
  * @bug 8301720
  * @summary Test expected value of SUPER AccessFlag for pre-ValueClass .class file
- * @requires !java.enablePreview
- * @compile -source 20 -target 20 SuperAccessFlagTest.java
- * @comment  Cannot use --release 20 because the accessFlags() method is
- *           not found in release 20; therefore -source and -target are used instead.
+ * @modules java.base/jdk.internal.misc
+ * @compile -source 25 -target 25 SuperAccessFlagTest.java
  * @run main SuperAccessFlagTest
  */
 
+import java.io.InputStream;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.reflect.AccessFlag;
+import java.util.Set;
+
+import jdk.internal.misc.PreviewFeatures;
 
 /*
  * Test expected value of ACC_SUPER access flag on an earlier release.
+ * We test against class files because core reflection automatically upgrades
+ * outdated access flags to the latest flags.
  */
 @ExpectedClassFlags("[PUBLIC, SUPER]")
 public class SuperAccessFlagTest {
-    public static void main(String... args) {
+    public static void main(String... args) throws Exception {
         checkClass(SuperAccessFlagTest.class);
+        checkClass(ExpectedClassFlags.class);
     }
 
-    private static void checkClass(Class<?> clazz) {
+    private static void checkClass(Class<?> clazz) throws Exception {
         ExpectedClassFlags expected =
                 clazz.getAnnotation(ExpectedClassFlags.class);
         if (expected != null) {
-            String actual = clazz.accessFlags().toString();
-            if (!expected.value().equals(actual)) {
-                throw new RuntimeException("On " + clazz +
-                        " expected " + expected.value() +
-                        " got " + actual);
+            // Examine stable representation in class files
+            ClassModel cm;
+            try (InputStream is = clazz.getResourceAsStream("/" + clazz.getName().replace('.', '/') + ".class")) {
+                cm = ClassFile.of().parse(is.readAllBytes());
             }
+            check(clazz, expected, cm.flags().flags());
+
+            if (!PreviewFeatures.isEnabled()) {
+                // Hotspot performs automatic flag translations, so no preview
+                check(clazz, expected, clazz.accessFlags());
+            }
+        }
+    }
+
+    private static void check(Class<?> clazz, ExpectedClassFlags expected, Set<AccessFlag> flags) {
+        String actual = flags.toString();
+        if (!expected.value().equals(actual)) {
+            throw new RuntimeException("On " + clazz +
+                    " expected " + expected.value() +
+                    " got " + actual);
         }
     }
 }

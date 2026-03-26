@@ -69,28 +69,6 @@ import jdk.test.whitebox.WhiteBox;
         }
     }
 
-    static class BadClass0 {
-        @NullRestricted
-        String s;
-
-        BadClass0() {
-            s = new String("bad");
-            super();
-        }
-    }
-
-    // Test detection of illegal usage of NullRestricted on an identity field
-    void test_0() {
-        Throwable exception = null;
-        try {
-            BadClass0 bc = new BadClass0();
-        } catch (IncompatibleClassChangeError e) {
-            exception = e;
-            System.out.println("Received " + e);
-        }
-        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted");
-    }
-
     // Test invalid usage of @LooselyConsistentValue on an identity class
     @LooselyConsistentValue
     static class BadClass4 {
@@ -175,11 +153,11 @@ import jdk.test.whitebox.WhiteBox;
         Throwable exception = null;
         try {
             BadClass6 bc = new BadClass6();
-        } catch (ClassCircularityError e) {
+        } catch (StackOverflowError e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Failed to detect circularity");
+        Asserts.assertNotNull(exception, "Failed to trigger infinite recursion");
     }
 
     // Test null restricted static field

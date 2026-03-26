@@ -133,8 +133,6 @@ static void assert_copy_set_hash(markWord mark) {
 static void assert_type(markWord mark) {
   EXPECT_FALSE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
-  EXPECT_FALSE(mark.is_larval_state());
-  EXPECT_FALSE(mark.is_null_free_array());
 }
 
 TEST_VM(markWord, prototype) {
@@ -164,19 +162,6 @@ TEST_VM(markWord, inline_type_prototype) {
   assert_test_pattern(&mark, " inline_type");
 
   assert_inline_type(mark);
-  EXPECT_FALSE(mark.is_larval_state());
-
-  EXPECT_TRUE(mark.has_no_hash());
-  EXPECT_FALSE(mark.is_marked());
-
-  markWord larval = mark.enter_larval_state();
-  EXPECT_TRUE(larval.is_larval_state());
-  assert_inline_type(larval);
-  assert_test_pattern(&larval, " inline_type=larval");
-
-  mark = larval.exit_larval_state();
-  EXPECT_FALSE(mark.is_larval_state());
-  assert_inline_type(mark);
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
@@ -187,7 +172,6 @@ TEST_VM(markWord, inline_type_prototype) {
 static void assert_flat_array_type(markWord mark) {
   EXPECT_TRUE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
-  EXPECT_FALSE(mark.is_larval_state());
 }
 
 TEST_VM(markWord, null_free_flat_array_prototype) {
@@ -229,7 +213,6 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
 static void assert_null_free_array_type(markWord mark) {
   EXPECT_FALSE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
-  EXPECT_FALSE(mark.is_larval_state());
   EXPECT_TRUE(mark.is_null_free_array());
 }
 

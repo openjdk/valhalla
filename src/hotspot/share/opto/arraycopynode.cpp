@@ -438,6 +438,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          const Type* value_type) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
+  PhaseGVN& phase = kit.gvn();
   if (atp_dest->is_flat()) {
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
@@ -451,14 +452,25 @@ void ArrayCopyNode::copy(GraphKit& kit,
       const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
       assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, false, BarrierSetC2::Optimization), "GC barriers required");
       Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
+      // We may have narrowed the type of next_src right before calling this method but because this runs with
+      // PhaseIterGVN::_delay_transform true, explicitly update the type of the AddP so it's consistent  with its
+      // base and load() picks the right memory slice.
+      phase.set_type(next_src, next_src->Value(&phase));
       Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
+      // Same as above
+      phase.set_type(next_src, next_src->Value(&phase));
       Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, adr_type, rt, bt);
       store(bs, &kit.gvn(), ctl, kit.merged_memory(), next_dest, adr_type, v, rt, bt);
     }
   } else {
     Node* off = kit.MakeConX(type2aelembytes(copy_type) * i);
     Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
+    // We may have narrowed the type of next_src right before calling this method but because this runs with
+    // PhaseIterGVN::_delay_transform true, explicitly update the type of the AddP so it's consistent  with its
+    // base and load() picks the right memory slice.
+    phase.set_type(next_src, next_src->Value(&phase));
     Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
+    phase.set_type(next_dest, next_dest->Value(&phase));
     Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, atp_src, value_type, copy_type);
     store(bs, &kit.gvn(), ctl, kit.merged_memory(), next_dest, atp_dest, v, value_type, copy_type);
   }
@@ -646,6 +658,15 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   const Type* value_type = nullptr;
   bool disjoint_bases = false;
 
+  // EA may have moved an input to a new slice. EA stores the new address types in the ArrayCopy node itself
+  // (_src_type/_dest_type). phase->type(src) and _src_type or phase->type(dest) and _dest_type may be different
+  // when this transformation runs if igvn hasn't had a chance to propagate the new types yet. Make sure the new
+  // types are taken into account so new Load/Store nodes are created on the right slice.
+  const TypeAryPtr* atp_src = get_address_type(phase, _src_type, src);
+  const TypeAryPtr* atp_dest = get_address_type(phase, _dest_type, dest);
+  phase->set_type(src, phase->type(src)->join_speculative(atp_src));
+  phase->set_type(dest, phase->type(dest)->join_speculative(atp_dest));
+
   if (!prepare_array_copy(phase, can_reshape,
                           adr_src, base_src, adr_dest, base_dest,
                           copy_type, value_type, disjoint_bases)) {
@@ -672,9 +693,6 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   new_map->set_memory(MergeMemNode::make(in(TypeFunc::Memory)));
   new_map->set_i_o(in(TypeFunc::I_O));
   phase->record_for_igvn(new_map);
-
-  const TypeAryPtr* atp_src = get_address_type(phase, _src_type, src);
-  const TypeAryPtr* atp_dest = get_address_type(phase, _dest_type, dest);
 
   if (can_reshape) {
     assert(!phase->is_IterGVN()->delay_transform(), "cannot delay transforms");
