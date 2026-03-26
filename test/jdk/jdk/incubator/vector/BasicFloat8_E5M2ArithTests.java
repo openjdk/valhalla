@@ -37,9 +37,9 @@ public class BasicFloat8_E5M2ArithTests {
     private static float InfinityF = Float.POSITIVE_INFINITY;
     private static float NaNf = Float.NaN;
 
-    private static final float MAX_VAL_FP8  = 0x1.cp+15f;
-    private static final float MIN_NORM_FP8 = 0x1.0p-14f;
-    private static final float MIN_VAL_FP8  = 0x1.0p-16f;
+    private static final float MAX_VAL_FP8 = 0x1.cp+15f;
+    private static final float MIN_NRM_FP8 = 0x1.0p-14f;
+    private static final float MIN_VAL_FP8 = 0x1.0p-16f;
 
     public static void main(String... args) {
         checkBitWise();
@@ -145,11 +145,11 @@ public class BasicFloat8_E5M2ArithTests {
         checkInt(PRECISION,      3, "Float8.PRECISION");
         checkInt(SIZE,           8, "Float8.SIZE");
 
-        checkFloat8(Float8_E5M2.valueOf(0),  0.0f, "0.0f");
-        checkFloat8(Float8_E5M2.valueOf(-0.0f),  -0.0f, "-0.0f");
-        checkFloat8(MIN_VALUE,  0x1.0p-16f, "Float8.MIN_VALUE");
-        checkFloat8(MIN_NORMAL, 0x1.0p-14f, "Float8.MIN_NORMAL");
-        checkFloat8(MAX_VALUE,  57344.0f,  "Float8.MAX_VALUE");
+        checkFloat8(Float8_E5M2.valueOf(0),      0.0f,  "0.0f");
+        checkFloat8(Float8_E5M2.valueOf(-0.0f), -0.0f, "-0.0f");
+        checkFloat8(MIN_VALUE,  0x1.0p-16f,  "Float8.MIN_VALUE");
+        checkFloat8(MIN_NORMAL, MIN_NRM_FP8, "Float8.MIN_NORMAL");
+        checkFloat8(MAX_VALUE,  57344.0f,    "Float8.MAX_VALUE");
 
         checkFloat8(POSITIVE_INFINITY,   InfinityF,  "+infinity");
         checkFloat8(NEGATIVE_INFINITY,  -InfinityF,  "-infinity");
@@ -498,12 +498,12 @@ public class BasicFloat8_E5M2ArithTests {
             { NaNf,      MAX_EXPONENT + 1},
 
             // Subnormal and almost subnormal values
-            {-0.0f,         MIN_EXPONENT - 1},
-            {+0.0f,         MIN_EXPONENT - 1},
-            { MIN_VAL_FP8,  MIN_EXPONENT - 1},
-            {-MIN_VAL_FP8,  MIN_EXPONENT - 1},
-            { MIN_NORM_FP8, MIN_EXPONENT},
-            {-MIN_NORM_FP8, MIN_EXPONENT},
+            {-0.0f,        MIN_EXPONENT - 1},
+            {+0.0f,        MIN_EXPONENT - 1},
+            { MIN_VAL_FP8, MIN_EXPONENT - 1},
+            {-MIN_VAL_FP8, MIN_EXPONENT - 1},
+            { MIN_NRM_FP8, MIN_EXPONENT},
+            {-MIN_NRM_FP8, MIN_EXPONENT},
 
             // Normal values
             { 1.0f,       0},
@@ -527,19 +527,18 @@ public class BasicFloat8_E5M2ArithTests {
     }
 
     private static void checkUlp() {
-        float MIN_VALUE_F = 0x1.0p-16f;
         float[][] testCases = {
             { InfinityF, InfinityF},
             {-InfinityF, InfinityF},
             { NaNf,      NaNf},
 
             // Zeros, subnormals, and MIN_VALUE all have MIN_VALUE as an ulp.
-            {-0.0f,        MIN_VALUE_F},
-            {+0.0f,        MIN_VALUE_F},
-            { MIN_VALUE_F, MIN_VALUE_F},
-            {-MIN_VALUE_F, MIN_VALUE_F},
-            { 0x1.0p-14f,  MIN_VALUE_F},
-            {-0x1.0p-14f,  MIN_VALUE_F},
+            {-0.0f,        MIN_VAL_FP8},
+            {+0.0f,        MIN_VAL_FP8},
+            { MIN_VAL_FP8, MIN_VAL_FP8},
+            {-MIN_VAL_FP8, MIN_VAL_FP8},
+            { MIN_NRM_FP8, MIN_VAL_FP8},
+            {-MIN_NRM_FP8, MIN_VAL_FP8},
 
              // ulp is (PRECISION - 1) = 2 bits away
              {0x1.0p0f,       0x1.0p-2f}, // 1.0f
@@ -911,7 +910,7 @@ public class BasicFloat8_E5M2ArithTests {
                  // threshold; subtracting a non-zero finite value will
                  // result in MAX_VALUE, adding zero or a positive
                  // value will overflow.
-                 {0x1.2p10f, 0x1.c7p5f, -0x1.0p-14f,
+                 {0x1.2p10f, 0x1.c7p5f, -MIN_NRM_FP8,
                   MAX_VAL_FP8},
 
                  {0x1.2p10f, 0x1.c7p5f, -0.0f,
@@ -920,7 +919,7 @@ public class BasicFloat8_E5M2ArithTests {
                  {0x1.2p10f, 0x1.c7p5f, +0.0f,
                   InfinityF},
 
-                 {0x1.2p10f, 0x1.c7p5f, +0x1.0p-14f,
+                 {0x1.2p10f, 0x1.c7p5f, +MIN_NRM_FP8,
                   InfinityF},
 
                  {0x1.2p10f, 0x1.c7p5f, InfinityF,
