@@ -68,9 +68,6 @@ define GenerateVarHandle
     $1_KEYS += NonPlainAccess
   endif
 
-  $$(info VARHANDLE_$1_type=$$(VARHANDLE_$1_type))
-  $$(info VARHANDLE_$1_Type=$$(VARHANDLE_$1_Type))
-  $$(info VARHANDLE_$1_InputType=$$(VARHANDLE_$1_InputType))
   $$(eval $$(call SetupStreamPreProcessing, GEN_VARHANDLE_$1, \
       SOURCE_FILE := $$(VARHANDLES_INPUT_DIR)/X-VarHandle.java.template, \
       OUTPUT_FILE := $$(VARHANDLES_OUTPUT_DIR)/VarHandle$$(VARHANDLE_$1_InputType)s.java, \
