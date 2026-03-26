@@ -102,7 +102,7 @@ public class TestEagerReclaimHumongousRegions {
                                                                     "-XX:+WhiteBoxAPI",
                                                                     "--enable-preview",
                                                                     TestEagerReclaimHumongousRegionsClearMarkBitsRunner.class.getName(),
-                                                                    String.valueOf(useTypeArray),
+                                                                    String.valueOf(arrayKind),
                                                                     String.valueOf(keepReference),
                                                                     String.valueOf(allocateAfter),
                                                                     phase);
@@ -160,13 +160,6 @@ public class TestEagerReclaimHumongousRegions {
         Asserts.assertTrue(expected.reclaimed == reclaimed, "Wrong log output reclaiming humongous region");
     }
 
-<<<<<<< HEAD
-    private static void runTestNoRefsFor(ObjectType ot) throws Exception {
-        System.out.println("Tests checking eager reclaim for when the object of type " + ot + " is allocated before mark start.");
-        runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.BEFORE_MARKING_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
-        runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_REBUILD_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
-        runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_CLEANUP_COMPLETED, ExpectedState.NOTMARKED_CANDIDATE_RECLAIMED);
-=======
     private static void runTest(ObjectType type,
                                 ReferencePolicy refPolicy,
                                 AllocationTiming timing,
@@ -184,12 +177,11 @@ public class TestEagerReclaimHumongousRegions {
         verifyLog(jfrLog, timing, expected);
     }
 
-    public static void main(String[] args) throws Exception {
-        System.out.println("Tests checking eager reclaim for when the object is allocated before mark start.");
-        runTest(ObjectType.TYPE_ARRAY, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.BEFORE_MARKING_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
-        runTest(ObjectType.TYPE_ARRAY, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_REBUILD_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
-        runTest(ObjectType.TYPE_ARRAY, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_CLEANUP_COMPLETED, ExpectedState.NOTMARKED_CANDIDATE_RECLAIMED);
->>>>>>> lworld
+    private static void runTestNoRefsFor(ObjectType ot) throws Exception {
+        System.out.println("Tests checking eager reclaim for when the object of type " + ot + " is allocated before mark start.");
+        runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.BEFORE_MARKING_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
+        runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_REBUILD_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
+        runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_CLEANUP_COMPLETED, ExpectedState.NOTMARKED_CANDIDATE_RECLAIMED);
 
         runTest(ot, ReferencePolicy.KEEP, AllocationTiming.BEFORE_MARK_START, WB.BEFORE_MARKING_COMPLETED, ExpectedState.MARKED_CANDIDATE_NOT_RECLAIMED);
         runTest(ot, ReferencePolicy.KEEP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_REBUILD_COMPLETED, ExpectedState.MARKED_CANDIDATE_NOT_RECLAIMED);
