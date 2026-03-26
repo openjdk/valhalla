@@ -75,9 +75,6 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
       st->print("is_unlocked");
       if (is_inline_type()) {
         st->print(" inline_type");
-        if (is_larval_state()) {
-          st->print("=larval");
-        }
       }
       if (has_no_hash()) {
         st->print(" no_hash");

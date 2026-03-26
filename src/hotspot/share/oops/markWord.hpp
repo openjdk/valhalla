@@ -70,8 +70,7 @@
 //  * inline types: have alternative bytecode behavior, e.g. can not be locked
 //  * flat arrays: load/decode of klass layout helper is expensive for aaload
 //  * "null free" arrays: load/decode of klass layout helper again for aaload
-//  * inline type: "larval state": mutable state, but only during object init, observable
-//      by only by a single thread (generally do not mutate markWord)
+//  * valhalla reserved:
 //
 //  Inline types cannot be locked, monitored or inflating.
 //
@@ -126,8 +125,8 @@ class markWord {
   static const int inline_type_bits               = 1;
   static const int null_free_array_bits           = LP64_ONLY(1) NOT_LP64(0);
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
-  static const int larval_bits                    = 1;
-  static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - larval_bits - flat_array_bits - null_free_array_bits - self_fwd_bits;
+  static const int valhalla_reserved_bits         = 1;
+  static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - valhalla_reserved_bits - flat_array_bits - null_free_array_bits - self_fwd_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
 
   static const int lock_shift                     = 0;
@@ -136,8 +135,8 @@ class markWord {
   static const int inline_type_shift              = age_shift + age_bits;
   static const int null_free_array_shift          = inline_type_shift + inline_type_bits;
   static const int flat_array_shift               = null_free_array_shift + null_free_array_bits;
-  static const int larval_shift                   = flat_array_shift + flat_array_bits;
-  static const int hash_shift                     = larval_shift + larval_bits;
+  static const int valhalla_reserved_shift        = flat_array_shift + flat_array_bits;
+  static const int hash_shift                     = valhalla_reserved_shift + valhalla_reserved_bits;
 
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
@@ -153,11 +152,8 @@ class markWord {
   static const uintptr_t flat_array_bit_in_place  = right_n_bits(flat_array_bits) << flat_array_shift;
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
   static const uintptr_t age_mask_in_place        = age_mask << age_shift;
-
-  static const uintptr_t larval_mask              = right_n_bits(larval_bits);
-  static const uintptr_t larval_mask_in_place     = (larval_mask << larval_shift) | inline_type_mask_in_place;
-  static const uintptr_t larval_bit_in_place      = right_n_bits(larval_bits) << larval_shift;
-
+  static const uintptr_t valhalla_reserved_mask   = right_n_bits(valhalla_reserved_bits);
+  static const uintptr_t valhalla_reserved_mask_in_place = right_n_bits(valhalla_reserved_mask) << valhalla_reserved_shift;
   static const uintptr_t hash_mask                = right_n_bits(hash_bits);
   static const uintptr_t hash_mask_in_place       = hash_mask << hash_shift;
 
@@ -184,8 +180,6 @@ class markWord {
   static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
   static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
   static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
-
-  static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
 
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
   static const uintptr_t no_hash_in_place         = (uintptr_t)no_hash << hash_shift;
@@ -224,7 +218,10 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    return (!is_unlocked() || !has_no_hash() || is_larval_state());
+    // The reserved bits are only guaranteed to be unset if the mark word is "unlocked"
+    assert(!is_unlocked() || mask_bits(value(),  valhalla_reserved_mask_in_place) == 0,
+           "Reserved bits should not be used. _value: " PTR_FORMAT, _value);
+    return !is_unlocked() || !has_no_hash();
   }
 
   // WARNING: The following routines are used EXCLUSIVELY by
@@ -289,17 +286,6 @@ class markWord {
 
   bool has_no_hash() const {
     return hash() == no_hash;
-  }
-
-  // private buffered value operations
-  markWord enter_larval_state() const {
-    return markWord(value() | larval_bit_in_place);
-  }
-  markWord exit_larval_state() const {
-    return markWord(value() & ~larval_bit_in_place);
-  }
-  bool is_larval_state() const {
-    return (mask_bits(value(), larval_mask_in_place) == larval_pattern);
   }
 
   bool is_flat_array() const {
