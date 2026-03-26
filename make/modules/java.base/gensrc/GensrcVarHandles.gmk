@@ -64,7 +64,7 @@ define GenerateVarHandle
     $1_KEYS += Bitwise
   endif
   ifeq ($$(filter NonAtomicReference NonAtomicFlatValue, $1),)
-    # No plain access for non-atomic storage
+    # Only plain access for non-atomic storage
     $1_KEYS += NonPlainAccess
   endif
 
