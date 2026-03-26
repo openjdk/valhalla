@@ -34,7 +34,7 @@ import java.util.Arrays;
  * The exponents on the polynomial terms are 0 (for the constant term)
  * or positive. Negative exponents, for terms like
  * <i>x</i><sup>&minus;1</sup>, are <em>not</em> supported in this
- * class.
+ * class; in other words, Laurent polynomials are not supported.
  *
  * <p>This class models polynomials as a <i>algebraic ring</i>. This
  * includes having a {@linkplain #ZERO zero element} such that
@@ -306,6 +306,9 @@ public final /* value */ class PolynomialDouble  {
     /**
      * Addition operation, binary operator "{@code +}".
      *
+     * @implSpec
+     * Sum coefficients of corresponding terms.
+     *
      * @param addend the first operand
      * @param augend the second operand
      * @return the sum of the operands
@@ -351,6 +354,9 @@ public final /* value */ class PolynomialDouble  {
 
     /**
      * Subtraction operation, binary operator "{@code -}".
+     *
+     * @implSpec
+     * Take the difference of coefficients of corresponding terms.
      *
      * @param minuend the first operand
      * @param  subtrahend the second operand
@@ -544,12 +550,12 @@ public final /* value */ class PolynomialDouble  {
     /**
      * {@return whether or not the argument is a polynomial equal to this one}
      *
-     * @param o the object to compare to
+     * @param obj the object to compare to
      */
     @Override
-    public boolean equals(Object o) {
-        return o instanceof PolynomialDouble that &&
-            this.deg() == that.deg() &&
+    public boolean equals(Object obj) {
+        return obj instanceof PolynomialDouble that &&
+            this.deg() == that.deg() && // Could elide the degree check here
             Arrays.equals(this.coeffs, that.coeffs);
     }
 
