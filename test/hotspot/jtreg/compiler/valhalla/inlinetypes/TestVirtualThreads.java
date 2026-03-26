@@ -27,6 +27,7 @@
  * @summary Test that Virtual Threads work well with Value Objects.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
