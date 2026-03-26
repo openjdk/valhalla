@@ -240,6 +240,7 @@ module java.base {
         java.sql.rowset,
         jdk.dynalink,
         jdk.internal.vm.ci,
+        jdk.jdeps,
         jdk.unsupported;
     exports jdk.internal.vm to
         java.management,

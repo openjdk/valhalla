@@ -575,9 +575,9 @@ class Parse : public GraphKit {
   void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr, Node** stress_count_mem = nullptr);
   void    do_acmp(BoolTest::mask btest, Node* left, Node* right);
   void    acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region);
-  void    acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region);
+  void    acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason);
+  void    acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region);
   Node*   acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, Node*& null_ctl);
-  void    acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region);
   int     repush_if_args();
   void    adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path, bool can_trap = true);
   void    sharpen_type_after_if(BoolTest::mask btest,

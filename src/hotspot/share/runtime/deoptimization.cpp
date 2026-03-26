@@ -502,7 +502,7 @@ bool Deoptimization::deoptimize_objects_internal(JavaThread* thread, GrowableArr
   bool const jvmci_enabled = JVMCI_ONLY(EnableJVMCI) NOT_JVMCI(false);
 
   // Reallocate the non-escaping objects and restore their fields.
-  if (jvmci_enabled COMPILER2_PRESENT(|| (DoEscapeAnalysis && EliminateAllocations)
+  if (jvmci_enabled COMPILER2_PRESENT(|| ((DoEscapeAnalysis || Arguments::is_valhalla_enabled()) && EliminateAllocations)
                                       || EliminateAutoBox || EnableVectorAggressiveReboxing)) {
     realloc_failures = rematerialize_objects(thread, Unpack_none, nm, deoptee, map, chunk, deoptimized_objects);
   }
@@ -579,8 +579,8 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
 
   // Reallocate the non-escaping objects and restore their fields. Then
   // relock objects if synchronization on them was eliminated.
-  if (jvmci_enabled COMPILER2_PRESENT( || (DoEscapeAnalysis && EliminateAllocations)
-                                       || EliminateAutoBox || EnableVectorAggressiveReboxing )) {
+  if (jvmci_enabled COMPILER2_PRESENT(|| ((DoEscapeAnalysis || Arguments::is_valhalla_enabled()) && EliminateAllocations)
+                                      || EliminateAutoBox || EnableVectorAggressiveReboxing)) {
     bool unused;
     realloc_failures = rematerialize_objects(current, exec_mode, nm, deoptee, map, chunk, unused);
   }
@@ -1332,7 +1332,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
       // Inline type array must be zeroed because not all memory is reassigned
-      // FIXME: Is this missing an InternalOOMEMark?
+      InternalOOMEMark iom(THREAD);
       obj = ak->allocate_instance(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);

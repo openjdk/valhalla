@@ -1595,23 +1595,10 @@ void ConnectionGraph::add_proj(Node* n, Unique_Node_List* delayed_worklist) {
   } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() && n->bottom_type()->isa_ptr()) {
     CallNode* call = n->in(0)->as_Call();
     assert(call->tf()->returns_inline_type_as_fields(), "");
-    ciMethod* meth = n->in(0)->as_CallJava()->method();
-    BCEscapeAnalyzer* call_analyzer = (meth != nullptr) ? meth->get_bcea() : nullptr;
-    const TypeTuple* d = call->tf()->domain_sig();
-    uint i = d->cnt();
-    if (call_analyzer != nullptr) {
-      for (i = TypeFunc::Parms; i < d->cnt(); i++) {
-        if (d->field_at(i)->isa_ptr() != nullptr &&
-            call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
-          break;
-        }
-      }
-    }
-    if (n->as_Proj()->_con == TypeFunc::Parms || i >= d->cnt() || !scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
+    if (n->as_Proj()->_con == TypeFunc::Parms || !returns_an_argument(call)) {
       // either:
       // - not an argument returned
       // - the returned buffer for a returned scalarized argument
-      // - an incompatible  returned scalarized argument
       add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
     } else {
       add_local_var(n, PointsToNode::NoEscape);
@@ -2240,6 +2227,31 @@ public:
   }
 };
 
+// Determine whether any arguments are returned.
+bool ConnectionGraph::returns_an_argument(CallNode* call) {
+  ciMethod* meth = call->as_CallJava()->method();
+  BCEscapeAnalyzer* call_analyzer = meth->get_bcea();
+  if (call_analyzer == nullptr) {
+    return false;
+  }
+
+  const TypeTuple* d = call->tf()->domain_sig();
+  bool ret_arg = false;
+  for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+    if (d->field_at(i)->isa_ptr() != nullptr &&
+        call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
+      if (meth->is_scalarized_arg(i - TypeFunc::Parms) && !compatible_return(call->as_CallJava(), i)) {
+        return false;
+      }
+      if (call->tf()->returns_inline_type_as_fields() != meth->is_scalarized_arg(i - TypeFunc::Parms)) {
+        return false;
+      }
+      ret_arg = true;
+    }
+  }
+  return ret_arg;
+}
+
 void ConnectionGraph::add_call_node(CallNode* call) {
   assert(call->returns_pointer() || call->tf()->returns_inline_type_as_fields(), "only for call which returns pointer");
   uint call_idx = call->_idx;
@@ -2349,22 +2361,13 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         add_java_object(call, PointsToNode::NoEscape);
         set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of call"));
       } else {
-        // Determine whether any arguments are returned.
-        const TypeTuple* d = call->tf()->domain_sig();
-        uint i = TypeFunc::Parms;
-        for (; i < d->cnt(); i++) {
-          if (d->field_at(i)->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
-            break;
-          }
-        }
         // For non scalarized argument/return: add_proj() adds an edge between the return projection and the call,
         // process_call_arguments() adds an edge between the call and the argument
         // For scalarized argument/return: process_call_arguments() adds an edge between a call projection for a field
         // and the argument input to the call for that field. An edge is added between the projection for the returned
         // buffer and the call.
-        if (i < d->cnt() && !scalarized_arg_with_compatible_return(call->as_CallJava(), i)) {
-          // returns non scalarized argument or incompatible return
+        if (returns_an_argument(call) && !call->tf()->returns_inline_type_as_fields()) {
+          // returns non scalarized argument
           add_local_var(call, PointsToNode::ArgEscape);
         } else {
           // Returns unknown object or scalarized argument being returned
@@ -2382,12 +2385,8 @@ void ConnectionGraph::add_call_node(CallNode* call) {
 
 // Check that the return type is compatible with the type of the argument being returned i.e. that there's no cast that
 // fails in the method
-bool ConnectionGraph::scalarized_arg_with_compatible_return(CallJavaNode* call, uint k) {
-  ciMethod* meth = call->method();
-  BCEscapeAnalyzer* call_analyzer = meth->get_bcea();
-  assert(call_analyzer->is_arg_returned(k - TypeFunc::Parms), "only for returned arg");
-  return meth->is_scalarized_arg(k - TypeFunc::Parms) &&
-         call->tf()->domain_sig()->field_at(k)->meet(TypePtr::NULL_PTR)->higher_equal(call->tf()->range_sig()->field_at(TypeFunc::Parms));
+bool ConnectionGraph::compatible_return(CallJavaNode* call, uint k) {
+  return call->tf()->domain_sig()->field_at(k)->is_instptr()->instance_klass() == call->tf()->range_sig()->field_at(TypeFunc::Parms)->is_instptr()->instance_klass();
 }
 
 void ConnectionGraph::process_call_arguments(CallNode *call) {
@@ -2577,19 +2576,20 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       // fall-through if not a Java method or no analyzer information
       if (call_analyzer != nullptr) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
+        bool ret_arg = returns_an_argument(call);
         for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
           int k = di.i_domain() - TypeFunc::Parms;
           const Type* at = di.current_domain_cc();
           Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
-          assert(!call_analyzer->is_arg_returned(k) || !scalarized_arg_with_compatible_return(call->as_CallJava(), di.i_domain()) ||
+          assert(!call_analyzer->is_arg_returned(k) || !meth->is_scalarized_arg(k) ||
+                 !compatible_return(call->as_CallJava(), di.i_domain()) ||
                  call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1) == nullptr ||
                  _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1)) == at,
                  "scalarized return and scalarized argument should match");
-          if (at->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(k)) {
+          if (at->isa_ptr() != nullptr && call_analyzer->is_arg_returned(k) && ret_arg) {
             // The call returns arguments.
-            if (scalarized_arg_with_compatible_return(call->as_CallJava(), di.i_domain())) {
+            if (meth->is_scalarized_arg(k)) {
               ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1);
               if (res_proj != nullptr) {
                 assert(_igvn->type(res_proj)->isa_ptr(), "scalarized return and scalarized argument should match");

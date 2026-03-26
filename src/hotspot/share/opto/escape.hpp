@@ -372,6 +372,8 @@ private:
   // Compute the escape state for arguments to a call.
   void process_call_arguments(CallNode *call);
 
+  bool returns_an_argument(CallNode* call);
+
   // Add PointsToNode node corresponding to a call
   void add_call_node(CallNode* call);
 
@@ -692,7 +694,7 @@ public:
   void add_to_congraph_unsafe_access(Node* n, uint opcode, Unique_Node_List* delayed_worklist);
   bool add_final_edges_unsafe_access(Node* n, uint opcode);
 
-  bool scalarized_arg_with_compatible_return(CallJavaNode* call, uint k);
+  bool compatible_return(CallJavaNode* call, uint k);
 
 #ifndef PRODUCT
   static int _no_escape_counter;

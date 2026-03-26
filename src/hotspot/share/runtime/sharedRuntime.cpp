@@ -88,6 +88,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
@@ -937,7 +938,7 @@ void SharedRuntime::throw_StackOverflowError_common(JavaThread* current, bool de
   // bindings.
   current->clear_scopedValueBindings();
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   throw_and_post_jvmti_exception(current, exception);
 }
 
@@ -3036,6 +3037,8 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
   bool has_scalarized_arguments = false;
   bool long_prev = false;
   int long_prev_offset = -1;
+  bool skipping_inline_recv = false;
+  bool receiver_handled = false;
 
   fingerprint->iterate_args([&] (const AdapterFingerPrint::Element& arg) {
     BasicType bt = arg.bt();
@@ -3054,7 +3057,9 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       }
       assert(long_prev_offset != 0, "no buffer argument here");
       SigEntry::add_entry(_sig_cc, bt_to_add, nullptr, long_prev_offset);
-      SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
+      if (!skipping_inline_recv) {
+        SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
+      }
     }
 
     switch (bt) {
@@ -3063,7 +3068,11 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
           value_object_count--;
           SigEntry::add_entry(_sig_cc, T_VOID, nullptr, offset);
-          SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+          if (!skipping_inline_recv) {
+            SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+          } else if (value_object_count == 0) {
+            skipping_inline_recv = false;
+          }
           assert(value_object_count >= 0, "invalid value object count");
         } else {
           // Nothing to add for _sig: We already added an addition T_VOID in add_entry() when adding T_LONG or T_DOUBLE.
@@ -3076,7 +3085,9 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           SigEntry::add_entry(_sig, bt);
         }
         SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        if (!skipping_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        }
         break;
       case T_LONG:
         long_prev = true;
@@ -3091,7 +3102,9 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
         assert(value_object_count > 0, "must be value object field");
         assert(offset != 0 || (bt == T_OBJECT && prev_bt == T_METADATA), "buffer input expected here");
         SigEntry::add_entry(_sig_cc, bt, nullptr, offset, false, offset == 0);
-        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        if (!skipping_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        }
         break;
       case T_METADATA:
         assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
@@ -3099,7 +3112,15 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           SigEntry::add_entry(_sig, T_OBJECT);
         }
         SigEntry::add_entry(_sig_cc, T_METADATA, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
+        if (!skipping_inline_recv) {
+          if (!receiver_handled && _has_inline_recv && value_object_count == 0) {
+            SigEntry::add_entry(_sig_cc_ro, T_OBJECT);
+            skipping_inline_recv = true;
+            receiver_handled = true;
+          } else {
+            SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
+          }
+        }
         value_object_count++;
         has_scalarized_arguments = true;
         break;
@@ -3117,6 +3138,17 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
     SigEntry::add_entry(_sig_cc_ro, T_OBJECT);
   }
   assert(value_object_count == 0, "invalid value object count");
+
+#ifdef ASSERT
+  if (_has_inline_recv) {
+    // In RO signatures, inline receivers must be represented as a single T_OBJECT
+    assert(_sig_cc_ro->length() >= 1, "sig_cc_ro must include receiver");
+    assert(_sig_cc_ro->at(0)._bt == T_OBJECT,
+           "sig_cc_ro must represent inline receiver as T_OBJECT");
+    assert(_sig_cc_ro->length() <= _sig_cc->length(),
+           "sig_cc_ro must not be longer than sig_cc");
+  }
+#endif
 
   _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
