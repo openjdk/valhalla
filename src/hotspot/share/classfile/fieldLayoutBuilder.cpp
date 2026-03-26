@@ -1351,34 +1351,34 @@ void FieldLayoutBuilder::register_embedded_oops(OopMapBlocksBuilder* nonstatic_o
   register_embedded_oops_from_list(nonstatic_oop_maps, group->big_primitive_fields());
 }
 
-static int insert_segment(GrowableArray<Pair<int,int>>* map, int offset, int size, int last_idx) {
+static int insert_segment(GrowableArray<AcmpMapSegment>* map, int offset, int size, int last_idx) {
   if (map->is_empty()) {
-    return map->append(Pair<int,int>(offset, size));
+    return map->append(AcmpMapSegment(offset, size));
   }
   last_idx = last_idx == -1 ? 0 : last_idx;
-  int start = map->adr_at(last_idx)->first > offset ? 0 : last_idx;
+  int start = map->adr_at(last_idx)->_offset > offset ? 0 : last_idx;
   bool inserted = false;
   for (int c = start; c < map->length(); c++) {
-    if (offset == (map->adr_at(c)->first + map->adr_at(c)->second)) {
+    if (offset == (map->adr_at(c)->_offset + map->adr_at(c)->_size)) {
       //contiguous to the last field, can be coalesced
-      map->adr_at(c)->second = map->adr_at(c)->second + size;
+      map->adr_at(c)->_size = map->adr_at(c)->_size + size;
       inserted = true;
       break;  // break out of the for loop
     }
-    if (offset < (map->adr_at(c)->first)) {
-      map->insert_before(c, Pair<int,int>(offset, size));
+    if (offset < (map->adr_at(c)->_offset)) {
+      map->insert_before(c, AcmpMapSegment(offset, size));
       last_idx = c;
       inserted = true;
       break;  // break out of the for loop
     }
   }
   if (!inserted) {
-    last_idx = map->append(Pair<int,int>(offset, size));
+    last_idx = map->append(AcmpMapSegment(offset, size));
   }
   return last_idx;
 }
 
-static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, GrowableArray<int>* oop_map,
+static int insert_map_at_offset(GrowableArray<AcmpMapSegment>* nonoop_map, GrowableArray<int>* oop_map,
                                 const InstanceKlass* ik, int offset, int payload_offset, int last_idx) {
   Array<int>* super_map = ik->acmp_maps_array();
   assert(super_map != nullptr, "super class must have an acmp map");
@@ -1396,13 +1396,13 @@ static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, Growab
   return last_idx;
 }
 
-static void split_after(GrowableArray<Pair<int,int>>* map, int idx, int head) {
-  int offset = map->adr_at(idx)->first;
-  int size = map->adr_at(idx)->second;
+static void split_after(GrowableArray<AcmpMapSegment>* map, int idx, int head) {
+  int offset = map->adr_at(idx)->_offset;
+  int size = map->adr_at(idx)->_size;
   if (size <= head) return;
-  map->adr_at(idx)->first = offset + head;
-  map->adr_at(idx)->second = size - head;
-  map->insert_before(idx, Pair<int,int>(offset, head));
+  map->adr_at(idx)->_offset = offset + head;
+  map->adr_at(idx)->_size = size - head;
+  map->insert_before(idx, AcmpMapSegment(offset, head));
 
 }
 
@@ -1410,8 +1410,7 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   assert(_is_inline_type || _is_abstract_value, "Must be done only for value classes (abstract or not)");
 
   // create/initialize current class' maps
-  // The Pair<int,int> values in the nonoop_acmp_map represent <offset,size> segments of memory
-  _nonoop_acmp_map = new GrowableArray<Pair<int,int>>();
+  _nonoop_acmp_map = new GrowableArray<AcmpMapSegment>();
   _oop_acmp_map = new GrowableArray<int>();
   if (_is_empty_inline_class) return;
   // last_idx remembers the position of the last insertion in order to speed up the next insertion.
@@ -1472,8 +1471,8 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   // split segments into well-aligned blocks
   int idx = 0;
   while (idx < _nonoop_acmp_map->length()) {
-    int offset = _nonoop_acmp_map->adr_at(idx)->first;
-    int size = _nonoop_acmp_map->adr_at(idx)->second;
+    int offset = _nonoop_acmp_map->adr_at(idx)->_offset;
+    int size = _nonoop_acmp_map->adr_at(idx)->_size;
     int mod = offset % 8;
     switch (mod) {
       case 0:
@@ -1649,7 +1648,7 @@ void FieldLayoutBuilder::epilogue() {
       }
       st.print("Non-oop acmp map: ");
       for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
-        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i).first,  _nonoop_acmp_map->at(i).second);
+        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
       }
       st.print_cr("");
       st.print("oop acmp map: ");
