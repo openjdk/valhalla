@@ -22,19 +22,27 @@
  */
 
 /*
- * @test
+ * @test id=NoPreview
  * @bug     4822887
  * @summary Basic test for Collections.addAll
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
  * @build jdk.test.lib.valueclass.ValueClass
- *
- * @compile AddAll.java
  * @run main AddAll
- *
- * @compile -XDaccessInternalAPI --enable-preview --source ${java.specification.version} -Xplugin:ValueClassPlugin AddAll.java
- * @run main/othervm --enable-preview AddAll
+ */
+
+/*
+ * @test id=Preview
+ * @bug     4822887
+ * @summary Basic test for Collections.addAll - Preview
+ * @author  Josh Bloch
+ * @key randomness
+ * @library /test/lib
+ * @build jdk.test.lib.valueclass.ValueClass
+ * @enablePreview
+ * @compile -XDaccessInternalAPI -Xplugin:ValueClassPlugin AddAll.java
+ * @run main AddAll
  */
 
 import jdk.test.lib.valueclass.ValueClass;
