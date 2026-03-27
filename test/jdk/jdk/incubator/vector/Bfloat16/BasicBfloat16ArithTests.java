@@ -42,6 +42,7 @@ public class BasicBfloat16ArithTests {
     private static float NaNf = Float.NaN;
 
     private static final float MAX_VAL_FP16 = 0x1.fep127f;
+    private static final float MIN_NRM_FP16 = 0x1.0p-126f;
     private static final float MIN_VAL_FP16 = 0x1.0p-133f;
 
     public static void main(String... args) {
@@ -157,8 +158,8 @@ public class BasicBfloat16ArithTests {
         checkInt(Bfloat16.PRECISION,      8, "Bfloat16.PRECISION");
         checkInt(Bfloat16.SIZE,          16, "Bfloat16.SIZE");
 
-        checkBfloat16(Bfloat16.MIN_VALUE,  0x1.0p-133f, "Bfloat16.MIN_VALUE");
-        checkBfloat16(Bfloat16.MIN_NORMAL, 0x1.0p-126f, "Bfloat16.MIN_NORMAL");
+        checkBfloat16(Bfloat16.MIN_VALUE,  MIN_VAL_FP16, "Bfloat16.MIN_VALUE");
+        checkBfloat16(Bfloat16.MIN_NORMAL, MIN_NRM_FP16, "Bfloat16.MIN_NORMAL");
         checkBfloat16(Bfloat16.MAX_VALUE,  0x1.fep127f,  "Bfloat16.MAX_VALUE");
 
         checkBfloat16(Bfloat16.POSITIVE_INFINITY,   InfinityF,  "+infinity");
@@ -494,10 +495,10 @@ public class BasicBfloat16ArithTests {
             {+0.0f,         Bfloat16.MIN_EXPONENT - 1},
 
             // Bfloat16 cardinal values
-            { 0x1.0p-133f,  Bfloat16.MIN_EXPONENT - 1}, // Bfloat16.MIN_VALUE
-            {-0x1.0p-133f,  Bfloat16.MIN_EXPONENT - 1}, // Bfloat16.MIN_VALUE
-            { 0x1.0p-126f,  Bfloat16.MIN_EXPONENT},     // Bfloat16.MIN_NORMAL
-            {-0x1.0p-126f,  Bfloat16.MIN_EXPONENT},     // Bfloat16.MIN_NORMAL
+            { MIN_VAL_FP16, Bfloat16.MIN_EXPONENT - 1}, // Bfloat16.MIN_VALUE
+            {-MIN_VAL_FP16, Bfloat16.MIN_EXPONENT - 1}, // Bfloat16.MIN_VALUE
+            { MIN_NRM_FP16, Bfloat16.MIN_EXPONENT},     // Bfloat16.MIN_NORMAL
+            {-MIN_NRM_FP16, Bfloat16.MIN_EXPONENT},     // Bfloat16.MIN_NORMAL
             { 0x1.fep127f,  Bfloat16.MAX_EXPONENT},     // Bfloat16.MAX_NORMAL
             {-0x1.fep127f,  Bfloat16.MAX_EXPONENT},     // Bfloat16.MAX_NORMAL
 
@@ -537,16 +538,16 @@ public class BasicBfloat16ArithTests {
             { NaNf,      NaNf},
 
             // Zeros, subnormals, and MIN_VALUE all have MIN_VALUE as an ulp.
-            {-0.0f,        0x1.0p-133f},
-            {+0.0f,        0x1.0p-133f},
-            { 0x1.0p-133f, 0x1.0p-133f},
-            {-0x1.0p-133f, 0x1.0p-133f},
-            { 0x1.0p-132f, 0x1.0p-133f},
-            {-0x1.0p-132f, 0x1.0p-133f},
-            { 0x1.0p-127f, 0x1.0p-133f},
-            {-0x1.0p-127f, 0x1.0p-133f},
+            {-0.0f,         MIN_VAL_FP16},
+            {+0.0f,         MIN_VAL_FP16},
+            { MIN_VAL_FP16, MIN_VAL_FP16},
+            {-MIN_VAL_FP16, MIN_VAL_FP16},
+            { 0x1.0p-132f,  MIN_VAL_FP16},
+            {-0x1.0p-132f,  MIN_VAL_FP16},
+            { 0x1.0p-127f,  MIN_VAL_FP16},
+            {-0x1.0p-127f,  MIN_VAL_FP16},
 
-            // ulp is 7 bits away
+            // ulp is (PRECISION - 1) = 7 bits away
             {0x1.0p0f,       0x1.0p-7f}, // 1.0f
             {0x1.0p1f,       0x1.0p-6f}, // 2.0f
             {0x1.0p2f,       0x1.0p-5f}, // 4.0f
@@ -614,8 +615,8 @@ public class BasicBfloat16ArithTests {
             { Double.MIN_VALUE,  0.0},
             {-Double.MIN_VALUE, -0.0},
 
-            { 0x1.0p-133f * 0.5d,  0.0},
-            {-0x1.0p-133f * 0.5d, -0.0},
+            { MIN_VAL_FP16 * 0.5d,  0.0},
+            {-MIN_VAL_FP16 * 0.5d, -0.0},
 
             { 0x1.0p-1024d,  0.0},
             {-0x1.0p-1024d, -0.0},
@@ -627,11 +628,11 @@ public class BasicBfloat16ArithTests {
             {0x1.fep127f + 0x0.01p127f,  InfinityF},
             {0x1.fep127f + 0x0.02p127f,  InfinityF},
 
-            {0x1.0p-126f, 0x1.0p-126}, // Bfloat16.MIN_NORMAL
+            {MIN_NRM_FP16, 0x1.0p-126}, // Bfloat16.MIN_NORMAL
             {0x1.fp-126f, 0x1.fp-126},
 
             // Reorder after code fixed
-            {Math.nextUp( 0x1.0p-133f * 0.5d),  0x1.0p-133}, // Bfloat16.MIN_VALUE
+            {Math.nextUp( MIN_VAL_FP16 * 0.5d),  0x1.0p-133}, // Bfloat16.MIN_VALUE
         };
 
         System.out.println(Bfloat16.toHexString(Bfloat16.MIN_VALUE));
