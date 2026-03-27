@@ -42,6 +42,7 @@
 #include "oops/typeArrayKlass.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/callnode.hpp"
+#include "opto/compile.hpp"
 #include "opto/matcher.hpp"
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -327,7 +328,9 @@ const Type* Type::make_from_constant(ciConstant constant, bool require_constant,
         } else {
           guarantee(require_constant || oop_constant->should_be_constant(), "con_type must get computed");
           con_type = TypeOopPtr::make_from_constant(oop_constant, require_constant);
-          if (Compile::current()->eliminate_boxing() && is_autobox_cache) {
+          bool autobox_enabled = Arguments::is_valhalla_enabled() &&
+                                 Compile::current()->eliminate_boxing();
+          if (autobox_enabled && is_autobox_cache) {
             con_type = con_type->is_aryptr()->cast_to_autobox_cache();
           }
           if (stable_dimension > 0) {
