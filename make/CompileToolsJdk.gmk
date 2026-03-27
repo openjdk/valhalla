@@ -172,7 +172,7 @@ VALUETYPE_GENSRC_SERVICE_PROVIDER := $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc/ME
 
 $(VALUETYPE_GENSRC_SERVICE_PROVIDER):
 	$(call MakeDir, $(BUILDTOOLS_OUTPUTDIR)/valuetype_gensrc/META-INF/services)
-	$(ECHO) build.tools.depend.Depend > $@
+	$(ECHO) build.tools.valhalla.valuetypes.GenValueClassPlugin > $@
 
 TARGETS += $(BUILD_VALUETYPE_GENSRC) $(VALUETYPE_GENSRC_SERVICE_PROVIDER)
 
