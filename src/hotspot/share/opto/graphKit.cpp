@@ -2127,7 +2127,6 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
     } else if (!call->method()->return_value_is_larval() && _gvn.type(ret)->is_inlinetypeptr()) {
-      assert(!ret->is_InlineType(), "sanity");
       ret = InlineTypeNode::make_from_oop(this, ret, _gvn.type(ret)->inline_klass());
     }
   }
