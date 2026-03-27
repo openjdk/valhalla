@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java EmptyValueTest.java
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseNullableNonAtomicValueFlattening EmptyValueTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableNonAtomicValueFlattening EmptyValueTest
  */
 
 

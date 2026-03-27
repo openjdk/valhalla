@@ -31,7 +31,7 @@
  * @compile StrictFinalTest.java
  * @run driver jdk.test.lib.helpers.StrictProcessor StrictFinalTest
  *             StrictFinalTest$Container5 StrictFinalTest$Container6
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
  */
 
 
