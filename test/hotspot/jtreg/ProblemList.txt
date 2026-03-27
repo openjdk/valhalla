@@ -199,6 +199,7 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 #############################################################################
 
 # Valhalla failures start here:
+compiler/c2/irTests/TestFloat16ScalarOperations.java 8377808 linux-aarch64
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 compiler/valhalla/inlinetypes/TestCallingConvention.java#id0 8367624 generic-all
 compiler/valhalla/inlinetypes/TestCallingConvention.java#id3 8367624 generic-all
