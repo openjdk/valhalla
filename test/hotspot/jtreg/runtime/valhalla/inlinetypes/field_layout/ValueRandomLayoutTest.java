@@ -78,7 +78,8 @@ public class ValueRandomLayoutTest {
   static long seed;
 
   public static void main(String[] args) throws Exception {
-      String seedString = System.getProperty("CLASS_GENERATION_SEED");
+      String seedProperty = "CLASS_GENERATION_SEED";
+      String seedString = System.getProperty(seedProperty);
       if (seedString != null) {
           try {
               seed = Long.parseLong(seedString);
@@ -87,6 +88,7 @@ public class ValueRandomLayoutTest {
       if (seed == 0) {
           seed = System.nanoTime();
       }
+      System.out.println("Reproduce this run with -D" + seedProperty + "=" + seed);
 
       // These tests consume a lot of resources, let run them sequentially instead of in parallel
       for (int i = 0; i <= 5; i++) {

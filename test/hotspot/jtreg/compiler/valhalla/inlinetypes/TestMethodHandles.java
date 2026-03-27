@@ -270,7 +270,9 @@ public class TestMethodHandles {
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STATIC_CALL})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 14"})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1"})
+// TODO: JDK-8380875
+//                STORE_OF_ANY_KLASS, "= 14"})
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }

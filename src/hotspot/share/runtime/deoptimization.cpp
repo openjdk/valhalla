@@ -502,7 +502,7 @@ bool Deoptimization::deoptimize_objects_internal(JavaThread* thread, GrowableArr
   bool const jvmci_enabled = JVMCI_ONLY(EnableJVMCI) NOT_JVMCI(false);
 
   // Reallocate the non-escaping objects and restore their fields.
-  if (jvmci_enabled COMPILER2_PRESENT(|| (DoEscapeAnalysis && EliminateAllocations)
+  if (jvmci_enabled COMPILER2_PRESENT(|| ((DoEscapeAnalysis || Arguments::is_valhalla_enabled()) && EliminateAllocations)
                                       || EliminateAutoBox || EnableVectorAggressiveReboxing)) {
     realloc_failures = rematerialize_objects(thread, Unpack_none, nm, deoptee, map, chunk, deoptimized_objects);
   }
@@ -579,8 +579,8 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
 
   // Reallocate the non-escaping objects and restore their fields. Then
   // relock objects if synchronization on them was eliminated.
-  if (jvmci_enabled COMPILER2_PRESENT( || (DoEscapeAnalysis && EliminateAllocations)
-                                       || EliminateAutoBox || EnableVectorAggressiveReboxing )) {
+  if (jvmci_enabled COMPILER2_PRESENT(|| ((DoEscapeAnalysis || Arguments::is_valhalla_enabled()) && EliminateAllocations)
+                                      || EliminateAutoBox || EnableVectorAggressiveReboxing)) {
     bool unused;
     realloc_failures = rematerialize_objects(current, exec_mode, nm, deoptee, map, chunk, unused);
   }
