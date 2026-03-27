@@ -28,7 +28,10 @@ import jdk.test.lib.Asserts;
 /*
  * @test
  * @bug 8380434
- * @summary TODO
+ * @summary When trying to predict a virtual call that returns an inline type,
+ *          we want to make sure to both branches (inlined call and dynamic call)
+ *          result in an InlineType so that we do not accidentally try to use
+ *          an unbuffered InlineType as an oop.
  * @library /test/lib /
  * @enablePreview
  * @run main/othervm -XX:+UnlockExperimentalVMOptions
@@ -50,14 +53,14 @@ value class MyValueRetType {
 }
 
 class A {
-    public MyValueRetType virtual(boolean cond) {
+    public MyValueRetType virtual() {
         return new MyValueRetType();
     }
 }
 
 class B extends A {
     @Override
-    public MyValueRetType virtual(boolean cond) {
+    public MyValueRetType virtual() {
         return new MyValueRetType();
     }
 }
@@ -69,7 +72,7 @@ public class TestMakeFromOopReturnValue {
 
         // We want an OSR compilation here
         for (int i = 0; i < 100_000; i++) {
-            Asserts.assertEquals(a.virtual(true), new MyValueRetType());
+            Asserts.assertEquals(a.virtual(), new MyValueRetType());
         }
     }
 
