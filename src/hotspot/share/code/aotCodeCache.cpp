@@ -188,14 +188,16 @@ void AOTCodeCache::initialize() {
   FLAG_SET_ERGO(AOTStubCaching, false);
 
   if (VerifyOops) {
-    // Disable AOT stubs caching when VerifyOops flag is on.
+    // Disable AOT stub caching when VerifyOops flag is on.
     // Verify oops code generated a lot of C strings which overflow
     // AOT C string table (which has fixed size).
     // AOT C string table will be reworked later to handle such cases.
-    //
-    // Note: AOT adapters are not affected - they don't have oop operations.
-    log_info(aot, codecache, init)("AOT Stubs Caching is not supported with VerifyOops.");
+    log_info(aot, codecache, init)("AOT Stub Caching is not supported with VerifyOops.");
     FLAG_SET_ERGO(AOTStubCaching, false);
+    if (InlineTypePassFieldsAsArgs) {
+      log_info(aot, codecache, init)("AOT Adapter Caching is not supported with VerifyOops + InlineTypePassFieldsAsArgs.");
+      FLAG_SET_ERGO(AOTAdapterCaching, false);
+    }
   }
 
   bool is_dumping = false;

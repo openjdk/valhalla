@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,7 +86,8 @@ public class TestFlatInArraysFolding {
         testFramework.setDefaultWarmup(0)
                 .addFlags("--enable-preview",
                           "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED")
+                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                          "-XX:+UnlockDiagnosticVMOptions")
                 .addScenarios(flatArrayElementMaxSize1Scenario,
                               flatArrayElementMaxSize4Scenario, noFlagsScenario);
 
