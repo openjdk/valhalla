@@ -324,10 +324,6 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, bool is_larval, 
     // Scavenge and allocate an instance.
     Handle holder(current, klass->klass_holder()); // keep the klass alive
     instanceOop result = InstanceKlass::cast(klass)->allocate_instance(THREAD);
-    if (is_larval) {
-      // Check if this is a larval buffer allocation
-      result->set_mark(result->mark().enter_larval_state());
-    }
     current->set_vm_result_oop(result);
 
     // Pass oops back through thread local storage.  Our apparent type to Java

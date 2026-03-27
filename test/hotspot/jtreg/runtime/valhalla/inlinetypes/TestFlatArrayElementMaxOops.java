@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,8 +36,8 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.internal.value
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=0
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=0
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 0
  */
 
@@ -49,8 +49,8 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.internal.value
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=1
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=1
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 1
  */
 
@@ -62,8 +62,8 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.internal.value
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=2
- *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=2
+ *                   -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 2
  */
 

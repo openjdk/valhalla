@@ -231,6 +231,7 @@ ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
       return ArrayProperties::Default();
     default:
       ShouldNotReachHere();
+      return ArrayProperties::Default();
   }
 }
 

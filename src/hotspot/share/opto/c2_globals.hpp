@@ -334,6 +334,15 @@
   product(bool, PartialPeelLoop, true,                                      \
           "Partial peel (rotate) loops")                                    \
                                                                             \
+  product(uint, LoopPeeling, 1, DIAGNOSTIC,                                 \
+          "Control loop peeling optimization: "                             \
+          "0 = always disable loop peeling, "                               \
+          "1 = enable loop peeling (default), "                             \
+          "2 = disable loop peeling as a standalone optimization but "      \
+          "allow it as a helper to other loop optimizations like removing " \
+          "empty loops")                                                    \
+          range(0, 2)                                                       \
+                                                                            \
   product(intx, PartialPeelNewPhiDelta, 0,                                  \
           "Additional phis that can be created by partial peeling")         \
           range(0, max_jint)                                                \
@@ -846,11 +855,11 @@
           "profiling data. "                                                \
           "Requires UseLoopPredicate to be turned on (default).")           \
                                                                             \
-  product(bool, UseArrayLoadStoreProfile, true,                             \
+  product(bool, UseArrayLoadStoreProfile, true, DIAGNOSTIC,                 \
           "Take advantage of profiling at array load/store")                \
                                                                             \
-  product(bool, UseACmpProfile, true,                                       \
-          "Take advantage of profiling at acmp")                            \
+  product(bool, UseACmpProfile, true, DIAGNOSTIC,                           \
+          "Take advantage of profiling at if_acmp<cond>")                   \
                                                                             \
   develop(uintx, StressLongCountedLoop, 0,                                  \
           "if > 0, convert int counted loops to long counted loops"         \

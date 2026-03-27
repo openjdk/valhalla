@@ -442,7 +442,7 @@ public class ValueClassGenerator {
       return allowDuplicates;
     }
 
-    ValueClassDesc generateValueClass(int n) {
+    ValueClassDesc generateValueClass(int n, int total) {
         boolean isAbstract;
         boolean hasSuper;
         int nfields;
@@ -451,7 +451,10 @@ public class ValueClassGenerator {
             isAbstract = false;
             hasSuper = false;
         } else {
-            isAbstract = random.nextInt(16) == 1;
+            // generate at least one abstract value if there are none
+            // by halfway through the generation of all classes
+            boolean middle = n == total / 2;
+            isAbstract = (middle && abstractValueTypes.isEmpty()) || random.nextInt(16) == 1;
             hasSuper = !abstractValueTypes.isEmpty() && (random.nextInt(16) == 1);
             nfields = randomFieldNumber();
         }
@@ -472,7 +475,7 @@ public class ValueClassGenerator {
     }
 
     ConcreteValueClassDesc generateEmptyValueClass() {
-        return (ConcreteValueClassDesc)generateValueClass(0);
+        return (ConcreteValueClassDesc)generateValueClass(0, 1);
     }
 
     void generateValueClasses(int n) {
@@ -480,7 +483,7 @@ public class ValueClassGenerator {
         valueTypes.add(empty);
         referenceTypes.add(empty);
         for (int i = 1; i < n; i++) {
-            ValueClassDesc c = generateValueClass(i);
+            ValueClassDesc c = generateValueClass(i, n);
             if (c instanceof AbstractValueClassDesc) {
                 abstractValueTypes.add((AbstractValueClassDesc)c);
             } else {

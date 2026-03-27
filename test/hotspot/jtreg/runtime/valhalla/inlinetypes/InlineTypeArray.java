@@ -41,7 +41,7 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 
 /*
@@ -52,7 +52,7 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 
 /*
@@ -63,7 +63,7 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm  -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 
 /*
@@ -74,7 +74,7 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {

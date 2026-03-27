@@ -43,14 +43,15 @@ private:
 
 public:
   // Helper methods roughly modeled after GraphKit:
-  Node* basic_plus_adr(Node* base, int offset) {
-    return (offset == 0)? base: basic_plus_adr(base, MakeConX(offset));
+  Node* basic_plus_adr(Node* ptr, int offset, bool raw_base = false) {
+    return (offset == 0)? ptr: basic_plus_adr(ptr, MakeConX(offset), raw_base);
   }
   Node* basic_plus_adr(Node* base, Node* ptr, int offset) {
     return (offset == 0)? ptr: basic_plus_adr(base, ptr, MakeConX(offset));
   }
-  Node* basic_plus_adr(Node* base, Node* offset) {
-    return basic_plus_adr(base, base, offset);
+  Node* basic_plus_adr(Node* ptr, Node* offset, bool raw_base = false) {
+    Node* base = raw_base ? top() : ptr;
+    return basic_plus_adr(base, ptr, offset);
   }
   Node* basic_plus_adr(Node* base, Node* ptr, Node* offset) {
     Node* adr = new AddPNode(base, ptr, offset);
@@ -120,7 +121,7 @@ private:
 
   // More helper methods modeled after GraphKit for array copy
   void insert_mem_bar(Node** ctrl, Node** mem, int opcode, int alias_idx, Node* precedent = nullptr);
-  Node* array_element_address(Node* ary, Node* idx, BasicType elembt);
+  Node* array_element_address(Node* ary, Node* idx, BasicType elembt, bool raw_base);
   Node* ConvI2L(Node* offset);
 
   // helper methods modeled after LibraryCallKit for array copy
@@ -151,6 +152,7 @@ private:
                            Node* dest, Node* dest_offset,
                            Node* copy_length,
                            Node* dest_length,
+                           bool raw_base,
                            bool disjoint_bases = false,
                            bool length_never_negative = false,
                            RegionNode* slow_region = nullptr);
@@ -162,13 +164,15 @@ private:
                             BasicType basic_elem_type,
                             Node* slice_idx,
                             Node* slice_len,
-                            Node* dest_size);
+                            Node* dest_size,
+                            bool raw_base);
   bool generate_block_arraycopy(Node** ctrl, MergeMemNode** mem,
                                 const TypePtr* adr_type,
                                 BasicType basic_elem_type,
                                 Node* src, Node* src_offset,
                                 Node* dest, Node* dest_offset,
-                                Node* dest_size, bool dest_uninitialized);
+                                Node* dest_size, bool dest_uninitialized,
+                                bool raw_base);
   MergeMemNode* generate_slow_arraycopy(ArrayCopyNode *ac,
                                         Node** ctrl, Node* mem, Node** io,
                                         const TypePtr* adr_type,
@@ -180,7 +184,8 @@ private:
                                      Node* dest_elem_klass,
                                      Node* src,  Node* src_offset,
                                      Node* dest, Node* dest_offset,
-                                     Node* copy_length, bool dest_uninitialized);
+                                     Node* copy_length, bool dest_uninitialized,
+                                     bool raw_base);
   Node* generate_generic_arraycopy(Node** ctrl, MergeMemNode** mem,
                                    const TypePtr* adr_type,
                                    Node* src,  Node* src_offset,
@@ -192,7 +197,8 @@ private:
                                     bool disjoint_bases,
                                     Node* src,  Node* src_offset,
                                     Node* dest, Node* dest_offset,
-                                    Node* copy_length, bool dest_uninitialized);
+                                    Node* copy_length, bool dest_uninitialized,
+                                    bool raw_base);
   const TypePtr* adjust_for_flat_array(const TypeAryPtr* top_dest, Node*& src_offset,
                                        Node*& dest_offset, Node*& length, BasicType& dest_elem,
                                        Node*& dest_length);

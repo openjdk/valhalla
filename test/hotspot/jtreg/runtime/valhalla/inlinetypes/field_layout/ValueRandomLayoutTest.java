@@ -65,11 +65,12 @@ public class ValueRandomLayoutTest {
       Collections.addAll(argsList, "-cp", classpath);
       Collections.addAll(argsList, "--enable-preview");
       Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+      Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
       Collections.addAll(argsList, "-XX:+PrintFieldLayout");
       Collections.addAll(argsList, "-Xshare:off");
       Collections.addAll(argsList, "-Xmx1g");
-      Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
-      Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
+      Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseNullFreeAtomicValueFlattening" : "-XX:-UseNullFreeAtomicValueFlattening");
+      Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableAtomicValueFlattening" : "-XX:-UseNullableAtomicValueFlattening");
       Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
       Collections.addAll(argsList, args);
       return ProcessTools.createTestJavaProcessBuilder(argsList);
@@ -78,7 +79,8 @@ public class ValueRandomLayoutTest {
   static long seed;
 
   public static void main(String[] args) throws Exception {
-      String seedString = System.getProperty("CLASS_GENERATION_SEED");
+      String seedProperty = "CLASS_GENERATION_SEED";
+      String seedString = System.getProperty(seedProperty);
       if (seedString != null) {
           try {
               seed = Long.parseLong(seedString);
@@ -87,6 +89,7 @@ public class ValueRandomLayoutTest {
       if (seed == 0) {
           seed = System.nanoTime();
       }
+      System.out.println("Reproduce this run with -D" + seedProperty + "=" + seed);
 
       // These tests consume a lot of resources, let run them sequentially instead of in parallel
       for (int i = 0; i <= 5; i++) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,7 @@ class InterpreterRuntime: AllStatic {
   // Allocation
   static void    _new          (JavaThread* current, ConstantPool* pool, int index);
   static void    newarray      (JavaThread* current, BasicType type, jint size);
-  static void    anewarray     (JavaThread* threcurrentad, ConstantPool* pool, int index, jint size);
+  static void    anewarray     (JavaThread* current, ConstantPool* pool, int index, jint size);
   static void    multianewarray(JavaThread* current, jint* first_size_address);
   static void    register_finalizer(JavaThread* current, oopDesc* obj);
   static void    write_heap_copy (JavaThread* current, oopDesc* value, int offset, oopDesc* rcv);
@@ -80,7 +80,6 @@ class InterpreterRuntime: AllStatic {
                                                   Klass* recvKlass,
                                                   Method* missingMethod);
 
-  static void    throw_InstantiationError(JavaThread* current);
   static void    throw_IncompatibleClassChangeError(JavaThread* current);
   static void    throw_IncompatibleClassChangeErrorVerbose(JavaThread* current,
                                                            Klass* resc,

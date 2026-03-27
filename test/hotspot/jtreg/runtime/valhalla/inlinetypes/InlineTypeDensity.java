@@ -42,7 +42,7 @@ import jdk.internal.misc.Unsafe;
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UseArrayFlattening -XX:+UseCompressedOops
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
@@ -57,7 +57,7 @@ import jdk.internal.misc.Unsafe;
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UseArrayFlattening -XX:-UseCompressedOops
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
@@ -72,7 +72,7 @@ import jdk.internal.misc.Unsafe;
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UseArrayFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
@@ -87,7 +87,7 @@ import jdk.internal.misc.Unsafe;
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
  *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
