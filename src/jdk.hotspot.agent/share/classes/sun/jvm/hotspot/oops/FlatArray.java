@@ -64,7 +64,7 @@ public class FlatArray extends Array {
     int type   = klass.getElementType();
     //System.out.println("FlatArray.iterateFields: length:" + length + " type:" + type);
     for (int index = 0; index < length; index++) {
-        // FIXME - call visitory.doXXX() for each component of each value object
+        // FIXME - call visitor.doXXX() for each component of each value object
     }
   }
 }
