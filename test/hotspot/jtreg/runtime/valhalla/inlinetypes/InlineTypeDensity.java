@@ -29,6 +29,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
+import jdk.internal.misc.Unsafe;
 
 
 /**
@@ -37,6 +38,7 @@ import jdk.test.whitebox.WhiteBox;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.misc
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -51,6 +53,7 @@ import jdk.test.whitebox.WhiteBox;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.misc
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -65,6 +68,7 @@ import jdk.test.whitebox.WhiteBox;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.misc
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -79,6 +83,7 @@ import jdk.test.whitebox.WhiteBox;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.misc
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -89,14 +94,10 @@ import jdk.test.whitebox.WhiteBox;
 
 public class InlineTypeDensity {
 
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     private static final boolean VM_FLAG_FORCENONTEARABLE = WHITE_BOX.getStringVMFlag("ForceNonTearable").equals("*");
-
-    public InlineTypeDensity() {
-        if (WHITE_BOX.getBooleanVMFlag("UseArrayFlattening") != true) {
-            throw new IllegalStateException("UseArrayFlattening should be true");
-        }
-    }
+    private static final boolean ARRAY_FLATTENING_ON = WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
 
     interface LocalDate {
         public int getYear();
@@ -273,10 +274,15 @@ public class InlineTypeDensity {
             MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, testSize, new MyInt());
             MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedNonAtomicArray(MyLong.class, testSize, new MyLong());
 
-            Asserts.assertTrue(ValueClass.isFlatArray(mba),  "MyByte array should be flat");
-            Asserts.assertTrue(ValueClass.isFlatArray(msa), "MyShort array should be flat");
-            Asserts.assertTrue(ValueClass.isFlatArray(mia),   "MyInt array should be flat");
-            Asserts.assertTrue(ValueClass.isFlatArray(mla),  "MyLong array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(mba), ARRAY_FLATTENING_ON, "MyByte array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(msa), ARRAY_FLATTENING_ON, "MyShort array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(mia), ARRAY_FLATTENING_ON, "MyInt array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(mla), ARRAY_FLATTENING_ON, "MyLong array should be flat");
+
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(mba) % 8 == 0);
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(msa) % 8 == 0);
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(mia) % 8 == 0);
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(mla) % 8 == 0);
         }
     }
 
@@ -297,10 +303,15 @@ public class InlineTypeDensity {
             MySI[] msi = (MySI[])ValueClass.newNullRestrictedNonAtomicArray(MySI.class, testSize, new MySI());
             MySSI[] mssi = (MySSI[])ValueClass.newNullRestrictedNonAtomicArray(MySSI.class, testSize, new MySSI());
 
-            Asserts.assertTrue(ValueClass.isFlatArray(mbb),   "MyBB array should be flat");
-            Asserts.assertTrue(ValueClass.isFlatArray(mbs),   "MyBS array should be flat");
-            Asserts.assertTrue(ValueClass.isFlatArray(msi),   "MySI array should be flat");
-            Asserts.assertTrue(ValueClass.isFlatArray(mssi), "MySSI array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(mbb), ARRAY_FLATTENING_ON, "MyBB array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(mbs), ARRAY_FLATTENING_ON, "MyBS array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(msi), ARRAY_FLATTENING_ON, "MySI array should be flat");
+            Asserts.assertEquals(ValueClass.isFlatArray(mssi), ARRAY_FLATTENING_ON, "MySSI array should be flat");
+
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(mbb) % 8 == 0);
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(mbs) % 8 == 0);
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(msi) % 8 == 0);
+            Asserts.assertTrue(UNSAFE.arrayInstanceBaseOffset(mssi) % 8 == 0);
         }
     }
 
