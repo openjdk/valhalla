@@ -37,11 +37,7 @@ import java.lang.annotation.Target;
  * Without the plugin the class compiles and runs as a regular identity class,
  * allowing the same test source to exercise both modes.
  *
- * To enable value class mode, build the test image and run tests with:
- * <pre>
- *   make test TEST=... JTREG=VALUE_CLASS_PLUGIN=true
- * </pre>
  */
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.TYPE)
-public @interface ValueClass {}
+public @interface AsValueClass {}

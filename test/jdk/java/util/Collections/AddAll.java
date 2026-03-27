@@ -28,12 +28,12 @@
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
- * @build jdk.test.lib.valueclass.ValueClass
+ * @build jdk.test.lib.valueclass.AsValueClass
  * @compile -XDaccessInternalAPI -Xplugin:ValueClassPlugin AddAll.java
  * @run main AddAll
  */
 
-import jdk.test.lib.valueclass.ValueClass;
+import jdk.test.lib.valueclass.AsValueClass;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,7 +58,7 @@ public class AddAll {
 
     private static Random rnd = new Random();
 
-    @ValueClass
+    @AsValueClass
     static class Point {
         int x;
         int y;

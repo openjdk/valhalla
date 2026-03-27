@@ -79,7 +79,7 @@ public class ValueClassPlugin implements Plugin {
                     public void visitClassDef(JCClassDecl tree) {
                         boolean hasAnnotation = tree.mods.annotations.stream()
                                 .anyMatch(a -> a.annotationType.toString()
-                                        .endsWith("ValueClass"));
+                                        .endsWith("AsValueClass"));
                         if (hasAnnotation) {
                             tree.mods.flags |= Flags.VALUE_CLASS;
                             tree.mods.flags &= ~Flags.IDENTITY_TYPE;
