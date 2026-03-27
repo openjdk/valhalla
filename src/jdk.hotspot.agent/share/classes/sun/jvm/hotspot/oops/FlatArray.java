@@ -52,49 +52,6 @@ public class FlatArray extends Array {
 
   public boolean isFlatArray()         { return true; }
 
-  public byte getByteAt(long index) {
-    if (index < 0 || index >= getLength()) {
-      throw new ArrayIndexOutOfBoundsException(index + " " + getLength());
-    }
-    long offset = baseOffsetInBytes(BasicType.T_BYTE) + index * getHeap().getByteSize();
-    return getHandle().getJByteAt(offset);
-  }
-
-  public boolean getBooleanAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_BOOLEAN) + index * getHeap().getBooleanSize();
-    return getHandle().getJBooleanAt(offset);
-  }
-
-  public char getCharAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_CHAR) + index * getHeap().getCharSize();
-    return getHandle().getJCharAt(offset);
-  }
-
-  public int getIntAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_INT) + index * getHeap().getIntSize();
-    return getHandle().getJIntAt(offset);
-  }
-
-  public short getShortAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_SHORT) + index * getHeap().getShortSize();
-    return getHandle().getJShortAt(offset);
-  }
-
-  public long getLongAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_LONG) + index * getHeap().getLongSize();
-    return getHandle().getJLongAt(offset);
-  }
-
-  public float getFloatAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_FLOAT) + index * getHeap().getFloatSize();
-    return getHandle().getJFloatAt(offset);
-  }
-
-  public double getDoubleAt(long index) {
-    long offset = baseOffsetInBytes(BasicType.T_DOUBLE) + index * getHeap().getDoubleSize();
-    return getHandle().getJDoubleAt(offset);
-  }
-
   public void printValueOn(PrintStream tty) {
     FlatArrayKlass klass = (FlatArrayKlass) getKlass();
     klass.printValueOn(tty);
