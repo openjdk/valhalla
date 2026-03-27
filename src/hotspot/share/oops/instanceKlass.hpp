@@ -649,7 +649,7 @@ public:
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const override;  // means that initialize should be called
-  void initialize_with_aot_initialized_mirror(TRAPS);
+  void initialize_with_aot_initialized_mirror(bool early_init, TRAPS);
   void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
   void initialize(TRAPS) override;
   void initialize_preemptable(TRAPS) override;

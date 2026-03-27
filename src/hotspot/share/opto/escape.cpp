@@ -173,7 +173,7 @@ bool ConnectionGraph::compute_escape() {
         !n->in(MemNode::Address)->is_AddP() &&
         _igvn->type(n->in(MemNode::Address))->isa_oopptr()) {
       // Load/Store at mark work address is at offset 0 so has no AddP which confuses EA
-      Node* addp = new AddPNode(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
+      Node* addp = AddPNode::make_with_base(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
       _igvn->register_new_node_with_optimizer(addp);
       _igvn->replace_input_of(n, MemNode::Address, addp);
       ideal_nodes.push(addp);
@@ -800,7 +800,7 @@ Node* ConnectionGraph::split_castpp_load_through_phi(Node* curr_addp, Node* curr
         base = base->find_out_with(Op_CastPP);
       }
 
-      Node* addr = _igvn->transform(new AddPNode(base, base, curr_addp->in(AddPNode::Offset)));
+      Node* addr = _igvn->transform(AddPNode::make_with_base(base, curr_addp->in(AddPNode::Offset)));
       Node* mem = (memory->is_Phi() && (memory->in(0) == region)) ? memory->in(i) : memory;
       Node* load = curr_load->clone();
       load->set_req(0, nullptr);
