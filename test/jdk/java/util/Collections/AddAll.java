@@ -22,25 +22,13 @@
  */
 
 /*
- * @test id=NoPreview
+ * @test
  * @bug     4822887
  * @summary Basic test for Collections.addAll
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
  * @build jdk.test.lib.valueclass.ValueClass
- * @run main AddAll
- */
-
-/*
- * @test id=Preview
- * @bug     4822887
- * @summary Basic test for Collections.addAll - Preview
- * @author  Josh Bloch
- * @key randomness
- * @library /test/lib
- * @build jdk.test.lib.valueclass.ValueClass
- * @enablePreview
  * @compile -XDaccessInternalAPI -Xplugin:ValueClassPlugin AddAll.java
  * @run main AddAll
  */

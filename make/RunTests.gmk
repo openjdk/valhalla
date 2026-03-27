@@ -881,14 +881,9 @@ define SetupRunJtregTestBody
     ))
   endif
 
-  ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_ANNOTATION_JAR)), )
-    ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_PLUGIN_JAR)), )
-      $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_ANNOTATION_JAR):$$(JTREG_VALUE_CLASS_PLUGIN_JAR)
-    else
-      $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_ANNOTATION_JAR)
-    endif
+  ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_PLUGIN_JAR)), )
+    $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_PLUGIN_JAR)
   endif
-
 
   ifneq ($$(JTREG_JVMTI_STRESS_AGENT), )
     AGENT := $$(LIBRARY_PREFIX)JvmtiStressAgent$$(SHARED_LIBRARY_SUFFIX)=$$(JTREG_JVMTI_STRESS_AGENT)

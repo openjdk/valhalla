@@ -72,13 +72,15 @@ public class ValueClassPlugin implements Plugin {
                 if (e.getKind() != TaskEvent.Kind.PARSE) return;
 
                 Preview preview = Preview.instance(ctx);
+                if (!preview.isEnabled()) return;
+
                 new TreeScanner() {
                     @Override
                     public void visitClassDef(JCClassDecl tree) {
                         boolean hasAnnotation = tree.mods.annotations.stream()
                                 .anyMatch(a -> a.annotationType.toString()
                                         .endsWith("ValueClass"));
-                        if (hasAnnotation && preview.isEnabled()) {
+                        if (hasAnnotation) {
                             tree.mods.flags |= Flags.VALUE_CLASS;
                             tree.mods.flags &= ~Flags.IDENTITY_TYPE;
                             // Mark the source file as using a preview feature so
