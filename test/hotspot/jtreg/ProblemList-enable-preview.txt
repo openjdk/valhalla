@@ -40,11 +40,7 @@ compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJav
 
 # Serviceability:
 vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java                        8375069 generic-all
-resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java                                    8380769 generic-all
-serviceability/sa/CDSJMapClstats.java                                                            8380779 generic-all
-serviceability/sa/ClhsdbDumpheap.java                                                            8380779 generic-all
-serviceability/sa/ClhsdbJhisto.java                                                              8380779 generic-all
-serviceability/sa/ClhsdbJstackWithConcurrentLock.java                                            8380779 generic-all
+serviceability/sa/ClhsdbDumpheap.java                                                            8379925 generic-all
 serviceability/sa/TestHeapDumpForInvokeDynamic.java                                              8377387 generic-all
-serviceability/sa/TestJmapCore.java                                                              8380779 generic-all
-serviceability/sa/TestJmapCoreMetaspace.java                                                     8380779 generic-all
+serviceability/sa/TestJmapCore.java                                                              8379925 generic-all
+serviceability/sa/TestJmapCoreMetaspace.java                                                     8379925 generic-all
