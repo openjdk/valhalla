@@ -32,7 +32,7 @@ import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.Observable;
 import sun.jvm.hotspot.utilities.Observer;
 
-// A FlatArray is an array containing flattened value types.
+// A FlatArray is an array containing flattened value objects.
 
 public class FlatArray extends Array {
   static {
