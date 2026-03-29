@@ -1290,4 +1290,71 @@ public class TestLWorldProfiling {
             Asserts.assertTrue(test45(null, null));
         }
     }
+
+    @Test
+    public static Integer test46(Object a, Object b) {
+        if (a == b) {
+            if (b == null) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    @Run(test = "test46")
+    @Warmup(10000)
+    public void test46_verifier(RunInfo info) {
+        Asserts.assertEquals(test46(testValue1, null), 0);
+        Asserts.assertEquals(test46(null, null), 1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test46(testValue1, testValue1), 2);
+        }
+    }
+
+    @Test
+    public static Integer test47(Object a, Object b) {
+        if (a == b) {
+            if (b == null) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    @Run(test = "test47")
+    @Warmup(10000)
+    public void test47_verifier(RunInfo info) {
+        Object o = new Object();
+        Asserts.assertEquals(test47(o, null), 0);
+        Asserts.assertEquals(test47(null, null), 1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test47(o, o), 2);
+        }
+    }
+
+    @Test
+    public static Integer test48(Object a, Object b) {
+        if (a == b) {
+            if (b == null) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    @Run(test = "test48")
+    @Warmup(10000)
+    public void test48_verifier(RunInfo info) {
+        Object o = new Object();
+        Asserts.assertEquals(test48(testValue1, null), 0);
+        Asserts.assertEquals(test48(o, null), 0);
+        Asserts.assertEquals(test48(null, null), 1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test48(o, o), 2);
+            Asserts.assertEquals(test48(testValue1, testValue1), 2);
+        }
+    }
 }
