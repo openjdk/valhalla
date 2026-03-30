@@ -3101,9 +3101,9 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       case T_ARRAY:
         assert(value_object_count > 0, "must be value object field");
         assert(offset != 0 || (bt == T_OBJECT && prev_bt == T_METADATA), "buffer input expected here");
-        SigEntry::add_entry(_sig_cc, bt, nullptr, offset, false, offset == 0);
+        SigEntry::add_entry(_sig_cc, bt, nullptr, offset, offset == -1, offset == 0);
         if (!skipping_inline_recv) {
-          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset, offset == -1, offset == 0);
         }
         break;
       case T_METADATA:
