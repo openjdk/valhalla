@@ -1607,15 +1607,9 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     Register left_klass_op = op->left_klass_op()->as_register();
     Register right_klass_op = op->right_klass_op()->as_register();
 
-    if (UseCompressedClassPointers) {
-      __ movl(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ movl(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpl(left_klass_op, right_klass_op);
-    } else {
-      __ movptr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ movptr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpptr(left_klass_op, right_klass_op);
-    }
+    __ movl(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+    __ movl(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+    __ cmpl(left_klass_op, right_klass_op);
 
     __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal

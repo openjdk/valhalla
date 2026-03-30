@@ -43,16 +43,6 @@
 // (see oopHierarchy for complete oop class hierarchy)
 //
 // no virtual functions allowed
-//
-// oopDesc::_mark - the "oop mark word" encoding to be found separately in markWord.hpp
-//
-// oopDesc::_metadata - encodes the object's klass pointer, as a raw pointer in "_klass"
-//                      or compressed pointer in "_compressed_klass"
-//
-// The overall size of the _metadata field is dependent on "UseCompressedClassPointers",
-// hence the terms "narrow" (32 bits) vs "wide" (64 bits).
-//
-
 
 class oopDesc {
   friend class VMStructs;

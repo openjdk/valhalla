@@ -2770,9 +2770,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     if (!UseCompactObjectHeaders) {
       // COH: Everything is encoded in the mark word, so nothing left to do.
       fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-      if (UseCompressedClassPointers) {
-        fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
-      }
+      fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
     }
     Node* members  = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     Node* pack_handler = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);

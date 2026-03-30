@@ -5638,10 +5638,8 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 void MacroAssembler::load_metadata(Register dst, Register src) {
   if (UseCompactObjectHeaders) {
     load_narrow_klass_compact(dst, src);
-  } else if (UseCompressedClassPointers) {
-    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   } else {
-    movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
 }
 
