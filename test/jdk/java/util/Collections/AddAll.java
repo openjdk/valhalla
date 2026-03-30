@@ -29,7 +29,6 @@
  * @key randomness
  * @library /test/lib
  * @build jdk.test.lib.valueclass.AsValueClass
- * @compile -XDaccessInternalAPI -Xplugin:ValueClassPlugin AddAll.java
  * @run main AddAll
  */
 

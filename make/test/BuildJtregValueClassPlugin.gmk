@@ -40,6 +40,13 @@ include MakeFileStart.gmk
 #                               --enable-preview and the required internal-API
 #                               exports.
 #
+# Usage in test runs (via RunTests.gmk):
+#   make test TEST=... JTREG=VALUE_CLASS_PLUGIN=true
+#
+# The plugin is also enabled automatically when --enable-preview is passed via
+# VM_OPTIONS or JAVA_OPTIONS and the plugin JARs are present in the test image:
+#   make test TEST=... JTREG=VM_OPTIONS=--enable-preview
+#
 ################################################################################
 
 include CopyFiles.gmk

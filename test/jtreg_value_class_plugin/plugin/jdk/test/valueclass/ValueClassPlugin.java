@@ -37,7 +37,7 @@ import com.sun.tools.javac.util.Context;
 
 /**
  * A javac plugin that transforms classes annotated with
- * {@code @jdk.test.valueclass.ValueClass} into value classes when
+ * {@code @jdk.test.valueclass.AsValueClass} into value classes when
  * {@code --enable-preview} is active.
  *
  * <p>The plugin hooks into the PARSE phase. After a compilation unit is
@@ -79,7 +79,7 @@ public class ValueClassPlugin implements Plugin {
                     public void visitClassDef(JCClassDecl tree) {
                         boolean hasAnnotation = tree.mods.annotations.stream()
                                 .anyMatch(a -> a.annotationType.toString()
-                                        .endsWith("AsValueClass"));
+                                        .equals("AsValueClass"));
                         if (hasAnnotation) {
                             tree.mods.flags |= Flags.VALUE_CLASS;
                             tree.mods.flags &= ~Flags.IDENTITY_TYPE;
