@@ -563,7 +563,6 @@ class SignatureStream : public StackObj {
 
   // free-standing lookups (bring your own CL/PD pair)
   enum FailureMode { ReturnNull, NCDFError, CachedOrNull };
-
   Klass* as_klass(Handle class_loader, FailureMode failure_mode, TRAPS);
   InlineKlass* as_inline_klass(InstanceKlass* holder);
   oop as_java_mirror(Handle class_loader, FailureMode failure_mode, TRAPS);

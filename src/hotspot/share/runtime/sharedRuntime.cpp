@@ -1702,8 +1702,6 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread* c
   return get_resolved_entry(current, callee_method, false, true, caller_does_not_scalarize);
 JRT_END
 
-
-
 methodHandle SharedRuntime::handle_ic_miss_helper(bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
@@ -1847,6 +1845,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_optimized, bool& caller
             }
             break;
           }
+
           case relocInfo::virtual_call_type: {
             if (do_IC_clearing) {
               // compiled, dispatched call (which used to call an interpreted method)
@@ -3507,7 +3506,6 @@ void AdapterHandlerEntry::link() {
   } else {
     generate_code = true;
   }
-
   if (generate_code) {
     CompiledEntrySignature ces;
     ces.initialize_from_fingerprint(_fingerprint);

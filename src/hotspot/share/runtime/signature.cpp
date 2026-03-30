@@ -589,6 +589,7 @@ void ResolvingSignatureStream::cache_handles() {
 }
 
 #ifdef ASSERT
+
 extern bool signature_constants_sane(); // called from basic_types_init()
 
 bool signature_constants_sane() {
