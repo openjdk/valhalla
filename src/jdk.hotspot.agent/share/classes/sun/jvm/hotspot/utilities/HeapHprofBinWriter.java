@@ -1203,12 +1203,18 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
             break;
         case JVM_SIGNATURE_CLASS:
         case JVM_SIGNATURE_ARRAY: {
-            if (VM.getVM().isCompressedOopsEnabled()) {
-              OopHandle handle = ((NarrowOopField)field).getValueAsOopHandle(oop);
-              writeObjectID(getAddressValue(handle));
+            if (field.isFlat()) {
+              // FIXME - we don't handle flattened fields yet. Just treat them
+              // as a null reference.
+              writeObjectID(null);
             } else {
-              OopHandle handle = ((OopField)field).getValueAsOopHandle(oop);
-              writeObjectID(getAddressValue(handle));
+              if (VM.getVM().isCompressedOopsEnabled()) {
+                OopHandle handle = ((NarrowOopField)field).getValueAsOopHandle(oop);
+                writeObjectID(getAddressValue(handle));
+              } else {
+                OopHandle handle = ((OopField)field).getValueAsOopHandle(oop);
+                writeObjectID(getAddressValue(handle));
+              }
             }
             break;
         }
