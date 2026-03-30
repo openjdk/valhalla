@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,14 +96,10 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
   if (!UseCompactObjectHeaders) {
     // COH: Markword already contains class pointer. Nothing else to do.
-    // Otherwise: Fetch klass pointer following the markword
-    if (UseCompressedClassPointers) { // Take care not to kill klass
-      movptr(t1, klass);
-      encode_klass_not_null(t1, rscratch1);
-      movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
-    } else {
-      movptr(Address(obj, oopDesc::klass_offset_in_bytes()), klass);
-    }
+    // Otherwise: Store encoded klass pointer following the markword
+    movptr(t1, klass);
+    encode_klass_not_null(t1, rscratch1); // Take care not to kill klass
+    movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
   }
 
   if (len->is_valid()) {
@@ -115,7 +111,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
       xorl(t1, t1);
       movl(Address(obj, base_offset), t1);
     }
-  } else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
+  } else if (!UseCompactObjectHeaders) {
     xorptr(t1, t1);
     store_klass_gap(obj, t1);
   }
