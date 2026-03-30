@@ -247,12 +247,9 @@ public final class Short extends Number implements Comparable<Short>, Constable 
 
         @Stable
         static final Short[] cache;
-        @Stable
-        static final Short[] unused;
         static Short[] archivedCache;
 
         static {
-            unused = new Short[0];
             if (!PreviewFeatures.isEnabled()) {
                 int size = -(-128) + 127 + 1;
 
@@ -269,13 +266,13 @@ public final class Short extends Number implements Comparable<Short>, Constable 
                 cache = archivedCache;
                 assert cache.length == size;
             } else {
-                cache = unused;
-                assert !isEnabled();
+                cache = null;
+                assert archivedCache == null;
             }
         }
 
         static boolean isEnabled() {
-            return cache != unused;
+            return cache != null;
         }
     }
 

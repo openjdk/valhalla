@@ -910,21 +910,19 @@ public final class Integer extends Number
         @Stable static int high;
 
         @Stable static Integer[] cache;
-        @Stable final static Integer[] unused;
         static Integer[] archivedCache;
 
         static {
-            unused = new Integer[0];
             if (!PreviewFeatures.isEnabled()) {
                 runtimeSetup();
             } else {
-                cache = unused;
-                assert !isEnabled();
+                cache = null;
+                assert archivedCache == null;
             }
         }
 
         static boolean isEnabled() {
-            return cache != unused;
+            return cache != null;
         }
 
         @AOTRuntimeSetup

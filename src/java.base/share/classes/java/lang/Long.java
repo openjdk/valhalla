@@ -930,12 +930,9 @@ public final class Long extends Number
 
         @Stable
         static final Long[] cache;
-        @Stable
-        static final Long[] unused;
         static Long[] archivedCache;
 
         static {
-            unused = new Long[0];
             if (!PreviewFeatures.isEnabled()) {
                 int size = -(-128) + 127 + 1;
 
@@ -952,13 +949,13 @@ public final class Long extends Number
                 cache = archivedCache;
                 assert cache.length == size;
             } else {
-                cache = unused;
-                assert !isEnabled();
+                cache = null;
+                assert archivedCache == null;
             }
         }
 
         static boolean isEnabled() {
-            return cache != unused;
+            return cache != null;
         }
     }
 

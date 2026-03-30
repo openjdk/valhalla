@@ -9432,12 +9432,9 @@ public final class Character implements java.io.Serializable, Comparable<Charact
 
         @Stable
         static final Character[] cache;
-        @Stable
-        static final Character[] unused;
         static Character[] archivedCache;
 
         static {
-            unused = new Character[0];
             if (!PreviewFeatures.isEnabled()) {
                 int size = 127 + 1;
 
@@ -9453,13 +9450,13 @@ public final class Character implements java.io.Serializable, Comparable<Charact
                 cache = archivedCache;
                 assert cache.length == size;
             } else {
-                cache = unused;
-                assert !isEnabled();
+                cache = null;
+                assert archivedCache == null;
             }
         }
 
         static boolean isEnabled() {
-            return cache != unused;
+            return cache != null;
         }
     }
 

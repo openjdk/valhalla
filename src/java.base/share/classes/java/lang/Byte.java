@@ -120,12 +120,9 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
 
         @Stable
         static final Byte[] cache;
-        @Stable
-        static final Byte[] unused;
         static Byte[] archivedCache;
 
         static {
-            unused = new Byte[0];
             if (!PreviewFeatures.isEnabled()) {
                 final int size = -(-128) + 127 + 1;
 
@@ -142,13 +139,13 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
                 cache = archivedCache;
                 assert cache.length == size;
             } else {
-                cache = unused;
-                assert !isEnabled();
+                cache = null;
+                assert archivedCache == null;
             }
         }
 
         static boolean isEnabled() {
-            return cache != unused;
+            return cache != null;
         }
     }
 
