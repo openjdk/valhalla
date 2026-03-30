@@ -75,9 +75,6 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
       st->print("is_unlocked");
       if (is_inline_type()) {
         st->print(" inline_type");
-        if (is_larval_state()) {
-          st->print("=larval");
-        }
       }
       if (has_no_hash()) {
         st->print(" no_hash");
@@ -100,13 +97,5 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
       st->print("??");
     }
     st->print(" age=%d)", age());
-  }
-}
-
-markWord markWord::flat_array_prototype(bool null_free) {
-  if (null_free) {
-    return markWord(null_free_flat_array_pattern);
-  } else {
-    return markWord(nullable_flat_array_pattern);
   }
 }

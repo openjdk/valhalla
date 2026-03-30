@@ -569,6 +569,8 @@ bool ConstantPoolCache::can_archive_resolved_method(ConstantPool* src_cp, Resolv
     return false;
   }
 
+  int cp_index = method_entry->constant_pool_index();
+
   if (!method_entry->is_resolved(Bytecodes::_invokevirtual)) {
     if (method_entry->method() == nullptr) {
       rejection_reason = "(method entry is not resolved)";
@@ -578,9 +580,24 @@ bool ConstantPoolCache::can_archive_resolved_method(ConstantPool* src_cp, Resolv
       rejection_reason = "(corresponding stub is generated on demand during method resolution)";
       return false; // FIXME: corresponding stub is generated on demand during method resolution (see LinkResolver::resolve_static_call).
     }
-    if (method_entry->is_resolved(Bytecodes::_invokehandle) && !CDSConfig::is_dumping_method_handles()) {
-      rejection_reason = "(not dumping method handles)";
-      return false;
+    if (method_entry->is_resolved(Bytecodes::_invokehandle)) {
+      if (!CDSConfig::is_dumping_method_handles()) {
+        rejection_reason = "(not dumping method handles)";
+        return false;
+      }
+
+      Symbol* sig = constant_pool()->uncached_signature_ref_at(cp_index);
+      Klass* k;
+      if (!AOTConstantPoolResolver::check_methodtype_signature(constant_pool(), sig, &k, true)) {
+        // invokehandles that were resolved in the training run should have been filtered in
+        // AOTConstantPoolResolver::maybe_resolve_fmi_ref so we shouldn't come to here.
+        //
+        // If we come here it's because the AOT assembly phase has executed an invokehandle
+        // that uses an excluded type like jdk.jfr.Event. This should not happen because the
+        // AOT assembly phase should execute only a very limited set of Java code.
+        ResourceMark rm;
+        fatal("AOT assembly phase must not resolve any invokehandles whose signatures include an excluded type");
+      }
     }
     if (method_entry->method()->is_method_handle_intrinsic() && !CDSConfig::is_dumping_method_handles()) {
       rejection_reason = "(not dumping intrinsic method handles)";
@@ -588,7 +605,6 @@ bool ConstantPoolCache::can_archive_resolved_method(ConstantPool* src_cp, Resolv
     }
   }
 
-  int cp_index = method_entry->constant_pool_index();
   assert(src_cp->tag_at(cp_index).is_method() || src_cp->tag_at(cp_index).is_interface_method(), "sanity");
 
   if (!AOTConstantPoolResolver::is_resolution_deterministic(src_cp, cp_index)) {

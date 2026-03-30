@@ -1148,6 +1148,7 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
         // create dummy snapshot
         dump_result.add_thread_snapshot();
       } else {
+        assert(dump_result.t_list()->includes(jt), "Must be protected");
         dump_result.add_thread_snapshot(jt);
       }
     }

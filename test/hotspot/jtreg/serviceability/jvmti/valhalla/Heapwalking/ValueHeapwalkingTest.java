@@ -29,10 +29,11 @@
  * @enablePreview
  * @run main/othervm/native -agentlib:ValueHeapwalkingTest
  *                          -XX:+UnlockDiagnosticVMOptions
+ *                          -XX:+UnlockExperimentalVMOptions
  *                          -XX:+UseArrayFlattening
  *                          -XX:+UseFieldFlattening
- *                          -XX:+UseAtomicValueFlattening
- *                          -XX:+UseNullableValueFlattening
+ *                          -XX:+UseNullFreeAtomicValueFlattening
+ *                          -XX:+UseNullableAtomicValueFlattening
  *                          -XX:+PrintInlineLayout
  *                          -XX:+PrintFlatArrayLayout
  *                          -Xlog:jvmti+table

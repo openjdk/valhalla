@@ -48,7 +48,7 @@ import jdk.test.whitebox.WhiteBox;
 
  public class AnnotationsTests {
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
-    private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
+    private static final boolean UseNullableAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableAtomicValueFlattening");
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
@@ -110,7 +110,7 @@ import jdk.test.whitebox.WhiteBox;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            if (UseNullableValueFlattening) {
+            if (UseNullableAtomicValueFlattening) {
                 Asserts.assertTrue(UNSAFE.isFlatField(f0), "Flat field expected, but field is not flat");
             } else {
                 Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
