@@ -798,38 +798,39 @@ const int ObjectAlignmentInBytes = 8;
           "Number of OutOfMemoryErrors preallocated with backtrace")        \
           range(0, 1024)                                                    \
                                                                             \
-  product(bool, UseXMMForArrayCopy, false,                                  \
-          "Use SSE2 MOVQ instruction for Arraycopy")                        \
-                                                                            \
   product(bool, PrintFieldLayout, false, DIAGNOSTIC,                        \
           "Print field layout for each class")                              \
                                                                             \
   product(bool, PrintInlineLayout, false, DIAGNOSTIC,                       \
-          "Print field layout for each inline type or class with inline fields") \
+          "Print field layout for each value class or class containing "    \
+          "inlined value fields")                                           \
                                                                             \
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
-          "Print array layout for each inline type array")                  \
+          "Print array layout for each flattened value array")              \
                                                                             \
-  product(bool, UseArrayFlattening, true,                                   \
-          "Allow the VM to flatten arrays")                                 \
+  product(bool, UseArrayFlattening, true, DIAGNOSTIC,                       \
+          "Allow the JVM to flatten arrays of concrete value objects "      \
+          "when it determines it is possible and beneficial to do so")      \
                                                                             \
-  product(bool, UseFieldFlattening, true,                                   \
-          "Allow the VM to flatten value fields")                           \
+  product(bool, UseFieldFlattening, true, DIAGNOSTIC,                       \
+          "Allow the JVM to inline the fields of concrete value objects "   \
+          "when it determines it is possible and beneficial to do so")      \
                                                                             \
-  product(bool, UseNonAtomicValueFlattening, true,                          \
-          "Allow the JVM to flatten some non-atomic null-free values")      \
+  product(bool, UseNullableAtomicValueFlattening, true, DIAGNOSTIC,         \
+          "Allow the JVM to flatten some nullable atomic values")           \
                                                                             \
-  product(bool, UseNullableValueFlattening, true,                           \
-          "Allow the JVM to flatten some nullable values")                  \
+  product(bool, UseNullFreeNonAtomicValueFlattening, true, EXPERIMENTAL,    \
+          "Allow the JVM to flatten some null-free non-atomic values")      \
                                                                             \
-  product(bool, UseAtomicValueFlattening, true,                             \
-          "Allow the JVM to flatten some atomic values")                    \
+  product(bool, UseNullFreeAtomicValueFlattening, true, EXPERIMENTAL,       \
+          "Allow the JVM to flatten some null-free atomic values")          \
                                                                             \
-  product(bool, UseNullableNonAtomicValueFlattening, true,                  \
+  product(bool, UseNullableNonAtomicValueFlattening, true, DIAGNOSTIC,      \
           "Allow the JVM to flatten some strict final non-static fields")   \
                                                                             \
-  product(intx, FlatArrayElementMaxOops, 4,                                 \
-          "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
+  product(intx, FlatArrayElementMaxOops, 4, DIAGNOSTIC,                     \
+          "Max number of embedded object references in a value container "  \
+          "before no flattening attempts are made, <0 indicates no limit")  \
                                                                             \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \
           "Print fields collected by InlineKlass::collect_fields")          \
@@ -1957,10 +1958,10 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product_pd(bool, InlineTypePassFieldsAsArgs,                              \
+  product_pd(bool, InlineTypePassFieldsAsArgs, DIAGNOSTIC,                  \
           "Pass each inline type field as an argument at calls")            \
                                                                             \
-  product_pd(bool, InlineTypeReturnedAsFields,                              \
+  product_pd(bool, InlineTypeReturnedAsFields, DIAGNOSTIC,                  \
           "Return fields instead of an inline type reference")              \
                                                                             \
   develop(bool, StressCallingConvention, false,                             \
@@ -1982,7 +1983,7 @@ const int ObjectAlignmentInBytes = 8;
              "Mark all threads after a safepoint, and clear on a modify "   \
              "fence. Add cleanliness checks.")                              \
                                                                             \
-  product(bool, UseObjectMonitorTable, false, DIAGNOSTIC,                   \
+  product(bool, UseObjectMonitorTable, true, DIAGNOSTIC,                    \
           "Use a table to record inflated monitors rather than the first "  \
           "word of the object.")                                            \
                                                                             \

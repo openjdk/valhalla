@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +56,7 @@
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
- *                   -Xbatch -XX:-UseArrayFlattening
+ *                   -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 

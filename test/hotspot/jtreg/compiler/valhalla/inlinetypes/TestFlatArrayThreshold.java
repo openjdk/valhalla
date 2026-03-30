@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,9 @@
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestFlatArrayThreshold
- * @run main/othervm -XX:FlatArrayElementMaxOops=1 -Xbatch
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxOops=1 -Xbatch
  *                   compiler.valhalla.inlinetypes.TestFlatArrayThreshold
- * @run main/othervm -XX:+UseArrayFlattening -Xbatch
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -Xbatch
  *                   compiler.valhalla.inlinetypes.TestFlatArrayThreshold
 
  */

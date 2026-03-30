@@ -108,9 +108,9 @@ public:
   f(UseFieldFlattening) \
   f(InlineTypePassFieldsAsArgs) \
   f(InlineTypeReturnedAsFields) \
-  f(UseNonAtomicValueFlattening) \
-  f(UseAtomicValueFlattening) \
-  f(UseNullableValueFlattening) \
+  f(UseNullFreeNonAtomicValueFlattening) \
+  f(UseNullFreeAtomicValueFlattening) \
+  f(UseNullableAtomicValueFlattening) \
   f(UseNullableNonAtomicValueFlattening)
 
 
