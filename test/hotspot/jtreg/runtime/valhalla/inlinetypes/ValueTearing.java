@@ -89,8 +89,8 @@ import static jdk.test.lib.Asserts.*;
  * @enablePreview
  * @compile ValueTearing.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -DSTEP_COUNT=10000000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -DSTEP_COUNT=10000000 -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+UseArrayFlattening
+ *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  */
 

@@ -37,7 +37,7 @@ package runtime.valhalla.inlinetypes;
  * @requires vm.flagless
  * @compile Point.java UnsafeTest.java
  * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions
-                     -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening
+                     -XX:+UseNullableAtomicValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening
                      -XX:+PrintInlineLayout -Xlog:valuetypes=trace runtime.valhalla.inlinetypes.UnsafeTest
  */
 
@@ -161,7 +161,7 @@ public class UnsafeTest {
         }
     }
 
-    // Requires -XX:+UseNullableValueFlattening
+    // Requires -XX:+UseNullableAtomicValueFlattening
     static value class MyValue0 {
         int val;
 

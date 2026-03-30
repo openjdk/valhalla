@@ -256,7 +256,7 @@ bool OopMapCacheEntry::verify_mask(CellTypeState* vars, CellTypeState* stack, in
 
   if (log) st.print("Locals (%d): ", max_locals);
   for(int i = 0; i < max_locals; i++) {
-    bool v1 = is_oop(i)               ? true : false;
+    bool v1 = is_oop(i);
     bool v2 = vars[i].is_reference();
     assert(v1 == v2, "locals oop mask generation error");
     if (log) st.print("%d", v1 ? 1 : 0);
@@ -265,7 +265,7 @@ bool OopMapCacheEntry::verify_mask(CellTypeState* vars, CellTypeState* stack, in
 
   if (log) st.print("Stack (%d): ", stack_top);
   for(int j = 0; j < stack_top; j++) {
-    bool v1 = is_oop(max_locals + j)  ? true : false;
+    bool v1 = is_oop(max_locals + j);
     bool v2 = stack[j].is_reference();
     assert(v1 == v2, "stack oop mask generation error");
     if (log) st.print("%d", v1 ? 1 : 0);

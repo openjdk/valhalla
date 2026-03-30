@@ -697,7 +697,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
       other_base = nullptr;
     } else {
       // 'other' is an oop, compute address of the field
-      other_field = igvn->register_new_node_with_optimizer(new AddPNode(base, other, igvn->MakeConX(field_off)));
+      other_field = igvn->register_new_node_with_optimizer(AddPNode::make_with_base(base, other, igvn->MakeConX(field_off)));
       if (field->is_flat()) {
         // Flat field, load is handled recursively below
         assert(this_field->is_InlineType(), "inconsistent field value");
@@ -725,7 +725,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
             null_marker = other_field->as_InlineType()->get_null_marker();
           } else {
             Node* nm_offset = igvn->MakeConX(ft->as_inline_klass()->null_marker_offset_in_payload());
-            Node* nm_adr = igvn->register_new_node_with_optimizer(new AddPNode(base, other_field, nm_offset));
+            Node* nm_adr = igvn->register_new_node_with_optimizer(AddPNode::make_with_base(base, other_field, nm_offset));
             C2AccessValuePtr addr(nm_adr, nm_adr->bottom_type()->is_ptr());
             C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
             null_marker = bs->load_at(access, TypeInt::BOOL);

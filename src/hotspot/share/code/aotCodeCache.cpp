@@ -188,14 +188,16 @@ void AOTCodeCache::initialize() {
   FLAG_SET_ERGO(AOTStubCaching, false);
 
   if (VerifyOops) {
-    // Disable AOT stubs caching when VerifyOops flag is on.
+    // Disable AOT stub caching when VerifyOops flag is on.
     // Verify oops code generated a lot of C strings which overflow
     // AOT C string table (which has fixed size).
     // AOT C string table will be reworked later to handle such cases.
-    //
-    // Note: AOT adapters are not affected - they don't have oop operations.
-    log_info(aot, codecache, init)("AOT Stubs Caching is not supported with VerifyOops.");
+    log_info(aot, codecache, init)("AOT Stub Caching is not supported with VerifyOops.");
     FLAG_SET_ERGO(AOTStubCaching, false);
+    if (InlineTypePassFieldsAsArgs) {
+      log_info(aot, codecache, init)("AOT Adapter Caching is not supported with VerifyOops + InlineTypePassFieldsAsArgs.");
+      FLAG_SET_ERGO(AOTAdapterCaching, false);
+    }
   }
 
   bool is_dumping = false;
@@ -284,11 +286,11 @@ bool AOTCodeCache::open_cache(bool is_dumping, bool is_using) {
   return true;
 }
 
-void AOTCodeCache::close() {
+void AOTCodeCache::dump() {
   if (is_on()) {
-    delete _cache; // Free memory
-    _cache = nullptr;
-    opened_cache = nullptr;
+    assert(is_on_for_dump(), "should be called only when dumping AOT code");
+    MutexLocker ml(Compile_lock);
+    _cache->finish_write();
   }
 }
 
@@ -304,7 +306,6 @@ AOTCodeCache::AOTCodeCache(bool is_dumping, bool is_using) :
   _store_size(0),
   _for_use(is_using),
   _for_dump(is_dumping),
-  _closing(false),
   _failed(false),
   _lookup_failed(false),
   _table(nullptr),
@@ -378,30 +379,6 @@ void AOTCodeCache::init_early_c1_table() {
   AOTCodeAddressTable* table = addr_table();
   if (table != nullptr) {
     table->init_early_c1();
-  }
-}
-
-AOTCodeCache::~AOTCodeCache() {
-  if (_closing) {
-    return; // Already closed
-  }
-  // Stop any further access to cache.
-  _closing = true;
-
-  MutexLocker ml(Compile_lock);
-  if (for_dump()) { // Finalize cache
-    finish_write();
-  }
-  _load_buffer = nullptr;
-  if (_C_store_buffer != nullptr) {
-    FREE_C_HEAP_ARRAY(char, _C_store_buffer);
-    _C_store_buffer = nullptr;
-    _store_buffer = nullptr;
-  }
-  if (_table != nullptr) {
-    MutexLocker ml(AOTCodeCStrings_lock, Mutex::_no_safepoint_check_flag);
-    delete _table;
-    _table = nullptr;
   }
 }
 
@@ -1570,18 +1547,6 @@ void AOTCodeAddressTable::init_early_c1() {
 }
 
 #undef SET_ADDRESS
-
-AOTCodeAddressTable::~AOTCodeAddressTable() {
-  if (_extrs_addr != nullptr) {
-    FREE_C_HEAP_ARRAY(address, _extrs_addr);
-  }
-  if (_stubs_addr != nullptr) {
-    FREE_C_HEAP_ARRAY(address, _stubs_addr);
-  }
-  if (_shared_blobs_addr != nullptr) {
-    FREE_C_HEAP_ARRAY(address, _shared_blobs_addr);
-  }
-}
 
 #ifdef PRODUCT
 #define MAX_STR_COUNT 200

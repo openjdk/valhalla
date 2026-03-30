@@ -39,7 +39,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm -XX:+UseArrayFlattening runtime.valhalla.inlinetypes.NullRestrictedArrayTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening runtime.valhalla.inlinetypes.NullRestrictedArrayTest
  */
 
 public class NullRestrictedArrayTest {

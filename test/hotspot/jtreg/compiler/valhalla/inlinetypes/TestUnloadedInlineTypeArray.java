@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -43,7 +43,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
@@ -67,7 +67,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
@@ -92,7 +92,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
@@ -117,7 +117,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
