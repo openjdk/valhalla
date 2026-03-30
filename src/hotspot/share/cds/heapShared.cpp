@@ -118,12 +118,13 @@ static const ArchivedKlassSubGraphInfoRecord* _test_class_record = nullptr;
 // If you add new entries to the following tables, you should know what you're doing!
 //
 
+static const char* _archived_cache_name = "archivedCache";
 static ArchivableStaticFieldInfo archive_subgraph_entry_fields[] = {
-  {"java/lang/Integer$IntegerCache",              "archivedCache"},
-  {"java/lang/Long$LongCache",                    "archivedCache"},
-  {"java/lang/Byte$ByteCache",                    "archivedCache"},
-  {"java/lang/Short$ShortCache",                  "archivedCache"},
-  {"java/lang/Character$CharacterCache",          "archivedCache"},
+  {"java/lang/Integer$IntegerCache",              _archived_cache_name},
+  {"java/lang/Long$LongCache",                    _archived_cache_name},
+  {"java/lang/Byte$ByteCache",                    _archived_cache_name},
+  {"java/lang/Short$ShortCache",                  _archived_cache_name},
+  {"java/lang/Character$CharacterCache",          _archived_cache_name},
   {"java/util/jar/Attributes$Name",               "KNOWN_NAMES"},
   {"sun/util/locale/BaseLocale",                  "constantBaseLocales"},
   {"jdk/internal/module/ArchivedModuleGraph",     "archivedModuleGraph"},
@@ -1927,6 +1928,10 @@ void HeapShared::archive_reachable_objects_from_static_field(InstanceKlass *k,
   log_debug(aot, heap)("Start archiving from: %s::%s (" PTR_FORMAT ")", klass_name, field_name, p2i(f));
 
   if (!CompressedOops::is_null(f)) {
+    // With preview mode enabled, the boxed class caches should all be null.
+    assert(strcmp(_archived_cache_name, field_name) != 0 ||
+           !Arguments::is_valhalla_enabled(),
+           "field %s must be null when using Valhalla preview features", field_name);
     if (log_is_enabled(Trace, aot, heap)) {
       LogTarget(Trace, aot, heap) log;
       LogStream out(log);
