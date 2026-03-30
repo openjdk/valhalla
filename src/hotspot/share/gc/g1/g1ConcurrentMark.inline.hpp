@@ -162,7 +162,7 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
 
 template<bool scan>
 inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool stolen) {
-  assert(scan || (!task_entry.is_partial_array_state() && !G1CollectedHeap::array_has_oops(task_entry.to_oop())),
+  assert(scan || (!task_entry.is_partial_array_state() && !task_entry.to_oop()->is_array_with_oops()),
          "Skipping scan of grey object that needs scanning");
   assert(task_entry.is_partial_array_state() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.to_oop())),
          "Any stolen object should be a slice or marked");
@@ -186,7 +186,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool 
 }
 
 inline bool G1CMTask::can_be_processed_immediately(oop obj) {
-  return obj->is_array() && !G1CollectedHeap::array_has_oops(obj);
+  return obj->is_array() && !obj->is_array_with_oops();
 }
 
 inline bool G1CMTask::should_be_sliced(oop obj) {
