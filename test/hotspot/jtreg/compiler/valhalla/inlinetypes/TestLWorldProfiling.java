@@ -1357,4 +1357,29 @@ public class TestLWorldProfiling {
             Asserts.assertEquals(test48(testValue1, testValue1), 2);
         }
     }
+
+    @Test
+    public static Integer test49(Object a, Object b) {
+        if (a == b) {
+            if (b instanceof AClass) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    static class AClass {}
+    AClass o = new AClass();
+
+    @Run(test = "test49")
+    @Warmup(10000)
+    public void test49_verifier(RunInfo info) {
+        Asserts.assertEquals(test49(null, o), 0);
+        Asserts.assertEquals(test49(o, o), 1);
+        Asserts.assertEquals(test49(testValue1, o), 0);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test49(null, null), 2);
+        }
+    }
 }
