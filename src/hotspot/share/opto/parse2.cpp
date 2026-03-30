@@ -48,6 +48,7 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 #ifndef PRODUCT
@@ -125,7 +126,8 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
-          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          bool is_null_free = array_type->is_null_free() ||
+                              (!UseNullableAtomicValueFlattening && !UseNullableNonAtomicValueFlattening);
           if (is_null_free) {
             inline_type = cast_not_null(inline_type);
           }

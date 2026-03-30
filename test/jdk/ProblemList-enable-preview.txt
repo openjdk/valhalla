@@ -33,3 +33,7 @@
 # Valhalla failures start here:
 com/sun/jdi/EATests.java#id0                                       8372831 generic-all
 java/lang/Thread/virtual/stress/Skynet.java#Z                      8342977 generic-all
+
+sun/tools/jhsdb/HeapDumpTest.java                                  8379925 generic-all
+sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java                 8379925 generic-all
+sun/tools/jhsdb/JShellHeapDumpTest.java                            8379925 generic-all

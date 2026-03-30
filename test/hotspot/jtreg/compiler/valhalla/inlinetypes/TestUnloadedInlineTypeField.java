@@ -62,6 +62,7 @@ public class TestUnloadedInlineTypeField {
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .addFlags("--enable-preview",
+                             "-XX:+UnlockDiagnosticVMOptions",
                              // Prevent IR Test Framework from loading classes
                              "-DIgnoreCompilerControls=true",
                              // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.

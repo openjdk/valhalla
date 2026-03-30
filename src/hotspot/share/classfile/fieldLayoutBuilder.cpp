@@ -95,7 +95,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     if (vk->is_empty_inline_type() && vk->has_nullable_non_atomic_layout()) {
       return LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
     }
-    if (UseNullableValueFlattening && vk->has_nullable_atomic_layout()) {
+    if (UseNullableAtomicValueFlattening && vk->has_nullable_atomic_layout()) {
       return can_use_atomic_flat ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return LayoutKind::REFERENCE;
@@ -1184,13 +1184,13 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if (UseNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (UseNullFreeNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
       _null_free_non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _null_free_non_atomic_layout_alignment = _payload_alignment;
     }
 
     // Next step is to compute the characteristics for a layout enabling atomic updates
-    if (UseAtomicValueFlattening) {
+    if (UseNullFreeAtomicValueFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
       if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _null_free_atomic_layout_size_in_bytes = atomic_size;
@@ -1198,7 +1198,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     }
 
     // Next step is the nullable layouts: they must include a null marker
-    if (UseNullableValueFlattening || UseNullableNonAtomicValueFlattening) {
+    if (UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening) {
       // Looking if there's an empty slot inside the layout that could be used to store a null marker
       LayoutRawBlock* b = _layout->first_field_block();
       assert(b != nullptr, "A concrete value class must have at least one (possible dummy) field");
@@ -1236,7 +1236,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         _null_marker_offset = null_marker_offset;
         _null_free_non_atomic_layout_alignment = _payload_alignment;
       }
-      if (UseNullableValueFlattening) {
+      if (UseNullableAtomicValueFlattening) {
         // For the nullable atomic layout, the size mut be compatible with the platform capabilities
         int nullable_atomic_size = round_up_power_of_2(new_raw_size);
         if (nullable_atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {

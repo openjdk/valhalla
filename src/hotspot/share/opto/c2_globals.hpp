@@ -249,6 +249,9 @@
   develop(bool, TraceLoopOpts, false,                                       \
           "Trace executed loop optimizations")                              \
                                                                             \
+  develop(bool, TraceSplitIf, false,                                        \
+          "Trace Split-If optimization")                                    \
+                                                                            \
   develop(bool, TraceLoopLimitCheck, false,                                 \
           "Trace generation of loop limits checks")                         \
                                                                             \
@@ -855,11 +858,11 @@
           "profiling data. "                                                \
           "Requires UseLoopPredicate to be turned on (default).")           \
                                                                             \
-  product(bool, UseArrayLoadStoreProfile, true,                             \
+  product(bool, UseArrayLoadStoreProfile, true, DIAGNOSTIC,                 \
           "Take advantage of profiling at array load/store")                \
                                                                             \
-  product(bool, UseACmpProfile, true,                                       \
-          "Take advantage of profiling at acmp")                            \
+  product(bool, UseACmpProfile, true, DIAGNOSTIC,                           \
+          "Take advantage of profiling at if_acmp<cond>")                   \
                                                                             \
   develop(uintx, StressLongCountedLoop, 0,                                  \
           "if > 0, convert int counted loops to long counted loops"         \
@@ -910,6 +913,9 @@
                                                                             \
   develop(bool, StressLoopPeeling, false,                                   \
           "Randomize loop peeling decision")                                \
+                                                                            \
+  develop(bool, StressCountedLoop, false,                                   \
+          "Randomly delay conversion to counted loops")                     \
 
 // end of C2_FLAGS
 
