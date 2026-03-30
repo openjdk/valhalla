@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,8 +43,8 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                   compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               -Xbatch -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -57,7 +57,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
- *                                compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -143,7 +143,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::test*
- *                                compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -187,7 +187,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                                compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
  */
 
 /*
