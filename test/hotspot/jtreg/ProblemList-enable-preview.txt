@@ -41,5 +41,7 @@ compiler/stable/TestStableArrayMembars.java                                     
 
 # Serviceability:
 vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java                        8375069 generic-all
-
+serviceability/sa/ClhsdbDumpheap.java                                                            8379925 generic-all
 serviceability/sa/TestHeapDumpForInvokeDynamic.java                                              8377387 generic-all
+serviceability/sa/TestJmapCore.java                                                              8379925 generic-all
+serviceability/sa/TestJmapCoreMetaspace.java                                                     8379925 generic-all

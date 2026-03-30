@@ -99,11 +99,3 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
     st->print(" age=%d)", age());
   }
 }
-
-markWord markWord::flat_array_prototype(bool null_free) {
-  if (null_free) {
-    return markWord(null_free_flat_array_pattern);
-  } else {
-    return markWord(nullable_flat_array_pattern);
-  }
-}
