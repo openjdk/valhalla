@@ -3288,7 +3288,6 @@ void LIRGenerator::substitutability_check_common(Value left_val, Value right_val
                                                  LIR_Opr equal_result, LIR_Opr not_equal_result, LIR_Opr result,
                                                  CodeEmitInfo* info) {
   LIR_Opr tmp1 = LIR_OprFact::illegalOpr;
-  LIR_Opr tmp2 = LIR_OprFact::illegalOpr;
   LIR_Opr left_klass_op = LIR_OprFact::illegalOpr;
   LIR_Opr right_klass_op = LIR_OprFact::illegalOpr;
 
@@ -3297,7 +3296,9 @@ void LIRGenerator::substitutability_check_common(Value left_val, Value right_val
 
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    init_temps_for_substitutability_check(tmp1, tmp2);
+    // We need one temp register to check whether both oops have the markWord::inline_type_pattern.
+    // See LIR_Assembler::emit_opSubstitutabilityCheck().
+    tmp1 = new_register(T_INT);
   }
 
   if (left_klass != nullptr && left_klass->is_inlinetype() && left_klass == right_klass) {
@@ -3310,8 +3311,7 @@ void LIRGenerator::substitutability_check_common(Value left_val, Value right_val
 
   CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), info);
   __ substitutability_check(result, left.result(), right.result(), equal_result, not_equal_result,
-                            tmp1, tmp2,
-                            left_klass, right_klass, left_klass_op, right_klass_op, info, slow_path);
+                            tmp1, left_klass, right_klass, left_klass_op, right_klass_op, info, slow_path);
 }
 
 void LIRGenerator::do_RuntimeCall(address routine, Intrinsic* x) {
