@@ -143,7 +143,6 @@ public:
 
   const char* external_name() const;
 
-  juint prototype_header_offset();
   uintptr_t prototype_header();
 };
 

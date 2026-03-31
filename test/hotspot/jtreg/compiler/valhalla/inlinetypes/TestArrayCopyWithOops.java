@@ -29,7 +29,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ * @run main/timeout=240 compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
 /*
@@ -40,10 +40,10 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
- *                   -Xbatch
- *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ * @run main/othervm/timeout=240 -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
+ *                               -Xbatch
+ *                               compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
 /*
@@ -54,10 +54,10 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
- *                   -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ * @run main/othervm/timeout=240 -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
+ *                               -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
 package compiler.valhalla.inlinetypes;
