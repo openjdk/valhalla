@@ -1254,7 +1254,6 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   }
 
   load_shared_class_misc(ik, loader_data);
-
   return ik;
 }
 
