@@ -1582,7 +1582,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    Register tmp  = op->tmp()->as_register();
+    Register tmp = op->tmp()->as_register();
     __ mov(tmp, markWord::inline_type_pattern);
     __ ldr(rscratch1, Address(left, oopDesc::mark_offset_in_bytes()));
     __ andr(tmp, tmp, rscratch1);
