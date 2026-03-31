@@ -24,7 +24,7 @@
 package compiler.lib.ir_framework;
 
 import compiler.lib.ir_framework.driver.irmatching.mapping.*;
-import compiler.lib.ir_framework.driver.irmatching.parser.VMInfo;
+import compiler.lib.ir_framework.driver.network.testvm.java.VMInfo;
 import compiler.lib.ir_framework.shared.CheckedTestFrameworkException;
 import compiler.lib.ir_framework.shared.TestFormat;
 import compiler.lib.ir_framework.shared.TestFormatException;
@@ -652,6 +652,11 @@ public class IRNode {
     public static final String CMP_N = PREFIX + "CMP_N" + POSTFIX;
     static {
         beforeMatchingNameRegex(CMP_N, "CmpN");
+    }
+
+    public static final String CMP_P_OR_N = PREFIX + "CMP_P_OR_N" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CMP_P_OR_N, "Cmp(P|N)");
     }
 
     public static final String CMP_LT_MASK = PREFIX + "CMP_LT_MASK" + POSTFIX;
@@ -3184,6 +3189,12 @@ public class IRNode {
     static {
         String regex = START + "ModD" + MID + END;
         macroNodes(MOD_D, regex);
+    }
+
+    public static final String POW_D = PREFIX + "POW_D" + POSTFIX;
+    static {
+        String regex = START + "PowD" + MID + END;
+        macroNodes(POW_D, regex);
     }
 
     public static final String BLACKHOLE = PREFIX + "BLACKHOLE" + POSTFIX;

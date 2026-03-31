@@ -1851,7 +1851,7 @@ bool LoadNode::can_split_through_phi_base(PhaseGVN* phase) {
   intptr_t ignore  = 0;
   Node*    base    = AddPNode::Ideal_base_and_offset(address, phase, ignore);
 
-  if (base->is_CastPP()) {
+  if (base != nullptr && base->is_CastPP()) {
     base = base->in(1);
   }
 
@@ -2035,7 +2035,7 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase, bool ignore_missing_instance_
       }
       if (base_is_phi && (base->in(0) == region)) {
         Node* base_x = base->in(i); // Clone address for loads from boxed objects.
-        Node* adr_x = phase->transform(new AddPNode(base_x,base_x,address->in(AddPNode::Offset)));
+        Node* adr_x = phase->transform(AddPNode::make_with_base(base_x, address->in(AddPNode::Offset)));
         x->set_req(Address, adr_x);
       }
     }
@@ -2470,7 +2470,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
         return TypeInt::make(static_cast<jint>(klass->as_flat_array_klass()->layout_kind()));
       }
-      if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
+      if ((UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
         // The field is Klass::_prototype_header. Return its (constant) value.
         assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
         return TypeX::make(klass->prototype_header());
@@ -4469,9 +4469,9 @@ Node *ClearArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   Node *off  = phase->MakeConX(BytesPerLong);
   mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   count--;
-  while( count-- ) {
+  while (count--) {
     mem = phase->transform(mem);
-    adr = phase->transform(new AddPNode(base,adr,off));
+    adr = phase->transform(AddPNode::make_with_base(base,adr,off));
     mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   }
   return mem;
@@ -4509,7 +4509,7 @@ Node* ClearArrayNode::make_address(Node* dest, Node* offset, bool raw_base, Phas
     // May be called as part of the initialization of a just allocated object
     base = phase->C->top();
   }
-  return phase->transform(new AddPNode(base, dest, offset));
+  return phase->transform(AddPNode::make_with_base(base, dest, offset));
 }
 
 //----------------------------clear_memory-------------------------------------
@@ -5348,8 +5348,7 @@ Node* InitializeNode::make_raw_address(intptr_t offset,
   Node* addr = in(RawAddress);
   if (offset != 0) {
     Compile* C = phase->C;
-    addr = phase->transform( new AddPNode(C->top(), addr,
-                                                 phase->MakeConX(offset)) );
+    addr = phase->transform(AddPNode::make_off_heap(addr, phase->MakeConX(offset)));
   }
   return addr;
 }

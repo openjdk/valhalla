@@ -2623,7 +2623,7 @@ public class TestLWorld {
 
     @Test
     // TODO 8355382 The optimization only applies to null-free, flat arrays
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableAtomicValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC, MEMBAR})
     public Object test92(Object[] array) {
@@ -2691,7 +2691,7 @@ public class TestLWorld {
 
     @Test
     // TODO 8355382 The optimization only applies to null-free, flat arrays
-    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableAtomicValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC, MEMBAR})
     public int test94(Object[] array) {

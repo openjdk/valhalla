@@ -6376,6 +6376,15 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       }
       continue;
     }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(Address(rsp, st_off), fromReg);
+      } else {
+        movq(toReg->as_Register(), fromReg);
+      }
+      continue;
+    }
     assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
     if (!toReg->is_XMMRegister()) {
@@ -6463,9 +6472,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
-  load_heap_oop(val_obj, Address(val_array, index));
-
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
   BasicType bt;
@@ -6488,6 +6494,21 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       movptr(val_obj, 0);
       jmp(L_null);
       bind(L_notNull);
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      // buffer argument: use if non null
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movptr(val_obj, Address(rsp, ld_off));
+      } else {
+        movptr(val_obj, fromReg->as_Register());
+      }
+      testptr(val_obj, val_obj);
+      jcc(Assembler::notEqual, L_null);
+      // otherwise get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
+      load_heap_oop(val_obj, Address(val_array, index));
       continue;
     }
 

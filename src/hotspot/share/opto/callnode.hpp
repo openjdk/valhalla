@@ -981,6 +981,8 @@ public:
   }
   int Opcode() const override;
   Node* Ideal(PhaseGVN* phase, bool can_reshape) override;
+
+  CallLeafPureNode* inline_call_leaf_pure_node(Node* control = nullptr) const;
 };
 
 //------------------------------CallLeafNoFPNode-------------------------------
@@ -1071,7 +1073,6 @@ public:
   bool _is_non_escaping;
   // True when MemBar for new is redundant with MemBar at initialzer exit
   bool _is_allocation_MemBar_redundant;
-  bool _larval;
 
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
@@ -1345,4 +1346,19 @@ public:
   JVMState* dbg_jvms() const { return nullptr; }
 #endif
 };
+
+//------------------------------PowDNode--------------------------------------
+class PowDNode : public CallLeafPureNode {
+  TupleNode* make_tuple_of_input_state_and_result(PhaseIterGVN* phase, Node* result, Node* control = nullptr);
+
+public:
+  PowDNode(Compile* C, Node* base, Node* exp);
+  int Opcode() const override;
+  const Type* Value(PhaseGVN* phase) const override;
+  Node* Ideal(PhaseGVN* phase, bool can_reshape) override;
+
+  Node* base() const { return in(TypeFunc::Parms + 0); }
+  Node* exp() const  { return in(TypeFunc::Parms + 2); }
+};
+
 #endif // SHARE_OPTO_CALLNODE_HPP

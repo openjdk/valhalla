@@ -593,6 +593,7 @@ GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots,
   return nullptr;
 }
 
+
 // subklass links.  Used by the compiler (and vtable initialization)
 // May be cleaned concurrently, so must use the Compile_lock.
 Klass* Klass::subklass() const {

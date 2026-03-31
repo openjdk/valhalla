@@ -1248,7 +1248,7 @@ static MyValue1 tmp = null;
 
     @Test
     // TODO 8357580 more aggressive flattening
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
     public Integer test45(Object arg) {
         return ((MyValue45ValueHolder) arg).v.v;
     }
@@ -1263,8 +1263,8 @@ static MyValue1 tmp = null;
 
     @Test
     // TODO 8357580 more aggressive flattening
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
     public Integer test46(Object arg) {
         return ((MyValue45Holder) arg).v.v;
     }
@@ -1309,8 +1309,8 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
     public MyValue47Holder test47(MyValue47HolderHolder arg) {
         return arg.v;
     }
@@ -1324,8 +1324,8 @@ static MyValue1 tmp = null;
     static final MyValue47Holder[] MY_VALUE_47_HOLDERS = (MyValue47Holder[]) ValueClass.newNullRestrictedAtomicArray(MyValue47Holder.class, 2, new MyValue47Holder(rI));
 
     @Test
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
     public MyValue47Holder test48() {
         return MY_VALUE_47_HOLDERS[0];
     }
