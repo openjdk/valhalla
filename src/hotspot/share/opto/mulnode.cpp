@@ -859,7 +859,7 @@ Node *AndLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (mark_load != nullptr && mark_load->is_Load() && phase->type(mark_load)->isa_long()) {
     const TypePtr* adr_t = phase->type(mark_load->in(MemNode::Address))->isa_ptr();
     if (adr_t != nullptr && adr_t->offset() == oopDesc::mark_offset_in_bytes() &&
-        (proto == nullptr || phase->type(proto)->isa_long()->is_con() ||
+        (proto == nullptr || (phase->type(proto)->isa_long() && phase->type(proto)->isa_long()->is_con()) ||
          (proto->is_Load() && phase->type(proto->in(MemNode::Address))->isa_ptr()->offset() == in_bytes(Klass::prototype_header_offset())))) {
       if (mask == markWord::inline_type_pattern) {
         if (adr_t->is_inlinetypeptr()) {
