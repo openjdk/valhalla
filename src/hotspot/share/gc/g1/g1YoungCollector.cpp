@@ -390,8 +390,8 @@ class G1PrepareEvacuationTask : public WorkerTask {
       //
       // After the pause, having reclaimed h, obviously the mutator can't fetch
       // the reference from h any more.
-      bool potentially_has_oops = !obj->is_array() || obj->is_array_with_oops();
-      if (potentially_has_oops) {
+      bool marked_immediately = _g1h->can_be_marked_through_immediately(obj);
+      if (!marked_immediately) {
         // All regions that were allocated before marking have a TAMS != bottom.
         bool allocated_before_mark_start = region->bottom() != _g1h->concurrent_mark()->top_at_mark_start(region);
         bool mark_in_progress = _g1h->collector_state()->is_in_marking();

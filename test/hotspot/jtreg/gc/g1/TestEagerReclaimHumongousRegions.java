@@ -52,7 +52,7 @@ import jdk.test.whitebox.WhiteBox;
 public class TestEagerReclaimHumongousRegions {
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
 
-    enum ObjectType { TYPE_ARRAY, OBJ_ARRAY, FLAT_TYPE_ARRAY, FLAT_OBJ_ARRAY }
+    enum ArrayType { TYPE_ARRAY, OBJ_ARRAY, FLAT_TYPE_ARRAY, FLAT_OBJ_ARRAY }
     enum ReferencePolicy { KEEP, DROP }
     enum AllocationTiming { BEFORE_MARK_START, AFTER_MARK_START}
 
@@ -85,7 +85,7 @@ public class TestEagerReclaimHumongousRegions {
      * @param phase The phase during concurrent mark to reach before triggering a young garbage collection.
      * @return Returns the stdout of the VM.
      */
-    private static String runHelperVM(List<String> args, ObjectType type, ReferencePolicy refPolicy, AllocationTiming timing, String phase) throws Exception {
+    private static String runHelperVM(List<String> args, ArrayType type, ReferencePolicy refPolicy, AllocationTiming timing, String phase) throws Exception {
 
         int arrayKind = type.ordinal();
         boolean keepReference = (refPolicy == ReferencePolicy.KEEP);
@@ -160,7 +160,7 @@ public class TestEagerReclaimHumongousRegions {
         Asserts.assertTrue(expected.reclaimed == reclaimed, "Wrong log output reclaiming humongous region");
     }
 
-    private static void runTest(ObjectType type,
+    private static void runTest(ArrayType type,
                                 ReferencePolicy refPolicy,
                                 AllocationTiming timing,
                                 String phase,
@@ -177,7 +177,7 @@ public class TestEagerReclaimHumongousRegions {
         verifyLog(jfrLog, timing, expected);
     }
 
-    private static void runTestNoRefsFor(ObjectType ot) throws Exception {
+    private static void runTestNoRefsFor(ArrayType ot) throws Exception {
         System.out.println("Tests checking eager reclaim for when the object of type " + ot + " is allocated before mark start.");
         runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.BEFORE_MARKING_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
         runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_REBUILD_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
@@ -198,7 +198,7 @@ public class TestEagerReclaimHumongousRegions {
         runTest(ot, ReferencePolicy.KEEP, AllocationTiming.AFTER_MARK_START, WB.G1_BEFORE_CLEANUP_COMPLETED, ExpectedState.NOTMARKED_CANDIDATE_NOTRECLAIMED);
     }
 
-    private static void runTestWithRefsFor(ObjectType ot) throws Exception {
+    private static void runTestWithRefsFor(ArrayType ot) throws Exception {
         System.out.println("Tests checking eager reclaim for when the object of type " + ot + " is allocated before mark start.");
         runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.BEFORE_MARKING_COMPLETED, ExpectedState.MARKED_NOTCANDIDATE_NOTRECLAIMED);
         runTest(ot, ReferencePolicy.DROP, AllocationTiming.BEFORE_MARK_START, WB.G1_BEFORE_REBUILD_COMPLETED, ExpectedState.MARKED_CANDIDATE_RECLAIMED);
@@ -220,10 +220,10 @@ public class TestEagerReclaimHumongousRegions {
     }
 
     public static void main(String[] args) throws Exception {
-        runTestNoRefsFor(ObjectType.TYPE_ARRAY);
-        runTestWithRefsFor(ObjectType.OBJ_ARRAY);
-        runTestNoRefsFor(ObjectType.FLAT_TYPE_ARRAY);
-        runTestWithRefsFor(ObjectType.FLAT_OBJ_ARRAY);
+        runTestNoRefsFor(ArrayType.TYPE_ARRAY);
+        runTestWithRefsFor(ArrayType.OBJ_ARRAY);
+        runTestNoRefsFor(ArrayType.FLAT_TYPE_ARRAY);
+        runTestWithRefsFor(ArrayType.FLAT_OBJ_ARRAY);
     }
 }
 

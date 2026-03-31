@@ -162,7 +162,7 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
 
 template<bool scan>
 inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool stolen) {
-  assert(scan || (!task_entry.is_partial_array_state() && can_be_processed_immediately(task_entry.to_oop())),
+  assert(scan || (!task_entry.is_partial_array_state() && _g1h->can_be_marked_through_immediately(task_entry.to_oop())),
          "Skipping scan of grey object that needs scanning");
   assert(task_entry.is_partial_array_state() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.to_oop())),
          "Any stolen object should be a slice or marked");
@@ -183,10 +183,6 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool 
     _cm_oop_closure->do_klass(task_entry.to_oop()->klass());
   }
   check_limits();
-}
-
-inline bool G1CMTask::can_be_processed_immediately(oop obj) {
-  return obj->is_array() && !obj->is_array_with_oops();
 }
 
 inline bool G1CMTask::should_be_sliced(oop obj) {
@@ -282,7 +278,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // correctness problems.
   if (is_below_finger(obj, global_finger)) {
     G1TaskQueueEntry entry(obj);
-    if (can_be_processed_immediately(obj)) {
+    if (_g1h->can_be_marked_through_immediately(obj)) {
       // Immediately process arrays of types without oops, rather
       // than pushing on the mark stack.  This keeps us from
       // adding humongous objects to the mark stack that might
