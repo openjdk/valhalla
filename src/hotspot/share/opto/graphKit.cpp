@@ -3672,7 +3672,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // uncommon trap or exception is thrown.
 // If 'new_cast_failure_map' is supplied and is not null, it is set to a newly cloned map
 // when the current map for the success path is updated with information only present
-// on the success path and not cast failure path. The newly cloned map should then be
+// on the success path and not the cast failure path. The newly cloned map should then be
 // used to emit the uncommon trap in the caller.
 Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_control, SafePointNode** new_cast_failure_map, bool null_free, bool maybe_larval) {
   assert(new_cast_failure_map == nullptr || failure_control != nullptr,
