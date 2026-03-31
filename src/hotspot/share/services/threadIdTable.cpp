@@ -92,7 +92,6 @@ void ThreadIdTable::lazy_initialize(const ThreadsList *threads) {
       create_table(threads->length());
       _is_initialized.release_store(true);
     }
-
     for (uint i = 0; i < threads->length(); i++) {
       JavaThread* thread = threads->thread_at(i);
       Handle tobj = Handle(JavaThread::current(), thread->threadObj());
