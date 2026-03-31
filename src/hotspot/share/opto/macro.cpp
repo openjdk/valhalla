@@ -1767,9 +1767,6 @@ void PhaseMacroExpand::expand_allocate_common(
     if (init_val != nullptr) {
       call->init_req(TypeFunc::Parms+2, init_val);
     }
-  } else {
-    // Let the runtime know if this is a larval allocation
-    call->init_req(TypeFunc::Parms+1, _igvn.intcon(alloc->_larval));
   }
 
   // Copy debug information and adjust JVMState information, then replace
