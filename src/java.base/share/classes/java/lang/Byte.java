@@ -143,10 +143,6 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
                 assert archivedCache == null;
             }
         }
-
-        static boolean isEnabled() {
-            return cache != null;
-        }
     }
 
     /**
@@ -177,9 +173,9 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Byte valueOf(byte b) {
-        if (ByteCache.isEnabled()) {
+        if (!PreviewFeatures.isEnabled()) {
             final int offset = 128;
-            return ByteCache.cache[(int)b + offset];
+            return ByteCache.cache[(int) b + offset];
         }
         return new Byte(b);
     }

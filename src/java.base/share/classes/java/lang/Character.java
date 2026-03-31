@@ -9454,10 +9454,6 @@ public final class Character implements java.io.Serializable, Comparable<Charact
                 assert archivedCache == null;
             }
         }
-
-        static boolean isEnabled() {
-            return cache != null;
-        }
     }
 
     /**
@@ -9491,9 +9487,9 @@ public final class Character implements java.io.Serializable, Comparable<Charact
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Character valueOf(char c) {
-        if (CharacterCache.isEnabled()) {
+        if (!PreviewFeatures.isEnabled()) {
             if (c <= 127) { // must cache
-                return CharacterCache.cache[(int)c];
+                return CharacterCache.cache[(int) c];
             }
         }
         return new Character(c);

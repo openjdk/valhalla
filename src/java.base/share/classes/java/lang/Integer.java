@@ -921,10 +921,6 @@ public final class Integer extends Number
             }
         }
 
-        static boolean isEnabled() {
-            return cache != null;
-        }
-
         @AOTRuntimeSetup
         private static void runtimeSetup() {
             // high value may be configured by property
@@ -1019,7 +1015,7 @@ public final class Integer extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (IntegerCache.isEnabled()) {
+        if (!PreviewFeatures.isEnabled()) {
             if (i >= IntegerCache.low && i <= IntegerCache.high)
                 return IntegerCache.cache[i + (-IntegerCache.low)];
         }
