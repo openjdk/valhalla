@@ -160,7 +160,6 @@ class ClassFileParser {
   Array<u2>* _loadable_descriptors;
   Array<RecordComponent*>* _record_components;
   Array<InstanceKlass*>* _local_interfaces;
-  GrowableArray<u2>* _local_interface_indexes;
   Array<InstanceKlass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
   AnnotationArray* _class_annotations;
@@ -307,16 +306,12 @@ class ClassFileParser {
   // Method parsing
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
-                       bool is_value_class,
-                       bool is_abstract_class,
                        const ConstantPool* cp,
                        bool* const has_localvariable_table,
                        TRAPS);
 
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
-                     bool is_value_class,
-                     bool is_abstract_class,
                      bool* const has_localvariable_table,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -540,6 +535,8 @@ class ClassFileParser {
   // Check if the class file supports inline types
   bool supports_inline_types() const;
 
+  void create_acmp_maps(InstanceKlass* ik, TRAPS);
+
  public:
   ClassFileParser(ClassFileStream* stream,
                   Symbol* name,
@@ -571,7 +568,6 @@ class ClassFileParser {
   bool is_interface() const { return _access_flags.is_interface(); }
   // Being an inline type means being a concrete value class
   bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
-  bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
   bool has_inlined_fields() const { return _layout_info->_has_inlined_fields; }
 
