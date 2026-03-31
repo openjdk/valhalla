@@ -2006,7 +2006,7 @@ bool Compile::clear_argument_if_only_used_as_buffer_at_calls(Node* result_cast, 
         uint nargs = call->tf()->domain_cc()->cnt();
         for (uint k = TypeFunc::Parms; k < nargs; k++) {
           Node* in = call->in(k);
-          if (in == n &&!call->method()->is_scalarized_buffer_arg(k - TypeFunc::Parms)) {
+          if (in == n && !call->method()->is_scalarized_buffer_arg(k - TypeFunc::Parms)) {
             return false;
           }
         }
