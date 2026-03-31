@@ -123,6 +123,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, Symbol* name) {
     clear_native_function();
     set_signature_handler(nullptr);
   }
+
   NOT_PRODUCT(set_compiled_invocation_count(0);)
   // Name is very useful for debugging.
   NOT_PRODUCT(_name = name;)

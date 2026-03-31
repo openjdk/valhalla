@@ -36,6 +36,7 @@ static constexpr u4 flag_mask(int pos) {
   return (u4)1 << pos;
 }
 
+
 // Helper class for access to the underlying Array<u1> used to
 // store the compressed stream of FieldInfo
 template<typename ARR, typename OFF>
