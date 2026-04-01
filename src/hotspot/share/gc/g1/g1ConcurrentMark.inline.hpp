@@ -178,8 +178,8 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool 
         _words_scanned += obj->oop_iterate_size(_cm_oop_closure);
       }
     }
-  } else if (!task_entry.to_oop()->is_typeArray()) {
-    // Need to process the klass except for the built-in type array.
+  } else {
+    // Need to process the klass always.
     _cm_oop_closure->do_klass(task_entry.to_oop()->klass());
   }
   check_limits();
