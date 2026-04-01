@@ -67,6 +67,7 @@ class B extends A {
 
 public class TestMakeFromOopReturnValue {
     public static void test() {
+        // B needs to be loaded so that we don't get an exact type for the receiver in the OSR compilation
         new B();
         A a = new A();
 
