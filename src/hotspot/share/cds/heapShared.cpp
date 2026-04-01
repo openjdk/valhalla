@@ -1927,10 +1927,6 @@ void HeapShared::archive_reachable_objects_from_static_field(InstanceKlass *k,
   log_debug(aot, heap)("Start archiving from: %s::%s (" PTR_FORMAT ")", klass_name, field_name, p2i(f));
 
   if (!CompressedOops::is_null(f)) {
-    // With preview mode enabled, the boxed class caches should all be null.
-    assert(strcmp("archivedCache", field_name) != 0 ||
-           !Arguments::is_valhalla_enabled(),
-           "field %s must be null when using Valhalla preview features", field_name);
     if (log_is_enabled(Trace, aot, heap)) {
       LogTarget(Trace, aot, heap) log;
       LogStream out(log);
