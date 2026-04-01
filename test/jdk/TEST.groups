@@ -172,6 +172,9 @@ jdk_util = \
     :jdk_concurrent \
     :jdk_stream
 
+valhalla_adopted = \
+    java/util/Collections/AddAll.java
+
 # All util components not part of some other util category
 jdk_util_other = \
     java/util \
