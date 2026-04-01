@@ -28,7 +28,6 @@
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
- * @build jdk.test.lib.valueclass.AsValueClass
  * @run main AddAll
  */
 

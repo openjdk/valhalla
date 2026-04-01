@@ -883,9 +883,6 @@ define SetupRunJtregTestBody
 
   ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_PLUGIN_JAR)), )
     $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_PLUGIN_JAR)
-    ifneq ($$(findstring --enable-preview, $$(JTREG_VM_OPTIONS) $$(JTREG_JAVA_OPTIONS)), )
-      JTREG_VALUE_CLASS_PLUGIN ?= true
-    endif
   endif
 
   ifneq ($$(JTREG_VALUE_CLASS_PLUGIN), )
