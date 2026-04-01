@@ -1618,26 +1618,24 @@ class LIR_OpSubstitutabilityCheck: public LIR_Op {
   LIR_Opr       _right;
   LIR_Opr       _equal_result;
   LIR_Opr       _not_equal_result;
-  LIR_Opr       _tmp;
   ciKlass*      _left_klass;
   ciKlass*      _right_klass;
-  LIR_Opr       _left_klass_op;
-  LIR_Opr       _right_klass_op;
+  LIR_Opr       _tmp1;
+  LIR_Opr       _tmp2;
   CodeStub*     _stub;
 public:
   LIR_OpSubstitutabilityCheck(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
-                              LIR_Opr tmp, ciKlass* left_klass, ciKlass* right_klass, LIR_Opr left_klass_op, LIR_Opr right_klass_op,
+                              ciKlass* left_klass, ciKlass* right_klass, LIR_Opr tmp1, LIR_Opr tmp2,
                               CodeEmitInfo* info, CodeStub* stub);
 
   LIR_Opr left() const             { return _left; }
   LIR_Opr right() const            { return _right; }
   LIR_Opr equal_result() const     { return _equal_result; }
   LIR_Opr not_equal_result() const { return _not_equal_result; }
-  LIR_Opr tmp() const              { return _tmp; }
   ciKlass* left_klass() const      { return _left_klass; }
   ciKlass* right_klass() const     { return _right_klass; }
-  LIR_Opr left_klass_op() const    { return _left_klass_op; }
-  LIR_Opr right_klass_op() const   { return _right_klass_op; }
+  LIR_Opr tmp1() const             { return _tmp1; }
+  LIR_Opr tmp2() const             { return _tmp2; }
   CodeStub* stub() const           { return _stub; }
 
   virtual void emit_code(LIR_Assembler* masm);
@@ -2434,7 +2432,7 @@ class LIR_List: public CompilationResourceObj {
   void check_flat_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub);
   void check_null_free_array(LIR_Opr array, LIR_Opr tmp);
   void substitutability_check(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
-                              LIR_Opr tmp, ciKlass* left_klass, ciKlass* right_klass, LIR_Opr left_klass_op, LIR_Opr right_klass_op,
+                              ciKlass* left_klass, ciKlass* right_klass, LIR_Opr tmp1, LIR_Opr tmp2,
                               CodeEmitInfo* info, CodeStub* stub);
 
   void checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,

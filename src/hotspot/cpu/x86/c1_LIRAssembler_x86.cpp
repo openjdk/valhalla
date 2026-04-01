@@ -1616,7 +1616,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    Register tmp = op->tmp()->as_register();
+    Register tmp = op->tmp1()->as_register();
     __ movptr(tmp, (intptr_t)markWord::inline_type_pattern);
     __ andptr(tmp, Address(left, oopDesc::mark_offset_in_bytes()));
     __ andptr(tmp, Address(right, oopDesc::mark_offset_in_bytes()));
@@ -1629,8 +1629,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     // No need to load klass -- the operands are statically known to be the same inline klass.
     __ jmp(*op->stub()->entry());
   } else {
-    Register tmp1 = op->tmp()->as_register();
-    Register tmp2 = UseCompactObjectHeaders ? rscratch2 : noreg;
+    Register tmp1 = op->tmp1()->as_register();
+    Register tmp2 = op->tmp2()->as_register();
     __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
     __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal

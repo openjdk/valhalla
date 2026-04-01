@@ -3288,30 +3288,21 @@ void LIRGenerator::substitutability_check_common(Value left_val, Value right_val
                                                  LIR_Opr equal_result, LIR_Opr not_equal_result, LIR_Opr result,
                                                  CodeEmitInfo* info) {
   LIR_Opr tmp1 = LIR_OprFact::illegalOpr;
-  LIR_Opr left_klass_op = LIR_OprFact::illegalOpr;
-  LIR_Opr right_klass_op = LIR_OprFact::illegalOpr;
+  LIR_Opr tmp2 = LIR_OprFact::illegalOpr;
 
-  ciKlass* left_klass  = left_val ->as_loaded_klass_or_null();
+  ciKlass* left_klass = left_val->as_loaded_klass_or_null();
   ciKlass* right_klass = right_val->as_loaded_klass_or_null();
-
-  if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
-      !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    // We need one temp register to check whether both oops have the markWord::inline_type_pattern.
-    // See LIR_Assembler::emit_opSubstitutabilityCheck().
-    tmp1 = new_register(T_INT);
-  }
-
   if (left_klass != nullptr && left_klass->is_inlinetype() && left_klass == right_klass) {
     // No need to load klass -- the operands are statically known to be the same inline klass.
   } else {
     BasicType t_klass = UseCompressedOops ? T_INT : T_METADATA;
-    left_klass_op = new_register(t_klass);
-    right_klass_op = new_register(t_klass);
+    tmp1 = new_register(t_klass);
+    tmp2 = new_register(t_klass);
   }
 
   CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), info);
   __ substitutability_check(result, left.result(), right.result(), equal_result, not_equal_result,
-                            tmp1, left_klass, right_klass, left_klass_op, right_klass_op, info, slow_path);
+                            left_klass, right_klass, tmp1, tmp2, info, slow_path);
 }
 
 void LIRGenerator::do_RuntimeCall(address routine, Intrinsic* x) {
