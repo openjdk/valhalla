@@ -830,7 +830,9 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false, bool maybe_larval = false);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node** failure_control = nullptr,
+                      SafePointNode** new_cast_failure_map = nullptr, bool null_free = false,
+                      bool maybe_larval = false);
 
   // Inline types
   Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);

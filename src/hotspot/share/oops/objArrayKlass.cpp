@@ -252,7 +252,6 @@ objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass* ld_klass = lower_dimension();
-
   // If length < 0 allocate will throw an exception.
   objArrayOop array = allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
   assert(array->is_refined_objArray(), "Must be");

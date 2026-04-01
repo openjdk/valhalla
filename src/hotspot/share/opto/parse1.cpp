@@ -186,7 +186,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type, const TypeKlassPt
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
 
-    l = gen_checkcast(l, makecon(klass_type), &bad_type_ctrl, false, is_early_larval);
+    l = gen_checkcast(l, makecon(klass_type), &bad_type_ctrl, nullptr, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
 

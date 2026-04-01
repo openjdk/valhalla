@@ -291,7 +291,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
 #endif // ASSERT
 
   // Check (the hard way) and throw if not a subklass.
-  return gen_checkcast(obj, a_e_klass, nullptr, null_free);
+  return gen_checkcast(obj, a_e_klass, nullptr, nullptr, null_free);
 }
 
 
