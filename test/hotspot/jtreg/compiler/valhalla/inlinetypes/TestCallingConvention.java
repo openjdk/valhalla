@@ -1489,7 +1489,7 @@ public class TestCallingConvention {
     }
 
     // Method handle with a scalarized return that will always throw an exception
-    // TODO JDK-8367624 this should be re-introduced once fixed
+    // TODO JDK-8380927 this should be re-introduced once fixed
     // @Test
     // public static MyValue2 test59(MyValue2 val) throws Throwable {
     //     return (MyValue2)test59_mh.invokeExact(val);
