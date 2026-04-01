@@ -46,7 +46,7 @@ protected:
   ciArray(typeArrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
   ciArray(flatArrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
 
-  arrayOop get_arrayOop() const { return (arrayOop)get_oop(); }
+  arrayOop get_arrayOop() const;
 
   const char* type_string() { return "ciArray"; }
 

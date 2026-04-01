@@ -40,6 +40,11 @@
 //
 // This class represents an arrayOop in the HotSpot virtual
 // machine.
+
+arrayOop ciArray::get_arrayOop() const {
+   return oop_cast<arrayOop>(get_oop());
+}
+
 static BasicType fixup_element_type(BasicType bt) {
   if (bt == T_FLAT_ELEMENT) return T_OBJECT;
   if (is_reference_type(bt))  return T_OBJECT;
