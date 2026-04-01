@@ -2168,10 +2168,9 @@ void FlatObjectDumper::dump_flat_objects(AbstractDumpWriter* writer, oop holder,
 // Callback to dump thread-related data for unmounted virtual threads;
 // implemented by VM_HeapDumper.
 class UnmountedVThreadDumper {
-public:
+ public:
   virtual void dump_vthread(oop vt, AbstractDumpWriter* segment_writer) = 0;
 };
-
 
 // Support class used when iterating over the heap.
 class HeapObjectDumper : public ObjectClosure {

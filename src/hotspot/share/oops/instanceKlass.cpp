@@ -23,6 +23,7 @@
  */
 
 #include "cds/aotClassInitializer.hpp"
+#include "cds/aotLinkedClassBulkLoader.hpp"
 #include "cds/aotMetaspace.hpp"
 #include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
@@ -179,6 +180,7 @@ void InlineLayoutInfo::print_on(outputStream* st) const {
 }
 
 bool InstanceKlass::_finalization_enabled = true;
+static int call_class_initializer_counter = 0;   // for debugging
 
 static inline bool is_class_loader(const Symbol* class_name,
                                    const ClassFileParser& parser) {
@@ -1006,7 +1008,9 @@ void InstanceKlass::assert_no_clinit_will_run_for_aot_initialized_class() const 
 #endif
 
 #if INCLUDE_CDS
-void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
+// early_init -- we are moving this class into the fully_initialized state before the
+// JVM is able to execute any bytecodes. See AOTLinkedClassBulkLoader::is_initializing_classes_early().
+void InstanceKlass::initialize_with_aot_initialized_mirror(bool early_init, TRAPS) {
   assert(has_aot_initialized_mirror(), "must be");
   assert(CDSConfig::is_loading_heap(), "must be");
   assert(CDSConfig::is_using_aot_linked_classes(), "must be");
@@ -1016,15 +1020,36 @@ void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
     return;
   }
 
+  if (log_is_enabled(Info, aot, init)) {
+    ResourceMark rm;
+    log_info(aot, init)("%s (aot-inited%s)", external_name(), early_init ? ", early" : "");
+  }
+
   if (is_runtime_setup_required()) {
+    assert(!early_init, "must not call");
     // Need to take the slow path, which will call the runtimeSetup() function instead
     // of <clinit>
     initialize(CHECK);
     return;
   }
-  if (log_is_enabled(Info, aot, init)) {
-    ResourceMark rm;
-    log_info(aot, init)("%s (aot-inited)", external_name());
+
+  LogTarget(Info, class, init) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm(THREAD);
+    LogStream ls(lt);
+    ls.print("%d Initializing ", call_class_initializer_counter++);
+    name()->print_value_on(&ls);
+    ls.print_cr("(aot-inited) (" PTR_FORMAT ") by thread \"%s\"",
+                p2i(this), THREAD->name());
+  }
+
+  if (early_init) {
+    precond(AOTLinkedClassBulkLoader::is_initializing_classes_early());
+    precond(is_linked());
+    precond(init_thread() == nullptr);
+    set_init_state(fully_initialized);
+    fence_and_clear_init_lock();
+    return;
   }
 
   link_class(CHECK);
@@ -1540,6 +1565,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
+
   // Step 8
   {
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
@@ -1984,8 +2010,6 @@ ArrayKlass* InstanceKlass::array_klass_or_null() {
   return array_klass_or_null(1);
 }
 
-static int call_class_initializer_counter = 0;   // for debugging
-
 Method* InstanceKlass::class_initializer() const {
   Method* clinit = find_method(
       vmSymbols::class_initializer_name(), vmSymbols::void_method_signature());
@@ -2197,6 +2221,7 @@ bool InstanceKlass::find_local_field_from_offset(int offset, bool is_static, fie
   }
   return false;
 }
+
 
 bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const {
   const InstanceKlass* klass = this;
@@ -4105,7 +4130,6 @@ void InstanceKlass::print_on(outputStream* st) const {
       st->cr();
     }
   }
-
 
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
   st->print(BULLET"methods:           ");

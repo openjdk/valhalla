@@ -57,6 +57,8 @@ final class ValueObjectMethods {
         // This method assumes a and b are not null and they are both instances of the same value class
         final Unsafe U = UNSAFE;
         int[] map = U.getFieldMap(a.getClass());
+        // map format is:
+        // [number_of_nonref_entries][offset0][size0][offset1][size1]...[ref_offset0][ref_offset1]...
         int nbNonRef = map[0];
         for (int i = 0; i < nbNonRef; i++) {
             int offset = map[i * 2 + 1];

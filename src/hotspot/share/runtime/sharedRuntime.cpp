@@ -88,6 +88,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
@@ -937,7 +938,7 @@ void SharedRuntime::throw_StackOverflowError_common(JavaThread* current, bool de
   // bindings.
   current->clear_scopedValueBindings();
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   throw_and_post_jvmti_exception(current, exception);
 }
 
@@ -1701,8 +1702,6 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread* c
   return get_resolved_entry(current, callee_method, false, true, caller_does_not_scalarize);
 JRT_END
 
-
-
 methodHandle SharedRuntime::handle_ic_miss_helper(bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
@@ -1846,6 +1845,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_optimized, bool& caller
             }
             break;
           }
+
           case relocInfo::virtual_call_type: {
             if (do_IC_clearing) {
               // compiled, dispatched call (which used to call an interpreted method)
@@ -2901,6 +2901,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
           (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
+        _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
         has_scalarized = true;
         _has_inline_recv = true;
         _num_inline_args++;
@@ -2971,9 +2972,12 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             int last_ro = _sig_cc_ro->length();
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
+            // buffer argument
+            _sig_cc->insert_before(last + 1, SigEntry(T_OBJECT, 0, nullptr, false, true));
+            _sig_cc_ro->insert_before(last_ro + 1, SigEntry(T_OBJECT, 0, nullptr, false, true));
             // Insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
-            _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
-            _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
+            _sig_cc->insert_before(last + 2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
+            _sig_cc_ro->insert_before(last_ro + 2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
           }
         } else {
           SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
@@ -3009,7 +3013,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     // Upper bound on stack arguments to avoid hitting the argument limit and
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
-    if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 60) {
+    if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 75) {
       return; // Success
     }
   }
@@ -3032,6 +3036,8 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
   bool has_scalarized_arguments = false;
   bool long_prev = false;
   int long_prev_offset = -1;
+  bool skipping_inline_recv = false;
+  bool receiver_handled = false;
 
   fingerprint->iterate_args([&] (const AdapterFingerPrint::Element& arg) {
     BasicType bt = arg.bt();
@@ -3048,8 +3054,11 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       if (value_object_count == 0) {
         SigEntry::add_entry(_sig, bt_to_add);
       }
+      assert(long_prev_offset != 0, "no buffer argument here");
       SigEntry::add_entry(_sig_cc, bt_to_add, nullptr, long_prev_offset);
-      SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
+      if (!skipping_inline_recv) {
+        SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
+      }
     }
 
     switch (bt) {
@@ -3058,7 +3067,11 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
           value_object_count--;
           SigEntry::add_entry(_sig_cc, T_VOID, nullptr, offset);
-          SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+          if (!skipping_inline_recv) {
+            SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
+          } else if (value_object_count == 0) {
+            skipping_inline_recv = false;
+          }
           assert(value_object_count >= 0, "invalid value object count");
         } else {
           // Nothing to add for _sig: We already added an addition T_VOID in add_entry() when adding T_LONG or T_DOUBLE.
@@ -3071,7 +3084,9 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           SigEntry::add_entry(_sig, bt);
         }
         SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        if (!skipping_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        }
         break;
       case T_LONG:
         long_prev = true;
@@ -3084,8 +3099,11 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       case T_OBJECT:
       case T_ARRAY:
         assert(value_object_count > 0, "must be value object field");
-        SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
+        assert(offset != 0 || (bt == T_OBJECT && prev_bt == T_METADATA), "buffer input expected here");
+        SigEntry::add_entry(_sig_cc, bt, nullptr, offset, offset == -1, offset == 0);
+        if (!skipping_inline_recv) {
+          SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset, offset == -1, offset == 0);
+        }
         break;
       case T_METADATA:
         assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
@@ -3093,7 +3111,15 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
           SigEntry::add_entry(_sig, T_OBJECT);
         }
         SigEntry::add_entry(_sig_cc, T_METADATA, nullptr, offset);
-        SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
+        if (!skipping_inline_recv) {
+          if (!receiver_handled && _has_inline_recv && value_object_count == 0) {
+            SigEntry::add_entry(_sig_cc_ro, T_OBJECT);
+            skipping_inline_recv = true;
+            receiver_handled = true;
+          } else {
+            SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
+          }
+        }
         value_object_count++;
         has_scalarized_arguments = true;
         break;
@@ -3111,6 +3137,17 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
     SigEntry::add_entry(_sig_cc_ro, T_OBJECT);
   }
   assert(value_object_count == 0, "invalid value object count");
+
+#ifdef ASSERT
+  if (_has_inline_recv) {
+    // In RO signatures, inline receivers must be represented as a single T_OBJECT
+    assert(_sig_cc_ro->length() >= 1, "sig_cc_ro must include receiver");
+    assert(_sig_cc_ro->at(0)._bt == T_OBJECT,
+           "sig_cc_ro must represent inline receiver as T_OBJECT");
+    assert(_sig_cc_ro->length() <= _sig_cc->length(),
+           "sig_cc_ro must not be longer than sig_cc");
+  }
+#endif
 
   _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
@@ -3475,7 +3512,6 @@ void AdapterHandlerEntry::link() {
   } else {
     generate_code = true;
   }
-
   if (generate_code) {
     CompiledEntrySignature ces;
     ces.initialize_from_fingerprint(_fingerprint);
@@ -4021,9 +4057,25 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* current) {
 // buffers for all inline type arguments. Allocate an object array to
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
-oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS) {
+oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, bool from_c1, TRAPS) {
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
+
+  // Retrieve arguments passed at the call
+  RegisterMap reg_map2(THREAD,
+                       RegisterMap::UpdateMap::include,
+                       RegisterMap::ProcessFrames::include,
+                       RegisterMap::WalkContinuation::skip);
+  frame stubFrame = THREAD->last_frame();
+  frame callerFrame = stubFrame.sender(&reg_map2);
+  if (from_c1) {
+    callerFrame = callerFrame.sender(&reg_map2);
+  }
+  int arg_size;
+  const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
+  assert(sig != nullptr, "sig should never be null");
+  TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
+  VMRegPair* reg_pairs = find_callee_arguments(tmp_sig, false, false, &arg_size);
 
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
@@ -4041,22 +4093,74 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
       arg_num++;
     }
   }
-  refArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
-  refArrayHandle array(THREAD, array_oop);
+  objArrayOop array_oop = nullptr;
+  objArrayHandle array;
   arg_num = callee->is_static() ? 0 : 1;
   int i = 0;
+  uint pos = 0;
+  uint depth = 0;
+  uint ignored = 0;
   if (allocate_receiver) {
+    assert(sig->at(pos)._bt == T_METADATA, "scalarized value expected");
+    pos++;
+    ignored++;
+    depth++;
+    assert(sig->at(pos)._bt == T_OBJECT, "buffer argument");
+    uint reg_pos = 0;
+    assert(reg_pos < (uint)arg_size, "");
+    VMRegPair reg_pair = reg_pairs[reg_pos];
+    oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
     InlineKlass* vk = InlineKlass::cast(holder);
-    oop res = vk->allocate_instance(CHECK_NULL);
-    array->obj_at_put(i++, res);
+    if (*buffer != nullptr) {
+      assert((*buffer)->klass() == vk, "buffer not of expected class");
+    } else {
+      // Only allocate if buffer passed at the call is null
+      if (array_oop == nullptr) {
+        array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
+        array = objArrayHandle(THREAD, array_oop);
+      }
+      oop res = vk->allocate_instance(CHECK_NULL);
+      array->obj_at_put(i, res);
+    }
+    i++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
     if (bt == T_OBJECT && callee->is_scalarized_arg(arg_num)) {
+      while (true) {
+        BasicType bt = sig->at(pos)._bt;
+        if (bt == T_METADATA) {
+          depth++;
+          ignored++;
+          if (depth == 1) {
+            break;
+          }
+        } else if (bt == T_VOID && sig->at(pos - 1)._bt != T_LONG && sig->at(pos - 1)._bt != T_DOUBLE) {
+          ignored++;
+          depth--;
+        }
+        pos++;
+      }
+      pos++;
+      assert(sig->at(pos)._bt == T_OBJECT, "buffer argument expected");
+      uint reg_pos = pos - ignored;
+      assert(reg_pos < (uint)arg_size, "out of bound register?");
+      VMRegPair reg_pair = reg_pairs[reg_pos];
+      oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
       InlineKlass* vk = ss.as_inline_klass(holder);
       assert(vk != nullptr, "Unexpected klass");
-      oop res = vk->allocate_instance(CHECK_NULL);
-      array->obj_at_put(i++, res);
+      if (*buffer != nullptr) {
+        assert((*buffer)->klass() == vk, "buffer not of expected class");
+      } else {
+        // Only allocate if buffer passed at the call is null
+        if (array_oop == nullptr) {
+          array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
+          array = objArrayHandle(THREAD, array_oop);
+        }
+        oop res = vk->allocate_instance(CHECK_NULL);
+        array->obj_at_put(i, res);
+      }
+      i++;
     }
     if (bt != T_VOID) {
       arg_num++;
@@ -4067,7 +4171,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
 
 JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method* callee_method, bool allocate_receiver))
   methodHandle callee(current, callee_method);
-  oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, CHECK);
+  oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, false, CHECK);
   current->set_vm_result_oop(array);
   current->set_vm_result_metadata(callee()); // TODO: required to keep callee live?
 JRT_END

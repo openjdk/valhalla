@@ -125,7 +125,6 @@ static bool equal_oops(oop obj1, oop obj2) {
   return false;
 }
 
-
 bool JvmtiHeapwalkObject::equals(const JvmtiHeapwalkObject& obj1, const JvmtiHeapwalkObject& obj2) {
   if (obj1 == obj2) { // the same oop/offset/inline_klass
     return true;
@@ -137,7 +136,6 @@ bool JvmtiHeapwalkObject::equals(const JvmtiHeapwalkObject& obj1, const JvmtiHea
   }
   return false;
 }
-
 
 JvmtiTagMapKey::JvmtiTagMapKey(const JvmtiHeapwalkObject* obj) : _obj(obj) {
 }
@@ -315,7 +313,6 @@ void JvmtiTagMapTable::remove_dead_entries(GrowableArray<jlong>* objects) {
   _table.unlink(&is_dead);
 }
 
-
 JvmtiFlatTagMapKey::JvmtiFlatTagMapKey(const JvmtiHeapwalkObject& obj)
   : _holder(obj.obj()), _offset(obj.offset()), _inline_klass(obj.inline_klass()), _layout_kind(obj.layout_kind()) {
 }
@@ -368,7 +365,6 @@ bool JvmtiFlatTagMapKey::equals(const JvmtiFlatTagMapKey& lhs, const JvmtiFlatTa
   }
   return false;
 }
-
 
 JvmtiFlatTagMapTable::JvmtiFlatTagMapTable(): _table(INITIAL_TABLE_SIZE, MAX_TABLE_SIZE) {}
 

@@ -68,11 +68,19 @@ class OopMapBlocksBuilder : public ResourceObj {
   void print_value_on(outputStream* st) const;
 };
 
+struct AcmpMapSegment {
+  int _offset;
+  int _size;
+  AcmpMapSegment() = default;
+  AcmpMapSegment(int offset, int size)
+    : _offset(offset), _size(size) {}
+};
+
 // Values needed for oopmap and InstanceKlass creation
 class FieldLayoutInfo : public ResourceObj {
  public:
   OopMapBlocksBuilder* oop_map_blocks;
-  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<AcmpMapSegment>* _nonoop_acmp_map;
   GrowableArray<int>* _oop_acmp_map;
   int _instance_size;
   int _nonstatic_field_size;

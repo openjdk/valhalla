@@ -238,6 +238,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
           if (entry._null_marker) {
             tty->print(" (null marker)");
           }
+          if (entry._vt_oop) {
+            tty->print(" (VT OOP)");
+          }
           tty->print_cr("");
         }
       }
@@ -427,11 +430,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
       break;
     }
     case T_LONG: {
-#ifdef _LP64
-      new_vt->double_field_put(off,  *(jdouble*)loc);
-#else
-      Unimplemented();
-#endif
+      new_vt->long_field_put(off, *(jlong*)loc);
       break;
     }
     case T_OBJECT:
@@ -441,7 +440,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
       break;
     }
     case T_FLOAT: {
-      new_vt->float_field_put(off,  *(jfloat*)loc);
+      new_vt->float_field_put(off, *(jfloat*)loc);
       break;
     }
     case T_DOUBLE: {

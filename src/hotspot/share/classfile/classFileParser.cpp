@@ -1499,7 +1499,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
           }
           is_null_restricted = true;
         }
-        parsed_annotations.set_field_annotations(nullptr);
       }
       if (parsed_annotations.field_type_annotations() != nullptr) {
         if (_fields_type_annotations == nullptr) {
@@ -5552,7 +5551,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     // All maps are stored contiguously in a single int array because it might
     // be too early to instantiate an Object array (to be investigated)
     // Format is:
-    // [number_of_nonoop_entries][offset0][size[0][offset1][size1]...[oop_offset0][oop_offset1]...
+    // [number_of_nonoop_entries][offset0][size0][offset1][size1]...[oop_offset0][oop_offset1]...
     //                           ^               ^
     //                           |               |
     //                           --------------------- Pair of integer describing a segment of
@@ -5573,12 +5572,12 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
     acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
     for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
-      map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
-      map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+      map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i)._offset);
+      map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i)._size);
 
       // Also store acmp maps as metadata for regeneration when using dynamic archive or AOT training data.
-      acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
-      acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+      acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i)._offset);
+      acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i)._size);
     }
     int oop_map_start = nonoop_acmp_map_size + 1;
     for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {

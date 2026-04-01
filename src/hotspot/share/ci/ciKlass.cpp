@@ -264,16 +264,6 @@ const char* ciKlass::external_name() const {
 }
 
 // ------------------------------------------------------------------
-// ciKlass::prototype_header_offset
-juint ciKlass::prototype_header_offset() {
-  assert(is_loaded(), "must be loaded");
-
-  VM_ENTRY_MARK;
-  Klass* this_klass = get_Klass();
-  return in_bytes(this_klass->prototype_header_offset());
-}
-
-// ------------------------------------------------------------------
 // ciKlass::prototype_header
 uintptr_t ciKlass::prototype_header() {
   assert(is_loaded(), "must be loaded");

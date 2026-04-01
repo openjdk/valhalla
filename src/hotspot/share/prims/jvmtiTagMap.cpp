@@ -135,7 +135,6 @@ public:
   }
 };
 
-
 bool JvmtiTagMap::_has_object_free_events = false;
 
 // create a JvmtiTagMap
@@ -335,7 +334,6 @@ public:
   }
 };
 
-
 void JvmtiTagMap::convert_flat_object_entries() {
   Thread* current = Thread::current();
   assert(current->is_Java_thread(), "must be executed on JavaThread");
@@ -412,7 +410,6 @@ void JvmtiTagMap::remove(const JvmtiHeapwalkObject& obj) {
     }
   }
 }
-
 
 // A CallbackWrapper is a support class for querying and tagging an object
 // around a callback to a profiler. The constructor does pre-callback
@@ -572,6 +569,7 @@ void JvmtiTagMap::set_tag(jobject object, jlong tag) {
 
   // resolve the object
   oop o = JNIHandles::resolve_non_null(object);
+
   // see if the object is already tagged
   JvmtiHeapwalkObject obj(o);
   if (tag == 0) {
@@ -1842,7 +1840,6 @@ class CallbackInvoker : AllStatic {
     assert(!obj.is_flat(), "array cannot be flat");
     return (jint)arrayOop(obj.obj())->length();
   }
-
 
   // invoke basic style callbacks
   static inline bool invoke_basic_heap_root_callback
