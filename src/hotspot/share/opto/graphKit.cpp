@@ -2127,6 +2127,10 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
     } else if (!call->method()->return_value_is_larval() && _gvn.type(ret)->is_inlinetypeptr()) {
+      // In Parse::do_call we call make_from_oop on the final result of the call, but this could be the
+      // result of merging several call paths. If one of them is made of an actual call node that
+      // returns an oop, we need to call make_from_oop here as well because we want InlineType
+      // nodes on every path to avoid merging an unallocated InlineType node path with an oop path.
       ret = InlineTypeNode::make_from_oop(this, ret, _gvn.type(ret)->inline_klass());
     }
   }
