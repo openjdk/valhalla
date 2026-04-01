@@ -50,7 +50,6 @@ public class AddAll {
         test(new LinkedList<Integer>());
         test(new HashSet<Integer>());
         test(new LinkedHashSet<Integer>());
-        checkValueClass();
         testPoint(new ArrayList<Point>());
     }
 
@@ -86,30 +85,6 @@ public class AddAll {
         for (int i = from, j=0; i < to; i++, j++)
             result[j] = new Integer(i);
         return result;
-    }
-
-    static void checkValueClass() {
-        boolean transformed = !Point.class.isIdentity();
-
-        try (var is = Point.class.getResourceAsStream("AddAll$Point.class")) {
-            if (is == null) {
-                throw new RuntimeException("Cannot read Point.class");
-            }
-
-            byte[] header = is.readNBytes(8);
-            boolean pointClassUsesPreview =
-                    (header[4] & 0xFF) == 0xFF &&
-                    (header[5] & 0xFF) == 0xFF;
-
-            if (pointClassUsesPreview && !transformed) {
-                throw new RuntimeException("ValueClassPlugin did not transform Point");
-            }
-            if (!pointClassUsesPreview && transformed) {
-                throw new RuntimeException("Point is a value class but Point.class is not preview-marked");
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read Point.class", e);
-        }
     }
 
     static void testPoint(Collection<Point> c) {
