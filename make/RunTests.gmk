@@ -94,7 +94,6 @@ JTREG_TEST_THREAD_FACTORY_DIR := $(TEST_IMAGE_DIR)/jtreg_test_thread_factory
 JTREG_TEST_THREAD_FACTORY_JAR := $(JTREG_TEST_THREAD_FACTORY_DIR)/jtregTestThreadFactory.jar
 
 JTREG_VALUE_CLASS_PLUGIN_DIR := $(TEST_IMAGE_DIR)/jtreg_value_class_plugin
-JTREG_VALUE_CLASS_ANNOTATION_JAR := $(JTREG_VALUE_CLASS_PLUGIN_DIR)/valueClassAnnotation.jar
 JTREG_VALUE_CLASS_PLUGIN_JAR := $(JTREG_VALUE_CLASS_PLUGIN_DIR)/valueClassPlugin.jar
 
 JTREG_FAILURE_HANDLER_TIMEOUT ?= 0
@@ -881,11 +880,10 @@ define SetupRunJtregTestBody
     ))
   endif
 
-  ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_PLUGIN_JAR)), )
-    $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_PLUGIN_JAR)
-  endif
-
   ifneq ($$(JTREG_VALUE_CLASS_PLUGIN), )
+    ifneq ($$(wildcard $$(JTREG_VALUE_CLASS_PLUGIN_JAR)), )
+      $1_JTREG_BASIC_OPTIONS += -cpa:$$(JTREG_VALUE_CLASS_PLUGIN_JAR)
+    endif
     $1_JTREG_BASIC_OPTIONS += -vmoption:--enable-preview
     $1_JTREG_BASIC_OPTIONS += -javacoption:-XDaccessInternalAPI
     $1_JTREG_BASIC_OPTIONS += -javacoption:--source -javacoption:$(VERSION_FEATURE)
