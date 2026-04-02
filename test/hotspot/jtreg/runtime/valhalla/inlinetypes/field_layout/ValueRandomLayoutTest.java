@@ -141,10 +141,8 @@ public class ValueRandomLayoutTest {
           ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, tempWorkDir,testArgs);
           OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
-          if (out.getExitValue() != 0) {
-              System.out.print(out.getOutput());
-          }
-          Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+          // Checking the status of the process execution before trying to parse the output
+          out.shouldHaveExitValue(0);
 
           // Get and parse the test output
           FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());

@@ -328,7 +328,7 @@ public class <class_name> {
         IllegalAccessException iae = null;
         field = c.getDeclaredField("fv");
         o = field.get(this);
-        Asserts.assertEquals(o,  <value_class_name>.getPredefinedValue(1));
+        Asserts.assertEquals(o, <value_class_name>.getPredefinedValue(1));
         try {
             field.set(this, <value_class_name>.getPredefinedValue(2));
             Asserts.assertFalse(true, "Should not reach here");
@@ -349,7 +349,7 @@ public class <class_name> {
         iae = null;
         field = c.getDeclaredField("nrfv");
         o = field.get(this);
-        Asserts.assertEquals(o,  <value_class_name>.getPredefinedValue(1));
+        Asserts.assertEquals(o, <value_class_name>.getPredefinedValue(1));
         try {
             field.set(this, <value_class_name>.getPredefinedValue(2));
             Asserts.assertFalse(true, "Should not reach here");
@@ -395,7 +395,7 @@ public class <class_name> {
         o = field.get(null);
         Asserts.assertNotNull(o);
         try {
-          field .set(null, <value_class_name>.getPredefinedValue(2));
+          field.set(null, <value_class_name>.getPredefinedValue(2));
           o = field.get(null);
             Asserts.assertEquals(o, <value_class_name>.getPredefinedValue(2));
         } catch(NullPointerException n) {

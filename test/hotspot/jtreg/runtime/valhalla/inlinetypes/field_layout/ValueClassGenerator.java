@@ -338,9 +338,11 @@ public class ValueClassGenerator {
             for (int i = 0; i < fields.size(); i++) {
                 FieldDesc fd = fields.get(i);
                 int idx = 0;
-                do {
+                if (fd.isNullRestricted) {
+                  idx = random.nextInt(NUM_PREDEFINED_VALUES - 1) + 1;
+                } else {
                   idx = random.nextInt(NUM_PREDEFINED_VALUES);
-                } while(fd.isNullRestricted && idx == 0);
+                }
                 String arg = fd.type.getPrecomputedValueAsString(idx);
                 args.append(arg);
                 if (!fd.type.allowDuplicates()) id.append(arg);
