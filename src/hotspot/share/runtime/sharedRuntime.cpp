@@ -3347,6 +3347,9 @@ bool AdapterHandlerLibrary::generate_adapter_code(AdapterHandlerEntry* handler,
     GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
     heap_sig->appendAll(ces.sig_cc());
     handler->set_sig_cc(heap_sig);
+    heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro()->length(), mtInternal);
+    heap_sig->appendAll(ces.sig_cc_ro());
+    handler->set_sig_cc_ro(heap_sig);
   }
   // On zero there is no code to save and no need to create a blob and
   // or relocate the handler.
@@ -3507,6 +3510,9 @@ void AdapterHandlerEntry::link() {
         GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
         heap_sig->appendAll(ces.sig_cc());
         set_sig_cc(heap_sig);
+        heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro()->length(), mtInternal);
+        heap_sig->appendAll(ces.sig_cc_ro());
+        set_sig_cc_ro(heap_sig);
       }
     }
   } else {
@@ -4072,7 +4078,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     callerFrame = callerFrame.sender(&reg_map2);
   }
   int arg_size;
-  const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
+  const GrowableArray<SigEntry>* sig = allocate_receiver ? callee->adapter()->get_sig_cc() : callee->adapter()->get_sig_cc_ro();
   assert(sig != nullptr, "sig should never be null");
   TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
   VMRegPair* reg_pairs = find_callee_arguments(tmp_sig, false, false, &arg_size);
