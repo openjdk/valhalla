@@ -1564,7 +1564,7 @@ bool PhaseIdealLoop::flat_array_element_type_check(Node *n) {
   split_if_with_blocks_post(n);
   if (n->outcnt() != 0) {
     _igvn.replace_input_of(n, 1, orig);
-    _igvn.remove_dead_node(phi);
+    _igvn.remove_dead_node(phi, PhaseIterGVN::NodeOrigin::Graph);
   }
   return true;
 }

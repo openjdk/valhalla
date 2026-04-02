@@ -1326,7 +1326,7 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
           igvn->replace_input_of(ctl, i, igvn->C->top());
         }
       }
-      igvn->remove_dead_node(mm);
+      igvn->remove_dead_node(mm, PhaseIterGVN::NodeOrigin::Speculative);
     }
     return res;
   }
@@ -1398,7 +1398,7 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
     }
   }
   if (call_mem->outcnt() == 0) {
-    igvn->remove_dead_node(call_mem);
+    igvn->remove_dead_node(call_mem, PhaseIterGVN::NodeOrigin::Speculative);
   }
 
   // Remove membar preceding the call

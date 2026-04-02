@@ -2062,7 +2062,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
           return_val_keeps_allocations_alive(ret_val)) {
         igvn.replace_input_of(ret, TypeFunc::Parms, InlineTypeNode::tagged_klass(igvn.type(ret_val)->inline_klass(), igvn));
         assert(ret_val->outcnt() == 0, "should be dead now");
-        igvn.remove_dead_node(ret_val);
+        igvn.remove_dead_node(ret_val, PhaseIterGVN::NodeOrigin::Graph);
       }
     }
   }
@@ -2100,7 +2100,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
     while (_inline_type_nodes.length() > 0) {
       InlineTypeNode* vt = _inline_type_nodes.pop()->as_InlineType();
       if (vt->outcnt() == 0) {
-        igvn.remove_dead_node(vt);
+        igvn.remove_dead_node(vt, PhaseIterGVN::NodeOrigin::Graph);
         continue;
       }
       for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
