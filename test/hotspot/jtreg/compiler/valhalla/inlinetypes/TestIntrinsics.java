@@ -2114,4 +2114,28 @@ public class TestIntrinsics {
         }
         Asserts.assertEQ(test96(v), test96ExpectedResult);
     }
+
+    static class Empty {
+    }
+
+    static Object[] oEmptyArr = new Empty[100];
+    static Empty emptyFld = new Empty();
+    static int iFld;
+
+    @Test
+    static Object testClassCast() {
+        Object[] o = oEmptyArr;
+        Object o2 = emptyFld.getClass().cast(o[2]);
+        iFld = o.length;
+
+        // Will assert earlier when building the loop tree. Otherwise, we will only fail in matching without this line.
+        for (int i = 0; i < 100; i++) {}
+
+        return o;
+    }
+
+    @Run(test = "testClassCast")
+    static void testClassCast_verifier() {
+        testClassCast();
+    }
 }

@@ -1563,6 +1563,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
+
   // Step 8
   {
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
@@ -2218,6 +2219,7 @@ bool InstanceKlass::find_local_field_from_offset(int offset, bool is_static, fie
   }
   return false;
 }
+
 
 bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const {
   const InstanceKlass* klass = this;
@@ -4126,7 +4128,6 @@ void InstanceKlass::print_on(outputStream* st) const {
       st->cr();
     }
   }
-
 
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
   st->print(BULLET"methods:           ");

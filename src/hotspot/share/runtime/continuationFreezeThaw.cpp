@@ -2249,6 +2249,7 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
 
     f.get_cb();
     assert(f.is_compiled(), "");
+
     if (f.cb()->as_nmethod()->is_marked_for_deoptimization()) {
       // The caller of the runtime stub when the continuation is preempted is not at a
       // Java call instruction, and so cannot rely on nmethod patching for deopt.
@@ -2884,7 +2885,6 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     fsize += added_argsize;
   }
   assert(!is_bottom_frame || !augmented, "");
-
 
   // new_stack_frame must construct the resulting frame using hf.pc() rather than hf.raw_pc() because the frame is not
   // yet laid out in the stack, and so the original_pc is not stored in it.

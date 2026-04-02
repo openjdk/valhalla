@@ -2151,3 +2151,4 @@ void vmStructs_init() {
   VMStructs::init();
 }
 #endif // ASSERT
+

@@ -1211,9 +1211,9 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  if ((k->class_loader() != nullptr &&
-       k->class_loader() != SystemDictionary::java_platform_loader() &&
-       k->class_loader() != SystemDictionary::java_system_loader())) {
+  if (k->class_loader() != nullptr &&
+      k->class_loader() != SystemDictionary::java_platform_loader() &&
+      k->class_loader() != SystemDictionary::java_system_loader()) {
     // We only archive the mirrors of classes loaded by the built-in loaders
     return;
   }
@@ -1447,9 +1447,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     st->print("<null>");
     return;
   }
-  if (is_instance)  {
-    st->print("L");
-  }
+  if (is_instance)  st->print("L");
   st->write((char*) name->base(), (int) name->utf8_length());
   if (is_instance)  st->print(";");
 }

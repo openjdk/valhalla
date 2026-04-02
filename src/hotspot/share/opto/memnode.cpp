@@ -1851,7 +1851,7 @@ bool LoadNode::can_split_through_phi_base(PhaseGVN* phase) {
   intptr_t ignore  = 0;
   Node*    base    = AddPNode::Ideal_base_and_offset(address, phase, ignore);
 
-  if (base->is_CastPP()) {
+  if (base != nullptr && base->is_CastPP()) {
     base = base->in(1);
   }
 
@@ -2470,7 +2470,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
         return TypeInt::make(static_cast<jint>(klass->as_flat_array_klass()->layout_kind()));
       }
-      if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
+      if ((UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
         // The field is Klass::_prototype_header. Return its (constant) value.
         assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
         return TypeX::make(klass->prototype_header());

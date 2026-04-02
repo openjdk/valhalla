@@ -2992,6 +2992,7 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
+
 #ifndef CAN_SHOW_REGISTERS_ON_ASSERT
   UNSUPPORTED_OPTION(ShowRegistersOnAssert);
 #endif // CAN_SHOW_REGISTERS_ON_ASSERT

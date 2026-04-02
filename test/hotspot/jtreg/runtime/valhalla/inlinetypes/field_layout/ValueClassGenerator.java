@@ -305,18 +305,33 @@ public class ValueClassGenerator {
             return sb.toString();
         }
 
-        public String getRandomConstructorArgumentAsString() {
-            StringBuilder sb = new StringBuilder();
+        public String[] getRandomConstructorArgumentAsString() {
+            // This method returns two strings in an array.
+            // The first one is the String to be used in the generated source file, but it cannot be used
+            // to check the uniqueness of the generated set of values for the constructor call, because of
+            // classes allowing duplicates in their precomputed values (see JDK-8381159).
+            // So the second string is a simplified version of the first one, where the arguments for fields
+            // of types allowing duplicates are simply omitted. This second String can be used as a uniq
+            // ID for the generated String.
+            StringBuilder args = new StringBuilder();
+            StringBuilder id = new StringBuilder();
             if (superClass != null) {
-                sb.append(superClass.getRandomConstructorArgumentAsString());
-                if (fields.size() != 0) sb.append(", ");
+                String[] superArgs = superClass.getRandomConstructorArgumentAsString();
+                args.append(superArgs[0]);
+                id.append(superArgs[1]);
+                if (fields.size() != 0) args.append(", ");
             }
             for (int i = 0; i < fields.size(); i++) {
                 FieldDesc fd = fields.get(i);
-                sb.append(fd.type.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES)));
-                if (i != fields.size() - 1) sb.append(", ");
+                String arg = fd.type.getPrecomputedValueAsString(random.nextInt(NUM_PREDEFINED_VALUES));
+                args.append(arg);
+                if (!fd.type.allowDuplicates()) id.append(arg);
+                if (i != fields.size() - 1) args.append(", ");
             }
-            return sb.toString();
+            String[] res = new String[2];
+            res[0] = args.toString();
+            res[1] = id.toString();
+            return res;
         }
 
         int getNumberOfConstructorArguments() {
@@ -376,10 +391,10 @@ public class ValueClassGenerator {
             for (int i = 1; i < NUM_PREDEFINED_VALUES; i++) {
                 sb.append("\tpredefined[").append(i).append("] = new ").append(typeName).append("(");
                 boolean validNewVal = false;
+                String[] argAndId = null;
                 while (!validNewVal) {
-                    StringBuffer sb2 = new StringBuffer();
-                    sb2.append(getRandomConstructorArgumentAsString());
-                    rndVal[i] = sb2.toString();
+                    argAndId = getRandomConstructorArgumentAsString();
+                    rndVal[i] = argAndId[1];
                     if (allowDuplicates()) {
                         validNewVal = true;
                     } else {
@@ -390,7 +405,7 @@ public class ValueClassGenerator {
                         validNewVal = !alreadyUsed;
                     }
                 }
-                sb.append(rndVal[i]);
+                sb.append(argAndId[0]);
                 sb.append(");\n");
             }
             return sb.toString();

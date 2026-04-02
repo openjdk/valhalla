@@ -633,9 +633,14 @@ void Parse::do_call() {
     Node* receiver_node = stack(sp() - nargs);
     Node* cls_node = makecon(TypeKlassPtr::make(receiver_constraint, Type::trust_interfaces));
     Node* bad_type_ctrl = nullptr;
-    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
+    SafePointNode* new_cast_failure_map = nullptr;
+    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl, &new_cast_failure_map);
     if (bad_type_ctrl != nullptr) {
       PreserveJVMState pjvms(this);
+      if (new_cast_failure_map != nullptr) {
+        // The current map on the success path could have been modified. Use the dedicated failure path map.
+        set_map(new_cast_failure_map);
+      }
       set_control(bad_type_ctrl);
       uncommon_trap(Deoptimization::Reason_class_check,
                     Deoptimization::Action_none);

@@ -1069,6 +1069,7 @@ public:
 
   int size() const override;
 
+
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
   inline oop static_field_base_raw();

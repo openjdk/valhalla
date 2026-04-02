@@ -850,39 +850,38 @@ Node *AndLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   // Search for GraphKit::mark_word_test patterns and fold the test if the result is statically known
-  Node* load1 = in(1);
-  Node* load2 = nullptr;
-  if (load1->is_Phi() && phase->type(load1)->isa_long()) {
-    load1 = in(1)->in(1);
-    load2 = in(1)->in(2);
+  Node* mark_load = in(1);
+  Node* proto = nullptr;
+  if (mark_load->is_Phi() && phase->type(mark_load)->isa_long()) {
+    mark_load = in(1)->in(1);
+    proto = in(1)->in(2);
   }
-  if (load1 != nullptr && load1->is_Load() && phase->type(load1)->isa_long() &&
-      (load2 == nullptr || (load2->is_Load() && phase->type(load2)->isa_long()))) {
-    const TypePtr* adr_t1 = phase->type(load1->in(MemNode::Address))->isa_ptr();
-    const TypePtr* adr_t2 = (load2 != nullptr) ? phase->type(load2->in(MemNode::Address))->isa_ptr() : nullptr;
-    if (adr_t1 != nullptr && adr_t1->offset() == oopDesc::mark_offset_in_bytes() &&
-        (load2 == nullptr || (adr_t2 != nullptr && adr_t2->offset() == in_bytes(Klass::prototype_header_offset())))) {
+  if (mark_load != nullptr && mark_load->is_Load() && phase->type(mark_load)->isa_long()) {
+    const TypePtr* adr_t = phase->type(mark_load->in(MemNode::Address))->isa_ptr();
+    if (adr_t != nullptr && adr_t->offset() == oopDesc::mark_offset_in_bytes() &&
+        (proto == nullptr || (phase->type(proto)->isa_long() && phase->type(proto)->isa_long()->is_con()) ||
+         (proto->is_Load() && phase->type(proto->in(MemNode::Address))->isa_ptr()->offset() == in_bytes(Klass::prototype_header_offset())))) {
       if (mask == markWord::inline_type_pattern) {
-        if (adr_t1->is_inlinetypeptr()) {
+        if (adr_t->is_inlinetypeptr()) {
           set_req_X(1, in(2), phase);
           return this;
-        } else if (!adr_t1->can_be_inline_type()) {
+        } else if (!adr_t->can_be_inline_type()) {
           set_req_X(1, phase->longcon(0), phase);
           return this;
         }
       } else if (mask == markWord::null_free_array_bit_in_place) {
-        if (adr_t1->is_null_free()) {
+        if (adr_t->is_null_free()) {
           set_req_X(1, in(2), phase);
           return this;
-        } else if (adr_t1->is_not_null_free()) {
+        } else if (adr_t->is_not_null_free()) {
           set_req_X(1, phase->longcon(0), phase);
           return this;
         }
       } else if (mask == markWord::flat_array_bit_in_place) {
-        if (adr_t1->is_flat()) {
+        if (adr_t->is_flat()) {
           set_req_X(1, in(2), phase);
           return this;
-        } else if (adr_t1->is_not_flat()) {
+        } else if (adr_t->is_not_flat()) {
           set_req_X(1, phase->longcon(0), phase);
           return this;
         }

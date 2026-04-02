@@ -1619,7 +1619,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_areturn:           do_return_monitor_check();
                                         ppop1(refCTS);
                                         break;
-
     case Bytecodes::_ifnull:
     case Bytecodes::_ifnonnull:         ppop1(refCTS); break;
     case Bytecodes::_multianewarray:    do_multianewarray(*(itr->bcp()+3), itr->bci()); break;
