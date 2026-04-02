@@ -27,7 +27,9 @@
  * @summary [lworld] SharedRuntime::allocate_inline_types hits "buffer not of expected class" assert
  * @enablePreview
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI ${test.main.class}
+ * @run main/othervm -XX:-BackgroundCompilation
+ *                   -XX:CompileOnly=compiler.valhalla.inlinetypes.TestScalarizedCCReceiverOnlyEntryAllocBuffer::test1
+ *                   ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;
@@ -35,34 +37,22 @@ package compiler.valhalla.inlinetypes;
 public class TestScalarizedCCReceiverOnlyEntryAllocBuffer {
 
     static Object field1;
-    static Object field2;
 
     public static void main(String[] args) {
+        MyValue2 v2 = new MyValue2(42);
+        MyValue3 v3 = new MyValue3(42);
+        MyValue4 v4 = new MyValue4(42);
+
         for (int i = 0; i < 20_000; i++) {
-            test1(0);
-            test1(1);
-            test1(2);
+            test1(v2);
+            test1(v3);
+            test1(v4);
         }
     }
 
-    static void test1(int flag) {
-        I i;
-        if (flag == 0) {
-            MyValue2 v2 = new MyValue2(42, 42);
-            field2 = v2;
-            i = v2;
-        } else if (flag == 1) {
-            MyValue3 v3 = new MyValue3(42, 42);
-            field2 = v3;
-            i = v3;
-        } else {
-            MyValue4 v4 = new MyValue4(42, 42);
-            field2 = v4;
-            i = v4;
-        }
+    static void test1(I i) {
         MyValue1 v1 = new MyValue1(42);
         field1 = v1;
-        
         i.m(v1);
     }
 
@@ -81,12 +71,10 @@ public class TestScalarizedCCReceiverOnlyEntryAllocBuffer {
     }
 
     static value class MyValue2 implements I {
-        int intField1;
-        int intField2;
+        int intField;
 
-        MyValue2(int intField1, int intField2) {
-            this.intField1 = intField1;
-            this.intField2 = intField2;
+        MyValue2(int intField) {
+            this.intField = intField;
         }
 
         public void m(MyValue1 v) {
@@ -94,12 +82,10 @@ public class TestScalarizedCCReceiverOnlyEntryAllocBuffer {
     }
 
     static value class MyValue3 implements I {
-        int intField1;
-        int intField2;
+        int intField;
 
-        MyValue3(int intField1, int intField2) {
-            this.intField1 = intField1;
-            this.intField2 = intField2;
+        MyValue3(int intField) {
+            this.intField = intField;
         }
 
         public void m(MyValue1 v) {
@@ -107,12 +93,10 @@ public class TestScalarizedCCReceiverOnlyEntryAllocBuffer {
     }
     
     static value class MyValue4 implements I {
-        int intField1;
-        int intField2;
+        int intField;
 
-        MyValue4(int intField1, int intField2) {
-            this.intField1 = intField1;
-            this.intField2 = intField2;
+        MyValue4(int intField) {
+            this.intField = intField;
         }
 
         public void m(MyValue1 v) {

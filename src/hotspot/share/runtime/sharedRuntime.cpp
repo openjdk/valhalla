@@ -4116,9 +4116,10 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     assert(reg_pos < (uint)arg_size, "");
     VMRegPair reg_pair = reg_pairs[reg_pos];
     oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
+    instanceHandle h_buffer(THREAD, (instanceOop)*buffer);
     InlineKlass* vk = InlineKlass::cast(holder);
-    if (*buffer != nullptr) {
-      assert((*buffer)->klass() == vk, "buffer not of expected class");
+    if (h_buffer.not_null()) {
+      assert(h_buffer->klass() == vk, "buffer not of expected class");
     } else {
       // Only allocate if buffer passed at the call is null
       if (array_oop == nullptr) {
@@ -4153,10 +4154,11 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
       assert(reg_pos < (uint)arg_size, "out of bound register?");
       VMRegPair reg_pair = reg_pairs[reg_pos];
       oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
+      instanceHandle h_buffer(THREAD, (instanceOop)*buffer);
       InlineKlass* vk = ss.as_inline_klass(holder);
       assert(vk != nullptr, "Unexpected klass");
-      if (*buffer != nullptr) {
-        assert((*buffer)->klass() == vk, "buffer not of expected class");
+      if (h_buffer.not_null()) {
+        assert(h_buffer->klass() == vk, "buffer not of expected class");
       } else {
         // Only allocate if buffer passed at the call is null
         if (array_oop == nullptr) {
