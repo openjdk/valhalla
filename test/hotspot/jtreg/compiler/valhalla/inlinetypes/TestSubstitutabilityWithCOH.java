@@ -28,10 +28,10 @@
  * @summary Test that the substitutability check loads the klass pointer from
  *          the right location when UseCompactObjectHeaders is enabled.
  * @enablePreview
- * @run junit TestSubstitutabilityWithCOH
+ * @run junit ${test.main.class}
  * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseCompactObjectHeaders
  *                    -XX:CompileCommand=compileonly,*TestSubstitutabilityWithCOH::acmp
- *                    TestSubstitutabilityWithCOH
+ *                    ${test.main.class}
  */
 
 import java.util.stream.Stream;
