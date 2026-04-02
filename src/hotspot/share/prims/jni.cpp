@@ -2388,7 +2388,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
  HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
   DT_VOID_RETURN_MARK(SetObjectArrayElement);
 
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+  objArrayOop a = oop_cast<objArrayOop>(JNIHandles::resolve_non_null(array));
   oop v = JNIHandles::resolve(value);
   if (a->is_within_bounds(index)) {
     assert(a->klass()->is_refined_objArray_klass(), "must be");
