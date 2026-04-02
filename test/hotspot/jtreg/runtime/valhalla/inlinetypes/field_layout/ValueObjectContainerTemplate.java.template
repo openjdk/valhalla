@@ -74,7 +74,7 @@ public class <class_name> {
     }
 
     void testFields() {
-	NullPointerException npe = null;
+        NullPointerException npe = null;
 
         // Testing field v
         Asserts.assertNull(v);
