@@ -29,8 +29,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherWithAllocateHeapAt
  * @key stress
- * @enablePreview
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.G1
  * @requires vm.flavor == "server" & os.family != "aix"
  * @summary Stress Java heap allocation with AllocateHeapAt flag using GC basher.

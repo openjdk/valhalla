@@ -24,7 +24,8 @@
 
 package gc.stress.gcbasher;
 
-value class Dependency {
+@jdk.test.lib.valueclass.AsValueClass
+class Dependency {
     private String methodName;
 
     // Implicitly used in Set<Dependency> while comparing elements.

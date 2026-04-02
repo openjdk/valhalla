@@ -24,4 +24,5 @@
 
 package gc.stress.gcbasher;
 
-value record MethodInfo (String name, String descriptor, Integer codeLength, Integer codeStart) {}
+@jdk.test.lib.valueclass.AsValueClass
+record MethodInfo (String name, String descriptor, Integer codeLength, Integer codeStart) {}

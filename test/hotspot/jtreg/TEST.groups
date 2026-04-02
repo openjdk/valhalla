@@ -70,6 +70,9 @@ hotspot_valhalla = \
 hotspot_valhalla_runtime = \
   runtime/valhalla
 
+hotspot_valhalla_adopted = \
+   gc/stress/gcbasher
+
 hotspot_resourcehogs = \
   resourcehogs
 

@@ -29,8 +29,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherWithG1
  * @key stress
- * @enablePreview
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.G1
  * @requires vm.flavor == "server"
  * @summary Stress the G1 GC by trying to make old objects more likely to be garbage than young objects.

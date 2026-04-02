@@ -29,8 +29,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherWithSerial
  * @key stress
- * @enablePreview
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.Serial
  * @requires vm.flavor == "server"
  * @summary Stress the Serial GC by trying to make old objects more likely to be garbage than young objects.

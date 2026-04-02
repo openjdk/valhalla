@@ -27,7 +27,8 @@ package gc.stress.gcbasher;
 import java.util.HashSet;
 import java.util.Set;
 
-value class ClassInfo {
+@jdk.test.lib.valueclass.AsValueClass
+class ClassInfo {
     private String name;
 
     private Set<Dependency> staticResolution;

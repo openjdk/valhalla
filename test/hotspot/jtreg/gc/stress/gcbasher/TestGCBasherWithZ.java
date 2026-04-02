@@ -29,8 +29,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherWithZ
  * @key stress
- * @enablePreview
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.Z
  * @requires vm.flavor == "server"
  * @summary Stress ZGC
@@ -40,8 +39,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherDeoptWithZ
  * @key stress
- * @enablePreview
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.Z
  * @requires vm.flavor == "server" & vm.opt.ClassUnloading != false
  * @summary Stress ZGC with nmethod barrier forced deoptimization enabled.

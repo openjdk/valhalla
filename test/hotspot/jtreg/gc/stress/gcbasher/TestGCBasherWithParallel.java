@@ -29,8 +29,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherWithParallel
  * @key stress
- * @enablePreview
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.Parallel
  * @requires vm.flavor == "server"
  * @summary Stress the Parallel GC by trying to make old objects more likely to be garbage than young objects.
