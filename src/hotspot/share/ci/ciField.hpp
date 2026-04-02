@@ -99,6 +99,7 @@ public:
   //   In that case the declared holder of f would be B and
   //   the canonical holder of f would be A.
   ciInstanceKlass* holder() const { return _holder; }
+  ciInstanceKlass* original_holder() const { return _original_holder; }
 
   // Name of this field?
   ciSymbol* name() const { return _name; }
@@ -111,9 +112,6 @@ public:
 
   // How is this field actually stored in memory?
   BasicType layout_type() { return type2field[(_type == nullptr) ? T_OBJECT : _type->basic_type()]; }
-
-  // How big is this field in memory?
-  int size_in_bytes() { return type2aelembytes(layout_type()); }
 
   // What is the offset of this field? (Fields are aligned to the byte level.)
   int offset_in_bytes() const {
@@ -181,6 +179,7 @@ public:
   bool is_flat                 () const { return _is_flat; }
   bool is_null_free            () const { return _is_null_free; }
   int null_marker_offset       () const { return _null_marker_offset; }
+  LayoutKind layout_kind       () const { return _layout_kind; }
 
   // Whether this field needs to act atomically. Note that it does not actually need accessing
   // atomically. For example, if there cannot be racy accesses to this field, then it can be

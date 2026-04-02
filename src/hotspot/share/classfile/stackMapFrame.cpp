@@ -48,8 +48,12 @@ StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, AssertUnsetFieldTable*
 }
 
 void StackMapFrame::unsatisfied_strict_fields_error(InstanceKlass* klass, int bci) {
-  Symbol* name;
-  Symbol* sig;
+  // Default these to `<Unknown>` as they will be replaced with the correct
+  // values by the `find_unset` lambda as we only call this code when
+  // an error has already been determined.  This just provides a safe
+  // obvious fallback value.
+  Symbol* name = vmSymbols::unknown_class_name();
+  Symbol* sig = vmSymbols::unknown_class_name();
   int num_uninit_fields = 0;
 
   auto find_unset = [&] (const NameAndSig& key, const bool& value) {

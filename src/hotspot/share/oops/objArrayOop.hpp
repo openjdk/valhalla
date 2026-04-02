@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,24 +57,27 @@ class objArrayOopDesc : public arrayOopDesc {
     return arrayOopDesc::base_offset_in_bytes(T_OBJECT);
   }
 
-  inline static objArrayOop cast(oop o);
-
   // base is the address following the header.
   HeapWord* base() const;
 
   // Accessing
-  oop obj_at(int index) const;
+
+  // Accessing an object array element may have to allocate in case of a
+  // flattened value. To access an object array element without allocating the
+  // caller must first type check the oop and ensure that it is a refArray.
+  [[deprecated("Type check and cast to refArrayOop to use the non-allocating obj_at")]]
+  oop obj_at(int index) const = delete;
   oop obj_at(int index, TRAPS) const;
+  bool obj_at_is_null(int index) const;
 
   void obj_at_put(int index, oop value);
   void obj_at_put(int index, oop value, TRAPS);
 
   Klass* element_klass();
 
-public:
-  // special iterators for index ranges, returns size of object
+  // Special iterators for an element index range.
   template <typename OopClosureType>
-  void oop_iterate_range(OopClosureType* blk, int start, int end);
+  void oop_iterate_elements_range(OopClosureType* blk, int start, int end);
 };
 
 // See similar requirement for oopDesc.

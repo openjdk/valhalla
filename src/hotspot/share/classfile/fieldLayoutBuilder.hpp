@@ -160,7 +160,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment);
+  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -197,7 +197,7 @@ class FieldLayout : public ResourceObj {
   int _super_min_align_required;
   int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   int _acmp_maps_offset;
-  bool _super_has_fields;
+  bool _super_has_nonstatic_fields;
   bool _has_inherited_fields;
 
  public:
@@ -229,7 +229,7 @@ class FieldLayout : public ResourceObj {
     assert(_acmp_maps_offset != -1, "Must have been set");
     return _acmp_maps_offset;
   }
-  bool super_has_fields() const { return _super_has_fields; }
+  bool super_has_nonstatic_fields() const { return _super_has_nonstatic_fields; }
   bool has_inherited_fields() const { return _has_inherited_fields; }
 
   LayoutRawBlock* first_field_block();
@@ -237,14 +237,14 @@ class FieldLayout : public ResourceObj {
   void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = nullptr);
   void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
   LayoutRawBlock* insert_field_block(LayoutRawBlock* slot, LayoutRawBlock* block);
-  void reconstruct_layout(const InstanceKlass* ik, bool& has_instance_fields, bool& ends_with_oop);
+  void reconstruct_layout(const InstanceKlass* ik, bool& has_nonstatic_fields, bool& ends_with_oop);
   void fill_holes(const InstanceKlass* ik);
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
   void shift_fields(int shift);
   LayoutRawBlock* find_null_marker();
   void remove_null_marker();
-  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields);
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields, bool dummy_field_is_reused_as_null_marker);
 };
 
 
@@ -286,7 +286,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
-  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<AcmpMapSegment>* _nonoop_acmp_map;
   GrowableArray<int>* _oop_acmp_map;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
@@ -299,17 +299,17 @@ class FieldLayoutBuilder : public ResourceObj {
   int _nullable_atomic_layout_size_in_bytes;
   int _nullable_non_atomic_layout_size_in_bytes;
   int _fields_size_sum;
-  int _declared_non_static_fields_count;
+  int _declared_nonstatic_fields_count;
   bool _has_non_naturally_atomic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _has_nonstatic_fields;
-  bool _has_inline_type_fields;
+  bool _has_inlineable_fields;
+  bool _has_inlined_fields;
   bool _is_contended;
   bool _super_ends_with_oop;
   bool _is_inline_type;
   bool _is_abstract_value;
-  bool _has_flattening_information;
   bool _is_empty_inline_class;
 
   FieldGroup* get_or_create_contended_group(int g);

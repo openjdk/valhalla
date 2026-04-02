@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -286,7 +286,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void substitutability_check(If* x, LIRItem& left, LIRItem& right);
   void substitutability_check_common(Value left_val, Value right_val, LIRItem& left, LIRItem& right,
                                      LIR_Opr equal_result, LIR_Opr not_equal_result, LIR_Opr result, CodeEmitInfo* info);
-  void init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);

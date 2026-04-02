@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -110,19 +110,6 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) {
   return reg;
 }
 
-
-void LIRGenerator::init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2) {
-  // We just need one 32-bit temp register for x86/x64, to check whether both
-  // oops have markWord::always_locked_pattern. See LIR_Assembler::emit_opSubstitutabilityCheck().
-  // @temp = %r10d
-  // mov $0x405, %r10d
-  // and (%left), %r10d   /* if need to check left */
-  // and (%right), %r10d  /* if need to check right */
-  // cmp $0x405, $r10d
-  // jne L_oops_not_equal
-  tmp1 = new_register(T_INT);
-  tmp2 = LIR_OprFact::illegalOpr;
-}
 
 //--------- loading items into registers --------------------------------
 

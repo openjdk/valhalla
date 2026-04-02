@@ -33,7 +33,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm -XX:+UseAltSubstitutabilityMethod runtime.valhalla.inlinetypes.AcmpTest
+ * @run main/othervm runtime.valhalla.inlinetypes.AcmpTest
  */
 public class AcmpTest {
     static record TestCase(Object a, Object b, boolean equal) {}

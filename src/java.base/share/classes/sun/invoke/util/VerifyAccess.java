@@ -228,7 +228,6 @@ public class VerifyAccess {
             Module prevLookupModule = prevLookupClass != null ? prevLookupClass.getModule()
                                                               : null;
             assert refModule != lookupModule || refModule != prevLookupModule;
-
             if (isModuleAccessible(refc, lookupModule, prevLookupModule))
                 return true;
 

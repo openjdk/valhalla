@@ -58,7 +58,7 @@ import jdk.test.lib.hprof.parser.Reader;
 import jdk.test.lib.process.ProcessTools;
 
 
-value class TestClass {
+class TestClass {
 
     public static value class Value0 {
         public int value0_int;

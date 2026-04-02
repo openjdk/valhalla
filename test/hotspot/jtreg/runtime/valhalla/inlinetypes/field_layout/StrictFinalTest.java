@@ -28,7 +28,10 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java StrictFinalTest.java
- * @run main/othervm -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
+ * @compile StrictFinalTest.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictFinalTest
+ *             StrictFinalTest$Container5 StrictFinalTest$Container6
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
  */
 
 
@@ -37,12 +40,11 @@ import java.util.Collections;
 import java.util.List;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import jdk.test.lib.Asserts;
+import jdk.test.lib.helpers.StrictInit;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
@@ -144,7 +146,7 @@ public class StrictFinalTest {
     // Test temporarily disabled, to be be re-enabled when strict non-final fields are supported
     //
     // static class Container3 {
-    //     @Strict
+    //     @StrictInit
     //     Value1 val0 = new Value1();
     // }
 
@@ -183,7 +185,7 @@ public class StrictFinalTest {
     }
 
     static class Container5 {
-        @Strict
+        @StrictInit
         final Value1 val0;
         Container5(Value1 v) {
           val0 = v;
@@ -206,7 +208,7 @@ public class StrictFinalTest {
     }
 
     static class Container6 {
-        @Strict
+        @StrictInit
         final Value1 val0;
 
         Container6() {
@@ -252,8 +254,8 @@ public class StrictFinalTest {
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
         Collections.addAll(argsList, "--enable-preview");
-        Collections.addAll(argsList, "-Xint");
         Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+        Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
         Collections.addAll(argsList, "-XX:+PrintFieldLayout");
         Collections.addAll(argsList, "-Xshare:off");
         Collections.addAll(argsList, "-Xmx256m");
@@ -277,9 +279,6 @@ public class StrictFinalTest {
         }
         Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
-        // To help during test development
-        System.out.print(out.getOutput());
-
         // Get and parse the test output
         FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
         FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
@@ -296,6 +295,11 @@ public class StrictFinalTest {
         }
 
         // Verify that all layouts are correct
-        fla.check();
+        try {
+            fla.check();
+        } catch (Throwable t) {
+            System.out.print(out.getOutput());
+          throw t;
+        }
     }
 }

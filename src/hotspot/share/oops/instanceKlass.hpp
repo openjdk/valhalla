@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "memory/allocation.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/constMethod.hpp"
 #include "oops/fieldInfo.hpp"
 #include "oops/instanceKlassFlags.hpp"
@@ -86,7 +87,9 @@ public:
 };
 
 // Print fields.
-// If "obj" argument to constructor is null, prints static fields, otherwise prints non-static fields.
+// If "obj" argument to constructor is null, prints fields as if they are static fields,
+// otherwise prints non-static fields. It is possible to print non-static fields the same
+// way as static fields when no oops are available, such as when debug printing classes.
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
@@ -168,6 +171,10 @@ class InlineLayoutInfo : public MetaspaceObj {
 
   static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
   static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
+
+  // Print
+  void print() const;
+  void print_on(outputStream* st) const;
 };
 
 class InstanceKlass: public Klass {
@@ -396,8 +403,8 @@ class InstanceKlass: public Klass {
   bool has_localvariable_table() const     { return _misc_flags.has_localvariable_table(); }
   void set_has_localvariable_table(bool b) { _misc_flags.set_has_localvariable_table(b); }
 
-  bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
-  void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
+  bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
+  void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
 
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
@@ -420,6 +427,9 @@ class InstanceKlass: public Klass {
 
   int static_oop_field_count() const       { return (int)_static_oop_field_count; }
   void set_static_oop_field_count(u2 size) { _static_oop_field_count = size; }
+
+  bool trust_final_fields()                { return _misc_flags.trust_final_fields(); }
+  void set_trust_final_fields(bool value)  { _misc_flags.set_trust_final_fields(value); }
 
   // Java itable
   int  itable_length() const               { return _itable_len; }
@@ -639,7 +649,7 @@ public:
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const override;  // means that initialize should be called
-  void initialize_with_aot_initialized_mirror(TRAPS);
+  void initialize_with_aot_initialized_mirror(bool early_init, TRAPS);
   void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
   void initialize(TRAPS) override;
   void initialize_preemptable(TRAPS) override;
@@ -684,6 +694,9 @@ public:
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
+
+  bool find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
+  bool find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
 
  private:
   inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
@@ -1056,6 +1069,7 @@ public:
 
   int size() const override;
 
+
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
   inline oop static_field_base_raw();
@@ -1072,16 +1086,14 @@ public:
 
   void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
   Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
-  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
-    _inline_layout_info_array->at_put(index, *info);
-  }
+
   InlineLayoutInfo inline_layout_info(int index) const {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->at(index);
   }
+
   InlineLayoutInfo* inline_layout_info_adr(int index) {
-    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    assert(_inline_layout_info_array != nullptr, "Array not created");
     return _inline_layout_info_array->adr_at(index);
   }
 
@@ -1303,6 +1315,9 @@ public:
 #endif
 
   const char* internal_name() const override;
+
+  template<typename T, typename TClosureType>
+  static void print_array_on(outputStream* st, Array<T>* array, TClosureType elem_printer);
 
   // Verification
   void verify_on(outputStream* st) override;

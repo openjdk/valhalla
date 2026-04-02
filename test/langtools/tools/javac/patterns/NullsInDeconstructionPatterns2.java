@@ -28,7 +28,6 @@
  * @enablePreview
  * @compile NullsInDeconstructionPatterns2.java
  * @run main NullsInDeconstructionPatterns2
- * @ignore Verifier error
  */
 
 import java.util.Objects;

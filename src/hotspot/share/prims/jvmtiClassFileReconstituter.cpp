@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -569,7 +569,7 @@ void JvmtiClassFileReconstituter::write_inner_classes_attribute(int length) {
     u2 flags = iter.inner_access_flags();
     // ClassFileParser may add identity to inner class attributes, so remove it.
     if (!ik()->supports_inline_types()) {
-      flags &= ~JVM_ACC_IDENTITY;;
+      flags &= ~JVM_ACC_IDENTITY;
     }
     write_u2(flags);
   }

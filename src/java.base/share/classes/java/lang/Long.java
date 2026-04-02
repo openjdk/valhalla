@@ -933,20 +933,25 @@ public final class Long extends Number
         static Long[] archivedCache;
 
         static {
-            int size = -(-128) + 127 + 1;
+            if (!PreviewFeatures.isEnabled()) {
+                int size = -(-128) + 127 + 1;
 
-            // Load and use the archived cache if it exists
-            CDS.initializeFromArchive(LongCache.class);
-            if (archivedCache == null) {
-                Long[] c = new Long[size];
-                long value = -128;
-                for(int i = 0; i < size; i++) {
-                    c[i] = new Long(value++);
+                // Load and use the archived cache if it exists
+                CDS.initializeFromArchive(LongCache.class);
+                if (archivedCache == null) {
+                    Long[] c = new Long[size];
+                    long value = -128;
+                    for(int i = 0; i < size; i++) {
+                        c[i] = new Long(value++);
+                    }
+                    archivedCache = c;
                 }
-                archivedCache = c;
+                cache = archivedCache;
+                assert cache.length == size;
+            } else {
+                cache = null;
+                assert archivedCache == null;
             }
-            cache = archivedCache;
-            assert cache.length == size;
         }
     }
 

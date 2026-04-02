@@ -167,6 +167,11 @@ public class Flags {
     @Use({FlagTarget.CLASS})
     public static final int IMPLICIT_CLASS    = 1<<19;
 
+    /** Variable with implicit/inferred type.
+     */
+    @Use(FlagTarget.VARIABLE)
+    public static final int VAR_VARIABLE     = 1<<21;
+
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -176,6 +181,11 @@ public class Flags {
     /** Marks a type as a value class */
     @Use({FlagTarget.CLASS})
     public static final int VALUE_CLASS      = 1<<20;
+
+    /** A parameter of a lambda function.
+     */
+    @Use(FlagTarget.VARIABLE)
+    public static final int LAMBDA_PARAMETER     = 1<<23;
 
     /** Flag is set for ClassSymbols that are being compiled from source.
      */
@@ -517,22 +527,10 @@ public class Flags {
     public static final long NON_SEALED = 1L<<63;  // part of ExtendedStandardFlags, cannot be reused
 
     /**
-     * Flag to indicate that a class has at least one strict field
-     */
-    @Use({FlagTarget.CLASS})
-    public static final long HAS_STRICT = 1L<<52; // ClassSymbols, temporary hack
-
-    /**
      * Flag to indicate that a field is strict
      */
     @Use({FlagTarget.VARIABLE})
     public static final long STRICT = 1L<<19; // VarSymbols
-
-    /**
-     * Flag to inject ACC_STRICT_INIT without compiler behavioral effects
-     */
-    @Use({FlagTarget.VARIABLE})
-    public static final long MARK_STRICT_INIT = 1L<<21; // VarSymbols
 
     /**
      * Describe modifier flags as they might appear in source code, i.e.,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -566,7 +566,7 @@ bool MethodHandles::is_basic_type_signature(Symbol* sig) {
     switch (ss.type()) {
     case T_OBJECT:
       // only java/lang/Object is valid here
-      if (strncmp((char*) ss.raw_bytes(), OBJ_SIG, OBJ_SIG_LEN) != 0)
+      if (strncmp((char*) ss.raw_bytes(), OBJ_SIG, ss.raw_length()) != 0)
         return false;
       break;
     case T_VOID:
@@ -1192,7 +1192,7 @@ JVM_ENTRY(jobject, MHN_getMemberVMInfo(JNIEnv *env, jobject igcls, jobject mname
   if (mname_jh == nullptr)  return nullptr;
   Handle mname(THREAD, JNIHandles::resolve_non_null(mname_jh));
   intptr_t vmindex  = java_lang_invoke_MemberName::vmindex(mname());
-  objArrayHandle result = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 2, CHECK_NULL);
+  refArrayHandle result = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 2, CHECK_NULL);
   jvalue vmindex_value; vmindex_value.j = (long)vmindex;
   oop x = java_lang_boxing_object::create(T_LONG, &vmindex_value, CHECK_NULL);
   result->obj_at_put(0, x);
@@ -1271,7 +1271,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
       THROW_MSG(vmSymbols::java_lang_InternalError(), "bad index info (1)");
   }
 
-  objArrayHandle buf(THREAD, (objArrayOop)JNIHandles::resolve(buf_jh));
+  refArrayHandle buf(THREAD, (refArrayOop)JNIHandles::resolve(buf_jh));
 
   Handle ifna(THREAD, JNIHandles::resolve(ifna_jh));
   caller->constants()->

@@ -372,6 +372,8 @@ private:
   // Compute the escape state for arguments to a call.
   void process_call_arguments(CallNode *call);
 
+  bool returns_an_argument(CallNode* call);
+
   // Add PointsToNode node corresponding to a call
   void add_call_node(CallNode* call);
 
@@ -541,7 +543,8 @@ private:
   }
 
   // Helper functions
-  bool   is_oop_field(Node* n, int offset, bool* unsafe);
+  bool is_oop_field(Node* n, int offset, bool* unsafe);
+  bool has_oop_node_outs(Node* n);
   static Node* find_second_addp(Node* addp, Node* n);
   // offset of a field reference
   int address_offset(Node* adr, PhaseValues* phase);
@@ -659,9 +662,12 @@ public:
 
   // To be used by, e.g., BarrierSetC2 impls
   Node* get_addp_base(Node* addp);
+  DEBUG_ONLY(static bool is_load_array_klass_related(const Node* uncast_base));
 
   // Utility function for nodes that load an object
   void add_objload_to_connection_graph(Node* n, Unique_Node_List* delayed_worklist);
+
+  void add_proj(Node* n, Unique_Node_List* delayed_worklist);
 
   // Add LocalVar node and edge if possible
   void add_local_var_and_edge(Node* n, PointsToNode::EscapeState es, Node* to,
@@ -687,6 +693,8 @@ public:
 
   void add_to_congraph_unsafe_access(Node* n, uint opcode, Unique_Node_List* delayed_worklist);
   bool add_final_edges_unsafe_access(Node* n, uint opcode);
+
+  bool compatible_return(CallJavaNode* call, uint k);
 
 #ifndef PRODUCT
   static int _no_escape_counter;

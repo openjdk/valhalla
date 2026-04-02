@@ -128,8 +128,7 @@ public class SubstitutabilityTest {
                 Arguments.of(p1, new Point(10, 10)),
                 Arguments.of(p2, new Point(20, 20)),
                 Arguments.of(l1, new Line(10,10, 20,20)),
-                Arguments.of(v2, new MyValue(value2, value3)),
-                Arguments.of(va[0], null)
+                Arguments.of(v2, new MyValue(value2, value3))
         );
     }
 
@@ -146,12 +145,6 @@ public class SubstitutabilityTest {
                 Arguments.of(new MyFloat(MyFloat.NaN1), new MyFloat(MyFloat.NaN2)),
                 Arguments.of(new MyDouble(MyDouble.NaN1), new MyDouble(MyDouble.NaN2)),
                 Arguments.of(new Point(10, 10), new Point(20, 20)),
-                /*
-                 * Verify ValueObjectMethods::isSubstitutable that does not
-                 * throw an exception if any one of parameter is null or if
-                 * the parameters are of different types.
-                 */
-                Arguments.of(new Point(10, 10), Integer.valueOf(10)),
                 Arguments.of(Integer.valueOf(10), Integer.valueOf(20))
         );
     }
@@ -160,11 +153,6 @@ public class SubstitutabilityTest {
     @MethodSource("notSubstitutableCases")
     public void notSubstitutableTest(Object a, Object b) {
         assertFalse(isSubstitutable(a, b));
-    }
-
-    @Test
-    public void nullArguments() {
-        assertTrue(isSubstitutable(null, null));
     }
 
     private static final Method IS_SUBSTITUTABLE;

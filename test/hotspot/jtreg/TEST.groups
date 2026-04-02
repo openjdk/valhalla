@@ -478,6 +478,7 @@ hotspot_appcds_dynamic = \
  -runtime/cds/appcds/TestEpsilonGCWithCDS.java \
  -runtime/cds/appcds/TestParallelGCWithCDS.java \
  -runtime/cds/appcds/TestSerialGCWithCDS.java \
+ -runtime/cds/appcds/TestZGCWithAOTHeap.java \
  -runtime/cds/appcds/TestZGCWithCDS.java \
  -runtime/cds/appcds/UnusedCPDuringDump.java \
  -runtime/cds/appcds/VerifierTest_1B.java
@@ -535,6 +536,7 @@ hotspot_aot_classlinking = \
  -runtime/cds/appcds/aotFlags \
  -runtime/cds/appcds/aotProfile \
  -runtime/cds/appcds/BadBSM.java \
+ -runtime/cds/appcds/cacheObject/ArchivedFlatArrayTest.java \
  -runtime/cds/appcds/cacheObject/ArchiveHeapTestClass.java \
  -runtime/cds/appcds/cacheObject/ArchivedIntegerCacheTest.java \
  -runtime/cds/appcds/cacheObject/ArchivedModuleCompareTest.java \

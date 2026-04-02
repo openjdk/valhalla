@@ -55,6 +55,7 @@
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/flags/jvmFlagAccess.hpp"
 #include "runtime/flags/jvmFlagLimit.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
@@ -538,12 +539,7 @@ static SpecialFlag const special_jvm_flags[] = {
 #ifdef _LP64
   { "UseCompressedClassPointers",   JDK_Version::jdk(25),  JDK_Version::jdk(27), JDK_Version::undefined() },
 #endif
-  { "ParallelRefProcEnabled",       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
-  { "ParallelRefProcBalancingEnabled", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
-  { "MaxRAM",                       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   { "AggressiveHeap",               JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
-  { "NeverActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
-  { "AlwaysActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "CreateMinidumpOnCrash",        JDK_Version::jdk(9),  JDK_Version::undefined(), JDK_Version::undefined() },
 
@@ -555,6 +551,14 @@ static SpecialFlag const special_jvm_flags[] = {
 #endif
 
   { "PSChunkLargeArrays",           JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "ParallelRefProcEnabled",       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "ParallelRefProcBalancingEnabled", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "MaxRAM",                       JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "NewSizeThreadIncrease",        JDK_Version::undefined(), JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "NeverActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "AlwaysActAsServerClassMachine", JDK_Version::jdk(26),  JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "UseXMMForArrayCopy",           JDK_Version::undefined(), JDK_Version::jdk(27), JDK_Version::jdk(28) },
+  { "UseNewLongLShift",             JDK_Version::undefined(), JDK_Version::jdk(27), JDK_Version::jdk(28) },
 
 #ifdef ASSERT
   { "DummyObsoleteTestFlag",        JDK_Version::undefined(), JDK_Version::jdk(18), JDK_Version::undefined() },
@@ -1512,25 +1516,16 @@ void Arguments::set_heap_size() {
   // Check if the user has configured any limit on the amount of RAM we may use.
   bool has_ram_limit = !FLAG_IS_DEFAULT(MaxRAMPercentage) ||
                        !FLAG_IS_DEFAULT(MinRAMPercentage) ||
-                       !FLAG_IS_DEFAULT(InitialRAMPercentage) ||
-                       !FLAG_IS_DEFAULT(MaxRAM);
+                       !FLAG_IS_DEFAULT(InitialRAMPercentage);
 
-  if (FLAG_IS_DEFAULT(MaxRAM)) {
-    if (CompilerConfig::should_set_client_emulation_mode_flags()) {
-      // Limit the available memory if client emulation mode is enabled.
-      FLAG_SET_ERGO(MaxRAM, 1ULL*G);
-    } else {
-      // Use the available physical memory on the system.
-      FLAG_SET_ERGO(MaxRAM, os::physical_memory());
-    }
-  }
+  const size_t avail_mem = os::physical_memory();
 
   // If the maximum heap size has not been set with -Xmx, then set it as
   // fraction of the size of physical memory, respecting the maximum and
   // minimum sizes of the heap.
   if (FLAG_IS_DEFAULT(MaxHeapSize)) {
-    uint64_t min_memory = (uint64_t)(((double)MaxRAM * MinRAMPercentage) / 100);
-    uint64_t max_memory = (uint64_t)(((double)MaxRAM * MaxRAMPercentage) / 100);
+    uint64_t min_memory = (uint64_t)(((double)avail_mem * MinRAMPercentage) / 100);
+    uint64_t max_memory = (uint64_t)(((double)avail_mem * MaxRAMPercentage) / 100);
 
     const size_t reasonable_min = clamp_by_size_t_max(min_memory);
     size_t reasonable_max = clamp_by_size_t_max(max_memory);
@@ -1617,7 +1612,7 @@ void Arguments::set_heap_size() {
     reasonable_minimum = limit_heap_by_allocatable_memory(reasonable_minimum);
 
     if (InitialHeapSize == 0) {
-      uint64_t initial_memory = (uint64_t)(((double)MaxRAM * InitialRAMPercentage) / 100);
+      uint64_t initial_memory = (uint64_t)(((double)avail_mem * InitialRAMPercentage) / 100);
       size_t reasonable_initial = clamp_by_size_t_max(initial_memory);
       reasonable_initial = limit_heap_by_allocatable_memory(reasonable_initial);
 
@@ -2999,6 +2994,7 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
+
 #ifndef CAN_SHOW_REGISTERS_ON_ASSERT
   UNSUPPORTED_OPTION(ShowRegistersOnAssert);
 #endif // CAN_SHOW_REGISTERS_ON_ASSERT
@@ -3886,7 +3882,7 @@ jint Arguments::apply_ergo() {
   if (!is_valhalla_enabled()) {
 #define WARN_IF_NOT_DEFAULT_FLAG(flag)                                                                       \
     if (!FLAG_IS_DEFAULT(flag)) {                                                                            \
-      warning("Valhalla-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag); \
+      warning("Preview-specific flag \"%s\" has no effect when --enable-preview is not specified.", #flag);  \
     }
 
 #define DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(flag)  \
@@ -3897,13 +3893,15 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(InlineTypeReturnedAsFields);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseArrayFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseFieldFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNonAtomicValueFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableValueFlattening);
-    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullFreeNonAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullFreeAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableNonAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(IgnoreAssertUnsetFields);
     WARN_IF_NOT_DEFAULT_FLAG(FlatArrayElementMaxOops);
-    WARN_IF_NOT_DEFAULT_FLAG(UseAltSubstitutabilityMethod);
+    WARN_IF_NOT_DEFAULT_FLAG(ForceNonTearable);
 #ifdef ASSERT
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(StressCallingConvention);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PreloadClasses);
@@ -3919,6 +3917,18 @@ jint Arguments::apply_ergo() {
 #undef DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT
 #undef WARN_IF_NOT_DEFAULT_FLAG
   } else {
+#define DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(flag, fallback)                                        \
+    if (!FLAG_IS_DEFAULT(flag) && !UseArrayFlattening && !UseFieldFlattening) {                       \
+      warning("Flattening flag \"%s\" has no effect when all flattening modes are disabled.", #flag); \
+      FLAG_SET_DEFAULT(flag, fallback);                                                               \
+    }
+
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullFreeNonAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullFreeAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableNonAtomicValueFlattening, false);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(FlatArrayElementMaxOops, 0);
+#undef DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING
     if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
       // Disable calling convention optimizations if inline types are not supported.
       // Also these aren't useful in -Xint. However, don't disable them when dumping or using
@@ -3926,7 +3936,10 @@ jint Arguments::apply_ergo() {
       FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
       FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
     }
-    if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
+    if (!UseNullFreeNonAtomicValueFlattening &&
+        !UseNullableAtomicValueFlattening &&
+        !UseNullFreeAtomicValueFlattening &&
+        !UseNullableNonAtomicValueFlattening) {
       // Flattening is disabled
       FLAG_SET_DEFAULT(UseArrayFlattening, false);
       FLAG_SET_DEFAULT(UseFieldFlattening, false);

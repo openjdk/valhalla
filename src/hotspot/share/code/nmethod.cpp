@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -949,7 +949,8 @@ address nmethod::continuation_for_implicit_exception(address pc, bool for_div0_c
     stringStream ss;
     ss.print_cr("implicit exception happened at " INTPTR_FORMAT, p2i(pc));
     print_on(&ss);
-    method()->print_codes_on(&ss);
+    // Buffering to a stringStream, disable internal buffering so it's not done twice.
+    method()->print_codes_on(&ss, 0, false);
     print_code_on(&ss);
     print_pcs_on(&ss);
     tty->print("%s", ss.as_string()); // print all at once
@@ -1254,9 +1255,9 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
   CHECKED_CAST(_entry_offset,              uint16_t, (offsets->value(CodeOffsets::Entry)));
   CHECKED_CAST(_verified_entry_offset,     uint16_t, (offsets->value(CodeOffsets::Verified_Entry)));
 
-  _inline_entry_point             = entry_point();
-  _verified_inline_entry_point    = verified_entry_point();
-  _verified_inline_ro_entry_point = verified_entry_point();
+  _inline_entry_offset             = _entry_offset;
+  _verified_inline_entry_offset    = _verified_entry_offset;
+  _verified_inline_ro_entry_offset = _verified_entry_offset;
 
   _skipped_instructions_size = code_buffer->total_skipped_instructions_size();
 }
@@ -1320,9 +1321,7 @@ nmethod::nmethod(
     _deopt_handler_entry_offset    = 0;
     _unwind_handler_offset   = 0;
 
-    CHECKED_CAST(_oops_size, uint16_t, align_up(code_buffer->total_oop_size(), oopSize));
-    uint16_t metadata_size;
-    CHECKED_CAST(metadata_size, uint16_t, align_up(code_buffer->total_metadata_size(), wordSize));
+    int metadata_size = align_up(code_buffer->total_metadata_size(), wordSize);
     JVMCI_ONLY( _metadata_size = metadata_size; )
     assert(_mutable_data_size == _relocation_size + metadata_size,
            "wrong mutable data size: %d != %d + %d",
@@ -1443,14 +1442,21 @@ nmethod::nmethod(const nmethod &nm) : CodeBlob(nm._name, nm._kind, nm._size, nm.
   _oops_do_mark_link            = nullptr;
   _compiled_ic_data             = nullptr;
 
-  if (nm._osr_entry_point != nullptr) {
-    _osr_entry_point            = (nm._osr_entry_point - (address) &nm) + (address) this;
+  // Relocate the OSR entry point from nm to the new nmethod.
+  if (nm._osr_entry_point == nullptr) {
+    _osr_entry_point = nullptr;
   } else {
-    _osr_entry_point            = nullptr;
+    address new_addr = nm._osr_entry_point - (address) &nm + (address) this;
+    assert(new_addr >= code_begin() && new_addr < code_end(),
+           "relocated address must be within code bounds");
+    _osr_entry_point = new_addr;
   }
-
   _entry_offset                 = nm._entry_offset;
   _verified_entry_offset        = nm._verified_entry_offset;
+  _inline_entry_offset             = nm._inline_entry_offset;
+  _verified_inline_entry_offset    = nm._verified_inline_entry_offset;
+  _verified_inline_ro_entry_offset = nm._verified_inline_ro_entry_offset;
+
   _entry_bci                    = nm._entry_bci;
   _immutable_data_size          = nm._immutable_data_size;
 
@@ -1460,7 +1466,6 @@ nmethod::nmethod(const nmethod &nm) : CodeBlob(nm._name, nm._kind, nm._size, nm.
   _deopt_handler_entry_offset   = nm._deopt_handler_entry_offset;
   _unwind_handler_offset        = nm._unwind_handler_offset;
   _num_stack_arg_slots          = nm._num_stack_arg_slots;
-  _oops_size                    = nm._oops_size;
 #if INCLUDE_JVMCI
   _metadata_size                = nm._metadata_size;
 #endif
@@ -1763,14 +1768,18 @@ nmethod::nmethod(
       _unwind_handler_offset = -1;
     }
 
-    CHECKED_CAST(_oops_size, uint16_t, align_up(code_buffer->total_oop_size(), oopSize));
-    uint16_t metadata_size;
-    CHECKED_CAST(metadata_size, uint16_t, align_up(code_buffer->total_metadata_size(), wordSize));
+    int metadata_size = align_up(code_buffer->total_metadata_size(), wordSize);
     JVMCI_ONLY( _metadata_size = metadata_size; )
     int jvmci_data_size = 0 JVMCI_ONLY( + align_up(compiler->is_jvmci() ? jvmci_data->size() : 0, oopSize));
-    _inline_entry_point             = code_begin() + offsets->value(CodeOffsets::Inline_Entry);
-    _verified_inline_entry_point    = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry);
-    _verified_inline_ro_entry_point = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
+    if (offsets->value(CodeOffsets::Inline_Entry) != CodeOffsets::no_such_entry_point) {
+      CHECKED_CAST(_inline_entry_offset            , uint16_t, offsets->value(CodeOffsets::Inline_Entry));
+    }
+    if (offsets->value(CodeOffsets::Verified_Inline_Entry) != CodeOffsets::no_such_entry_point) {
+      CHECKED_CAST(_verified_inline_entry_offset   , uint16_t, offsets->value(CodeOffsets::Verified_Inline_Entry));
+    }
+    if (offsets->value(CodeOffsets::Verified_Inline_Entry_RO) != CodeOffsets::no_such_entry_point) {
+      CHECKED_CAST(_verified_inline_ro_entry_offset, uint16_t, offsets->value(CodeOffsets::Verified_Inline_Entry_RO));
+    }
 
     assert(_mutable_data_size == _relocation_size + metadata_size + jvmci_data_size,
            "wrong mutable data size: %d != %d + %d + %d",
@@ -2156,6 +2165,9 @@ void nmethod::make_deoptimized() {
   ResourceMark rm;
   RelocIterator iter(this, oops_reloc_begin());
 
+  // Assume there will be some calls to make deoptimized.
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
+
   while (iter.next()) {
 
     switch (iter.type()) {
@@ -2232,6 +2244,7 @@ void nmethod::verify_clean_inline_caches() {
 }
 
 void nmethod::mark_as_maybe_on_stack() {
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
   AtomicAccess::store(&_gc_epoch, CodeCache::gc_epoch());
 }
 
@@ -2323,6 +2336,8 @@ bool nmethod::make_not_entrant(InvalidationReason invalidation_reason) {
     // No need for fencing either.
     return false;
   }
+
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
 
   {
     // Enter critical section.  Does not block for safepoint.
@@ -2758,6 +2773,8 @@ bool nmethod::is_unloading() {
   state_unloading_cycle = current_cycle;
   state_is_unloading = IsUnloadingBehaviour::is_unloading(this);
   uint8_t new_state = IsUnloadingState::create(state_is_unloading, state_unloading_cycle);
+
+  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
 
   // Note that if an nmethod has dead oops, everyone will agree that the
   // nmethod is_unloading. However, the is_cold heuristics can yield
@@ -4116,7 +4133,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   if (verified_inline_ro_entry_point() >= block_begin) {
     low = MIN2(low, verified_inline_ro_entry_point());
   }
-  assert(low != 0, "sanity");
+  assert(low != nullptr, "sanity");
   if (block_begin == low) {
     stream->print("  # ");
     m->print_value_on(stream);
@@ -4183,7 +4200,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       m->method_holder()->print_value_on(stream);
     } else {
       bool did_name = false;
-      if (is_reference_type(t)) {
+      if (is_reference_type(t) && !(*sig)._vt_oop) {
         Symbol* name = (*sig)._name;
         name->print_value_on(stream);
         did_name = true;
@@ -4192,6 +4209,9 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         stream->print("%s", type2name(t));
       if ((*sig)._null_marker) {
         stream->print(" (null marker)");
+      }
+      if ((*sig)._vt_oop) {
+        stream->print(" (VT OOP)");
       }
     }
     if (at_old_sp) {

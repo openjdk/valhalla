@@ -47,5 +47,3 @@ java/lang/ScopedValue/StressStackOverflow.java#TieredStopAtLevel1 8309646 generi
 #############################################################################
 
 # Valhalla failures start here:
-java/lang/Thread/virtual/stress/PingPong.java 8342977 generic-all
-java/lang/Thread/virtual/stress/Skynet.java 8342977 generic-all

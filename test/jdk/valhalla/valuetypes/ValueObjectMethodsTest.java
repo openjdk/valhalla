@@ -28,9 +28,8 @@
  * @summary test Object methods on value classes
  * @enablePreview
  * @run junit/othervm ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAltSubstitutabilityMethod ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseFieldFlattening ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseNullFreeAtomicValueFlattening ValueObjectMethodsTest
  */
 import java.lang.classfile.ClassFile;
 import java.util.Optional;

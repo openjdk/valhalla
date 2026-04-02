@@ -154,7 +154,7 @@ public:
   }
   static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
   // Pass inline type as fields at a call or return
-  void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true);
+  void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true, bool root = false);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIdealLoop* phase);
@@ -188,6 +188,7 @@ public:
   static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
   Node* base() const { return in(TypeFunc::Parms); }
   Node* ptr() const { return in(TypeFunc::Parms + 1); }
+  bool expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const;
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 

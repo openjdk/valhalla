@@ -384,14 +384,6 @@ public class Annotate {
             }
 
             if (!c.type.isErroneous()
-                    && toAnnotate.kind == VAR
-                    && toAnnotate.owner.kind == TYP
-                    && types.isSameType(c.type, syms.strictType)) {
-                preview.checkSourceLevel(pos.get(c), Feature.VALUE_CLASSES);
-                toAnnotate.flags_field |= Flags.MARK_STRICT_INIT;
-            }
-
-            if (!c.type.isErroneous()
                     && types.isSameType(c.type, syms.restrictedType)) {
                 toAnnotate.flags_field |= Flags.RESTRICTED;
             }
@@ -877,7 +869,6 @@ public class Annotate {
                 if (!chk.validateAnnotationDeferErrors(annoTree))
                     log.error(annoTree.pos(), Errors.DuplicateAnnotationInvalidRepeated(origAnnoType));
 
-                c = attributeAnnotation(annoTree, targetContainerType, ctx.env);
                 c.setSynthesized(true);
 
                 @SuppressWarnings("unchecked")

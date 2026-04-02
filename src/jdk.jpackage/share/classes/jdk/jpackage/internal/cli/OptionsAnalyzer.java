@@ -63,8 +63,8 @@ import jdk.jpackage.internal.model.BundleType;
  */
 final class OptionsAnalyzer {
 
-    OptionsAnalyzer(Options cmdline, BundlingEnvironment bundlingEnv) {
-        this(cmdline, getBundlingOperation(cmdline, OperatingSystem.current(), bundlingEnv), false);
+    OptionsAnalyzer(Options cmdline, OperatingSystem os, BundlingEnvironment bundlingEnv) {
+        this(cmdline, getBundlingOperation(cmdline, os, bundlingEnv), false);
     }
 
     OptionsAnalyzer(Options cmdline, StandardBundlingOperation bundlingOperation) {
@@ -272,7 +272,6 @@ final class OptionsAnalyzer {
             } else {
                 var spec = new StandardOptionContext(os).mapOptionSpec(typeOption.spec());
                 return spec
-                        .converter().orElseThrow()
                         .convert(spec.name(), StringToken.of(((String[])obj)[0]))
                         .orElseThrow();
             }
@@ -292,17 +291,17 @@ final class OptionsAnalyzer {
                 return bundlingOperations.getFirst();
             } else {
                 // Multiple standard bundling operations produce the `bundleType` bundle type.
-                // Filter those that belong to the current OS
+                // Filter those that belong to the specified OS.
                 bundlingOperations = bundlingOperations.stream().filter(op -> {
-                    return op.os().equals(OperatingSystem.current());
+                    return op.os().equals(os);
                 }).toList();
 
                 if (bundlingOperations.isEmpty()) {
                     // jpackage internal error: none of the standard bundling operations produce
-                    // bundles of the `bundleType` on the current OS.
+                    // bundles of the `bundleType` on the specified OS.
                     throw new AssertionError(String.format(
                             "None of the standard bundling operations produce bundles of type [%s] on %s",
-                            bundleType, OperatingSystem.current()));
+                            bundleType, os));
                 } else if (bundlingOperations.size() == 1) {
                     return bundlingOperations.getFirst();
                 } else if (StandardBundlingOperation.MACOS_APP_IMAGE.containsAll(bundlingOperations)) {

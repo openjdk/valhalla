@@ -1853,7 +1853,7 @@ public class ClassWriter extends ClassFile {
             }
         }
         if (sym.kind == VAR) {
-            if ((flags & STRICT) != 0 || (flags & MARK_STRICT_INIT) != 0) {
+            if ((flags & STRICT) != 0) {
                 result |= ACC_STRICT;
             }
         }

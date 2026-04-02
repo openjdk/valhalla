@@ -32,7 +32,6 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
 import java.io.Serializable;
-import java.lang.classfile.ClassFile;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
@@ -521,30 +520,6 @@ public class ReflectionFactory {
         } catch (ReflectiveOperationException e) {
             return null;
         }
-    }
-
-    public final Set<AccessFlag> parseAccessFlags(int mask, AccessFlag.Location location, Class<?> classFile) {
-        return AccessFlag.maskToAccessFlags(mask, location, classFileFormatVersion(classFile));
-    }
-
-    public final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
-        if (cl.isArray() || cl.isPrimitive())
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
-        int raw = SharedSecrets.getJavaLangAccess().classFileVersion(cl);
-
-        int major = raw & 0xFFFF;
-        int minor = raw >>> Character.SIZE;
-
-        assert VM.isSupportedClassFileVersion(major, minor) : major + "." + minor;
-
-        if (major >= ClassFile.JAVA_12_VERSION) {
-            if (minor == 0)
-                return ClassFileFormatVersion.fromMajor(raw);
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
-        } else if (major == ClassFile.JAVA_1_VERSION) {
-            return minor < 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
-        }
-        return ClassFileFormatVersion.fromMajor(major);
     }
 
     //--------------------------------------------------------------------------

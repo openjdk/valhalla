@@ -110,7 +110,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 }
 
 void Parse::do_get_xxx(Node* obj, ciField* field) {
-  obj = cast_to_non_larval(obj);
   BasicType bt = field->layout_type();
   // Does this field have a constant value?  If so, just push the value.
   if (field->is_constant() && !field->is_flat() &&
@@ -135,8 +134,11 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     assert(!field->is_static(), "must not be a static field");
     InlineTypeNode* vt = obj->as_InlineType();
     Node* value = vt->field_value_by_offset(field->offset_in_bytes(), false);
+    const Type* value_type = _gvn.type(value);
     if (value->is_InlineType()) {
       value = value->as_InlineType()->adjust_scalarization_depth(this);
+    } else if (value_type->is_inlinetypeptr()) {
+      value = InlineTypeNode::make_from_oop(this, value, value_type->inline_klass());
     }
     pop();
     push_node(field->layout_type(), value);
@@ -267,7 +269,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
   }
 
-  val = cast_to_non_larval(val);
   Node* adr = basic_plus_adr(obj, obj, offset);
 
   // We cannot store into a non-larval object, so obj must not be an InlineTypeNode

@@ -773,7 +773,7 @@ void MacroAssembler::align32() {
 
 void MacroAssembler::align(uint modulus) {
   // 8273459: Ensure alignment is possible with current segment alignment
-  assert(modulus <= (uintx)CodeEntryAlignment, "Alignment must be <= CodeEntryAlignment");
+  assert(modulus <= CodeEntryAlignment, "Alignment must be <= CodeEntryAlignment");
   align(modulus, offset());
 }
 
@@ -969,7 +969,7 @@ void MacroAssembler::call(AddressLiteral entry, Register rscratch) {
 void MacroAssembler::ic_call(address entry, jint method_index) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc(), method_index);
   // Needs full 64-bit immediate for later patching.
-  mov64(rax, (int64_t)Universe::non_oop_word());
+  Assembler::mov64(rax, (int64_t)Universe::non_oop_word());
   call(AddressLiteral(entry, rh));
 }
 
@@ -1973,6 +1973,20 @@ void MacroAssembler::movflt(XMMRegister dst, AddressLiteral src, Register rscrat
   }
 }
 
+void MacroAssembler::mov64(Register dst, int64_t imm64) {
+  if (is_uimm32(imm64)) {
+    movl(dst, checked_cast<uint32_t>(imm64));
+  } else if (is_simm32(imm64)) {
+    movq(dst, checked_cast<int32_t>(imm64));
+  } else {
+    Assembler::mov64(dst, imm64);
+  }
+}
+
+void MacroAssembler::mov64(Register dst, int64_t imm64, relocInfo::relocType rtype, int format) {
+  Assembler::mov64(dst, imm64, rtype, format);
+}
+
 void MacroAssembler::movptr(Register dst, Register src) {
   movq(dst, src);
 }
@@ -1983,13 +1997,7 @@ void MacroAssembler::movptr(Register dst, Address src) {
 
 // src should NEVER be a real pointer. Use AddressLiteral for true pointers
 void MacroAssembler::movptr(Register dst, intptr_t src) {
-  if (is_uimm32(src)) {
-    movl(dst, checked_cast<uint32_t>(src));
-  } else if (is_simm32(src)) {
-    movq(dst, checked_cast<int32_t>(src));
-  } else {
-    mov64(dst, src);
-  }
+  mov64(dst, src);
 }
 
 void MacroAssembler::movptr(Address dst, Register src) {
@@ -2775,6 +2783,17 @@ void MacroAssembler::ucomisd(XMMRegister dst, AddressLiteral src, Register rscra
   }
 }
 
+void MacroAssembler::vucomxsd(XMMRegister dst, AddressLiteral src, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::vucomxsd(dst, as_Address(src));
+  } else {
+    lea(rscratch, src);
+    Assembler::vucomxsd(dst, Address(rscratch, 0));
+  }
+}
+
 void MacroAssembler::ucomiss(XMMRegister dst, AddressLiteral src, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src), "missing");
 
@@ -2783,6 +2802,17 @@ void MacroAssembler::ucomiss(XMMRegister dst, AddressLiteral src, Register rscra
   } else {
     lea(rscratch, src);
     Assembler::ucomiss(dst, Address(rscratch, 0));
+  }
+}
+
+void MacroAssembler::vucomxss(XMMRegister dst, AddressLiteral src, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::vucomxss(dst, as_Address(src));
+  } else {
+    lea(rscratch, src);
+    Assembler::vucomxss(dst, Address(rscratch, 0));
   }
 }
 
@@ -6257,29 +6287,21 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 }
 
 // Calculate the extra stack space required for packing or unpacking inline
-// args and adjust the stack pointer.
-//
-// This extra stack space take into account the copy #2 of the return address,
-// but NOT the saved RBP or the normal size of the frame (see MacroAssembler::remove_frame
-// for notations).
+// args and adjust the stack pointer (see MacroAssembler::remove_frame).
 int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
-  // Two additional slots to account for return address
-  int sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
+  int sp_inc = args_on_stack * VMRegImpl::stack_slot_size;
   sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-  // Save the return address, adjust the stack (make sure it is properly
-  // 16-byte aligned) and copy the return address to the new top of the stack.
-  // The stack will be repaired on return (see MacroAssembler::remove_frame).
   assert(sp_inc > 0, "sanity");
-  pop(r13);
+  // Two additional slots to account for return address
+  sp_inc +=  2 * VMRegImpl::stack_slot_size;
+
+  push(rbp);
   subptr(rsp, sp_inc);
 #ifdef ASSERT
-  movl(Address(rsp, -VMRegImpl::stack_slot_size), badRegWordVal);
-  movl(Address(rsp, -2 * VMRegImpl::stack_slot_size), badRegWordVal);
-  subptr(rsp, 2 * VMRegImpl::stack_slot_size);
-#else
-  push(r13);
+  movl(Address(rsp, 0), badRegWordVal);
+  movl(Address(rsp, VMRegImpl::stack_slot_size), badRegWordVal);
 #endif
-  return sp_inc;
+  return sp_inc + wordSize; // account for rbp space
 }
 
 // Read all fields from an inline type buffer and store the field values in registers/stack slots.
@@ -6351,6 +6373,15 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         movq(Address(rsp, st_off), 1);
       } else {
         movq(toReg->as_Register(), 1);
+      }
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(Address(rsp, st_off), fromReg);
+      } else {
+        movq(toReg->as_Register(), fromReg);
       }
       continue;
     }
@@ -6441,9 +6472,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
-  load_heap_oop(val_obj, Address(val_array, index));
-
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
   BasicType bt;
@@ -6466,6 +6494,21 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       movptr(val_obj, 0);
       jmp(L_null);
       bind(L_notNull);
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      // buffer argument: use if non null
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movptr(val_obj, Address(rsp, ld_off));
+      } else {
+        movptr(val_obj, fromReg->as_Register());
+      }
+      testptr(val_obj, val_obj);
+      jcc(Assembler::notEqual, L_null);
+      // otherwise get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
+      load_heap_oop(val_obj, Address(val_array, index));
       continue;
     }
 
@@ -6529,50 +6572,46 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // | Arguments from caller     |
     // |---------------------------|  <-- caller's SP
     // | Return address #1         |
+    // | Saved RBP #1              |
     // |---------------------------|
     // | Extension space for       |
     // |   inline arg (un)packing  |
-    // |---------------------------|
-    // | Return address #2         |
-    // | Saved RBP                 |
     // |---------------------------|  <-- start of this method's frame
+    // | Return address #2         |
+    // | Saved RBP #2              |
+    // |---------------------------|  <-- RBP (with -XX:+PreserveFramePointer)
     // | sp_inc                    |
     // | method locals             |
     // |---------------------------|  <-- SP
     //
-    // There is two copies of the return address on the stack. They will be identical at
-    // first, but that can change.
-    // If the caller has been deoptimized, the copy #1 will be patched to point at the
-    // deopt blob, and the copy #2 will still point into the old method. In short
-    // the copy #2 is not reliable and should not be used. It is mostly needed to
-    // add space between the extension space and the locals, as there would be between
-    // the real arguments and the locals if we don't need to do unpacking (from the
-    // scalarized entry point).
+    // Space for the return pc and saved rbp is reserved twice. But only the #1 copies
+    // contain the real values of return pc and saved rbp. The #2 copies are not reliable
+    // and should not be used. They are mostly needed to add space between the  extension
+    // space and the locals, as there would be between the real arguments and the locals
+    // if we don't need to do unpacking (from the scalarized entry point).
     //
-    // When leaving, one must use the copy #1 of the return address, while keeping in mind
-    // that from the scalarized entry point, there will be only one copy. Indeed, in the
-    // case we used the scalarized calling convention, the stack looks like this:
+    // When leaving, one must load RBP #1 into RBP, and use the copy #1 of the return address,
+    // while keeping in mind that from the scalarized entry point, there will be only one
+    // copy. Indeed, in the case we used the scalarized calling convention, the stack looks like this:
     //
     // | Arguments from caller     |
     // |---------------------------|  <-- caller's SP
     // | Return address            |
     // | Saved RBP                 |
-    // |---------------------------|  <-- start of this method's frame
+    // |---------------------------|  <-- FP (with -XX:+PreserveFramePointer)
     // | sp_inc                    |
     // | method locals             |
     // |---------------------------|  <-- SP
     //
     // The sp_inc stack slot holds the total size of the frame, including the extension
-    // space the possible copy #2 of the return address and the saved RBP (but never the
-    // copy #1 of the return address). That is how to find the copy #1 of the return address.
-    // This size is expressed in bytes. Be careful when using it from C++ in pointer arithmetic;
-    // you might need to divide it by wordSize.
-    //
-    // One can find sp_inc since the start the method's frame is SP + initial_framesize.
+    // space and copies #2 of the return address and the saved RBP (but never the copies
+    // #1 of the return address and saved RBP). That is how to find the copies #1 of the
+    // return address and saved rbp. This size is expressed in bytes. Be careful when using
+    // it from C++ in pointer arithmetic you might need to divide it by wordSize.
 
-    movq(rbp, Address(rsp, initial_framesize));
     // The stack increment resides just below the saved rbp
     addq(rsp, Address(rsp, initial_framesize - wordSize));
+    pop(rbp);
   } else {
     if (initial_framesize > 0) {
       addq(rsp, initial_framesize);
@@ -6588,7 +6627,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   // cnt - number of qwords (8-byte words).
   // base - start address, qword aligned.
   Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
-  bool use64byteVector = (MaxVectorSize == 64) && (VM_Version::avx3_threshold() == 0);
+  bool use64byteVector = (MaxVectorSize == 64) && (CopyAVX3Threshold == 0);
   if (use64byteVector) {
     evpbroadcastq(xtmp, val, AVX_512bit);
   } else if (MaxVectorSize >= 32) {
@@ -6655,7 +6694,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
 // Clearing constant sized memory using YMM/ZMM registers.
 void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegister xtmp, KRegister mask) {
   assert(UseAVX > 2 && VM_Version::supports_avx512vl(), "");
-  bool use64byteVector = (MaxVectorSize > 32) && (VM_Version::avx3_threshold() == 0);
+  bool use64byteVector = (MaxVectorSize > 32) && (CopyAVX3Threshold == 0);
 
   int vector64_count = (cnt & (~0x7)) >> 3;
   cnt = cnt & 0x7;
@@ -6877,8 +6916,8 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
           // Fill 64-byte chunks
           Label L_fill_64_bytes_loop_avx3, L_check_fill_64_bytes_avx2;
 
-          // If number of bytes to fill < VM_Version::avx3_threshold(), perform fill using AVX2
-          cmpptr(count, VM_Version::avx3_threshold());
+          // If number of bytes to fill < CopyAVX3Threshold, perform fill using AVX2
+          cmpptr(count, CopyAVX3Threshold);
           jccb(Assembler::below, L_check_fill_64_bytes_avx2);
 
           vpbroadcastd(xtmp, xtmp, Assembler::AVX_512bit);
@@ -7049,32 +7088,46 @@ void MacroAssembler::evpbroadcast(BasicType type, XMMRegister dst, Register src,
   }
 }
 
-// encode char[] to byte[] in ISO_8859_1 or ASCII
-   //@IntrinsicCandidate
-   //private static int implEncodeISOArray(byte[] sa, int sp,
-   //byte[] da, int dp, int len) {
-   //  int i = 0;
-   //  for (; i < len; i++) {
-   //    char c = StringUTF16.getChar(sa, sp++);
-   //    if (c > '\u00FF')
-   //      break;
-   //    da[dp++] = (byte)c;
-   //  }
-   //  return i;
-   //}
-   //
-   //@IntrinsicCandidate
-   //private static int implEncodeAsciiArray(char[] sa, int sp,
-   //    byte[] da, int dp, int len) {
-   //  int i = 0;
-   //  for (; i < len; i++) {
-   //    char c = sa[sp++];
-   //    if (c >= '\u0080')
-   //      break;
-   //    da[dp++] = (byte)c;
-   //  }
-   //  return i;
-   //}
+// Encode given char[]/byte[] to byte[] in ISO_8859_1 or ASCII
+//
+// @IntrinsicCandidate
+// int sun.nio.cs.ISO_8859_1.Encoder#encodeISOArray0(
+//         char[] sa, int sp, byte[] da, int dp, int len) {
+//     int i = 0;
+//     for (; i < len; i++) {
+//         char c = sa[sp++];
+//         if (c > '\u00FF')
+//             break;
+//         da[dp++] = (byte) c;
+//     }
+//     return i;
+// }
+//
+// @IntrinsicCandidate
+// int java.lang.StringCoding.encodeISOArray0(
+//         byte[] sa, int sp, byte[] da, int dp, int len) {
+//   int i = 0;
+//   for (; i < len; i++) {
+//     char c = StringUTF16.getChar(sa, sp++);
+//     if (c > '\u00FF')
+//       break;
+//     da[dp++] = (byte) c;
+//   }
+//   return i;
+// }
+//
+// @IntrinsicCandidate
+// int java.lang.StringCoding.encodeAsciiArray0(
+//         char[] sa, int sp, byte[] da, int dp, int len) {
+//   int i = 0;
+//   for (; i < len; i++) {
+//     char c = sa[sp++];
+//     if (c >= '\u0080')
+//       break;
+//     da[dp++] = (byte) c;
+//   }
+//   return i;
+// }
 void MacroAssembler::encode_iso_array(Register src, Register dst, Register len,
   XMMRegister tmp1Reg, XMMRegister tmp2Reg,
   XMMRegister tmp3Reg, XMMRegister tmp4Reg,
@@ -10237,7 +10290,6 @@ void MacroAssembler::generate_fill_avx3(BasicType type, Register to, Register va
   Label L_fill_zmm_sequence;
 
   int shift = -1;
-  int avx3threshold = VM_Version::avx3_threshold();
   switch(type) {
     case T_BYTE:  shift = 0;
       break;
@@ -10253,10 +10305,10 @@ void MacroAssembler::generate_fill_avx3(BasicType type, Register to, Register va
       fatal("Unhandled type: %s\n", type2name(type));
   }
 
-  if ((avx3threshold != 0)  || (MaxVectorSize == 32)) {
+  if ((CopyAVX3Threshold != 0)  || (MaxVectorSize == 32)) {
 
     if (MaxVectorSize == 64) {
-      cmpq(count, avx3threshold >> shift);
+      cmpq(count, CopyAVX3Threshold >> shift);
       jcc(Assembler::greater, L_fill_zmm_sequence);
     }
 
@@ -10797,6 +10849,20 @@ void MacroAssembler::restore_legacy_gprs() {
   movq(rcx, Address(rsp, 14 * wordSize));
   movq(rax, Address(rsp, 15 * wordSize));
   addq(rsp, 16 * wordSize);
+}
+
+void MacroAssembler::load_aotrc_address(Register reg, address a) {
+#if INCLUDE_CDS
+  assert(AOTRuntimeConstants::contains(a), "address out of range for data area");
+  if (AOTCodeCache::is_on_for_dump()) {
+    // all aotrc field addresses should be registered in the AOTCodeCache address table
+    lea(reg, ExternalAddress(a));
+  } else {
+    mov64(reg, (uint64_t)a);
+  }
+#else
+  ShouldNotReachHere();
+#endif
 }
 
 void MacroAssembler::setcc(Assembler::Condition comparison, Register dst) {

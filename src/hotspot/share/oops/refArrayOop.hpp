@@ -28,9 +28,7 @@
 #include "oops/objArrayOop.hpp"
 #include "utilities/align.hpp"
 
-#include <type_traits>
-
-class Klass;
+class RefArrayKlass;
 
 // A refArrayOop is an array containing references (oops).
 // Evaluating "String arg[10]" will create a refArrayOop.
@@ -54,19 +52,18 @@ class refArrayOopDesc : public objArrayOopDesc {
   }
 
  public:
+  inline RefArrayKlass* klass() const;
+
   // Returns the offset of the first element.
   static int base_offset_in_bytes() {
     return arrayOopDesc::base_offset_in_bytes(T_OBJECT);
   }
-
-  inline static refArrayOop cast(oop o);
 
   // base is the address following the header.
   inline HeapWord* base() const;
 
   // Accessing
   oop obj_at(int index) const;
-  oop obj_at(int index, TRAPS) const;
 
   void obj_at_put(int index, oop value);
   void obj_at_put(int index, oop value, TRAPS);
@@ -74,7 +71,7 @@ class refArrayOopDesc : public objArrayOopDesc {
   oop replace_if_null(int index, oop exchange_value);
 
   // Sizing
-  size_t object_size()        { return object_size(length()); }
+  size_t object_size() { return object_size(length()); }
 
   static size_t object_size(int length) {
     // This returns the object size in HeapWords.
@@ -85,12 +82,9 @@ class refArrayOopDesc : public objArrayOopDesc {
     return osz;
   }
 
-  Klass* element_klass();
-
-public:
   // special iterators for index ranges, returns size of object
   template <typename OopClosureType>
-  void oop_iterate_range(OopClosureType* blk, int start, int end);
+  void oop_iterate_elements_range(OopClosureType* blk, int start, int end);
 };
 
 // See similar requirement for oopDesc.

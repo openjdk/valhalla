@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,10 @@
 #define SHARE_RUNTIME_SHAREDRUNTIME_HPP
 
 #include "asm/codeBuffer.hpp"
-#include "classfile/compactHashtable.hpp"
 #include "code/codeBlob.hpp"
 #include "code/vmreg.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/allStatic.hpp"
-#include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/signature.hpp"
@@ -40,6 +38,8 @@
 
 class AdapterHandlerEntry;
 class AdapterFingerPrint;
+class MetaspaceClosure;
+class SerializeClosure;
 class vframeStream;
 class SigEntry;
 
@@ -580,7 +580,7 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method_abstract(JavaThread* current);
   static address handle_wrong_method_ic_miss(JavaThread* current);
   static void allocate_inline_types(JavaThread* current, Method* callee, bool allocate_receiver);
-  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS);
+  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, bool from_c1, TRAPS);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 

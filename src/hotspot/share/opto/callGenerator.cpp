@@ -696,7 +696,7 @@ void CallGenerator::do_late_inline_helper() {
     int arg_num = 0;
     for (uint i1 = 0; i1 < nargs; i1++) {
       const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-      if (t->is_inlinetypeptr() && !method()->get_Method()->mismatch() && method()->is_scalarized_arg(arg_num)) {
+      if (t->is_inlinetypeptr() && !method()->mismatch() && method()->is_scalarized_arg(arg_num)) {
         // Inline type arguments are not passed by reference: we get an argument per
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
@@ -725,6 +725,8 @@ void CallGenerator::do_late_inline_helper() {
     ciType* return_type = inline_method->return_type();
     if (!call->tf()->returns_inline_type_as_fields() &&
         return_type->is_inlinetype() && return_type->as_inline_klass()->can_be_returned_as_fields()) {
+      assert(is_mh_late_inline(), "Unexpected return type");
+
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
       // we need to "re-execute" the call in the interpreter (to make sure the call is only executed once).
@@ -836,7 +838,7 @@ void CallGenerator::do_late_inline_helper() {
     } else {
       assert(result->is_top() || !call->tf()->returns_inline_type_as_fields() || !call->as_CallJava()->method()->return_type()->is_loaded(), "Unexpected return value");
     }
-    assert(buffer_oop == nullptr, "unused buffer allocation");
+    assert(kit.stopped() || buffer_oop == nullptr, "unused buffer allocation");
 
     kit.replace_call(call, result, true, do_asserts);
   }
@@ -1121,6 +1123,12 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     Node* m = kit.map()->in(i);
     Node* n = slow_map->in(i);
     if (m != n) {
+#ifdef ASSERT
+      if (m->is_InlineType() != n->is_InlineType()) {
+        InlineTypeNode* unique_vt = m->is_InlineType() ? m->as_InlineType() : n->as_InlineType();
+        assert(unique_vt->is_allocated(&gvn), "InlineType can be merged with an oop only if it is allocated");
+      }
+#endif
       const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
       Node* phi = PhiNode::make(region, m, t);
       phi->set_req(2, n);
@@ -1227,7 +1235,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         // Cast receiver to its type.
         if (!target->is_static()) {
           Node* recv = kit.argument(0);
-          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass());
+          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass(), target->receiver_maybe_larval());
           if (casted_recv->is_top()) {
             print_inlining_failure(C, callee, jvms, "argument types mismatch");
             return nullptr; // FIXME: effectively dead; issue a halt node instead
@@ -1240,7 +1248,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
             Node* arg = kit.argument(receiver_skip + j);
-            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass());
+            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass(), false);
             if (casted_arg->is_top()) {
               print_inlining_failure(C, callee, jvms, "argument types mismatch");
               return nullptr; // FIXME: effectively dead; issue a halt node instead

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,12 @@
 
 import java.lang.classfile.AccessFlags;
 import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassBuilder;
+import java.lang.classfile.ClassElement;
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassFileVersion;
 import java.lang.classfile.ClassTransform;
+import java.lang.classfile.FieldModel;
 import java.lang.classfile.attribute.StackMapFrameInfo;
 import java.lang.classfile.attribute.StackMapTableAttribute;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
@@ -41,9 +45,11 @@ import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import jdk.test.lib.ByteCodeLoader;
+import jdk.test.lib.compiler.InMemoryJavaCompiler;
 import org.junit.jupiter.api.Test;
 
 import static java.lang.classfile.ClassFile.*;
@@ -58,8 +64,8 @@ class StrictStackMapsTest {
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
                 .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
                 .withFlags(ACC_PUBLIC | ACC_IDENTITY)
-                .withField("fs", CD_int, ACC_STRICT)
-                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs", CD_int, ACC_STRICT_INIT)
+                .withField("fsf", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
                         .aload(0)
                         .iconst_5()
@@ -94,8 +100,8 @@ class StrictStackMapsTest {
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
                 .withVersion(JAVA_26_VERSION, 0)
                 .withFlags(ACC_PUBLIC | ACC_SUPER)
-                .withField("fs", CD_int, ACC_STRICT) // spurious meaningless flags in 70.0
-                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs", CD_int, ACC_STRICT_INIT) // spurious meaningless flags in 70.0
+                .withField("fsf", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
                         .aload(0)
                         .iconst_5()
@@ -131,8 +137,8 @@ class StrictStackMapsTest {
                 .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
                 .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fPlain", CD_char, ACC_PRIVATE)
-                .withField("fs", CD_int, ACC_STRICT)
-                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs", CD_int, ACC_STRICT_INIT)
+                .withField("fsf", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
                         .aload(0)
                         .iconst_5()
@@ -173,8 +179,8 @@ class StrictStackMapsTest {
                 .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
                 .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fPlain", CD_int, ACC_PRIVATE)
-                .withField("fs", CD_int, ACC_STRICT)
-                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs", CD_int, ACC_STRICT_INIT)
+                .withField("fsf", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 // record-style ctor
                 .withMethodBody(INIT_NAME, fullArgsCtorDesc, 0, cob -> cob
                         .aload(0)
@@ -221,8 +227,8 @@ class StrictStackMapsTest {
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
                 .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
                 .withFlags(ACC_PUBLIC | ACC_IDENTITY)
-                .withField("fs", CD_int, ACC_STRICT)
-                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs", CD_int, ACC_STRICT_INIT)
+                .withField("fsf", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
                         .aload(0)
                         .iconst_1()
@@ -264,8 +270,8 @@ class StrictStackMapsTest {
         assertThrows(IllegalArgumentException.class, () -> ClassFile.of().build(classDesc, clb -> clb
                 .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
                 .withFlags(ACC_PUBLIC | ACC_IDENTITY)
-                .withField("fs0", CD_int, ACC_STRICT)
-                .withField("fs1", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs0", CD_int, ACC_STRICT_INIT)
+                .withField("fs1", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
                         .aload(0)
                         .iconst_0()
@@ -307,7 +313,7 @@ class StrictStackMapsTest {
 
         classBytes = ClassFile.of().transformClass(ClassFile.of().parse(classBytes), ClassTransform.transformingFields((fb, fe) -> {
             if (fe instanceof AccessFlags acc) {
-                fb.withFlags(acc.flagsMask() | ACC_STRICT);
+                fb.withFlags(acc.flagsMask() | ACC_STRICT_INIT);
             } else {
                 fb.with(fe);
             }
@@ -333,8 +339,8 @@ class StrictStackMapsTest {
         var classBytes = ClassFile.of(StackMapsOption.DROP_STACK_MAPS).build(classDesc, clb -> clb
                 .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
                 .withFlags(ACC_PUBLIC | ACC_IDENTITY)
-                .withField("fs", CD_int, ACC_STRICT)
-                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withField("fs", CD_int, ACC_STRICT_INIT)
+                .withField("fsf", CD_int, ACC_STRICT_INIT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> {
                     var frames = new ArrayList<StackMapFrameInfo>();
                     cob.aload(0)
@@ -398,5 +404,83 @@ class StrictStackMapsTest {
         assertDoesNotThrow(() -> lookup.ensureInitialized(clazz)); // forces verification
         var errors = ClassFile.of().verify(classBytes);
         assertEquals(List.of(), errors, "Errors detected");
+    }
+
+    @Test
+    void transformTryCatchTest() {
+        byte[] bytes = InMemoryJavaCompiler.compile("TryCatchChild", """
+                class TryCatchChild {
+                    int x;
+                    int y;
+                    TryCatchChild() {
+                        try {
+                            x = 0;
+                            int[] a = new int[1];
+                            System.out.println(a[2]);
+                        } catch (ArrayIndexOutOfBoundsException e) {
+                            y = 0;
+                        } finally {
+                            x = y = 1;
+                        }
+                        super();
+                    }
+                }
+                """);
+        var clazz = ClassFile.of().parse(bytes);
+        var result = ClassFile.of().transformClass(clazz, new ClassTransform() {
+            @Override
+            public void atStart(ClassBuilder builder) {
+                builder.withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION);
+            }
+
+            @Override
+            public void accept(ClassBuilder builder, ClassElement element) {
+                switch (element) {
+                    case ClassFileVersion _ -> {}
+                    case FieldModel fm -> builder.transformField(fm, (fb, fe) -> {
+                        if (fe instanceof AccessFlags flags) {
+                            fb.withFlags(flags.flagsMask() | ACC_STRICT_INIT);
+                        } else {
+                            fb.with(fe);
+                        }
+                    });
+                    default -> builder.with(element);
+                }
+            }
+        });
+
+        runtimeVerify("TryCatchChild", result);
+    }
+
+    @Test
+    void strictAssignmentInHandlerTest() {
+        var testName = "Test";
+        var testDesc = ClassDesc.of(testName);
+        var bytes = ClassFile.of().build(testDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
+                .withField("f", CD_int, ACC_STRICT_INIT)
+                .withMethodBody(INIT_NAME, MTD_void, 0, cob -> {
+                    cob.aload(0)
+                       .iconst_m1();
+                    var handledBegin = cob.newBoundLabel();
+                    cob.putfield(testDesc, "f", CD_int);
+                    var handledEnd = cob.newBoundLabel();
+                    cob.aload(0)
+                       .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                       .return_();
+                    var handler = cob.newBoundLabel(); // frame with local 0 this, f unset
+                    cob.athrow();
+                    cob.exceptionCatch(handledBegin, handledEnd, handler, Optional.empty());
+                }));
+        var parsed = ClassFile.of().parse(bytes);
+        var frames = parsed.methods().getFirst().code().orElseThrow()
+                .findAttribute(Attributes.stackMapTable()).orElseThrow().entries();
+        assertEquals(1, frames.size());
+        var frame = frames.getFirst();
+        assertEquals(List.of(StackMapFrameInfo.SimpleVerificationTypeInfo.UNINITIALIZED_THIS), frame.locals());
+        assertEquals(List.of(ConstantPoolBuilder.of().nameAndTypeEntry("f", CD_int)), frame.unsetFields());
+
+        runtimeVerify(testName, bytes);
     }
 }

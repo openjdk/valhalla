@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,11 +50,14 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
+#include "oops/arrayProperties.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -458,10 +461,12 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_inline_klass(), "must be");
-  InlineKlass* vk = InlineKlass::cast(elem_klass);
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj= oopFactory::new_objArray(elem_klass, length, ArrayKlass::ArrayProperties::NULL_RESTRICTED, CHECK);
+
+  const ArrayProperties props = ArrayProperties::Default().with_null_restricted();
+  arrayOop obj = oopFactory::new_objArray(elem_klass, length, props, CHECK);
+
   current->set_vm_result_oop(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -532,9 +537,9 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   current->set_vm_result_oop(obj);
 JRT_END
 
-JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, arrayOopDesc* array, int index, oopDesc* value))
   // TOOD 8350865 We can call here with a non-flat array because of LIR_Assembler::emit_opFlattenedArrayCheck
-  if (array->klass()->is_flatArray_klass()) {
+  if (array->is_flatArray()) {
     profile_flat_array(current, false, array->is_null_free_array());
   }
 
@@ -542,8 +547,8 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
   if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
-    assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->obj_at_put(index, value, CHECK);
+    // Here we know that we have a flat array
+    oop_cast<flatArrayOop>(array)->obj_at_put(index, value, CHECK);
   }
 JRT_END
 
@@ -555,7 +560,7 @@ JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* le
   JavaValue result(T_BOOLEAN);
   JavaCalls::call_static(&result,
                          vmClasses::ValueObjectMethods_klass(),
-                         UseAltSubstitutabilityMethod ? vmSymbols::isSubstitutableAlt_name() : vmSymbols::isSubstitutable_name(),
+                         vmSymbols::isSubstitutable_name(),
                          vmSymbols::object_object_boolean_signature(),
                          &args, CHECK_0);
   return result.get_jboolean() ? 1 : 0;
@@ -567,7 +572,7 @@ extern "C" void ps();
 void Runtime1::buffer_inline_args_impl(JavaThread* current, Method* m, bool allocate_receiver) {
   JavaThread* THREAD = current;
   methodHandle method(current, m); // We are inside the verified_entry or verified_inline_ro_entry of this method.
-  oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, CHECK);
+  oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, true, CHECK);
   current->set_vm_result_oop(obj);
 }
 
@@ -673,6 +678,7 @@ extern void vm_exit(int code);
 // unpack_with_exception entry instead. This makes life for the exception blob easier
 // because making that same check and diverting is painful from assembly language.
 JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* current, oopDesc* ex, address pc, nmethod*& nm))
+  MACOS_AARCH64_ONLY(current->wx_enable_write());
   Handle exception(current, ex);
 
   // This function is called when we are about to throw an exception. Therefore,
@@ -1206,7 +1212,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
           k = ek->array_klass(CHECK);
           if (!k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
-            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties::Default(), THREAD);
           }
           if (k->is_flatArray_klass()) {
             deoptimize_for_flat = true;

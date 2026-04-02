@@ -272,7 +272,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
   if (ac->is_clonebasic()) {
     assert(ac->in(ArrayCopyNode::Src) != ac->in(ArrayCopyNode::Dest), "clone source equals destination");
     Node* base = ac->in(ArrayCopyNode::Src);
-    Node* adr = _igvn.transform(new AddPNode(base, base, _igvn.MakeConX(offset)));
+    Node* adr = _igvn.transform(AddPNode::make_with_base(base, _igvn.MakeConX(offset)));
     const TypePtr* adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
     MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -294,7 +294,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
       }
       if (src_pos_t->is_con() && dest_pos_t->is_con()) {
         intptr_t off = ((src_pos_t->get_con() - dest_pos_t->get_con()) << shift) + offset;
-        adr = _igvn.transform(new AddPNode(base, base, _igvn.MakeConX(off)));
+        adr = _igvn.transform(AddPNode::make_with_base(base, base, _igvn.MakeConX(off)));
         adr_type = _igvn.type(adr)->is_aryptr();
         assert(adr_type == _igvn.type(base)->is_aryptr()->add_field_offset_and_offset(off), "incorrect address type");
         if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
@@ -314,7 +314,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
         diff = _igvn.transform(new LShiftXNode(diff, _igvn.intcon(shift)));
 
         Node* off = _igvn.transform(new AddXNode(_igvn.MakeConX(offset), diff));
-        adr = _igvn.transform(new AddPNode(base, base, off));
+        adr = _igvn.transform(AddPNode::make_with_base(base, base, off));
         // In the case of a flat inline type array, each field has its
         // own slice so we need to extract the field being accessed from
         // the address computation
@@ -1506,8 +1506,8 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode *boxing) {
 }
 
 
-Node* PhaseMacroExpand::make_load(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt) {
-  Node* adr = basic_plus_adr(base, offset);
+Node* PhaseMacroExpand::make_load_raw(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt) {
+  Node* adr = off_heap_plus_addr(base, offset);
   const TypePtr* adr_type = adr->bottom_type()->is_ptr();
   Node* value = LoadNode::make(_igvn, ctl, mem, adr, adr_type, value_type, bt, MemNode::unordered);
   transform_later(value);
@@ -1515,8 +1515,8 @@ Node* PhaseMacroExpand::make_load(Node* ctl, Node* mem, Node* base, int offset, 
 }
 
 
-Node* PhaseMacroExpand::make_store(Node* ctl, Node* mem, Node* base, int offset, Node* value, BasicType bt) {
-  Node* adr = basic_plus_adr(base, offset);
+Node* PhaseMacroExpand::make_store_raw(Node* ctl, Node* mem, Node* base, int offset, Node* value, BasicType bt) {
+  Node* adr = off_heap_plus_addr(base, offset);
   mem = StoreNode::make(_igvn, ctl, mem, adr, nullptr, value, bt, MemNode::unordered);
   transform_later(mem);
   return mem;
@@ -1622,7 +1622,9 @@ void PhaseMacroExpand::expand_allocate_common(
     initial_slow_test = nullptr;
   }
 
-  bool allocation_has_use = (alloc->result_cast() != nullptr);
+  // ArrayCopyNode right after an allocation operates on the raw result projection for the Allocate node so it's not
+  // safe to remove such an allocation even if it has no result cast.
+  bool allocation_has_use = (alloc->result_cast() != nullptr) || (alloc->initialization() != nullptr && alloc->initialization()->is_complete_with_arraycopy());
   if (!allocation_has_use) {
     InitializeNode* init = alloc->initialization();
     if (init != nullptr) {
@@ -1765,9 +1767,6 @@ void PhaseMacroExpand::expand_allocate_common(
     if (init_val != nullptr) {
       call->init_req(TypeFunc::Parms+2, init_val);
     }
-  } else {
-    // Let the runtime know if this is a larval allocation
-    call->init_req(TypeFunc::Parms+1, _igvn.intcon(alloc->_larval));
   }
 
   // Copy debug information and adjust JVMState information, then replace
@@ -2072,16 +2071,16 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
   if (!mark_node->is_Con()) {
     transform_later(mark_node);
   }
-  rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
+  rawmem = make_store_raw(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
 
   if (!UseCompactObjectHeaders) {
-    rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+    rawmem = make_store_raw(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   }
   int header_size = alloc->minimum_header_size();  // conservatively small
 
   // Array length
   if (length != nullptr) {         // Arrays need length field
-    rawmem = make_store(control, rawmem, object, arrayOopDesc::length_offset_in_bytes(), length, T_INT);
+    rawmem = make_store_raw(control, rawmem, object, arrayOopDesc::length_offset_in_bytes(), length, T_INT);
     // conservatively small header size:
     header_size = arrayOopDesc::base_offset_in_bytes(T_BYTE);
     if (_igvn.type(klass_node)->isa_aryklassptr()) {   // we know the exact header size in most cases:
@@ -2109,6 +2108,7 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
                                             alloc->in(AllocateNode::InitValue),
                                             alloc->in(AllocateNode::RawInitValue),
                                             header_size, size_in_bytes,
+                                            true,
                                             &_igvn);
     }
   } else {
@@ -2134,81 +2134,81 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
                                         Node* old_eden_top, Node* new_eden_top,
                                         intx lines) {
    enum { fall_in_path = 1, pf_path = 2 };
-   if( UseTLAB && AllocatePrefetchStyle == 2 ) {
+   if (UseTLAB && AllocatePrefetchStyle == 2) {
       // Generate prefetch allocation with watermark check.
       // As an allocation hits the watermark, we will prefetch starting
       // at a "distance" away from watermark.
 
-      Node *pf_region = new RegionNode(3);
-      Node *pf_phi_rawmem = new PhiNode( pf_region, Type::MEMORY,
-                                                TypeRawPtr::BOTTOM );
+      Node* pf_region = new RegionNode(3);
+      Node* pf_phi_rawmem = new PhiNode(pf_region, Type::MEMORY,
+                                                TypeRawPtr::BOTTOM);
       // I/O is used for Prefetch
-      Node *pf_phi_abio = new PhiNode( pf_region, Type::ABIO );
+      Node* pf_phi_abio = new PhiNode(pf_region, Type::ABIO);
 
-      Node *thread = new ThreadLocalNode();
+      Node* thread = new ThreadLocalNode();
       transform_later(thread);
 
-      Node *eden_pf_adr = new AddPNode( top()/*not oop*/, thread,
-                   _igvn.MakeConX(in_bytes(JavaThread::tlab_pf_top_offset())) );
+      Node* eden_pf_adr = AddPNode::make_off_heap(thread,
+                   _igvn.MakeConX(in_bytes(JavaThread::tlab_pf_top_offset())));
       transform_later(eden_pf_adr);
 
-      Node *old_pf_wm = new LoadPNode(needgc_false,
+      Node* old_pf_wm = new LoadPNode(needgc_false,
                                    contended_phi_rawmem, eden_pf_adr,
                                    TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,
                                    MemNode::unordered);
       transform_later(old_pf_wm);
 
       // check against new_eden_top
-      Node *need_pf_cmp = new CmpPNode( new_eden_top, old_pf_wm );
+      Node* need_pf_cmp = new CmpPNode(new_eden_top, old_pf_wm);
       transform_later(need_pf_cmp);
-      Node *need_pf_bol = new BoolNode( need_pf_cmp, BoolTest::ge );
+      Node* need_pf_bol = new BoolNode(need_pf_cmp, BoolTest::ge);
       transform_later(need_pf_bol);
-      IfNode *need_pf_iff = new IfNode( needgc_false, need_pf_bol,
-                                       PROB_UNLIKELY_MAG(4), COUNT_UNKNOWN );
+      IfNode* need_pf_iff = new IfNode(needgc_false, need_pf_bol,
+                                       PROB_UNLIKELY_MAG(4), COUNT_UNKNOWN);
       transform_later(need_pf_iff);
 
       // true node, add prefetchdistance
-      Node *need_pf_true = new IfTrueNode( need_pf_iff );
+      Node* need_pf_true = new IfTrueNode(need_pf_iff);
       transform_later(need_pf_true);
 
-      Node *need_pf_false = new IfFalseNode( need_pf_iff );
+      Node* need_pf_false = new IfFalseNode(need_pf_iff);
       transform_later(need_pf_false);
 
-      Node *new_pf_wmt = new AddPNode( top(), old_pf_wm,
-                                    _igvn.MakeConX(AllocatePrefetchDistance) );
-      transform_later(new_pf_wmt );
+      Node* new_pf_wmt = AddPNode::make_off_heap(old_pf_wm,
+                                                 _igvn.MakeConX(AllocatePrefetchDistance));
+      transform_later(new_pf_wmt);
       new_pf_wmt->set_req(0, need_pf_true);
 
-      Node *store_new_wmt = new StorePNode(need_pf_true,
+      Node* store_new_wmt = new StorePNode(need_pf_true,
                                        contended_phi_rawmem, eden_pf_adr,
                                        TypeRawPtr::BOTTOM, new_pf_wmt,
                                        MemNode::unordered);
       transform_later(store_new_wmt);
 
       // adding prefetches
-      pf_phi_abio->init_req( fall_in_path, i_o );
+      pf_phi_abio->init_req(fall_in_path, i_o);
 
-      Node *prefetch_adr;
-      Node *prefetch;
+      Node* prefetch_adr;
+      Node* prefetch;
       uint step_size = AllocatePrefetchStepSize;
       uint distance = 0;
 
-      for ( intx i = 0; i < lines; i++ ) {
-        prefetch_adr = new AddPNode( old_pf_wm, new_pf_wmt,
-                                            _igvn.MakeConX(distance) );
+      for (intx i = 0; i < lines; i++) {
+        prefetch_adr = AddPNode::make_off_heap(new_pf_wmt,
+                                               _igvn.MakeConX(distance));
         transform_later(prefetch_adr);
-        prefetch = new PrefetchAllocationNode( i_o, prefetch_adr );
+        prefetch = new PrefetchAllocationNode(i_o, prefetch_adr);
         transform_later(prefetch);
         distance += step_size;
         i_o = prefetch;
       }
-      pf_phi_abio->set_req( pf_path, i_o );
+      pf_phi_abio->set_req(pf_path, i_o);
 
-      pf_region->init_req( fall_in_path, need_pf_false );
-      pf_region->init_req( pf_path, need_pf_true );
+      pf_region->init_req(fall_in_path, need_pf_false);
+      pf_region->init_req(pf_path, need_pf_true);
 
-      pf_phi_rawmem->init_req( fall_in_path, contended_phi_rawmem );
-      pf_phi_rawmem->init_req( pf_path, store_new_wmt );
+      pf_phi_rawmem->init_req(fall_in_path, contended_phi_rawmem);
+      pf_phi_rawmem->init_req(pf_path, store_new_wmt);
 
       transform_later(pf_region);
       transform_later(pf_phi_rawmem);
@@ -2217,7 +2217,7 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
       needgc_false = pf_region;
       contended_phi_rawmem = pf_phi_rawmem;
       i_o = pf_phi_abio;
-   } else if( UseTLAB && AllocatePrefetchStyle == 3 ) {
+   } else if (UseTLAB && AllocatePrefetchStyle == 3) {
       // Insert a prefetch instruction for each allocation.
       // This code is used to generate 1 prefetch instruction per cache line.
 
@@ -2226,13 +2226,12 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
       uint distance = AllocatePrefetchDistance;
 
       // Next cache address.
-      Node *cache_adr = new AddPNode(old_eden_top, old_eden_top,
-                                     _igvn.MakeConX(step_size + distance));
+      Node* cache_adr = AddPNode::make_off_heap(old_eden_top,
+                                                _igvn.MakeConX(step_size + distance));
       transform_later(cache_adr);
       cache_adr = new CastP2XNode(needgc_false, cache_adr);
       transform_later(cache_adr);
-      // Address is aligned to execute prefetch to the beginning of cache line size
-      // (it is important when BIS instruction is used on SPARC as prefetch).
+      // Address is aligned to execute prefetch to the beginning of cache line size.
       Node* mask = _igvn.MakeConX(~(intptr_t)(step_size-1));
       cache_adr = new AndXNode(cache_adr, mask);
       transform_later(cache_adr);
@@ -2240,36 +2239,36 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
       transform_later(cache_adr);
 
       // Prefetch
-      Node *prefetch = new PrefetchAllocationNode( contended_phi_rawmem, cache_adr );
+      Node* prefetch = new PrefetchAllocationNode(contended_phi_rawmem, cache_adr);
       prefetch->set_req(0, needgc_false);
       transform_later(prefetch);
       contended_phi_rawmem = prefetch;
-      Node *prefetch_adr;
+      Node* prefetch_adr;
       distance = step_size;
-      for ( intx i = 1; i < lines; i++ ) {
-        prefetch_adr = new AddPNode( cache_adr, cache_adr,
-                                            _igvn.MakeConX(distance) );
+      for (intx i = 1; i < lines; i++) {
+        prefetch_adr = AddPNode::make_off_heap(cache_adr,
+                                               _igvn.MakeConX(distance));
         transform_later(prefetch_adr);
-        prefetch = new PrefetchAllocationNode( contended_phi_rawmem, prefetch_adr );
+        prefetch = new PrefetchAllocationNode(contended_phi_rawmem, prefetch_adr);
         transform_later(prefetch);
         distance += step_size;
         contended_phi_rawmem = prefetch;
       }
-   } else if( AllocatePrefetchStyle > 0 ) {
+   } else if (AllocatePrefetchStyle > 0) {
       // Insert a prefetch for each allocation only on the fast-path
-      Node *prefetch_adr;
-      Node *prefetch;
+      Node* prefetch_adr;
+      Node* prefetch;
       // Generate several prefetch instructions.
       uint step_size = AllocatePrefetchStepSize;
       uint distance = AllocatePrefetchDistance;
-      for ( intx i = 0; i < lines; i++ ) {
-        prefetch_adr = new AddPNode( old_eden_top, new_eden_top,
-                                            _igvn.MakeConX(distance) );
+      for (intx i = 0; i < lines; i++) {
+        prefetch_adr = AddPNode::make_off_heap(new_eden_top,
+                                               _igvn.MakeConX(distance));
         transform_later(prefetch_adr);
-        prefetch = new PrefetchAllocationNode( i_o, prefetch_adr );
+        prefetch = new PrefetchAllocationNode(i_o, prefetch_adr);
         // Do not let it float too high, since if eden_top == eden_end,
         // both might be null.
-        if( i == 0 ) { // Set control for first prefetch, next follows it
+        if (i == 0) { // Set control for first prefetch, next follows it
           prefetch->init_req(0, needgc_false);
         }
         transform_later(prefetch);
@@ -2650,12 +2649,7 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   // No need for a null check on unlock
 
   // Make the merge point
-  Node *region;
-  Node *mem_phi;
-
-  region  = new RegionNode(3);
-  // create a Phi for the memory state
-  mem_phi = new PhiNode( region, Type::MEMORY, TypeRawPtr::BOTTOM);
+  Node* region = new RegionNode(3);
 
   FastUnlockNode *funlock = new FastUnlockNode( ctrl, obj, box );
   funlock = transform_later( funlock )->as_FastUnlock();
@@ -2684,12 +2678,15 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   transform_later(region);
   _igvn.replace_node(_callprojs->fallthrough_proj, region);
 
-  Node *memproj = transform_later(new ProjNode(call, TypeFunc::Memory) );
-  mem_phi->init_req(1, memproj );
-  mem_phi->init_req(2, mem);
-  transform_later(mem_phi);
-
-  _igvn.replace_node(_callprojs->fallthrough_memproj, mem_phi);
+  if (_callprojs->fallthrough_memproj != nullptr) {
+    // create a Phi for the memory state
+    Node* mem_phi = new PhiNode( region, Type::MEMORY, TypeRawPtr::BOTTOM);
+    Node* memproj = transform_later(new ProjNode(call, TypeFunc::Memory));
+    mem_phi->init_req(1, memproj);
+    mem_phi->init_req(2, mem);
+    transform_later(mem_phi);
+    _igvn.replace_node(_callprojs->fallthrough_memproj, mem_phi);
+  }
 }
 
 // An inline type might be returned from the call but we don't know its
@@ -2749,7 +2746,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     Node* masked2 = transform_later(new AndXNode(cast, mask2));
     Node* rawklassptr = transform_later(new CastX2PNode(masked2));
     Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeInstKlassPtr::OBJECT_OR_NULL));
-    Node* layout_val = make_load(nullptr, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
+    Node* layout_val = make_load_raw(nullptr, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
     Node* size_in_bytes = ConvI2X(layout_val);
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     Node* fast_oop = bs->obj_allocate(this, mem, allocation_ctl, size_in_bytes, io, needgc_ctrl,
@@ -2760,22 +2757,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     Node* mark_word_node;
     if (UseCompactObjectHeaders) {
       // COH: We need to load the prototype from the klass at runtime since it encodes the klass pointer already.
-      mark_word_node = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+      mark_word_node = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     } else {
       // Otherwise, use the static prototype.
       mark_word_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
     }
 
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
+    fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
     if (!UseCompactObjectHeaders) {
       // COH: Everything is encoded in the mark word, so nothing left to do.
-      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+      fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
       if (UseCompressedClassPointers) {
-        fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+        fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
       }
     }
-    Node* members  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* members  = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* pack_handler = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
                                         nullptr,
                                         "pack handler",
@@ -3006,7 +3003,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         // Make loads control dependent to make sure they are only executed if array is locked
         Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
         Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-        Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+        Node* proto_adr = basic_plus_adr(top(), klass, in_bytes(Klass::prototype_header_offset()));
         Node* proto_load = _igvn.transform(LoadNode::make(_igvn, ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
         proto = _igvn.transform(new OrXNode(proto, proto_load));
       }
@@ -3039,7 +3036,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         assert(t->isa_klassptr(), "Unexpected input type");
         klass = array_or_klass;
       }
-      Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
+      Node* lh_addr = basic_plus_adr(top(), klass, in_bytes(Klass::layout_helper_offset()));
       Node* lh_val = _igvn.transform(LoadNode::make(_igvn, nullptr, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
       lhs = _igvn.transform(new OrINode(lhs, lh_val));
     }
@@ -3164,7 +3161,8 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
         assert(n->Opcode() == Op_LoopLimit ||
                n->Opcode() == Op_ModD ||
                n->Opcode() == Op_ModF ||
-               n->is_OpaqueNotNull()       ||
+               n->Opcode() == Op_PowD ||
+               n->is_OpaqueConstantBool()    ||
                n->is_OpaqueInitializedAssertionPredicate() ||
                n->Opcode() == Op_MaxL      ||
                n->Opcode() == Op_MinL      ||
@@ -3231,14 +3229,14 @@ void PhaseMacroExpand::eliminate_opaque_looplimit_macro_nodes() {
       } else if (n->is_Opaque1()) {
         _igvn.replace_node(n, n->in(1));
         success = true;
-      } else if (n->is_OpaqueNotNull()) {
-        // Tests with OpaqueNotNull nodes are implicitly known to be true. Replace the node with true. In debug builds,
+      } else if (n->is_OpaqueConstantBool()) {
+        // Tests with OpaqueConstantBool nodes are implicitly known. Replace the node with true/false. In debug builds,
         // we leave the test in the graph to have an additional sanity check at runtime. If the test fails (i.e. a bug),
         // we will execute a Halt node.
 #ifdef ASSERT
         _igvn.replace_node(n, n->in(1));
 #else
-        _igvn.replace_node(n, _igvn.intcon(1));
+        _igvn.replace_node(n, _igvn.intcon(n->as_OpaqueConstantBool()->constant()));
 #endif
         success = true;
       } else if (n->is_OpaqueInitializedAssertionPredicate()) {
@@ -3346,18 +3344,11 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     default:
       switch (n->Opcode()) {
       case Op_ModD:
-      case Op_ModF: {
-        CallNode* mod_macro = n->as_Call();
-        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(), mod_macro->_name);
-        call->init_req(TypeFunc::Control, mod_macro->in(TypeFunc::Control));
-        call->init_req(TypeFunc::I_O, C->top());
-        call->init_req(TypeFunc::Memory, C->top());
-        call->init_req(TypeFunc::ReturnAdr, C->top());
-        call->init_req(TypeFunc::FramePtr, C->top());
-        for (unsigned int i = 0; i < mod_macro->tf()->domain_cc()->cnt() - TypeFunc::Parms; i++) {
-          call->init_req(TypeFunc::Parms + i, mod_macro->in(TypeFunc::Parms + i));
-        }
-        _igvn.replace_node(mod_macro, call);
+      case Op_ModF:
+      case Op_PowD: {
+        CallLeafPureNode* call_macro = n->as_CallLeafPure();
+        CallLeafPureNode* call = call_macro->inline_call_leaf_pure_node();
+        _igvn.replace_node(call_macro, call);
         transform_later(call);
         break;
       }

@@ -23,6 +23,7 @@
  */
 
 #include "oops/layoutKind.hpp"
+#include "utilities/ostream.hpp"
 
 const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
   switch(lk) {
@@ -44,3 +45,10 @@ const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
       ShouldNotReachHere();
   }
 }
+
+#ifdef ASSERT
+void LayoutKindHelper::print_on(LayoutKind lk, outputStream* st) {
+  st->print("LayoutKind: %s", layout_kind_as_string(lk));
+}
+#endif // ASSERT
+

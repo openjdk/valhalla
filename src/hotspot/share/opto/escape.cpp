@@ -173,7 +173,7 @@ bool ConnectionGraph::compute_escape() {
         !n->in(MemNode::Address)->is_AddP() &&
         _igvn->type(n->in(MemNode::Address))->isa_oopptr()) {
       // Load/Store at mark work address is at offset 0 so has no AddP which confuses EA
-      Node* addp = new AddPNode(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
+      Node* addp = AddPNode::make_with_base(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
       _igvn->register_new_node_with_optimizer(addp);
       _igvn->replace_input_of(n, MemNode::Address, addp);
       ideal_nodes.push(addp);
@@ -608,7 +608,7 @@ bool ConnectionGraph::can_reduce_check_users(Node* n, uint nesting) const {
         // CmpP/N used by the If controlling the cast.
         if (use->in(0)->is_IfTrue() || use->in(0)->is_IfFalse()) {
           Node* iff = use->in(0)->in(0);
-          // We may have an OpaqueNotNull node between If and Bool nodes. But we could also have a sub class of IfNode,
+          // We may have an OpaqueConstantBool node between If and Bool nodes. But we could also have a sub class of IfNode,
           // for example, an OuterStripMinedLoopEnd or a Parse Predicate. Bail out in all these cases.
           bool can_reduce = (iff->Opcode() == Op_If) && iff->in(1)->is_Bool() && iff->in(1)->in(1)->is_Cmp();
           if (can_reduce) {
@@ -800,7 +800,7 @@ Node* ConnectionGraph::split_castpp_load_through_phi(Node* curr_addp, Node* curr
         base = base->find_out_with(Op_CastPP);
       }
 
-      Node* addr = _igvn->transform(new AddPNode(base, base, curr_addp->in(AddPNode::Offset)));
+      Node* addr = _igvn->transform(AddPNode::make_with_base(base, curr_addp->in(AddPNode::Offset)));
       Node* mem = (memory->is_Phi() && (memory->in(0) == region)) ? memory->in(i) : memory;
       Node* load = curr_load->clone();
       load->set_req(0, nullptr);
@@ -1586,6 +1586,26 @@ void ConnectionGraph::add_objload_to_connection_graph(Node *n, Unique_Node_List 
   }
 }
 
+void ConnectionGraph::add_proj(Node* n, Unique_Node_List* delayed_worklist) {
+  if (n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->is_Call() && n->in(0)->as_Call()->returns_pointer()) {
+    add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
+  } else if (n->in(0)->is_LoadFlat()) {
+    // Treat LoadFlat outputs similar to a call return value
+    add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
+  } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() && n->bottom_type()->isa_ptr()) {
+    CallNode* call = n->in(0)->as_Call();
+    assert(call->tf()->returns_inline_type_as_fields(), "");
+    if (n->as_Proj()->_con == TypeFunc::Parms || !returns_an_argument(call)) {
+      // either:
+      // - not an argument returned
+      // - the returned buffer for a returned scalarized argument
+      add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
+    } else {
+      add_local_var(n, PointsToNode::NoEscape);
+    }
+  }
+}
+
 // Populate Connection Graph with PointsTo nodes and create simple
 // connection graph edges.
 void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *delayed_worklist) {
@@ -1749,15 +1769,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       break;
     case Op_Proj: {
       // we are only interested in the oop result projection from a call
-      if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() &&
-          (n->in(0)->as_Call()->returns_pointer() || n->bottom_type()->isa_ptr())) {
-        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
-               n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
-        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
-      } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_LoadFlat() && igvn->type(n)->isa_ptr()) {
-        // Treat LoadFlat outputs similar to a call return value
-        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
-      }
+      add_proj(n, delayed_worklist);
       break;
     }
     case Op_Rethrow: // Exception object escapes
@@ -1927,15 +1939,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
       break;
     }
     case Op_Proj: {
-      if (n->in(0)->is_Call()) {
-        // we are only interested in the oop result projection from a call
-        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
-              n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
-        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
-      } else if (n->in(0)->is_LoadFlat()) {
-        // Treat LoadFlat outputs similar to a call return value
-        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
-      }
+      add_proj(n, nullptr);
       break;
     }
     case Op_Rethrow: // Exception object escapes
@@ -2109,6 +2113,145 @@ bool ConnectionGraph::add_final_edges_unsafe_access(Node* n, uint opcode) {
   return false;
 }
 
+// Iterate over the domains for the scalarized and non scalarized calling conventions: Only move to the next element
+// in the non scalarized calling convention once all elements of the scalarized calling convention for that parameter
+// have been iterated over. So (ignoring hidden arguments such as the null marker) iterating over:
+// value class MyValue {
+//   int f1;
+//   float f2;
+// }
+// void m(Object o, MyValue v, int i)
+// produces the pairs:
+// (Object, Object), (Myvalue, int), (MyValue, float), (int, int)
+class DomainIterator : public StackObj {
+private:
+  const TypeTuple* _domain;
+  const TypeTuple* _domain_cc;
+  const GrowableArray<SigEntry>* _sig_cc;
+
+  uint _i_domain;
+  uint _i_domain_cc;
+  int _i_sig_cc;
+  uint _depth;
+  uint _first_field_pos;
+  const bool _is_static;
+
+  void next_helper() {
+    if (_sig_cc == nullptr) {
+      return;
+    }
+    BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
+    BasicType prev_prev_bt = _i_sig_cc > 1 ? _sig_cc->at(_i_sig_cc-2)._bt : T_ILLEGAL;
+    while (_i_sig_cc < _sig_cc->length()) {
+      BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
+      assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "incorrect prev bt");
+      if (bt == T_METADATA) {
+        if (_depth == 0) {
+          _first_field_pos = _i_domain_cc;
+        }
+        _depth++;
+      } else if (bt == T_VOID && (prev_bt != T_LONG && prev_bt != T_DOUBLE)) {
+        _depth--;
+        if (_depth == 0) {
+          _i_domain++;
+        }
+      } else if (bt == T_OBJECT && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == 0) {
+        assert(_sig_cc->at(_i_sig_cc)._vt_oop, "buffer expected right after T_METADATA");
+        assert(_depth == 1, "only root value has buffer");
+        _i_domain_cc++;
+        _first_field_pos = _i_domain_cc;
+      } else if (bt == T_BOOLEAN && prev_prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
+        assert(_sig_cc->at(_i_sig_cc)._null_marker, "null marker expected right after T_METADATA");
+        assert(_depth == 1, "only root value null marker");
+        _i_domain_cc++;
+        _first_field_pos = _i_domain_cc;
+      } else {
+        return;
+      }
+      prev_prev_bt = prev_bt;
+      prev_bt = bt;
+      _i_sig_cc++;
+    }
+  }
+
+public:
+
+  DomainIterator(CallJavaNode* call) :
+    _domain(call->tf()->domain_sig()),
+    _domain_cc(call->tf()->domain_cc()),
+    _sig_cc(call->method()->get_sig_cc()),
+    _i_domain(TypeFunc::Parms),
+    _i_domain_cc(TypeFunc::Parms),
+    _i_sig_cc(0),
+    _depth(0),
+    _first_field_pos(0),
+    _is_static(call->method()->is_static()) {
+    next_helper();
+  }
+
+  bool has_next() const {
+    assert(_sig_cc == nullptr || (_i_sig_cc < _sig_cc->length()) == (_i_domain < _domain->cnt()), "should reach end in sync");
+    assert((_i_domain < _domain->cnt()) == (_i_domain_cc < _domain_cc->cnt()), "should reach end in sync");
+    return _i_domain < _domain->cnt();
+  }
+
+  void next() {
+    assert(_depth != 0 || _domain->field_at(_i_domain) == _domain_cc->field_at(_i_domain_cc), "should produce same non scalarized elements");
+    _i_sig_cc++;
+    if (_depth == 0) {
+      _i_domain++;
+    }
+    _i_domain_cc++;
+    next_helper();
+  }
+
+  uint i_domain() const {
+    return _i_domain;
+  }
+
+  uint i_domain_cc() const {
+    return _i_domain_cc;
+  }
+
+  const Type* current_domain() const {
+    return _domain->field_at(_i_domain);
+  }
+
+  const Type* current_domain_cc() const {
+    return _domain_cc->field_at(_i_domain_cc);
+  }
+
+  uint first_field_pos() const {
+    assert(_first_field_pos >= TypeFunc::Parms, "not yet updated?");
+    return _first_field_pos;
+  }
+};
+
+// Determine whether any arguments are returned.
+bool ConnectionGraph::returns_an_argument(CallNode* call) {
+  ciMethod* meth = call->as_CallJava()->method();
+  BCEscapeAnalyzer* call_analyzer = meth->get_bcea();
+  if (call_analyzer == nullptr) {
+    return false;
+  }
+
+  const TypeTuple* d = call->tf()->domain_sig();
+  bool ret_arg = false;
+  for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+    if (d->field_at(i)->isa_ptr() != nullptr &&
+        call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
+      if (meth->is_scalarized_arg(i - TypeFunc::Parms) && !compatible_return(call->as_CallJava(), i)) {
+        return false;
+      }
+      if (call->tf()->returns_inline_type_as_fields() != meth->is_scalarized_arg(i - TypeFunc::Parms)) {
+        return false;
+      }
+      ret_arg = true;
+    }
+  }
+  return ret_arg;
+}
+
 void ConnectionGraph::add_call_node(CallNode* call) {
   assert(call->returns_pointer() || call->tf()->returns_inline_type_as_fields(), "only for call which returns pointer");
   uint call_idx = call->_idx;
@@ -2218,20 +2361,16 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         add_java_object(call, PointsToNode::NoEscape);
         set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of call"));
       } else {
-        // Determine whether any arguments are returned.
-        const TypeTuple* d = call->tf()->domain_cc();
-        bool ret_arg = false;
-        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-          if (d->field_at(i)->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(i - TypeFunc::Parms)) {
-            ret_arg = true;
-            break;
-          }
-        }
-        if (ret_arg) {
+        // For non scalarized argument/return: add_proj() adds an edge between the return projection and the call,
+        // process_call_arguments() adds an edge between the call and the argument
+        // For scalarized argument/return: process_call_arguments() adds an edge between a call projection for a field
+        // and the argument input to the call for that field. An edge is added between the projection for the returned
+        // buffer and the call.
+        if (returns_an_argument(call) && !call->tf()->returns_inline_type_as_fields()) {
+          // returns non scalarized argument
           add_local_var(call, PointsToNode::ArgEscape);
         } else {
-          // Returns unknown object.
+          // Returns unknown object or scalarized argument being returned
           map_ideal_node(call, phantom_obj);
         }
       }
@@ -2242,6 +2381,12 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     assert(call->Opcode() == Op_CallDynamicJava, "add failed case check");
     map_ideal_node(call, phantom_obj);
   }
+}
+
+// Check that the return type is compatible with the type of the argument being returned i.e. that there's no cast that
+// fails in the method
+bool ConnectionGraph::compatible_return(CallJavaNode* call, uint k) {
+  return call->tf()->domain_sig()->field_at(k)->is_instptr()->instance_klass() == call->tf()->range_sig()->field_at(TypeFunc::Parms)->is_instptr()->instance_klass();
 }
 
 void ConnectionGraph::process_call_arguments(CallNode *call) {
@@ -2431,16 +2576,33 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       // fall-through if not a Java method or no analyzer information
       if (call_analyzer != nullptr) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
-        const TypeTuple* d = call->tf()->domain_cc();
-        for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-          const Type* at = d->field_at(i);
-          int k = i - TypeFunc::Parms;
-          Node* arg = call->in(i);
+        bool ret_arg = returns_an_argument(call);
+        for (DomainIterator di(call->as_CallJava()); di.has_next(); di.next()) {
+          int k = di.i_domain() - TypeFunc::Parms;
+          const Type* at = di.current_domain_cc();
+          Node* arg = call->in(di.i_domain_cc());
           PointsToNode* arg_ptn = ptnode_adr(arg->_idx);
-          if (at->isa_ptr() != nullptr &&
-              call_analyzer->is_arg_returned(k)) {
+          assert(!call_analyzer->is_arg_returned(k) || !meth->is_scalarized_arg(k) ||
+                 !compatible_return(call->as_CallJava(), di.i_domain()) ||
+                 call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1) == nullptr ||
+                 _igvn->type(call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1)) == at,
+                 "scalarized return and scalarized argument should match");
+          if (at->isa_ptr() != nullptr && call_analyzer->is_arg_returned(k) && ret_arg) {
             // The call returns arguments.
-            if (call_ptn != nullptr) { // Is call's result used?
+            if (meth->is_scalarized_arg(k)) {
+              ProjNode* res_proj = call->proj_out_or_null(di.i_domain_cc() - di.first_field_pos() + TypeFunc::Parms + 1);
+              if (res_proj != nullptr) {
+                assert(_igvn->type(res_proj)->isa_ptr(), "scalarized return and scalarized argument should match");
+                if (res_proj->_con != TypeFunc::Parms) {
+                  // add an edge between the result projection for a field and the argument projection for the same argument field
+                  PointsToNode* proj_ptn = ptnode_adr(res_proj->_idx);
+                  add_edge(proj_ptn, arg_ptn);
+                  if (!call_analyzer->is_return_local()) {
+                    add_edge(proj_ptn, phantom_obj);
+                  }
+                }
+              }
+            } else if (call_ptn != nullptr) { // Is call's result used?
               assert(call_ptn->is_LocalVar(), "node should be registered");
               assert(arg_ptn != nullptr, "node should be registered");
               add_edge(call_ptn, arg_ptn);
@@ -3650,10 +3812,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         bt = field->layout_type();
       } else {
         // Check for unsafe oop field access
-        if (n->has_out_with(Op_StoreP, Op_LoadP, Op_StoreN, Op_LoadN) ||
-            n->has_out_with(Op_GetAndSetP, Op_GetAndSetN, Op_CompareAndExchangeP, Op_CompareAndExchangeN) ||
-            n->has_out_with(Op_CompareAndSwapP, Op_CompareAndSwapN, Op_WeakCompareAndSwapP, Op_WeakCompareAndSwapN) ||
-            BarrierSet::barrier_set()->barrier_set_c2()->escape_has_out_with_unsafe_object(n)) {
+        if (has_oop_node_outs(n)) {
           bt = T_OBJECT;
           (*unsafe) = true;
         }
@@ -3681,16 +3840,22 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
       // Allocation initialization, ThreadLocal field access, unsafe access
-      if (n->has_out_with(Op_StoreP, Op_LoadP, Op_StoreN, Op_LoadN) ||
-          n->has_out_with(Op_GetAndSetP, Op_GetAndSetN, Op_CompareAndExchangeP, Op_CompareAndExchangeN) ||
-          n->has_out_with(Op_CompareAndSwapP, Op_CompareAndSwapN, Op_WeakCompareAndSwapP, Op_WeakCompareAndSwapN) ||
-          BarrierSet::barrier_set()->barrier_set_c2()->escape_has_out_with_unsafe_object(n)) {
+      if (has_oop_node_outs(n)) {
         bt = T_OBJECT;
       }
     }
   }
   // Note: T_NARROWOOP is not classed as a real reference type
-  return (is_reference_type(bt) || bt == T_NARROWOOP);
+  bool res = (is_reference_type(bt) || bt == T_NARROWOOP);
+  assert(!has_oop_node_outs(n) || res, "sanity: AddP has oop outs, needs to be treated as oop field");
+  return res;
+}
+
+bool ConnectionGraph::has_oop_node_outs(Node* n) {
+  return n->has_out_with(Op_StoreP, Op_LoadP, Op_StoreN, Op_LoadN) ||
+         n->has_out_with(Op_GetAndSetP, Op_GetAndSetN, Op_CompareAndExchangeP, Op_CompareAndExchangeN) ||
+         n->has_out_with(Op_CompareAndSwapP, Op_CompareAndSwapN, Op_WeakCompareAndSwapP, Op_WeakCompareAndSwapN) ||
+         BarrierSet::barrier_set()->barrier_set_c2()->escape_has_out_with_unsafe_object(n);
 }
 
 // Returns unique pointed java object or null.
@@ -3897,7 +4062,8 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
   //      | |
   //     AddP  ( base == address )
   //
-  // case #3. Raw object's field reference for Initialize node:
+  // case #3. Raw object's field reference for Initialize node.
+  //          Could have an additional Phi merging multiple allocations.
   //      Allocate
   //        |
   //      Proj #5 ( oop result )
@@ -3921,9 +4087,9 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
   //       | |
   //       AddP  ( base == address )
   //
-  // case #6. Constant Pool, ThreadLocal, CastX2P or
+  // case #6. Constant Pool, ThreadLocal, CastX2P, Klass, OSR buffer buf or
   //          Raw object's field reference:
-  //      {ConP, ThreadLocal, CastX2P, raw Load}
+  //      {ConP, ThreadLocal, CastX2P, raw Load, Parm0}
   //  top   |
   //     \  |
   //     AddP  ( base == top )
@@ -3948,8 +4114,20 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
   //     \  |
   //     AddP  ( base == top )
   //
+  // case #10. Klass fetched with
+  //           LibraryCallKit::load_*_refined_array_klass()
+  //           which has en extra Phi.
+  //  LoadKlass   LoadKlass
+  //       |          |
+  //     CastPP    CastPP
+  //          \   /
+  //           Phi
+  //      top   |
+  //         \  |
+  //         AddP  ( base == top )
+  //
   Node *base = addp->in(AddPNode::Base);
-  if (base->uncast()->is_top()) { // The AddP case #3 and #6 and #9.
+  if (base->uncast()->is_top()) { // The AddP case #3, #6, #9, and #10.
     base = addp->in(AddPNode::Address);
     while (base->is_AddP()) {
       // Case #6 (unsafe access) may have several chained AddP nodes.
@@ -3961,16 +4139,33 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
         _igvn->type(base->in(1))->isa_oopptr()) {
       base = base->in(1); // Case #9
     } else {
+      // Case #3, #6, and #10
       Node* uncast_base = base->uncast();
       int opcode = uncast_base->Opcode();
       assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
              opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
+             (_igvn->C->is_osr_compilation() && uncast_base->is_Parm() && uncast_base->as_Parm()->_con == TypeFunc::Parms)||
              (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != nullptr)) ||
-             is_captured_store_address(addp), "sanity");
+             (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_klassptr() != nullptr)) ||
+             is_captured_store_address(addp) ||
+             is_load_array_klass_related(uncast_base), "sanity");
     }
   }
   return base;
 }
+
+#ifdef ASSERT
+// Case #10
+bool ConnectionGraph::is_load_array_klass_related(const Node* uncast_base) {
+  if (!uncast_base->is_Phi() || uncast_base->req() != 3) {
+    return false;
+  }
+  Node* in1 = uncast_base->in(1);
+  Node* in2 = uncast_base->in(2);
+  return in1->uncast()->Opcode() == Op_LoadKlass &&
+         in2->uncast()->Opcode() == Op_LoadKlass;
+}
+#endif
 
 Node* ConnectionGraph::find_second_addp(Node* addp, Node* n) {
   assert(addp->is_AddP() && addp->outcnt() > 0, "Don't process dead nodes");
@@ -4578,7 +4773,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
   uint new_index_start = (uint) _compile->num_alias_types();
   VectorSet visited;
   ideal_nodes.clear(); // Reset for use with set_map/get_map.
-  uint unique_old = _compile->unique();
 
   //  Phase 1:  Process possible allocations from alloc_worklist.
   //  Create instance types for the CheckCastPP for allocations where possible.

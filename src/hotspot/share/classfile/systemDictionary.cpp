@@ -1198,7 +1198,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inline_type_fields()) {
+  if (ik->has_inlined_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) continue;
 
@@ -1213,8 +1213,8 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else if (Signature::has_envelope(sig)) {
-          // Pending exceptions are cleared so we can fail silently
-          try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
+        // Pending exceptions are cleared so we can fail silently
+        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
   }
@@ -1254,7 +1254,6 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   }
 
   load_shared_class_misc(ik, loader_data);
-
   return ik;
 }
 
@@ -2224,7 +2223,7 @@ void SystemDictionary::restore_archived_method_handle_intrinsics_impl(TRAPS) {
 // Helper for unpacking the return value from linkMethod and linkCallSite.
 static Method* unpack_method_and_appendix(Handle mname,
                                           Klass* accessing_klass,
-                                          objArrayHandle appendix_box,
+                                          refArrayHandle appendix_box,
                                           Handle* appendix_result,
                                           TRAPS) {
   if (mname.not_null()) {
@@ -2267,7 +2266,7 @@ Method* SystemDictionary::find_method_handle_invoker(Klass* klass,
   int ref_kind = JVM_REF_invokeVirtual;
   oop name_oop = StringTable::intern(name, CHECK_NULL);
   Handle name_str (THREAD, name_oop);
-  objArrayHandle appendix_box = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 1, CHECK_NULL);
+  refArrayHandle appendix_box = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 1, CHECK_NULL);
   assert(appendix_box->obj_at(0) == nullptr, "");
 
   // This should not happen.  JDK code should take care of that.
@@ -2378,7 +2377,7 @@ Handle SystemDictionary::find_method_handle_type(Symbol* signature,
   }
   bool can_be_cached = true;
   int npts = ArgumentCount(signature).size();
-  objArrayHandle pts = oopFactory::new_objArray_handle(vmClasses::Class_klass(), npts, CHECK_(empty));
+  refArrayHandle pts = oopFactory::new_refArray_handle(vmClasses::Class_klass(), npts, CHECK_(empty));
   int arg = 0;
   Handle rt; // the return type from the signature
   ResourceMark rm(THREAD);
@@ -2524,10 +2523,10 @@ void SystemDictionary::invoke_bootstrap_method(BootstrapInfo& bootstrap_specifie
   }
 
   bool is_indy = bootstrap_specifier.is_method_call();
-  objArrayHandle appendix_box;
+  refArrayHandle appendix_box;
   if (is_indy) {
     // Some method calls may require an appendix argument.  Arrange to receive it.
-    appendix_box = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 1, CHECK);
+    appendix_box = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 1, CHECK);
     assert(appendix_box->obj_at(0) == nullptr, "");
   }
 

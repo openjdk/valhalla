@@ -56,6 +56,9 @@
 #include "utilities/ostream.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
+#endif // INCLUDE_SHENANDOAHGC
 
 // Portions of code courtesy of Clifford Click
 
@@ -101,10 +104,9 @@ void Type::Offset::dump2(outputStream *st) const {
     return;
   } else if (_offset == OffsetTop) {
     st->print("+top");
-  }
-  else if (_offset == OffsetBot) {
+  } else if (_offset == OffsetBot) {
     st->print("+bot");
-  } else if (_offset) {
+  } else {
     st->print("+%d", _offset);
   }
 }
@@ -149,7 +151,7 @@ const Type::TypeInfo Type::_type_info[Type::lastype] = {
   { Bad,             T_ILLEGAL,    "vectorz:",      false, Op_VecZ,              relocInfo::none          },  // VectorZ
 #endif
   { Bad,             T_ADDRESS,    "anyptr:",       false, Op_RegP,              relocInfo::none          },  // AnyPtr
-  { Bad,             T_ADDRESS,    "rawptr:",       false, Op_RegP,              relocInfo::none          },  // RawPtr
+  { Bad,             T_ADDRESS,    "rawptr:",       false, Op_RegP,              relocInfo::external_word_type },  // RawPtr
   { Bad,             T_OBJECT,     "oop:",          true,  Op_RegP,              relocInfo::oop_type      },  // OopPtr
   { Bad,             T_OBJECT,     "inst:",         true,  Op_RegP,              relocInfo::oop_type      },  // InstPtr
   { Bad,             T_OBJECT,     "ary:",          true,  Op_RegP,              relocInfo::oop_type      },  // AryPtr
@@ -400,7 +402,12 @@ static const Type* make_constant_from_non_flat_array_element(ciArray* array, int
 
 static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int off, int field_offset, int stable_dimension,
                                                          BasicType loadbt, bool is_unsigned_load) {
-  // Decode the results of GraphKit::array_element_address.
+  if (!array->is_null_free()) {
+    ciConstant nm_value = array->null_marker_of_element_by_offset(off);
+    if (!nm_value.is_valid() || !nm_value.as_boolean()) {
+      return nullptr;
+    }
+  }
   ciConstant element_value = array->field_value_by_offset(off + field_offset);
   if (element_value.basic_type() == T_ILLEGAL) {
     return nullptr; // wrong offset
@@ -410,8 +417,7 @@ static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int
   assert(con.basic_type() != T_ILLEGAL, "elembt=%s; loadbt=%s; unsigned=%d",
          type2name(element_value.basic_type()), type2name(loadbt), is_unsigned_load);
 
-  if (con.is_valid() &&          // not a mismatched access
-      !con.is_null_or_zero()) {  // not a default value
+  if (con.is_valid()) { // not a mismatched access
     bool is_narrow_oop = (loadbt == T_NARROWOOP);
     return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
   }
@@ -819,6 +825,11 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
 
+#if INCLUDE_SHENANDOAHGC
+  ShenandoahBarrierSetC2::init();
+#endif //INCLUDE_SHENANDOAHGC
+
+  BarrierSetC2::make_clone_type();
   LockNode::initialize_lock_Type();
   ArrayCopyNode::initialize_arraycopy_Type();
   OptoRuntime::initialize_types();
@@ -1929,6 +1940,13 @@ bool TypeInt::contains(const TypeInt* t) const {
   return TypeIntHelper::int_type_is_subset(this, t);
 }
 
+#ifdef ASSERT
+bool TypeInt::strictly_contains(const TypeInt* t) const {
+  assert(!_is_dual && !t->_is_dual, "dual types should only be used for join calculation");
+  return TypeIntHelper::int_type_is_subset(this, t) && !TypeIntHelper::int_type_is_equal(this, t);
+}
+#endif // ASSERT
+
 const Type* TypeInt::xmeet(const Type* t) const {
   return TypeIntHelper::int_type_xmeet(this, t);
 }
@@ -2056,6 +2074,13 @@ bool TypeLong::contains(const TypeLong* t) const {
   assert(!_is_dual && !t->_is_dual, "dual types should only be used for join calculation");
   return TypeIntHelper::int_type_is_subset(this, t);
 }
+
+#ifdef ASSERT
+bool TypeLong::strictly_contains(const TypeLong* t) const {
+  assert(!_is_dual && !t->_is_dual, "dual types should only be used for join calculation");
+  return TypeIntHelper::int_type_is_subset(this, t) && !TypeIntHelper::int_type_is_equal(this, t);
+}
+#endif // ASSERT
 
 const Type* TypeLong::xmeet(const Type* t) const {
   return TypeIntHelper::int_type_xmeet(this, t);
@@ -2250,6 +2275,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
   if (!method->is_static()) {
     ciInstanceKlass* recv = method->holder();
     if (vt_fields_as_args && recv->is_inlinetype() && recv->as_inline_klass()->can_be_passed_as_fields() && method->is_scalarized_arg(0)) {
+      field_array[pos++] = get_const_type(recv, interface_handling); // buffer argument
       collect_inline_fields(recv->as_inline_klass(), field_array, pos);
     } else {
       field_array[pos++] = get_const_type(recv, interface_handling)->join_speculative(TypePtr::NOTNULL);
@@ -2272,6 +2298,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
       break;
     case T_OBJECT:
       if (type->is_inlinetype() && vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
+        field_array[pos++] = get_const_type(type, interface_handling); // buffer argument
         // InlineTypeNode::NullMarker field used for null checking
         field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
@@ -2640,6 +2667,12 @@ const TypeVect* TypeVect::make(BasicType elem_bt, uint length, bool is_mask) {
   return nullptr;
 }
 
+// Create a vector mask type with the given element basic type and length.
+// - Returns "TypeVectMask" (PVectMask) for platforms that support the predicate
+//   feature and it is implemented properly in the backend, allowing the mask to
+//   be stored in a predicate/mask register.
+// - Returns a normal vector type "TypeVectA ~ TypeVectZ" (NVectMask) otherwise,
+//   where the vector mask is stored in a vector register.
 const TypeVect* TypeVect::makemask(BasicType elem_bt, uint length) {
   if (Matcher::has_predicated_vectors() &&
       Matcher::match_rule_supported_vector_masked(Op_VectorLoadMask, length, elem_bt)) {
@@ -3179,21 +3212,15 @@ TypePtr::FlatInArray TypePtr::compute_flat_in_array(ciInstanceKlass* instance_kl
 
 // Compute flat in array property if we don't know anything about it (i.e. old_flat_in_array == MaybeFlat).
 TypePtr::FlatInArray TypePtr::compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
-  FlatInArray old_flat_in_array) const {
-  switch (old_flat_in_array) {
-    case Flat:
-      assert(can_be_inline_type(), "only value objects can be flat in array");
-      assert(!instance_klass->is_inlinetype() || instance_klass->as_inline_klass()->is_always_flat_in_array(),
-             "a value object is only marked flat in array if it's proven to be always flat in array");
-      break;
-    case NotFlat:
-      assert(!instance_klass->maybe_flat_in_array(), "cannot be flat");
-      break;
-    case MaybeFlat:
+  FlatInArray old_flat_in_array) {
+  // It is tempting to add verification code that "NotFlat == no value class" and "Flat == value class".
+  // However, with type speculation, we could get contradicting flat in array properties that propagate through the
+  // graph. We could try to stop the introduction of contradicting speculative types in terms of their flat in array
+  // property. But this is hard because it is sometimes only recognized further down in the graph. Thus, we let an
+  // inconsistent flat in array property propagating through the graph. This could lead to fold an actual live path
+  // away. But in this case, the speculated type is wrong and we would trap earlier.
+  if (old_flat_in_array == MaybeFlat) {
       return compute_flat_in_array(instance_klass, is_exact);
-      break;
-    default:
-      break;
   }
   return old_flat_in_array;
 }
@@ -5145,6 +5172,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_null_free(bool null_free) const {
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
+  assert(res->speculative() == nullptr || res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()),
+           "speculative type must not be narrower than non-speculative type");
   return res;
 }
 
@@ -5155,13 +5184,20 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   }
   assert(!not_null_free || !is_null_free(), "inconsistency");
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), is_not_flat(), not_null_free, is_atomic());
+  const TypePtr* new_spec = _speculative;
+  if (new_spec != nullptr) {
+    // Could be 'null free' from profiling, which would contradict the cast.
+    new_spec = new_spec->is_aryptr()->cast_to_null_free(false)->cast_to_not_null_free();
+  }
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
-                               _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+                               _instance_id, new_spec, _inline_depth, _is_autobox_cache);
   // We keep the speculative part if it contains information about flat-/nullability.
   // Make sure it's removed if it's not better than the non-speculative type anymore.
   if (res->speculative() == res->remove_speculative()) {
     return res->remove_speculative();
   }
+  assert(res->speculative() == nullptr || res->speculative()->with_inline_depth(res->inline_depth())->higher_equal(res->remove_speculative()),
+           "speculative type must not be narrower than non-speculative type");
   return res;
 }
 
@@ -7303,7 +7339,7 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   // convention (with an inline type argument/return as a list of its fields).
   bool has_scalar_args = method->has_scalarized_args() && !is_osr_compilation;
   // Fall back to the non-scalarized calling convention when compiling a call via a mismatching method
-  if (method != C->method() && method->get_Method()->mismatch()) {
+  if (method != C->method() && method->mismatch()) {
     has_scalar_args = false;
   }
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, ignore_interfaces, false);

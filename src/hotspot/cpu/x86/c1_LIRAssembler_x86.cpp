@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArrayKlass.hpp"
+#include "code/aotCodeCache.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gc_globals.hpp"
@@ -586,6 +587,15 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 
     case T_LONG: {
       assert(patch_code == lir_patch_none, "no patching handled here");
+#if INCLUDE_CDS
+      if (AOTCodeCache::is_on_for_dump()) {
+        address b = c->as_pointer();
+        if (AOTRuntimeConstants::contains(b)) {
+          __ load_aotrc_address(dest->as_register_lo(), b);
+          break;
+        }
+      }
+#endif
       __ movptr(dest->as_register_lo(), (intptr_t)c->as_jlong());
       break;
     }
@@ -1606,11 +1616,11 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    Register tmp1  = op->tmp1()->as_register();
-    __ movptr(tmp1, (intptr_t)markWord::inline_type_pattern);
-    __ andptr(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
-    __ andptr(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ cmpptr(tmp1, (intptr_t)markWord::inline_type_pattern);
+    Register tmp = op->tmp1()->as_register();
+    __ movptr(tmp, (intptr_t)markWord::inline_type_pattern);
+    __ andptr(tmp, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andptr(tmp, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ cmpptr(tmp, (intptr_t)markWord::inline_type_pattern);
     __ jcc(Assembler::notEqual, L_oops_not_equal);
   }
 
@@ -1619,19 +1629,9 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     // No need to load klass -- the operands are statically known to be the same inline klass.
     __ jmp(*op->stub()->entry());
   } else {
-    Register left_klass_op = op->left_klass_op()->as_register();
-    Register right_klass_op = op->right_klass_op()->as_register();
-
-    if (UseCompressedClassPointers) {
-      __ movl(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ movl(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpl(left_klass_op, right_klass_op);
-    } else {
-      __ movptr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ movptr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpptr(left_klass_op, right_klass_op);
-    }
-
+    Register tmp1 = op->tmp1()->as_register();
+    Register tmp2 = op->tmp2()->as_register();
+    __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
     __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal
   }
@@ -2848,7 +2848,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // subtype which we can't check or src is the same array as dst
     // but not necessarily exactly of type default_type.
     Label known_ok, halt;
-
     __ mov_metadata(tmp, default_type->constant_encoding());
     if (UseCompressedClassPointers) {
       __ encode_klass_not_null(tmp, rscratch1);

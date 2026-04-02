@@ -40,12 +40,15 @@
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/registerMap.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -97,7 +100,7 @@ address InlineKlass::calculate_members_address() const {
   return end_of_instance_klass();
 }
 
-oop InlineKlass::null_reset_value() {
+oop InlineKlass::null_reset_value() const {
   assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
   assert(val != nullptr, "Sanity check");
@@ -112,8 +115,8 @@ void InlineKlass::set_null_reset_value(oop val) {
   java_mirror()->obj_field_put(null_reset_value_offset(), val);
 }
 
-instanceOop InlineKlass::allocate_instance(TRAPS) {
-  instanceOop oop = InstanceKlass::allocate_instance(CHECK_NULL);
+inlineOop InlineKlass::allocate_instance(TRAPS) {
+  inlineOop oop = (inlineOop)InstanceKlass::allocate_instance(CHECK_NULL);
   assert(oop->mark().is_inline_type(), "Expected inline type");
   return oop;
 }
@@ -128,182 +131,6 @@ int InlineKlass::nonstatic_oop_count() {
     block++;
   }
   return oops;
-}
-
-int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
-  switch(kind) {
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      assert(has_null_free_non_atomic_layout(), "Layout not available");
-      return null_free_non_atomic_size_in_bytes();
-      break;
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      assert(has_null_free_atomic_layout(), "Layout not available");
-      return null_free_atomic_size_in_bytes();
-      break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      assert(has_nullable_atomic_layout(), "Layout not available");
-      return nullable_atomic_size_in_bytes();
-      break;
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-      assert(has_nullable_non_atomic_layout(), "Layout not available");
-      return nullable_non_atomic_size_in_bytes();
-      break;
-    case LayoutKind::BUFFERED:
-      return payload_size_in_bytes();
-      break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-int InlineKlass::layout_alignment(LayoutKind kind) const {
-  switch(kind) {
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      assert(has_null_free_non_atomic_layout(), "Layout not available");
-      return null_free_non_atomic_alignment();
-      break;
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      assert(has_null_free_atomic_layout(), "Layout not available");
-      return null_free_atomic_size_in_bytes();
-      break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      assert(has_nullable_atomic_layout(), "Layout not available");
-      return nullable_atomic_size_in_bytes();
-      break;
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-      assert(has_nullable_non_atomic_layout(), "Layout not available");
-      return null_free_non_atomic_alignment();
-    break;
-    case LayoutKind::BUFFERED:
-      return payload_alignment();
-      break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-bool InlineKlass::is_layout_supported(LayoutKind lk) {
-  switch(lk) {
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
-      return has_null_free_non_atomic_layout();
-      break;
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-      return has_null_free_atomic_layout();
-      break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      return has_nullable_atomic_layout();
-      break;
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-      return has_nullable_non_atomic_layout();
-      break;
-    case LayoutKind::BUFFERED:
-      return true;
-      break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized) {
-  assert(is_layout_supported(lk), "Unsupported layout");
-  assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
-  switch(lk) {
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-      if (is_payload_marked_as_null((address)src)) {
-        // copy null_reset value to dest
-        if (dest_is_initialized) {
-          HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
-        } else {
-          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
-        }
-      } else {
-        // Copy has to be performed, even if this is an empty value, because of the null marker
-        if (dest_is_initialized) {
-          HeapAccess<>::value_copy(src, dst, this, lk);
-        } else {
-          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
-        }
-      }
-    }
-    break;
-    case LayoutKind::BUFFERED:
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
-      if (is_empty_inline_type()) return; // nothing to do
-      if (dest_is_initialized) {
-        HeapAccess<>::value_copy(src, dst, this, lk);
-      } else {
-        HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
-      }
-    }
-    break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS) {
-  assert(src != nullptr, "Must be");
-  assert(is_layout_supported(lk), "Unsupported layout");
-  switch(lk) {
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-      if (is_payload_marked_as_null(cast_from_oop<address>(src) + offset)) {
-        return nullptr;
-      }
-    } // Fallthrough
-    case LayoutKind::BUFFERED:
-    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
-    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT: {
-      Handle obj_h(THREAD, src);
-      oop res = allocate_instance(CHECK_NULL);
-      copy_payload_to_addr((void*)(cast_from_oop<address>(obj_h()) + offset), payload_addr(res), lk, false);
-
-      // After copying, re-check if the payload is now marked as null. Another
-      // thread could have marked the src object as null after the initial check
-      // but before the copy operation, causing the null-marker to be marked in
-      // the destination. In this case, discard the allocated object and
-      // return nullptr.
-      if (LayoutKindHelper::is_nullable_flat(lk)) {
-        if (is_payload_marked_as_null(payload_addr(res))) {
-          return nullptr;
-        }
-      }
-
-      return res;
-    }
-    break;
-    default:
-      ShouldNotReachHere();
-  }
-}
-
-void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS) {
-  void* src_addr = nullptr;
-  if (src == nullptr) {
-    if (!LayoutKindHelper::is_nullable_flat(lk)) {
-      THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
-    }
-    // Writing null to a nullable flat field/element is usually done by writing
-    // the whole pre-allocated null_reset_value at the payload address to ensure
-    // that the null marker and all potential oops are reset to "zeros".
-    // However, the null_reset_value is allocated during class initialization.
-    // If the current value of the field is null, it is possible that the class
-    // of the field has not been initialized yet and thus the null_reset_value
-    // might not be available yet.
-    // Writing null over an already null value should not trigger class initialization.
-    // The solution is to detect null being written over null cases and return immediately
-    // (writing null over null is a no-op from a field modification point of view)
-    if (is_payload_marked_as_null((address)dst)) return;
-    src_addr = payload_addr(null_reset_value());
-  } else {
-    src_addr = payload_addr(src);
-    if (LayoutKindHelper::is_nullable_flat(lk)) {
-      mark_payload_as_non_null((address)src_addr);
-    }
-  }
-  copy_payload_to_addr(src_addr, dst, lk, true /* dest_is_initialized */);
 }
 
 // Arrays of...
@@ -411,6 +238,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
           if (entry._null_marker) {
             tty->print(" (null marker)");
           }
+          if (entry._vt_oop) {
+            tty->print(" (VT OOP)");
+          }
           tty->print_cr("");
         }
       }
@@ -502,8 +332,9 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
-      address loc = reg_map.location(pair.first(), nullptr);
-      oop o = *(oop*)loc;
+      oop* loc = (oop*)reg_map.location(pair.first(), nullptr);
+      guarantee(loc != nullptr, "bad register save location");
+      oop o = *loc;
       assert(oopDesc::is_oop_or_null(o), "Bad oop value: " PTR_FORMAT, p2i(o));
       handles.push(Handle(thread, o));
     }
@@ -533,8 +364,9 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
-      address loc = reg_map.location(pair.first(), nullptr);
-      *(oop*)loc = handles.at(k++)();
+      oop* loc = (oop*)reg_map.location(pair.first(), nullptr);
+      guarantee(loc != nullptr, "bad register save location");
+      *loc = handles.at(k++)();
     }
     if (bt == T_METADATA) {
       continue;
@@ -575,6 +407,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     address loc = reg_map.location(pair.first(), nullptr);
+    guarantee(loc != nullptr, "bad register save location");
     switch(bt) {
     case T_BOOLEAN: {
       new_vt->bool_field_put(off, *(jboolean*)loc);
@@ -597,11 +430,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
       break;
     }
     case T_LONG: {
-#ifdef _LP64
-      new_vt->double_field_put(off,  *(jdouble*)loc);
-#else
-      Unimplemented();
-#endif
+      new_vt->long_field_put(off, *(jlong*)loc);
       break;
     }
     case T_OBJECT:
@@ -611,7 +440,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
       break;
     }
     case T_FLOAT: {
-      new_vt->float_field_put(off,  *(jfloat*)loc);
+      new_vt->float_field_put(off, *(jfloat*)loc);
       break;
     }
     case T_DOUBLE: {
@@ -638,8 +467,9 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
   assert(nb == 1, "broken");
 
-  address loc = map.location(pair.first(), nullptr);
-  intptr_t ptr = *(intptr_t*)loc;
+  intptr_t* loc = (intptr_t*)map.location(pair.first(), nullptr);
+  guarantee(loc != nullptr, "bad register save location");
+  intptr_t ptr = *loc;
   if (is_set_nth_bit(ptr, 0)) {
     // Return value is tagged, must be an InlineKlass pointer
     clear_nth_bit(ptr, 0);
@@ -688,6 +518,29 @@ void InlineKlass::remove_unshareable_info() {
 
 #endif // CDS
 
+#define BULLET  " - "
+
+void InlineKlass::print_on(outputStream* st) const {
+  InstanceKlass::print_on(st);
+  members().print_on(st);
+  st->print_cr(BULLET"---- LayoutKinds:");
+  auto print_layout_kind = [&](LayoutKind lk) {
+    if (is_layout_supported(lk)) {
+      st->print_cr(BULLET"%s layout: %d/%d",
+                   LayoutKindHelper::layout_kind_as_string(lk),
+                   layout_size_in_bytes(lk), layout_alignment(lk));
+    } else {
+      st->print_cr(BULLET"%s layout: -/-",
+                   LayoutKindHelper::layout_kind_as_string(lk));
+    }
+  };
+  print_layout_kind(LayoutKind::BUFFERED);
+  print_layout_kind(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
+  print_layout_kind(LayoutKind::NULL_FREE_ATOMIC_FLAT);
+  print_layout_kind(LayoutKind::NULLABLE_ATOMIC_FLAT);
+  print_layout_kind(LayoutKind::NULLABLE_NON_ATOMIC_FLAT);
+}
+
 // Verification
 
 void InlineKlass::verify_on(outputStream* st) {
@@ -699,3 +552,30 @@ void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
   guarantee(obj->mark().is_inline_type(), "Header is not inline type");
 }
+
+void InlineKlass::Members::print_on(outputStream* st) const {
+  st->print_cr(BULLET"---- inline type members:");
+  st->print(BULLET"extended signature registers:      ");
+  InstanceKlass::print_array_on(st, _extended_sig, [](outputStream* ost, SigEntry pair){
+    pair.print_on(ost);
+  });
+  st->print(BULLET"return registers:                  ");
+  InstanceKlass::print_array_on(st, _return_regs, [](outputStream* ost, VMRegPair pair) {
+    pair.print_on(ost);
+  });
+  st->print_cr(BULLET"pack handler:                      " PTR_FORMAT, p2i(_pack_handler));
+  st->print_cr(BULLET"pack handler (jobject):            " PTR_FORMAT, p2i(_pack_handler_jobject));
+  st->print_cr(BULLET"unpack handler:                    " PTR_FORMAT, p2i(_unpack_handler));
+  st->print_cr(BULLET"null reset offset:                 %d", _null_reset_value_offset);
+  st->print_cr(BULLET"payload offset:                    %d", _payload_offset);
+  st->print_cr(BULLET"payload size (bytes):              %d", _payload_size_in_bytes);
+  st->print_cr(BULLET"payload alignment:                 %d", _payload_alignment);
+  st->print_cr(BULLET"null-free non-atomic size (bytes): %d", _null_free_non_atomic_size_in_bytes);
+  st->print_cr(BULLET"null-free non-atomic alignment:    %d", _null_free_non_atomic_alignment);
+  st->print_cr(BULLET"null-free atomic size (bytes):     %d", _null_free_atomic_size_in_bytes);
+  st->print_cr(BULLET"nullable atomic size (bytes):      %d", _nullable_atomic_size_in_bytes);
+  st->print_cr(BULLET"nullable non-atomic size (bytes):  %d", _nullable_non_atomic_size_in_bytes);
+  st->print_cr(BULLET"null marker offset:                %d", _null_marker_offset);
+}
+
+#undef BULLET

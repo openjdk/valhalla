@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,9 @@
  * @enablePreview
  * @library /test/lib
  * @run main RedefineClassHelper
- * @modules java.base/jdk.internal.vm.annotation
- * @compile -XDnoLocalProxyVars StrictFieldsOld.java StrictFieldsNew.java
+ * @compile StrictFieldsOld.java StrictFieldsNew.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor
+ *             StrictFieldsOld StrictFieldsNew
  * @run main/othervm -Xverify:remote -javaagent:redefineagent.jar RedefineStrictFieldsTest
  */
 
