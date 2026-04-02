@@ -220,6 +220,7 @@ public class Field {
   public boolean isGeneric()                 { return fieldIsGeneric(values.fieldFlags); }
   public boolean isStable()                  { return fieldIsStable(values.fieldFlags); }
   public boolean isContended()               { return fieldIsContended(values.fieldFlags); }
+  public boolean isFlat()                    { return fieldIsFlat(values.fieldFlags); }
 
   public boolean equals(Object obj) {
      if (obj == null) {

@@ -123,6 +123,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, Symbol* name) {
     clear_native_function();
     set_signature_handler(nullptr);
   }
+
   NOT_PRODUCT(set_compiled_invocation_count(0);)
   // Name is very useful for debugging.
   NOT_PRODUCT(_name = name;)
@@ -2290,6 +2291,35 @@ bool Method::is_scalarized_arg(int idx) const {
     }
   }
   return depth != 0;
+}
+
+bool Method::is_scalarized_buffer_arg(int idx) const {
+  if (!has_scalarized_args()) {
+    return false;
+  }
+  // Search through signature and check if argument is wrapped in T_METADATA/T_VOID
+  int depth = 0;
+  const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
+  for (int i = 0; i < sig->length(); i++) {
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_METADATA) {
+      depth++;
+      continue;
+    }
+    if (bt == T_VOID && (sig->at(i-1)._bt != T_LONG && sig->at(i-1)._bt != T_DOUBLE)) {
+      depth--;
+      continue;
+    }
+    if (idx == 0) {
+      if (sig->at(i)._vt_oop) {
+        assert(depth == 1, "only for root value");
+        return true;
+      }
+      break; // Argument found
+    }
+    idx--; // Advance to next argument
+  }
+  return false;
 }
 
 // Printing

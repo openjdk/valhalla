@@ -173,7 +173,7 @@ bool ConnectionGraph::compute_escape() {
         !n->in(MemNode::Address)->is_AddP() &&
         _igvn->type(n->in(MemNode::Address))->isa_oopptr()) {
       // Load/Store at mark work address is at offset 0 so has no AddP which confuses EA
-      Node* addp = new AddPNode(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
+      Node* addp = AddPNode::make_with_base(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
       _igvn->register_new_node_with_optimizer(addp);
       _igvn->replace_input_of(n, MemNode::Address, addp);
       ideal_nodes.push(addp);
@@ -800,7 +800,7 @@ Node* ConnectionGraph::split_castpp_load_through_phi(Node* curr_addp, Node* curr
         base = base->find_out_with(Op_CastPP);
       }
 
-      Node* addr = _igvn->transform(new AddPNode(base, base, curr_addp->in(AddPNode::Offset)));
+      Node* addr = _igvn->transform(AddPNode::make_with_base(base, curr_addp->in(AddPNode::Offset)));
       Node* mem = (memory->is_Phi() && (memory->in(0) == region)) ? memory->in(i) : memory;
       Node* load = curr_load->clone();
       load->set_req(0, nullptr);
@@ -2141,6 +2141,7 @@ private:
       return;
     }
     BasicType prev_bt = _i_sig_cc > 0 ? _sig_cc->at(_i_sig_cc-1)._bt : T_ILLEGAL;
+    BasicType prev_prev_bt = _i_sig_cc > 1 ? _sig_cc->at(_i_sig_cc-2)._bt : T_ILLEGAL;
     while (_i_sig_cc < _sig_cc->length()) {
       BasicType bt = _sig_cc->at(_i_sig_cc)._bt;
       assert(bt != T_VOID || _sig_cc->at(_i_sig_cc-1)._bt == prev_bt, "incorrect prev bt");
@@ -2154,13 +2155,20 @@ private:
         if (_depth == 0) {
           _i_domain++;
         }
-      } else if (bt == T_BOOLEAN && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
+      } else if (bt == T_OBJECT && prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == 0) {
+        assert(_sig_cc->at(_i_sig_cc)._vt_oop, "buffer expected right after T_METADATA");
+        assert(_depth == 1, "only root value has buffer");
+        _i_domain_cc++;
+        _first_field_pos = _i_domain_cc;
+      } else if (bt == T_BOOLEAN && prev_prev_bt == T_METADATA && (_is_static || _i_domain > 0) && _sig_cc->at(_i_sig_cc)._offset == -1) {
+        assert(_sig_cc->at(_i_sig_cc)._null_marker, "null marker expected right after T_METADATA");
         assert(_depth == 1, "only root value null marker");
         _i_domain_cc++;
         _first_field_pos = _i_domain_cc;
       } else {
         return;
       }
+      prev_prev_bt = prev_bt;
       prev_bt = bt;
       _i_sig_cc++;
     }

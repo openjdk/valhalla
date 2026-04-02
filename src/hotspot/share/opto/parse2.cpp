@@ -1990,22 +1990,25 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 }
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
-  inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
-                                 !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
-                                 speculative_ptr_kind(tinput) == ProfileAlwaysNull);
-  dec_sp(2);
   if (btest == BoolTest::ne) {
     {
       PreserveJVMState pjvms(this);
-      replace_in_map(input, cast);
+      inc_sp(2);
+      null_check_common(input, T_OBJECT, true, nullptr,
+                        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                        speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+      dec_sp(2);
       int target_bci = iter().get_dest();
       merge(target_bci);
     }
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
   } else {
-    replace_in_map(input, cast);
+    inc_sp(2);
+    null_check_common(input, T_OBJECT, true, nullptr,
+                      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                      speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+    dec_sp(2);
   }
 }
 

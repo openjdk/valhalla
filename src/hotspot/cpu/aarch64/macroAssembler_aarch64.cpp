@@ -5266,7 +5266,7 @@ void MacroAssembler::cmp_klass(Register obj, Register klass, Register tmp) {
 void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
   if (UseCompactObjectHeaders) {
     load_narrow_klass_compact(tmp1, obj1);
-    load_narrow_klass_compact(tmp2,  obj2);
+    load_narrow_klass_compact(tmp2, obj2);
     cmpw(tmp1, tmp2);
   } else if (UseCompressedClassPointers) {
     ldrw(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
@@ -7413,6 +7413,15 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       }
       continue;
     }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
+        str(fromReg, Address(sp, st_off));
+      } else {
+        mov(toReg->as_Register(), fromReg);
+      }
+      continue;
+    }
     assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
     if (!toReg->is_FloatRegister()) {
@@ -7505,9 +7514,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
-  load_heap_oop(val_obj, Address(val_array, index), tmp1, tmp2);
-
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
   BasicType bt;
@@ -7530,6 +7536,19 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       mov(val_obj, 0);
       b(L_null);
       bind(L_notNull);
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
+        ldr(val_obj, Address(sp, ld_off));
+      } else {
+        mov(val_obj, fromReg->as_Register());
+      }
+      cbnz(val_obj, L_null);
+      // get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
+      load_heap_oop(val_obj, Address(val_array, index), rscratch1, rscratch2);
       continue;
     }
 
