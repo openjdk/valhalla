@@ -255,9 +255,13 @@ class markWord {
     return markWord(tmp | monitor_value);
   }
 
-  bool has_displaced_mark_helper() const {
+  bool has_monitor_pointer() const {
     intptr_t lockbits = value() & lock_mask_in_place;
     return !UseObjectMonitorTable && lockbits == monitor_value;
+  }
+
+  bool has_displaced_mark_helper() const {
+    return has_monitor_pointer();
   }
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
@@ -286,7 +290,8 @@ class markWord {
   }
 
   bool is_flat_array() const {
-    assert(is_unlocked(), "Bits only valid if unlocked: " PTR_FORMAT, value());
+    assert(!has_monitor_pointer(), "Bits are not valid if replaced by a monitor pointer: " PTR_FORMAT, value());
+    assert(!is_marked(), "Bits might not be valid if marked by the GC: " PTR_FORMAT, value());
 #ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), flat_array_bit_in_place) != 0);
 #else
@@ -295,7 +300,8 @@ class markWord {
   }
 
   bool is_null_free_array() const {
-    assert(is_unlocked(), "Bits only valid if unlocked: " PTR_FORMAT, value());
+    assert(!has_monitor_pointer(), "Bits are not valid if replaced by a monitor pointer: " PTR_FORMAT, value());
+    assert(!is_marked(), "Bits might not be valid if marked by the GC: " PTR_FORMAT, value());
 #ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), null_free_array_bit_in_place) != 0);
 #else
