@@ -1806,6 +1806,8 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   return ret;
 JNI_END
 
+
+
 #define DEFINE_GETFIELD(Return,Fieldname,Result \
   , EntryProbe, ReturnProbe) \
 \
@@ -2947,7 +2949,6 @@ JNI_END
 
 JNI_ENTRY(jweak, jni_NewWeakGlobalRef(JNIEnv *env, jobject ref))
   HOTSPOT_JNI_NEWWEAKGLOBALREF_ENTRY(env, ref);
-
   Handle ref_handle(thread, JNIHandles::resolve(ref));
 
   if (!ref_handle.is_null() && ref_handle->klass()->is_inline_klass()) {
@@ -3202,7 +3203,6 @@ JNI_ENTRY(jboolean, jni_IsValueObject(JNIEnv* env, jobject obj))
     return JNI_FALSE;
   }
 JNI_END
-
 
 // Structure containing all jni functions
 struct JNINativeInterface_ jni_NativeInterface = {

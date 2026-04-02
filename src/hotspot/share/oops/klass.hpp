@@ -735,7 +735,6 @@ public:
 
   inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
 
-
   virtual bool is_interface() const     { return false; }
   virtual bool is_abstract() const      { return false; }
   virtual bool is_identity_class() const { return false; }

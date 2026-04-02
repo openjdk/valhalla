@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -1582,12 +1582,13 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    Register tmp1  = op->tmp1()->as_register();
+    Register tmp1 = op->tmp1()->as_register();
+    Register tmp2 = op->tmp2()->as_register();
     __ mov(tmp1, markWord::inline_type_pattern);
-    __ ldr(rscratch1, Address(left, oopDesc::mark_offset_in_bytes()));
-    __ andr(tmp1, tmp1, rscratch1);
-    __ ldr(rscratch1, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ andr(tmp1, tmp1, rscratch1);
+    __ ldr(tmp2, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andr(tmp1, tmp1, tmp2);
+    __ ldr(tmp2, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ andr(tmp1, tmp1, tmp2);
     __ cmp(tmp1, (u1)markWord::inline_type_pattern);
     __ br(Assembler::NE, L_oops_not_equal);
   }
@@ -1597,19 +1598,9 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     // No need to load klass -- the operands are statically known to be the same inline klass.
     __ b(*op->stub()->entry());
   } else {
-    Register left_klass_op = op->left_klass_op()->as_register();
-    Register right_klass_op = op->right_klass_op()->as_register();
-
-    if (UseCompressedClassPointers) {
-      __ ldrw(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ ldrw(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpw(left_klass_op, right_klass_op);
-    } else {
-      __ ldr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ ldr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmp(left_klass_op, right_klass_op);
-    }
-
+    Register tmp1 = op->tmp1()->as_register();
+    Register tmp2 = op->tmp2()->as_register();
+    __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
     __ br(Assembler::EQ, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal
   }
