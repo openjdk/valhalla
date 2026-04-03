@@ -40,4 +40,3 @@ compiler/stable/TestStableArrayMembars.java                                     
 # Runtime:
 
 # Serviceability:
-vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java                        8375069 generic-all
