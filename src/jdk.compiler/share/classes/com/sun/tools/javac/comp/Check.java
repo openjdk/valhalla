@@ -5351,7 +5351,7 @@ public class Check {
 
             // Excluding abstract, could have a more complicated
             // rule based on abstract-ness of the class
-            return isConcreteInstanceMethod(tree, method, warn) &  // no short-circuit we need to evaluate all
+            return isConcreteInstanceMethod(tree, method, warn) &  // no short-circuit we need to log warnings
                     isExpectedReturnType(tree, method, syms.objectType, warn) &
                     hasNoArgs(tree, method, warn) &
                     hasExpectedExceptions(tree, method, warn, syms.objectStreamExceptionType);
