@@ -5364,7 +5364,7 @@ public class Check {
 
             // private void readObject(ObjectInputStream stream)
             //   throws IOException, ClassNotFoundException
-            return isPrivateNonStaticMethod(tree, method) & // no short-circuit we need to evaluate all
+            return isPrivateNonStaticMethod(tree, method) & // no short-circuit we need to log warnings
                     isExpectedReturnType(tree, method, syms.voidType, true) &
                     hasExpectedArg(tree, method, syms.objectInputStreamType) &
                     hasExpectedExceptions(tree, method, true, syms.ioExceptionType, syms.classNotFoundExceptionType) &
@@ -5373,7 +5373,7 @@ public class Check {
 
         private boolean hasAppropriateReadObjectNoData(JCClassDecl tree, Element e, MethodSymbol method) {
             // private void readObjectNoData() throws ObjectStreamException
-            return isPrivateNonStaticMethod(tree, method) &
+            return isPrivateNonStaticMethod(tree, method) & // no short-circuit we need to log warnings
                     isExpectedReturnType(tree, method, syms.voidType, true) &
                     hasNoArgs(tree, method, true) &
                     hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType) &
