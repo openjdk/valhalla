@@ -9435,19 +9435,24 @@ public final class Character implements java.io.Serializable, Comparable<Charact
         static Character[] archivedCache;
 
         static {
-            int size = 127 + 1;
+            if (!PreviewFeatures.isEnabled()) {
+                int size = 127 + 1;
 
-            // Load and use the archived cache if it exists
-            CDS.initializeFromArchive(CharacterCache.class);
-            if (archivedCache == null) {
-                Character[] c = new Character[size];
-                for (int i = 0; i < size; i++) {
-                    c[i] = new Character((char) i);
+                // Load and use the archived cache if it exists
+                CDS.initializeFromArchive(CharacterCache.class);
+                if (archivedCache == null) {
+                    Character[] c = new Character[size];
+                    for (int i = 0; i < size; i++) {
+                        c[i] = new Character((char) i);
+                    }
+                    archivedCache = c;
                 }
-                archivedCache = c;
+                cache = archivedCache;
+                assert cache.length == size;
+            } else {
+                cache = null;
+                assert archivedCache == null;
             }
-            cache = archivedCache;
-            assert cache.length == size;
         }
     }
 

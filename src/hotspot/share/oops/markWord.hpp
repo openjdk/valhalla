@@ -143,11 +143,7 @@ class markWord {
   static const uintptr_t self_fwd_mask_in_place   = self_fwd_mask << self_fwd_shift;
   static const uintptr_t inline_type_bit_in_place = right_n_bits(inline_type_bits) << inline_type_shift;
   static const uintptr_t inline_type_mask_in_place = inline_type_bit_in_place + lock_mask;
-  static const uintptr_t null_free_array_mask     = right_n_bits(null_free_array_bits);
-  static const uintptr_t null_free_array_mask_in_place = (null_free_array_mask << null_free_array_shift) | lock_mask_in_place;
   static const uintptr_t null_free_array_bit_in_place  = (right_n_bits(null_free_array_bits) << null_free_array_shift);
-  static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
-  static const uintptr_t flat_array_mask_in_place = (flat_array_mask << flat_array_shift) | null_free_array_mask_in_place | lock_mask_in_place;
   static const uintptr_t flat_array_bit_in_place  = right_n_bits(flat_array_bits) << flat_array_shift;
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
   static const uintptr_t age_mask_in_place        = age_mask << age_shift;
@@ -176,9 +172,7 @@ class markWord {
   static const uintptr_t marked_value             = 3;
 
   static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
-  static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
-  static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
-  static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
+
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
   static const uintptr_t no_hash_in_place         = (uintptr_t)no_hash << hash_shift;
   static const uintptr_t no_lock_in_place         = unlocked_value;
@@ -260,9 +254,13 @@ class markWord {
     return markWord(tmp | monitor_value);
   }
 
-  bool has_displaced_mark_helper() const {
+  bool has_monitor_pointer() const {
     intptr_t lockbits = value() & lock_mask_in_place;
     return !UseObjectMonitorTable && lockbits == monitor_value;
+  }
+
+  bool has_displaced_mark_helper() const {
+    return has_monitor_pointer();
   }
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
@@ -291,17 +289,20 @@ class markWord {
   }
 
   bool is_flat_array() const {
+    assert(!has_monitor_pointer(), "Bits are not valid if replaced by a monitor pointer: " PTR_FORMAT, value());
+    assert(!is_marked(), "Bits might not be valid if marked by the GC: " PTR_FORMAT, value());
 #ifdef _LP64 // 64 bit encodings only
-    return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
-           || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
+    return (mask_bits(value(), flat_array_bit_in_place) != 0);
 #else
     return false;
 #endif
   }
 
   bool is_null_free_array() const {
+    assert(!has_monitor_pointer(), "Bits are not valid if replaced by a monitor pointer: " PTR_FORMAT, value());
+    assert(!is_marked(), "Bits might not be valid if marked by the GC: " PTR_FORMAT, value());
 #ifdef _LP64 // 64 bit encodings only
-    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
+    return (mask_bits(value(), null_free_array_bit_in_place) != 0);
 #else
     return false;
 #endif
@@ -321,26 +322,26 @@ class markWord {
 
   // Prototype mark for initialization
   static markWord prototype() {
-    return markWord( no_hash_in_place | no_lock_in_place );
+    return markWord(unlocked_value);
   }
 
   static markWord inline_type_prototype() {
     NOT_LP64(assert(false, "Should not be called in 32 bit mode"));
-    return markWord(inline_type_pattern);
+    return markWord(unlocked_value | inline_type_bit_in_place);
   }
 
   static markWord flat_array_prototype(bool null_free) {
     NOT_LP64(assert(false, "Should not be called in 32 bit mode"));
     if (null_free) {
-      return markWord(null_free_flat_array_pattern);
+      return markWord(unlocked_value | flat_array_bit_in_place | null_free_array_bit_in_place);
     } else {
-      return markWord(nullable_flat_array_pattern);
+      return markWord(unlocked_value | flat_array_bit_in_place);
     }
   }
 
   static markWord null_free_array_prototype() {
     NOT_LP64(assert(false, "Should not be called in 32 bit mode"));
-    return markWord(null_free_array_pattern);
+    return markWord(unlocked_value | null_free_array_bit_in_place);
   }
 
   // Debugging

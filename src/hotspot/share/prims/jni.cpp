@@ -50,7 +50,7 @@
 #include "memory/universe.hpp"
 #include "nmt/memTracker.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/arrayOop.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
@@ -61,6 +61,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
@@ -2368,7 +2369,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
  HOTSPOT_JNI_GETOBJECTARRAYELEMENT_ENTRY(env, array, index);
   jobject ret = nullptr;
   DT_RETURN_MARK(GetObjectArrayElement, jobject, (const jobject&)ret);
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+  objArrayOop a = oop_cast<objArrayOop>(JNIHandles::resolve_non_null(array));
   if (a->is_within_bounds(index)) {
     oop res = a->obj_at(index, CHECK_NULL);
     assert(res != nullptr || !a->is_null_free_array(), "Invalid value");
@@ -2389,7 +2390,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
  HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
   DT_VOID_RETURN_MARK(SetObjectArrayElement);
 
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+  objArrayOop a = oop_cast<objArrayOop>(JNIHandles::resolve_non_null(array));
   oop v = JNIHandles::resolve(value);
   if (a->is_within_bounds(index)) {
     assert(a->klass()->is_refined_objArray_klass(), "must be");

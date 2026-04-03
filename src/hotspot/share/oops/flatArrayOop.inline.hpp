@@ -110,7 +110,7 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
     if (value->klass() != vk) {
       THROW(vmSymbols::java_lang_ArrayStoreException());
     }
-  } else if(is_null_free_array()) {
+  } else if(fak->is_null_free_array_klass()) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
 

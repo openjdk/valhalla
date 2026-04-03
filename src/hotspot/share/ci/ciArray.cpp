@@ -27,6 +27,7 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -39,6 +40,11 @@
 //
 // This class represents an arrayOop in the HotSpot virtual
 // machine.
+
+arrayOop ciArray::get_arrayOop() const {
+   return oop_cast<arrayOop>(get_oop());
+}
+
 static BasicType fixup_element_type(BasicType bt) {
   if (bt == T_FLAT_ELEMENT) return T_OBJECT;
   if (is_reference_type(bt))  return T_OBJECT;
@@ -137,7 +143,7 @@ ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
 
 bool ciArray::is_null_free() {
   VM_ENTRY_MARK;
-  return get_oop()->is_null_free_array();
+  return get_arrayOop()->is_null_free_array();
 }
 
 bool ciArray::is_atomic() {

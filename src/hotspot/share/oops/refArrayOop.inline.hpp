@@ -28,7 +28,7 @@
 #include "oops/refArrayOop.hpp"
 
 #include "oops/access.hpp"
-#include "oops/arrayOop.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 

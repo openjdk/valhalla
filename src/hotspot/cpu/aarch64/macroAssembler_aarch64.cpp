@@ -5252,7 +5252,7 @@ void MacroAssembler::cmp_klass(Register obj, Register klass, Register tmp) {
 void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
   if (UseCompactObjectHeaders) {
     load_narrow_klass_compact(tmp1, obj1);
-    load_narrow_klass_compact(tmp2,  obj2);
+    load_narrow_klass_compact(tmp2, obj2);
   } else {
     ldrw(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
     ldrw(tmp2, Address(obj2, oopDesc::klass_offset_in_bytes()));

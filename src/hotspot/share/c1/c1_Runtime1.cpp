@@ -50,6 +50,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/arrayProperties.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"

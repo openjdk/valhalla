@@ -103,12 +103,6 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) {
 }
 
 
-void LIRGenerator::init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2) {
-  tmp1 = new_register(T_INT);
-  tmp2 = LIR_OprFact::illegalOpr;
-}
-
-
 //--------- loading items into registers --------------------------------
 
 

@@ -36,6 +36,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -45,6 +46,7 @@
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/arguments.hpp"
@@ -485,6 +487,6 @@ void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
   guarantee(is_refined_objArray_klass(), "Must be called with refined obj array klass");
   guarantee(obj->is_objArray(), "must be objArray");
-  guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),
+  guarantee(oop_cast<objArrayOop>(obj)->is_null_free_array() || (!is_null_free_array_klass()),
             "null-free klass but not object");
 }

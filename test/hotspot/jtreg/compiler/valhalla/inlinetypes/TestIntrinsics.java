@@ -1777,7 +1777,7 @@ public class TestIntrinsics {
     // Test correctness of the ValueClass::isFlatArray intrinsic
     @Test
     @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
-    public boolean test81(Object array) {
+    public boolean test81(Object[] array) {
         return ValueClass.isFlatArray(array);
     }
 
@@ -1788,8 +1788,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(test81(TEST_ARRAY3), TEST_ARRAY3_IS_FLAT, "test81_3 failed");
         Asserts.assertEQ(test81(TEST_ARRAY4), TEST_ARRAY4_IS_FLAT, "test81_4 failed");
         Asserts.assertFalse(test81(new String[0]), "test81_5 failed");
-        Asserts.assertFalse(test81("test"), "test81_6 failed");
-        Asserts.assertFalse(test81(new int[0]), "test81_7 failed");
     }
 
     // Verify that ValueClass::isFlatArray checks with statically known classes are folded
@@ -1813,9 +1811,7 @@ public class TestIntrinsics {
             check4 = !check4;
         }
         boolean check5 = !ValueClass.isFlatArray(new String[0]);
-        boolean check6 = !ValueClass.isFlatArray("test");
-        boolean check7 = !ValueClass.isFlatArray(new int[0]);
-        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
+        return check1 && check2 && check3 && check4 && check5;
     }
 
     @Run(test = "test82")
@@ -1879,7 +1875,7 @@ public class TestIntrinsics {
     // Test correctness of the ValueClass::isNullRestrictedArray intrinsic
     @Test
     @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray"})
-    public boolean test85(Object array) {
+    public boolean test85(Object[] array) {
         return ValueClass.isNullRestrictedArray(array);
     }
 
@@ -1890,8 +1886,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(test85(TEST_ARRAY3), TEST_ARRAY3_IS_NULL_RESTRICTED, "test85_3 failed");
         Asserts.assertEQ(test85(TEST_ARRAY4), TEST_ARRAY4_IS_NULL_RESTRICTED, "test85_4 failed");
         Asserts.assertFalse(test85(new String[0]), "test85_5 failed");
-        Asserts.assertFalse(test85("test"), "test85_6 failed");
-        Asserts.assertFalse(test85(new int[0]), "test85_7 failed");
     }
 
     // Verify that ValueClass::isNullRestrictedArray checks with statically known classes are folded
@@ -1915,9 +1909,7 @@ public class TestIntrinsics {
             check4 = !check4;
         }
         boolean check5 = !ValueClass.isNullRestrictedArray(new String[0]);
-        boolean check6 = !ValueClass.isNullRestrictedArray("test");
-        boolean check7 = !ValueClass.isNullRestrictedArray(new int[0]);
-        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
+        return check1 && check2 && check3 && check4 && check5;
     }
 
     @Run(test = "test86")
@@ -1929,7 +1921,7 @@ public class TestIntrinsics {
     @Test
     // TODO 8350865 Implemented intrinsic
     // @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray"})
-    public boolean test87(Object array) {
+    public boolean test87(Object[] array) {
         return ValueClass.isAtomicArray(array);
     }
 
@@ -1940,8 +1932,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(test87(TEST_ARRAY3), TEST_ARRAY3_IS_ATOMIC, "test87_3 failed");
         Asserts.assertEQ(test87(TEST_ARRAY4), TEST_ARRAY4_IS_ATOMIC, "test87_4 failed");
         Asserts.assertTrue(test87(new String[0]), "test87_5 failed");
-        Asserts.assertFalse(test87("test"), "test87_6 failed");
-        Asserts.assertFalse(test87(new int[0]), "test87_7 failed");
     }
 
     // Verify that ValueClass::isAtomicArray checks with statically known classes are folded
@@ -1966,9 +1956,7 @@ public class TestIntrinsics {
             check4 = !check4;
         }
         boolean check5 = ValueClass.isAtomicArray(new String[0]);
-        boolean check6 = !ValueClass.isAtomicArray("test");
-        boolean check7 = !ValueClass.isAtomicArray(new int[0]);
-        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
+        return check1 && check2 && check3 && check4 && check5;
     }
 
     @Run(test = "test88")

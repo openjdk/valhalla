@@ -150,7 +150,6 @@ bool oopDesc::is_objArray_noinline()        const { return is_objArray();       
 bool oopDesc::is_refArray_noinline()        const { return is_refArray();         }
 bool oopDesc::is_typeArray_noinline()       const { return is_typeArray();        }
 bool oopDesc::is_flatArray_noinline()       const { return is_flatArray();        }
-bool oopDesc::is_null_free_array_noinline() const { return is_null_free_array();  }
 
 #if INCLUDE_CDS_JAVA_HEAP
 void oopDesc::set_narrow_klass(narrowKlass nk) {
