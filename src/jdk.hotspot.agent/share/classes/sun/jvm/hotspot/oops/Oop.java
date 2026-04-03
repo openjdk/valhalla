@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,6 +109,7 @@ public class Oop {
   public boolean isArray()             { return false; }
   public boolean isObjArray()          { return false; }
   public boolean isTypeArray()         { return false; }
+  public boolean isFlatArray()         { return false; }
   public boolean isThread()            { return false; }
 
   // Align the object size.

@@ -412,15 +412,6 @@ bool PhaseOutput::need_stack_bang(int frame_size_in_bytes) const {
            DEBUG_ONLY(|| true)));
 }
 
-bool PhaseOutput::need_register_stack_bang() const {
-  // Determine if we need to generate a register stack overflow check.
-  // This is only used on architectures which have split register
-  // and memory stacks.
-  // Bang if the method is not a stub function and has java calls
-  return (C->stub_function() == nullptr && C->has_java_calls());
-}
-
-
 // Compute the size of first NumberOfLoopInstrToAlign instructions at the top
 // of a loop. When aligning a loop we need to provide enough instructions
 // in cpu's fetch buffer to feed decoders. The loop alignment could be
@@ -3018,29 +3009,30 @@ void Scheduling::ComputeRegisterAntidependencies(Block *b) {
 
     Node *m = b->get_node(i);
 
-    // Add precedence edge from following safepoint to use of derived pointer
-    if( last_safept_node != end_node &&
+    if (last_safept_node != end_node &&
         m != last_safept_node) {
+      bool need_safept_prec = false;
+      // Add precedence edge from following safepoint to use of derived pointer
       for (uint k = 1; k < m->req(); k++) {
         const Type *t = m->in(k)->bottom_type();
-        if( t->isa_oop_ptr() &&
-            t->is_ptr()->offset() != 0 ) {
-          last_safept_node->add_prec( m );
+        if (t->isa_oop_ptr() &&
+            t->is_ptr()->offset() != 0) {
+          need_safept_prec = true;
           break;
         }
       }
 
-      // Do not allow a CheckCastPP node whose input is a raw pointer to
-      // float past a safepoint.  This can occur when a buffered inline
-      // type is allocated in a loop and the CheckCastPP from that
-      // allocation is reused outside the loop.  If the use inside the
-      // loop is scalarized the CheckCastPP will no longer be connected
-      // to the loop safepoint.  See JDK-8264340.
-      if (m->is_Mach() && m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
-        Node *def = m->in(1);
+      // A CheckCastPP whose input is still RawPtr must stay above the following safepoint.
+      // Otherwise post-regalloc block-local scheduling can leave a live raw oop at the safepoint.
+      if (!need_safept_prec && m->is_Mach() &&
+          m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
+        Node* def = m->in(1);
         if (def != nullptr && def->bottom_type()->base() == Type::RawPtr) {
-          last_safept_node->add_prec(m);
+          need_safept_prec = true;
         }
+      }
+      if (need_safept_prec) {
+        last_safept_node->add_prec(m);
       }
     }
 

@@ -582,7 +582,7 @@ WB_END
 WB_ENTRY(jboolean, WB_G1InConcurrentMark(JNIEnv* env, jobject o))
   if (UseG1GC) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
-    return g1h->concurrent_mark()->in_progress();
+    return g1h->collector_state()->is_in_concurrent_cycle();
   }
   THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1InConcurrentMark: G1 GC is not enabled");
 WB_END
@@ -2037,8 +2037,8 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
     map++;
   }
 
-  objArrayHandle result_array =
-      oopFactory::new_objArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
+  refArrayHandle result_array =
+      oopFactory::new_refArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
   map = klass->start_of_nonstatic_oop_maps();
   int index = 0;
   while (map < end) {
@@ -2075,8 +2075,8 @@ class CollectObjectOops : public BasicOopIterateClosure {
   void do_oop(narrowOop* v) { add_oop(v); }
 
   jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    objArrayHandle result_array =
-        oopFactory::new_objArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
+    refArrayHandle result_array =
+        oopFactory::new_refArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
     for (int i = 0 ; i < _array->length(); i++) {
       result_array->obj_at_put(i, _array->at(i)());
     }

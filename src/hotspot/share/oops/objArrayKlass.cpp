@@ -36,6 +36,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -45,6 +46,7 @@
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/arguments.hpp"
@@ -53,14 +55,14 @@
 #include "utilities/macros.hpp"
 
 ObjArrayKlass* ObjArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
-                                       Klass* k, Symbol* name, ArrayProperties props,
-                                       TRAPS) {
+                                             Klass* k, Symbol* name,
+                                             ArrayProperties props, TRAPS) {
   assert(ObjArrayKlass::header_size() <= InstanceKlass::header_size(),
       "array klasses must be same size as InstanceKlass");
 
   int size = ArrayKlass::static_size(ObjArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, props, props.is_null_restricted() ? markWord::null_free_array_prototype() : markWord::prototype());
+  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, props);
 }
 
 Symbol* ObjArrayKlass::create_element_klass_array_name(JavaThread* current, Klass* element_klass) {
@@ -84,7 +86,7 @@ Symbol* ObjArrayKlass::create_element_klass_array_name(JavaThread* current, Klas
 
 
 ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
-                                                      int n, Klass* element_klass,  TRAPS) {
+                                                      int n, Klass* element_klass, TRAPS) {
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -130,13 +132,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayProperties props, markWord mk) :
-ArrayKlass(name, kind, props, mk) {
-  set_dimension(n);
-  set_element_klass(element_klass);
-  set_next_refined_klass_klass(nullptr);
-  set_properties(props);
-
+static Klass* calculate_bottom_klass(Klass* element_klass) {
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
     assert(!element_klass->is_refined_objArray_klass(), "no such mechanism yet");
@@ -145,9 +141,20 @@ ArrayKlass(name, kind, props, mk) {
     assert(!element_klass->is_refArray_klass(), "Sanity");
     bk = element_klass;
   }
-  assert(bk != nullptr && (bk->is_instance_klass() || bk->is_typeArray_klass()), "invalid bottom klass");
-  set_bottom_klass(bk);
-  set_class_loader_data(bk->class_loader_data());
+
+  assert(bk != nullptr, "Sanity");
+  assert(bk->is_instance_klass() || bk->is_typeArray_klass(), "invalid bottom klass");
+
+  return bk;
+}
+
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayProperties props)
+    : ArrayKlass(n, name, kind, props),
+      _element_klass(element_klass),
+      _bottom_klass(calculate_bottom_klass(element_klass)),
+      _next_refined_array_klass(nullptr) {
+
+  set_class_loader_data(_bottom_klass->class_loader_data());
 
   if (element_klass->is_array_klass()) {
     set_lower_dimension(ArrayKlass::cast(element_klass));
@@ -167,12 +174,7 @@ ArrayKlass(name, kind, props, mk) {
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {
-  // In this assert, we cannot safely access the Klass* with compact headers,
-  // because size_given_klass() calls oop_size() on objects that might be
-  // concurrently forwarded, which would overwrite the Klass*.
-  assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
-  // return objArrayOop(obj)->object_size();
-  return obj->is_flatArray() ? flatArrayOop(obj)->object_size(layout_helper()) : refArrayOop(obj)->object_size();
+  ShouldNotReachHere();
 }
 
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties props) {
@@ -220,57 +222,47 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
 ObjArrayKlass* ObjArrayKlass::allocate_klass_from_description(ArrayDescription ad, TRAPS) {
   assert(ad._properties.is_valid(), "Sanity check");
   assert(ad._properties.is_null_restricted() || !ad._properties.is_non_atomic(), "only null-restricted array can be non-atomic");
-  ObjArrayKlass* ak = nullptr;
+
   switch (ad._kind) {
-    case Klass::RefArrayKlassKind: {
-      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
-      break;
-    }
-    case Klass::FlatArrayKlassKind: {
+    case Klass::RefArrayKlassKind:
+      return RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), ad._properties, CHECK_NULL);
+
+    case Klass::FlatArrayKlassKind:
       assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
-      ak = FlatArrayKlass::allocate_klass(element_klass(), ad._properties, ad._layout_kind, CHECK_NULL);
-      break;
-    }
+      return FlatArrayKlass::allocate_klass(element_klass(), ad._properties, ad._layout_kind, CHECK_NULL);
+
     default:
       ShouldNotReachHere();
   }
-  return ak;
 }
 
 objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   ObjArrayKlass* ak = klass_with_properties(props, CHECK_NULL);
-  size_t size = 0;
-  switch(ak->kind()) {
+  switch (ak->kind()) {
     case Klass::RefArrayKlassKind:
-      size = refArrayOopDesc::object_size(length);
-      break;
+      return RefArrayKlass::cast(ak)->allocate_instance(length, CHECK_NULL);
+
     case Klass::FlatArrayKlassKind:
-      size = flatArrayOopDesc::object_size(ak->layout_helper(), length);
-      break;
+      return FlatArrayKlass::cast(ak)->allocate_instance(length, CHECK_NULL);
+
     default:
       ShouldNotReachHere();
   }
-  assert(size != 0, "Sanity check");
-  objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
-    ak, size, length,
-    /* do_zero */ true, CHECK_NULL);
-  assert(array->is_refArray() || array->is_flatArray(), "Must be");
-  return array;
 }
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
-  ObjArrayKlass* oak = klass_with_properties(ArrayProperties::Default(), CHECK_NULL);
-  assert(oak->is_refArray_klass() || oak->is_flatArray_klass(), "Must be");
-  objArrayOop array = oak->allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
-  objArrayHandle h_array (THREAD, array);
+  objArrayOop array = allocate_instance(length, ArrayProperties::Default(), CHECK_NULL);
+  assert(array->is_refined_objArray(), "Must be");
+
+  objArrayHandle h_array(THREAD, array);
   if (rank > 1) {
     if (length != 0) {
       for (int index = 0; index < length; index++) {
-        oop sub_array = ld_klass->multi_allocate(rank-1, &sizes[1], CHECK_NULL);
+        oop sub_array = ld_klass->multi_allocate(rank - 1, &sizes[1], CHECK_NULL);
         h_array->obj_at_put(index, sub_array);
       }
     } else {
@@ -290,21 +282,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
 
 void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
                                int dst_pos, int length, TRAPS) {
-  assert(s->is_objArray(), "must be obj array");
-
-  if (UseArrayFlattening) {
-    if (d->is_flatArray()) {
-      FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
-    if (s->is_flatArray()) {
-      FlatArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-      return;
-    }
-  }
-
-  assert(s->is_refArray() && d->is_refArray(), "Must be");
-  RefArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+  ShouldNotReachHere();
 }
 
 bool ObjArrayKlass::can_be_primary_super_slow() const {
@@ -411,13 +389,12 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayProperties props, TRAPS
 }
 
 ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS) {
-
   element_klass()->validate_array_description(ad);
 
   const ArrayProperties props = ad._properties;
 
   if (properties() == props && kind() == ad._kind) {
-    assert(is_refArray_klass() || is_flatArray_klass(), "Must be a concrete array klass");
+    assert(is_refined_objArray_klass(), "Must be a refined array klass");
     return this;
   }
 
@@ -428,7 +405,7 @@ ObjArrayKlass* ObjArrayKlass::klass_from_description(ArrayDescription ad, TRAPS)
 
     if (next_refined_array_klass() == nullptr) {
       ObjArrayKlass* first = this;
-      if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayProperties::Default()) {
+      if (is_unrefined_objArray_klass() && props != ArrayProperties::Default()) {
         assert(props.is_valid(), "must be");
         // Make sure that the first entry in the linked list is always the default refined klass because
         // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
@@ -459,7 +436,6 @@ bool ObjArrayKlass::find_refined_array_klass(ObjArrayKlass* k) {
   }
   return false;
 }
-
 
 // Printing
 
@@ -503,16 +479,14 @@ void ObjArrayKlass::verify_on(outputStream* st) {
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
   Klass* bk = bottom_klass();
-  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass() || bk->is_flatArray_klass(),
+  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass(),
             "invalid bottom klass");
 }
 
 void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
+  guarantee(is_refined_objArray_klass(), "Must be called with refined obj array klass");
   guarantee(obj->is_objArray(), "must be objArray");
-  guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()), "null-free klass but not object");
-  objArrayOop oa = objArrayOop(obj);
-  for(int index = 0; index < oa->length(); index++) {
-    guarantee(oopDesc::is_oop_or_null(oa->obj_at(index)), "should be oop");
-  }
+  guarantee(oop_cast<objArrayOop>(obj)->is_null_free_array() || (!is_null_free_array_klass()),
+            "null-free klass but not object");
 }

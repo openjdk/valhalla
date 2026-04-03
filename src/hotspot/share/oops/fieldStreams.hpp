@@ -39,7 +39,6 @@
 // cases.
 // HierarchicalFieldStream allows to also iterate over fields of supertypes.
 class FieldStreamBase : public StackObj {
-
  protected:
   const Array<u1>*    _fieldinfo_stream;
   FieldInfoReader     _reader;

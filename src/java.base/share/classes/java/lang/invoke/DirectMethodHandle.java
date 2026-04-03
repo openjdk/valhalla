@@ -504,6 +504,15 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     /*non-public*/
+
+    /**
+     * This method returns an uninitialized instance. In general, this is undefined behavior, this
+     * method is treated specially by the JVM to allow this behavior. The returned value must be
+     * passed into a constructor using {@link MethodHandle#linkToSpecial} before any other
+     * operation can be performed on it. Otherwise, the program is ill-formed.
+     *
+     * @see Unsafe
+     */
     static Object allocateInstance(Object mh) throws InstantiationException {
         Constructor dmh = (Constructor)mh;
         return UNSAFE.allocateInstance(dmh.instanceClass);

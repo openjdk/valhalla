@@ -213,7 +213,6 @@ class java_lang_String : AllStatic {
 
   // Tester
   static inline bool is_instance(oop obj);
-  static inline bool is_instance_without_asserts(oop obj);
 
   // Debugging
   static void print(oop java_string, outputStream* st, int max_length = MaxStringPrintSize);
@@ -666,8 +665,8 @@ class java_lang_Throwable: AllStatic {
 
  public:
   // Backtrace
-  static oop backtrace(oop throwable);
-  static void set_backtrace(oop throwable, oop value);
+  static refArrayOop backtrace(oop throwable);
+  static void set_backtrace(oop throwable, refArrayOop value);
   static int depth(oop throwable);
   static void set_depth(oop throwable, int value);
   // Message
@@ -692,7 +691,7 @@ class java_lang_Throwable: AllStatic {
   static void fill_in_stack_trace(Handle throwable, const methodHandle& method = methodHandle());
 
   // Programmatic access to stack trace
-  static void get_stack_trace_elements(int depth, Handle backtrace, objArrayHandle stack_trace, TRAPS);
+  static void get_stack_trace_elements(int depth, Handle backtrace, refArrayHandle stack_trace, TRAPS);
 
   // For recreating class initialization error exceptions.
   static Handle create_initialization_error(JavaThread* current, Handle throwable);
@@ -1205,9 +1204,9 @@ class jdk_internal_foreign_abi_ABIDescriptor: AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
   // Accessors
-  static objArrayOop inputStorage(oop entry);
-  static objArrayOop outputStorage(oop entry);
-  static objArrayOop volatileStorage(oop entry);
+  static refArrayOop inputStorage(oop entry);
+  static refArrayOop outputStorage(oop entry);
+  static refArrayOop volatileStorage(oop entry);
   static jint        stackAlignment(oop entry);
   static jint        shadowSpace(oop entry);
   static oop         scratch1(oop entry);
@@ -1398,7 +1397,7 @@ class java_lang_invoke_MethodType: AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
   // Accessors
   static oop            rtype(oop mt);
-  static objArrayOop    ptypes(oop mt);
+  static refArrayOop    ptypes(oop mt);
 
   static oop            ptype(oop mt, int index);
   static int            ptype_count(oop mt);
@@ -1823,7 +1822,7 @@ class java_lang_Integer_IntegerCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1833,7 +1832,7 @@ class java_lang_Long_LongCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1843,7 +1842,7 @@ class java_lang_Character_CharacterCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1853,7 +1852,7 @@ class java_lang_Short_ShortCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
@@ -1863,7 +1862,7 @@ class java_lang_Byte_ByteCache : AllStatic {
  public:
   static Symbol* symbol();
   static void compute_offsets(InstanceKlass* k);
-  static objArrayOop  cache(InstanceKlass *k);
+  static refArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 

@@ -48,6 +48,7 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 #ifndef PRODUCT
@@ -125,7 +126,8 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
-          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          bool is_null_free = array_type->is_null_free() ||
+                              (!UseNullableAtomicValueFlattening && !UseNullableNonAtomicValueFlattening);
           if (is_null_free) {
             inline_type = cast_not_null(inline_type);
           }
@@ -1340,12 +1342,28 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
     _max_switch_depth = 0;
     _est_switch_depth = log2i_graceful((hi - lo + 1) - 1) + 1;
   }
+  SwitchRange* orig_lo = lo;
+  SwitchRange* orig_hi = hi;
 #endif
 
-  assert(lo <= hi, "must be a non-empty set of ranges");
-  if (lo == hi) {
-    jump_if_always_fork(lo->dest(), trim_ranges && lo->cnt() == 0);
-  } else {
+  // The lower-range processing is done iteratively to avoid O(N) stack depth
+  // when the profiling-based pivot repeatedly selects mid==lo (JDK-8366138).
+  // The upper-range processing remains recursive but is only reached for
+  // balanced splits, bounding its depth to O(log N).
+  // Termination: every iteration either exits or strictly decreases hi-lo:
+  //   lo == mid && mid < hi, increments lo
+  //   lo < mid <= hi, sets hi = mid - 1.
+  for (int depth = switch_depth;; depth++) {
+#ifndef PRODUCT
+    _max_switch_depth = MAX2(depth, _max_switch_depth);
+#endif
+
+    assert(lo <= hi, "must be a non-empty set of ranges");
+    if (lo == hi) {
+      jump_if_always_fork(lo->dest(), trim_ranges && lo->cnt() == 0);
+      break;
+    }
+
     assert(lo->hi() == (lo+1)->lo()-1, "contiguous ranges");
     assert(hi->lo() == (hi-1)->hi()+1, "contiguous ranges");
 
@@ -1355,7 +1373,12 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
     float total_cnt = sum_of_cnts(lo, hi);
 
     int nr = hi - lo + 1;
-    if (UseSwitchProfiling) {
+    // With total_cnt==0 the profiling pivot degenerates to mid==lo
+    // (0 >= 0/2), producing a linear chain of If nodes instead of a
+    // balanced tree. A balanced tree is strictly better here: all paths
+    // are cold, so a balanced split gives fewer comparisons at runtime
+    // and avoids pathological memory usage in the optimizer.
+    if (UseSwitchProfiling && total_cnt > 0) {
       // Don't keep the binary search tree balanced: pick up mid point
       // that split frequencies in half.
       float cnt = 0;
@@ -1376,7 +1399,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
       assert(nr != 2 || mid == hi,   "should pick higher of 2");
       assert(nr != 3 || mid == hi-1, "should pick middle of 3");
     }
-
+    assert(mid != nullptr, "mid must be set");
 
     Node *test_val = _gvn.intcon(mid == lo ? mid->hi() : mid->lo());
 
@@ -1399,7 +1422,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
         Node   *iffalse = _gvn.transform( new IfFalseNode(iff_lt) );
         { PreserveJVMState pjvms(this);
           set_control(iffalse);
-          jump_switch_ranges(key_val, mid+1, hi, switch_depth+1);
+          jump_switch_ranges(key_val, mid+1, hi, depth+1);
         }
         set_control(iftrue);
       }
@@ -1417,21 +1440,22 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
         Node *iffalse = _gvn.transform( new IfFalseNode(iff_ge) );
         { PreserveJVMState pjvms(this);
           set_control(iftrue);
-          jump_switch_ranges(key_val, mid == lo ? mid+1 : mid, hi, switch_depth+1);
+          jump_switch_ranges(key_val, mid == lo ? mid+1 : mid, hi, depth+1);
         }
         set_control(iffalse);
       }
     }
 
-    // in any case, process the lower range
+    // Process the lower range: iterate instead of recursing.
     if (mid == lo) {
       if (mid->is_singleton()) {
-        jump_switch_ranges(key_val, lo+1, hi, switch_depth+1);
+        lo++;
       } else {
         jump_if_always_fork(lo->dest(), trim_ranges && lo->cnt() == 0);
+        break;
       }
     } else {
-      jump_switch_ranges(key_val, lo, mid-1, switch_depth+1);
+      hi = mid - 1;
     }
   }
 
@@ -1446,23 +1470,22 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
   }
 
 #ifndef PRODUCT
-  _max_switch_depth = MAX2(switch_depth, _max_switch_depth);
   if (TraceOptoParse && Verbose && WizardMode && switch_depth == 0) {
     SwitchRange* r;
     int nsing = 0;
-    for( r = lo; r <= hi; r++ ) {
+    for (r = orig_lo; r <= orig_hi; r++) {
       if( r->is_singleton() )  nsing++;
     }
     tty->print(">>> ");
     _method->print_short_name();
     tty->print_cr(" switch decision tree");
     tty->print_cr("    %d ranges (%d singletons), max_depth=%d, est_depth=%d",
-                  (int) (hi-lo+1), nsing, _max_switch_depth, _est_switch_depth);
+                  (int) (orig_hi-orig_lo+1), nsing, _max_switch_depth, _est_switch_depth);
     if (_max_switch_depth > _est_switch_depth) {
       tty->print_cr("******** BAD SWITCH DEPTH ********");
     }
     tty->print("   ");
-    for( r = lo; r <= hi; r++ ) {
+    for (r = orig_lo; r <= orig_hi; r++) {
       r->print();
     }
     tty->cr();
@@ -1967,22 +1990,25 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 }
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
-  inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
-                                 !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
-                                 speculative_ptr_kind(tinput) == ProfileAlwaysNull);
-  dec_sp(2);
   if (btest == BoolTest::ne) {
     {
       PreserveJVMState pjvms(this);
-      replace_in_map(input, cast);
+      inc_sp(2);
+      null_check_common(input, T_OBJECT, true, nullptr,
+                        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                        speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+      dec_sp(2);
       int target_bci = iter().get_dest();
       merge(target_bci);
     }
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
   } else {
-    replace_in_map(input, cast);
+    inc_sp(2);
+    null_check_common(input, T_OBJECT, true, nullptr,
+                      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                      speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+    dec_sp(2);
   }
 }
 
@@ -1998,60 +2024,37 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
   return cast;
 }
 
-void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
+void Parse::acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason reason) {
+  Node* slow_ctl = type_check_receiver(*non_null_input, input_type, 1.0, non_null_input);
   {
     PreserveJVMState pjvms(this);
     inc_sp(2);
     set_control(slow_ctl);
+    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+  }
+}
+
+void Parse::acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
+  Node* null_ctl;
+  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
+
+  if (input_type != nullptr) {
     Deoptimization::DeoptReason reason;
     if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       reason = Deoptimization::Reason_speculate_class_check;
     } else {
       reason = Deoptimization::Reason_class_check;
     }
-    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-  }
-  ne_region->add_req(control());
-
-  record_for_igvn(ne_region);
-  set_control(_gvn.transform(ne_region));
-  if (btest == BoolTest::ne) {
-    {
-      PreserveJVMState pjvms(this);
-      if (null_ctl == top()) {
-        replace_in_map(input, cast);
-      }
-      int target_bci = iter().get_dest();
-      merge(target_bci);
-    }
-    record_for_igvn(eq_region);
-    set_control(_gvn.transform(eq_region));
+    acmp_type_check_or_trap(&cast, input_type, reason);
   } else {
-    if (null_ctl == top()) {
-      replace_in_map(input, cast);
-    }
-    set_control(_gvn.transform(ne_region));
-  }
-}
-
-void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  {
+    // No specific type, check for inline type
     BuildCutout unless(this, inline_type_test(cast, /* is_inline = */ false), PROB_MAX);
     inc_sp(2);
     uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
   }
 
+  Node* ne_region = new RegionNode(2);
+  ne_region->add_req(null_ctl);
   ne_region->add_req(control());
 
   record_for_igvn(ne_region);
@@ -2217,22 +2220,22 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
   if (left_type != nullptr && !left_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, left_type, btest, eq_region);
     return;
   }
   if (right_type != nullptr && !right_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, right_type, btest, eq_region);
     return;
   }
   if (!left_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(left, tleft, left_ptr, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, nullptr, btest, eq_region);
     return;
   }
   if (!right_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(right, tright, right_ptr, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, nullptr, btest, eq_region);
     return;
   }
 
@@ -2244,27 +2247,40 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ne_region->init_req(1, null_ctl);
 
   if (!stopped()) {
-    // First operand is non-null, check if it is an inline type
-    Node* is_value = inline_type_test(not_null_right);
-    IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
-    Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-    ne_region->init_req(2, not_value);
-    set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+    // First operand is non-null, check if it is the speculative inline type if possible
+    // (which later allows isSubstitutable to be intrinsified), or any inline type if no
+    // speculation is available.
+    if (right_type != nullptr && right_type->is_inlinetype()) {
+      acmp_type_check_or_trap(&not_null_right, right_type, Deoptimization::Reason_speculate_class_check);
+    } else {
+      Node* is_value = inline_type_test(not_null_right);
+      IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+      Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
+      ne_region->init_req(2, not_value);
+      set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+    }
 
     // The first operand is an inline type, check if the second operand is non-null
     not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
     ne_region->init_req(3, null_ctl);
-
     if (!stopped()) {
-      // Check if both operands are of the same class.
-      Node* kls_left = load_object_klass(not_null_left);
-      Node* kls_right = load_object_klass(not_null_right);
-      Node* kls_cmp = CmpP(kls_left, kls_right);
-      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-      ne_region->init_req(4, kls_ne);
+      // Check if lhs operand is of a specific speculative inline type (see above).
+      // If not, we don't need to enforce that the lhs is a value object since we know
+      // it already for the rhs, and must enforce that they have the same type.
+      if (left_type != nullptr && left_type->is_inlinetype()) {
+        acmp_type_check_or_trap(&not_null_left, left_type, Deoptimization::Reason_speculate_class_check);
+      }
+      if (!stopped()) {
+        // Check if both operands are of the same class.
+        Node* kls_left = load_object_klass(not_null_left);
+        Node* kls_right = load_object_klass(not_null_right);
+        Node* kls_cmp = CmpP(kls_left, kls_right);
+        Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+        IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+        Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+        set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+        ne_region->init_req(4, kls_ne);
+      }
     }
   }
 

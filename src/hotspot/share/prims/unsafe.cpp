@@ -45,6 +45,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valuePayload.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -176,6 +177,7 @@ jlong Unsafe_field_offset_from_byte_offset(jlong byte_offset) {
   return byte_offset;
 }
 
+
 ///// Data read/writes on the Java heap and in native (off-heap) memory
 
 /**
@@ -254,9 +256,10 @@ public:
   ATTRIBUTE_NO_UBSAN
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
-    assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
+    assert(_obj == nullptr || !_obj->is_inline_type(), "receiver cannot be an instance of a value class because they are immutable");
     *addr() = normalize_for_write(x);
   }
+
 
   T get_volatile() {
     GuardUnsafeAccess guard(_thread);
@@ -270,61 +273,23 @@ public:
   }
 };
 
-#ifdef ASSERT
-/*
- * Get the field descriptor of the field of the given object at the given offset.
- */
-static bool get_field_descriptor(oop p, jlong offset, fieldDescriptor* fd) {
-  bool found = false;
+static void log_unsafe_value_access(oop p, jlong offset, InlineKlass* vk) {
   Klass* k = p->klass();
-  if (k->is_instance_klass()) {
-    InstanceKlass* ik = InstanceKlass::cast(k);
-    found = ik->find_field_from_offset((int)offset, false, fd);
-    if (!found && ik->is_mirror_instance_klass()) {
-      Klass* k2 = java_lang_Class::as_Klass(p);
-      if (k2->is_instance_klass()) {
-        ik = InstanceKlass::cast(k2);
-        found = ik->find_field_from_offset((int)offset, true, fd);
-      }
-    }
-  }
-  return found;
-}
-#endif // ASSERT
-
-static void assert_and_log_unsafe_value_access(oop p, jlong offset, InlineKlass* vk) {
-  Klass* k = p->klass();
-#ifdef ASSERT
-  if (k->is_instance_klass()) {
-    assert_field_offset_sane(p, offset);
-    fieldDescriptor fd;
-    bool found = get_field_descriptor(p, offset, &fd);
-    if (found) {
-      assert(found, "value field not found");
-      assert(fd.is_flat(), "field not flat");
-    } else {
-      if (log_is_enabled(Trace, valuetypes)) {
-        log_trace(valuetypes)("not a field in %s at offset " UINT64_FORMAT_X,
-                              p->klass()->external_name(), (uint64_t)offset);
-      }
-    }
-  } else if (k->is_flatArray_klass()) {
-    FlatArrayKlass* vak = FlatArrayKlass::cast(k);
-    int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
-    address dest = (address)((flatArrayOop)p)->value_at_addr(index, vak->layout_helper());
-    assert(dest == (cast_from_oop<address>(p) + offset), "invalid offset");
-  } else {
-    ShouldNotReachHere();
-  }
-#endif // ASSERT
   if (log_is_enabled(Trace, valuetypes)) {
+    ResourceMark rm;
     if (k->is_flatArray_klass()) {
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
-      address dest = (address)((flatArrayOop)p)->value_at_addr(index, vak->layout_helper());
-      log_trace(valuetypes)("%s array type %s index %d element size %d offset " UINT64_FORMAT_X " at " INTPTR_FORMAT,
-                            p->klass()->external_name(), vak->external_name(),
-                            index, vak->element_byte_size(), (uint64_t)offset, p2i(dest));
+      flatArrayOop array = oop_cast<flatArrayOop>(p);
+      if (index >= 0 && index < array->length()) {
+        address dest = (address)((flatArrayOop)p)->value_at_addr(index, vak->layout_helper());
+        log_trace(valuetypes)("%s array type %s index %d element size %d offset " UINT64_FORMAT_X " at " INTPTR_FORMAT,
+                              p->klass()->external_name(), vak->external_name(),
+                              index, vak->element_byte_size(), (uint64_t)offset, p2i(dest));
+      } else {
+         log_trace(valuetypes)("%s array type %s out-of-bounds index %d element size %d offset " UINT64_FORMAT_X,
+                              p->klass()->external_name(), vak->external_name(), index, vak->element_byte_size(), (uint64_t)offset);
+      }
     } else {
       log_trace(valuetypes)("%s field type %s at offset " UINT64_FORMAT_X,
                             p->klass()->external_name(), vk->external_name(), (uint64_t)offset);
@@ -346,7 +311,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  assert(!p->is_inline_type() || p->mark().is_larval_state(), "must be an object instance or a larval inline type");
+  assert(!p->is_inline_type(), "receiver cannot be an instance of a value class because they are immutable");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
@@ -448,7 +413,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetFlatValue(JNIEnv *env, jobject unsafe, jobject o
   }
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
   InlineKlass* vk = InlineKlass::cast(k);
-  assert_and_log_unsafe_value_access(base, offset, vk);
+  log_unsafe_value_access(base, offset, vk);
   LayoutKind lk = (LayoutKind)layoutKind;
   FlatValuePayload payload = FlatValuePayload::construct_from_parts(base, offset, vk, lk);
   oop v = payload.read(CHECK_NULL);
@@ -464,7 +429,7 @@ UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj,
   }
 
   InlineKlass* vk = InlineKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc)));
-  assert_and_log_unsafe_value_access(base, offset, vk);
+  log_unsafe_value_access(base, offset, vk);
   LayoutKind lk = (LayoutKind)layoutKind;
   FlatValuePayload payload = FlatValuePayload::construct_from_parts(base, offset, vk, lk);
   payload.write(inlineOop(JNIHandles::resolve(value)), CHECK);
@@ -899,12 +864,10 @@ UNSAFE_ENTRY(jarray, Unsafe_GetFieldMap0(JNIEnv* env, jobject unsafe, jclass cla
   return (jarray) JNIHandles::make_local(THREAD, map);
 } UNSAFE_END
 
-
 UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
   return p->size() * HeapWordSize;
 UNSAFE_END
-
 
 static inline void throw_new(JNIEnv *env, const char *ename) {
   jclass cls = env->FindClass(ename);
@@ -1148,7 +1111,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getFlatValue",         CC "(" OBJ "JI" CLS ")" OBJ, FN_PTR(Unsafe_GetFlatValue)},
     {CC "putFlatValue",         CC "(" OBJ "JI" CLS OBJ ")V", FN_PTR(Unsafe_PutFlatValue)},
     {CC "valueHeaderSize",       CC "(" CLS ")J",         FN_PTR(Unsafe_ValueHeaderSize)},
-
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 
     DECLARE_GETPUTOOP(Boolean, Z),

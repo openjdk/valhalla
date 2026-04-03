@@ -334,11 +334,11 @@ class methodHandle;
    do_name(     newNullableAtomicArray_name,                      "newNullableAtomicArray")                             \
    do_signature(newArray_signature2,                              "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
    do_signature(newArray_signature3,                              "(Ljava/lang/Class;ILjava/lang/Object;)[Ljava/lang/Object;") \
-  do_intrinsic(_isFlatArray, jdk_internal_value_ValueClass, isFlatArray_name, object_boolean_signature, F_SN)           \
+  do_intrinsic(_isFlatArray, jdk_internal_value_ValueClass, isFlatArray_name, object_array_boolean_signature, F_SN)     \
    do_name(     isFlatArray_name,                                 "isFlatArray")                                        \
-  do_intrinsic(_isNullRestrictedArray, jdk_internal_value_ValueClass, isNullRestrictedArray_name, object_boolean_signature, F_SN) \
+  do_intrinsic(_isNullRestrictedArray, jdk_internal_value_ValueClass, isNullRestrictedArray_name, object_array_boolean_signature, F_SN) \
    do_name(     isNullRestrictedArray_name,                       "isNullRestrictedArray")                              \
-  do_intrinsic(_isAtomicArray, jdk_internal_value_ValueClass, isAtomicArray_name, object_boolean_signature, F_SN)       \
+  do_intrinsic(_isAtomicArray, jdk_internal_value_ValueClass, isAtomicArray_name, object_array_boolean_signature, F_SN) \
    do_name(     isAtomicArray_name,                               "isAtomicArray")                                      \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
@@ -382,10 +382,10 @@ class methodHandle;
   do_intrinsic(_inflateStringB,           java_lang_StringLatin1, inflate_name, inflateB_signature,              F_S)   \
    do_signature(inflateB_signature,                              "([BI[BII)V")                                          \
   do_intrinsic(_toBytesStringU,           java_lang_StringUTF16, toBytes_name, toBytesU_signature,               F_S)   \
-   do_name(     toBytes_name,                                    "toBytes")                                             \
+   do_name(     toBytes_name,                                    "toBytes0")                                            \
    do_signature(toBytesU_signature,                              "([CII)[B")                                            \
   do_intrinsic(_getCharsStringU,          java_lang_StringUTF16, getCharsU_name, getCharsU_signature,            F_S)   \
-   do_name(     getCharsU_name,                                  "getChars")                                            \
+   do_name(     getCharsU_name,                                  "getChars0")                                           \
    do_signature(getCharsU_signature,                             "([BII[CI)V")                                          \
   do_intrinsic(_getCharStringU,           java_lang_StringUTF16, getChar_name, getCharStringU_signature,         F_S)   \
    do_signature(getCharStringU_signature,                        "([BI)C")                                              \
@@ -1058,7 +1058,7 @@ class methodHandle;
   do_intrinsic(_VectorUnaryLibOp, jdk_internal_vm_vector_VectorSupport, vector_unary_lib_op_name, vector_unary_lib_op_sig, F_S)                \
    do_signature(vector_unary_lib_op_sig,"(J"                                                                                                   \
                                          "Ljava/lang/Class;"                                                                                   \
-                                         "Ljava/lang/Class;"                                                                                   \
+                                         "I"                                                                                                   \
                                          "I"                                                                                                   \
                                          "Ljava/lang/String;"                                                                                  \
                                          "Ljdk/internal/vm/vector/VectorSupport$Vector;"                                                       \
@@ -1069,7 +1069,7 @@ class methodHandle;
   do_intrinsic(_VectorBinaryLibOp, jdk_internal_vm_vector_VectorSupport, vector_binary_lib_op_name, vector_binary_lib_op_sig, F_S)             \
    do_signature(vector_binary_lib_op_sig,"(J"                                                                                                  \
                                           "Ljava/lang/Class;"                                                                                  \
-                                          "Ljava/lang/Class;"                                                                                  \
+                                          "I"                                                                                                  \
                                           "I"                                                                                                  \
                                           "Ljava/lang/String;"                                                                                 \
                                           "Ljdk/internal/vm/vector/VectorSupport$VectorPayload;"                                               \

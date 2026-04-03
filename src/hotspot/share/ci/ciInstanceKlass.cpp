@@ -834,9 +834,9 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
             _out->print("%s", klass_name);
           }
         } else if (value->is_array()) {
-          typeArrayOop ta = (typeArrayOop)value;
-          _out->print("%d", ta->length());
-          if (value->is_objArray() || value->is_flatArray()) {
+          arrayOop a = (arrayOop)value;
+          _out->print("%d", a->length());
+          if (value->is_objArray()) {
             objArrayOop oa = (objArrayOop)value;
             const char* klass_name  = value->klass()->name()->as_quoted_ascii();
             _out->print(" %s", klass_name);

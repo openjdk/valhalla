@@ -160,7 +160,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment);
+  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -286,7 +286,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
-  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<AcmpMapSegment>* _nonoop_acmp_map;
   GrowableArray<int>* _oop_acmp_map;
   int _nonstatic_oopmap_count;
   int _payload_alignment;

@@ -157,6 +157,7 @@ private:
     return (int32_t)max_elements_per_size_t;
   }
 
+  inline bool is_null_free_array() const;
 };
 
 #endif // SHARE_OOPS_ARRAYOOP_HPP

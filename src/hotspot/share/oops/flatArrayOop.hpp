@@ -25,26 +25,31 @@
 #ifndef SHARE_VM_OOPS_FLATARRAYOOP_HPP
 #define SHARE_VM_OOPS_FLATARRAYOOP_HPP
 
-#include "oops/arrayOop.hpp"
-#include "oops/inlineKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/objArrayOop.hpp"
-#include "runtime/handles.hpp"
+#include "utilities/globalDefinitions.hpp"
+
+class FlatArrayKlass;
 
 // A flatArrayOop points to a flat array containing inline types (no indirection).
 // It may include embedded oops in its elements.
 
 class flatArrayOopDesc : public objArrayOopDesc {
-
  public:
+  inline FlatArrayKlass* klass() const;
+
   void* base() const;
   static size_t base_offset_in_bytes();
   void* value_at_addr(int index, jint lh) const;
   size_t value_offset(int index, jint lh) const;
   size_t value_offset_from_base(int index, jint lh) const;
 
-  inline oop obj_at(int index) const;
+  // oop obj_at(...) must always allocate when reading a non-null flat element,
+  // as such only obj_at(int, TRAPS) is provided. To null-check element without
+  // allocating use obj_at_is_null(int);
+  inline oop obj_at(int index) const = delete;
   inline oop obj_at(int index, TRAPS) const;
+  inline bool obj_at_is_null(int index) const;
   inline jboolean null_marker_of_obj_at(int index) const;
   inline jboolean null_marker_of_obj_at(int index, TRAPS) const;
   inline void obj_at_put(int index, oop value);

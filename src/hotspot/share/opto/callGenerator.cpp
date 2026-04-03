@@ -1123,6 +1123,12 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     Node* m = kit.map()->in(i);
     Node* n = slow_map->in(i);
     if (m != n) {
+#ifdef ASSERT
+      if (m->is_InlineType() != n->is_InlineType()) {
+        InlineTypeNode* unique_vt = m->is_InlineType() ? m->as_InlineType() : n->as_InlineType();
+        assert(unique_vt->is_allocated(&gvn), "InlineType can be merged with an oop only if it is allocated");
+      }
+#endif
       const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
       Node* phi = PhiNode::make(region, m, t);
       phi->set_req(2, n);
@@ -1229,7 +1235,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         // Cast receiver to its type.
         if (!target->is_static()) {
           Node* recv = kit.argument(0);
-          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass());
+          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass(), target->receiver_maybe_larval());
           if (casted_recv->is_top()) {
             print_inlining_failure(C, callee, jvms, "argument types mismatch");
             return nullptr; // FIXME: effectively dead; issue a halt node instead
@@ -1242,7 +1248,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
             Node* arg = kit.argument(receiver_skip + j);
-            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass());
+            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass(), false);
             if (casted_arg->is_top()) {
               print_inlining_failure(C, callee, jvms, "argument types mismatch");
               return nullptr; // FIXME: effectively dead; issue a halt node instead

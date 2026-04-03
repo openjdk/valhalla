@@ -35,6 +35,11 @@
 #include "oops/valuePayload.inline.hpp"
 #include "runtime/globals.hpp"
 
+inline FlatArrayKlass* flatArrayOopDesc::klass() const {
+  Klass* k = oopDesc::klass();
+  return FlatArrayKlass::cast(k);
+}
+
 inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
 
 inline size_t flatArrayOopDesc::base_offset_in_bytes() {
@@ -65,16 +70,16 @@ inline int flatArrayOopDesc::object_size(int lh) const {
   return object_size(lh, length());
 }
 
-inline oop flatArrayOopDesc::obj_at(int index) const {
-  fatal("Should not be used with flat arrays");
-  EXCEPTION_MARK;
-  return obj_at(index, THREAD);
-}
-
 inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
   return payload.read(THREAD);
+}
+
+inline bool flatArrayOopDesc::obj_at_is_null(int index) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  FlatArrayPayload payload(flatArrayOop(const_cast<flatArrayOopDesc*>(this)), index);
+  return payload.is_payload_null();
 }
 
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
@@ -84,10 +89,10 @@ inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
 
 inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
+  FlatArrayKlass* fak = klass();
+  InlineKlass* vk = fak->element_klass();
   char* this_oop = (char*) (oopDesc*) this;
-  char* val = (char*) value_at_addr(index, faklass->layout_helper());
+  char* val = (char*) value_at_addr(index, fak->layout_helper());
   ptrdiff_t offset = val - this_oop + (ptrdiff_t)vk->null_marker_offset_in_payload();
   return bool_field(offset);
 }
@@ -99,28 +104,27 @@ inline void flatArrayOopDesc::obj_at_put(int index, oop value) {
 
 inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
-  InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
+  FlatArrayKlass* fak = klass();
+  InlineKlass* vk = fak->element_klass();
   if (value != nullptr) {
     if (value->klass() != vk) {
       THROW(vmSymbols::java_lang_ArrayStoreException());
     }
-  } else if(is_null_free_array()) {
+  } else if(fak->is_null_free_array_klass()) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
 
-  FlatArrayPayload payload(flatArrayOop(this), index, faklass);
+  FlatArrayPayload payload(flatArrayOop(this), index, fak);
   // The value and klass has already been checked for null compatibility.
   payload.write_without_nullability_check(inlineOop(value));
 }
 
 template <typename OopClosureType>
 void flatArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
-  FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
   if (UseCompressedOops) {
-    faklass->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
   } else {
-    faklass->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
+    klass()->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
   }
 }
 

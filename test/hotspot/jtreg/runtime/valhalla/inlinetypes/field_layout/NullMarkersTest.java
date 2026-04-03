@@ -341,7 +341,7 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
       Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-XX:+UseNullableValueFlattening");
+    Collections.addAll(argsList, "-XX:+UseNullableAtomicValueFlattening");
    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
@@ -414,6 +414,11 @@ static final String pkg_path = "runtime.valhalla.inlinetypes.field_layout.";
       }
 
     // Verify that all layouts are correct
-    fla.check();
+    try {
+        fla.check();
+    } catch (Throwable t) {
+        System.out.print(out.getOutput());
+        throw t;
+    }
   }
 }

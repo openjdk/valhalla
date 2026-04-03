@@ -48,6 +48,7 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ostream.hpp"
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
@@ -632,9 +633,14 @@ void Parse::do_call() {
     Node* receiver_node = stack(sp() - nargs);
     Node* cls_node = makecon(TypeKlassPtr::make(receiver_constraint, Type::trust_interfaces));
     Node* bad_type_ctrl = nullptr;
-    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
+    SafePointNode* new_cast_failure_map = nullptr;
+    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl, &new_cast_failure_map);
     if (bad_type_ctrl != nullptr) {
       PreserveJVMState pjvms(this);
+      if (new_cast_failure_map != nullptr) {
+        // The current map on the success path could have been modified. Use the dedicated failure path map.
+        set_map(new_cast_failure_map);
+      }
       set_control(bad_type_ctrl);
       uncommon_trap(Deoptimization::Reason_class_check,
                     Deoptimization::Action_none);
@@ -811,14 +817,15 @@ void Parse::do_call() {
     if (!rtype->is_void()) {
       Node* retnode = peek();
       const Type* rettype = gvn().type(retnode);
-      if (rettype->is_inlinetypeptr() && !retnode->is_InlineType()) {
+      if (!cg->method()->return_value_is_larval() && !retnode->is_InlineType() && rettype->is_inlinetypeptr()) {
         retnode = InlineTypeNode::make_from_oop(this, retnode, rettype->inline_klass());
         dec_sp(1);
         push(retnode);
       }
     }
 
-    if (cg->method()->is_object_constructor() && receiver != nullptr && gvn().type(receiver)->is_inlinetypeptr()) {
+    if (cg->method()->receiver_maybe_larval() && receiver != nullptr &&
+        !receiver->is_InlineType() && gvn().type(receiver)->is_inlinetypeptr()) {
       InlineTypeNode* non_larval = InlineTypeNode::make_from_oop(this, receiver, gvn().type(receiver)->inline_klass());
       // Relinquish the oop input, we will delay the allocation to the point it is needed, see the
       // comments in InlineTypeNode::Ideal for more details

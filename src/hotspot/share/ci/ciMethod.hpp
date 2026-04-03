@@ -392,9 +392,15 @@ class ciMethod : public ciMetadata {
 
   // Support for the inline type calling convention
   bool is_scalarized_arg(int idx) const;
+  bool is_scalarized_buffer_arg(int idx) const;
   bool has_scalarized_args() const;
   const GrowableArray<SigEntry>* get_sig_cc() const;
   bool mismatch() const;
+
+  // Generally, a method cannot return a larval object or receive a larval argument. There are some
+  // exceptions.
+  bool receiver_maybe_larval() const;
+  bool return_value_is_larval() const;
 };
 
 #endif // SHARE_CI_CIMETHOD_HPP

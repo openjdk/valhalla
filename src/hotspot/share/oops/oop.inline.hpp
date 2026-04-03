@@ -246,6 +246,7 @@ bool oopDesc::is_objArray()         const { return klass()->is_objArray_klass();
 bool oopDesc::is_refArray()         const { return klass()->is_refArray_klass();             }
 bool oopDesc::is_typeArray()        const { return klass()->is_typeArray_klass();            }
 bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass();     }
+bool oopDesc::is_flatArray()        const { return klass()->is_flatArray_klass();            }
 
 bool oopDesc::is_array_with_oops() const {
   if (!is_objArray()) {
@@ -257,19 +258,6 @@ bool oopDesc::is_array_with_oops() const {
 }
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
-#ifdef _LP64
-bool oopDesc::is_flatArray() const {
-  markWord mrk = mark();
-  return (mrk.is_unlocked()) ? mrk.is_flat_array() : klass()->is_flatArray_klass();
-}
-bool oopDesc::is_null_free_array() const {
-  markWord mrk = mark();
-  return (mrk.is_unlocked()) ? mrk.is_null_free_array() : klass()->is_null_free_array_klass();
-}
-#else
-bool oopDesc::is_flatArray()       const { return klass()->is_flatArray_klass(); }
-bool oopDesc::is_null_free_array() const { return klass()->is_null_free_array_klass(); }
-#endif
 
 template<typename T>
 T*       oopDesc::field_addr(int offset)     const { return reinterpret_cast<T*>(cast_from_oop<intptr_t>(as_oop()) + offset); }

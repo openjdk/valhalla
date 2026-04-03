@@ -1252,7 +1252,7 @@ private:
             // The first stage of async deflation does not affect any field
             // used by this comparison so the ObjectMonitor* is usable here.
             if (mark.has_monitor()) {
-              ObjectMonitor* mon = ObjectSynchronizer::read_monitor(current, monitor->owner(), mark);
+              ObjectMonitor* mon = ObjectSynchronizer::read_monitor(monitor->owner(), mark);
               if (// if the monitor is null we must be in the process of locking
                   mon == nullptr ||
                   // we have marked ourself as pending on this monitor
@@ -1482,7 +1482,7 @@ oop ThreadSnapshotFactory::get_thread_snapshot(jobject jthread, TRAPS) {
   InstanceKlass* ste_klass = vmClasses::StackTraceElement_klass();
   assert(ste_klass != nullptr, "must be loaded");
 
-  objArrayHandle trace = oopFactory::new_objArray_handle(ste_klass, cl._frame_count, CHECK_NULL);
+  refArrayHandle trace = oopFactory::new_refArray_handle(ste_klass, cl._frame_count, CHECK_NULL);
 
   for (int i = 0; i < cl._frame_count; i++) {
     methodHandle method(THREAD, cl._methods->at(i));
@@ -1495,9 +1495,9 @@ oop ThreadSnapshotFactory::get_thread_snapshot(jobject jthread, TRAPS) {
   Klass* lock_k = SystemDictionary::resolve_or_fail(lock_sym, true, CHECK_NULL);
   InstanceKlass* lock_klass = InstanceKlass::cast(lock_k);
 
-  objArrayHandle locks;
+  refArrayHandle locks;
   if (cl._locks != nullptr && cl._locks->length() > 0) {
-    locks = oopFactory::new_objArray_handle(lock_klass, cl._locks->length(), CHECK_NULL);
+    locks = oopFactory::new_refArray_handle(lock_klass, cl._locks->length(), CHECK_NULL);
     for (int n = 0; n < cl._locks->length(); n++) {
       GetThreadSnapshotHandshakeClosure::OwnedLock* lock_info = cl._locks->adr_at(n);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,7 +97,7 @@ public class TestArrayAccessDeopt {
         if (args.length == 0) {
             // Run test in new VM instance
             String[] arg = {"--enable-preview", "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED", "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                            "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
+                            "-XX:+UnlockDiagnosticVMOptions", "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "compiler.valhalla.inlinetypes.TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
             oa.shouldHaveExitValue(0);

@@ -456,7 +456,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
     }
   }
-  if (org->is_flatArray()) {
+  if (ak->is_flatArray_klass()) {
     // The whole JVM_CopyOfSpecialArray is currently broken. Fix this in a separate bugfix.
     int org_length = org->length();
     int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
@@ -480,7 +480,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
     array = dst;
   } else {
-    const ArrayProperties props = ArrayProperties::Default().with_null_restricted(org->is_null_free_array());
+    const ArrayProperties props = ArrayProperties::Default().with_null_restricted(ak->is_null_free_array_klass());
 
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
     int end = to < oh()->length() ? to : oh()->length();
@@ -557,29 +557,49 @@ JVM_ENTRY(jarray, JVM_NewReferenceArray(JNIEnv *env, jclass elmClass, jint len))
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jobject obj))
-  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  return oop->is_flatArray();
+JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jarray array))
+  oop o = JNIHandles::resolve_non_null(array);
+  Klass* klass = o->klass();
+
+  return klass->is_flatArray_klass();
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj))
-  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  return oop->is_null_free_array();
+JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jarray array))
+  oop o = JNIHandles::resolve_non_null(array);
+  Klass* klass = o->klass();
+
+  assert(klass->is_objArray_klass(), "Expects an object array");
+
+  return klass->is_null_free_array_klass();
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
+JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jarray array))
   // There are multiple cases where an array can/must support atomic access:
   //   - the array is a reference array
   //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or NULL_FREE_ATOMIC_FLAT
   //   - the array is flat and its component type is naturally atomic
-  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  if (oop->is_refArray()) return true;
-  if (oop->is_flatArray()) {
-    FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
-    if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) return true;
-    if (fak->element_klass()->is_naturally_atomic()) return true;
+  oop o = JNIHandles::resolve_non_null(array);
+  Klass* klass = o->klass();
+
+  assert(klass->is_objArray_klass(), "Expects an object array");
+
+  if (klass->is_refArray_klass()) {
+    return true;
   }
-  return false;
+
+  if (klass->is_flatArray_klass()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(klass);
+    if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) {
+      return true;
+    }
+    if (fak->element_klass()->is_naturally_atomic()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  ShouldNotReachHere();
 JVM_END
 
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
@@ -698,8 +718,8 @@ JVM_END
 
 JVM_ENTRY(void, JVM_InitStackTraceElementArray(JNIEnv *env, jobjectArray elements, jobject backtrace, jint depth))
   Handle backtraceh(THREAD, JNIHandles::resolve(backtrace));
-  objArrayOop st = objArrayOop(JNIHandles::resolve(elements));
-  objArrayHandle stack_trace(THREAD, st);
+  refArrayOop st = refArrayOop(JNIHandles::resolve(elements));
+  refArrayHandle stack_trace(THREAD, st);
   // Fill in the allocated stack trace
   java_lang_Throwable::get_stack_trace_elements(depth, backtraceh, stack_trace, CHECK);
 JVM_END
@@ -742,8 +762,8 @@ JVM_ENTRY(jobject, JVM_CallStackWalk(JNIEnv *env, jobject stackStream, jint mode
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
 
   if (frames_array_h->length() < buffer_size) {
     THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers", nullptr);
@@ -761,8 +781,8 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
   // frames array is a ClassFrameInfo[] array when only getting caller reference,
   // and a StackFrameInfo[] array (or derivative) otherwise. It should never
   // be null.
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
 
   if (frames_array_h->length() < buffer_size) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "not enough space in buffers");
@@ -774,8 +794,8 @@ JVM_ENTRY(jint, JVM_MoreStackWalk(JNIEnv *env, jobject stackStream, jint mode, j
 JVM_END
 
 JVM_ENTRY(void, JVM_SetStackWalkContinuation(JNIEnv *env, jobject stackStream, jlong anchor, jobjectArray frames, jobject cont))
-  objArrayOop fa = objArrayOop(JNIHandles::resolve_non_null(frames));
-  objArrayHandle frames_array_h(THREAD, fa);
+  refArrayOop fa = refArrayOop(JNIHandles::resolve_non_null(frames));
+  refArrayHandle frames_array_h(THREAD, fa);
   Handle stackStream_h(THREAD, JNIHandles::resolve_non_null(stackStream));
   Handle cont_h(THREAD, JNIHandles::resolve_non_null(cont));
 
@@ -3862,7 +3882,9 @@ JVM_ENTRY(jobjectArray, JVM_GetVmArguments(JNIEnv *env))
 
   int index = 0;
   for (int j = 0; j < num_flags; j++, index++) {
-    Handle h = java_lang_String::create_from_platform_dependent_str(vm_flags[j], CHECK_NULL);
+    stringStream prefixed;
+    prefixed.print("-XX:%s", vm_flags[j]);
+    Handle h = java_lang_String::create_from_platform_dependent_str(prefixed.base(), CHECK_NULL);
     result_h->obj_at_put(index, h());
   }
   for (int i = 0; i < num_args; i++, index++) {

@@ -1479,13 +1479,13 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
   // [id]* elements
   if (array->is_flatArray()) {
     flatArrayOop farray = flatArrayOop(array);
-    FlatArrayKlass* faklass = FlatArrayKlass::cast(farray->klass());
+    FlatArrayKlass* fak = farray->klass();
 
-    InlineKlass* vk = faklass->element_klass();
-    bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
+    InlineKlass* vk = fak->element_klass();
+    bool need_null_check = LayoutKindHelper::is_nullable_flat(fak->layout_kind());
 
     for (int index = 0; index < length; index++) {
-      address addr = (address)farray->value_at_addr(index, faklass->layout_helper());
+      address addr = (address)farray->value_at_addr(index, fak->layout_helper());
       // check for null
       if (need_null_check) {
         if (vk->is_payload_marked_as_null(addr)) {
@@ -2168,10 +2168,9 @@ void FlatObjectDumper::dump_flat_objects(AbstractDumpWriter* writer, oop holder,
 // Callback to dump thread-related data for unmounted virtual threads;
 // implemented by VM_HeapDumper.
 class UnmountedVThreadDumper {
-public:
+ public:
   virtual void dump_vthread(oop vt, AbstractDumpWriter* segment_writer) = 0;
 };
-
 
 // Support class used when iterating over the heap.
 class HeapObjectDumper : public ObjectClosure {

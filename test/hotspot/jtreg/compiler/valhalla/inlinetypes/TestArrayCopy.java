@@ -60,7 +60,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch -XX:-UseArrayFlattening
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayCopy
  */
 

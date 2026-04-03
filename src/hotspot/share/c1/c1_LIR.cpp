@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -356,20 +356,17 @@ LIR_OpNullFreeArrayCheck::LIR_OpNullFreeArrayCheck(LIR_Opr array, LIR_Opr tmp)
 
 
 LIR_OpSubstitutabilityCheck::LIR_OpSubstitutabilityCheck(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
-                                                         LIR_Opr tmp1, LIR_Opr tmp2,
-                                                         ciKlass* left_klass, ciKlass* right_klass, LIR_Opr left_klass_op, LIR_Opr right_klass_op,
+                                                         ciKlass* left_klass, ciKlass* right_klass, LIR_Opr tmp1, LIR_Opr tmp2,
                                                          CodeEmitInfo* info, CodeStub* stub)
   : LIR_Op(lir_substitutability_check, result, info)
   , _left(left)
   , _right(right)
   , _equal_result(equal_result)
   , _not_equal_result(not_equal_result)
-  , _tmp1(tmp1)
-  , _tmp2(tmp2)
   , _left_klass(left_klass)
   , _right_klass(right_klass)
-  , _left_klass_op(left_klass_op)
-  , _right_klass_op(right_klass_op)
+  , _tmp1(tmp1)
+  , _tmp2(tmp2)
   , _stub(stub) {}
 
 
@@ -890,8 +887,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
                                                                 do_temp (opSubstitutabilityCheck->_not_equal_result);
       if (opSubstitutabilityCheck->_tmp1->is_valid())           do_temp(opSubstitutabilityCheck->_tmp1);
       if (opSubstitutabilityCheck->_tmp2->is_valid())           do_temp(opSubstitutabilityCheck->_tmp2);
-      if (opSubstitutabilityCheck->_left_klass_op->is_valid())  do_temp(opSubstitutabilityCheck->_left_klass_op);
-      if (opSubstitutabilityCheck->_right_klass_op->is_valid()) do_temp(opSubstitutabilityCheck->_right_klass_op);
       if (opSubstitutabilityCheck->_result->is_valid())         do_output(opSubstitutabilityCheck->_result);
 
       do_info(opSubstitutabilityCheck->_info);
@@ -1630,13 +1625,10 @@ void LIR_List::check_null_free_array(LIR_Opr array, LIR_Opr tmp) {
 }
 
 void LIR_List::substitutability_check(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
-                                      LIR_Opr tmp1, LIR_Opr tmp2,
-                                      ciKlass* left_klass, ciKlass* right_klass, LIR_Opr left_klass_op, LIR_Opr right_klass_op,
+                                      ciKlass* left_klass, ciKlass* right_klass, LIR_Opr tmp1, LIR_Opr tmp2,
                                       CodeEmitInfo* info, CodeStub* stub) {
   LIR_OpSubstitutabilityCheck* c = new LIR_OpSubstitutabilityCheck(result, left, right, equal_result, not_equal_result,
-                                                                   tmp1, tmp2,
-                                                                   left_klass, right_klass, left_klass_op, right_klass_op,
-                                                                   info, stub);
+                                                                   left_klass, right_klass, tmp1, tmp2, info, stub);
   append(c);
 }
 
@@ -2180,8 +2172,6 @@ void LIR_OpSubstitutabilityCheck::print_instr(outputStream* out) const {
   right()->print(out);                   out->print(" ");
   equal_result()->print(out);            out->print(" ");
   not_equal_result()->print(out);        out->print(" ");
-  tmp1()->print(out);                    out->print(" ");
-  tmp2()->print(out);                    out->print(" ");
   if (left_klass() == nullptr) {
     out->print("unknown ");
   } else {
@@ -2192,8 +2182,8 @@ void LIR_OpSubstitutabilityCheck::print_instr(outputStream* out) const {
   } else {
     right_klass()->print(out);           out->print(" ");
   }
-  left_klass_op()->print(out);           out->print(" ");
-  right_klass_op()->print(out);          out->print(" ");
+  tmp1()->print(out);                    out->print(" ");
+  tmp2()->print(out);                    out->print(" ");
   if (stub() != nullptr) {
     out->print("[label:" INTPTR_FORMAT "]", p2i(stub()->entry()));
   }

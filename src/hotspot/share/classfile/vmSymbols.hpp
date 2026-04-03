@@ -629,6 +629,7 @@ class SerializeClosure;
   template(void_class_array_signature,                "()[Ljava/lang/Class;")                                     \
   template(void_string_signature,                     "()Ljava/lang/String;")                                     \
   template(object_array_object_signature,             "([Ljava/lang/Object;)Ljava/lang/Object;")                  \
+  template(object_array_boolean_signature,            "([Ljava/lang/Object;)Z")                                   \
   template(object_object_array_object_signature,      "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")\
   template(thread_signature,                          "Ljava/lang/Thread;")                                       \
   template(thread_fieldholder_signature,              "Ljava/lang/Thread$FieldHolder;")                           \
