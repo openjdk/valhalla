@@ -5061,7 +5061,6 @@ public class Check {
             // Check declarations of serialization-related methods and
             // fields
             final Map<String, Symbol> declaredSerialMethodNames = new HashMap<>();
-            final boolean[] isSerialMethodCorrect = new boolean[] { false };
             for(Symbol el : c.getEnclosedElements()) {
                 runUnderLint(el, p, (enclosed, tree) -> {
                     String name = null;
@@ -5134,15 +5133,14 @@ public class Check {
                         var method = (MethodSymbol)enclosed;
                         name = method.getSimpleName().toString();
                         if (serialMethodNames.contains(name)) {
-                            isSerialMethodCorrect[0] = switch (name) {
+                            if (switch (name) {
                                 case "writeObject"      -> hasAppropriateWriteObject(tree, e, method);
                                 case "writeReplace"     -> hasAppropriateWriteReplace(tree, method, true);
                                 case "readObject"       -> hasAppropriateReadObject(tree, e, method);
                                 case "readObjectNoData" -> hasAppropriateReadObjectNoData(tree, e, method);
                                 case "readResolve"      -> hasAppropriateReadResolve(tree, e, method);
                                 default ->  throw new AssertionError();
-                            };
-                            if (isSerialMethodCorrect[0]) {
+                            }) {
                                 declaredSerialMethodNames.put(name, el);
                             }
                         }
