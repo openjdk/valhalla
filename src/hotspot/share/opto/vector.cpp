@@ -336,7 +336,7 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
 
   Node* klass_node = kit.makecon(TypeKlassPtr::make(vk));
   Node* alloc_oop  = kit.new_instance(klass_node, nullptr, nullptr, /* deoptimize_on_exception */ true);
-  DecoratorSet decorators = IN_HEAP | MO_UNORDERED | C2_MISMATCHED;
+  DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
   Node* payload_alloc_oop = kit.basic_plus_adr(alloc_oop, vk->payload_offset());
   vector->store(&kit, alloc_oop, payload_alloc_oop, true, decorators);
 
