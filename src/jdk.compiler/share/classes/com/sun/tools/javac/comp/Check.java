@@ -5174,7 +5174,13 @@ public class Check {
                 }
             }
             if (c.isValueClass()) {
-                /* methods:
+                /* Value classes are Serializable through the use of the serialization proxy pattern.
+                 * The serialization protocol does not support a standard serialized form for value classes.
+                 * The value class delegates to a serialization proxy by supplying an alternate
+                 * record or object to be serialized instead of the value class.
+                 * When the proxy is deserialized it re-constructs the value object and returns the value object.
+                 *
+                 * In particular methods:
                  *  - writeObject
                  *  - readObject and
                  *  - readObjectNoData
