@@ -1483,4 +1483,37 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     "aconst_null,putstatic,getstatic,astore_2,aload_0,aload_2,putfield,aload_0,aload_2," +
                     "putfield,aload_0,invokespecial,return");
     }
+
+    @Test
+    void testIdentityRecordUsesPreview() throws Exception {
+        String source_withComponents =
+                """
+                record IdentityRecord(int i) {}
+                """;
+        String source_noComponents =
+                """
+                record IdentityRecord() {}
+                """;
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions("--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-Xlint:preview");
+            assertOKWithWarning("compiler.warn.preview.feature.use.plural", 1, source_withComponents);
+
+            File dir = assertOK(true, source_withComponents);
+            File classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            Assert.check(ClassFile.of().parse(classFile.toPath()).minorVersion() == ClassFile.PREVIEW_MINOR_VERSION,
+                    "identity records should produce preview class files when compiled with preview enabled");
+
+            dir = assertOK(true, source_noComponents);
+            classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            Assert.check(ClassFile.of().parse(classFile.toPath()).minorVersion() == 0,
+                    "identity records with no components should not produce preview class files even with preview enabled");
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
 }

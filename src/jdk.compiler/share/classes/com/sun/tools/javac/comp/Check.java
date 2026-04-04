@@ -1183,6 +1183,7 @@ public class Check {
                 if (allowValueClasses && (isInstanceFieldOfValueClass || isRecordField)) {
                     implicit |= FINAL | STRICT;
                     mask = ValueFieldFlags;
+                    preview.checkSourceLevel(pos, Feature.VALUE_CLASSES);
                 } else {
                     mask = VarFlags;
                 }
