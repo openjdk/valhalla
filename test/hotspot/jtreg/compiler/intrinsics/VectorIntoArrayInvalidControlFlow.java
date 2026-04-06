@@ -27,6 +27,7 @@ package compiler.intrinsics;
  * @test
  * @bug 8359344
  * @summary Intrinsic storeMasked can add some control flow before bailing out, leaving a malformed CFG.
+ * @enablePreview
  * @modules jdk.incubator.vector
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions
  *                   -XX:TypeProfileLevel=222 -Xbatch

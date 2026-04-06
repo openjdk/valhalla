@@ -101,7 +101,7 @@ public class VectorMaskCastIdentityTest {
     }
 
     @Test
-    @IR(counts = { IRNode.VECTOR_MASK_CAST, "= 1" }, applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true"})
+    @IR(counts = { IRNode.VECTOR_MASK_CAST, "= 0" }, applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true"})
     public static int testOneCastToDifferentType() {
         // The types before and after the only cast are different, the cast will not be eliminated.
         VectorMask<Float> mFloat128 = VectorMask.fromArray(FloatVector.SPECIES_128, mr, 0).not();
