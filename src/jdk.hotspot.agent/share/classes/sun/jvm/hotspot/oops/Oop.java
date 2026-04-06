@@ -51,8 +51,7 @@ public class Oop {
       headerSize = markType.getSize();
     } else {
       headerSize = type.getSize();
-      klass      = new MetadataField(type.getAddressField("_metadata._klass"), 0);
-      compressedKlass  = new NarrowKlassField(type.getAddressField("_metadata._compressed_klass"), 0);
+      compressedKlass  = new NarrowKlassField(type.getAddressField("_compressed_klass"), 0);
     }
   }
 
@@ -75,7 +74,6 @@ public class Oop {
   public  static long getHeaderSize() { return headerSize; } // Header size in bytes.
 
   private static CIntField mark;
-  private static MetadataField  klass;
   private static NarrowKlassField compressedKlass;
 
   // Accessors for declared fields
@@ -83,12 +81,9 @@ public class Oop {
 
   public Klass getKlass() {
     if (VM.getVM().isCompactObjectHeadersEnabled()) {
-      assert(VM.getVM().isCompressedKlassPointersEnabled());
       return getMark().getKlass();
-    } else if (VM.getVM().isCompressedKlassPointersEnabled()) {
-      return (Klass)compressedKlass.getValue(getHandle());
     } else {
-      return (Klass)klass.getValue(getHandle());
+      return (Klass)compressedKlass.getValue(getHandle());
     }
   }
 
@@ -158,11 +153,7 @@ public class Oop {
     if (doVMFields) {
       visitor.doCInt(mark, true);
       if (!VM.getVM().isCompactObjectHeadersEnabled()) {
-        if (VM.getVM().isCompressedKlassPointersEnabled()) {
-          visitor.doMetadata(compressedKlass, true);
-        } else {
-          visitor.doMetadata(klass, true);
-        }
+        visitor.doMetadata(compressedKlass, true);
       }
     }
   }
@@ -221,10 +212,8 @@ public class Oop {
     if (VM.getVM().isCompactObjectHeadersEnabled()) {
       Mark mark = new Mark(handle);
       return mark.getKlass();
-    } else if (VM.getVM().isCompressedKlassPointersEnabled()) {
-      return (Klass)Metadata.instantiateWrapperFor(handle.getCompKlassAddressAt(compressedKlass.getOffset()));
     } else {
-      return (Klass)Metadata.instantiateWrapperFor(handle.getAddressAt(klass.getOffset()));
+      return (Klass)Metadata.instantiateWrapperFor(handle.getCompKlassAddressAt(compressedKlass.getOffset()));
     }
   }
 };

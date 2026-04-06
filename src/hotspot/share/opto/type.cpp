@@ -3733,7 +3733,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
 #ifdef _LP64
   if (this->offset() > 0 || this->offset() == Type::OffsetTop || this->offset() == Type::OffsetBot) {
     if (this->offset() == oopDesc::klass_offset_in_bytes()) {
-      _is_ptr_to_narrowklass = UseCompressedClassPointers;
+      _is_ptr_to_narrowklass = true;
     } else if (klass() == nullptr) {
       // Array with unknown body type
       assert(this->isa_aryptr(), "only arrays without klass");

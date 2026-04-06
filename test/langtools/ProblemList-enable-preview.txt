@@ -31,3 +31,4 @@
 #############################################################################
 
 # Valhalla failures start here:
+tools/javac/processing/model/element/TestValueClasses.java 8381653 generic-all

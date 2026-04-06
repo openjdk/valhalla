@@ -1246,7 +1246,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           }
           k -= (oc2 - use->outcnt());
         }
-        _igvn.remove_dead_node(use);
+        _igvn.remove_dead_node(use, PhaseIterGVN::NodeOrigin::Graph);
       } else if (use->is_ArrayCopy()) {
         // Disconnect ArrayCopy node
         ArrayCopyNode* ac = use->as_ArrayCopy();
@@ -1280,7 +1280,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           // src can be top at this point if src and dest of the
           // arraycopy were the same
           if (src->outcnt() == 0 && !src->is_top()) {
-            _igvn.remove_dead_node(src);
+            _igvn.remove_dead_node(src, PhaseIterGVN::NodeOrigin::Graph);
           }
         }
         _igvn._worklist.push(ac);
@@ -1314,7 +1314,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
       j -= (oc1 - res->outcnt());
     }
     assert(res->outcnt() == 0, "all uses of allocated objects must be deleted");
-    _igvn.remove_dead_node(res);
+    _igvn.remove_dead_node(res, PhaseIterGVN::NodeOrigin::Graph);
   }
 
   //
@@ -1815,7 +1815,7 @@ void PhaseMacroExpand::expand_allocate_common(
       transform_later(_callprojs->fallthrough_memproj);
     }
     _igvn.replace_in_uses(_callprojs->catchall_memproj, _callprojs->fallthrough_memproj);
-    _igvn.remove_dead_node(_callprojs->catchall_memproj);
+    _igvn.remove_dead_node(_callprojs->catchall_memproj, PhaseIterGVN::NodeOrigin::Graph);
   }
 
   // An allocate node has separate i_o projections for the uses on the control
@@ -1834,7 +1834,7 @@ void PhaseMacroExpand::expand_allocate_common(
       transform_later(_callprojs->fallthrough_ioproj);
     }
     _igvn.replace_in_uses(_callprojs->catchall_ioproj, _callprojs->fallthrough_ioproj);
-    _igvn.remove_dead_node(_callprojs->catchall_ioproj);
+    _igvn.remove_dead_node(_callprojs->catchall_ioproj, PhaseIterGVN::NodeOrigin::Graph);
   }
 
   // if we generated only a slow call, we are done
@@ -1898,11 +1898,11 @@ void PhaseMacroExpand::yank_alloc_node(AllocateNode* alloc) {
       --i; // back up iterator
     }
     assert(_callprojs->resproj[0]->outcnt() == 0, "all uses must be deleted");
-    _igvn.remove_dead_node(_callprojs->resproj[0]);
+    _igvn.remove_dead_node(_callprojs->resproj[0], PhaseIterGVN::NodeOrigin::Graph);
   }
   if (_callprojs->fallthrough_catchproj != nullptr) {
     _igvn.replace_in_uses(_callprojs->fallthrough_catchproj, ctrl);
-    _igvn.remove_dead_node(_callprojs->fallthrough_catchproj);
+    _igvn.remove_dead_node(_callprojs->fallthrough_catchproj, PhaseIterGVN::NodeOrigin::Graph);
   }
   if (_callprojs->catchall_catchproj != nullptr) {
     _igvn.rehash_node_delayed(_callprojs->catchall_catchproj);
@@ -1910,16 +1910,16 @@ void PhaseMacroExpand::yank_alloc_node(AllocateNode* alloc) {
   }
   if (_callprojs->fallthrough_proj != nullptr) {
     Node* catchnode = _callprojs->fallthrough_proj->unique_ctrl_out();
-    _igvn.remove_dead_node(catchnode);
-    _igvn.remove_dead_node(_callprojs->fallthrough_proj);
+    _igvn.remove_dead_node(catchnode, PhaseIterGVN::NodeOrigin::Graph);
+    _igvn.remove_dead_node(_callprojs->fallthrough_proj, PhaseIterGVN::NodeOrigin::Graph);
   }
   if (_callprojs->fallthrough_memproj != nullptr) {
     _igvn.replace_in_uses(_callprojs->fallthrough_memproj, mem);
-    _igvn.remove_dead_node(_callprojs->fallthrough_memproj);
+    _igvn.remove_dead_node(_callprojs->fallthrough_memproj, PhaseIterGVN::NodeOrigin::Graph);
   }
   if (_callprojs->fallthrough_ioproj != nullptr) {
     _igvn.replace_in_uses(_callprojs->fallthrough_ioproj, i_o);
-    _igvn.remove_dead_node(_callprojs->fallthrough_ioproj);
+    _igvn.remove_dead_node(_callprojs->fallthrough_ioproj, PhaseIterGVN::NodeOrigin::Graph);
   }
   if (_callprojs->catchall_memproj != nullptr) {
     _igvn.rehash_node_delayed(_callprojs->catchall_memproj);
@@ -1938,7 +1938,7 @@ void PhaseMacroExpand::yank_alloc_node(AllocateNode* alloc) {
     }
   }
 #endif
-  _igvn.remove_dead_node(alloc);
+  _igvn.remove_dead_node(alloc, PhaseIterGVN::NodeOrigin::Graph);
 }
 
 void PhaseMacroExpand::expand_initialize_membar(AllocateNode* alloc, InitializeNode* init,
@@ -2767,9 +2767,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     if (!UseCompactObjectHeaders) {
       // COH: Everything is encoded in the mark word, so nothing left to do.
       fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-      if (UseCompressedClassPointers) {
-        fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
-      }
+      fast_oop_rawmem = make_store_raw(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
     }
     Node* members  = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InlineKlass::adr_members_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     Node* pack_handler = make_load_raw(fast_oop_ctrl, fast_oop_rawmem, members, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
