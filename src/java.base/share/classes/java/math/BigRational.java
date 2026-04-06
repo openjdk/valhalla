@@ -132,7 +132,7 @@ public final /* value */ class BigRational  {
             if (sign == -1) {
                 reducedNum = reducedNum.negate();
             }
-                
+
             var reducedDem = demAbs.divide(gcd);
             return new Reduced(reducedNum, reducedDem);
         }
@@ -169,7 +169,7 @@ public final /* value */ class BigRational  {
         return new BigRational(BigInteger.valueOf(i),
                                BigInteger.ONE);
     }
-    
+
     /**
      * {@return a rational number equal to the argument}
      *
@@ -264,7 +264,7 @@ public final /* value */ class BigRational  {
         return new BigRational(BigInteger.valueOf(numerator),
                                BigInteger.valueOf(denominator));
     }
-    
+
     /**
      * {@return a rational number equal to the ratio of the arguments,
      * in lowest terms}
@@ -276,7 +276,7 @@ public final /* value */ class BigRational  {
         return new BigRational(BigInteger.valueOf(numerator),
                                BigInteger.valueOf(denominator));
     }
-    
+
     /**
      * {@return a rational number equal to the ratio of the arguments,
      * in lowest terms}
@@ -289,7 +289,7 @@ public final /* value */ class BigRational  {
         return new BigRational(copyIfNeeded(numerator),
                                copyIfNeeded(denominator));
     }
-    
+
     /*
      * Guard against unknown BigInteger subclass.
      */
@@ -521,7 +521,7 @@ public final /* value */ class BigRational  {
             }
         }
     }
-    
+
     /**
      * {@return the hashcode of this rational}
      */
