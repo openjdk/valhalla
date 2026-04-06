@@ -122,7 +122,7 @@ public class InitializationWarningTester {
         javaCompiler.compile(com.sun.tools.javac.util.List.of(javacFileManager.getJavaFileObject(javaFile)));
         if (goldenFile != null) {
             // lets remove preview related messages from the compilation output
-            compilationOutput.removeIf(msg -> msg.contains("preview"));
+            compilationOutput.removeIf(msg -> msg.contains("compiler.note.preview"));
             java.util.List<String> goldenFileContent = Files.readAllLines(goldenFile);
             if (goldenFileContent.size() != compilationOutput.size()) {
                 System.err.println("compilation output length mismatch");
