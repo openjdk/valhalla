@@ -1126,7 +1126,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // No inherited fields, the layout must be empty except for the RESERVED block
     // PADDING is inserted if needed to ensure the correct alignment of the payload.
     if (_is_abstract_value && _has_nonstatic_fields) {
-      // non-static fields of the abstract class must be laid out without knowning
+      // non-static fields of the abstract class must be laid out without knowing
       // the alignment constraints of the fields of the sub-classes, so the worst
       // case scenario is assumed, which is currently the alignment of T_LONG.
       // PADDING is added if needed to ensure the payload will respect this alignment.
@@ -1163,6 +1163,12 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         assert(new_alignment % _layout->super_min_align_required() == 0, "Must be");
         _payload_alignment = new_alignment;
       }
+      _layout->set_start(_layout->first_field_block());
+    } else {
+      // Abstract value class inheriting fields, restore the pessimistic alignment
+      // constraint (see comment above) and ensure no field will be inserted before
+      // the first inherited field.
+      _payload_alignment = type2aelembytes(BasicType::T_LONG);
       _layout->set_start(_layout->first_field_block());
     }
   }

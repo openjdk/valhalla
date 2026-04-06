@@ -569,6 +569,14 @@ public class FieldLayoutAnalyzer {
         System.out.println("Unexpected exception when checking size and alignment in non-static fields of class " + layout.name);
         throw t;
       }
+      if (layout.isValue) { // true only for concrete value classes
+        // It would be better to check the alignment for all value classes (abstract and concrete),
+        // but the log doesn't include a way to identify abstract value classes yet. So, we only
+        // perform the check for concrete value classes, knowing that abstract value classes cannot
+        // be instantiated directly, they need a concrete sub-class which will have its layout verified.
+        int firstOffset = layout.firstFieldOffset;
+        Asserts.assertTrue(firstOffset % layout.payloadAlignment == 0, "First field offset " + firstOffset + " is not aligned with payload alignment " + layout.payloadAlignment + " in class " + layout.name);
+      }
     }
   }
 
