@@ -85,3 +85,8 @@ tools/javap/output/RepeatingTypeAnnotations.java                                
 #############################################################################
 
 # Valhalla failures start here:
+
+# TestValueClasses.java does not live in a valhalla specific directory AND
+# it specifies the '--enable-preview' option directly instead of via a task
+# definition so an entry in ProblemList-enable-preview.txt WILL NOT work.
+tools/javac/processing/model/element/TestValueClasses.java 8381653 generic-all
