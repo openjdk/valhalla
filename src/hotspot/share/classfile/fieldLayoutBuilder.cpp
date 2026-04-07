@@ -1054,7 +1054,8 @@ void FieldLayoutBuilder::compute_regular_layout() {
       if (padding != nullptr) {
         start = padding;
       }
-      _layout->add(cg->big_primitive_fields());
+
+      _layout->add(cg->big_primitive_fields(), start);
       _layout->add(cg->small_primitive_fields(), start);
       _layout->add(cg->oop_fields(), start);
       need_tail_padding = true;
