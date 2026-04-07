@@ -225,6 +225,7 @@ public class TestVirtualThreads {
     static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
     static final Random RAND = Utils.getRandomInstance();
     static final int PARK_DURATION = 10;
+    static final boolean EXCLUDE_RANDOM = false; // Randomly exclude methods from compilation (very slow!)
 
     static value class SmallValue {
         int x1;
@@ -776,7 +777,7 @@ public class TestVirtualThreads {
 
     public static void main(String[] args) throws Exception {
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
-        if (Utils.getRandomInstance().nextBoolean()) {
+        if (EXCLUDE_RANDOM && Utils.getRandomInstance().nextBoolean()) {
             ArrayList<Method> methods = new ArrayList<Method>();
             Collections.addAll(methods, SmallValue.class.getDeclaredMethods());
             Collections.addAll(methods, LargeValue.class.getDeclaredMethods());
