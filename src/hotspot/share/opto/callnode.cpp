@@ -47,6 +47,7 @@
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "opto/type.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -1403,20 +1404,7 @@ Node* CallStaticJavaNode::replace_is_substitutable(PhaseIterGVN* igvn) {
   // Delay IGVN during macro expansion
   assert(!igvn->delay_transform(), "must not delay during Ideal");
   igvn->set_delay_transform(true);
-
-  // Prepare to inline, clone the jvms
-  JVMState* jvms = this->jvms()->clone_shallow(igvn->C);
-  assert(jvms->map()->next_exception() == nullptr, "this call does not throw");
-  SafePointNode* map = new SafePointNode(req(), jvms);
-  igvn->register_new_node_with_optimizer(map);
-  for (uint i = 0; i < req(); i++) {
-    map->init_req(i, in(i));
-  }
-  MergeMemNode* mem = MergeMemNode::make(map->memory());
-  igvn->register_new_node_with_optimizer(mem);
-  map->set_memory(mem);
-  jvms->set_map(map);
-  GraphKit kit(jvms, igvn);
+  GraphKit kit(this, *igvn);
 
   Node* left = in(TypeFunc::Parms);
   Node* right = in(TypeFunc::Parms + 1);
@@ -1449,7 +1437,9 @@ Node* CallStaticJavaNode::replace_is_substitutable(PhaseIterGVN* igvn) {
   if (projs->catchall_catchproj != nullptr) {
     igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
   }
-  return TupleNode::make(tf()->range_cc(), igvn->C->top(), kit.i_o(), kit.reset_memory(), kit.frameptr(), kit.returnadr(), replace);
+  Node* new_mem = kit.reset_memory();
+  assert(in(TypeFunc::Memory) == new_mem, "must not modify memory");
+  return TupleNode::make(tf()->range_cc(), igvn->C->top(), kit.i_o(), new_mem, kit.frameptr(), kit.returnadr(), replace);
 }
 
 #ifndef PRODUCT

@@ -114,7 +114,7 @@ GraphKit::GraphKit(const SafePointNode* sft, PhaseIterGVN& igvn)
     current->set_map(cloned_map);
   }
   set_jvms(cloned_jvms);
-  set_all_memory(reset_memory());
+  set_all_memory(cloned_map->memory());
 }
 
 //---------------------------clean_stack---------------------------------------
@@ -1675,11 +1675,19 @@ Node* GraphKit::reset_memory() {
 
 //------------------------------set_all_memory---------------------------------
 void GraphKit::set_all_memory(Node* newmem) {
-  Node* mergemem = MergeMemNode::make(newmem);
-  gvn().set_type_bottom(mergemem);
-  if (_gvn.is_IterGVN() != nullptr) {
-    record_for_igvn(mergemem);
+  // The 2 cases are semantically equivalent
+  MergeMemNode* mergemem;
+  if (_gvn.is_IterGVN()) {
+    // During IGVN, create a more predictable pattern so it is easier to verify that the GraphKit
+    // does not modify memory
+    mergemem = MergeMemNode::make(C->top());
+    mergemem->set_base_memory(newmem);
+  } else {
+    // During parsing, be a little more aggressive so that GVN can fold accesses more easily
+    mergemem = MergeMemNode::make(newmem);
   }
+  _gvn.set_type_bottom(mergemem);
+  record_for_igvn(mergemem);
   map()->set_memory(mergemem);
 }
 
@@ -3768,13 +3776,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_contro
   bool speculative_not_null = false;
   bool never_see_null = ((failure_control == nullptr)  // regular case only
                          && seems_never_null(obj, data, speculative_not_null));
-
-  if (obj->is_InlineType()) {
-    // Re-execute if buffering during triggers deoptimization
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    obj = obj->as_InlineType()->buffer(this, safe_for_replace);
-  }
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
