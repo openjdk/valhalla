@@ -850,10 +850,16 @@ class AdapterHandlerEntry : public MetaspaceObj {
   bool is_linked() const { return _linked; }
 
   // Support for scalarized inline type calling convention
-  void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
-  const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
-  void set_sig_cc_ro(const GrowableArray<SigEntry>* sig)  { _sig_cc_ro = sig; }
-  const GrowableArray<SigEntry>* get_sig_cc_ro()    const { return _sig_cc_ro; }
+  void set_sig_cc(const GrowableArray<SigEntry>* sig) {
+    assert(_sig_cc == nullptr, "Already initialized");
+    _sig_cc = sig;
+  }
+  const GrowableArray<SigEntry>* get_sig_cc() const { return _sig_cc; }
+  void set_sig_cc_ro(const GrowableArray<SigEntry>* sig) {
+    assert(_sig_cc_ro == nullptr, "Already initialized");
+    _sig_cc_ro = sig;
+  }
+  const GrowableArray<SigEntry>* get_sig_cc_ro() const { return _sig_cc_ro; }
 
   uint id() const { return _id; }
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }

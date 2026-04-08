@@ -1504,4 +1504,78 @@ public class TestCallingConvention {
     //         // Expected
     //     }
     // }
+
+    static interface Interface60 {
+        public void m(MyValue2 val);
+    }
+
+    static class Impl60_1 implements Interface60 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+       }
+    }
+
+    static class Impl60_2 implements Interface60 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+       }
+    }
+
+    static class Impl60_3 implements Interface60 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+       }
+    }
+
+    // Verify that the scalarized calling convention works for abstract methods
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    public void test60(Interface60 intf) {
+        intf.m(MyValue2.createWithFieldsInline(rI, rD));
+    }
+
+    @Run(test = "test60")
+    public void test60_verifier() {
+        test60(new Impl60_1());
+        test60(new Impl60_2());
+        test60(new Impl60_3());
+    }
+
+    static abstract value class ValueClass61 {
+        public abstract void m(MyValue2 val);
+    }
+
+    static value class Impl61_1 extends ValueClass61 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+       }
+    }
+
+    static value class Impl61_2 extends ValueClass61 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+       }
+    }
+
+    static value class Impl61_3 extends ValueClass61 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+       }
+    }
+
+    // Same as test60 but with abstract value class
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    public void test61(ValueClass61 intf) {
+        intf.m(MyValue2.createWithFieldsInline(rI, rD));
+    }
+
+    @Run(test = "test61")
+    public void test61_verifier() {
+        test61(new Impl61_1());
+        test61(new Impl61_2());
+        test61(new Impl61_3());
+    }
 }

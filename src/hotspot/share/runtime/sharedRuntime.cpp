@@ -3200,7 +3200,7 @@ void AdapterHandlerLibrary::verify_adapter_sharing(CompiledEntrySignature& ces, 
 #endif /* ASSERT*/
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
-  assert(!method->is_abstract(), "abstract methods do not have adapters");
+  assert(!method->is_abstract() || InlineTypePassFieldsAsArgs, "abstract methods do not have adapters");
   // Use customized signature handler.  Need to lock around updates to
   // the _adapter_handler_table (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
