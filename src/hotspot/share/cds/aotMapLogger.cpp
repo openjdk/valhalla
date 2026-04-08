@@ -590,7 +590,6 @@ public:
   }
 
   Klass* real_klass() {
-    assert(UseCompressedClassPointers, "heap archiving requires UseCompressedClassPointers");
     return _data._klass;
   }
 

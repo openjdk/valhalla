@@ -1303,7 +1303,6 @@ static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, No
   return nullptr;
 }
 
-//---------------------------can_see_stored_value------------------------------
 // This routine exists to make sure this set of tests is done the same
 // everywhere.  We need to make a coordinated change: first LoadNode::Ideal
 // will change the graph shape in a way which makes memory alive twice at the
@@ -1311,7 +1310,7 @@ static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, No
 // LoadXNode::Identity will fold things back to the equivalence-class model
 // of aliasing.
 // This method may find an unencoded node instead of the corresponding encoded one.
-Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
+Node* LoadNode::can_see_stored_value_through_membars(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
@@ -1324,28 +1323,30 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
     }
   }
 
-  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
   const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
   Compile::AliasType* atp = (tp != nullptr) ? phase->C->alias_type(tp) : nullptr;
-  // This is more general than load from boxing objects.
+
   if (skip_through_membars(atp, tp, phase->C->eliminate_boxing())) {
     uint alias_idx = atp->index();
     Node* result = nullptr;
     Node* current = st;
-    // Skip through chains of MemBarNodes checking the MergeMems for
-    // new states for the slice of this load.  Stop once any other
-    // kind of node is encountered.  Loads from final memory can skip
-    // through any kind of MemBar but normal loads shouldn't skip
-    // through MemBarAcquire since the could allow them to move out of
-    // a synchronized region. It is not safe to step over MemBarCPUOrder,
-    // because alias info above them may be inaccurate (e.g., due to
-    // mixed/mismatched unsafe accesses).
+    // Skip through chains of MemBarNodes checking the MergeMems for new states for the slice of
+    // this load. Stop once any other kind of node is encountered.
+    //
+    // In principle, folding a load is moving it up until it meets a matching store.
+    //
+    // store(ptr, v);          store(ptr, v);          store(ptr, v);
+    // membar1;          ->    membar1;          ->    load(ptr);
+    // membar2;                load(ptr);              membar1;
+    // load(ptr);              membar2;                membar2;
+    //
+    // So, we can decide which kinds of barriers we can walk past. It is not safe to step over
+    // MemBarCPUOrder, even if the memory is not rewritable, because alias info above them may be
+    // inaccurate (e.g., due to mixed/mismatched unsafe accesses).
     bool is_final_mem = !atp->is_rewritable();
     while (current->is_Proj()) {
       int opc = current->in(0)->Opcode();
-      if ((is_final_mem && (opc == Op_MemBarAcquire ||
-                            opc == Op_MemBarAcquireLock ||
-                            opc == Op_LoadFence)) ||
+      if ((is_final_mem && (opc == Op_MemBarAcquire || opc == Op_MemBarAcquireLock || opc == Op_LoadFence)) ||
           opc == Op_MemBarRelease ||
           opc == Op_StoreFence ||
           opc == Op_MemBarReleaseLock ||
@@ -1371,6 +1372,17 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       st = result;
     }
   }
+
+  return can_see_stored_value(st, phase);
+}
+
+// If st is a store to the same location as this, return the stored value
+Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
+  Node* ld_adr = in(MemNode::Address);
+  intptr_t ld_off = 0;
+  Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
+  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
+  const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
 
   // Loop around twice in the case Load -> Initialize -> Store.
   // (See PhaseIterGVN::add_users_to_worklist, which knows about this case.)
@@ -1529,7 +1541,7 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   // If the previous store-maker is the right kind of Store, and the store is
   // to the same address, then we are equal to the value stored.
   Node* mem = in(Memory);
-  Node* value = can_see_stored_value(mem, phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if( value ) {
     // byte, short & char stores truncate naturally.
     // A load has to load the truncated value which requires
@@ -2078,7 +2090,7 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase, bool ignore_missing_instance_
       }
     }
     if (x != the_clone && the_clone != nullptr) {
-      igvn->remove_dead_node(the_clone);
+      igvn->remove_dead_node(the_clone, PhaseIterGVN::NodeOrigin::Speculative);
     }
     phi->set_req(i, x);
   }
@@ -2233,7 +2245,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // (c) See if we can fold up on the spot, but don't fold up here.
     // Fold-up might require truncation (for LoadB/LoadS/LoadUS) or
     // just return a prior value, which is done by Identity calls.
-    if (can_see_stored_value(prev_mem, phase)) {
+    if (can_see_stored_value_through_membars(prev_mem, phase)) {
       // Make ready for step (d):
       set_req_X(MemNode::Memory, prev_mem, phase);
       return this;
@@ -2290,7 +2302,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   Compile* C = phase->C;
 
   // If load can see a previous constant store, use that.
-  Node* value = can_see_stored_value(mem, phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con()) {
     if (phase->type(value)->isa_ptr() && _type->isa_narrowoop()) {
       return phase->type(value)->make_narrowoop();
@@ -2596,7 +2608,7 @@ uint LoadNode::match_edge(uint idx) const {
 //
 Node* LoadBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_BYTE, value, _type, phase, false);
     if (narrow != value) {
@@ -2609,7 +2621,7 @@ Node* LoadBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadBNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2630,7 +2642,7 @@ const Type* LoadBNode::Value(PhaseGVN* phase) const {
 //
 Node* LoadUBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem, phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_BOOLEAN, value, _type, phase, false);
     if (narrow != value) {
@@ -2643,7 +2655,7 @@ Node* LoadUBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadUBNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2664,7 +2676,7 @@ const Type* LoadUBNode::Value(PhaseGVN* phase) const {
 //
 Node* LoadUSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_CHAR, value, _type, phase, false);
     if (narrow != value) {
@@ -2677,7 +2689,7 @@ Node* LoadUSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadUSNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2698,7 +2710,7 @@ const Type* LoadUSNode::Value(PhaseGVN* phase) const {
 //
 Node* LoadSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_SHORT, value, _type, phase, false);
     if (narrow != value) {
@@ -2711,7 +2723,7 @@ Node* LoadSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadSNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2752,7 +2764,6 @@ Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at
   assert(adr_type != nullptr, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
-    assert(UseCompressedClassPointers, "no compressed klasses");
     Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
     return new DecodeNKlassNode(load_klass, load_klass->bottom_type()->make_ptr());
   }
@@ -3093,8 +3104,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
       val = gvn.transform(new EncodePNode(val, val->bottom_type()->make_narrowoop()));
       return new StoreNNode(ctl, mem, adr, adr_type, val, mo);
     } else if (adr->bottom_type()->is_ptr_to_narrowklass() ||
-               (UseCompressedClassPointers && val->bottom_type()->isa_klassptr() &&
-                adr->bottom_type()->isa_rawptr())) {
+               (val->bottom_type()->isa_klassptr() && adr->bottom_type()->isa_rawptr())) {
       val = gvn.transform(new EncodePKlassNode(val, val->bottom_type()->make_narrowklass()));
       return new StoreNKlassNode(ctl, mem, adr, adr_type, val, mo);
     }

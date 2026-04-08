@@ -997,11 +997,13 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
   assert(_has_nonstatic_fields || _is_abstract_value, "Concrete value types do not support zero instance size yet");
 }
 
-void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
+LayoutRawBlock* FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
+  LayoutRawBlock* padding = nullptr;
   if (ContendedPaddingWidth > 0) {
-    LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, ContendedPaddingWidth);
+    padding = new LayoutRawBlock(LayoutRawBlock::PADDING, ContendedPaddingWidth);
     _layout->insert(slot, padding);
   }
+  return padding;
 }
 
 // Computation of regular classes layout is an evolution of the previous default layout
@@ -1021,10 +1023,14 @@ void FieldLayoutBuilder::compute_regular_layout() {
   prologue();
   regular_field_sorting();
   if (_is_contended) {
-    _layout->set_start(_layout->last_block());
     // insertion is currently easy because the current strategy doesn't try to fill holes
     // in super classes layouts => the _start block is by consequence the _last_block
-    insert_contended_padding(_layout->start());
+    _layout->set_start(_layout->last_block());
+    LayoutRawBlock* padding = insert_contended_padding(_layout->start());
+    if (padding != nullptr) {
+      // Setting the padding block as start ensures we do not insert past it.
+      _layout->set_start(padding);
+    }
     need_tail_padding = true;
   }
 
@@ -1042,7 +1048,12 @@ void FieldLayoutBuilder::compute_regular_layout() {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
       LayoutRawBlock* start = _layout->last_block();
-      insert_contended_padding(start);
+      LayoutRawBlock* padding = insert_contended_padding(start);
+
+      // Do not insert fields past the padding block.
+      if (padding != nullptr) {
+        start = padding;
+      }
       _layout->add(cg->big_primitive_fields());
       _layout->add(cg->small_primitive_fields(), start);
       _layout->add(cg->oop_fields(), start);
