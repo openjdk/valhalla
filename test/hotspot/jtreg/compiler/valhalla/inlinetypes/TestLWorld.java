@@ -5276,6 +5276,9 @@ public class TestLWorld {
         }
     }
 
+    // TODO 8376254: C1 bails out if the type of the nullable flat field is uninitialized
+    static final AtomicTwoBytes LOAD_ATOMIC_TWO_BYTES = new AtomicTwoBytes(0, 0);
+
     static value class AtomicTwoBytesOneShort {
         AtomicTwoBytes v;
         short s;
