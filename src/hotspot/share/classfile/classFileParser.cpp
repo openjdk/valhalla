@@ -5357,6 +5357,11 @@ void ClassFileParser::create_acmp_maps(InstanceKlass* ik, TRAPS) {
   ik->set_acmp_maps_array(acmp_maps_array);
 }
 
+struct InlineKlassAtOffset {
+  int offset;
+  InlineKlass* vk;
+};
+
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                           bool changed_by_loadhook,
                                           const ClassInstanceInfo& cl_inst_info,
@@ -5574,11 +5579,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
-
-    struct InlineKlassAtOffset {
-      int offset;
-      InlineKlass* vk;
-    };
 
     GrowableArray<InlineKlassAtOffset> worklist;
 
