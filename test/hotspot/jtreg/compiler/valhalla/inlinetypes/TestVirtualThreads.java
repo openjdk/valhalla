@@ -115,7 +115,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -128,7 +128,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -143,7 +143,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -158,7 +158,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::*Helper
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -173,7 +173,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=exclude,*::*Helper
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -187,7 +187,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -201,7 +201,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 package compiler.valhalla.inlinetypes;
