@@ -34,6 +34,7 @@
   f(GrowableArray) \
   f(ModuleEntry) \
   f(PackageEntry) \
+  f(SigEntry) \
 
 #define METASPACE_CLOSURE_TYPE_DECLARE(name) name ## Type,
 

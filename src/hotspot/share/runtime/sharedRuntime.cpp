@@ -3600,6 +3600,7 @@ void AdapterHandlerEntry::metaspace_pointers_do(MetaspaceClosure* it) {
     lsh.cr();
   }
   it->push(&_fingerprint);
+  it->push(&_sig_cc);
 }
 
 AdapterHandlerEntry::~AdapterHandlerEntry() {
@@ -4316,3 +4317,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
   JRT_BLOCK_END;
 }
 JRT_END
+
+void SigEntry::metaspace_pointers_do(MetaspaceClosure* it) {
+  it->push(&_name);
+}

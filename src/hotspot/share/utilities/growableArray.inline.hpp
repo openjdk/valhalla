@@ -22,16 +22,16 @@
  *
  */
 
-#ifndef SHARE_CDS_AOTGROWABLEARRAY_INLINE_HPP
-#define SHARE_CDS_AOTGROWABLEARRAY_INLINE_HPP
+#ifndef SHARE_UTILITIES_GROWABLEARRAY_INLINE_HPP
+#define SHARE_UTILITIES_GROWABLEARRAY_INLINE_HPP
 
-#include "cds/aotGrowableArray.hpp"
+#include "utilities/growableArray.hpp"
 
 #include "memory/metaspaceClosure.hpp"
 
 template <typename E>
-void AOTGrowableArray<E>::metaspace_pointers_do(MetaspaceClosure* it) {
-  it->push_c_array(AOTGrowableArray<E>::data_addr(), AOTGrowableArray<E>::capacity());
+void GrowableArray<E>::metaspace_pointers_do(MetaspaceClosure* it) {
+  it->push_c_array(GrowableArray<E>::data_addr(), GrowableArray<E>::capacity());
 }
 
-#endif // SHARE_CDS_AOTGROWABLEARRAY_INLINE_HPP
+#endif // SHARE_UTILITIES_GROWABLEARRAY_INLINE_HPP

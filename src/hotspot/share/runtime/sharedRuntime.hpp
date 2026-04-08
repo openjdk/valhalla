@@ -734,7 +734,7 @@ class AdapterHandlerEntry : public MetaspaceObj {
   static const char *_entry_names[];
 
   // Support for scalarized inline type calling convention
-  const GrowableArray<SigEntry>* _sig_cc;
+  GrowableArray<SigEntry>* _sig_cc;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -848,8 +848,8 @@ class AdapterHandlerEntry : public MetaspaceObj {
   bool is_linked() const { return _linked; }
 
   // Support for scalarized inline type calling convention
-  void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
-  const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
+  void set_sig_cc(GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
+  GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
 
   uint id() const { return _id; }
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }
