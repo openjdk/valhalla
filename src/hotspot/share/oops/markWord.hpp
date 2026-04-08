@@ -47,29 +47,6 @@
 //  -------------------------------
 //  klass:22   hash:31  valhalla:4  age:4  self-fwd:1  lock:2
 //
-//  - hash - contains the identity hash value: largest value is 31 bits, see
-//    os::random().  Also, 64-bit VMs require a hash value no bigger than 32
-//    bits because they will not properly generate a mask larger than that:
-//    see library_call.cpp
-//
-//  - valhalla - only supported on 64-bit VMs
-//
-//    * inline types:      A value class instance
-//    * flat arrays:       An array with flattened value class elements
-//    * null-free arrays:  An array instance without null elements
-//    * valhalla reserved: Reserved for future use
-//
-//    Inline types cannot be locked and do not have an identity hash.
-//
-//  - age - used by some GCs to track the age of objects.
-//
-//  - self-fwd - used by some GCs to indicate in-place forwarding.
-//
-//    Note the position of 'self-fwd' is not by accident. When forwarding an
-//    object to a new heap position, HeapWord alignment guarantees the lower
-//    bits, including 'self-fwd' are 0. "is_self_forwarded()" will be correctly
-//    set to false. Otherwise encode_pointer_as_mark() may have 'self-fwd' set.
-//
 //  - lock bits are used to describe lock states: locked/unlocked/monitor-locked
 //    and to indicate that an object has been GC marked / forwarded.
 //
@@ -78,6 +55,31 @@
 //    [header          | 10]  monitor            inflated lock (UseObjectMonitorTable == true)
 //    [ptr             | 10]  monitor            inflated lock (UseObjectMonitorTable == false, header is swapped out)
 //    [ptr             | 11]  marked             used to mark an object (header is swapped out)
+//
+//  - self-fwd - used by some GCs to indicate in-place forwarding.
+//
+//    Note the position of 'self-fwd' is not by accident. When forwarding an
+//    object to a new heap position, HeapWord alignment guarantees the lower
+//    bits, including 'self-fwd' are 0. "is_self_forwarded()" will be correctly
+//    set to false. Otherwise encode_pointer_as_mark() may have 'self-fwd' set.
+//
+//  - age - used by some GCs to track the age of objects.
+//
+//  - valhalla - only supported on 64-bit VMs
+//
+//    * inline types:      A value class instance
+//    * flat arrays:       An array with flattened value class elements
+//    * null-free arrays:  An array instance without null elements
+//    * valhalla reserved: Reserved for future use
+//
+//    Inline types cannot be locked and does not have an identity hash.
+//
+//  - hash - contains the identity hash value: largest value is 31 bits, see
+//    os::random().  Also, 64-bit VMs require a hash value no bigger than 32
+//    bits because they will not properly generate a mask larger than that:
+//    see library_call.cpp
+//
+//  - klass - klass identifier used when UseCompactObjectHeaders == true
 
 class ObjectMonitor;
 class outputStream;
