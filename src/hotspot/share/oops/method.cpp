@@ -1348,6 +1348,8 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // called from the vtable.  We need adapters on such methods that get loaded
   // later.  Ditto for mega-morphic itable calls.  If this proves to be a
   // problem we'll make these lazily later.
+  // With the scalarized calling convention, create adapters for abstract
+  // methods as well because the adapter is used to propagate the signature.
   if (_adapter == nullptr && (!h_method->is_abstract() || InlineTypePassFieldsAsArgs)) {
     make_adapters(h_method, CHECK);
   }
