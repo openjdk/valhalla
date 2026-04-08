@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026 SAP SE. All rights reserved.
+ * Copyright (c) 2020, 2025 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
  * @summary Collection of test cases that check if optimizations based on escape analysis are reverted just before non-escaping objects escape through JVMTI.
  * @author Richard Reingruber richard DOT reingruber AT sap DOT com
  *
- * @modules java.base/jdk.internal.misc
  * @requires ((vm.compMode == "Xmixed") & vm.compiler2.enabled)
  * @library /test/lib /test/hotspot/jtreg
  *
@@ -36,7 +35,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run compile -g EATests.java
  *
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -44,7 +43,7 @@
  *                 -XX:+WhiteBoxAPI
  *                 -Xbatch
  *                 -XX:+DoEscapeAnalysis -XX:+EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -52,7 +51,7 @@
  *                 -XX:+WhiteBoxAPI
  *                 -Xbatch
  *                 -XX:+DoEscapeAnalysis -XX:+EliminateAllocations -XX:-EliminateLocks -XX:+EliminateNestedLocks
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -60,7 +59,7 @@
  *                 -XX:+WhiteBoxAPI
  *                 -Xbatch
  *                 -XX:+DoEscapeAnalysis -XX:-EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -71,7 +70,7 @@
  *
  * @comment Excercise -XX:+DeoptimizeObjectsALot. Mostly to prevent bit-rot because the option is meant to stress object deoptimization
  *          with non-synthetic workloads.
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -85,7 +84,7 @@
  * @comment Regression test for using the wrong thread when logging during re-locking from deoptimization.
  *
  * @comment DiagnoseSyncOnValueBasedClasses=2 will cause logging when locking on \@ValueBased objects.
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -96,7 +95,7 @@
  *                 -XX:DiagnoseSyncOnValueBasedClasses=2
  *
  * @comment Re-lock may inflate monitors when re-locking, which cause monitorinflation trace logging.
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -108,7 +107,7 @@
  *
  * @bug 8341819
  * @comment Regression test for re-locking racing with deflation with fast locking.
- * @run main EATests
+ * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
  *                 -Xms256m -Xmx256m
  *                 -Xbootclasspath/a:.
@@ -159,8 +158,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-
-import jdk.internal.misc.PreviewFeatures;
 
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
@@ -262,8 +259,7 @@ class EATestsTarget {
         new EAGetOwnedMonitorsTarget()                                                      .run();
         new EAEntryCountTarget()                                                            .run();
         new EARelockingObjectCurrentlyWaitingOnTarget()                                     .run();
-        // Cannot run EARelockingValueBased with value types enabled.
-        if (!PreviewFeatures.isEnabled()) new EARelockingValueBasedTarget()                 .run();
+        new EARelockingValueBasedTarget()                                                   .run();
 
         // Test cases that require deoptimization even though neither
         // locks nor allocations are eliminated at the point where
@@ -306,15 +302,10 @@ public class EATests extends TestScaffold {
     }
 
     public static void main(String[] args) throws Exception {
-        int extra_args = 1;
         if (EATestCaseBaseShared.RUN_ONLY_TEST_CASE != null) {
-            extra_args++;
+            args = Arrays.copyOf(args, args.length + 1);
+            args[args.length - 1] = "-D" + EATestCaseBaseShared.RUN_ONLY_TEST_CASE_PROPERTY + "=" + EATestCaseBaseShared.RUN_ONLY_TEST_CASE;
         }
-        args = Arrays.copyOf(args, args.length + extra_args);
-        if (EATestCaseBaseShared.RUN_ONLY_TEST_CASE != null) {
-            args[args.length - extra_args--] = "-D" + EATestCaseBaseShared.RUN_ONLY_TEST_CASE_PROPERTY + "=" + EATestCaseBaseShared.RUN_ONLY_TEST_CASE;
-        }
-        args[args.length - extra_args] = "--add-exports java.base/jdk.internal.misc=ALL-UNNAMED";
         new EATests(args).startTests();
     }
 
@@ -394,8 +385,7 @@ public class EATests extends TestScaffold {
         new EAGetOwnedMonitors()                                                      .run(this);
         new EAEntryCount()                                                            .run(this);
         new EARelockingObjectCurrentlyWaitingOn()                                     .run(this);
-        // Cannot run EARelockingValueBased with value types enabled.
-        if (!PreviewFeatures.isEnabled()) new EARelockingValueBased()                 .run(this);
+        new EARelockingValueBased()                                                   .run(this);
 
         // Test cases that require deoptimization even though neither
         // locks nor allocations are eliminated at the point where
