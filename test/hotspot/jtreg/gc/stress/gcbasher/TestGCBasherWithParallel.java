@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ import java.io.IOException;
 /*
  * @test TestGCBasherWithParallel
  * @key stress
- * @library /
+ * @library / /test/lib
  * @requires vm.gc.Parallel
  * @requires vm.flavor == "server"
  * @summary Stress the Parallel GC by trying to make old objects more likely to be garbage than young objects.

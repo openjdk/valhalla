@@ -34,9 +34,6 @@
 
 package runtime.valhalla.inlinetypes.field_layout;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -76,21 +73,8 @@ public class ValueRandomLayoutTest {
       return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
 
-  static long seed;
 
   public static void main(String[] args) throws Exception {
-      String seedProperty = "CLASS_GENERATION_SEED";
-      String seedString = System.getProperty(seedProperty);
-      if (seedString != null) {
-          try {
-              seed = Long.parseLong(seedString);
-          } catch(NumberFormatException e) { }
-      }
-      if (seed == 0) {
-          seed = System.nanoTime();
-      }
-      System.out.println("Reproduce this run with -D" + seedProperty + "=" + seed);
-
       // These tests consume a lot of resources, let run them sequentially instead of in parallel
       for (int i = 0; i <= 5; i++) {
           System.out.println("Running scenario " + i);
@@ -121,7 +105,7 @@ public class ValueRandomLayoutTest {
                   useNullableAtomicFlat = false;
                   useNullableNonAtomicFlat = false;
                   break;
-          case 4: useAtomicFlat = false;
+          case 4: useAtomicFlat = true;
                   useNullableAtomicFlat = true;
                   useNullableNonAtomicFlat = false;
                   break;
@@ -136,17 +120,16 @@ public class ValueRandomLayoutTest {
       // Generate test classes with the given configuration
 
       for (int i = 0; i < 10; i++) {
-          seed += i;
           try {
-              tempWorkDir = Utils.createTempDirectory("generatedClasses_" + seed);
+              tempWorkDir = Utils.createTempDirectory("generatedClasses_");
           } catch (Exception e) {
               System.err.println("Failed to create temporary directory: " + e.getMessage());
               e.printStackTrace();
               throw new RuntimeException(e);
           }
 
-          System.out.println("Running scenario " + config + " with seed = " + seed + " in directory : " + tempWorkDir);
-          var gen = new ValueClassGenerator(seed, 256);
+          System.out.println("Running scenario " + config + " in directory : " + tempWorkDir);
+          var gen = new ValueClassGenerator(Utils.getRandomInstance(), 256);
           gen.generateAll(128, tempWorkDir);
 
           String[] classNames = gen.getValueClassesNames().toArray(new String[0]);
@@ -158,10 +141,8 @@ public class ValueRandomLayoutTest {
           ProcessBuilder pb = exec(useAtomicFlat, useNullableAtomicFlat, useNullableNonAtomicFlat, tempWorkDir,testArgs);
           OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
-          if (out.getExitValue() != 0) {
-              System.out.print(out.getOutput());
-          }
-          Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+          // Checking the status of the process execution before trying to parse the output
+          out.shouldHaveExitValue(0);
 
           // Get and parse the test output
           FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());

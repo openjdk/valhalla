@@ -34,15 +34,13 @@
 
 package runtime.valhalla.inlinetypes.field_layout;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Files;
 import java.nio.file.Path;
+
 import jdk.test.lib.Utils;
 
 public class ValueComparisonTest {
@@ -73,27 +71,16 @@ public class ValueComparisonTest {
     }
 
     public static void main(String[] args) {
-        long seed = 0;
-        String seedString = System.getProperty("CLASS_GENERATION_SEED");
-        if (seedString != null) {
-            try {
-                seed = Long.parseLong(seedString);
-            } catch(NumberFormatException e) { }
-        }
-        if (seed == 0) {
-            seed = System.nanoTime();
-        }
-        System.out.println("Random seed for class generation: " + seed);
         Path tempWorkDir;
         try {
-            tempWorkDir = Utils.createTempDirectory("generatedClasses_" + seed);
+            tempWorkDir = Utils.createTempDirectory("generatedClasses_");
         } catch (Exception e) {
             System.err.println("Failed to create temporary directory: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException(e);
         }
 
-        var gen = new ValueClassGenerator(seed, 256);
+        var gen = new ValueClassGenerator(Utils.getRandomInstance(), 256);
         gen.generateAll(128,  tempWorkDir);
         for (String classname : gen.getValueClassesNames()) {
             runSubstitutabilityTest(classname, tempWorkDir);

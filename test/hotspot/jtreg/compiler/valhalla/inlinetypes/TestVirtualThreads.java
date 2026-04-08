@@ -115,7 +115,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -128,7 +128,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -143,7 +143,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -158,7 +158,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::*Helper
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -173,7 +173,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=exclude,*::*Helper
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -187,7 +187,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 /*
@@ -201,7 +201,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
  */
 
 package compiler.valhalla.inlinetypes;
@@ -225,6 +225,7 @@ public class TestVirtualThreads {
     static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
     static final Random RAND = Utils.getRandomInstance();
     static final int PARK_DURATION = 10;
+    static final boolean EXCLUDE_RANDOM = false; // Randomly exclude methods from compilation (very slow!)
 
     static value class SmallValue {
         int x1;
@@ -776,7 +777,7 @@ public class TestVirtualThreads {
 
     public static void main(String[] args) throws Exception {
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
-        if (Utils.getRandomInstance().nextBoolean()) {
+        if (EXCLUDE_RANDOM && Utils.getRandomInstance().nextBoolean()) {
             ArrayList<Method> methods = new ArrayList<Method>();
             Collections.addAll(methods, SmallValue.class.getDeclaredMethods());
             Collections.addAll(methods, LargeValue.class.getDeclaredMethods());

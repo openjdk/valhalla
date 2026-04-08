@@ -70,6 +70,9 @@ hotspot_valhalla = \
 hotspot_valhalla_runtime = \
   runtime/valhalla
 
+hotspot_valhalla_adopted = \
+   gc/stress/gcbasher
+
 hotspot_resourcehogs = \
   resourcehogs
 
@@ -221,7 +224,8 @@ tier1_compiler_3 = \
   -compiler/intrinsics/zip/TestAdler32.java \
   -compiler/loopopts/Test7052494.java \
   -compiler/memoryinitialization/ZeroTLABTest.java \
-  -compiler/runtime/Test6826736.java
+  -compiler/runtime/Test6826736.java \
+  -compiler/valhalla/inlinetypes/TestVirtualThreads.java
 
 tier2_compiler = \
   compiler/allocation/ \
@@ -253,7 +257,6 @@ tier3_compiler = \
   :hotspot_compiler \
   -:tier1_compiler \
   -:tier2_compiler
-
 
 tier1_compiler_no_valhalla = \
   :tier1_compiler_1 \

@@ -3348,6 +3348,9 @@ bool AdapterHandlerLibrary::generate_adapter_code(AdapterHandlerEntry* handler,
     GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
     heap_sig->appendAll(ces.sig_cc());
     handler->set_sig_cc(heap_sig);
+    heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro()->length(), mtInternal);
+    heap_sig->appendAll(ces.sig_cc_ro());
+    handler->set_sig_cc_ro(heap_sig);
   }
   // On zero there is no code to save and no need to create a blob and
   // or relocate the handler.
@@ -3416,6 +3419,7 @@ void AdapterHandlerEntry::remove_unshareable_info() {
 #endif // ASSERT
    _adapter_blob = nullptr;
    _linked = false;
+   _sig_cc_ro = nullptr;
 }
 
 class CopyAdapterTableToArchive : StackObj {
@@ -3508,6 +3512,9 @@ void AdapterHandlerEntry::link() {
         GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
         heap_sig->appendAll(ces.sig_cc());
         set_sig_cc(heap_sig);
+        heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro()->length(), mtInternal);
+        heap_sig->appendAll(ces.sig_cc_ro());
+        set_sig_cc_ro(heap_sig);
       }
     }
   } else {
@@ -3611,6 +3618,9 @@ AdapterHandlerEntry::~AdapterHandlerEntry() {
   }
   if (_sig_cc != nullptr) {
     delete _sig_cc;
+  }
+  if (_sig_cc_ro != nullptr) {
+    delete _sig_cc_ro;
   }
 #ifdef ASSERT
   FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
@@ -4074,7 +4084,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     callerFrame = callerFrame.sender(&reg_map2);
   }
   int arg_size;
-  const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
+  const GrowableArray<SigEntry>* sig = allocate_receiver ? callee->adapter()->get_sig_cc() : callee->adapter()->get_sig_cc_ro();
   assert(sig != nullptr, "sig should never be null");
   TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
   VMRegPair* reg_pairs = find_callee_arguments(tmp_sig, false, false, &arg_size);
@@ -4112,9 +4122,10 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     assert(reg_pos < (uint)arg_size, "");
     VMRegPair reg_pair = reg_pairs[reg_pos];
     oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
+    instanceHandle h_buffer(THREAD, (instanceOop)*buffer);
     InlineKlass* vk = InlineKlass::cast(holder);
-    if (*buffer != nullptr) {
-      assert((*buffer)->klass() == vk, "buffer not of expected class");
+    if (h_buffer.not_null()) {
+      assert(h_buffer->klass() == vk, "buffer not of expected class");
     } else {
       // Only allocate if buffer passed at the call is null
       if (array_oop == nullptr) {
@@ -4149,10 +4160,11 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
       assert(reg_pos < (uint)arg_size, "out of bound register?");
       VMRegPair reg_pair = reg_pairs[reg_pos];
       oop* buffer = callerFrame.oopmapreg_to_oop_location(reg_pair.first(), &reg_map2);
+      instanceHandle h_buffer(THREAD, (instanceOop)*buffer);
       InlineKlass* vk = ss.as_inline_klass(holder);
       assert(vk != nullptr, "Unexpected klass");
-      if (*buffer != nullptr) {
-        assert((*buffer)->klass() == vk, "buffer not of expected class");
+      if (h_buffer.not_null()) {
+        assert(h_buffer->klass() == vk, "buffer not of expected class");
       } else {
         // Only allocate if buffer passed at the call is null
         if (array_oop == nullptr) {

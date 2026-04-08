@@ -919,9 +919,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       has_inline_argument = (sig_extended->at(i)._bt == T_METADATA);
     }
     if (has_inline_argument) {
-      // There is at least an inline type argument: we're coming from
-      // compiled code so we have no buffers to back the inline types.
-      // Allocate the buffers here with a runtime call.
+      // There is at least a value type argument: we're coming from
+      // compiled code so we may not have buffers to back the value
+      // objects. Allocate the buffers here with a runtime call for
+      // the value arguments that needs a buffer.
       OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, /*save_wide_vectors*/ false);
 
       frame_complete = __ offset();
