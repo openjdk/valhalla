@@ -695,7 +695,9 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       if (add_to_worklist) {
         igvn->add_users_to_worklist(this); // Check for further allowed opts
       }
-      for (DUIterator_Last imin, i = last_outs(imin); i >= imin; --i) {
+      uint nb_edges = 1;
+      for (DUIterator_Last imin, i = last_outs(imin); i >= imin; i -= nb_edges) {
+        nb_edges = 1;
         Node* n = last_out(i);
         igvn->hash_delete(n); // Remove from worklist before modifying edges
         if (n->outcnt() == 0) {
@@ -2140,6 +2142,83 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
 InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass) {
+  if (can_reshape && UseNewCode) {
+    ResourceMark rm;
+    Node_Stack stack(0);
+    VectorSet seen;
+    Node_List clones;
+    for (uint i = 1; i < req(); ++i) {
+      InlineTypeNode* vt = in(i)->isa_InlineType();
+      if (vt == nullptr) {
+        continue;
+      }
+      Node* buf = vt->get_oop();
+      if (buf->is_Phi()) {
+        stack.push(buf, 1);
+        seen.set(buf->_idx);
+        while (!stack.is_empty()) {
+          Node* n = stack.node();
+          assert(n->is_Phi() || n->is_ConstraintCast(), "");
+          uint idx = stack.index();
+          if (idx >= n->req()) {
+            bool needs_clone = false;
+            for (uint j = 1; j < n->req(); ++j) {
+              Node* in = n->in(j);
+              if (in == nullptr) {
+                continue;
+              }
+              Node* clone = clones[in->_idx];
+              if (clone != nullptr) {
+                needs_clone = true;
+                break;
+              }
+            }
+            if (needs_clone) {
+              Node* m = n->clone();
+              clones.map(n->_idx, m);
+              for (uint j = 1; j < m->req(); ++j) {
+                Node* in = m->in(j);
+                if (in == nullptr) {
+                  continue;
+                }
+                Node* clone = clones[in->_idx];
+                if (clone != nullptr) {
+                  m->set_req(j, clone);
+                }
+              }
+              phase->is_IterGVN()->register_new_node_with_optimizer(m);
+            }
+            stack.pop();
+            continue;
+          }
+          Node* in = n->in(idx);
+          stack.set_index(idx + 1);
+          if (in == nullptr) {
+            continue;
+          }
+          if (in->is_Phi() || in->is_ConstraintCast()) {
+            if (!seen.test_set(in->_idx)) {
+              stack.push(in, 1);
+            }
+          } else if (in->is_InlineType()) {
+            Node* buf = in->as_InlineType()->get_oop();
+            clones.map(in->_idx, buf);
+            if (buf->is_Phi() || in->is_ConstraintCast()) {
+              if (!seen.test_set(buf->_idx)) {
+                stack.push(buf, 1);
+              }
+            }
+          }
+        }
+        Node* clone = clones[buf->_idx];
+        if (clone != nullptr) {
+          phase->is_IterGVN()->rehash_node_delayed(vt);
+          vt->set_oop(*phase, clone);
+        }
+      }
+    }
+  }
+
   assert(inline_klass != nullptr, "must be");
   InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null(), true);
   if (can_reshape) {
