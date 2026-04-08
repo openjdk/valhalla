@@ -149,10 +149,10 @@ class markWord {
   // Masks (in-place)
   static const uintptr_t lock_mask_in_place       = mask_in_place(lock_bits, lock_shift);
   static const uintptr_t self_fwd_bit_in_place    = bit_in_place(self_fwd_bits, self_fwd_shift);
+  static const uintptr_t age_mask_in_place        = mask_in_place(age_bits, age_shift);
   static const uintptr_t inline_type_bit_in_place = bit_in_place(inline_type_bits, inline_type_shift);
   static const uintptr_t null_free_array_bit_in_place = bit_in_place(null_free_array_bits,  null_free_array_shift);
   static const uintptr_t flat_array_bit_in_place  = bit_in_place(flat_array_bits, flat_array_shift);
-  static const uintptr_t age_mask_in_place        = mask_in_place(age_bits, age_shift);
   static const uintptr_t valhalla_reserved_bit_in_place = bit_in_place(valhalla_reserved_bits, valhalla_reserved_shift);
   static const uintptr_t hash_mask_in_place       = mask_in_place(hash_bits, hash_shift);
 
