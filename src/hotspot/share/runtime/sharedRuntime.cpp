@@ -3419,6 +3419,7 @@ void AdapterHandlerEntry::remove_unshareable_info() {
    _adapter_blob = nullptr;
    _linked = false;
    _sig_cc = nullptr;
+   _sig_cc_ro = nullptr;
 }
 
 class CopyAdapterTableToArchive : StackObj {
@@ -3615,6 +3616,9 @@ AdapterHandlerEntry::~AdapterHandlerEntry() {
   }
   if (_sig_cc != nullptr) {
     delete _sig_cc;
+  }
+  if (_sig_cc_ro != nullptr) {
+    delete _sig_cc_ro;
   }
 #ifdef ASSERT
   FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
