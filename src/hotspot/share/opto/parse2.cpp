@@ -2164,7 +2164,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     Node* is_not_equal = nullptr;
-    eq_region = new RegionNode(3);
+    eq_region = new RegionNode(4);
     {
       PreserveJVMState pjvms(this);
       // Pointers are not equal, but more checks are needed to determine if the operands are (not) substitutable
@@ -2240,12 +2240,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Pointers are not equal, check if first operand is non-null
-  Node* ne_region = new RegionNode(6);
+  Node* ne_region = new RegionNode(7);
   Node* null_ctl = nullptr;
   Node* not_null_left = nullptr;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
   ne_region->init_req(1, null_ctl);
 
+  Node* kls_right = nullptr;
   if (!stopped()) {
     // First operand is non-null, check if it is the speculative inline type if possible
     // (which later allows isSubstitutable to be intrinsified), or any inline type if no
@@ -2273,7 +2274,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       if (!stopped()) {
         // Check if both operands are of the same class.
         Node* kls_left = load_object_klass(not_null_left);
-        Node* kls_right = load_object_klass(not_null_right);
+        kls_right = load_object_klass(not_null_right);
         Node* kls_cmp = CmpP(kls_left, kls_right);
         Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
         IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
@@ -2297,6 +2298,45 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       set_control(_gvn.transform(eq_region));
     }
     return;
+  }
+  assert(kls_right != nullptr, "");
+
+  Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
+  Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
+  Node* payload_offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::payload_offset_offset()));
+  Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
+  Node* payload_offset_i = make_load(control(), payload_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  Node* payload_offset = ConvI2L(payload_offset_i);
+  Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+
+  Node* mask_cmp = CmpL(fast_acmp_mask, zerocon(T_LONG));
+  Node* mask_bol = _gvn.transform(new BoolNode(mask_cmp, BoolTest::ne));
+  IfNode* mask_iff = create_and_map_if(control(), mask_bol, PROB_FAIR, COUNT_UNKNOWN);
+  Node* has_mask = _gvn.transform(new IfTrueNode(mask_iff));
+  Node* no_mask = _gvn.transform(new IfFalseNode(mask_iff));
+  set_control(no_mask);
+
+  {
+    PreserveJVMState jvms(this);
+    set_control(has_mask);
+    // LoadL(left + offset) & mask == LoadL(right + offset) & mask
+    Node* left_payload_addr = basic_plus_adr(not_null_left, payload_offset);
+    Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+    Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
+
+    Node* right_payload_addr = basic_plus_adr(not_null_right, payload_offset);
+    Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+    Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
+
+    Node* masked_cmp = CmpL(left_masked, right_masked);
+    Node* masked_cmp_bol = _gvn.transform(new BoolNode(masked_cmp, BoolTest::ne));
+    IfNode* masked_iff = create_and_map_if(control(), masked_cmp_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* neq = _gvn.transform(new IfTrueNode(masked_iff));
+    Node* eq = _gvn.transform(new IfFalseNode(masked_iff));
+    ne_region->init_req(6, neq);
+    if (eq_region != nullptr) {
+      eq_region->init_req(3, eq);
+    }
   }
 
   // Both operands are values types of the same class, we need to perform a

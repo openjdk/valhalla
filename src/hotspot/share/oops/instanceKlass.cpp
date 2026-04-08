@@ -4155,10 +4155,10 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"local interfaces:  "); local_interfaces()->print_value_on(st);      st->cr();
   st->print(BULLET"trans. interfaces: "); transitive_interfaces()->print_value_on(st); st->cr();
 
-  st->print(BULLET"secondary supers: "); secondary_supers()->print_value_on(st); st->cr();
+  st->print(BULLET"secondary supers:  "); secondary_supers()->print_value_on(st); st->cr();
 
   st->print(BULLET"hash_slot:         %d", hash_slot()); st->cr();
-  st->print(BULLET"secondary bitmap: " UINTX_FORMAT_X_0, _secondary_supers_bitmap); st->cr();
+  st->print(BULLET"secondary bitmap:  " UINTX_FORMAT_X_0, _secondary_supers_bitmap); st->cr();
 
   if (secondary_supers() != nullptr) {
     if (Verbose) {
@@ -4179,7 +4179,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   }
   st->print(BULLET"constants:         "); constants()->print_value_on(st);         st->cr();
 
-  print_on_maybe_null(st, BULLET"class loader data:  ", class_loader_data());
+  print_on_maybe_null(st, BULLET"class loader data: ", class_loader_data());
   print_on_maybe_null(st, BULLET"source file:       ", source_file_name());
   if (source_debug_extension() != nullptr) {
     st->print(BULLET"source debug extension:       ");
@@ -4206,7 +4206,7 @@ void InstanceKlass::print_on(outputStream* st) const {
 
   print_on_maybe_null(st, BULLET"generic signature: ", generic_signature());
   st->print(BULLET"inner classes:     "); inner_classes()->print_value_on(st);     st->cr();
-  st->print(BULLET"nest members:     "); nest_members()->print_value_on(st);     st->cr();
+  st->print(BULLET"nest members:      "); nest_members()->print_value_on(st);     st->cr();
   print_on_maybe_null(st, BULLET"record components:     ", record_components());
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
   st->print(BULLET"loadable descriptors:     "); loadable_descriptors()->print_value_on(st); st->cr();

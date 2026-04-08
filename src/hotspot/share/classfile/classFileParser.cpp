@@ -5574,6 +5574,90 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
+
+    struct InlineKlassAtOffset {
+      int offset;
+      InlineKlass* vk;
+    };
+
+    GrowableArray<InlineKlassAtOffset> worklist;
+
+    auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * 8) << (start * 8); };
+
+    int64_t mask = 0;
+    if (UseNewCode) {
+      tty->print("##### ");
+      _class_name->print();
+      tty->print_cr("");
+    }
+
+    worklist.push(InlineKlassAtOffset{0, vk});
+    while (!worklist.is_empty()) {
+      InlineKlassAtOffset ikao = worklist.pop();
+      int payload_offset = ikao.vk->payload_offset() - ikao.offset;
+      if (UseNewCode) {
+        tty->print("=> ");
+        ikao.vk->name()->print();
+        tty->print_cr("");
+      }
+      for (int i = 0; i < ikao.vk->total_fields_count(); ++i) {
+        fieldDescriptor fd(ikao.vk, i);
+        if (fd.is_static() || fd.is_injected()) continue;
+        if (UseNewCode) {
+          tty->print("-> ");
+          fd.print();
+          tty->print_cr("");
+        }
+        int field_start = fd.offset() - payload_offset;
+        if (UseNewCode) tty->print_cr("  field_start=%d", field_start);
+        if (fd.is_flat()) {
+          assert(ik != nullptr, "");
+          assert(ik->_inline_layout_info_array != nullptr, "");
+          assert(i < ik->_inline_layout_info_array->length(), "");
+          InlineLayoutInfo ili = ik->_inline_layout_info_array->at(i);
+          if (LayoutKindHelper::is_nullable_flat(ili.kind())) {
+            int nm_offset = field_start + ili.klass()->null_marker_offset_in_payload();
+            if (UseNewCode) tty->print_cr("  nm_offset=%d", field_start);
+            if (nm_offset >= 8) {
+              if (UseNewCode) tty->print_cr("  null marker out of bounds => BREAK");
+              mask = 0;
+              worklist.clear();
+              break;
+            }
+            int64_t mask_piece = make_mask_piece(nm_offset, 1);
+            if (UseNewCode) tty->print_cr("  null marker mask piece " INT64_FORMAT_X_0, mask_piece);
+            mask |= mask_piece;
+          }
+          worklist.push(InlineKlassAtOffset{field_start, ili.klass()});
+        } else {
+          BasicType bt = fd.field_type();
+          int field_size = type2aelembytes(bt);
+          int field_end = field_start + field_size - 1;
+          if (UseNewCode) tty->print_cr("  start:%d size:%d end:%d", field_start, field_size, field_end);
+          if (!is_java_primitive(bt)) {
+            if (UseNewCode) tty->print_cr("  field is an oop => BREAK");
+            mask = 0;
+            worklist.clear();
+            break;
+          } else if (field_end >= 8) {
+            if (UseNewCode) tty->print_cr("  field is out of bounds => BREAK");
+            mask = 0;
+            worklist.clear();
+            break;
+          } else {
+            int64_t mask_piece = make_mask_piece(field_start, field_size);
+            if (UseNewCode) tty->print_cr("  mask piece " INT64_FORMAT_X_0, mask_piece);
+            mask |= mask_piece;
+          }
+        }
+        if (UseNewCode) tty->print_cr("------");
+      }
+      if (UseNewCode) tty->print_cr("======");
+    }
+
+    if (UseNewCode) tty->print_cr("mask: \n" INT64_FORMAT_X_0, mask);
+    vk->set_fast_acmp_mask(mask);
+
     vk->initialize_calling_convention(CHECK);
   }
 

@@ -72,7 +72,8 @@ InlineKlass::Members::Members()
     _null_free_atomic_size_in_bytes(-1),
     _nullable_atomic_size_in_bytes(-1),
     _nullable_non_atomic_size_in_bytes(-1),
-    _null_marker_offset(-1) {
+    _null_marker_offset(-1),
+    _fast_acmp_mask (0) {
 }
 
 InlineKlass::InlineKlass() {
@@ -576,6 +577,7 @@ void InlineKlass::Members::print_on(outputStream* st) const {
   st->print_cr(BULLET"nullable atomic size (bytes):      %d", _nullable_atomic_size_in_bytes);
   st->print_cr(BULLET"nullable non-atomic size (bytes):  %d", _nullable_non_atomic_size_in_bytes);
   st->print_cr(BULLET"null marker offset:                %d", _null_marker_offset);
+  st->print_cr(BULLET"fast acmp mask:                    " INT64_FORMAT_X_0, _fast_acmp_mask);
 }
 
 #undef BULLET
