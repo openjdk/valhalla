@@ -233,7 +233,7 @@ public class InlineTypeDensity {
         public int getNano()    { return time.nano; }
     }
 
-    public void ensureArraySizeWin() {
+    private void ensureArraySizeWin() {
         int arrayLength = 1000;
         System.out.println("ensureArraySizeWin for length " + arrayLength);
         LocalDateTimeClass[] objectArray = new LocalDateTimeClass[arrayLength];
@@ -272,7 +272,7 @@ public class InlineTypeDensity {
     @LooselyConsistentValue
     static value class MyLong  { long  v = 0; }
 
-    public void testPrimitiveLikeArraysAreFlattened() {
+    private void testPrimitiveLikeArraysAreFlattened() {
         int[] testSizes = new int[] { 0, 1, 2, 3, 4, 7, 10, 257 };
         for (int testSize : testSizes) {
             MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedNonAtomicArray(MyByte.class, testSize, new MyByte());
@@ -301,7 +301,7 @@ public class InlineTypeDensity {
     @LooselyConsistentValue
     static value class MySSI { short s = 0; short s2 = 0; int i = 0;}
 
-    public void testTupleArraysAreFlattened() {
+    private void testTupleArraysAreFlattened() {
         int[] testSizes = new int[] { 0, 1, 2, 3, 4, 7, 10, 257 };
         for (int testSize : testSizes) {
             MyBB[] mbb = (MyBB[])ValueClass.newNullRestrictedNonAtomicArray(MyBB.class, testSize, new MyBB());
@@ -321,7 +321,7 @@ public class InlineTypeDensity {
         }
     }
 
-    public void test() {
+    private void test() {
         ensureArraySizeWin();
         testPrimitiveLikeArraysAreFlattened();
         testTupleArraysAreFlattened();
