@@ -90,6 +90,7 @@
 #include "utilities/events.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/growableArray.inline.hpp"
 #include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/xmlstream.hpp"
@@ -3415,7 +3416,6 @@ void AdapterHandlerEntry::remove_unshareable_info() {
 #endif // ASSERT
    _adapter_blob = nullptr;
    _linked = false;
-   _sig_cc = nullptr;
 }
 
 class CopyAdapterTableToArchive : StackObj {
@@ -3503,6 +3503,7 @@ void AdapterHandlerEntry::link() {
       CompiledEntrySignature ces;
       ces.initialize_from_fingerprint(_fingerprint);
       if (ces.has_scalarized_args()) {
+        fatal("Calling conventions should have been archived");
         // Save a C heap allocated version of the scalarized signature and store it in the adapter
         GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
         heap_sig->appendAll(ces.sig_cc());
