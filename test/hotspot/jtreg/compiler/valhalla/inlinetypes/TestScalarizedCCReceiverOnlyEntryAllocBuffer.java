@@ -56,7 +56,7 @@ public class TestScalarizedCCReceiverOnlyEntryAllocBuffer {
         i.m(v1);
     }
 
-    
+
     static value class MyValue1 {
         int intField;
 
@@ -91,7 +91,7 @@ public class TestScalarizedCCReceiverOnlyEntryAllocBuffer {
         public void m(MyValue1 v) {
         }
     }
-    
+
     static value class MyValue4 implements I {
         int intField;
 
