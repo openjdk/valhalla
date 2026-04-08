@@ -37,7 +37,7 @@
  *          EarlyLarvalNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
  * @compile StrictInstanceFieldsTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             StrictInstanceFieldsTest
  *             Child ControlFlowChild TryCatchChild AssignedInConditionalChild
  *             SwitchCaseChild NestedConstructorChild FinalChild

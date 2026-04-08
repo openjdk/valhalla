@@ -28,7 +28,7 @@
  * @library /test/lib
  * @run main RedefineClassHelper
  * @compile StrictFieldsOld.java StrictFieldsNew.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             StrictFieldsOld StrictFieldsNew
  * @run main/othervm -Xverify:remote -javaagent:redefineagent.jar RedefineStrictFieldsTest
  */

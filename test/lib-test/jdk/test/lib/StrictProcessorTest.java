@@ -27,7 +27,7 @@
  * @enablePreview
  * @library /test/lib
  * @build StrictProcessorTest
- * @run driver jdk.test.lib.helpers.StrictProcessor StrictProcessorTest$StrictTarget
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor StrictProcessorTest$StrictTarget
  * @run junit StrictProcessorTest
  */
 

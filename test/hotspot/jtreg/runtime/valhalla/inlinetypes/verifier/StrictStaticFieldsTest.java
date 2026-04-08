@@ -34,7 +34,7 @@
  *          Creflbefore_BAD.jasm
  *          WriteAfterReadRefl.jasm
  * @compile StrictStaticFieldsTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             StrictStaticFieldsTest
  *             Aregular_OK
  *             Anulls_OK

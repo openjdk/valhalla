@@ -27,7 +27,7 @@
  * @enablePreview
  * @library /test/lib
  * @compile StrictProcessorSuperTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor --deferSuperCall
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor --deferSuperCall
  *             StrictProcessorSuperTest$Rec StrictProcessorSuperTest$Exp
  *             StrictProcessorSuperTest$Inner
  * @run junit StrictProcessorSuperTest

@@ -29,7 +29,7 @@
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java StrictFinalTest.java
  * @compile StrictFinalTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor StrictFinalTest
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor StrictFinalTest
  *             StrictFinalTest$Container5 StrictFinalTest$Container6
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
  */

@@ -28,7 +28,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile TestStrictFieldBarriers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$A1
  *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$B1
  *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$C1

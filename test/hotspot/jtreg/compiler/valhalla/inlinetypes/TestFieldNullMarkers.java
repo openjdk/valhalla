@@ -39,7 +39,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/timeout=300 compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -54,7 +54,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -73,7 +73,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -92,7 +92,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -111,7 +111,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -130,7 +130,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -149,7 +149,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -168,7 +168,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -187,7 +187,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -206,7 +206,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -226,7 +226,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -246,7 +246,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -266,7 +266,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
@@ -286,7 +286,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
+ * @run main/othervm --enable-preview jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
  *                               -XX:+UnlockDiagnosticVMOptions
