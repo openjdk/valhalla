@@ -25,15 +25,17 @@
  * @test
  * @bug 8012650
  * @summary Unit test for setAll, parallelSetAll variants
+ * @library /test/lib
  * @run junit SetAllTest
  */
-
 
 import java.util.Arrays;
 import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
 import java.util.function.IntToLongFunction;
 import java.util.function.IntUnaryOperator;
+
+import jdk.test.lib.valueclass.AsValueClass;
 
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -94,6 +96,24 @@ public class SetAllTest {
         { "fill", 3, fillDouble, new double[] { 3.14, 3.14, 3.14 }}
     };
 
+    @AsValueClass
+    record Point(int x, int y) { }
+
+    private static final IntFunction<Point> toPoint = i -> new Point(i, i * 2);
+    private static final IntFunction<Point> fillPoint = i -> new Point(0, 0);
+    private static final Point[] pr0  = {};
+    private static final Point[] pr1  = { new Point(0, 0) };
+    private static final Point[] pr10 = { new Point(0,0), new Point(1, 2), new Point(2, 4),
+            new Point(3, 6), new Point(4, 8), new Point(5, 10), new Point(6, 12),
+            new Point(7, 14), new Point(8, 16), new Point(9, 18) };
+
+    private Object[][] pointData = new Object[][] {
+            { "empty", 0, toPoint, pr0 },
+            { "one",   1, toPoint, pr1 },
+            { "ten",  10, toPoint, pr10 },
+            { "fill",  3, fillPoint, new Point[] { new Point(0,0), new Point(0,0), new Point(0,0) }}
+    };
+
     public Object[][] stringTests() { return stringData; }
 
     public Object[][] intTests() { return intData; }
@@ -101,6 +121,8 @@ public class SetAllTest {
     public Object[][] longTests() { return longData; }
 
     public Object[][] doubleTests() { return doubleData; }
+
+    public Object[][] pointTests() { return pointData; }
 
     @ParameterizedTest
     @MethodSource("stringTests")
@@ -162,6 +184,18 @@ public class SetAllTest {
         result = new double[size];
         Arrays.parallelSetAll(result, generator);
         assertDoubleArrayEquals(result, expected, 0.05, "setAll(double[], IntToDoubleFunction) case " + name + " failed.");
+    }
+
+    @ParameterizedTest
+    @MethodSource("pointTests")
+    public void testSetAllPoint(String name, int size, IntFunction<Point> generator, Point[] expected) {
+        Point[] result = new Point[size];
+        Arrays.setAll(result, generator);
+        Assertions.assertArrayEquals(expected, result, "setAll(Point[], IntFunction<Point>) case " + name + " failed.");
+
+        result = new Point[size];
+        Arrays.parallelSetAll(result, generator);
+        Assertions.assertArrayEquals(expected, result, "parallelSetAll(Point[], IntFunction<Point>) case " + name + " failed.");
     }
 
     @Test
@@ -274,6 +308,36 @@ public class SetAllTest {
         }
         try {
             Arrays.parallelSetAll(ar, null);
+            fail("Arrays.parallelSetAll(array, null) should throw NPE");
+        } catch (NullPointerException npe) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testPointSetNulls() {
+        Point[] ar = new Point[2];
+
+        try {
+            Arrays.setAll((Point[]) null, (IntFunction<Point>) i -> new Point(i, i));
+            fail("Arrays.setAll(null, foo) should throw NPE");
+        } catch (NullPointerException npe) {
+            // expected
+        }
+        try {
+            Arrays.parallelSetAll((Point[]) null, (IntFunction<Point>) i -> new Point(i, i));
+            fail("Arrays.parallelSetAll(null, foo) should throw NPE");
+        } catch (NullPointerException npe) {
+            // expected
+        }
+        try {
+            Arrays.setAll(ar, (IntFunction<Point>) null);
+            fail("Arrays.setAll(array, null) should throw NPE");
+        } catch (NullPointerException npe) {
+            // expected
+        }
+        try {
+            Arrays.parallelSetAll(ar, (IntFunction<Point>) null);
             fail("Arrays.parallelSetAll(array, null) should throw NPE");
         } catch (NullPointerException npe) {
             // expected
