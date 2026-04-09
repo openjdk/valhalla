@@ -30,6 +30,7 @@
 #include "oops/compressedKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // The markWord describes the header of an object.
 //
@@ -139,26 +140,24 @@ class markWord {
   static const int valhalla_reserved_shift        = flat_array_shift + flat_array_bits;
   static const int hash_shift                     = valhalla_reserved_shift + valhalla_reserved_bits;
 
-  #define mask_in_place(bits, shift) (right_n_bits(bits) << (shift))
-
-  // Helper to make sure that _bit_in_place constants only refer to one bit.
-  #define bit_in_place(bits, shift) []() {                  \
-      static_assert((bits) == 1 NOT_LP64(|| (bits) == 0));  \
-      return mask_in_place((bits), (shift));                \
-    }()
-
   // Masks (in-place)
-  static const uintptr_t lock_mask_in_place       = mask_in_place(lock_bits, lock_shift);
-  static const uintptr_t self_fwd_bit_in_place    = bit_in_place(self_fwd_bits, self_fwd_shift);
-  static const uintptr_t age_mask_in_place        = mask_in_place(age_bits, age_shift);
-  static const uintptr_t inline_type_bit_in_place = bit_in_place(inline_type_bits, inline_type_shift);
-  static const uintptr_t null_free_array_bit_in_place = bit_in_place(null_free_array_bits, null_free_array_shift);
-  static const uintptr_t flat_array_bit_in_place  = bit_in_place(flat_array_bits, flat_array_shift);
-  static const uintptr_t valhalla_reserved_bit_in_place = bit_in_place(valhalla_reserved_bits, valhalla_reserved_shift);
-  static const uintptr_t hash_mask_in_place       = mask_in_place(hash_bits, hash_shift);
+  static const uintptr_t lock_mask_in_place       = right_n_bits(lock_bits) << lock_shift;
+  static const uintptr_t self_fwd_bit_in_place    = right_n_bits(self_fwd_bits) << self_fwd_shift;
+  static const uintptr_t age_mask_in_place        = right_n_bits(age_bits) << age_shift;
+  static const uintptr_t inline_type_bit_in_place = right_n_bits(inline_type_bits) << inline_type_shift;
+  static const uintptr_t null_free_array_bit_in_place = right_n_bits(null_free_array_bits) << null_free_array_shift;
+  static const uintptr_t flat_array_bit_in_place  = right_n_bits(flat_array_bits) << flat_array_shift;
+  static const uintptr_t valhalla_reserved_bit_in_place = right_n_bits(valhalla_reserved_bits) << valhalla_reserved_shift;
+  static const uintptr_t hash_mask_in_place       = right_n_bits(hash_bits) << hash_shift;
 
-  #undef mask_in_place
-  #undef bit_in_place
+  // Verify that _bit_in_place refers to constants with only one bit.
+  static_assert(is_power_of_2(self_fwd_bit_in_place));
+#ifdef _LP64
+  static_assert(is_power_of_2(inline_type_bit_in_place));
+  static_assert(is_power_of_2(null_free_array_bit_in_place));
+  static_assert(is_power_of_2(flat_array_bit_in_place));
+  static_assert(is_power_of_2(valhalla_reserved_bit_in_place));
+#endif
 
   // Masks (unshifted)
   static const uintptr_t lock_mask                = lock_mask_in_place >> lock_shift;
