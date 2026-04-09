@@ -2163,6 +2163,31 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
           continue;
         }
         wq.push(in);
+      }
+    }
+    for (int i = wq.size() - 1; i >= 0; i--) {
+      Node* n = wq.at(i);
+      if (!n->is_InlineType()) {
+        wq.remove(i);
+      }
+    }
+    uint init_nodes = wq.size();
+    for (uint i = 0; i < wq.size(); ++i) {
+      Node* n = wq.at(i);
+      if (n->is_Phi()) {
+        for (uint j = 1; j < n->req(); ++j) {
+          Node* in = n->in(j);
+          if (in == nullptr) {
+            continue;
+          }
+          wq.push(in);
+        }
+      } else if (n->is_ConstraintCast()) {
+        Node* in = n->in(1);
+        if (in == nullptr) {
+          continue;
+        }
+        wq.push(in);
       } else if (n->is_InlineType()) {
         Node* buf = n->as_InlineType()->get_oop();
         if (buf == nullptr) {
@@ -2172,7 +2197,6 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
         wq2.push(n);
       }
     }
-    wq.remove(this);
     for (uint i = 0; i < wq2.size(); ++i) {
       Node* n = wq2.at(i);
       for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
@@ -2209,17 +2233,18 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
       Node* n_clone = get_clone(n);
       assert(n_clone != nullptr, "");
       if (n->is_Phi()) {
-        for (uint i = 1; i < n->req(); ++i) {
-          Node* in = n->in(i);
+        for (uint j = 1; j < n->req(); ++j) {
+          Node* in = n->in(j);
           Node* in_clone = get_clone(in);
           if (in_clone != nullptr) {
-            n_clone->set_req(i, in_clone);
+            n_clone->set_req(j, in_clone);
           }
         }
       } else if (n->is_ConstraintCast()) {
         Node* in = n->in(1);
         Node* in_clone = get_clone(in);
         assert(in_clone != nullptr, "");
+        n_clone->set_req(1, in_clone);
       } else if (n->is_InlineType()) {
         Node* in = n->as_InlineType()->get_oop();
         Node* in_clone = get_clone(in);
@@ -2229,14 +2254,59 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
         }
       }
     }
-#if 0 //def ASSERT
+#ifdef ASSERT
     {
-      Unique_Node_List verif;
-      verif.push(this);
+      uint vts_to_skip = 0;
+      uint before_phis = 0;
+      uint before_casts = 0;
+      for (uint i = 0; i < wq.size(); ++i) {
+        Node* n = wq.at(i);
+        if (n->is_Phi()) {
+          before_phis++;
+        } else if (n->is_ConstraintCast()) {
+          before_casts++;
+        } else if (n->is_InlineType()) {
+          Node* buf = n->as_InlineType()->get_oop();
+          if (buf == nullptr) {
+            continue;
+          }
+          if (i >= init_nodes) {
+            vts_to_skip++;
+          }
+        }
+      }
+
+      Unique_Node_List after;
+      after.push(this);
+      for (uint i = 0; i < after.size(); ++i) {
+        Node* n = after.at(i);
+        if (n->is_Phi()) {
+          for (uint j = 1; j < n->req(); ++j) {
+            Node* in = n->in(j);
+            if (in == nullptr) {
+              continue;
+            }
+            after.push(in);
+          }
+        } else if (n->is_ConstraintCast()) {
+          Node* in = n->in(1);
+          if (in == nullptr) {
+            continue;
+          }
+          after.push(in);
+        }
+      }
+      for (int i = after.size() - 1; i >= 0; i--) {
+        Node* n = after.at(i);
+        if (!n->is_InlineType()) {
+          after.remove(i);
+        }
+      }
       uint after_phis = 0;
       uint after_casts = 0;
-      for (uint i = 0; i < verif.size(); ++i) {
-        Node* n = verif.at(i);
+      uint init_nodes = after.size();
+      for (uint i = 0; i < after.size(); ++i) {
+        Node* n = after.at(i);
         if (n->is_Phi()) {
           after_phis++;
           for (uint j = 1; j < n->req(); ++j) {
@@ -2244,7 +2314,7 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
             if (in == nullptr) {
               continue;
             }
-            verif.push(in);
+            after.push(in);
           }
         } else if (n->is_ConstraintCast()) {
           after_casts++;
@@ -2252,28 +2322,19 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
           if (in == nullptr) {
             continue;
           }
-          verif.push(in);
+          after.push(in);
         } else if (n->is_InlineType()) {
-          ShouldNotReachHere();
+          assert(i < init_nodes, "");
+          Node* buf = n->as_InlineType()->get_oop();
+          if (buf == nullptr) {
+            continue;
+          }
+          after.push(buf);
         }
       }
-
-      uint before_phis = 0;
-      uint before_casts = 0;
-      uint inline_types = 0;
-      for (uint i = 0; i < wq.size(); ++i) {
-        Node* n = wq.at(i);
-        if (n->is_InlineType()) {
-          inline_types++;
-        } else if (n->is_Phi()) {
-          before_phis++;
-        } else if (n->is_ConstraintCast()) {
-          before_casts++;
-        }
-      }
+      assert(after.size() + vts_to_skip == wq.size(), "");
       assert(before_casts == after_casts, "");
-      assert(before_phis + 1 == after_phis, "");
-      assert(wq.size() == verif.size() + inline_types - 1, "");
+      assert(before_phis == after_phis, "");
     }
 #endif
   }
