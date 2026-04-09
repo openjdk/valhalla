@@ -2303,11 +2303,11 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
   Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
-  Node* payload_offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::payload_offset_offset()));
+  Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
   Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
-  Node* payload_offset_i = make_load(control(), payload_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
-  Node* payload_offset = ConvI2L(payload_offset_i);
-  Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+  Node* offset_i = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  Node* offset = ConvI2L(offset_i);
+  Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
 
   Node* mask_cmp = CmpL(fast_acmp_mask, zerocon(T_LONG));
   Node* mask_bol = _gvn.transform(new BoolNode(mask_cmp, BoolTest::ne));
@@ -2320,11 +2320,11 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     PreserveJVMState jvms(this);
     set_control(has_mask);
     // LoadL(left + offset) & mask == LoadL(right + offset) & mask
-    Node* left_payload_addr = basic_plus_adr(not_null_left, payload_offset);
+    Node* left_payload_addr = basic_plus_adr(not_null_left, offset);
     Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
     Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
 
-    Node* right_payload_addr = basic_plus_adr(not_null_right, payload_offset);
+    Node* right_payload_addr = basic_plus_adr(not_null_right, offset);
     Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
     Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
 

@@ -5582,8 +5582,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
     GrowableArray<InlineKlassAtOffset> worklist;
 
-    auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * 8) << (start * 8); };
+    auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * BitsPerByte) << (start * BitsPerByte); };
 
+#ifdef VM_LITTLE_ENDIAN
     int64_t mask = 0;
     if (UseNewCode) {
       tty->print("##### ");
@@ -5655,8 +5656,23 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
       if (UseNewCode) tty->print_cr("======");
     }
 
-    if (UseNewCode) tty->print_cr("mask: \n" INT64_FORMAT_X_0, mask);
+    int offset = _layout_info->_payload_offset;
+    if (mask != 0) {
+      int leading_zeroes = static_cast<int>(count_leading_zeros(mask));
+      assert(leading_zeroes % BitsPerByte == 0, "");
+      mask <<= leading_zeroes;
+      offset -= leading_zeroes / BitsPerByte;
+    }
+    assert(mask == 0 || count_leading_zeros(mask) == 0, "");
+    if (UseNewCode) tty->print_cr("payload_offset: %d\nmask offset: %d\nmask: " INT64_FORMAT_X_0 "\n", _layout_info->_payload_offset, offset, mask);
+    vk->set_fast_acmp_offset(offset);
     vk->set_fast_acmp_mask(mask);
+#else
+    /* Setting mask to 0 is a correct and easy way to implement this for other endianness, but it will have a runtime cost in do_acmp.
+     * It is better, and probably easy, top just adapt the logic above for big-endian architectures, but filling the mask from the other end.
+     */
+    Unimplemented()
+#endif
 
     vk->initialize_calling_convention(CHECK);
   }

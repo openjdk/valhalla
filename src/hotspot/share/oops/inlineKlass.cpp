@@ -73,7 +73,8 @@ InlineKlass::Members::Members()
     _nullable_atomic_size_in_bytes(-1),
     _nullable_non_atomic_size_in_bytes(-1),
     _null_marker_offset(-1),
-    _fast_acmp_mask (0) {
+    _fast_acmp_offset(-1),
+    _fast_acmp_mask(0) {
 }
 
 InlineKlass::InlineKlass() {

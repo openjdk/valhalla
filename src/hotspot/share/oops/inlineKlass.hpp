@@ -99,6 +99,7 @@ class InlineKlass: public InstanceKlass {
     int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
+    int _fast_acmp_offset;
     int64_t _fast_acmp_mask;  // If 0, fast acmp doesn't apply
 
     Members();
@@ -192,6 +193,9 @@ class InlineKlass: public InstanceKlass {
   int null_marker_offset() const                              { return members()._null_marker_offset; }
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
+
+  int64_t fast_acmp_offset() const                              { return members()._fast_acmp_offset; }
+  void set_fast_acmp_offset(int offset)                       { members()._fast_acmp_offset = offset; }
 
   int64_t fast_acmp_mask() const                              { return members()._fast_acmp_mask; }
   void set_fast_acmp_mask(int64_t mask)                       { members()._fast_acmp_mask = mask; }
@@ -309,6 +313,10 @@ class InlineKlass: public InstanceKlass {
 
   static ByteSize null_marker_offset_offset() {
     return byte_offset_of(Members, _null_marker_offset);
+  }
+
+  static ByteSize fast_acmp_offset_offset() {
+    return byte_offset_of(Members, _fast_acmp_offset);
   }
 
   static ByteSize fast_acmp_mask_offset() {
