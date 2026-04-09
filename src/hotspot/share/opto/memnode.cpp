@@ -2395,6 +2395,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             tp->is_instptr()->instance_klass()->is_java_lang_Object() ||
             // Default value load
             tp->is_instptr()->instance_klass() == ciEnv::current()->Class_klass() ||
+            is_mismatched_access() ||
             // unsafe field access may not have a constant offset
             C->has_unsafe_access(),
             "Field accesses must be precise" );

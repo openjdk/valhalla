@@ -2301,41 +2301,54 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
   assert(kls_right != nullptr, "");
 
-  Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
-  Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
-  Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
-  Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
-  Node* offset_i = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
-  Node* offset = ConvI2L(offset_i);
-  Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+  tty->print_cr("DO_ACMP: ");
+  method()->print_name();
+  tty->print_cr("");
+  tty->print("left: ");
+  _gvn.type(not_null_left)->dump();
+  tty->print("  is_inlinetypeptr:%d\nright: ", _gvn.type(not_null_left)->is_inlinetypeptr());
+  _gvn.type(not_null_right)->dump();
+  tty->print_cr("  is_inlinetypeptr:%d", _gvn.type(not_null_right)->is_inlinetypeptr());
 
-  Node* mask_cmp = CmpL(fast_acmp_mask, zerocon(T_LONG));
-  Node* mask_bol = _gvn.transform(new BoolNode(mask_cmp, BoolTest::ne));
-  IfNode* mask_iff = create_and_map_if(control(), mask_bol, PROB_FAIR, COUNT_UNKNOWN);
-  Node* has_mask = _gvn.transform(new IfTrueNode(mask_iff));
-  Node* no_mask = _gvn.transform(new IfFalseNode(mask_iff));
-  set_control(no_mask);
+  // If any operand has a precisely known type, isSubstitutable will be intrinsified, so we don't need the fast path
+  if (!_gvn.type(not_null_left)->is_inlinetypeptr() && !_gvn.type(not_null_right)->is_inlinetypeptr()) {
+    tty->print_cr("Fast path!");
+    Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
+    Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
+    Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
+    Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
+    Node* offset_i = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+    Node* offset = ConvI2L(offset_i);
+    Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
 
-  {
-    PreserveJVMState jvms(this);
-    set_control(has_mask);
-    // LoadL(left + offset) & mask == LoadL(right + offset) & mask
-    Node* left_payload_addr = basic_plus_adr(not_null_left, offset);
-    Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
-    Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
+    Node* mask_cmp = CmpL(fast_acmp_mask, zerocon(T_LONG));
+    Node* mask_bol = _gvn.transform(new BoolNode(mask_cmp, BoolTest::ne));
+    IfNode* mask_iff = create_and_map_if(control(), mask_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* has_mask = _gvn.transform(new IfTrueNode(mask_iff));
+    Node* no_mask = _gvn.transform(new IfFalseNode(mask_iff));
+    set_control(no_mask);
 
-    Node* right_payload_addr = basic_plus_adr(not_null_right, offset);
-    Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
-    Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
+    {
+      PreserveJVMState jvms(this);
+      set_control(has_mask);
+      // LoadL(left + offset) & mask == LoadL(right + offset) & mask
+      Node* left_payload_addr = basic_plus_adr(not_null_left, offset);
+      Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+      Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
 
-    Node* masked_cmp = CmpL(left_masked, right_masked);
-    Node* masked_cmp_bol = _gvn.transform(new BoolNode(masked_cmp, BoolTest::ne));
-    IfNode* masked_iff = create_and_map_if(control(), masked_cmp_bol, PROB_FAIR, COUNT_UNKNOWN);
-    Node* neq = _gvn.transform(new IfTrueNode(masked_iff));
-    Node* eq = _gvn.transform(new IfFalseNode(masked_iff));
-    ne_region->init_req(6, neq);
-    if (eq_region != nullptr) {
-      eq_region->init_req(3, eq);
+      Node* right_payload_addr = basic_plus_adr(not_null_right, offset);
+      Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+      Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
+
+      Node* masked_cmp = CmpL(left_masked, right_masked);
+      Node* masked_cmp_bol = _gvn.transform(new BoolNode(masked_cmp, BoolTest::ne));
+      IfNode* masked_iff = create_and_map_if(control(), masked_cmp_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* neq = _gvn.transform(new IfTrueNode(masked_iff));
+      Node* eq = _gvn.transform(new IfFalseNode(masked_iff));
+      ne_region->init_req(6, neq);
+      if (eq_region != nullptr) {
+        eq_region->init_req(3, eq);
+      }
     }
   }
 
