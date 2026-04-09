@@ -72,7 +72,7 @@
 //    * null-free arrays:  An array instance without null elements
 //    * valhalla reserved: Reserved for future use
 //
-//    Inline types cannot be locked and does not have an identity hash.
+//    Inline types cannot be locked and do not have an identity hash.
 //
 //  - hash - contains the identity hash value: largest value is 31 bits, see
 //    os::random().  Also, 64-bit VMs require a hash value no bigger than 32
