@@ -141,7 +141,7 @@ class markWord {
 
   #define mask_in_place(bits, shift) (right_n_bits(bits) << (shift))
 
-  // Helper to make sure that _bit_in_place constants only refers to one bit.
+  // Helper to make sure that _bit_in_place constants only refer to one bit.
   #define bit_in_place(bits, shift) []() {                  \
       static_assert((bits) == 1 NOT_LP64(|| (bits) == 0));  \
       return mask_in_place((bits), (shift));                \
