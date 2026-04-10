@@ -2384,7 +2384,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
 }
 
 void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
-  andptr(markword, markWord::inline_type_mask_in_place);
+  andptr(markword, markWord::inline_type_pattern_mask);
   cmpptr(markword, markWord::inline_type_pattern);
   jcc(Assembler::equal, is_inline_type);
 }
