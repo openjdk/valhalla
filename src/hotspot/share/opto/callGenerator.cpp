@@ -701,6 +701,7 @@ void CallGenerator::do_late_inline_helper() {
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
         Node* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+        map = arg_kit.map();
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {
