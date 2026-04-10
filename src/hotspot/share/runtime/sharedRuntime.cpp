@@ -1443,7 +1443,8 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
 
   methodHandle callee_method(current, call_info.selected_method());
   // Calls via mismatching methods are always non-scalarized
-  if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
+  bool mismatch = is_optimized ? call_info.selected_method()->mismatch() : call_info.resolved_method()->mismatch();
+  if (caller_nm->is_compiled_by_c1() || mismatch) {
     caller_does_not_scalarize = true;
   }
 
