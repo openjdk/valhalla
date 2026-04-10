@@ -5594,15 +5594,16 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
     worklist.push(InlineKlassAtOffset{0, vk});
     while (!worklist.is_empty()) {
-      InlineKlassAtOffset ikao = worklist.pop();
-      int payload_offset = ikao.vk->payload_offset() - ikao.offset;
+      InlineKlassAtOffset inline_klass_at_offset = worklist.pop();
+      InlineKlass* vk = inline_klass_at_offset.vk;
+      int payload_offset = vk->payload_offset() - inline_klass_at_offset.offset;
       if (UseNewCode) {
         tty->print("=> ");
-        ikao.vk->name()->print();
+        vk->name()->print();
         tty->print_cr("");
       }
-      for (int i = 0; i < ikao.vk->total_fields_count(); ++i) {
-        fieldDescriptor fd(ikao.vk, i);
+      for (int i = 0; i < vk->total_fields_count(); ++i) {
+        fieldDescriptor fd(vk, i);
         if (fd.is_static() || fd.is_injected()) continue;
         if (UseNewCode) {
           tty->print("-> ");
@@ -5612,10 +5613,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
         int field_start = fd.offset() - payload_offset;
         if (UseNewCode) tty->print_cr("  field_start=%d", field_start);
         if (fd.is_flat()) {
-          assert(ik != nullptr, "");
-          assert(ik->_inline_layout_info_array != nullptr, "");
-          assert(i < ik->_inline_layout_info_array->length(), "");
-          InlineLayoutInfo ili = ik->_inline_layout_info_array->at(i);
+          assert(vk->inline_layout_info_array() != nullptr, "");
+          assert(i < vk->inline_layout_info_array()->length(), "");
+          InlineLayoutInfo ili = vk->inline_layout_info(i);
           if (LayoutKindHelper::is_nullable_flat(ili.kind())) {
             int nm_offset = field_start + ili.klass()->null_marker_offset_in_payload();
             if (UseNewCode) tty->print_cr("  nm_offset=%d", field_start);

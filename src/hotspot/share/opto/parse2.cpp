@@ -2301,8 +2301,22 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
   assert(kls_right != nullptr, "");
 
+#ifndef  PRODUCT
+  if (UseNewCode) {
+    tty->print_cr("DO_ACMP: ");
+    method()->print_name();
+    tty->print_cr("");
+    tty->print("left: ");
+    _gvn.type(not_null_left)->dump();
+    tty->print("  is_inlinetypeptr:%d\nright: ", _gvn.type(not_null_left)->is_inlinetypeptr());
+    _gvn.type(not_null_right)->dump();
+    tty->print_cr("  is_inlinetypeptr:%d", _gvn.type(not_null_right)->is_inlinetypeptr());
+  }
+#endif
+
   // If any operand has a precisely known type, isSubstitutable will be intrinsified, so we don't need the fast path
   if (!_gvn.type(not_null_left)->is_inlinetypeptr() && !_gvn.type(not_null_right)->is_inlinetypeptr()) {
+    if (UseNewCode) tty->print_cr("Fast path!");
     Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
     Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
     Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
@@ -2331,14 +2345,23 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
 
       Node* masked_cmp = CmpL(left_masked, right_masked);
-      Node* masked_cmp_bol = _gvn.transform(new BoolNode(masked_cmp, BoolTest::ne));
-      IfNode* masked_iff = create_and_map_if(control(), masked_cmp_bol, PROB_FAIR, COUNT_UNKNOWN);
-      Node* neq = _gvn.transform(new IfTrueNode(masked_iff));
-      Node* eq = _gvn.transform(new IfFalseNode(masked_iff));
-      ne_region->init_req(6, neq);
-      if (eq_region != nullptr) {
-        eq_region->init_req(3, eq);
+
+      Node* ctl = C->top();
+      if (btest == BoolTest::eq) {
+        PreserveJVMState pjvms(this);
+        do_if(btest, masked_cmp, !can_trap, true, nullptr);
+        if (!stopped()) {
+          ctl = control();
+        }
+      } else {
+        assert(btest == BoolTest::ne, "only eq or ne");
+        PreserveJVMState pjvms(this);
+        do_if(btest, masked_cmp, !can_trap, false, &ctl);
+        if (!stopped()) {
+          eq_region->init_req(3, control());
+        }
       }
+      ne_region->init_req(6, ctl);
     }
   }
 
