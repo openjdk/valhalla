@@ -381,11 +381,11 @@ public class FieldLayoutAnalyzer {
         }
         // Non-oop acmp map <offset,size>: <12,1> <16,4> ...
         Asserts.assertTrue(lo.getCurrentLine().startsWith("Non-oop acmp map <offset,size>"), lo.getCurrentLine());
-        String[] acmp_nonoop_line = lo.getCurrentLine().split("\\s+");
-        Asserts.assertTrue(acmp_nonoop_line.length >= 4, "Wrong format for non-oop acmp map line: " + lo.getCurrentLine());
-        for (int i = 4; i < acmp_nonoop_line.length; i++) {
-          String[] offset_size = acmp_nonoop_line[i].split(",");
-          Asserts.assertTrue(offset_size.length == 2, "Wrong format for acmp map entry: " + acmp_nonoop_line[i]);
+        String[] acmpNonoopLine = lo.getCurrentLine().split("\\s+");
+        Asserts.assertTrue(acmpNonoopLine.length >= 4, "Wrong format for non-oop acmp map line: " + lo.getCurrentLine());
+        for (int i = 4; i < acmpNonoopLine.length; i++) {
+          String[] offset_size = acmpNonoopLine[i].split(",");
+          Asserts.assertTrue(offset_size.length == 2, "Wrong format for acmp map entry: " + acmpNonoopLine[i]);
           int offset = Integer.parseInt(offset_size[0].substring(1)); // skipping '<'
           int size = Integer.parseInt(offset_size[1].substring(0, offset_size[1].length() - 1)); // skipping '>'
           cl.nonOopAcmpMap.add(new AcmpMapSegment(offset, size));
@@ -393,10 +393,10 @@ public class FieldLayoutAnalyzer {
         lo.moveToNextLine();
         // oop acmp map: 12 16 ...
         Asserts.assertTrue(lo.getCurrentLine().startsWith("oop acmp map"), lo.getCurrentLine());
-        String[] acmp_oop_line = lo.getCurrentLine().split("\\s+");
-        Asserts.assertTrue(acmp_oop_line.length >= 3, "Wrong format for oop acmp map line: " + lo.getCurrentLine());
-        for (int i = 3; i < acmp_oop_line.length; i++) {
-          cl.oopAcmpMap.add(Integer.parseInt(acmp_oop_line[i]));
+        String[] acmpOopLine = lo.getCurrentLine().split("\\s+");
+        Asserts.assertTrue(acmpOopLine.length >= 3, "Wrong format for oop acmp map line: " + lo.getCurrentLine());
+        for (int i = 3; i < acmpOopLine.length; i++) {
+          cl.oopAcmpMap.add(Integer.parseInt(acmpOopLine[i]));
         }
         lo.moveToNextLine();
       } else {
@@ -772,7 +772,7 @@ public class FieldLayoutAnalyzer {
     }
     int fieldOffset = offset - cl.firstFieldOffset;
     for (FieldBlock fb : cl.nonStaticFields) {
-      if (fb.isRegular() && fb.name().compareTo("\".empty\"") != 0) {
+      if (fb.isRegular() && !fb.name().equals("\".empty\"")) {
         for (int i = fieldOffset + fb.offset(); i < fieldOffset + fb.offset() + fb.size(); i++) {
           Asserts.assertFalse(bitmap[i], "Overlap in field at offset " + i + " of class " + cl.name);
           bitmap[i] = true;
@@ -799,8 +799,8 @@ public class FieldLayoutAnalyzer {
       baseOffset = baseOffset - layout.firstFieldOffset;
     }
     for (FieldBlock block : layout.nonStaticFields) {
-      if (block.isRegular() && block.name().compareTo("\".empty\"") != 0) {
-        for (int i =  baseOffset + block.offset(); i <  baseOffset +block.offset() + block.size(); i++) {
+      if (block.isRegular() && !block.name().equals("\".empty\"")) {
+        for (int i = baseOffset + block.offset(); i <  baseOffset +block.offset() + block.size(); i++) {
           Asserts.assertFalse(bitmap[i], "Overlap in field at offset " + i + " of class " + layout.name);
           bitmap[i] = true;
         }
@@ -860,6 +860,7 @@ public class FieldLayoutAnalyzer {
           if (block.isRegular() || block.isFlat() || block.type() == BlockType.INHERITED) {
             if (block.offset() < firstOffset || firstOffset == 0) {
               firstOffset = block.offset();
+              break;
             }
           }
         }
