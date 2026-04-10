@@ -38,6 +38,7 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.CALL_OF_METHOD;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
@@ -1512,19 +1513,19 @@ public class TestCallingConvention {
     static class Impl60_1 implements Interface60 {
         public void m(MyValue2 val) {
             Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-       }
+        }
     }
 
     static class Impl60_2 implements Interface60 {
         public void m(MyValue2 val) {
             Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-       }
+        }
     }
 
     static class Impl60_3 implements Interface60 {
         public void m(MyValue2 val) {
             Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-       }
+        }
     }
 
     // Verify that the scalarized calling convention works for abstract methods
@@ -1549,19 +1550,19 @@ public class TestCallingConvention {
     static value class Impl61_1 extends ValueClass61 {
         public void m(MyValue2 val) {
             Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-       }
+        }
     }
 
     static value class Impl61_2 extends ValueClass61 {
         public void m(MyValue2 val) {
             Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-       }
+        }
     }
 
     static value class Impl61_3 extends ValueClass61 {
         public void m(MyValue2 val) {
             Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-       }
+        }
     }
 
     // Same as test60 but with abstract value class
@@ -1577,5 +1578,42 @@ public class TestCallingConvention {
         test61(new Impl61_1());
         test61(new Impl61_2());
         test61(new Impl61_3());
+    }
+
+    public static abstract value class ValueClass62 {
+        public abstract void m(MyValue2 val);
+    }
+
+    public static value class Impl62_1 extends ValueClass62 {
+        @ForceInline
+        public void m(MyValue2 val) {
+            // Empty to keep IR matching in test62 simple
+        }
+    }
+
+    // Hide the second subclass from the IR framework to prevent it from class loading
+    static class Holder {
+        static value class Impl62_2 extends ValueClass62 {
+            public void m(MyValue2 val) {
+                Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+            }
+        }
+    }
+
+    // Test strength reduction of virtual call to static call with scalarized receiver
+    @Test
+    @IR(failOn = {ALLOC, CALL_OF_METHOD, "m"})
+    public static void test62(ValueClass62 intf, MyValue2 val) {
+        intf.m(val);
+    }
+
+    static boolean alwaysFalse = false;
+
+    @Run(test = "test62")
+    public void test62_verifier(RunInfo info) {
+        test62(new Impl62_1(), MyValue2.createWithFieldsInline(rI, rD));
+        if (!info.isWarmUp()) {
+            test62(new Holder.Impl62_2(), MyValue2.createWithFieldsInline(rI, rD));
+        }
     }
 }

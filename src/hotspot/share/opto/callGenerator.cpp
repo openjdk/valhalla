@@ -182,7 +182,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     // Mark the call node as virtual, sort of:
     call->set_optimized_virtual(true);
   }
-  kit.set_arguments_for_java_call(call, is_late_inline());
+  kit.set_arguments_for_java_call(call);
   if (kit.stopped()) {
     return kit.transfer_exceptions_into_jvms();
   }

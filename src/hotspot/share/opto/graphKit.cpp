@@ -2013,7 +2013,7 @@ Node* GraphKit::load_array_element(Node* ary, Node* idx, const TypeAryPtr* aryty
 
 //-------------------------set_arguments_for_java_call-------------------------
 // Arguments (pre-popped from the stack) are taken from the JVMS.
-void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline) {
+void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
   PreserveReexecuteState preexecs(this);
   if (Arguments::is_valhalla_enabled()) {
     // Make sure the call is "re-executed", if buffering of inline type arguments triggers deoptimization.
@@ -2039,12 +2039,11 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
           arg = InlineTypeNode::make_null(_gvn, t->inline_klass());
         } else {
           // During parsing, a method is called with an abstract (or j.l.Object) receiver, the
-          // receiver is a non-scalarized oop. Later on, IGVN reveals that the receiver must be a
-          // value object. The method is devirtualized, and replaced with a direct call with a
-          // scalarized receiver instead.
+          // receiver is a non-scalarized oop. CHA or IGVN might then prove that the receiver
+          // type must be an exact value class. The method is devirtualized, and replaced with
+          // a direct call with a scalarized receiver instead.
           assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
-          assert(C->inlining_incrementally() || C->strength_reduction(), "must be during devirtualization of calls");
-          assert(!is_Parse(), "must be during devirtualization of calls");
+          assert(call->is_optimized_virtual(), "must be during devirtualization of calls");
           arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
         }
       }
