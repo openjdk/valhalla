@@ -768,7 +768,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
   assert(java_thread == rthread, "unexpected register");
 #ifdef ASSERT
   // TraceBytecodes does not use r12 but saves it over the call, so don't verify
-  // if ((UseCompressedOops || UseCompressedClassPointers) && !TraceBytecodes) verify_heapbase("call_VM_base: heap base corrupted?");
+  // if (!TraceBytecodes) verify_heapbase("call_VM_base: heap base corrupted?");
 #endif // ASSERT
 
   assert(java_thread != oop_result  , "cannot use the same register for java_thread & oop_result");
@@ -1008,14 +1008,10 @@ int MacroAssembler::ic_check(int end_alignment) {
     load_narrow_klass_compact(tmp1, receiver);
     ldrw(tmp2, Address(data, CompiledICData::speculated_klass_offset()));
     cmpw(tmp1, tmp2);
-  } else if (UseCompressedClassPointers) {
+  } else {
     ldrw(tmp1, Address(receiver, oopDesc::klass_offset_in_bytes()));
     ldrw(tmp2, Address(data, CompiledICData::speculated_klass_offset()));
     cmpw(tmp1, tmp2);
-  } else {
-    ldr(tmp1, Address(receiver, oopDesc::klass_offset_in_bytes()));
-    ldr(tmp2, Address(data, CompiledICData::speculated_klass_offset()));
-    cmp(tmp1, tmp2);
   }
 
   Label dont;
@@ -2374,7 +2370,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
 
 void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
   assert_different_registers(markword, rscratch2);
-  mov(rscratch2, markWord::inline_type_mask_in_place);
+  mov(rscratch2, markWord::inline_type_pattern_mask);
   andr(markword, markword, rscratch2);
   mov(rscratch2, markWord::inline_type_pattern);
   cmp(markword, rscratch2);
@@ -3384,7 +3380,6 @@ int MacroAssembler::pop_p(unsigned int bitset, Register stack) {
 #ifdef ASSERT
 void MacroAssembler::verify_heapbase(const char* msg) {
 #if 0
-  assert (UseCompressedOops || UseCompressedClassPointers, "should be compressed");
   assert (Universe::heap() != nullptr, "java heap should be initialized");
   if (!UseCompressedOops || Universe::ptr_base() == nullptr) {
     // rheapbase is allocated as general register
@@ -5162,10 +5157,8 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 void MacroAssembler::load_metadata(Register dst, Register src) {
   if (UseCompactObjectHeaders) {
     load_narrow_klass_compact(dst, src);
-  } else if (UseCompressedClassPointers) {
-    ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   } else {
-    ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+    ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
 }
 
@@ -5183,13 +5176,10 @@ void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
 void MacroAssembler::load_klass(Register dst, Register src) {
   if (UseCompactObjectHeaders) {
     load_narrow_klass_compact(dst, src);
-    decode_klass_not_null(dst);
-  } else if (UseCompressedClassPointers) {
-    ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-    decode_klass_not_null(dst);
   } else {
-    ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+    ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
+  decode_klass_not_null(dst);
 }
 
 void MacroAssembler::restore_cpu_control_state_after_jni(Register tmp1, Register tmp2) {
@@ -5241,42 +5231,33 @@ void MacroAssembler::load_mirror(Register dst, Register method, Register tmp1, R
 
 void MacroAssembler::cmp_klass(Register obj, Register klass, Register tmp) {
   assert_different_registers(obj, klass, tmp);
-  if (UseCompressedClassPointers) {
-    if (UseCompactObjectHeaders) {
-      load_narrow_klass_compact(tmp, obj);
-    } else {
-      ldrw(tmp, Address(obj, oopDesc::klass_offset_in_bytes()));
-    }
-    if (CompressedKlassPointers::base() == nullptr) {
-      cmp(klass, tmp, LSL, CompressedKlassPointers::shift());
-      return;
-    } else if (((uint64_t)CompressedKlassPointers::base() & 0xffffffff) == 0
-               && CompressedKlassPointers::shift() == 0) {
-      // Only the bottom 32 bits matter
-      cmpw(klass, tmp);
-      return;
-    }
-    decode_klass_not_null(tmp);
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(tmp, obj);
   } else {
-    ldr(tmp, Address(obj, oopDesc::klass_offset_in_bytes()));
+    ldrw(tmp, Address(obj, oopDesc::klass_offset_in_bytes()));
   }
+  if (CompressedKlassPointers::base() == nullptr) {
+    cmp(klass, tmp, LSL, CompressedKlassPointers::shift());
+    return;
+  } else if (((uint64_t)CompressedKlassPointers::base() & 0xffffffff) == 0
+             && CompressedKlassPointers::shift() == 0) {
+    // Only the bottom 32 bits matter
+    cmpw(klass, tmp);
+    return;
+  }
+  decode_klass_not_null(tmp);
   cmp(klass, tmp);
 }
 
 void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
   if (UseCompactObjectHeaders) {
     load_narrow_klass_compact(tmp1, obj1);
-    load_narrow_klass_compact(tmp2,  obj2);
-    cmpw(tmp1, tmp2);
-  } else if (UseCompressedClassPointers) {
+    load_narrow_klass_compact(tmp2, obj2);
+  } else {
     ldrw(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
     ldrw(tmp2, Address(obj2, oopDesc::klass_offset_in_bytes()));
-    cmpw(tmp1, tmp2);
-  } else {
-    ldr(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
-    ldr(tmp2, Address(obj2, oopDesc::klass_offset_in_bytes()));
-    cmp(tmp1, tmp2);
   }
+  cmpw(tmp1, tmp2);
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src) {
@@ -5288,20 +5269,14 @@ void MacroAssembler::store_klass(Register dst, Register src) {
   // FIXME: Should this be a store release?  concurrent gcs assumes
   // klass length is valid if klass field is not null.
   assert(!UseCompactObjectHeaders, "not with compact headers");
-  if (UseCompressedClassPointers) {
-    encode_klass_not_null(src);
-    strw(src, Address(dst, oopDesc::klass_offset_in_bytes()));
-  } else {
-    str(src, Address(dst, oopDesc::klass_offset_in_bytes()));
-  }
+  encode_klass_not_null(src);
+  strw(src, Address(dst, oopDesc::klass_offset_in_bytes()));
 }
 
 void MacroAssembler::store_klass_gap(Register dst, Register src) {
   assert(!UseCompactObjectHeaders, "not with compact headers");
-  if (UseCompressedClassPointers) {
-    // Store to klass gap in destination
-    strw(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
-  }
+  // Store to klass gap in destination
+  strw(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
 }
 
 // Algorithm must match CompressedOops::encode.
@@ -5447,8 +5422,6 @@ MacroAssembler::KlassDecodeMode MacroAssembler::klass_decode_mode() {
 }
 
 MacroAssembler::KlassDecodeMode  MacroAssembler::klass_decode_mode(address base, int shift, const size_t range) {
-  assert(UseCompressedClassPointers, "not using compressed class pointers");
-
   // KlassDecodeMode shouldn't be set already.
   assert(_klass_decode_mode == KlassDecodeNone, "set once");
 
@@ -5578,8 +5551,6 @@ void MacroAssembler::decode_klass_not_null_for_aot(Register dst, Register src) {
 }
 
 void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
-  assert (UseCompressedClassPointers, "should only be used for compressed headers");
-
   if (AOTCodeCache::is_on_for_dump()) {
     decode_klass_not_null_for_aot(dst, src);
     return;
@@ -5646,7 +5617,6 @@ void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
 }
 
 void  MacroAssembler::set_narrow_klass(Register dst, Klass* k) {
-  assert (UseCompressedClassPointers, "should only be used for compressed headers");
   assert (oop_recorder() != nullptr, "this assembler needs an OopRecorder");
   int index = oop_recorder()->find_index(k);
 
@@ -7413,6 +7383,15 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       }
       continue;
     }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
+        str(fromReg, Address(sp, st_off));
+      } else {
+        mov(toReg->as_Register(), fromReg);
+      }
+      continue;
+    }
     assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
     if (!toReg->is_FloatRegister()) {
@@ -7505,9 +7484,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
-  load_heap_oop(val_obj, Address(val_array, index), tmp1, tmp2);
-
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
   BasicType bt;
@@ -7530,6 +7506,19 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       mov(val_obj, 0);
       b(L_null);
       bind(L_notNull);
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
+        ldr(val_obj, Address(sp, ld_off));
+      } else {
+        mov(val_obj, fromReg->as_Register());
+      }
+      cbnz(val_obj, L_null);
+      // get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
+      load_heap_oop(val_obj, Address(val_array, index), rscratch1, rscratch2);
       continue;
     }
 
@@ -7668,11 +7657,36 @@ void MacroAssembler::spin_wait() {
         assert(VM_Version::supports_sb(), "current CPU does not support SB instruction");
         sb();
         break;
+      case SpinWait::WFET:
+        spin_wait_wfet(VM_Version::spin_wait_desc().delay());
+        break;
       default:
         ShouldNotReachHere();
     }
   }
   block_comment("}");
+}
+
+void MacroAssembler::spin_wait_wfet(int delay_ns) {
+  // The sequence assumes CNTFRQ_EL0 is fixed to 1GHz. The assumption is valid
+  // starting from Armv8.6, according to the "D12.1.2 The system counter" of the
+  // Arm Architecture Reference Manual for A-profile architecture version M.a.a.
+  // This is sufficient because FEAT_WFXT is introduced from Armv8.6.
+  Register target = rscratch1;
+  Register current = rscratch2;
+  get_cntvctss_el0(current);
+  add(target, current, delay_ns);
+
+  Label L_wait_loop;
+  bind(L_wait_loop);
+
+  wfet(target);
+  get_cntvctss_el0(current);
+
+  cmp(current, target);
+  br(LT, L_wait_loop);
+
+  sb();
 }
 
 // Stack frame creation/removal

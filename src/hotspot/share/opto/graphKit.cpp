@@ -2013,7 +2013,7 @@ Node* GraphKit::load_array_element(Node* ary, Node* idx, const TypeAryPtr* aryty
 
 //-------------------------set_arguments_for_java_call-------------------------
 // Arguments (pre-popped from the stack) are taken from the JVMS.
-void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline) {
+void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
   PreserveReexecuteState preexecs(this);
   if (Arguments::is_valhalla_enabled()) {
     // Make sure the call is "re-executed", if buffering of inline type arguments triggers deoptimization.
@@ -2039,22 +2039,21 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
           arg = InlineTypeNode::make_null(_gvn, t->inline_klass());
         } else {
           // During parsing, a method is called with an abstract (or j.l.Object) receiver, the
-          // receiver is a non-scalarized oop. Later on, IGVN reveals that the receiver must be a
-          // value object. The method is devirtualized, and replaced with a direct call with a
-          // scalarized receiver instead.
+          // receiver is a non-scalarized oop. CHA or IGVN might then prove that the receiver
+          // type must be an exact value class. The method is devirtualized, and replaced with
+          // a direct call with a scalarized receiver instead.
           assert(arg_idx == 0 && !call->method()->is_static(), "must be the receiver");
-          assert(C->inlining_incrementally() || C->strength_reduction(), "must be during devirtualization of calls");
-          assert(!is_Parse(), "must be during devirtualization of calls");
+          assert(call->is_optimized_virtual(), "must be during devirtualization of calls");
           arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
         }
       }
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(this, call, idx, true, !t->maybe_null());
+      vt->pass_fields(this, call, idx, true, !t->maybe_null(), true);
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
-      // Register an calling convention dependency on the callee method to make sure that this method is deoptimized and
+      // Register a calling convention dependency on the callee method to make sure that this method is deoptimized and
       // re-compiled with a non-scalarized calling convention if the callee method is later marked as mismatched.
       C->dependencies()->assert_mismatch_calling_convention(call->method());
       arg_num++;
@@ -2186,6 +2185,12 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       }
       sync_kit(ideal);
       ret = _gvn.transform(ideal.value(res));
+    } else if (!call->method()->return_value_is_larval() && _gvn.type(ret)->is_inlinetypeptr()) {
+      // In Parse::do_call we call make_from_oop on the final result of the call, but this could be the
+      // result of merging several call paths. If one of them is made of an actual call node that
+      // returns an oop, we need to call make_from_oop here as well because we want InlineType
+      // nodes on every path to avoid merging an unallocated InlineType node path with an oop path.
+      ret = InlineTypeNode::make_from_oop(this, ret, _gvn.type(ret)->inline_klass());
     }
   }
 
@@ -3202,8 +3207,8 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     *ctrl = iftrue1; // We need exactly the 1 test above
     PhaseIterGVN* igvn = gvn.is_IterGVN();
     if (igvn != nullptr) {
-      igvn->remove_globally_dead_node(r_ok_subtype);
-      igvn->remove_globally_dead_node(r_not_subtype);
+      igvn->remove_globally_dead_node(r_ok_subtype, PhaseIterGVN::NodeOrigin::Speculative);
+      igvn->remove_globally_dead_node(r_not_subtype, PhaseIterGVN::NodeOrigin::Speculative);
     }
     return not_subtype_ctrl;
   }
@@ -3670,7 +3675,13 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_control, bool null_free, bool maybe_larval) {
+// If 'new_cast_failure_map' is supplied and is not null, it is set to a newly cloned map
+// when the current map for the success path is updated with information only present
+// on the success path and not the cast failure path. The newly cloned map should then be
+// used to emit the uncommon trap in the caller.
+Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_control, SafePointNode** new_cast_failure_map, bool null_free, bool maybe_larval) {
+  assert(new_cast_failure_map == nullptr || failure_control != nullptr,
+         "failure_control must be set when new_failure_map is used");
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
   const Type* obj_type = _gvn.type(obj);
@@ -3884,12 +3895,21 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
         if (!ary_t->is_not_null_free() && !ary_t->is_null_free() && not_inline) {
           // Casting array element to a non-inline-type, mark array as not null-free.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
+          if (new_cast_failure_map != nullptr) {
+            // We want to propagate the improved cast node in the current map. Clone it such that we can still properly
+            // create the cast failure path in the caller without wrongly making the cast node live there.
+            *new_cast_failure_map = clone_map();
+          }
           replace_in_map(array, cast);
           array = cast;
         }
         if (!ary_t->is_not_flat() && !ary_t->is_flat() && not_flat_in_array) {
           // Casting array element to a non-flat-in-array type, mark array as not flat.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
+          if (new_cast_failure_map != nullptr && *new_cast_failure_map == nullptr) {
+            // Same as above.
+            *new_cast_failure_map = clone_map();
+          }
           replace_in_map(array, cast);
           array = cast;
         }

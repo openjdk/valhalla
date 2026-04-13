@@ -1990,22 +1990,25 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 }
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
-  inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
-                                 !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
-                                 speculative_ptr_kind(tinput) == ProfileAlwaysNull);
-  dec_sp(2);
   if (btest == BoolTest::ne) {
     {
       PreserveJVMState pjvms(this);
-      replace_in_map(input, cast);
+      inc_sp(2);
+      null_check_common(input, T_OBJECT, true, nullptr,
+                        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                        speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+      dec_sp(2);
       int target_bci = iter().get_dest();
       merge(target_bci);
     }
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
   } else {
-    replace_in_map(input, cast);
+    inc_sp(2);
+    null_check_common(input, T_OBJECT, true, nullptr,
+                      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                      speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+    dec_sp(2);
   }
 }
 
@@ -2544,6 +2547,12 @@ static bool match_type_check(PhaseGVN& gvn,
     //   Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq])
     // or the narrowOop equivalent.
     (*obj) = extract_obj_from_klass_load(&gvn, val);
+    // Some klass comparisons are not directly in the form
+    // Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq]),
+    // e.g. Bool(CmpP(CastPP(LoadKlass(...)), ConP(klass)), [eq]).
+    // These patterns with nullable klasses arise from example from
+    // load_array_klass_from_mirror.
+    if (*obj == nullptr) { return false; }
     (*cast_type) = tcon->isa_klassptr()->as_instance_type();
     return true; // found
   }

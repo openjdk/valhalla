@@ -159,9 +159,9 @@ jdk_lang = \
 
 # valhalla lworld tests
 jdk_valhalla = \
-    java/lang/invoke \
     valhalla \
     java/lang/instrument/valhalla \
+    com/sun/jdi/valhalla \
     java/lang/reflect/valhalla
 
 
@@ -171,6 +171,9 @@ jdk_util = \
     :jdk_collections \
     :jdk_concurrent \
     :jdk_stream
+
+valhalla_adopted = \
+    java/util/Collections/AddAll.java
 
 # All util components not part of some other util category
 jdk_util_other = \

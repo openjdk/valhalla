@@ -198,6 +198,8 @@ public class TestLWorld {
     }
 
     // Helper methods
+    @DontInline
+    private static void call() {}
 
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
@@ -456,6 +458,7 @@ public class TestLWorld {
     }
 
     // merge of inline types in a loop, stored in an object local
+    /* TODO 8302217: Enable again when this is fixed.
     @Test
     public Object test9() {
         Object o = valueField1;
@@ -470,6 +473,7 @@ public class TestLWorld {
     public void test9_verifier() {
         Asserts.assertEQ(test9(), MyValue1.setX(valueField1, valueField1.x + 7));
     }
+    */
 
     // merge of inline types in an object local
     @ForceInline
@@ -5262,6 +5266,74 @@ public class TestLWorld {
     @Run(test = "testMismatchedStoresNotOnInlinesSlice")
     public void testMismatchedStoresNotOnInlinesSlice_verifier() {
         testMismatchedStoresNotOnInlinesSlice();
+    }
+
+    static value class AtomicTwoBytes {
+        byte v1;
+        byte v2;
+
+        AtomicTwoBytes(int v1, int v2) {
+            this.v1 = (byte) v1;
+            this.v2 = (byte) v2;
+        }
+    }
+
+    // TODO 8376254: C1 bails out if the type of the nullable flat field is uninitialized
+    static final AtomicTwoBytes LOAD_ATOMIC_TWO_BYTES = new AtomicTwoBytes(0, 0);
+
+    static value class AtomicTwoBytesOneShort {
+        AtomicTwoBytes v;
+        short s;
+
+        AtomicTwoBytesOneShort(AtomicTwoBytes v, int s) {
+            this.v = v;
+            this.s = (short) s;
+        }
+    }
+
+    static class AtomicTwoBytesOneShortHolder {
+        @NullRestricted
+        AtomicTwoBytesOneShort v1;
+        AtomicTwoBytesOneShort v2;
+
+        AtomicTwoBytesOneShortHolder(AtomicTwoBytesOneShort v1, AtomicTwoBytesOneShort v2) {
+            this.v1 = v1;
+            this.v2 = v2;
+            super();
+        }
+    }
+
+    @Test
+    @IR(failOn = IRNode.ALLOC)
+    private static int testScalarReplaceObject(int v) {
+        AtomicTwoBytesOneShort v1 = new AtomicTwoBytesOneShort(null, v);
+        AtomicTwoBytesOneShort v2 = new AtomicTwoBytesOneShort(new AtomicTwoBytes(v, v), v);
+        AtomicTwoBytesOneShortHolder h = new AtomicTwoBytesOneShortHolder(v1, v2);
+        call();
+        return h.v1.s;
+    }
+
+    @Run(test = "testScalarReplaceObject")
+    public void runScalarReplaceObject() {
+        int v = (short) rI;
+        Asserts.assertEQ(v, testScalarReplaceObject(v));
+    }
+
+    @Test
+    @IR(failOn = IRNode.ALLOC)
+    private static int testScalarReplaceArray(int v1, int v2) {
+        AtomicTwoBytesOneShort[] array = new AtomicTwoBytesOneShort[2];
+        array[0] = new AtomicTwoBytesOneShort(null, v1);
+        array[1] = new AtomicTwoBytesOneShort(new AtomicTwoBytes(v1, v2), v2);
+        call();
+        return array[1].v.v1;
+    }
+
+    @Run(test = "testScalarReplaceArray")
+    public void runScalarReplaceArray() {
+        int v1 = (byte) rI;
+        int v2 = (int) rL;
+        Asserts.assertEQ(v1, testScalarReplaceArray(v1, v2));
     }
 }
 

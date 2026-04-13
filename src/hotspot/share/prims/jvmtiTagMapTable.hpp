@@ -74,7 +74,6 @@ public:
   }
 };
 
-
 // The oop is needed for lookup rather than creating a WeakHandle during
 // lookup because the HeapWalker may walk soon to be dead objects and
 // creating a WeakHandle for an otherwise dead object makes G1 unhappy.
@@ -103,7 +102,6 @@ class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
   JvmtiTagMapKey(const JvmtiHeapwalkObject* obj);
   // Copy ctor is called when we put entry to the hash table.
   JvmtiTagMapKey(const JvmtiTagMapKey& src);
-
   JvmtiTagMapKey& operator=(const JvmtiTagMapKey&) = delete;
 
   JvmtiHeapwalkObject heapwalk_object() const;

@@ -158,7 +158,7 @@ static void assert_inline_type(markWord mark) {
 TEST_VM(markWord, inline_type_prototype) {
   markWord mark = markWord::inline_type_prototype();
   assert_unlocked_state(mark);
-  EXPECT_FALSE(mark.is_neutral());
+  // Don't call mark.is_neutral() on value class instances
   assert_test_pattern(&mark, " inline_type");
 
   assert_inline_type(mark);

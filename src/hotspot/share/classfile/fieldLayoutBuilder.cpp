@@ -997,11 +997,13 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
   assert(_has_nonstatic_fields || _is_abstract_value, "Concrete value types do not support zero instance size yet");
 }
 
-void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
+LayoutRawBlock* FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
+  LayoutRawBlock* padding = nullptr;
   if (ContendedPaddingWidth > 0) {
-    LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, ContendedPaddingWidth);
+    padding = new LayoutRawBlock(LayoutRawBlock::PADDING, ContendedPaddingWidth);
     _layout->insert(slot, padding);
   }
+  return padding;
 }
 
 // Computation of regular classes layout is an evolution of the previous default layout
@@ -1021,10 +1023,14 @@ void FieldLayoutBuilder::compute_regular_layout() {
   prologue();
   regular_field_sorting();
   if (_is_contended) {
-    _layout->set_start(_layout->last_block());
     // insertion is currently easy because the current strategy doesn't try to fill holes
     // in super classes layouts => the _start block is by consequence the _last_block
-    insert_contended_padding(_layout->start());
+    _layout->set_start(_layout->last_block());
+    LayoutRawBlock* padding = insert_contended_padding(_layout->start());
+    if (padding != nullptr) {
+      // Setting the padding block as start ensures we do not insert past it.
+      _layout->set_start(padding);
+    }
     need_tail_padding = true;
   }
 
@@ -1042,8 +1048,14 @@ void FieldLayoutBuilder::compute_regular_layout() {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
       LayoutRawBlock* start = _layout->last_block();
-      insert_contended_padding(start);
-      _layout->add(cg->big_primitive_fields());
+      LayoutRawBlock* padding = insert_contended_padding(start);
+
+      // Do not insert fields past the padding block.
+      if (padding != nullptr) {
+        start = padding;
+      }
+
+      _layout->add(cg->big_primitive_fields(), start);
       _layout->add(cg->small_primitive_fields(), start);
       _layout->add(cg->oop_fields(), start);
       need_tail_padding = true;
@@ -1115,7 +1127,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // No inherited fields, the layout must be empty except for the RESERVED block
     // PADDING is inserted if needed to ensure the correct alignment of the payload.
     if (_is_abstract_value && _has_nonstatic_fields) {
-      // non-static fields of the abstract class must be laid out without knowning
+      // non-static fields of the abstract class must be laid out without knowing
       // the alignment constraints of the fields of the sub-classes, so the worst
       // case scenario is assumed, which is currently the alignment of T_LONG.
       // PADDING is added if needed to ensure the payload will respect this alignment.
@@ -1152,6 +1164,12 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         assert(new_alignment % _layout->super_min_align_required() == 0, "Must be");
         _payload_alignment = new_alignment;
       }
+      _layout->set_start(_layout->first_field_block());
+    } else {
+      // Abstract value class inheriting fields, restore the pessimistic alignment
+      // constraint (see comment above) and ensure no field will be inserted before
+      // the first inherited field.
+      _payload_alignment = type2aelembytes(BasicType::T_LONG);
       _layout->set_start(_layout->first_field_block());
     }
   }
@@ -1351,39 +1369,37 @@ void FieldLayoutBuilder::register_embedded_oops(OopMapBlocksBuilder* nonstatic_o
   register_embedded_oops_from_list(nonstatic_oop_maps, group->big_primitive_fields());
 }
 
-static int insert_segment(GrowableArray<Pair<int,int>>* map, int offset, int size, int last_idx) {
+static int insert_segment(GrowableArray<AcmpMapSegment>* map, int offset, int size, int last_idx) {
   if (map->is_empty()) {
-    return map->append(Pair<int,int>(offset, size));
+    return map->append(AcmpMapSegment(offset, size));
   }
-  last_idx = last_idx == -1 ? 0 : last_idx;
-  int start = map->adr_at(last_idx)->first > offset ? 0 : last_idx;
+  int start = map->adr_at(last_idx)->_offset > offset ? 0 : last_idx;
   bool inserted = false;
   for (int c = start; c < map->length(); c++) {
-    if (offset == (map->adr_at(c)->first + map->adr_at(c)->second)) {
+    if (offset == (map->adr_at(c)->_offset + map->adr_at(c)->_size)) {
       //contiguous to the last field, can be coalesced
-      map->adr_at(c)->second = map->adr_at(c)->second + size;
+      map->adr_at(c)->_size = map->adr_at(c)->_size + size;
       inserted = true;
       break;  // break out of the for loop
     }
-    if (offset < (map->adr_at(c)->first)) {
-      map->insert_before(c, Pair<int,int>(offset, size));
+    if (offset < (map->adr_at(c)->_offset)) {
+      map->insert_before(c, AcmpMapSegment(offset, size));
       last_idx = c;
       inserted = true;
       break;  // break out of the for loop
     }
   }
   if (!inserted) {
-    last_idx = map->append(Pair<int,int>(offset, size));
+    last_idx = map->append(AcmpMapSegment(offset, size));
   }
   return last_idx;
 }
 
-static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, GrowableArray<int>* oop_map,
-                                const InstanceKlass* ik, int offset, int payload_offset, int last_idx) {
+static int insert_map_at_offset(GrowableArray<AcmpMapSegment>* nonoop_map, GrowableArray<int>* oop_map,
+                                const InstanceKlass* ik, int field_offset, int last_idx) {
   Array<int>* super_map = ik->acmp_maps_array();
   assert(super_map != nullptr, "super class must have an acmp map");
   int num_nonoop_field = super_map->at(0);
-  int field_offset = offset - payload_offset;
   for (int i = 0; i < num_nonoop_field; i++) {
     last_idx = insert_segment(nonoop_map,
                               field_offset + super_map->at( i * 2 + 1),
@@ -1396,13 +1412,13 @@ static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, Growab
   return last_idx;
 }
 
-static void split_after(GrowableArray<Pair<int,int>>* map, int idx, int head) {
-  int offset = map->adr_at(idx)->first;
-  int size = map->adr_at(idx)->second;
+static void split_after(GrowableArray<AcmpMapSegment>* map, int idx, int head) {
+  int offset = map->adr_at(idx)->_offset;
+  int size = map->adr_at(idx)->_size;
   if (size <= head) return;
-  map->adr_at(idx)->first = offset + head;
-  map->adr_at(idx)->second = size - head;
-  map->insert_before(idx, Pair<int,int>(offset, head));
+  map->adr_at(idx)->_offset = offset + head;
+  map->adr_at(idx)->_size = size - head;
+  map->insert_before(idx, AcmpMapSegment(offset, head));
 
 }
 
@@ -1410,17 +1426,16 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   assert(_is_inline_type || _is_abstract_value, "Must be done only for value classes (abstract or not)");
 
   // create/initialize current class' maps
-  // The Pair<int,int> values in the nonoop_acmp_map represent <offset,size> segments of memory
-  _nonoop_acmp_map = new GrowableArray<Pair<int,int>>();
+  _nonoop_acmp_map = new GrowableArray<AcmpMapSegment>();
   _oop_acmp_map = new GrowableArray<int>();
   if (_is_empty_inline_class) return;
   // last_idx remembers the position of the last insertion in order to speed up the next insertion.
   // Local fields are processed in ascending offset order, so an insertion is very likely be performed
   // next to the previous insertion. However, in some cases local fields and inherited fields can be
   // interleaved, in which case the search of the insertion position cannot depend on the previous insertion.
-  int last_idx = -1;
+  int last_idx = 0;
   if (_super_klass != nullptr && _super_klass != vmClasses::Object_klass()) {  // Assumes j.l.Object cannot have fields
-    last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, 0, last_idx);
+    last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, last_idx);
   }
 
   // Processing local fields
@@ -1449,7 +1464,8 @@ void FieldLayoutBuilder::generate_acmp_maps() {
       case LayoutRawBlock::FLAT:
         {
           InlineKlass* vk = b->inline_klass();
-          last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, b->offset(), vk->payload_offset(), last_idx);
+          int field_offset = b->offset() - vk->payload_offset();
+          last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, field_offset, last_idx);
           if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
             int null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
             last_idx = insert_segment(_nonoop_acmp_map, null_marker_offset, 1, last_idx);
@@ -1472,8 +1488,8 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   // split segments into well-aligned blocks
   int idx = 0;
   while (idx < _nonoop_acmp_map->length()) {
-    int offset = _nonoop_acmp_map->adr_at(idx)->first;
-    int size = _nonoop_acmp_map->adr_at(idx)->second;
+    int offset = _nonoop_acmp_map->adr_at(idx)->_offset;
+    int size = _nonoop_acmp_map->adr_at(idx)->_size;
     int mod = offset % 8;
     switch (mod) {
       case 0:
@@ -1647,9 +1663,9 @@ void FieldLayoutBuilder::epilogue() {
       if (_null_marker_offset != -1) {
         st.print_cr("Null marker offset = %d", _null_marker_offset);
       }
-      st.print("Non-oop acmp map: ");
+      st.print("Non-oop acmp map <offset,size>: ");
       for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
-        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i).first,  _nonoop_acmp_map->at(i).second);
+        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
       }
       st.print_cr("");
       st.print("oop acmp map: ");

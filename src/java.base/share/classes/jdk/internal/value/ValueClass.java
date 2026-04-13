@@ -105,7 +105,7 @@ public final class ValueClass {
      * {@return true if the given array is a flat array}
      */
     @IntrinsicCandidate
-    public static native boolean isFlatArray(Object array);
+    public static native boolean isFlatArray(Object[] array);
 
     public static Object[] copyOfSpecialArray(Object[] array, int newLength) {
         if (newLength < 0) {
@@ -131,11 +131,11 @@ public final class ValueClass {
      * {@return true if the given array is a null-restricted array}
      */
     @IntrinsicCandidate
-    public static native boolean isNullRestrictedArray(Object array);
+    public static native boolean isNullRestrictedArray(Object[] array);
 
     /**
      * {@return true if the given array uses a layout designed for atomic accesses }
      */
     @IntrinsicCandidate
-    public static native boolean isAtomicArray(Object array);
+    public static native boolean isAtomicArray(Object[] array);
 }

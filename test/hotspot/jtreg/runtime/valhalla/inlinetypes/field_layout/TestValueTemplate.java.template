@@ -23,7 +23,10 @@
 
 
 import java.lang.reflect.Field;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
+<class_annotations>
 <class_modifiers> <class_name> <super_class> {
     static Object[] predefined;
     static boolean allowDuplicates = <allow_duplicates>;

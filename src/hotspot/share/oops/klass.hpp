@@ -471,9 +471,9 @@ protected:
   static const int _lh_log2_element_size_shift = BitsPerByte*0;
   static const int _lh_log2_element_size_mask  = BitsPerLong-1;
   static const int _lh_element_type_shift      = BitsPerByte*1;
-  static const int _lh_element_type_mask       = right_n_bits(BitsPerByte);  // shifted mask
+  static const int _lh_element_type_mask       = right_n_bits<int>(BitsPerByte);  // shifted mask
   static const int _lh_header_size_shift       = BitsPerByte*2;
-  static const int _lh_header_size_mask        = right_n_bits(BitsPerByte);  // shifted mask
+  static const int _lh_header_size_mask        = right_n_bits<int>(BitsPerByte);  // shifted mask
   static const int _lh_array_tag_bits          = 4;
   static const int _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits;
 
@@ -734,7 +734,6 @@ public:
   #undef assert_same_query
 
   inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
-
 
   virtual bool is_interface() const     { return false; }
   virtual bool is_abstract() const      { return false; }

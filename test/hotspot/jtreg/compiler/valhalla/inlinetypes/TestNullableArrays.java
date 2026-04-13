@@ -978,10 +978,10 @@ public class TestNullableArrays {
         Asserts.assertEQ(result, null);
     }
 
-    // non escaping allocations
     @Test
-    // TODO 8372332: Add LOAD_OF_ANY_KLASS when return values are not scalarized
     @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(failOn = LOAD_OF_ANY_KLASS, applyIf = {"InlineTypeReturnedAsFields", "false"})
+    @IR(counts = {LOAD_OF_ANY_KLASS, "4"}, applyIf = {"InlineTypeReturnedAsFields", "true"})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);

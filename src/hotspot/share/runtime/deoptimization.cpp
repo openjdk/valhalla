@@ -48,6 +48,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
@@ -1289,7 +1290,9 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
   for (int i = 0; i < objects->length(); i++) {
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
+
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+
     k = get_refined_array_klass(k, fr, reg_map, sv, THREAD);
 
     // Check if the object may be null and has an additional null_marker input that needs
@@ -1608,8 +1611,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     ScopeValue* scope_field = sv->field_at(svIndex);
     StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
     switch (type) {
-      case T_OBJECT:
-      case T_ARRAY:
+      case T_OBJECT: case T_ARRAY:
         assert(value->type() == T_OBJECT, "Agreement.");
         obj->obj_field_put(offset, value->get_obj()());
         break;
@@ -1680,7 +1682,6 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     }
     svIndex++;
   }
-
   return svIndex;
 }
 
@@ -2157,7 +2158,7 @@ static void post_deoptimization_event(nmethod* nm,
 #endif // INCLUDE_JFR
 
 static void log_deopt(nmethod* nm, Method* tm, intptr_t pc, frame& fr, int trap_bci,
-                              const char* reason_name, const char* reason_action) {
+                      const char* reason_name, const char* reason_action, const char* class_name) {
   LogTarget(Debug, deoptimization) lt;
   if (lt.is_enabled()) {
     LogStream ls(lt);
@@ -2171,6 +2172,9 @@ static void log_deopt(nmethod* nm, Method* tm, intptr_t pc, frame& fr, int trap_
     }
     ls.print("%s ", reason_name);
     ls.print("%s ", reason_action);
+    if (class_name != nullptr) {
+      ls.print("%s ", class_name);
+    }
     ls.print_cr("pc=" INTPTR_FORMAT " relative_pc=" INTPTR_FORMAT,
              pc, fr.pc() - nm->code_begin());
   }
@@ -2271,6 +2275,17 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
     MethodData* trap_mdo =
       get_method_data(current, profiled_method, create_if_missing);
 
+    Symbol* class_name = nullptr;
+    bool unresolved = false;
+    if (unloaded_class_index >= 0) {
+      constantPoolHandle constants (current, trap_method->constants());
+      if (constants->tag_at(unloaded_class_index).is_unresolved_klass()) {
+        class_name = constants->klass_name_at(unloaded_class_index);
+        unresolved = true;
+      } else if (constants->tag_at(unloaded_class_index).is_symbol()) {
+        class_name = constants->symbol_at(unloaded_class_index);
+      }
+    }
     { // Log Deoptimization event for JFR, UL and event system
       Method* tm = trap_method();
       const char* reason_name = trap_reason_name(reason);
@@ -2278,10 +2293,24 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
       intptr_t pc = p2i(fr.pc());
 
       JFR_ONLY(post_deoptimization_event(nm, tm, trap_bci, trap_bc, reason, action);)
-      log_deopt(nm, tm, pc, fr, trap_bci, reason_name, reason_action);
-      Events::log_deopt_message(current, "Uncommon trap: reason=%s action=%s pc=" INTPTR_FORMAT " method=%s @ %d %s",
+
+      ResourceMark rm;
+
+      const char* class_name_str = nullptr;
+      const char* class_name_msg = nullptr;
+      stringStream st, stm;
+      if (class_name != nullptr) {
+        class_name->print_symbol_on(&st);
+        class_name_str = st.freeze();
+        stm.print("class=%s ", class_name_str);
+        class_name_msg = stm.freeze();
+      } else {
+        class_name_msg = "";
+      }
+      log_deopt(nm, tm, pc, fr, trap_bci, reason_name, reason_action, class_name_str);
+      Events::log_deopt_message(current, "Uncommon trap: reason=%s action=%s pc=" INTPTR_FORMAT " method=%s @ %d %s%s",
                                 reason_name, reason_action, pc,
-                                tm->name_and_sig_as_C_string(), trap_bci, nm->compiler_name());
+                                tm->name_and_sig_as_C_string(), trap_bci, class_name_msg, nm->compiler_name());
     }
 
     // Print a bunch of diagnostics, if requested.
@@ -2309,20 +2338,13 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
 #endif
         nm->log_identity(xtty);
       }
-      Symbol* class_name = nullptr;
-      bool unresolved = false;
-      if (unloaded_class_index >= 0) {
-        constantPoolHandle constants (current, trap_method->constants());
-        if (constants->tag_at(unloaded_class_index).is_unresolved_klass()) {
-          class_name = constants->klass_name_at(unloaded_class_index);
-          unresolved = true;
-          if (xtty != nullptr)
+      if (class_name != nullptr) {
+        if (xtty != nullptr) {
+          if (unresolved) {
             xtty->print(" unresolved='1'");
-        } else if (constants->tag_at(unloaded_class_index).is_symbol()) {
-          class_name = constants->symbol_at(unloaded_class_index);
-        }
-        if (xtty != nullptr)
+          }
           xtty->name(class_name);
+        }
       }
       if (xtty != nullptr && trap_mdo != nullptr && (int)reason < (int)MethodData::_trap_hist_limit) {
         // Dump the relevant MDO state.

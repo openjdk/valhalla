@@ -66,6 +66,7 @@
 #include "runtime/flags/flagSetting.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/icache.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
@@ -1268,6 +1269,9 @@ void nmethod::post_init() {
 
   finalize_relocations();
 
+  // Flush generated code
+  ICache::invalidate_range(code_begin(), code_size());
+
   Universe::heap()->register_nmethod(this);
   DEBUG_ONLY(Universe::heap()->verify_nmethod(this));
 
@@ -1606,8 +1610,6 @@ nmethod* nmethod::relocate(CodeBlobType code_blob_type) {
 
     // Attempt to start using the copy
     if (nm_copy->make_in_use()) {
-      ICache::invalidate_range(nm_copy->code_begin(), nm_copy->code_size());
-
       methodHandle mh(Thread::current(), nm_copy->method());
       nm_copy->method()->set_code(mh, nm_copy);
 
@@ -4200,7 +4202,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       m->method_holder()->print_value_on(stream);
     } else {
       bool did_name = false;
-      if (is_reference_type(t)) {
+      if (is_reference_type(t) && !(*sig)._vt_oop) {
         Symbol* name = (*sig)._name;
         name->print_value_on(stream);
         did_name = true;
@@ -4209,6 +4211,9 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         stream->print("%s", type2name(t));
       if ((*sig)._null_marker) {
         stream->print(" (null marker)");
+      }
+      if ((*sig)._vt_oop) {
+        stream->print(" (VT OOP)");
       }
     }
     if (at_old_sp) {

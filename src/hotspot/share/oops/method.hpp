@@ -133,7 +133,7 @@ class Method : public Metadata {
   void set_constMethod(ConstMethod* xconst)    { _constMethod = xconst; }
 
 
-  static address make_adapters(const methodHandle& mh, TRAPS);
+  static void make_adapters(const methodHandle& mh, TRAPS);
   address from_compiled_entry() const;
   address from_compiled_inline_ro_entry() const;
   address from_compiled_inline_entry() const;
@@ -782,6 +782,7 @@ public:
   void set_has_reserved_stack_access() { constMethod()->set_reserved_stack_access(); }
 
   bool is_scalarized_arg(int idx) const;
+  bool is_scalarized_buffer_arg(int idx) const;
 
   bool c1_needs_stack_repair() const { return constMethod()->c1_needs_stack_repair(); }
   void set_c1_needs_stack_repair() { constMethod()->set_c1_needs_stack_repair(); }

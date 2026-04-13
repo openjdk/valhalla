@@ -286,7 +286,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
-  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<AcmpMapSegment>* _nonoop_acmp_map;
   GrowableArray<int>* _oop_acmp_map;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
@@ -337,7 +337,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void build_layout();
   void compute_regular_layout();
   void compute_inline_class_layout();
-  void insert_contended_padding(LayoutRawBlock* slot);
+  LayoutRawBlock* insert_contended_padding(LayoutRawBlock* slot);
 
  protected:
   void prologue();

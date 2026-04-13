@@ -1326,7 +1326,7 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
           igvn->replace_input_of(ctl, i, igvn->C->top());
         }
       }
-      igvn->remove_dead_node(mm);
+      igvn->remove_dead_node(mm, PhaseIterGVN::NodeOrigin::Speculative);
     }
     return res;
   }
@@ -1381,6 +1381,9 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
       } else if (m1->Opcode() == Op_CallStaticJava &&
                  m1->as_Call()->entry_point() == OptoRuntime::load_unknown_inline_Java()) {
         if (m1 != call) {
+          if (call_mem->outcnt() == 0) {
+            igvn->remove_dead_node(call_mem, PhaseIterGVN::NodeOrigin::Speculative);
+          }
           return false;
         }
         break;
@@ -1393,12 +1396,15 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
           m1 = mm->memory_at(idx);
         }
       } else {
+        if (call_mem->outcnt() == 0) {
+          igvn->remove_dead_node(call_mem, PhaseIterGVN::NodeOrigin::Speculative);
+        }
         return false;
       }
     }
   }
   if (call_mem->outcnt() == 0) {
-    igvn->remove_dead_node(call_mem);
+    igvn->remove_dead_node(call_mem, PhaseIterGVN::NodeOrigin::Speculative);
   }
 
   // Remove membar preceding the call
@@ -1991,7 +1997,6 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   _is_scalar_replaceable = false;
   _is_non_escaping = false;
   _is_allocation_MemBar_redundant = false;
-  _larval = false;
   Node *topnode = C->top();
 
   init_req( TypeFunc::Control  , ctrl );
@@ -2031,19 +2036,12 @@ Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
     Node* klass_node = in(AllocateNode::KlassNode);
     Node* proto_adr = phase->transform(AddPNode::make_with_base(phase->C->top(), klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
-
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, phase->type(proto_adr)->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-    if (Arguments::is_valhalla_enabled()) {
-      mark_node = phase->transform(mark_node);
-      // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-      // TODO: Could this be removed now that we don't use larval bits
-      assert(!_larval, "Larval bits are not in use at the moment");
-      mark_node = new OrXNode(mark_node, phase->MakeConX(0));
-    }
-    return mark_node;
   } else {
-    return phase->MakeConX(markWord::prototype().value());
+    // For now only enable fast locking for non-array types
+    mark_node = phase->MakeConX(markWord::prototype().value());
   }
+  return mark_node;
 }
 
 // Retrieve the length from the AllocateArrayNode. Narrow the type with a

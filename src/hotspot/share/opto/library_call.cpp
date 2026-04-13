@@ -4526,11 +4526,13 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* res = top();
   Node* io = i_o();
   Node* mem = merged_memory();
+  SafePointNode* new_cast_failure_map = nullptr;
+
   if (!stopped()) {
 
     Node* bad_type_ctrl = top();
     // Do checkcast optimizations.
-    res = gen_checkcast(obj, kls, &bad_type_ctrl);
+    res = gen_checkcast(obj, kls, &bad_type_ctrl, &new_cast_failure_map);
     region->init_req(_bad_type_path, bad_type_ctrl);
   }
   if (region->in(_prim_path) != top() ||
@@ -4538,6 +4540,10 @@ bool LibraryCallKit::inline_Class_cast() {
       region->in(_npe_path) != top()) {
     // Let Interpreter throw ClassCastException.
     PreserveJVMState pjvms(this);
+    if (new_cast_failure_map != nullptr) {
+      // The current map on the success path could have been modified. Use the dedicated failure path map.
+      set_map(new_cast_failure_map);
+    }
     set_control(_gvn.transform(region));
     // Set IO and memory because gen_checkcast may override them when buffering inline types
     set_i_o(io);
