@@ -504,6 +504,31 @@ public final /* value */ class ComplexTextbook  {
         return valueOf(this.real, -this.imag);
     }
 
+    /**
+     * {@return the square root of the argument}.
+     *
+     * @implSpec
+     * Describe error bounds of the return value.
+     *
+     * @param c the operand
+     */
+    public static ComplexTextbook sqrt(ComplexTextbook c) {
+        // See discussions in HoFPA section 11.7.
+        if (isZero(c)) {
+            return ZERO; // TODO: Look up sign of zero conventions
+        }
+
+        // TODO: NaN and infinity handling
+        double a = c.real;
+        double b = c.imag;
+
+        double rho = abs(c);
+        double v = rho + a;
+        double x = Math.sqrt(v * 0.5);
+        double y = b / (2*x);
+        return valueOf(x, y);
+    }
+
     // Utility methods
 
     /**
