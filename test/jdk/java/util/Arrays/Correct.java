@@ -71,8 +71,8 @@ public class Correct {
     public void testDefaultSort() {
         for (int i=0; i<ITERATIONS; i++) {
             int size = rnd.nextInt(TEST_SIZE) + 1;
-            Integer[] array1 = getIntegerArray(size);
-            Integer[] array2 = Arrays.copyOf(array1, array1.length);
+            Comparable[] array1 = getIntegerArray(size);
+            Comparable[] array2 = Arrays.copyOf(array1, array1.length);
             Arrays.sort(array1, array1.length/3, array1.length/2);
             stupidSort(array2, array2.length/3, array2.length/2);
             Assertions.assertArrayEquals(array2, array1, "Arrays did not match. size=" + size);
@@ -108,7 +108,7 @@ public class Correct {
             Integer[] array1 = getIntegerArray(size);
             Integer[] array2 = Arrays.copyOf(array1, array1.length);
             Arrays.sort(array1, array1.length/3, array1.length/2, comparator);
-            stupidSort(array2, array2.length/3, array2.length/2, comparator);
+            stupidSort((Object[])array2, array2.length/3, array2.length/2, comparator);
             Assertions.assertArrayEquals(array2, array1, "Arrays did not match. size=" + size);
         }
     }
@@ -121,12 +121,12 @@ public class Correct {
         return blah;
     }
 
-    static void stupidSort(Point[] a1, int from, int to) {
+    static void stupidSort(Comparable[] a1, int from, int to) {
         if (from > to - 1)
             return;
 
         for (int x=from; x<to; x++) {
-            Point lowest = a1[x];
+            Comparable lowest = a1[x];
             int lowestIndex = x;
             for (int y=x + 1; y<to; y++) {
                 if (a1[y].compareTo(lowest) < 0) {
@@ -140,50 +140,13 @@ public class Correct {
         }
     }
 
-    static void stupidSort(Point[] a1, int from, int to, Comparator<Point> comparator) {
+    @SuppressWarnings("unchecked")
+    static void stupidSort(Object[] a1, int from, int to, Comparator comparator) {
         if (from > to - 1)
             return;
 
         for (int x=from; x<to; x++) {
-            Point lowest = a1[x];
-            int lowestIndex = x;
-            for (int y=x + 1; y<to; y++) {
-                if (comparator.compare(a1[y], lowest) < 0) {
-                    lowest = a1[y];
-                    lowestIndex = y;
-                }
-            }
-            if (lowestIndex != x) {
-                swap(a1, x, lowestIndex);
-            }
-        }
-    }
-
-    static void stupidSort(Integer[] a1, int from, int to) {
-        if (from > to - 1 )
-          return;
-
-        for (int x=from; x<to; x++) {
-            Integer lowest = a1[x];
-            int lowestIndex = x;
-            for (int y=x + 1; y<to; y++) {
-                if (((Comparable)a1[y]).compareTo((Comparable)lowest) < 0) {
-                    lowest = a1[y];
-                    lowestIndex = y;
-                }
-            }
-            if (lowestIndex != x) {
-                swap(a1, x, lowestIndex);
-            }
-        }
-    }
-
-    static void stupidSort(Integer[] a1, int from, int to, Comparator<Integer> comparator) {
-        if (from > to - 1 )
-          return;
-
-        for (int x=from; x<to; x++) {
-            Integer lowest = a1[x];
+            Object lowest = a1[x];
             int lowestIndex = x;
             for (int y=x + 1; y<to; y++) {
                 if (comparator.compare(a1[y], lowest) < 0) {

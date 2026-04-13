@@ -36,7 +36,10 @@ import jdk.test.lib.valueclass.AsValueClass;
 public class HashCode {
 
     @AsValueClass
-    record Point(int x, int y) {}
+    static class Point {
+        int x, y;
+        Point(int x, int y) {this.x = x; this.y = y;}
+    }
 
     private static String[] tests = { "", " ", "a", "abcdefg",
             "It was the best of times, it was the worst of times, it was the age of wisdom, it was the age of foolishness, it was the epoch of belief, it was the epoch of incredulity, it was the season of Light, it was the season of Darkness, it was the spring of hope, it was the winter of despair, we had everything before us, we had nothing before us, we were all going direct to Heaven, we were all going direct the other way- in short, the period was so far like the present period, that some of its noisiest authorities insisted on its being received, for good or for evil, in the superlative degree of comparison only.  -- Charles Dickens, Tale of Two Cities",
@@ -191,14 +194,16 @@ public class HashCode {
         Point[] b = {new Point(1, 2), new Point(3, 4)}; // distinct instances, same fields
         int hashA = Arrays.hashCode(a);
         int hashB = Arrays.hashCode(b);
-        if (hashA != hashB) {
-            throw new RuntimeException("testValueClassArrayHashCode: expected equal hash codes " +
-                "for equal value class arrays, got " + hashA + " and " + hashB);
-        }
-        // Consistency with repeated calls (no identity hash interference)
-        if (hashA != Arrays.hashCode(a)) {
-            throw new RuntimeException("testValueClassArrayHashCode: " +
-                "hash code not consistent across repeated calls");
+        if (Point.class.isValue()) {
+            if (hashA != hashB) {
+                throw new RuntimeException("testValueClassArrayHashCode: expected equal hash codes " +
+                    "for equal value class arrays, got " + hashA + " and " + hashB);
+            }
+            // Repeated calls should produce the same array hash code
+            if (hashA != Arrays.hashCode(a)) {
+                throw new RuntimeException("testValueClassArrayHashCode: " +
+                    "hash code not consistent across repeated calls");
+            }
         }
     }
 }

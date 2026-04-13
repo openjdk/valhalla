@@ -38,6 +38,7 @@ import java.util.function.IntUnaryOperator;
 import jdk.test.lib.valueclass.AsValueClass;
 
 import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
@@ -318,29 +319,13 @@ public class SetAllTest {
     public void testPointSetNulls() {
         Point[] ar = new Point[2];
 
-        try {
-            Arrays.setAll((Point[]) null, (IntFunction<Point>) i -> new Point(i, i));
-            fail("Arrays.setAll(null, foo) should throw NPE");
-        } catch (NullPointerException npe) {
-            // expected
-        }
-        try {
-            Arrays.parallelSetAll((Point[]) null, (IntFunction<Point>) i -> new Point(i, i));
-            fail("Arrays.parallelSetAll(null, foo) should throw NPE");
-        } catch (NullPointerException npe) {
-            // expected
-        }
-        try {
-            Arrays.setAll(ar, (IntFunction<Point>) null);
-            fail("Arrays.setAll(array, null) should throw NPE");
-        } catch (NullPointerException npe) {
-            // expected
-        }
-        try {
-            Arrays.parallelSetAll(ar, (IntFunction<Point>) null);
-            fail("Arrays.parallelSetAll(array, null) should throw NPE");
-        } catch (NullPointerException npe) {
-            // expected
-        }
+        assertThrows(NullPointerException.class, () -> Arrays.setAll(
+            (Point[]) null, (IntFunction<Point>) i -> new Point(i, i)));
+        assertThrows(NullPointerException.class, () -> Arrays.parallelSetAll(
+            (Point[]) null, (IntFunction<Point>) i -> new Point(i, i)));
+        assertThrows(NullPointerException.class, () -> Arrays.setAll(
+            ar, (IntFunction<Point>) null));
+        assertThrows(NullPointerException.class, () -> Arrays.parallelSetAll(
+            ar, (IntFunction<Point>) null));
     }
 }
