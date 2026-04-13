@@ -5602,56 +5602,64 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
         vk->name()->print();
         tty->print_cr("");
       }
-      for (int i = 0; i < vk->total_fields_count(); ++i) {
-        fieldDescriptor fd(vk, i);
-        if (fd.is_static() || fd.is_injected()) continue;
+      for (InstanceKlass* ik = vk; ik != nullptr; ik = ik->super()) {
         if (UseNewCode) {
-          tty->print("-> ");
-          fd.print();
+          tty->print("~> ");
+          ik->name()->print();
           tty->print_cr("");
         }
-        int field_start = fd.offset() - payload_offset;
-        if (UseNewCode) tty->print_cr("  field_start=%d", field_start);
-        if (fd.is_flat()) {
-          assert(vk->inline_layout_info_array() != nullptr, "");
-          assert(i < vk->inline_layout_info_array()->length(), "");
-          InlineLayoutInfo ili = vk->inline_layout_info(i);
-          if (LayoutKindHelper::is_nullable_flat(ili.kind())) {
-            int nm_offset = field_start + ili.klass()->null_marker_offset_in_payload();
-            if (UseNewCode) tty->print_cr("  nm_offset=%d", field_start);
-            if (nm_offset >= 8) {
-              if (UseNewCode) tty->print_cr("  null marker out of bounds => BREAK");
+        for (int i = 0; i < ik->total_fields_count(); ++i) {
+          fieldDescriptor fd(ik, i);
+          if (fd.is_static() || fd.is_injected()) continue;
+          if (UseNewCode) {
+            tty->print("-> ");
+            fd.print();
+            tty->print_cr("");
+          }
+          int field_start = fd.offset() - payload_offset;
+          if (UseNewCode) tty->print_cr("  field_start=%d", field_start);
+          if (fd.is_flat()) {
+            assert(ik->inline_layout_info_array() != nullptr, "");
+            assert(i < ik->inline_layout_info_array()->length(), "");
+            InlineLayoutInfo ili = ik->inline_layout_info(i);
+            if (LayoutKindHelper::is_nullable_flat(ili.kind())) {
+              int nm_offset = field_start + ili.klass()->null_marker_offset_in_payload();
+              if (UseNewCode) tty->print_cr("  nm_offset=%d", field_start);
+              if (nm_offset >= 8) {
+                if (UseNewCode) tty->print_cr("  null marker out of bounds => BREAK");
+                mask = 0;
+                worklist.clear();
+                break;
+              }
+              int64_t mask_piece = make_mask_piece(nm_offset, 1);
+              if (UseNewCode) tty->print_cr("  null marker mask piece " INT64_FORMAT_X_0, mask_piece);
+              mask |= mask_piece;
+            }
+            worklist.push(InlineKlassAtOffset{field_start, ili.klass()});
+          } else {
+            BasicType bt = fd.field_type();
+            int field_size = type2aelembytes(bt);
+            int field_end = field_start + field_size - 1;
+            if (UseNewCode) tty->print_cr("  start:%d size:%d end:%d", field_start, field_size, field_end);
+            if (!is_java_primitive(bt)) {
+              if (UseNewCode) tty->print_cr("  field is an oop => BREAK");
               mask = 0;
               worklist.clear();
               break;
+            } else if (field_end >= 8) {
+              if (UseNewCode) tty->print_cr("  field is out of bounds => BREAK");
+              mask = 0;
+              worklist.clear();
+              break;
+            } else {
+              int64_t mask_piece = make_mask_piece(field_start, field_size);
+              if (UseNewCode) tty->print_cr("  mask piece " INT64_FORMAT_X_0, mask_piece);
+              mask |= mask_piece;
             }
-            int64_t mask_piece = make_mask_piece(nm_offset, 1);
-            if (UseNewCode) tty->print_cr("  null marker mask piece " INT64_FORMAT_X_0, mask_piece);
-            mask |= mask_piece;
           }
-          worklist.push(InlineKlassAtOffset{field_start, ili.klass()});
-        } else {
-          BasicType bt = fd.field_type();
-          int field_size = type2aelembytes(bt);
-          int field_end = field_start + field_size - 1;
-          if (UseNewCode) tty->print_cr("  start:%d size:%d end:%d", field_start, field_size, field_end);
-          if (!is_java_primitive(bt)) {
-            if (UseNewCode) tty->print_cr("  field is an oop => BREAK");
-            mask = 0;
-            worklist.clear();
-            break;
-          } else if (field_end >= 8) {
-            if (UseNewCode) tty->print_cr("  field is out of bounds => BREAK");
-            mask = 0;
-            worklist.clear();
-            break;
-          } else {
-            int64_t mask_piece = make_mask_piece(field_start, field_size);
-            if (UseNewCode) tty->print_cr("  mask piece " INT64_FORMAT_X_0, mask_piece);
-            mask |= mask_piece;
-          }
+          if (UseNewCode) tty->print_cr("------");
         }
-        if (UseNewCode) tty->print_cr("------");
+        if (UseNewCode) tty->print_cr(".....");
       }
       if (UseNewCode) tty->print_cr("======");
     }
