@@ -357,6 +357,76 @@ public final /* value */ class ComplexTextbook  {
         return valueOf(a*c - b*d, a*d + b*c);
     }
 
+    // See discussion of computation of (ab +/- cd) and complex
+    // arithmetic in Muller et al.'s "Handbook of Floating-Point
+    // Arithmetic, Second Edition (HoFPA).
+
+    // Note: neither the silver nor gold variants currently attempt to
+    // handle non-finite values in a graceful way.
+
+    /**
+     * Multiplication operation, "{@code *}".
+     *
+     * @implSpec
+     * Use accurate component-wise algorithm.
+     *
+     * @param multiplier the first operand
+     * @param multiplicand the second operand
+     * @return the product of the operands
+     */
+    public static ComplexTextbook multiplySilver(ComplexTextbook multiplier,
+                                                 ComplexTextbook multiplicand) {
+        double a = multiplier.real;
+        double b = multiplier.imag;
+        double c = multiplicand.real;
+        double d = multiplicand.imag;
+
+        return valueOf(silver_ad_bc(a, d, b, c),
+                       silver_ad_bc(a, -c, b, d));
+    }
+
+    /**
+     * Multiplication operation, "{@code *}".
+     *
+     * @implSpec
+     * Use accurate component-wise algorithm that is also commutative.
+     *
+     * @param multiplier the first operand
+     * @param multiplicand the second operand
+     * @return the product of the operands
+     */
+    public static ComplexTextbook multiplyGold(ComplexTextbook multiplier,
+                                               ComplexTextbook multiplicand) {
+        double a = multiplier.real;
+        double b = multiplier.imag;
+        double c = multiplicand.real;
+        double d = multiplicand.imag;
+
+        return valueOf(gold_ad_bc(a,  d, b, c),
+                       gold_ad_bc(a, -c, b, d));
+    }
+
+    // HoFPA algorithm 11.1, 2u error bound
+    private static double silver_ad_bc(double a, double b, double c, double d) {
+        double w = b*c;
+        double e = Math.fma(b, c, -w); // exact error
+        double f = a*d - w;
+        return f + e;
+    }
+
+    // HoFPA algorithm 11.2, 2u error bound and symmetrical result
+    private static double gold_ad_bc(double a, double b, double c, double d) {
+        double p1 = a * d;
+        double e1 = Math.fma(a, d, -p1); // a*d - p1, exact error
+
+        double p2 = b * c;
+        double e2 = Math.fma(b, c, -p2); // b*c - p2, exact error
+
+        double p = p1 - p2;
+        double e = e1 - e2;
+        return p + e;
+    }
+
     /**
      * Division operation, "{@code /}".
      *
