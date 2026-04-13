@@ -192,7 +192,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type, const TypeKlassPt
   // TODO 8374475 Remove once this is fixed
 #ifdef ASSERT
   if (!_gvn.type(l)->higher_equal(type)) {
-    l->dump(0);
+    l->dump(10);
     _gvn.type(l)->dump_on(tty);
     tty->cr();
     type->dump_on(tty);
