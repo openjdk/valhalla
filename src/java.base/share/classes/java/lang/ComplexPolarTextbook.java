@@ -439,6 +439,18 @@ public final /* value */ class ComplexPolarTextbook  {
         return valueOf(this.r(), -this.theta());
     }
 
+    /**
+     * {@return the square root of the argument}.
+     *
+     * @implSpec
+     * Describe error bounds of the return value.
+     *
+     * @param c the operand
+     */
+    public static ComplexPolarTextbook sqrt(ComplexPolarTextbook c) {
+        return valueOf(Math.sqrt(c.r()), c.theta() * 0.5);
+    }
+
     // Utility methods
 
     /**
