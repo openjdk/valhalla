@@ -202,6 +202,8 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 compiler/c2/irTests/TestFloat16ScalarOperations.java 8377808 linux-aarch64
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 compiler/c2/TestGVNCrash.java 8381268 generic-all
+compiler/valhalla/inlinetypes/TestArrays.java#id1 8381268 generic-all
+compiler/valhalla/inlinetypes/TestArrays.java#id5 8381268 generic-all
 
 vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64
