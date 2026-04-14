@@ -125,7 +125,7 @@ public class SetAllTest {
 
     public Object[][] pointTests() { return pointData; }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}, size={1}, data={3}")
     @MethodSource("stringTests")
     public void testSetAllString(String name, int size, IntFunction<String> generator, String[] expected) {
         String[] result = new String[size];
@@ -138,7 +138,7 @@ public class SetAllTest {
         Assertions.assertArrayEquals(expected, result, "parallelSetAll(String[], IntFunction<String>) case " + name + " failed.");
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}, size={1}, data={3}")
     @MethodSource("intTests")
     public void testSetAllInt(String name, int size, IntUnaryOperator generator, int[] expected) {
         int[] result = new int[size];
@@ -151,7 +151,7 @@ public class SetAllTest {
         Assertions.assertArrayEquals(expected, result, "parallelSetAll(int[], IntUnaryOperator) case " + name + " failed.");
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}, size={1}, data={3}")
     @MethodSource("longTests")
     public void testSetAllLong(String name, int size, IntToLongFunction generator, long[] expected) {
         long[] result = new long[size];
@@ -174,7 +174,7 @@ public class SetAllTest {
         }
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}, size={1}, data={3}")
     @MethodSource("doubleTests")
     public void testSetAllDouble(String name, int size, IntToDoubleFunction generator, double[] expected) {
         double[] result = new double[size];
@@ -187,7 +187,7 @@ public class SetAllTest {
         assertDoubleArrayEquals(result, expected, 0.05, "setAll(double[], IntToDoubleFunction) case " + name + " failed.");
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}, size={1}, data={3}")
     @MethodSource("pointTests")
     public void testSetAllPoint(String name, int size, IntFunction<Point> generator, Point[] expected) {
         Point[] result = new Point[size];
