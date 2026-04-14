@@ -109,7 +109,9 @@ public:
 // Simple long constants
 class ConLNode : public ConNode {
 public:
-  ConLNode( const TypeLong *t ) : ConNode(t) {}
+  ConLNode( const TypeLong *t ) : ConNode(t) {
+    init_class_id(Class_ConL);
+  }
   virtual int Opcode() const;
 
   // Factory method:
