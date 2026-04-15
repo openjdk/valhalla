@@ -998,6 +998,8 @@ public:
   GrowableArray<Method*>* get_supers();
 
   CompiledEntrySignature(Method* method = nullptr);
+  bool compare_calling_conventions(AdapterHandlerEntry* adapter, const GrowableArray<SigEntry>* sig_cc, const GrowableArray<SigEntry>* sig_cc_ro);
+  void check_interface_calling_conventions(Array<InstanceKlass*>* interfaces, bool& should_calculate);
   void compute_calling_conventions(bool init = true);
   void initialize_from_fingerprint(AdapterFingerPrint* fingerprint);
 };

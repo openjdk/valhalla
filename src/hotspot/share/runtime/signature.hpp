@@ -596,6 +596,26 @@ class SigEntry {
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);
 
   void print_on(outputStream* st) const;
+
+  bool operator==(const SigEntry& other) {
+    return (_bt == other._bt)                   &&
+           (_offset == other._offset)           &&
+           (_name == other._name)               &&
+           (_null_marker == other._null_marker) &&
+           (_vt_oop == other._vt_oop);
+  }
+
+  bool operator!=(const SigEntry& other) {
+    return !(*this == other);
+  }
+
+  static bool compare(const SigEntry& se0, const SigEntry& se1) {
+    return (se0._bt == se1._bt)                   &&
+           (se0._offset == se1._offset)           &&
+           (se0._name == se1._name)               &&
+           (se0._null_marker == se1._null_marker) &&
+           (se0._vt_oop == se1._vt_oop);
+  }
 };
 
 class SigEntryFilter {

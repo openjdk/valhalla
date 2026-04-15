@@ -2891,107 +2891,194 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   return _supers;
 }
 
+
+bool CompiledEntrySignature::compare_calling_conventions(AdapterHandlerEntry* adapter, const GrowableArray<SigEntry>* sig_cc, const GrowableArray<SigEntry>* sig_cc_ro) {
+  const GrowableArray<SigEntry>* adapter_sig_cc = adapter->get_sig_cc();
+  const GrowableArray<SigEntry>* adapter_sig_cc_ro = adapter->get_sig_cc_ro();
+  if (adapter_sig_cc->length() != sig_cc->length() || adapter_sig_cc_ro->length() != sig_cc_ro->length()) {
+    return false;
+  }
+
+  for (int i = 0; i < adapter_sig_cc->length(); i++) {
+    if (!SigEntry::compare(adapter_sig_cc->at(i), sig_cc->at(i))) {
+      return false;
+    }
+  }
+
+  for (int i = 0; i < adapter_sig_cc_ro->length(); i++) {
+    if (!SigEntry::compare(adapter_sig_cc_ro->at(i), sig_cc_ro->at(i))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void CompiledEntrySignature::check_interface_calling_conventions(Array<InstanceKlass*>* interfaces, bool& should_calculate) {
+  for (int i = 0; i < interfaces->length(); i++) {
+    Method* interface_method = interfaces->at(i)->lookup_method(_method->name(), _method->signature());
+    if (interface_method != nullptr) {
+      assert(interfaces->at(i)->is_abstract() || interface_method->adapter() != nullptr, "must be");
+      if (interface_method->adapter() != nullptr && interface_method->has_scalarized_args()) {
+        const GrowableArray<SigEntry>* adapter_sig_cc = interface_method->adapter()->get_sig_cc();
+        const GrowableArray<SigEntry>* adapter_sig_cc_ro = interface_method->adapter()->get_sig_cc_ro();
+
+        if (adapter_sig_cc->length() != _sig_cc->length() || adapter_sig_cc_ro->length() != _sig_cc_ro->length()) {
+          should_calculate = true;
+        }
+
+        for (int i = 0; i < adapter_sig_cc->length(); i++) {
+          if (!SigEntry::compare(adapter_sig_cc->at(i), _sig_cc->at(i))) {
+            should_calculate = true;
+          }
+        }
+
+        for (int i = 0; i < adapter_sig_cc_ro->length(); i++) {
+          if (!SigEntry::compare(adapter_sig_cc_ro->at(i), _sig_cc_ro->at(i))) {
+            should_calculate = true;
+          }
+        }
+      }
+    }
+  }
+}
+
 // Iterate over arguments and compute scalarized and non-scalarized signatures
 void CompiledEntrySignature::compute_calling_conventions(bool init) {
   bool has_scalarized = false;
+  bool should_calculate = true;
   if (_method != nullptr) {
     InstanceKlass* holder = _method->method_holder();
+
+    if (_method->name()->equals("foo")) {
+      ResourceMark rm;
+      tty->print_cr("Found it! %s", _method->method_holder()->name()->as_C_string());
+    }
+
     int arg_num = 0;
     if (!_method->is_static()) {
-      // We shouldn't scalarize 'this' in a value class constructor
-      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
-          (init || _method->is_scalarized_arg(arg_num))) {
-        _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
-        _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
-        has_scalarized = true;
-        _has_inline_recv = true;
-        _num_inline_args++;
-      } else {
-        SigEntry::add_entry(_sig_cc, T_OBJECT, holder->name());
+      // Inherit calling conventions from super method if possible
+      InstanceKlass* super_klass = holder->super();
+      if (super_klass != nullptr) {
+        Method* super_method = super_klass->lookup_method(_method->name(), _method->signature());
+        if (super_method != nullptr && super_method->has_scalarized_args()) {
+          assert(super_method->adapter()->get_sig_cc() != nullptr, "super method should be scalarized");
+          assert(super_method->adapter()->get_sig_cc_ro() != nullptr, "super method should be scalarized");
+
+          has_scalarized = true;
+          should_calculate = false;
+
+          log_info(aot)("Method %s attempting to inherit adapter from %s", _method->external_name(), super_method->external_name());
+          _sig_cc->appendAll(super_method->adapter()->get_sig_cc());
+          _sig_cc_ro->appendAll(super_method->adapter()->get_sig_cc_ro());
+        }
+
+        if (!should_calculate) {
+          // Check that interface methods are valid
+          Array<InstanceKlass*>* interfaces = holder->local_interfaces();
+          check_interface_calling_conventions(holder->local_interfaces(), should_calculate);
+        }
       }
-      SigEntry::add_entry(_sig, T_OBJECT, holder->name());
-      SigEntry::add_entry(_sig_cc_ro, T_OBJECT, holder->name());
-      arg_num++;
+
+      if (should_calculate) {
+        // We shouldn't scalarize 'this' in a value class constructor
+        if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
+            (init || _method->is_scalarized_arg(arg_num))) {
+          _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
+          _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
+          has_scalarized = true;
+          _has_inline_recv = true;
+          _num_inline_args++;
+        } else {
+          SigEntry::add_entry(_sig_cc, T_OBJECT, holder->name());
+        }
+        SigEntry::add_entry(_sig, T_OBJECT, holder->name());
+        SigEntry::add_entry(_sig_cc_ro, T_OBJECT, holder->name());
+        arg_num++;
+      }
     }
-    for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-      BasicType bt = ss.type();
-      if (bt == T_OBJECT) {
-        InlineKlass* vk = ss.as_inline_klass(holder);
-        if (vk != nullptr && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
-          // Check for a calling convention mismatch with super method(s)
-          bool scalar_super = false;
-          bool non_scalar_super = false;
-          GrowableArray<Method*>* supers = get_supers();
-          for (int i = 0; i < supers->length(); ++i) {
-            Method* super_method = supers->at(i);
-            if (super_method->is_scalarized_arg(arg_num)) {
-              scalar_super = true;
-            } else {
-              non_scalar_super = true;
-            }
-          }
-#ifdef ASSERT
-          // Randomly enable below code paths for stress testing
-          bool stress = init && StressCallingConvention;
-          if (stress && (os::random() & 1) == 1) {
-            non_scalar_super = true;
-            if ((os::random() & 1) == 1) {
-              scalar_super = true;
-            }
-          }
-#endif
-          if (non_scalar_super) {
-            // Found a super method with a non-scalarized argument. Fall back to the non-scalarized calling convention.
-            if (scalar_super) {
-              // Found non-scalar *and* scalar super methods. We can't handle both.
-              // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
-              for (int i = 0; i < supers->length(); ++i) {
-                Method* super_method = supers->at(i);
-                if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
-                  JavaThread* thread = JavaThread::current();
-                  HandleMark hm(thread);
-                  methodHandle mh(thread, super_method);
-                  DeoptimizationScope deopt_scope;
-                  {
-                    // Keep the lock scope minimal. Prevent interference with other
-                    // dependency checks by setting mismatch and marking within the lock.
-                    MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
-                    super_method->set_mismatch();
-                    CodeCache::mark_for_deoptimization(&deopt_scope, mh());
-                  }
-                  deopt_scope.deoptimize_marked();
-                }
+
+    if (should_calculate) {
+      for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
+        BasicType bt = ss.type();
+        if (bt == T_OBJECT) {
+          InlineKlass* vk = ss.as_inline_klass(holder);
+          if (vk != nullptr && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
+            // Check for a calling convention mismatch with super method(s)
+            bool scalar_super = false;
+            bool non_scalar_super = false;
+            GrowableArray<Method*>* supers = get_supers();
+            for (int i = 0; i < supers->length(); ++i) {
+              Method* super_method = supers->at(i);
+              if (super_method->is_scalarized_arg(arg_num)) {
+                scalar_super = true;
+              } else {
+                non_scalar_super = true;
               }
             }
-            // Fall back to non-scalarized calling convention
+  #ifdef ASSERT
+            // Randomly enable below code paths for stress testing
+            bool stress = init && StressCallingConvention;
+            if (stress && (os::random() & 1) == 1) {
+              non_scalar_super = true;
+              if ((os::random() & 1) == 1) {
+                scalar_super = true;
+              }
+            }
+  #endif
+            if (non_scalar_super) {
+              // Found a super method with a non-scalarized argument. Fall back to the non-scalarized calling convention.
+              if (scalar_super) {
+                // Found non-scalar *and* scalar super methods. We can't handle both.
+                // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
+                for (int i = 0; i < supers->length(); ++i) {
+                  Method* super_method = supers->at(i);
+                  if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
+                    JavaThread* thread = JavaThread::current();
+                    HandleMark hm(thread);
+                    methodHandle mh(thread, super_method);
+                    DeoptimizationScope deopt_scope;
+                    {
+                      // Keep the lock scope minimal. Prevent interference with other
+                      // dependency checks by setting mismatch and marking within the lock.
+                      MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
+                      super_method->set_mismatch();
+                      CodeCache::mark_for_deoptimization(&deopt_scope, mh());
+                    }
+                    deopt_scope.deoptimize_marked();
+                  }
+                }
+              }
+              // Fall back to non-scalarized calling convention
+              SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
+              SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
+            } else {
+              _num_inline_args++;
+              has_scalarized = true;
+              int last = _sig_cc->length();
+              int last_ro = _sig_cc_ro->length();
+              _sig_cc->appendAll(vk->extended_sig());
+              _sig_cc_ro->appendAll(vk->extended_sig());
+              // buffer argument
+              _sig_cc->insert_before(last + 1, SigEntry(T_OBJECT, 0, nullptr, false, true));
+              _sig_cc_ro->insert_before(last_ro + 1, SigEntry(T_OBJECT, 0, nullptr, false, true));
+              // Insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
+              _sig_cc->insert_before(last + 2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
+              _sig_cc_ro->insert_before(last_ro + 2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
+            }
+          } else {
             SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
             SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
-          } else {
-            _num_inline_args++;
-            has_scalarized = true;
-            int last = _sig_cc->length();
-            int last_ro = _sig_cc_ro->length();
-            _sig_cc->appendAll(vk->extended_sig());
-            _sig_cc_ro->appendAll(vk->extended_sig());
-            // buffer argument
-            _sig_cc->insert_before(last + 1, SigEntry(T_OBJECT, 0, nullptr, false, true));
-            _sig_cc_ro->insert_before(last_ro + 1, SigEntry(T_OBJECT, 0, nullptr, false, true));
-            // Insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
-            _sig_cc->insert_before(last + 2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
-            _sig_cc_ro->insert_before(last_ro + 2, SigEntry(T_BOOLEAN, -1, nullptr, true, false));
           }
+          bt = T_OBJECT;
         } else {
-          SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
-          SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
+          SigEntry::add_entry(_sig_cc, ss.type(), ss.as_symbol());
+          SigEntry::add_entry(_sig_cc_ro, ss.type(), ss.as_symbol());
         }
-        bt = T_OBJECT;
-      } else {
-        SigEntry::add_entry(_sig_cc, ss.type(), ss.as_symbol());
-        SigEntry::add_entry(_sig_cc_ro, ss.type(), ss.as_symbol());
-      }
-      SigEntry::add_entry(_sig, bt, ss.as_symbol());
-      if (bt != T_VOID) {
-        arg_num++;
+        SigEntry::add_entry(_sig, bt, ss.as_symbol());
+        if (bt != T_VOID) {
+          arg_num++;
+        }
       }
     }
   }
