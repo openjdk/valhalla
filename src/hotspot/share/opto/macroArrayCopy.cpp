@@ -1492,22 +1492,27 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
-  // We have no stub to copy flat value class arrays with oop fields
-  // if we need to emit write barriers. We also cannot use the stub
-  // if we deal with a flat abstract value class array because we
-  // don't know the exact layout. Go to slow path in both cases.
+  //
+  // Go to the slow path but avoid the native method wrapper to JVM_ArrayCopy when:
+  // 1) The component types are not the same or void.
+  // 2) src and dest do not have the same flatness.
+  // 3) src or dest is a flat abstract value class array (we don't know the exact layout and cannot use the stub).
+  // 4) dest is a flat value class array with oop fields and requires to emit write barriers (we don't have such a stub).
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID ||
-      (top_src->is_flat() &&
-       bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization) &&
-       (!top_dest->elem()->make_ptr()->is_inlinetypeptr() || // Abstract value class
-        top_dest->elem()->inline_klass()->contains_oops()))) {
-    // The component types are not the same or are not recognized.  Punt.
-    // (But, avoid the native method wrapper to JVM_ArrayCopy.)
-    {
-      Node* mem = ac->in(TypeFunc::Memory);
-      merge_mem = generate_slow_arraycopy(ac, &ctrl, mem, &io, TypePtr::BOTTOM, src, src_offset, dest, dest_offset, length, false);
-    }
+  bool go_to_slow_path = src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID;
+  if ((top_src->is_flat() && !top_src->elem()->is_inlinetypeptr()) ||
+      (top_dest->is_flat() && !top_dest->elem()->is_inlinetypeptr())) {
+    go_to_slow_path = true;
+  } else if (top_dest->is_flat() &&
+             bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization) &&
+             top_dest->elem()->inline_klass()->contains_oops()) {
+    go_to_slow_path = true;
+  }
+
+  if (go_to_slow_path) {
+    // Avoid the native method wrapper to JVM_ArrayCopy.
+    Node* mem = ac->in(TypeFunc::Memory);
+    merge_mem = generate_slow_arraycopy(ac, &ctrl, mem, &io, TypePtr::BOTTOM, src, src_offset, dest, dest_offset, length, false);
 
     _igvn.replace_node(_callprojs->fallthrough_memproj, merge_mem);
     if (_callprojs->fallthrough_ioproj != nullptr) {
