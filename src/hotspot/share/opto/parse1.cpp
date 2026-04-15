@@ -538,9 +538,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   }
 
   if (_flow->failing()) {
-    // TODO Adding a trap due to an unloaded return type in ciTypeFlow::StateVector::do_invoke
-    // can lead to this. Re-enable once 8284443 is fixed.
-    //assert(false, "type flow analysis failed during parsing");
+    assert(false, "type flow analysis failed during parsing");
     C->record_method_not_compilable(_flow->failure_reason());
 #ifndef PRODUCT
       if (PrintOpto && (Verbose || WizardMode)) {

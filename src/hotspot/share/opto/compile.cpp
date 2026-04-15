@@ -916,7 +916,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   // TODO 8284443 Only reserve extra slot if needed
   if (InlineTypeReturnedAsFields) {
     // One extra slot to hold the null marker for a nullable
-    // inline type return if we run out of registers.
+    // inline type return if we run out of registers. See Matcher::return_values_mask
     next_slot += 2;
   }
   set_fixed_slots(next_slot);

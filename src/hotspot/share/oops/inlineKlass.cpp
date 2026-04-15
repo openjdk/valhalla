@@ -194,7 +194,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
     assert(!fs.access_flags().is_static(), "TopDownHierarchicalNonStaticFieldStreamBase should not let static fields pass.");
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
     InstanceKlass* field_holder = fs.field_descriptor().field_holder();
-    // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
       int field_null_marker_offset = -1;

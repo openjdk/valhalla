@@ -90,8 +90,12 @@ MacroAssembler::RegState* MacroAssembler::init_reg_state(VMRegPair* regs, int nu
 #ifdef COMPILER2
 int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
   assert(C->has_scalarized_args(), "inline type argument scalarization is disabled");
-  Method* method = C->method()->get_Method();
-  const GrowableArray<SigEntry>* sig = method->adapter()->get_sig_cc();
+
+  // TODO 8284443 remove
+  Method* method2 = C->method()->get_Method();
+
+  ciMethod* method = C->method();
+  const GrowableArray<SigEntry>* sig = method->get_sig_cc();
   assert(sig != nullptr, "must have scalarized signature");
 
   // Get unscalarized calling convention
@@ -101,7 +105,7 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
     sig_bt[args_passed++] = T_OBJECT;
   }
   if (!receiver_only) {
-    for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+    for (SignatureStream ss(method2->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
       sig_bt[args_passed++] = bt;
       if (type2size[bt] == 2) {
@@ -110,7 +114,7 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
     }
   } else {
     // Only unpack the receiver, all other arguments are already scalarized
-    InstanceKlass* holder = method->method_holder();
+    InstanceKlass* holder = method2->method_holder();
     int rec_len = (holder->is_inline_klass() && method->is_scalarized_arg(0)) ? InlineKlass::cast(holder)->extended_sig()->length() : 1;
     // Copy scalarized signature but skip receiver and inline type delimiters
     for (int i = 0; i < sig->length(); i++) {

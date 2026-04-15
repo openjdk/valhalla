@@ -1143,9 +1143,6 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     vt->set_null_marker(gvn);
     Node* payload_ptr = kit->basic_plus_adr(oop, vk->payload_offset());
     vt->load(kit, oop, payload_ptr, true, true, IN_HEAP | MO_UNORDERED, visited);
-// TODO 8284443
-//    assert(!null_free || vt->as_InlineType()->is_all_zero(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
-//           AllocateNode::Ideal_allocation(oop, &gvn) != nullptr || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
   assert(vt->is_allocated(&gvn), "inline type should be allocated");
   kit->record_for_igvn(vt);
