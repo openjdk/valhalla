@@ -532,7 +532,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _entry_bci = C->entry_bci();
     _flow = method()->get_osr_flow_analysis(osr_bci());
   } else {
-    _tf = TypeFunc::make(method());
+    _tf = TypeFunc::make(method(), false);
     _entry_bci = InvocationEntryBci;
     _flow = method()->get_flow_analysis();
   }

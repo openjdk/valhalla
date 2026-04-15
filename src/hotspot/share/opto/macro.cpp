@@ -2704,7 +2704,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   }
   const TypeFunc* tf = call->_tf;
   const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-  const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+  const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain, true);
   call->_tf = new_tf;
   // Make sure the change of type is applied before projections are processed by igvn
   _igvn.set_type(call, call->Value(&_igvn));

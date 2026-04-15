@@ -502,6 +502,7 @@ Symbol* SignatureStream::find_symbol() {
 }
 
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
+  assert(InlineTypePassFieldsAsArgs || InlineTypeReturnedAsFields, "Not needed");
   ThreadInVMfromUnknown tiv;
   JavaThread* THREAD = JavaThread::current();
   HandleMark hm(THREAD);

@@ -2126,6 +2126,10 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
     ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false);
+    // If we run out of registers to store the null marker, we need to reserve an extra
+    // slot to store it on the stack. Unfortunately, we only know if stack slot is needed
+    // when matching the call (see Matcher::return_values_mask), so we are conservative here.
+    C->set_needs_nm_slot(true);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -2140,7 +2144,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       // Change return type of call to scalarized return
       const TypeFunc* tf = call->_tf;
       const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain, true);
       call->_tf = new_tf;
       _gvn.set_type(call, call->Value(&_gvn));
       _gvn.set_type(ret, ret->Value(&_gvn));

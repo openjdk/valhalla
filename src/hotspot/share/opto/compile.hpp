@@ -346,6 +346,7 @@ class Compile : public Phase {
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
   bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flat field
+  bool                  _needs_nm_slot;         // True if an extra stack slot is needed to hold the null marker at scalarized returns
   uint                  _max_vector_size;       // Maximum size of generated vectors
   bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
@@ -676,6 +677,8 @@ public:
   // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != nullptr && _method->has_scalarized_args(); }
   bool              needs_stack_repair()  const  { return _method != nullptr && _method->get_Method()->c2_needs_stack_repair(); }
+  bool              needs_nm_slot()       const  { return _needs_nm_slot; }
+  void          set_needs_nm_slot(bool v)        { _needs_nm_slot = v; }
 
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }

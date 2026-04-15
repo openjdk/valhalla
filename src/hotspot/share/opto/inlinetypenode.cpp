@@ -1416,10 +1416,6 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
       }
     }
   }
-  // The last argument is used to pass the null marker to compiled code and not required here.
-  if (!null_free && !in) {
-    n->init_req(base_input++, kit->top());
-  }
 }
 
 void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited) {
