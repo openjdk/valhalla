@@ -1550,8 +1550,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
   RegionNode* slow_region = new RegionNode(1);
   transform_later(slow_region);
-  const bool both_flat = top_src->is_flat() && top_dest->is_flat();
-  const bool both_exact = top_src->klass_is_exact() && top_dest->klass_is_exact();
   const bool same_nullness = top_src->is_null_free() == top_dest->is_null_free();
 
   if (!ac->is_arraycopy_validated()) {
@@ -1593,10 +1591,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
-    if (!both_flat || !same_nullness || !both_exact) {
+    assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
+    if (!(top_src->is_flat() && same_nullness)) {
       // Go to slow path. This could be improved by directly going to the slow_region instead of letting it handle by
       // generate_array_copy(). But we might want to improve the situation in the future.
-      // Note that we also need to make sure to exclude flat abstract value class arrays (i.e. !both_exact).
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
       generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
@@ -1606,7 +1604,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // This is where the memory effects are placed:
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
-  if (both_flat && same_nullness && both_exact) {
+  assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
+  if (top_src->is_flat() && same_nullness) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
