@@ -27,10 +27,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
-
 import jdk.test.lib.Asserts;
-
 
 public class FieldLayoutAnalyzer {
 
