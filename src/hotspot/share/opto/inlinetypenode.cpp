@@ -1102,10 +1102,9 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
 
   // Create and initialize an InlineTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  InlineTypeNode* vt = nullptr;
-
-  if (oop->isa_InlineType()) {
-    return oop->as_InlineType();
+  InlineTypeNode* vt = oop->isa_InlineType();
+  if (vt != nullptr) {
+    return vt;
   }
 
   if (gvn.type(oop)->maybe_null()) {
@@ -1386,7 +1385,18 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
 
 void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free, bool root) {
   if (root) {
-    n->init_req(base_input++, get_oop());
+    if (is_allocated(&kit->gvn())) {
+      // TODO 8284443
+      // TestNullableInlineTypes::test5 is sensitive to this
+      // TODO Just looking at the oop is not sufficient to figure out if we are always buffered when incrementally inlining,
+      // keep this information by passing this..
+      // TODO I don't think this is sufficient, is_allocated might be false while this is still always allocated but we don't know here....
+      // We would need to pass the IsBuffered input through the scalarized fields
+      // Also, shouldn't there be a runtime check of get_is_buffered in InlineTypeNode::buffer? Do we risk emitting buffering multiple times?
+      n->init_req(base_input++, this);
+    } else {
+      n->init_req(base_input++, get_oop());
+    }
   }
   if (!null_free && in) {
     n->init_req(base_input++, get_null_marker());

@@ -1336,6 +1336,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
+  // TODO 8284443 is this correct/needed? The return value might not fit into registers ...
   if (InlineTypeReturnedAsFields && returns_inline_type() && !has_scalarized_return()) {
     set_has_scalarized_return();
   }
