@@ -597,7 +597,7 @@ class SigEntry {
 
   void print_on(outputStream* st) const;
 
-  bool operator==(const SigEntry& other) {
+  bool operator==(const SigEntry& other) const {
     return (_bt == other._bt)                   &&
            (_offset == other._offset)           &&
            (_name == other._name)               &&
@@ -605,7 +605,7 @@ class SigEntry {
            (_vt_oop == other._vt_oop);
   }
 
-  bool operator!=(const SigEntry& other) {
+  bool operator!=(const SigEntry& other) const {
     return !(*this == other);
   }
 

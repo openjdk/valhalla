@@ -2917,27 +2917,12 @@ bool CompiledEntrySignature::compare_calling_conventions(AdapterHandlerEntry* ad
 void CompiledEntrySignature::check_interface_calling_conventions(Array<InstanceKlass*>* interfaces, bool& should_calculate) {
   for (int i = 0; i < interfaces->length(); i++) {
     Method* interface_method = interfaces->at(i)->lookup_method(_method->name(), _method->signature());
-    if (interface_method != nullptr) {
+    if (interface_method != nullptr && interface_method->adapter() != nullptr && interface_method->has_scalarized_args()) {
       assert(interfaces->at(i)->is_abstract() || interface_method->adapter() != nullptr, "must be");
-      if (interface_method->adapter() != nullptr && interface_method->has_scalarized_args()) {
-        const GrowableArray<SigEntry>* adapter_sig_cc = interface_method->adapter()->get_sig_cc();
-        const GrowableArray<SigEntry>* adapter_sig_cc_ro = interface_method->adapter()->get_sig_cc_ro();
-
-        if (adapter_sig_cc->length() != _sig_cc->length() || adapter_sig_cc_ro->length() != _sig_cc_ro->length()) {
-          should_calculate = true;
-        }
-
-        for (int i = 0; i < adapter_sig_cc->length(); i++) {
-          if (!SigEntry::compare(adapter_sig_cc->at(i), _sig_cc->at(i))) {
-            should_calculate = true;
-          }
-        }
-
-        for (int i = 0; i < adapter_sig_cc_ro->length(); i++) {
-          if (!SigEntry::compare(adapter_sig_cc_ro->at(i), _sig_cc_ro->at(i))) {
-            should_calculate = true;
-          }
-        }
+      AdapterHandlerEntry* adapter = interface_method->adapter();
+      if (*adapter->get_sig_cc() != *_sig_cc || *adapter->get_sig_cc_ro() != *_sig_cc_ro) {
+        should_calculate = true;
+        return;
       }
     }
   }
@@ -2964,16 +2949,13 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
         if (super_method != nullptr && super_method->has_scalarized_args()) {
           assert(super_method->adapter()->get_sig_cc() != nullptr, "super method should be scalarized");
           assert(super_method->adapter()->get_sig_cc_ro() != nullptr, "super method should be scalarized");
+          log_info(aot)("Method %s attempting to inherit adapter from %s", _method->external_name(), super_method->external_name());
+          _sig_cc->appendAll(super_method->adapter()->get_sig_cc());
+          _sig_cc_ro->appendAll(super_method->adapter()->get_sig_cc_ro());
 
           has_scalarized = true;
           should_calculate = false;
 
-          log_info(aot)("Method %s attempting to inherit adapter from %s", _method->external_name(), super_method->external_name());
-          _sig_cc->appendAll(super_method->adapter()->get_sig_cc());
-          _sig_cc_ro->appendAll(super_method->adapter()->get_sig_cc_ro());
-        }
-
-        if (!should_calculate) {
           // Check that interface methods are valid
           Array<InstanceKlass*>* interfaces = holder->local_interfaces();
           check_interface_calling_conventions(holder->local_interfaces(), should_calculate);
