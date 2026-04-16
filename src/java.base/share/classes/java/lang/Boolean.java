@@ -181,7 +181,7 @@ public final class Boolean implements java.io.Serializable,
      * @since  1.4
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Boolean valueOf(boolean b) {
         if (!PreviewFeatures.isEnabled()) {
             return (b ? TRUE : FALSE);

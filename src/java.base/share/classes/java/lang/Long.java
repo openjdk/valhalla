@@ -983,7 +983,7 @@ public final class Long extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Long valueOf(long l) {
         if (!PreviewFeatures.isEnabled()) {
             if (l >= -128 && l <= 127) { // will cache

@@ -1350,7 +1350,7 @@ public class ObjectOutputStream
             if (desc.isRecord()) {
                 writeRecordData(obj, desc);
             } else if (desc.isExternalizable() && !desc.isProxy()) {
-                if (desc.isValue())
+                if (desc.isValueOrStrictInit())
                     throw new InvalidClassException("Externalizable not valid for value class "
                             + desc.forClass().getName());
                 writeExternalData((Externalizable) obj);
@@ -1401,10 +1401,10 @@ public class ObjectOutputStream
         throws IOException
     {
         assert obj.getClass().isRecord();
-        List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
-        if (slots.size() != 1) {
+        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
+        if (slots.length != 1) {
             throw new InvalidClassException(
-                    "expected a single record slot length, but found: " + slots.size());
+                    "expected a single record slot length, but found: " + slots.length);
         }
 
         defaultWriteFields(obj, desc);  // #### seems unnecessary to use the accessors
@@ -1417,9 +1417,9 @@ public class ObjectOutputStream
     private void writeSerialData(Object obj, ObjectStreamClass desc)
         throws IOException
     {
-       List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
-        for (int i = 0; i < slots.size(); i++) {
-            ObjectStreamClass slotDesc = slots.get(i).desc;
+        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
+        for (int i = 0; i < slots.length; i++) {
+            ObjectStreamClass slotDesc = slots[i].desc;
             if (slotDesc.hasWriteObjectMethod()) {
                 PutFieldImpl oldPut = curPut;
                 curPut = null;

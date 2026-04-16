@@ -34,6 +34,9 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.ACC_STRICT_INIT;
+
 /**
  * Utilities to access package private methods of java.lang.Class and related reflection classes.
  */
@@ -138,4 +141,31 @@ public final class ValueClass {
      */
     @IntrinsicCandidate
     public static native boolean isAtomicArray(Object[] array);
+
+    // This class also serves as a lazy holder of its singleton instance
+    private static final class StrictInstanceFieldClassValue extends ClassValue<Boolean> {
+        private static final StrictInstanceFieldClassValue INSTANCE = new StrictInstanceFieldClassValue();
+
+        private StrictInstanceFieldClassValue() {}
+
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            if ((type.getModifiers() & (Modifier.ABSTRACT | Modifier.FINAL)) == (Modifier.ABSTRACT | Modifier.FINAL)) {
+                // Not class or interface
+                return false;
+            }
+            for (var field : type.getDeclaredFields()) {
+                // Reflection filters fields, hope the filtered classes don't declare strict fields
+                if ((field.getModifiers() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /// Returns whether a class or interface declares strict instance fields.
+    public static boolean hasStrictInstanceField(Class<?> cl) {
+        return StrictInstanceFieldClassValue.INSTANCE.get(cl);
+    }
 }

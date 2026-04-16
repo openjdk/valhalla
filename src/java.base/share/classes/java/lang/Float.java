@@ -582,7 +582,7 @@ public final class Float extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Float valueOf(float f) {
         return new Float(f);
     }

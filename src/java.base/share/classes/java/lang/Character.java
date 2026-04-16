@@ -9485,7 +9485,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Character valueOf(char c) {
         if (!PreviewFeatures.isEnabled()) {
             if (c <= 127) { // must cache

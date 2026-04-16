@@ -1003,14 +1003,14 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
     enum ObjectConstructorFragment implements ComboParameter, CodeShapePredicate {
         NONE(""),
         ANNOTATED_OBJECT_CONSTRUCTOR_FRAGMENT("""
-                    @DeserializeConstructor
+                    @DeserializeConstructor({"f1", "f2"})
                     #{CLASSACCESS} #{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2) {
                         this.f1 = f1;
                         this.f2 = f2;
                         #{FIELD_CONSTRUCTOR_ADDITIONS}
                     }
 
-                    @DeserializeConstructor
+                    @DeserializeConstructor({"f1", "f2"})
                     #{CLASSACCESS} #{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2, int fExtra) {
                         this.f1 = f1;
                         this.f2 = f2;

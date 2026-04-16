@@ -318,7 +318,7 @@ public class SimpleValueGraphs implements Serializable {
         private TreeV left;
         private TreeV right;
 
-        @DeserializeConstructor
+        @DeserializeConstructor({"left", "right"})
         TreeV(TreeV left, TreeV right) {
             this.left = left;
             this.right = right;

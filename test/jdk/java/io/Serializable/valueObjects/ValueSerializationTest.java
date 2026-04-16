@@ -162,7 +162,7 @@ public class ValueSerializationTest {
     static value class SerializablePoint implements Serializable {
         public int x;
         public int y;
-        @DeserializeConstructor
+        @DeserializeConstructor({"x", "y"})
         private SerializablePoint(int x, int y) { this.x = x; this.y = y; }
 
         @Override public String toString() {
@@ -173,7 +173,7 @@ public class ValueSerializationTest {
     /* A Serializable Foo, with a serial proxy */
     static value class SerializableFoo implements Serializable {
         public int x;
-        @DeserializeConstructor
+        @DeserializeConstructor("x")
         SerializableFoo(int x) { this.x = x; }
 
         @Serial Object writeReplace() throws ObjectStreamException {

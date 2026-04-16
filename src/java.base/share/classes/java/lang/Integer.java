@@ -1013,7 +1013,7 @@ public final class Integer extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Integer valueOf(int i) {
         if (!PreviewFeatures.isEnabled()) {
             if (i >= IntegerCache.low && i <= IntegerCache.high)

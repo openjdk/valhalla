@@ -979,7 +979,7 @@ public final class Double extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Double valueOf(double d) {
         return new Double(d);
     }

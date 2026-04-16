@@ -171,7 +171,7 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Byte valueOf(byte b) {
         if (!PreviewFeatures.isEnabled()) {
             final int offset = 128;

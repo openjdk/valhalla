@@ -300,7 +300,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
+    @DeserializeConstructor("value")
     public static Short valueOf(short s) {
         if (!PreviewFeatures.isEnabled()) {
             final int offset = 128;

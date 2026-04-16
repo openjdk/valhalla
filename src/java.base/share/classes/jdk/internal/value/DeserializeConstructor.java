@@ -35,9 +35,12 @@ import static java.lang.annotation.ElementType.METHOD;
  * The annotation is used by java.io.ObjectStreamClass to select the constructor
  * or factory method to create objects from a stream.
  *
- * @since 24
+ * @since Valhalla
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value={CONSTRUCTOR, METHOD})
 public @interface DeserializeConstructor {
+    /// Identifies the serial field names for the method parameters.
+    /// The serial field type are the corresponding parameter types.
+    String[] value();
 }
