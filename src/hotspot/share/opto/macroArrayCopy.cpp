@@ -1592,9 +1592,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
     assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
-    if (!(top_src->is_flat() && same_nullness)) {
-      // Go to slow path. This could be improved by directly going to the slow_region instead of letting it handle by
-      // generate_array_copy(). But we might want to improve the situation in the future.
+    if (!top_src->is_flat() || !same_nullness) {
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
       generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
