@@ -3247,7 +3247,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     tty->print_cr("Found it! %s", method->method_holder()->name()->as_C_string());
   }
 
-  // Inherit adapter from super method as long as it is compatible with adapter from local interfaces
+  // Inherit adapter from super method as long as it is compatible with adapters from local interfaces
   InstanceKlass* holder = method->method_holder();
   InstanceKlass* super_klass = holder->super();
   if (super_klass != nullptr) {

@@ -608,14 +608,6 @@ class SigEntry {
   bool operator!=(const SigEntry& other) const {
     return !(*this == other);
   }
-
-  static bool compare(const SigEntry& se0, const SigEntry& se1) {
-    return (se0._bt == se1._bt)                   &&
-           (se0._offset == se1._offset)           &&
-           (se0._name == se1._name)               &&
-           (se0._null_marker == se1._null_marker) &&
-           (se0._vt_oop == se1._vt_oop);
-  }
 };
 
 class SigEntryFilter {
