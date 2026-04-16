@@ -1636,6 +1636,10 @@ bool ciMethod::c1_needs_stack_repair() const {
   GUARDED_VM_ENTRY(return get_Method()->c1_needs_stack_repair();)
 }
 
+bool ciMethod::c2_needs_stack_repair() const {
+  GUARDED_VM_ENTRY(return get_Method()->c2_needs_stack_repair();)
+}
+
 // ciMethod::is_old
 //
 // Return true for redefined methods

@@ -65,6 +65,7 @@ public:
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
   bool is_empty();
+  int inline_arg_length();
   int inline_arg_slots();
   bool contains_oops() const;
   int oop_count() const;

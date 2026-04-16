@@ -2015,7 +2015,7 @@ bool Compile::clear_argument_if_only_used_as_buffer_at_calls(Node* result_cast, 
         wq.push(u);
       } else if (u->is_CallJava()) {
         CallJavaNode* call = u->as_CallJava();
-        if (call->method() != nullptr && call->method()->get_Method()->mismatch()) {
+        if (call->method() != nullptr && call->method()->mismatch()) {
           return false;
         }
         uint nargs = call->tf()->domain_cc()->cnt();
