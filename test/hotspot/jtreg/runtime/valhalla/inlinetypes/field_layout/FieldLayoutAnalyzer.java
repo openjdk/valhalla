@@ -849,7 +849,7 @@ public class FieldLayoutAnalyzer {
     checkAcmpMap();
   }
 
-  void postPrecessing() {
+  void postProcessing() {
     // Abstract value class don't have a first field offset in the log, and this information is needed
     // in the verification of acmp maps. The log doesn't contain the information needed to identify
     // abstract value classes, so the value is computed for all classes with an uninitialized fieldFieldOffset field
@@ -889,6 +889,6 @@ public class FieldLayoutAnalyzer {
       System.out.println("Error while processing line: " + lo.getCurrentLine());
       throw t;
     }
-    postPrecessing();
+    postProcessing();
   }
  }
