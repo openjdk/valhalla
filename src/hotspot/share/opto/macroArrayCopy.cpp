@@ -1497,15 +1497,23 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // 1) The component types are not the same or void.
   // 2) src and dest do not have the same flatness.
   // 3) src or dest is a flat abstract value class array (we don't know the exact layout and cannot use the stub).
-  // 4) dest is a flat value class array with oop fields and requires to emit write barriers (we don't have such a stub).
+  // 4) src or dest is a flat value class array with oop fields and requires to emit barriers (we don't have such a stub).
+  // TODO 8251971: This does not handle atomicity. We should probably match on layouts which makes this code easier
+  //               and handles all cases.
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bool go_to_slow_path = src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID;
-  if ((top_src->is_flat() && !top_src->elem()->is_inlinetypeptr()) ||
-      (top_dest->is_flat() && !top_dest->elem()->is_inlinetypeptr())) {
+  bool go_to_slow_path = false;
+  if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID) {
+    // 1) and 2)
+    go_to_slow_path = true;
+  } else if ((top_src->is_flat() && !top_src->elem()->is_inlinetypeptr()) ||
+             (top_dest->is_flat() && !top_dest->elem()->is_inlinetypeptr())) {
+    // 3)
     go_to_slow_path = true;
   } else if (top_dest->is_flat() &&
              bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization) &&
              top_dest->elem()->inline_klass()->contains_oops()) {
+    // 4)
+    assert(top_src->is_flat() && top_src->elem()->inline_klass()->contains_oops(), "must match");
     go_to_slow_path = true;
   }
 

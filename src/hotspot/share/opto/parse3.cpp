@@ -168,6 +168,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
   if (ld == nullptr) {
     // Build the resultant type of the load
+    assert(!field->is_flat(), "cannot be flat");
     const Type* type;
     if (is_reference_type(bt)) {
       if (!field_klass->is_loaded()) {
@@ -300,6 +301,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   }
   if (do_store) {
     // Store the value.
+    assert(!field->is_flat(), "cannot be flat");
     const Type* field_type;
     if (!field->type()->is_loaded()) {
       field_type = TypeInstPtr::BOTTOM;
