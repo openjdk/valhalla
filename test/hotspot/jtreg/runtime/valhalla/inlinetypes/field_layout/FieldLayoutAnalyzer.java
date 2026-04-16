@@ -25,15 +25,9 @@ package runtime.valhalla.inlinetypes.field_layout;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-
-import javax.management.RuntimeErrorException;
-
 import jdk.test.lib.Asserts;
-import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
 
 public class FieldLayoutAnalyzer {
 
@@ -108,6 +102,8 @@ public class FieldLayoutAnalyzer {
     }
   }
 
+  static public record AcmpMapSegment(int offset, int size) {}
+
   static public record FieldBlock (int offset,
                             BlockType type,
                             int size,
@@ -136,6 +132,7 @@ public class FieldLayoutAnalyzer {
     }
 
     boolean isFlat() { return type == BlockType.FLAT; } // Warning: always return false for inherited fields, even flat ones
+    boolean isRegular() { return type == BlockType.REGULAR; }
     boolean hasNullMarker() { return layoutKind.hasNullMarker(); }
 
     static FieldBlock parseField(String line) {
@@ -204,10 +201,14 @@ public class FieldLayoutAnalyzer {
     String[] lines;
     ArrayList<FieldBlock> staticFields;
     ArrayList<FieldBlock> nonStaticFields;
+    ArrayList<AcmpMapSegment> nonOopAcmpMap;
+    ArrayList<Integer> oopAcmpMap;
 
     private ClassLayout() {
       staticFields = new ArrayList<FieldBlock>();
       nonStaticFields = new ArrayList<FieldBlock>();
+      nonOopAcmpMap = new ArrayList<AcmpMapSegment>();
+      oopAcmpMap = new ArrayList<Integer>();
     }
 
     boolean hasNullFreeNonAtomicLayout() { return nullFreeNonAtomicLayoutSize != -1; }
@@ -375,9 +376,25 @@ public class FieldLayoutAnalyzer {
         } else {
           cl.nullMarkerOffset = -1;
         }
+        // Non-oop acmp map <offset,size>: <12,1> <16,4> ...
         Asserts.assertTrue(lo.getCurrentLine().startsWith("Non-oop acmp map <offset,size>"), lo.getCurrentLine());
+        String[] acmpNonoopLine = lo.getCurrentLine().split("\\s+");
+        Asserts.assertTrue(acmpNonoopLine.length >= 4, "Wrong format for non-oop acmp map line: " + lo.getCurrentLine());
+        for (int i = 4; i < acmpNonoopLine.length; i++) {
+          String[] offset_size = acmpNonoopLine[i].split(",");
+          Asserts.assertTrue(offset_size.length == 2, "Wrong format for acmp map entry: " + acmpNonoopLine[i]);
+          int offset = Integer.parseInt(offset_size[0].substring(1)); // skipping '<'
+          int size = Integer.parseInt(offset_size[1].substring(0, offset_size[1].length() - 1)); // skipping '>'
+          cl.nonOopAcmpMap.add(new AcmpMapSegment(offset, size));
+        }
         lo.moveToNextLine();
+        // oop acmp map: 12 16 ...
         Asserts.assertTrue(lo.getCurrentLine().startsWith("oop acmp map"), lo.getCurrentLine());
+        String[] acmpOopLine = lo.getCurrentLine().split("\\s+");
+        Asserts.assertTrue(acmpOopLine.length >= 3, "Wrong format for oop acmp map line: " + lo.getCurrentLine());
+        for (int i = 3; i < acmpOopLine.length; i++) {
+          cl.oopAcmpMap.add(Integer.parseInt(acmpOopLine[i]));
+        }
         lo.moveToNextLine();
       } else {
         cl.isValue = false;
@@ -745,6 +762,79 @@ public class FieldLayoutAnalyzer {
     }
   }
 
+  void addFlatFieldToBitMap(ClassLayout cl, boolean[] bitmap, int offset, LayoutKind layoutKind) {
+    if (cl.superName != null) {
+      ClassLayout superLayout = getClassLayout(cl.superName);
+      addClassToBitMap(superLayout, bitmap, offset);
+    }
+    int fieldOffset = offset - cl.firstFieldOffset;
+    for (FieldBlock fb : cl.nonStaticFields) {
+      if (fb.isRegular() && !fb.name().equals("\".empty\"")) {
+        for (int i = fieldOffset + fb.offset(); i < fieldOffset + fb.offset() + fb.size(); i++) {
+          Asserts.assertFalse(bitmap[i], "Overlap in field at offset " + i + " of class " + cl.name);
+          bitmap[i] = true;
+        }
+      } else if (fb.isFlat()) {
+        ClassLayout fcl = getClassLayout(fb.fieldClass);
+        addFlatFieldToBitMap(fcl, bitmap, fieldOffset + fb.offset(), fb.layoutKind);
+      }
+    }
+    if (layoutKind.hasNullMarker()) {
+      Asserts.assertTrue(cl.hasNullMarker());
+      int nullMarkerOffset = fieldOffset + cl.nullMarkerOffset;
+      Asserts.assertFalse(bitmap[nullMarkerOffset], "Overlap in null marker at offset " + nullMarkerOffset + " of class " + cl.name);
+      bitmap[nullMarkerOffset] = true;
+    }
+  }
+
+  void addClassToBitMap(ClassLayout layout, boolean[] bitmap, int baseOffset) {
+    if (layout.superName != null) {
+      ClassLayout superLayout = getClassLayout(layout.superName);
+      addClassToBitMap(superLayout, bitmap, baseOffset);
+    }
+    if (baseOffset != 0) {
+      baseOffset = baseOffset - layout.firstFieldOffset;
+    }
+    for (FieldBlock block : layout.nonStaticFields) {
+      if (block.isRegular() && !block.name().equals("\".empty\"")) {
+        for (int i = baseOffset + block.offset(); i <  baseOffset +block.offset() + block.size(); i++) {
+          Asserts.assertFalse(bitmap[i], "Overlap in field at offset " + i + " of class " + layout.name);
+          bitmap[i] = true;
+        }
+      } else if (block.isFlat()) {
+        ClassLayout cl = getClassLayout(block.fieldClass);
+        addFlatFieldToBitMap(cl, bitmap, baseOffset + block.offset(), block.layoutKind);
+      }
+    }
+  }
+
+  void checkAcmpMap() {
+    for (ClassLayout layout : layouts) {
+      if (!layout.isValue) continue;
+      System.out.println("Checking acmp map of class " + layout.name);
+      boolean[] acmpBitMap = new boolean[layout.instanceSize];
+      for (AcmpMapSegment segment : layout.nonOopAcmpMap) {
+        for (int i = segment.offset; i < segment.offset + segment.size; i++) {
+          Asserts.assertFalse(acmpBitMap[i], "Overlap in non-oop acmp map at offset " + i + " of class " + layout.name);
+          acmpBitMap[i] = true;
+        }
+      }
+      for (Integer offset : layout.oopAcmpMap) {
+        for (int i = offset; i < offset + oopSize; i++) {
+          Asserts.assertFalse(acmpBitMap[i], "Overlap in acmp map at offset " + i + " of class " + layout.name);
+          acmpBitMap[i] = true;
+        }
+      }
+      boolean[] fieldBitMap = new boolean[layout.instanceSize];
+      addClassToBitMap(layout, fieldBitMap, 0);
+      for (int i = 0; i < layout.instanceSize; i++) {
+          Asserts.assertTrue(acmpBitMap[i] == fieldBitMap[i], "AcmpMap inconsistency at offset " + i + " of class " + layout.name +
+                             " acmpBitMap = " + acmpBitMap[i] + " fieldBitMap = " + fieldBitMap[i]);
+
+      }
+    }
+  }
+
   public void check() {
     checkOffsets();
     checkNoOverlap();
@@ -753,6 +843,27 @@ public class FieldLayoutAnalyzer {
     checkSubClasses();
     checkNullMarkers();
     checkBufferedLayout();
+    checkAcmpMap();
+  }
+
+  void postProcessing() {
+    // Abstract value class don't have a first field offset in the log, and this information is needed
+    // in the verification of acmp maps. The log doesn't contain the information needed to identify
+    // abstract value classes, so the value is computed for all classes with an uninitialized fieldFieldOffset field
+    for (ClassLayout layout : layouts) {
+      if (layout.firstFieldOffset == 0) {
+        int firstOffset = 0;
+        for (FieldBlock block : layout.nonStaticFields) {
+          if (block.isRegular() || block.isFlat() || block.type() == BlockType.INHERITED) {
+            if (block.offset() < firstOffset || firstOffset == 0) {
+              firstOffset = block.offset();
+              break;
+            }
+          }
+        }
+        layout.firstFieldOffset = firstOffset;
+      }
+    }
   }
 
   private void generate(LogOutput lo) {
@@ -775,5 +886,6 @@ public class FieldLayoutAnalyzer {
       System.out.println("Error while processing line: " + lo.getCurrentLine());
       throw t;
     }
+    postProcessing();
   }
  }
