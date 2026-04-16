@@ -189,7 +189,20 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type, const TypeKlassPt
     l = gen_checkcast(l, makecon(klass_type), &bad_type_ctrl, nullptr, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
-
+  // TODO 8374475 Remove once this is fixed
+#ifdef ASSERT
+  if (!_gvn.type(l)->higher_equal(type)) {
+    l->dump(10);
+    _gvn.type(l)->dump_on(tty);
+    tty->cr();
+    type->dump_on(tty);
+    tty->cr();
+    if (klass_type != nullptr) {
+      klass_type->dump_on(tty);
+      tty->cr();
+    }
+  }
+#endif
   assert(_gvn.type(l)->higher_equal(type), "must constrain OSR typestate");
   return l;
 }
