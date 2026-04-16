@@ -351,7 +351,7 @@ class Parse : public GraphKit {
   int           _block_count;   // Number of elements in _blocks.
 
   GraphKit      _exits;         // Record all normal returns and throws here.
-  bool          _wrote_final;   // Did we write a final field?
+  bool          _wrote_non_strict_final; // Did we write a non-strict final field?
   bool          _wrote_volatile;     // Did we write a volatile field?
   bool          _wrote_stable;       // Did we write a @Stable field?
   bool          _wrote_fields;       // Did we write any field?
@@ -392,8 +392,8 @@ class Parse : public GraphKit {
   int           block_count()   const { return _block_count; }
 
   GraphKit&     exits()               { return _exits; }
-  bool          wrote_final() const   { return _wrote_final; }
-  void      set_wrote_final(bool z)   { _wrote_final = z; }
+  bool          wrote_non_strict_final() const { return _wrote_non_strict_final; }
+  void      set_wrote_non_strict_final(bool z) { _wrote_non_strict_final = z; }
   bool          wrote_volatile() const { return _wrote_volatile; }
   void      set_wrote_volatile(bool z) { _wrote_volatile = z; }
   bool          wrote_stable() const  { return _wrote_stable; }

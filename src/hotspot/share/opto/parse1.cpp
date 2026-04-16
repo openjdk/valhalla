@@ -427,7 +427,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   _method = parse_method;
   _expected_uses = expected_uses;
   _depth = 1 + (caller->has_method() ? caller->depth() : 0);
-  _wrote_final = false;
+  _wrote_non_strict_final = false;
   _wrote_volatile = false;
   _wrote_stable = false;
   _wrote_fields = false;
@@ -1076,7 +1076,7 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if ((method()->is_object_constructor() || method()->is_class_initializer()) &&
-       (wrote_final() || wrote_stable() ||
+       (wrote_non_strict_final() || wrote_stable() ||
          (AlwaysSafeConstructors && wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     Node* recorded_alloc = alloc_with_final_or_stable();
