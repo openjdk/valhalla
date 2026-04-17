@@ -112,6 +112,11 @@ public class AOTCodeFlags {
         // Run only 2 modes (0 - no AOT code, 1 - AOT adapters) until JDK-8357398 is fixed
         for (int mode = 0; mode < 4; mode++) {
             t.setTestMode(mode);
+            if (t.isAdapterCachingOn() && !t.isStubCachingOn()) {
+                // In Valhalla, -XX:+AOTAdapterCaching will ergonomically turn on -XX:+AOTStubCaching, so
+                // no need to test this combination.
+                continue;
+            }
             t.run(new String[] {"AOT", "--two-step-training"});
         }
     }

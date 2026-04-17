@@ -217,6 +217,11 @@ void AOTCodeCache::initialize() {
     }
   }
 
+  if (AOTAdapterCaching && !AOTStubCaching) {
+    // In Valhalla, adapters can call Stub:forward_exception_stub, so we must enable stub caching
+    FLAG_SET_ERGO(AOTStubCaching, true);
+  }
+
   bool is_dumping = false;
   bool is_using   = false;
   if (CDSConfig::is_dumping_final_static_archive() && CDSConfig::is_dumping_aot_linked_classes()) {
