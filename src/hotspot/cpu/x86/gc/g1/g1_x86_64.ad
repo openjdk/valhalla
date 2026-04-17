@@ -157,7 +157,7 @@ instruct g1StoreLSpecialOneOopOff4(memory mem, rRegL src, immI_4 off, rRegP tmp1
     __ decode_heap_oop($tmp2$$Register);
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,
-                       $src$$Register /* new_val */,
+                       $tmp2$$Register /* new_val */,
                        $tmp3$$Register /* tmp1 */);
   %}
   ins_pipe(ialu_mem_reg);
