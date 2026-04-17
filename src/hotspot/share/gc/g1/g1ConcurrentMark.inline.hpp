@@ -270,7 +270,6 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // be pushed on the stack. So, some duplicate work, but no
   // correctness problems.
   if (is_below_finger(obj, global_finger)) {
-    G1TaskQueueEntry entry(obj);
     if (_g1h->can_be_marked_through_immediately(obj)) {
       // Immediately process arrays of types without oops, rather
       // than pushing on the mark stack.  This keeps us from
