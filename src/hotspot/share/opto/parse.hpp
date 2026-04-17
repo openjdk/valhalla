@@ -443,7 +443,7 @@ class Parse : public GraphKit {
 
   // OSR helpers
   Node* fetch_interpreter_state(int index, const Type* type, Node* local_addrs);
-  Node* check_interpreter_type(Node* l, const Type* type, const TypeKlassPtr* klass_type, SafePointNode* &bad_type_exit, bool is_larval);
+  Node* check_interpreter_type(Node* l, ciType* ci_type, SafePointNode* &bad_type_exit);
   void  load_interpreter_state(Node* osr_buf);
 
   // Functions for managing basic blocks:
