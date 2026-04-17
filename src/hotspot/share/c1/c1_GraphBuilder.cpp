@@ -1899,7 +1899,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         null_check(val);
 
         ciType* field_type = field->type();
-        if (field_type->is_loaded() && field_type->is_inlinetype() && field->type()->as_inline_klass()->is_empty() &&
+        if (field_type->is_loaded() && field_type->is_inlinetype() && field_type->as_inline_klass()->is_empty() &&
             (!method()->is_class_initializer() || field->is_flat())) {
           // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
           break;
@@ -2095,7 +2095,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 
       ciType* field_type = field->type();
       if (field->is_null_free() && field_type->is_loaded() && field_type->is_inlinetype() &&
-          field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
+          field_type->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
         // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
         null_check(obj);
         null_check(val);
@@ -2111,7 +2111,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       } else {
         // Flat field
         assert(!needs_patching, "Can't patch flat inline type field access");
-        ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+        ciInlineKlass* inline_klass = field_type->as_inline_klass();
         if (field->is_atomic()) {
           if (field->is_null_free()) {
             null_check(val);

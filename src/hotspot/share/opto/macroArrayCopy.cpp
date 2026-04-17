@@ -1559,6 +1559,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   RegionNode* slow_region = new RegionNode(1);
   transform_later(slow_region);
   const bool same_nullness = top_src->is_null_free() == top_dest->is_null_free();
+  const bool flat_and_same_nullness = top_src->is_flat() && same_nullness;
 
   if (!ac->is_arraycopy_validated()) {
     // (3) operands must not be null
@@ -1600,7 +1601,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
     assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
-    if (!top_src->is_flat() || !same_nullness) {
+    if (!flat_and_same_nullness) {
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
       generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
@@ -1611,7 +1612,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
   assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
-  if (top_src->is_flat() && same_nullness) {
+  if (flat_and_same_nullness) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
