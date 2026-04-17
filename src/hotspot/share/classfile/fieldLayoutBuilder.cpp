@@ -1218,7 +1218,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // Next step is the nullable layouts: they must include a null marker
     // Note about the special case of j.l.Double and j.l.Long: the introduction of
     // the NULLABLE_NON_ATOMIC_FLAT layout caused an increase of the size of their
-    // instances which causes performance regression (see JDK-8379145)
+    // instances which causes performance regression (see JDK-8379145).
     // The temporary solution is to simply disable nullable layouts for these classes
     // until a better fix is implemented (see JDK-8382361).
     if ((UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening)
