@@ -1074,6 +1074,12 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     // Check if we are returning an non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
+    // Check if the non-null inline type can be returned scalarized
+    movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
+    movl(rscratch1, Address(rscratch1, Method::flags_offset()));
+    testl(rscratch1, MethodFlags::has_scalarized_return_flag());
+    jcc(Assembler::zero, skip);
+
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else
@@ -1087,16 +1093,10 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     call(rdi);
 #endif
 #ifdef ASSERT
-    // TODO 8284443 Enable
-    if (StressCallingConvention && false) {
-      Label skip_stress;
-      movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
-      movl(rscratch1, Address(rscratch1, Method::flags_offset()));
-      testl(rcx, MethodFlags::has_scalarized_return_flag());
-      jcc(Assembler::zero, skip_stress);
+    if (StressCallingConvention) {
+      // Discard the oop and only return scalarized to stress the calling convention
       load_klass(rax, rax, rscratch1);
       orptr(rax, 1);
-      bind(skip_stress);
     }
 #endif
     // call above kills the value in rbx. Reload it.
