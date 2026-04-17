@@ -1665,12 +1665,12 @@ void FieldLayoutBuilder::epilogue() {
       }
       st.print("Non-oop acmp map <offset,size>: ");
       for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
-        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
+        st.print("<%d,%d> ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
       }
       st.print_cr("");
       st.print("oop acmp map: ");
       for (int i = 0 ; i < _oop_acmp_map->length(); i++) {
-        st.print("%d, ", _oop_acmp_map->at(i));
+        st.print("%d ", _oop_acmp_map->at(i));
       }
       st.print_cr("");
     }

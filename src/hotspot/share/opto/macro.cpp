@@ -259,82 +259,137 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
   }
 }
 
-// Generate loads from source of the arraycopy for fields of
-// destination needed at a deoptimization point
-Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type *ftype, AllocateNode *alloc) {
+// Determine if there is an interfering store between a rematerialization load and an arraycopy that is in the process
+// of being elided. Starting from the given rematerialization load this method starts a BFS traversal upwards through
+// the memory graph towards the provided ArrayCopyNode. For every node encountered on the traversal, check that it is
+// independent from the provided rematerialization. Returns false if every node on the traversal is independent and
+// true otherwise.
+bool has_interfering_store(const ArrayCopyNode* ac, LoadNode* load, PhaseGVN* phase) {
+  assert(ac != nullptr && load != nullptr, "sanity");
+  AccessAnalyzer acc(phase, load);
+  ResourceMark rm;
+  Unique_Node_List to_visit;
+  to_visit.push(load->in(MemNode::Memory));
+
+  for (uint worklist_idx = 0; worklist_idx < to_visit.size(); worklist_idx++) {
+    Node* mem = to_visit.at(worklist_idx);
+
+    if (mem->is_Proj() && mem->in(0) == ac) {
+      // Reached the target, so visit what is left on the worklist.
+      continue;
+    }
+
+    if (mem->is_Phi()) {
+      assert(mem->bottom_type() == Type::MEMORY, "do not leave memory graph");
+      // Add all non-control inputs of phis to be visited.
+      for (uint phi_in = 1; phi_in < mem->len(); phi_in++) {
+        Node* input = mem->in(phi_in);
+        if (input != nullptr) {
+          to_visit.push(input);
+        }
+      }
+      continue;
+    }
+
+    AccessAnalyzer::AccessIndependence ind = acc.detect_access_independence(mem);
+    if (ind.independent) {
+      to_visit.push(ind.mem);
+    } else {
+      return true;
+    }
+  }
+  // Did not find modification of source element in memory graph.
+  return false;
+}
+
+// Generate loads from source of the arraycopy for fields of destination needed at a deoptimization point.
+// Returns nullptr if the load cannot be created because the arraycopy is not suitable for elimination
+// (e.g. copy inside the array with non-constant offsets) or the inputs do not match our assumptions (e.g.
+// the arraycopy does not actually write something at the provided offset).
+Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type* ftype, AllocateNode* alloc) {
+  assert((ctl == ac->control() && mem == ac->memory()) != (mem != ac->memory() && ctl->is_Proj() && ctl->as_Proj()->is_uncommon_trap_proj()),
+    "Either the control and memory are the same as for the arraycopy or they are pinned in an uncommon trap.");
   BasicType bt = ft;
   const Type *type = ftype;
   if (ft == T_NARROWOOP) {
     bt = T_OBJECT;
     type = ftype->make_oopptr();
   }
-  Node* res = nullptr;
+  Node* base = ac->in(ArrayCopyNode::Src);
+  Node* adr = nullptr;
+  const TypePtr* adr_type = nullptr;
+
   if (ac->is_clonebasic()) {
     assert(ac->in(ArrayCopyNode::Src) != ac->in(ArrayCopyNode::Dest), "clone source equals destination");
-    Node* base = ac->in(ArrayCopyNode::Src);
-    Node* adr = _igvn.transform(AddPNode::make_with_base(base, _igvn.MakeConX(offset)));
-    const TypePtr* adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
-    MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
-    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    res = ArrayCopyNode::load(bs, &_igvn, ctl, mergemen, adr, adr_type, type, bt);
+    adr = _igvn.transform(AddPNode::make_with_base(base, _igvn.MakeConX(offset)));
+    adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
   } else {
-    if (ac->modifies(offset, offset, &_igvn, true)) {
-      assert(ac->in(ArrayCopyNode::Dest) == alloc->result_cast(), "arraycopy destination should be allocation's result");
-      uint shift = exact_log2(type2aelembytes(bt));
-      Node* src_pos = ac->in(ArrayCopyNode::SrcPos);
-      Node* dest_pos = ac->in(ArrayCopyNode::DestPos);
-      const TypeInt* src_pos_t = _igvn.type(src_pos)->is_int();
-      const TypeInt* dest_pos_t = _igvn.type(dest_pos)->is_int();
+    if (!ac->modifies(offset, offset, &_igvn, true)) {
+      // If the arraycopy does not copy to this offset, we cannot generate a rematerialization load for it.
+      return nullptr;
+    }
+    assert(ac->in(ArrayCopyNode::Dest) == alloc->result_cast(), "arraycopy destination should be allocation's result");
+    uint shift = exact_log2(type2aelembytes(bt));
+    Node* src_pos = ac->in(ArrayCopyNode::SrcPos);
+    Node* dest_pos = ac->in(ArrayCopyNode::DestPos);
+    const TypeInt* src_pos_t = _igvn.type(src_pos)->is_int();
+    const TypeInt* dest_pos_t = _igvn.type(dest_pos)->is_int();
 
-      Node* adr = nullptr;
-      Node* base = ac->in(ArrayCopyNode::Src);
-      const TypeAryPtr* adr_type = _igvn.type(base)->is_aryptr();
-      if (adr_type->is_flat()) {
-        shift = adr_type->flat_log_elem_size();
+    adr_type = _igvn.type(base)->is_aryptr();
+    if (((const TypeAryPtr*)adr_type)->is_flat()) {
+      shift = ((const TypeAryPtr*)adr_type)->flat_log_elem_size();
+    }
+    if (src_pos_t->is_con() && dest_pos_t->is_con()) {
+      intptr_t off = ((src_pos_t->get_con() - dest_pos_t->get_con()) << shift) + offset;
+      adr = _igvn.transform(AddPNode::make_with_base(base, base, _igvn.MakeConX(off)));
+      adr_type = _igvn.type(adr)->is_aryptr();
+      assert(adr_type == _igvn.type(base)->is_aryptr()->add_field_offset_and_offset(off), "incorrect address type");
+      if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
+        // Don't emit a new load from src if src == dst but try to get the value from memory instead
+        return value_from_mem(ac, ctl, ft, ftype, (const TypeAryPtr*)adr_type, alloc);
       }
-      if (src_pos_t->is_con() && dest_pos_t->is_con()) {
-        intptr_t off = ((src_pos_t->get_con() - dest_pos_t->get_con()) << shift) + offset;
-        adr = _igvn.transform(AddPNode::make_with_base(base, base, _igvn.MakeConX(off)));
-        adr_type = _igvn.type(adr)->is_aryptr();
-        assert(adr_type == _igvn.type(base)->is_aryptr()->add_field_offset_and_offset(off), "incorrect address type");
-        if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
-          // Don't emit a new load from src if src == dst but try to get the value from memory instead
-          return value_from_mem(ac->in(TypeFunc::Memory), ctl, ft, ftype, adr_type, alloc);
-        }
-      } else {
-        if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
-          // Non constant offset in the array: we can't statically
-          // determine the value
-          return nullptr;
-        }
-        Node* diff = _igvn.transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
+    } else {
+      if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
+        // Non constant offset in the array: we can't statically
+        // determine the value
+        return nullptr;
+      }
+      Node* diff = _igvn.transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
 #ifdef _LP64
-        diff = _igvn.transform(new ConvI2LNode(diff));
+      diff = _igvn.transform(new ConvI2LNode(diff));
 #endif
-        diff = _igvn.transform(new LShiftXNode(diff, _igvn.intcon(shift)));
+      diff = _igvn.transform(new LShiftXNode(diff, _igvn.intcon(shift)));
 
-        Node* off = _igvn.transform(new AddXNode(_igvn.MakeConX(offset), diff));
-        adr = _igvn.transform(AddPNode::make_with_base(base, base, off));
-        // In the case of a flat inline type array, each field has its
-        // own slice so we need to extract the field being accessed from
-        // the address computation
-        adr_type = adr_type->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot)->is_aryptr();
-        adr = _igvn.transform(new CastPPNode(ctl, adr, adr_type));
-      }
-      MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
-      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      res = ArrayCopyNode::load(bs, &_igvn, ctl, mergemen, adr, adr_type, type, bt);
+      Node* off = _igvn.transform(new AddXNode(_igvn.MakeConX(offset), diff));
+      adr = _igvn.transform(AddPNode::make_with_base(base, base, off));
+      // In the case of a flat inline type array, each field has its
+      // own slice so we need to extract the field being accessed from
+      // the address computation
+      adr_type = ((TypeAryPtr*)adr_type)->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot)->is_aryptr();
+      adr = _igvn.transform(new CastPPNode(ctl, adr, adr_type));
     }
   }
-  if (res != nullptr) {
-    if (ftype->isa_narrowoop()) {
-      // PhaseMacroExpand::scalar_replacement adds DecodeN nodes
-      assert(res->isa_DecodeN(), "should be narrow oop");
-      res = _igvn.transform(new EncodePNode(res, ftype));
-    }
-    return res;
+  assert(adr != nullptr && adr_type != nullptr, "sanity");
+
+  // Create the rematerialization load ...
+  MergeMemNode* mergemem = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  Node* res = ArrayCopyNode::load(bs, &_igvn, ctl, mergemem, adr, adr_type, type, bt);
+  assert(res != nullptr, "load should have been created");
+
+  // ... and ensure that pinning the rematerialization load inside the uncommon path is safe.
+  if (mem != ac->memory() && ctl->is_Proj() && ctl->as_Proj()->is_uncommon_trap_proj() && res->is_Load() &&
+      has_interfering_store(ac, res->as_Load(), &_igvn)) {
+    // Not safe: use control and memory from the arraycopy to ensure correct memory state.
+    _igvn.remove_dead_node(res, PhaseIterGVN::NodeOrigin::Graph); // Clean up the unusable rematerialization load.
+    return make_arraycopy_load(ac, offset, ac->control(), ac->memory(), ft, ftype, alloc);
   }
-  return nullptr;
+
+  if (ftype->isa_narrowoop()) {
+    // PhaseMacroExpand::scalar_replacement adds DecodeN nodes
+    res = _igvn.transform(new EncodePNode(res, ftype));
+  }
+  return res;
 }
 
 //
@@ -513,20 +568,21 @@ Node* PhaseMacroExpand::value_from_alloc(BasicType ft, const TypeOopPtr* adr_t, 
 }
 
 // Search the last value stored into the object's field.
-Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc) {
+Node* PhaseMacroExpand::value_from_mem(Node* origin, Node* ctl, BasicType ft, const Type* ftype, const TypeOopPtr* adr_t, AllocateNode* alloc) {
   assert(adr_t->is_known_instance_field(), "instance required");
   int instance_id = adr_t->instance_id();
   assert((uint)instance_id == alloc->_idx, "wrong allocation");
 
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->flat_offset();
+  Node* orig_mem = origin->in(TypeFunc::Memory);
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *alloc_mem = alloc->proj_out_or_null(TypeFunc::Memory, /*io_use:*/false);
   assert(alloc_mem != nullptr, "Allocation without a memory projection.");
   VectorSet visited;
 
-  bool done = sfpt_mem == alloc_mem;
-  Node *mem = sfpt_mem;
+  bool done = orig_mem == alloc_mem;
+  Node *mem = orig_mem;
   while (!done) {
     if (visited.test_set(mem->_idx)) {
       return nullptr;  // found a loop, give up
@@ -606,14 +662,19 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
         }
       }
     } else if (mem->is_ArrayCopy()) {
-      Node* ctl = mem->in(0);
-      Node* m = mem->in(TypeFunc::Memory);
-      if (sfpt_ctl->is_Proj() && sfpt_ctl->as_Proj()->is_uncommon_trap_proj()) {
+      // Rematerialize the scalar-replaced array. If possible, pin the loads to the uncommon path of the uncommon trap.
+      // Check for each element of the source array, whether it was modified. If not, pin both memory and control to
+      // the uncommon path. Otherwise, use the control and memory state of the arraycopy. Control and memory state must
+      // come from the same source to prevent anti-dependence problems in the backend.
+      ArrayCopyNode* ac = mem->as_ArrayCopy();
+      Node* ac_ctl = ac->control();
+      Node* ac_mem = ac->memory();
+      if (ctl->is_Proj() && ctl->as_Proj()->is_uncommon_trap_proj()) {
         // pin the loads in the uncommon trap path
-        ctl = sfpt_ctl;
-        m = sfpt_mem;
+        ac_ctl = ctl;
+        ac_mem = orig_mem;
       }
-      return make_arraycopy_load(mem->as_ArrayCopy(), offset, ctl, m, ft, ftype, alloc);
+      return make_arraycopy_load(ac, offset, ac_ctl, ac_mem, ft, ftype, alloc);
     }
   }
   // Something went wrong.
@@ -644,7 +705,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
   } else {
     int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
     const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
-    Node* nm_value = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
+    Node* nm_value = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
     if (nm_value != nullptr) {
       vt->set_null_marker(_igvn, nm_value);
     } else {
@@ -670,7 +731,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
       }
       // Each inline type field has its own memory slice
       const TypeAryPtr* field_adr_type = elem_adr_type->with_field_offset(field_offset_in_element);
-      field_value = value_from_mem(sfpt->memory(), sfpt->control(), bt, ft, field_adr_type, alloc);
+      field_value = value_from_mem(sfpt, sfpt->control(), bt, ft, field_adr_type, alloc);
       if (field_value == nullptr) {
         report_failure(field_offset_in_element);
       } else if (ft->isa_narrowoop()) {
@@ -999,7 +1060,7 @@ bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const T
       assert(elem_klass->maybe_flat_in_array(), "must be flat in array");
       elem_val = inline_type_from_mem(elem_klass, elem_adr_type, elem_idx, 0, array_type->is_null_free(), alloc, sfpt);
     } else {
-      elem_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, elem_type, elem_adr_type, alloc);
+      elem_val = value_from_mem(sfpt, sfpt->control(), basic_elem_type, elem_type, elem_adr_type, alloc);
 #ifndef PRODUCT
       if (PrintEliminateAllocations && elem_val == nullptr) {
         tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, elem_idx);
@@ -1052,7 +1113,7 @@ bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, All
       // The null marker of a field is added right after we scalarize that field
       if (!field->is_null_free()) {
         int nm_offset = offset_minus_header + field->null_marker_offset();
-        Node* null_marker = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, base_type->with_offset(nm_offset), alloc);
+        Node* null_marker = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, base_type->with_offset(nm_offset), alloc);
         if (null_marker == nullptr) {
           report_failure(nm_offset);
           return false;
@@ -1083,7 +1144,7 @@ bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, All
     }
 
     const TypeInstPtr* field_addr_type = base_type->add_offset(offset)->isa_instptr();
-    Node* field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
+    Node* field_val = value_from_mem(sfpt, sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
     if (field_val == nullptr) {
       report_failure(offset);
       return false;

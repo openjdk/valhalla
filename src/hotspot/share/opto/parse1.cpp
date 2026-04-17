@@ -189,7 +189,20 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type, const TypeKlassPt
     l = gen_checkcast(l, makecon(klass_type), &bad_type_ctrl, nullptr, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
-
+  // TODO 8374475 Remove once this is fixed
+#ifdef ASSERT
+  if (!_gvn.type(l)->higher_equal(type)) {
+    l->dump(10);
+    _gvn.type(l)->dump_on(tty);
+    tty->cr();
+    type->dump_on(tty);
+    tty->cr();
+    if (klass_type != nullptr) {
+      klass_type->dump_on(tty);
+      tty->cr();
+    }
+  }
+#endif
   assert(_gvn.type(l)->higher_equal(type), "must constrain OSR typestate");
   return l;
 }
@@ -1792,9 +1805,14 @@ void Parse::merge_new_path(int target_bci) {
 }
 
 //-------------------------merge_exception-------------------------------------
-// Merge the current mapping into the basic block starting at bci
-// The ex_oop must be pushed on the stack, unlike throw_to_exit.
-void Parse::merge_exception(int target_bci) {
+// Push the given ex_oop onto the stack, then merge the current mapping into
+// the basic block starting at target_bci.
+void Parse::push_and_merge_exception(int target_bci, Node* ex_oop) {
+  // Add the safepoint before trimming the stack and pushing the exception oop.
+  // We could add the safepoint after, but then the bci would also need to be
+  // advanced to target_bci first, so the stack state matches.
+  maybe_add_safepoint(target_bci);
+  push_ex_oop(ex_oop);      // Push exception oop for handler
 #ifdef ASSERT
   if (target_bci <= bci()) {
     C->set_exception_backedge();

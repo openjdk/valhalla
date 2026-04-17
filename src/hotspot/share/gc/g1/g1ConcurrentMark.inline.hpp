@@ -106,9 +106,27 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
 }
 #endif
 
+inline void G1CMTask::process_klass(Klass* klass) {
+  _cm_oop_closure->do_klass(klass);
+}
+
 // It scans an object and visits its children.
 inline void G1CMTask::process_entry(G1TaskQueueEntry task_entry, bool stolen) {
-  process_grey_task_entry<true>(task_entry, stolen);
+  assert(task_entry.is_partial_array_state() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.to_oop())),
+         "Any stolen object should be a slice or marked");
+
+  if (task_entry.is_partial_array_state()) {
+    _words_scanned += process_partial_array(task_entry, stolen);
+  } else {
+    oop obj = task_entry.to_oop();
+    if (should_be_sliced(obj)) {
+      _words_scanned += start_partial_array_processing(objArrayOop(obj));
+    } else {
+      _words_scanned += obj->oop_iterate_size(_cm_oop_closure);
+    }
+  }
+
+  check_limits();
 }
 
 inline void G1CMTask::push(G1TaskQueueEntry task_entry) {
@@ -158,31 +176,6 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
   }
   // Check global finger.
   return objAddr < global_finger;
-}
-
-template<bool scan>
-inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry, bool stolen) {
-  assert(scan || (!task_entry.is_partial_array_state() && _g1h->can_be_marked_through_immediately(task_entry.to_oop())),
-         "Skipping scan of grey object that needs scanning");
-  assert(task_entry.is_partial_array_state() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.to_oop())),
-         "Any stolen object should be a slice or marked");
-
-  if (scan) {
-    if (task_entry.is_partial_array_state()) {
-      _words_scanned += process_partial_array(task_entry, stolen);
-    } else {
-      oop obj = task_entry.to_oop();
-      if (should_be_sliced(obj)) {
-        _words_scanned += start_partial_array_processing(obj);
-      } else {
-        _words_scanned += obj->oop_iterate_size(_cm_oop_closure);
-      }
-    }
-  } else {
-    // Need to process the klass always.
-    _cm_oop_closure->do_klass(task_entry.to_oop()->klass());
-  }
-  check_limits();
 }
 
 inline bool G1CMTask::should_be_sliced(oop obj) {
@@ -289,8 +282,9 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       // by only doing a bookkeeping update and avoiding the
       // actual scan of the object - the object contains no
       // references (but the metadata must be processed).
-      process_grey_task_entry<false>(entry, false /* stolen */);
+      process_klass(obj->klass());
     } else {
+      G1TaskQueueEntry entry(obj);
       push(entry);
     }
   }
