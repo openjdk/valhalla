@@ -3239,6 +3239,9 @@ void Compile::Optimize() {
     // More opportunities to optimize virtual and MH calls.
     // Though it's maybe too late to perform inlining, strength-reducing them to direct calls is still an option.
     process_late_inline_calls_no_inline(igvn);
+    if (failing()) {
+      return;
+    }
     process_inline_types(igvn);
   }
 
