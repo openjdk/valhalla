@@ -2356,7 +2356,7 @@ void G1CMTask::drain_local_queue(bool partially) {
 size_t G1CMTask::start_partial_array_processing(objArrayOop obj) {
   assert(obj->length() >= (int)ObjArrayMarkingStride, "Must be a large array object %d", obj->length());
 
-  // Mark objArray klass metadata
+  // Mark klass metadata
   process_klass(obj->klass());
 
   size_t array_length = obj->length();
