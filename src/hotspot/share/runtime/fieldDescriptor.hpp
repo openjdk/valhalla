@@ -45,7 +45,7 @@ class fieldDescriptor {
 
  public:
   fieldDescriptor() {}
-  fieldDescriptor(InstanceKlass* ik, int index) {
+  fieldDescriptor(const InstanceKlass* ik, int index) {
     reinitialize(ik, ik->field(index));
   }
   inline Symbol* name() const;
@@ -113,7 +113,7 @@ class fieldDescriptor {
   inline void set_has_initialized_final_update(const bool value);
 
   // Initialization
-  void reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo);
+  void reinitialize(const InstanceKlass* ik, const FieldInfo& fieldinfo);
 
   // Print
   void print() const;

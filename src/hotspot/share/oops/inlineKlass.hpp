@@ -99,8 +99,18 @@ class InlineKlass: public InstanceKlass {
     int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
-    int _fast_acmp_offset;
-    int64_t _fast_acmp_mask;  // If 0, fast acmp doesn't apply
+    /* When we can't intrinsify the substitutability check, we can still avoid the call to isSubstitutable at runtime if the value object is small enough.
+     * If all the fields are contained at once in a single long, we can load such a long on both operand, use a bitwise mask to remove the extra bits
+     * (from header, padding...), and compare these masked long.
+     *
+     * This doesn't always apply, for instance, if there are oops among the fields, we shouldn't carelessly load and compare: the GC might move the object in between.
+     * To signal this fast path cannot be done on this current class, simply put 0 in _fast_acmp_mask.
+     *
+     * We also should take care of not loading further than the object, even if it means reading part of the header. For this reason, we can't use _payload_offset,
+     * but we need our special offset.
+     */
+    int _fast_acmp_offset;    // if < 0, fast acmp doesn't apply
+    int64_t _fast_acmp_mask;  // can be 0 for empty value classes
 
     Members();
 

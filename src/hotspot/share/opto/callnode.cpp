@@ -1205,7 +1205,7 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
         // Sabotage the fast acmp path
         IfNode* fast_path_if = Parse::acmp_fast_path_if_from_substitutable_call(phase, this);
         if (fast_path_if != nullptr) {
-          fast_path_if->set_req(1, phase->intcon(0));
+          fast_path_if->set_req(1, phase->intcon(1));
           igvn->_worklist.push(fast_path_if);
         }
 

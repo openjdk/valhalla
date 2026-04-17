@@ -2321,27 +2321,29 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
     Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
     Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
-    Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
-    Node* offset_i = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
-    Node* offset = ConvI2L(offset_i);
-    Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+    Node* offset = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
 
-    Node* mask_cmp = CmpL(fast_acmp_mask, zerocon(T_LONG));
-    Node* mask_bol = _gvn.transform(new BoolNode(mask_cmp, BoolTest::ne));
-    mask_iff = create_and_map_if(control(), mask_bol, PROB_FAIR, COUNT_UNKNOWN);
-    Node* has_mask = _gvn.transform(new IfTrueNode(mask_iff));
-    Node* no_mask = _gvn.transform(new IfFalseNode(mask_iff));
-    set_control(no_mask);
+    Node* offset_cmp = CmpI(offset, zerocon(T_INT));
+    Node* offset_bol = _gvn.transform(new BoolNode(offset_cmp, BoolTest::lt));
+    mask_iff = create_and_map_if(control(), offset_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* slow_path_ctl = _gvn.transform(new IfTrueNode(mask_iff));
+    Node* fast_path_ctl = _gvn.transform(new IfFalseNode(mask_iff));
+    set_control(slow_path_ctl);
 
     {
       PreserveJVMState jvms(this);
-      set_control(has_mask);
-      // LoadL(left + offset) & mask == LoadL(right + offset) & mask
-      Node* left_payload_addr = basic_plus_adr(not_null_left, offset);
+      set_control(fast_path_ctl);
+
+      Node* offset_l = ConvI2L(offset);
+      Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
+      Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+
+      // *(left + offset) & mask == *(right + offset) & mask
+      Node* left_payload_addr = basic_plus_adr(not_null_left, offset_l);
       Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
       Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
 
-      Node* right_payload_addr = basic_plus_adr(not_null_right, offset);
+      Node* right_payload_addr = basic_plus_adr(not_null_right, offset_l);
       Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
       Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
 
@@ -2451,7 +2453,9 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
  * mismatch access that may hinder optimizations, or buffering requirement. So, when intrinsifying the call,
  * we try to remove the fast path.
  *
- * This test isn't so bad. Loading the fast acmp mask is pretty unique to the fast acmp path.
+ * This test isn't so bad. Loading the fast acmp offset is pretty unique to the fast acmp path.
+ *
+ * Clearly, this is only a step before a proper solution for acmp, such as a macro node.
  */
 IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallStaticJavaNode* call) {
   auto is_con_offset = [](Node* node, ByteSize n) -> bool {
@@ -2464,42 +2468,42 @@ IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallSt
   assert(call->in(TypeFunc::Control) != nullptr, "");
   if (!call->in(TypeFunc::Control)->is_IfProj()) return nullptr;
   IfProjNode* if_proj = call->in(TypeFunc::Control)->as_IfProj();
-  if (if_proj->_con != 0) return nullptr;
+  if (if_proj->_con != 1) return nullptr;
 
   assert(if_proj->in(0) != nullptr, "");
   assert(if_proj->in(0)->is_If(), "");
   IfNode* iff = if_proj->in(0)->as_If();
 
   assert(iff->in(1) != nullptr, "");
-  assert(iff->in(1)->is_Bool(), "");
-  BoolNode* ne = iff->in(1)->as_Bool();
-  if (ne->_test._test != BoolTest::ne) return nullptr;
+  if (!iff->in(1)->is_Bool()) return nullptr;
+  BoolNode* lt = iff->in(1)->as_Bool();
+  if (lt->_test._test != BoolTest::lt) return nullptr;
 
-  assert(ne->in(1) != nullptr, "");
-  if (ne->in(1)->Opcode() != Op_CmpL) return nullptr;
-  CmpNode* cmp_l = ne->in(1)->as_Cmp();
+  assert(lt->in(1) != nullptr, "");
+  if (lt->in(1)->Opcode() != Op_CmpI) return nullptr;
+  CmpNode* cmp_i = lt->in(1)->as_Cmp();
 
-  assert(cmp_l->in(1) != nullptr, "");
-  assert(cmp_l->in(2) != nullptr, "");
+  assert(cmp_i->in(1) != nullptr, "");
+  assert(cmp_i->in(2) != nullptr, "");
 
-  if (cmp_l->in(1)->Opcode() != Op_LoadL) return nullptr;
-  LoadNode* load_mask = cmp_l->in(1)->as_Load();
-  if (!cmp_l->in(2)->is_ConL()) return nullptr;
-  ConLNode* zero_l = cmp_l->in(2)->as_ConL();
-  assert(zero_l->type()->is_long() != nullptr, "");
-  if (!zero_l->type()->is_long()->is_con(0)) return nullptr;
+  if (cmp_i->in(1)->Opcode() != Op_LoadI) return nullptr;
+  LoadNode* load_offset = cmp_i->in(1)->as_Load();
+  if (!cmp_i->in(2)->is_ConI()) return nullptr;
+  ConINode* zero_i = cmp_i->in(2)->as_ConI();
+  assert(zero_i->type()->is_int() != nullptr, "");
+  if (!zero_i->type()->is_int()->is_con(0)) return nullptr;
 
-  assert(load_mask->in(2) != nullptr, "");
-  if(!load_mask->in(2)->is_AddP()) return nullptr;
-  AddPNode* mask_addr_add = load_mask->in(2)->as_AddP();
+  assert(load_offset->in(2) != nullptr, "");
+  if(!load_offset->in(2)->is_AddP()) return nullptr;
+  AddPNode* offset_addr_add = load_offset->in(2)->as_AddP();
 
-  assert(mask_addr_add->in(AddPNode::Base) != nullptr, "");
-  assert(mask_addr_add->in(AddPNode::Address) != nullptr, "");
-  assert(mask_addr_add->in(AddPNode::Offset) != nullptr, "");
-  if (!mask_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
-  if (mask_addr_add->in(AddPNode::Address)->Opcode() != Op_LoadP) return nullptr;
-  LoadNode* load_members = mask_addr_add->in(AddPNode::Address)->as_Load();
-  if (!is_con_offset(mask_addr_add->in(AddPNode::Offset), InlineKlass::fast_acmp_mask_offset())) return nullptr;
+  assert(offset_addr_add->in(AddPNode::Base) != nullptr, "");
+  assert(offset_addr_add->in(AddPNode::Address) != nullptr, "");
+  assert(offset_addr_add->in(AddPNode::Offset) != nullptr, "");
+  if (!offset_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
+  if (offset_addr_add->in(AddPNode::Address)->Opcode() != Op_LoadP) return nullptr;
+  LoadNode* load_members = offset_addr_add->in(AddPNode::Address)->as_Load();
+  if (!is_con_offset(offset_addr_add->in(AddPNode::Offset), InlineKlass::fast_acmp_offset_offset())) return nullptr;
 
   assert(load_members->in(2) != nullptr, "");
   if(!load_members->in(2)->is_AddP()) return nullptr;

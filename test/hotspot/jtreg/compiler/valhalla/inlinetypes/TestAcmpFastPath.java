@@ -104,7 +104,6 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import static compiler.lib.ir_framework.IRNode.*;
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 
 public class TestAcmpFastPath {
     public static void main(String[] args) {
@@ -174,6 +173,8 @@ public class TestAcmpFastPath {
             return "ShortWithInt(s=" + s.s + ", i=" + i + ")";
         }
     }
+
+    static value class Empty {}
 
     @Run(test = {
             "eq_object",
@@ -262,8 +263,13 @@ public class TestAcmpFastPath {
 
         var sl = new ShortWithInt(0, 1);
         var sr = new ShortWithInt(1, 1);
-
         Asserts.assertFalse(eq_object(sl, sr));
+        Asserts.assertTrue(neq_object(sl, sr));
+
+        var emptyl = new Empty();
+        var emptyr = new Empty();
+        Asserts.assertTrue(eq_object(emptyl, emptyr));
+        Asserts.assertFalse(neq_object(emptyl, emptyr));
     }
 
     // Get acmp fast path
