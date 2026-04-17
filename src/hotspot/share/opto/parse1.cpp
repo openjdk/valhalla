@@ -188,6 +188,7 @@ Node* Parse::check_interpreter_type(Node* l, ciType* ci_type, SafePointNode* &ba
     }
 
     const TypeKlassPtr* klass_type = TypeKlassPtr::make(unwrapped_ci_type->as_klass(), Type::ignore_interfaces);
+    klass_type = klass_type->try_improve();
     bool is_early_larval = ci_type->is_early_larval();
     Node* bad_type_ctrl = nullptr;
     l = gen_checkcast(l, makecon(klass_type), &bad_type_ctrl, nullptr, false, is_early_larval);
