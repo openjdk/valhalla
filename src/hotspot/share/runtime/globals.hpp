@@ -832,6 +832,13 @@ const int ObjectAlignmentInBytes = 8;
           "Max number of embedded object references in a value container "  \
           "before no flattening attempts are made, <0 indicates no limit")  \
                                                                             \
+  product(bool, VectorizeFlatArrays, true, DIAGNOSTIC,                      \
+          "Allow C2 to vectorize loops over flat value class arrays "       \
+          "when the element type is primitive-only (no oop fields). "       \
+          "Requires SIMD-aligned flat array headers (see "                  \
+          "FlatArrayKlass::array_layout_helper). Disable to isolate "      \
+          "flat array vectorization if regressions are observed.")          \
+                                                                            \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \
           "Print fields collected by InlineKlass::collect_fields")          \
                                                                             \

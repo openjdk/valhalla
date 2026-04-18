@@ -259,6 +259,13 @@ class InlineKlass: public InstanceKlass {
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
 
+  // True if all fields are primitive (no oops). Eligible for SIMD-aligned flat arrays.
+  bool is_primitive_only() const { return !contains_oops(); }
+
+  // Natural SIMD alignment for flat arrays: payload size rounded up to power-of-2,
+  // capped at platform max. Returns 0 if not applicable.
+  int simd_alignment() const;
+
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);

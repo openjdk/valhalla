@@ -40,7 +40,13 @@ inline FlatArrayKlass* flatArrayOopDesc::klass() const {
   return FlatArrayKlass::cast(k);
 }
 
-inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_ELEMENT); }
+// Use the layout helper's header size which includes SIMD alignment padding
+// for primitive-only value classes. This must be consistent with all element
+// address computations in the interpreter, C1, C2, and GC.
+inline void* flatArrayOopDesc::base() const {
+  return reinterpret_cast<void*>(
+      cast_from_oop<intptr_t>(as_oop()) + klass()->array_header_in_bytes());
+}
 
 inline size_t flatArrayOopDesc::base_offset_in_bytes() {
   return static_cast<size_t>(arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT));
@@ -58,7 +64,8 @@ inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
 
 inline size_t flatArrayOopDesc::value_offset(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");
-  return base_offset_in_bytes() + value_offset_from_base(index, lh);
+  size_t header = Klass::layout_helper_header_size(lh);
+  return header + value_offset_from_base(index, lh);
 }
 
 inline size_t flatArrayOopDesc::value_offset_from_base(int index, jint lh) const {

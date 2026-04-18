@@ -5786,7 +5786,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
       adj = _offset.get();
       offset += _offset.get();
     }
-    uint header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+    uint header = Klass::layout_helper_header_size(flat_layout_helper());
     if (_field_offset.get() != OffsetBot && _field_offset.get() != OffsetTop) {
       offset += _field_offset.get();
       if (_offset.get() == OffsetBot || _offset.get() == OffsetTop) {

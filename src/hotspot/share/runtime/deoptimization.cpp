@@ -1690,7 +1690,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->maybe_flat_in_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - vk->payload_offset();
+  int base_offset = vak->array_header_in_bytes() - vk->payload_offset();
   // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ObjectValue* val = sv->field_at(i)->as_ObjectValue();

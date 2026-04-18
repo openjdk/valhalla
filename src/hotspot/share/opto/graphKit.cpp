@@ -1945,7 +1945,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
     // might mess with other GVN transformations in between. Thus, we just continue in the else branch normally, even
     // though we don't need the address node in this case and throw it away again.
     shift = arytype->flat_log_elem_size();
-    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+    header = Klass::layout_helper_header_size(arytype->flat_layout_helper());
   } else {
     shift = exact_log2(type2aelembytes(elembt));
     header = arrayOopDesc::base_offset_in_bytes(elembt);

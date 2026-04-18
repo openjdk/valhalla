@@ -744,9 +744,20 @@ bool SuperWord::are_adjacent_refs(Node* s1, Node* s2) const {
     return false;
   }
 
-  // Adjacent memory references must be on the same slice.
+  // Adjacent memory references must be on the same slice, OR be adjacent
+  // fields of a flat value class array element (different slices but
+  // contiguous in memory — safe to pack into a vector).
   if (!same_memory_slice(s1->as_Mem(), s2->as_Mem())) {
-    return false;
+    // Check if both are flat array field accesses at adjacent offsets
+    if (!VectorizeFlatArrays) return false;
+    const TypeAryPtr* t1 = s1->as_Mem()->adr_type()->isa_aryptr();
+    const TypeAryPtr* t2 = s2->as_Mem()->adr_type()->isa_aryptr();
+    if (t1 == nullptr || t2 == nullptr) return false;
+    if (!t1->is_flat() || !t2->is_flat()) return false;
+    // Both are flat array field accesses — allow if adjacent in memory
+    // (the VPointer adjacency check below will verify the actual offsets)
+  } else {
+    // Same slice — normal case
   }
 
   const VPointer& p1 = vpointer(s1->as_Mem());
@@ -3195,4 +3206,3 @@ bool SuperWord::same_origin_idx(Node* a, Node* b) const {
 bool SuperWord::same_generation(Node* a, Node* b) const {
   return a != nullptr && b != nullptr && _clone_map.same_gen(a->_idx, b->_idx);
 }
-

@@ -62,7 +62,7 @@ class flatArrayOopDesc : public objArrayOopDesc {
   }
 
   static int object_size(int lh, int length) {
-    julong size_in_bytes = arrayOopDesc::base_offset_in_bytes(Klass::layout_helper_element_type(lh));
+    julong size_in_bytes = Klass::layout_helper_header_size(lh);
     size_in_bytes += element_size(lh, length);
     julong size_in_words = ((size_in_bytes + (HeapWordSize-1)) >> LogHeapWordSize);
     assert(size_in_words <= (julong)max_jint, "no overflow");

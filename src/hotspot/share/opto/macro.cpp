@@ -983,7 +983,7 @@ bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const T
   uint header_size;
   if (array_type->is_flat()) {
     elem_size = array_type->flat_elem_size();
-    header_size = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+    header_size = Klass::layout_helper_header_size(array_type->flat_layout_helper());
   } else {
     elem_size = type2aelembytes(basic_elem_type);
     header_size = arrayOopDesc::base_offset_in_bytes(basic_elem_type);

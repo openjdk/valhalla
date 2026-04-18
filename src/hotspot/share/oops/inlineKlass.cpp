@@ -133,6 +133,33 @@ int InlineKlass::nonstatic_oop_count() {
   return oops;
 }
 
+int InlineKlass::simd_alignment() const {
+  if (!is_primitive_only()) return 0;
+  int ps = payload_size_in_bytes();
+  if (ps < 4) return 0; // Too small for float SIMD
+  // Round up to next power of 2 to match natural SIMD register boundaries.
+  int aligned = round_up_power_of_2(ps);
+  // Cap at 64 bytes — the widest SIMD register on any current or announced ISA:
+  //   - x86 SSE:      16 bytes (XMM)
+  //   - x86 AVX2:     32 bytes (YMM)
+  //   - x86 AVX-512:  64 bytes (ZMM)
+  //   - x86 AVX10.2:  64 bytes (ZMM) — Intel dropped 256-bit-only mode in
+  //                    the March 2025 v3.0 whitepaper; AVX10 is now 512-bit
+  //                    everywhere including E-cores
+  //                    Ref: https://cdrdv2.intel.com/v1/dl/getContent/784343
+  //   - aarch64 NEON:  16 bytes (V registers, Apple Silicon M1-M4)
+  //   - aarch64 SVE:  16-256 bytes (scalable, but current HW maxes at 32 bytes
+  //                    on Graviton 3/4; Apple Silicon is NEON-only)
+  //
+  // We use a compile-time constant rather than the runtime MaxVectorSize because
+  // this method is called during class loading (before C2 globals are finalized)
+  // and from the oops layer which doesn't depend on the C2 compiler. Over-aligning
+  // beyond the actual SIMD width wastes a few header bytes per array but causes no
+  // correctness issue — the JIT simply uses unaligned loads if alignment exceeds
+  // the register width. Under-aligning would miss the optimization opportunity.
+  return MIN2(aligned, 64);
+}
+
 // Arrays of...
 
 bool InlineKlass::maybe_flat_in_array() {

@@ -5684,14 +5684,23 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   // array->base() + (index << Klass::layout_helper_log2_element_size(lh));
   ldrw(rscratch1, Address(array_klass, Klass::layout_helper_offset()));
 
-  // Klass::layout_helper_log2_element_size(lh)
+  // Extract log2 element size from layout helper
   // (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-  lsr(rscratch1, rscratch1, Klass::_lh_log2_element_size_shift);
-  andr(rscratch1, rscratch1, Klass::_lh_log2_element_size_mask);
-  lslv(index, index, rscratch1);
+  unsigned lh_elem_shift = Klass::_lh_log2_element_size_shift;
+  unsigned lh_elem_mask = Klass::_lh_log2_element_size_mask;
+  lsr(rscratch2, rscratch1, lh_elem_shift);
+  andr(rscratch2, rscratch2, lh_elem_mask);
+  lslv(index, index, rscratch2);
+
+  // Extract header size from layout helper
+  // (lh >> _lh_header_size_shift) & _lh_header_size_mask;
+  unsigned lh_hdr_shift = Klass::_lh_header_size_shift;
+  unsigned lh_hdr_mask = Klass::_lh_header_size_mask;
+  lsr(rscratch1, rscratch1, lh_hdr_shift);
+  andr(rscratch1, rscratch1, lh_hdr_mask);
 
   add(data, array, index);
-  add(data, data, arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT));
+  add(data, data, rscratch1);
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,

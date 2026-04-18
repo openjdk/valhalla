@@ -155,6 +155,19 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
+
+  // For primitive-only value classes (no oop fields), align the array header
+  // so that element 0 starts at a SIMD-natural boundary. All element address
+  // computations (interpreter, C1, C2, GC, Unsafe) use the layout helper's
+  // header size, ensuring consistency.
+  int simd_align = vk->simd_alignment();
+  if (simd_align > 0 && (1 << esize) >= 4) {
+    int aligned_hsize = align_up(hsize, simd_align);
+    if (aligned_hsize - hsize <= 48) {
+      hsize = aligned_hsize;
+    }
+  }
+
   bool null_free = !LayoutKindHelper::is_nullable_flat(lk);
   int lh = Klass::array_layout_helper(_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 
@@ -187,7 +200,7 @@ size_t FlatArrayKlass::oop_size(oop obj) const {
 jint FlatArrayKlass::max_elements() const {
   // Check the max number of heap words limit first (because of int32_t in oopDesc_oop_size() etc)
   size_t max_size = max_jint;
-  max_size -= (arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) >> LogHeapWordSize);
+  max_size -= (array_header_in_bytes() >> LogHeapWordSize);
   max_size = align_down(max_size, MinObjAlignment);
   max_size <<= LogHeapWordSize;                                  // convert to max payload size in bytes
   max_size >>= layout_helper_log2_element_size(_layout_helper);  // divide by element size (in bytes) = max elements

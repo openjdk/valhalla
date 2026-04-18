@@ -5785,6 +5785,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
 
   // array->base() + (index << Klass::layout_helper_log2_element_size(lh));
   movl(rcx, Address(array_klass, Klass::layout_helper_offset()));
+  movl(data, rcx); // save lh for header extraction
 
   // Klass::layout_helper_log2_element_size(lh)
   // (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
@@ -5792,7 +5793,14 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   andl(rcx, Klass::_lh_log2_element_size_mask);
   shlptr(index); // index << rcx
 
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT)));
+  // Extract header size from layout helper (saved in data)
+  // (lh >> _lh_header_size_shift) & _lh_header_size_mask;
+  movl(rcx, data);
+  shrl(rcx, Klass::_lh_header_size_shift);
+  andl(rcx, Klass::_lh_header_size_mask);
+
+  lea(data, Address(array, index, Address::times_1));
+  addptr(data, rcx); // add header size
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1, DecoratorSet decorators) {

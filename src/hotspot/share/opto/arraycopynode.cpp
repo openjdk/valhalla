@@ -854,7 +854,7 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseValues
   uint header;
   uint elem_size;
   if (ary_t->is_flat()) {
-    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+    header = Klass::layout_helper_header_size(ary_t->flat_layout_helper());
     elem_size = ary_t->flat_elem_size();
   } else {
     header = arrayOopDesc::base_offset_in_bytes(ary_elem);
