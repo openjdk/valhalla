@@ -2022,6 +2022,8 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     int arg_size = method()->get_declared_signature_at_bci(bci())->arg_size_for_bc(java_bc());
     inc_sp(arg_size);
   }
+  bool is_virtual = call->is_CallDynamicJava();
+  bool is_mismatched = is_virtual && call->method()->mismatch();
   // Add the call arguments
   const TypeTuple* domain = call->tf()->domain_sig();
   uint nargs = domain->cnt();
@@ -2030,8 +2032,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     uint arg_idx = i - TypeFunc::Parms;
     Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
-    // TODO 8284443 A static call to a mismatched method should still be scalarized
-    if (t->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
+    if (t->is_inlinetypeptr() && call->method()->is_scalarized_arg(arg_num) && !is_mismatched) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         // There are 2 cases in which the argument has not been scalarized
@@ -2053,9 +2054,12 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
-      // Register a calling convention dependency on the callee method to make sure that this method is deoptimized and
-      // re-compiled with a non-scalarized calling convention if the callee method is later marked as mismatched.
-      C->dependencies()->assert_mismatch_calling_convention(call->method());
+      // For virtual calls, register a calling convention dependency on the callee method to make sure
+      // that this method is deoptimized and re-compiled with a non-scalarized calling convention if the
+      // callee method is later marked as mismatched. See CompiledEntrySignature::compute_calling_conventions.
+      if (is_virtual) {
+        C->dependencies()->assert_mismatch_calling_convention(call->method());
+      }
       arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
