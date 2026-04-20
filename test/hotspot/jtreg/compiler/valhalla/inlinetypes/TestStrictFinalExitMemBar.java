@@ -131,15 +131,15 @@ public class TestStrictFinalExitMemBar {
     @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "0",
                   "MemBar(StoreStore|Release).*NonStrictNonFinalHolder::<init>\\s+@ bci:-1", "0"},
         phase = CompilePhase.BEFORE_MATCHING)
-    public static int testNonStrictNonFinalMemBar() {
+    public static int testNonStrictNonFinalNoMemBar() {
         NonStrictNonFinalHolder holder = new NonStrictNonFinalHolder(42);
         sink = holder;
         return holder.x;
     }
 
-    @Run(test = "testNonStrictNonFinalMemBar")
-    public static void testNonStrictNonFinalMemBarRunner() {
-        Asserts.assertEquals(testNonStrictNonFinalMemBar(), 42);
+    @Run(test = "testNonStrictNonFinalNoMemBar")
+    public static void testNonStrictNonFinalNoMemBarRunner() {
+        Asserts.assertEquals(testNonStrictNonFinalNoMemBar(), 42);
     }
 
     public static void main(String[] args) {
