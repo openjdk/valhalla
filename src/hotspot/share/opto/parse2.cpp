@@ -2513,7 +2513,7 @@ IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallSt
   assert(members_addr_add->in(AddPNode::Address) != nullptr, "");
   assert(members_addr_add->in(AddPNode::Offset) != nullptr, "");
   if (!members_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
-  if (!phase->type(members_addr_add->in(AddPNode::Address))->is_instklassptr()) return nullptr;
+  if (!phase->type(members_addr_add->in(AddPNode::Address))->isa_instklassptr()) return nullptr;
   if (!is_con_offset(members_addr_add->in(AddPNode::Offset), InlineKlass::adr_members_offset())) return nullptr;
 
   return iff;
