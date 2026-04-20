@@ -34,6 +34,7 @@ class outputStream;
 // (The tags 'all', 'disable' and 'help' are special tags that can
 // not be used in log calls, and should not be listed below.)
 #define LOG_TAG_LIST \
+  LOG_TAG(adapters) \
   LOG_TAG(add) \
   LOG_TAG(age) \
   LOG_TAG(alloc) \

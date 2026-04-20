@@ -2891,14 +2891,15 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   return _supers;
 }
 
-bool AdapterHandlerEntry::check_interface_calling_conventions(Method* method, Array<InstanceKlass*>* interfaces) {
-  bool has_scalarized = method->has_scalarized_args();
+bool AdapterHandlerEntry::check_interface_calling_conventions(Method* super_method, Array<InstanceKlass*>* interfaces) {
+  bool has_scalarized = super_method->has_scalarized_args();
   for (int i = 0; i < interfaces->length(); i++) {
-    Method* interface_method = interfaces->at(i)->lookup_method(method->name(), method->signature());
+    Method* interface_method = interfaces->at(i)->lookup_method(super_method->name(), super_method->signature());
     if (interface_method != nullptr) {
       // Check for scalarized/non-scalarized mismatch
       if ((interface_method->has_scalarized_args() && !has_scalarized) || (!interface_method->has_scalarized_args() && has_scalarized)) {
-        log_info(aot)("Method %s has scalarized/non-scalarized calling convention mismatch with %s", method->external_name(), interface_method->external_name());
+        log_info(adapters)("Super method %s has scalarized/non-scalarized calling convention mismatch with interface method %s",
+                           super_method->external_name(), interface_method->external_name());
         return false;
       }
 
@@ -2907,7 +2908,8 @@ bool AdapterHandlerEntry::check_interface_calling_conventions(Method* method, Ar
         assert(interfaces->at(i)->is_abstract() || interface_method->adapter() != nullptr, "must be");
         AdapterHandlerEntry* adapter = interface_method->adapter();
         if (*adapter->get_sig_cc() != *_sig_cc || *adapter->get_sig_cc_ro() != *_sig_cc_ro) {
-          log_info(aot)("Method %s has calling convention mismatch with %s", method->external_name(), interface_method->external_name());
+          log_info(adapters)("Super method %s has calling convention mismatch with interface method %s",
+                             super_method->external_name(), interface_method->external_name());
           return false;
         }
       }
@@ -3271,16 +3273,18 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   if (super_klass != nullptr) {
     Method* super_method = find_super_method(holder, method);
     if (super_method != nullptr && super_method->adapter() != nullptr) {
-      log_info(aot)("Method %s attempting to inherit adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
-                    super_method->has_scalarized_args() ? "true" : "false");
+      log_info(adapters)("Method %s attempting to inherit adapter from %s (scalarized: %s)",
+                         method->external_name(), super_method->external_name(),
+                         super_method->has_scalarized_args() ? "true" : "false");
 
       // Check that interface methods are valid
       AdapterHandlerEntry* super_adapter = super_method->adapter();
       Array<InstanceKlass*>* interfaces = holder->local_interfaces();
       if (super_method->adapter() != nullptr) {
         if(super_adapter->check_interface_calling_conventions(super_method, holder->local_interfaces())) {
-          log_info(aot)("Method %s successfully inherited adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
-                        super_method->has_scalarized_args() ? "true" : "false");
+          log_info(adapters)("Method %s successfully inherited adapter from %s (scalarized: %s)",
+                             method->external_name(), super_method->external_name(),
+                             super_method->has_scalarized_args() ? "true" : "false");
 
           if (super_method->has_scalarized_args()) {
             method->set_has_scalarized_args();
@@ -3295,7 +3299,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
           return super_adapter;
         }
       }
-      log_info(aot)("Method %s unable to inherit adapter from %s", method->external_name(), super_method->external_name());
+      log_info(adapters)("Method %s unable to inherit adapter from %s", method->external_name(), super_method->external_name());
     }
   }
 
