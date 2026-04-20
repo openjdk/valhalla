@@ -83,8 +83,8 @@ public class TestStrictFinalExitMemBar {
     }
 
     @Test
-    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "1",
-                  "MemBar(StoreStore|Release).*StrictFinalHolder::<init>\\s+@ bci:-1", "0"},
+    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "1"},
+        failOn = {"MemBar(StoreStore|Release).*StrictFinalHolder::<init>\\s+@ bci:-1"},
         phase = CompilePhase.BEFORE_MATCHING)
     public static int testStrictFinalNoExitMemBar() {
         StrictFinalHolder holder = new StrictFinalHolder(42);
@@ -98,8 +98,8 @@ public class TestStrictFinalExitMemBar {
     }
 
     @Test
-    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "0",
-                  "MemBar(StoreStore|Release).*NonStrictFinalHolder::<init>\\s+@ bci:-1", "1"},
+    @IR(counts = {"MemBar(StoreStore|Release).*NonStrictFinalHolder::<init>\\s+@ bci:-1", "1"},
+        failOn = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1"},
         phase = CompilePhase.BEFORE_MATCHING)
     public static int testNonStrictFinalHasExitMemBar() {
         NonStrictFinalHolder holder = new NonStrictFinalHolder(42);
@@ -113,8 +113,8 @@ public class TestStrictFinalExitMemBar {
     }
 
     @Test
-    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "1",
-                  "MemBar(StoreStore|Release).*StrictNonFinalHolder::<init>\\s+@ bci:-1", "0"},
+    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "1"},
+        failOn = {"MemBar(StoreStore|Release).*StrictNonFinalHolder::<init>\\s+@ bci:-1"},
         phase = CompilePhase.BEFORE_MATCHING)
     public static int testStrictNonFinalNoExitMemBar() {
         StrictNonFinalHolder holder = new StrictNonFinalHolder(42);
@@ -128,8 +128,8 @@ public class TestStrictFinalExitMemBar {
     }
 
     @Test
-    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "0",
-                  "MemBar(StoreStore|Release).*NonStrictNonFinalHolder::<init>\\s+@ bci:-1", "0"},
+    @IR(failOn = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1",
+                  "MemBar(StoreStore|Release).*NonStrictNonFinalHolder::<init>\\s+@ bci:-1"},
         phase = CompilePhase.BEFORE_MATCHING)
     public static int testNonStrictNonFinalNoMemBar() {
         NonStrictNonFinalHolder holder = new NonStrictNonFinalHolder(42);
