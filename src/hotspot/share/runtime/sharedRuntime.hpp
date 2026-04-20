@@ -757,31 +757,6 @@ class AdapterHandlerEntry : public MetaspaceObj {
 #endif
   { }
 
-  AdapterHandlerEntry(const AdapterHandlerEntry* other, uint id) :
-    _fingerprint(other->fingerprint()),
-    _adapter_blob(other->adapter_blob()),
-    _id(id),
-    _linked(other->is_linked()),
-    _sig_cc(nullptr),
-    _sig_cc_ro(nullptr)
-#ifdef ASSERT
-    , _saved_code(other->_saved_code),
-    _saved_code_length(other->_saved_code_length)
-#endif
-    {
-      if (other->get_sig_cc() != nullptr) {
-        GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(other->get_sig_cc()->length(), mtInternal);
-        heap_sig->appendAll(other->get_sig_cc());
-        set_sig_cc(heap_sig);
-      }
-
-      if (other->get_sig_cc() != nullptr) {
-        GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(other->get_sig_cc_ro()->length(), mtInternal);
-        heap_sig->appendAll(other->get_sig_cc_ro());
-        set_sig_cc_ro(heap_sig);
-      }
-    }
-
   ~AdapterHandlerEntry();
 
   // Allocate on CHeap instead of metaspace (see JDK-8331086).
@@ -797,10 +772,6 @@ class AdapterHandlerEntry : public MetaspaceObj {
  public:
   static AdapterHandlerEntry* allocate(uint id, AdapterFingerPrint* fingerprint) {
     return new(0) AdapterHandlerEntry(id, fingerprint);
-  }
-
-  static AdapterHandlerEntry* copy(AdapterHandlerEntry* other, uint id) {
-    return new(0) AdapterHandlerEntry(other, id);
   }
 
   static void deallocate(AdapterHandlerEntry *handler) {
@@ -946,7 +917,6 @@ class AdapterHandlerLibrary: public AllStatic {
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint);
-  static AdapterHandlerEntry* copy_entry(AdapterHandlerEntry* other);
   static void create_native_wrapper(const methodHandle& method);
   static Method* find_super_method(InstanceKlass* holder, const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
