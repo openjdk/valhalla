@@ -28,9 +28,9 @@
  * @library /test/lib /
  * @requires vm.compiler2.enabled
  * @enablePreview
- * @compile TestStrictFinalExitMemBarIR.java
+ * @compile TestStrictFinalExitMemBar.java
  * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestStrictFinalExitMemBarIR$StrictFinalHolder
+ *             compiler.valhalla.inlinetypes.TestStrictFinalExitMemBar$StrictFinalHolder
  * @run main ${test.main.class}
  */
 
@@ -40,7 +40,7 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.helpers.StrictInit;
 
-public class TestStrictFinalExitMemBarIR {
+public class TestStrictFinalExitMemBar {
     static Object sink;
 
     static class StrictFinalHolder {
@@ -93,6 +93,6 @@ public class TestStrictFinalExitMemBarIR {
     }
 
     public static void main(String[] args) {
-        TestFramework.run();
+        TestFramework.runWithFlags("--enable-preview");
     }
 }
