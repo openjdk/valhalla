@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,7 @@ PreservedMarksSet* ParCompactionManager::_preserved_marks_set = nullptr;
 ParCompactionManager::ParCompactionManager(PreservedMarks* preserved_marks,
                                            ReferenceProcessor* ref_processor,
                                            uint parallel_gc_threads)
-  :_partial_array_splitter(_partial_array_state_manager, parallel_gc_threads, ObjArrayMarkingStride),
+  :_partial_array_splitter(_partial_array_state_manager, parallel_gc_threads),
    _mark_and_push_closure(this, ref_processor) {
 
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
@@ -125,7 +125,7 @@ void ParCompactionManager::push_objArray(objArrayOop obj) {
 
   size_t array_length = obj->length();
   size_t initial_chunk_size =
-    _partial_array_splitter.start(&_marking_stack, obj, nullptr, array_length);
+    _partial_array_splitter.start(&_marking_stack, obj, nullptr, array_length, ObjArrayMarkingStride);
   follow_array(obj, 0, initial_chunk_size);
 }
 

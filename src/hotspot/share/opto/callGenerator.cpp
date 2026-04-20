@@ -182,7 +182,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     // Mark the call node as virtual, sort of:
     call->set_optimized_virtual(true);
   }
-  kit.set_arguments_for_java_call(call, is_late_inline());
+  kit.set_arguments_for_java_call(call);
   if (kit.stopped()) {
     return kit.transfer_exceptions_into_jvms();
   }
@@ -638,6 +638,20 @@ void CallGenerator::do_late_inline_helper() {
   }
 
   Compile* C = Compile::current();
+
+  uint endoff = call->jvms()->endoff();
+  if (C->inlining_incrementally()) {
+    // No reachability edges should be present when incremental inlining takes place.
+    // Inlining logic doesn't expect any extra edges past debug info and fails with
+    // an assert in SafePointNode::grow_stack.
+    assert(endoff == call->req(), "reachability edges not supported");
+  } else {
+    if (call->req() > endoff) { // reachability edges present
+      assert(OptimizeReachabilityFences, "required");
+      return; // keep the original call node as the holder of reachability info
+    }
+  }
+
   // Remove inlined methods from Compiler's lists.
   if (call->is_macro()) {
     C->remove_macro_node(call);

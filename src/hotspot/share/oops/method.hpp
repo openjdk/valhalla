@@ -133,7 +133,7 @@ class Method : public Metadata {
   void set_constMethod(ConstMethod* xconst)    { _constMethod = xconst; }
 
 
-  static address make_adapters(const methodHandle& mh, TRAPS);
+  static void make_adapters(const methodHandle& mh, TRAPS);
   address from_compiled_entry() const;
   address from_compiled_inline_ro_entry() const;
   address from_compiled_inline_entry() const;
