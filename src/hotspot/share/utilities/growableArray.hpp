@@ -27,15 +27,12 @@
 
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
-#include "memory/metaspaceClosureType.hpp"
 #include "oops/array.hpp"
 #include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/powerOfTwo.hpp"
-
-class MetaspaceClosure;
 
 // A growable array.
 
@@ -121,12 +118,6 @@ protected:
       GrowableArrayBase(capacity, initial_len), _data(data) {}
 
   ~GrowableArrayView() {}
-
-protected:
-  // Used by GrowableArray for MetaspaceClosure support.
-  E** data_addr() {
-    return &_data;
-  }
 
 public:
   bool operator==(const GrowableArrayView& rhs) const {

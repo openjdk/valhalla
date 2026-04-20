@@ -22,24 +22,8 @@
  *
  */
 
-<<<<<<<< HEAD:src/hotspot/share/utilities/growableArray.inline.hpp
-#ifndef SHARE_UTILITIES_GROWABLEARRAY_INLINE_HPP
-#define SHARE_UTILITIES_GROWABLEARRAY_INLINE_HPP
-
-#include "utilities/growableArray.hpp"
-
-#include "memory/metaspaceClosure.hpp"
-
-template <typename E>
-void GrowableArray<E>::metaspace_pointers_do(MetaspaceClosure* it) {
-  it->push_c_array(GrowableArray<E>::data_addr(), GrowableArray<E>::capacity());
-}
-
-#endif // SHARE_UTILITIES_GROWABLEARRAY_INLINE_HPP
-========
 public class HelloWorld {
     public static void main(String args[]) {
         System.out.println("HelloWorld");
     }
 }
->>>>>>>> 00f5e960c8d0862d102f9011496b33f332596e4b:test/setup_aot/HelloWorld.java
