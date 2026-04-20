@@ -1164,7 +1164,7 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
                                   "(cause: field type in LoadableDescriptors attribute) failed : "
                                   "app substituted a different version of %s",
                                   name->as_C_string(), ik->name()->as_C_string(),
-                                  k->name()->as_C_string());
+                                  name->as_C_string());
       return;
     } else if (real_k != nullptr) {
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
