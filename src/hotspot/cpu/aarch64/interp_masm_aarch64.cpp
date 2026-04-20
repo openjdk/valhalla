@@ -726,12 +726,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     // Check if we are returning an non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
-    // Check if the non-null inline type can be returned scalarized
-    ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-    ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));
-    tstw(rscratch1, MethodFlags::has_scalarized_return_flag());
-    br(Assembler::EQ, skip);
-
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
     ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
@@ -740,13 +734,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     cbz(rscratch1, skip);
 
     blr(rscratch1);
-#ifdef ASSERT
-    if (StressCallingConvention) {
-      // Discard the oop and only return scalarized to stress the calling convention
-      load_klass(r0, r0);
-      orr(r0, r0, 1);
-    }
-#endif
     bind(skip);
     // Check above kills sender esp in rscratch2. Reload it.
     ldr(rscratch2, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));

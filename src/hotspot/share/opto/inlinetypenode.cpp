@@ -766,7 +766,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
 }
 
 InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
-  if (kit->gvn().find_int_con(get_is_buffered(), 0) == 1) {
+  if (is_allocated(&kit->gvn())) {
     // Already buffered
     return this;
   }
@@ -856,7 +856,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
 }
 
 bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
-  if (phase->find_int_con(get_is_buffered(), 0) == 1) {
+  if (phase->type(get_is_buffered()) == TypeInt::ONE) {
     return true;
   }
   Node* oop = get_oop();
@@ -958,8 +958,6 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  Node* is_buffered = get_is_buffered();
-
   if (oop->isa_InlineType() && !phase->type(oop)->maybe_null()) {
     InlineTypeNode* vtptr = oop->as_InlineType();
     set_oop(*phase, vtptr->get_oop());
@@ -984,7 +982,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   //   for the old allocation since larval value objects do have unique identities.
   Node* base = is_loaded(phase);
   if (base != nullptr && !base->is_InlineType() && !phase->type(base)->maybe_null() && phase->C->allow_macro_nodes() && AllocateNode::Ideal_allocation(base) == nullptr) {
-    if (oop != base || phase->type(is_buffered) != TypeInt::ONE) {
+    if (oop != base || !is_allocated(phase)) {
       set_oop(*phase, base);
       set_is_buffered(*phase);
       return this;
@@ -1386,13 +1384,9 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
 void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free, bool root) {
   if (root) {
     if (is_allocated(&kit->gvn())) {
-      // TODO 8284443
-      // TestNullableInlineTypes::test5 is sensitive to this
-      // TODO Just looking at the oop is not sufficient to figure out if we are always buffered when incrementally inlining,
-      // keep this information by passing this..
-      // TODO I don't think this is sufficient, is_allocated might be false while this is still always allocated but we don't know here....
-      // We would need to pass the IsBuffered input through the scalarized fields
-      // Also, shouldn't there be a runtime check of get_is_buffered in InlineTypeNode::buffer? Do we risk emitting buffering multiple times?
+      // TODO 8284443 improve comment, mention that we should really pass isBuffered here?
+      // Just looking at the oop is not sufficient to figure out if we are always buffered when incrementally inlining,
+      // keep this information by passing 'this' (TestNullableInlineTypes::test5 is sensitive to this).
       n->init_req(base_input++, this);
     } else {
       n->init_req(base_input++, get_oop());
