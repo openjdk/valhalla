@@ -49,6 +49,7 @@
 #include "opto/opaquenode.hpp"
 #include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
+#include "opto/reachability.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
@@ -827,6 +828,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
                   use->as_ArrayCopy()->is_copyofrange_validated()) &&
                  use->in(ArrayCopyNode::Dest) == res) {
         // ok to eliminate
+      } else if (use->is_ReachabilityFence() && OptimizeReachabilityFences) {
+        // ok to eliminate
       } else if (use->is_SafePoint()) {
         SafePointNode* sfpt = use->as_SafePoint();
         if (sfpt->is_Call() && sfpt->as_Call()->has_non_debug_use(res)) {
@@ -949,7 +952,13 @@ void PhaseMacroExpand::undo_previous_scalarizations(GrowableArray <SafePointNode
   // rollback processed safepoints
   while (safepoints_done.length() > 0) {
     SafePointNode* sfpt_done = safepoints_done.pop();
+
+    SafePointNode::NodeEdgeTempStorage non_debug_edges_worklist(igvn());
+
+    sfpt_done->remove_non_debug_edges(non_debug_edges_worklist);
+
     // remove any extra entries we added to the safepoint
+    assert(sfpt_done->jvms()->endoff() == sfpt_done->req(), "no extra edges past debug info allowed");
     uint last = sfpt_done->req() - 1;
     for (int k = 0;  k < nfields; k++) {
       sfpt_done->del_req(last--);
@@ -970,6 +979,9 @@ void PhaseMacroExpand::undo_previous_scalarizations(GrowableArray <SafePointNode
         }
       }
     }
+
+    sfpt_done->restore_non_debug_edges(non_debug_edges_worklist);
+
     _igvn._worklist.push(sfpt_done);
   }
 }
@@ -1157,6 +1169,8 @@ bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, All
 
 SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_description(AllocateNode* alloc, SafePointNode* sfpt,
                                                                                   Unique_Node_List* value_worklist) {
+  assert(sfpt->jvms()->endoff() == sfpt->req(), "no extra edges past debug info allowed");
+
   // Fields of scalar objs are referenced only at the end
   // of regular debuginfo at the last (youngest) JVMS.
   // Record relative start index.
@@ -1224,8 +1238,8 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
 }
 
 // Do scalar replacement.
-bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <SafePointNode *>& safepoints) {
-  GrowableArray <SafePointNode *> safepoints_done;
+bool PhaseMacroExpand::scalar_replacement(AllocateNode* alloc, GrowableArray<SafePointNode*>& safepoints) {
+  GrowableArray<SafePointNode*> safepoints_done;
   Node* res = alloc->result_cast();
   assert(res == nullptr || res->is_CheckCastPP(), "unexpected AllocateNode result");
   const TypeOopPtr* res_type = nullptr;
@@ -1237,9 +1251,17 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   Unique_Node_List value_worklist;
   while (safepoints.length() > 0) {
     SafePointNode* sfpt = safepoints.pop();
+
+  SafePointNode::NodeEdgeTempStorage non_debug_edges_worklist(igvn());
+
+    // All sfpt inputs are implicitly included into debug info during the scalarization process below.
+    // Keep non-debug inputs separately, so they stay non-debug.
+    sfpt->remove_non_debug_edges(non_debug_edges_worklist);
+
     SafePointScalarObjectNode* sobj = create_scalarized_object_description(alloc, sfpt, &value_worklist);
 
     if (sobj == nullptr) {
+      sfpt->restore_non_debug_edges(non_debug_edges_worklist);
       undo_previous_scalarizations(safepoints_done, alloc);
       return false;
     }
@@ -1248,6 +1270,8 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
     // to the allocated object with "sobj"
     JVMState *jvms = sfpt->jvms();
     sfpt->replace_edges_in_range(res, sobj, jvms->debug_start(), jvms->debug_end(), &_igvn);
+    non_debug_edges_worklist.remove_edge_if_present(res); // drop scalarized input from non-debug info
+    sfpt->restore_non_debug_edges(non_debug_edges_worklist);
     _igvn._worklist.push(sfpt);
 
     // keep it for rollback
@@ -1369,6 +1393,8 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Inline type buffer allocations are followed by a membar
         assert(inline_alloc, "Unexpected MemBarRelease");
         use->as_MemBar()->remove(&_igvn);
+      } else if (use->is_ReachabilityFence() && OptimizeReachabilityFences) {
+        use->as_ReachabilityFence()->clear_referent(_igvn); // redundant fence; will be removed during IGVN
       } else {
         eliminate_gc_barrier(use);
       }
