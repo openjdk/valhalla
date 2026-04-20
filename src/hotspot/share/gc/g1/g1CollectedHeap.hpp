@@ -634,7 +634,7 @@ public:
   // of pushing it on the mark stack (to process references)?
   // Used to keep objects that are potentially eagerly reclaimed out of the mark stack.
   // Its klass may still need to be handled.
-  bool can_be_marked_through_immediately(oop obj) const;
+  inline bool can_be_marked_through_immediately(oop obj) const;
   // Does the given region fulfill remembered set based eager reclaim candidate requirements?
   bool is_potential_eager_reclaim_candidate(G1HeapRegion* r) const;
 

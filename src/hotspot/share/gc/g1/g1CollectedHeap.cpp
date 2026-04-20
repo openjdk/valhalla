@@ -2564,10 +2564,6 @@ void G1CollectedHeap::start_concurrent_cycle(bool concurrent_operation_is_full_m
   G1CGC_lock->notify();
 }
 
-bool G1CollectedHeap::can_be_marked_through_immediately(oop obj) const {
-  return obj->is_array() && !obj->is_array_with_oops();
-}
-
 bool G1CollectedHeap::is_potential_eager_reclaim_candidate(G1HeapRegion* r) const {
   // We don't nominate objects with many remembered set entries, on
   // the assumption that such objects are likely still live.

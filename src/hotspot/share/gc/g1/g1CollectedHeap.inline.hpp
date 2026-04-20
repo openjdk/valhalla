@@ -76,6 +76,10 @@ inline void G1JavaThreadsListClaimer::apply(ThreadClosure* cl) {
   }
 }
 
+bool G1CollectedHeap::can_be_marked_through_immediately(oop obj) const {
+  return obj->is_array() && !obj->is_array_with_oops();
+}
+
 G1GCPhaseTimes* G1CollectedHeap::phase_times() const {
   return _policy->phase_times();
 }
