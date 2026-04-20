@@ -63,8 +63,8 @@ public class TestStrictFinalExitMemBar {
     }
 
     @Test
-    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>", "1",
-                  "MemBar(StoreStore|Release).*StrictFinalHolder::<init>", "0"},
+    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "1",
+                  "MemBar(StoreStore|Release).*StrictFinalHolder::<init>\\s+@ bci:-1", "0"},
         phase = CompilePhase.BEFORE_MATCHING)
     public static int testStrictFinalNoExitMemBar() {
         StrictFinalHolder holder = new StrictFinalHolder(42);
@@ -78,8 +78,8 @@ public class TestStrictFinalExitMemBar {
     }
 
     @Test
-    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>", "1",
-                  "MemBar(StoreStore|Release).*NonStrictFinalHolder::<init>", "2"},
+    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "0",
+                  "MemBar(StoreStore|Release).*NonStrictFinalHolder::<init>\\s+@ bci:-1", "1"},
         phase = CompilePhase.BEFORE_MATCHING)
     public static int testNonStrictFinalHasExitMemBar() {
         NonStrictFinalHolder holder = new NonStrictFinalHolder(42);
