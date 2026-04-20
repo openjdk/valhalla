@@ -31,6 +31,7 @@
  * @compile TestStrictFinalExitMemBar.java
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             compiler.valhalla.inlinetypes.TestStrictFinalExitMemBar$StrictFinalHolder
+ *             compiler.valhalla.inlinetypes.TestStrictFinalExitMemBar$StrictNonFinalHolder
  * @run main ${test.main.class}
  */
 
@@ -57,6 +58,25 @@ public class TestStrictFinalExitMemBar {
         final int x;
 
         NonStrictFinalHolder(int x) {
+            this.x = x;
+            super();
+        }
+    }
+
+    static class StrictNonFinalHolder {
+        @StrictInit
+        int x;
+
+        StrictNonFinalHolder(int x) {
+            this.x = x;
+            super();
+        }
+    }
+
+    static class NonStrictNonFinalHolder {
+        int x;
+
+        NonStrictNonFinalHolder(int x) {
             this.x = x;
             super();
         }
@@ -90,6 +110,36 @@ public class TestStrictFinalExitMemBar {
     @Run(test = "testNonStrictFinalHasExitMemBar")
     public static void testNonStrictFinalHasExitMemBarRunner() {
         Asserts.assertEquals(testNonStrictFinalHasExitMemBar(), 42);
+    }
+
+    @Test
+    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "1",
+                  "MemBar(StoreStore|Release).*StrictNonFinalHolder::<init>\\s+@ bci:-1", "0"},
+        phase = CompilePhase.BEFORE_MATCHING)
+    public static int testStrictNonFinalNoExitMemBar() {
+        StrictNonFinalHolder holder = new StrictNonFinalHolder(42);
+        sink = holder;
+        return holder.x;
+    }
+
+    @Run(test = "testStrictNonFinalNoExitMemBar")
+    public static void testStrictNonFinalNoExitMemBarRunner() {
+        Asserts.assertEquals(testStrictNonFinalNoExitMemBar(), 42);
+    }
+
+    @Test
+    @IR(counts = {"MemBar(StoreStore|Release).*Object::<init>\\s+@ bci:-1", "0",
+                  "MemBar(StoreStore|Release).*NonStrictNonFinalHolder::<init>\\s+@ bci:-1", "0"},
+        phase = CompilePhase.BEFORE_MATCHING)
+    public static int testNonStrictNonFinalMemBar() {
+        NonStrictNonFinalHolder holder = new NonStrictNonFinalHolder(42);
+        sink = holder;
+        return holder.x;
+    }
+
+    @Run(test = "testNonStrictNonFinalMemBar")
+    public static void testNonStrictNonFinalMemBarRunner() {
+        Asserts.assertEquals(testNonStrictNonFinalMemBar(), 42);
     }
 
     public static void main(String[] args) {
