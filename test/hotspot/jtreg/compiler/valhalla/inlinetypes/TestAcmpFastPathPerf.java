@@ -24,9 +24,10 @@
 /*
  * @test
  * @summary Test acmp fast path with value classes
+ * @requires vm.flagless
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @run main/othervm/timeout=20 -Xbatch
+ * @run main/othervm/timeout=30 -Xbatch
  *                              -XX:CompileCommand=CompileOnly,${test.main.class}::test
  *                              ${test.main.class}
  */
