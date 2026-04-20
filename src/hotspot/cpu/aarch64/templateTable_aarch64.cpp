@@ -2029,14 +2029,15 @@ void TemplateTable::if_acmp(Condition cc) {
   __ mov(is_inline_type_mask, markWord::inline_type_pattern);
 
   if (Arguments::is_valhalla_enabled()) {
+    // The substitutability test is only necessary if r1 and r0 are not the same...
     __ cmp(r1, r0);
     __ br(Assembler::EQ, (cc == equal) ? taken : not_taken);
 
-    // might be substitutable, test if either r0 or r1 is null
-    __ andr(r2, r0, r1);
-    __ cbz(r2, (cc == equal) ? not_taken : taken);
+    // ... neither are null...
+    __ cbz(r1, (cc == equal) ? not_taken : taken);
+    __ cbz(r0, (cc == equal) ? not_taken : taken);
 
-    // and both are values ?
+    // ...and both are values...
     __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));
     __ andr(r2, r2, is_inline_type_mask);
     __ ldr(r4, Address(r0, oopDesc::mark_offset_in_bytes()));
@@ -2045,7 +2046,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ cmp(r2,  is_inline_type_mask);
     __ br(Assembler::NE, (cc == equal) ? not_taken : taken);
 
-    // same value klass ?
+    // ...with the same value klass
     __ load_metadata(r2, r1);
     __ load_metadata(r4, r0);
     __ cmp(r2, r4);

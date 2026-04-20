@@ -1825,8 +1825,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
   bool will_link;
   ciField* field = stream()->get_field(will_link);
   ciInstanceKlass* holder = field->holder();
-  BasicType field_type = field->type()->basic_type();
-  ValueType* type = as_ValueType(field_type);
+  BasicType field_basic_type = field->type()->basic_type();
+  ValueType* type = as_ValueType(field_basic_type);
 
   // call will_link again to determine if the field is valid.
   const bool needs_patching = !holder->is_loaded() ||
@@ -1891,16 +1891,19 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (state_before == nullptr) {
         state_before = copy_state_for_exception();
       }
-      if (field_type == T_BOOLEAN) {
+      if (field_basic_type == T_BOOLEAN) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
       if (field->is_null_free()) {
         null_check(val);
-      }
-      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty() && (!method()->is_class_initializer() || field->is_flat())) {
-        // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
-        break;
+
+        ciType* field_type = field->type();
+        if (field_type->is_loaded() && field_type->is_inlinetype() && field_type->as_inline_klass()->is_empty() &&
+            (!method()->is_class_initializer() || field->is_flat())) {
+          // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
+          break;
+        }
       }
       append(new StoreField(append(obj), offset, field, val, true, state_before, needs_patching));
       break;
@@ -1963,7 +1966,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
             // Writing an (integer) value to a boolean, byte, char or short field includes an implicit narrowing
             // conversion. Emit an explicit conversion here to get the correct field value after the write.
-            switch (field_type) {
+            switch (field_basic_type) {
             case T_BOOLEAN:
             case T_BYTE:
               replacement = append(new Convert(Bytecodes::_i2b, replacement, type));
@@ -2085,12 +2088,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (state_before == nullptr) {
         state_before = copy_state_for_exception();
       }
-      if (field_type == T_BOOLEAN) {
+      if (field_basic_type == T_BOOLEAN) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
 
-      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
+      ciType* field_type = field->type();
+      if (field->is_null_free() && field_type->is_loaded() && field_type->is_inlinetype() &&
+          field_type->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
         // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
         null_check(obj);
         null_check(val);
@@ -2106,7 +2111,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       } else {
         // Flat field
         assert(!needs_patching, "Can't patch flat inline type field access");
-        ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+        ciInlineKlass* inline_klass = field_type->as_inline_klass();
         if (field->is_atomic()) {
           if (field->is_null_free()) {
             null_check(val);

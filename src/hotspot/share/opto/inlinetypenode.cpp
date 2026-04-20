@@ -595,9 +595,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
     Node* field_ptr = kit->basic_plus_adr(base, ptr, field_off);
     if (field->is_flat()) {
       // Recursively store the flat inline type field
-      ciInlineKlass* fvk = ft->as_inline_klass();
       bool atomic = field->is_atomic();
-
       field_val->as_InlineType()->store_flat(kit, base, field_ptr, atomic, immutable_memory, field_null_free, decorators);
     } else {
       // Store field value to memory
