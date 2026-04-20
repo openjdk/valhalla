@@ -2742,6 +2742,12 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
   return AdapterHandlerEntry::allocate(id, fingerprint);
 }
 
+AdapterHandlerEntry* AdapterHandlerLibrary::copy_entry(AdapterHandlerEntry* other) {
+  uint id = (uint)AtomicAccess::add((int*)&_id_counter, 1);
+  assert(id > 0, "we can never overflow because AOT cache cannot contain more than 2^32 methods");
+  return AdapterHandlerEntry::copy(other, id);
+}
+
 AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandle& method) {
   int total_args_passed = method->size_of_parameters(); // All args on stack
   if (total_args_passed == 0) {
@@ -2891,7 +2897,7 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   return _supers;
 }
 
-bool AdapterHandlerEntry::check_interface_calling_conventions(const methodHandle& method, Array<InstanceKlass*>* interfaces) {
+bool AdapterHandlerEntry::check_interface_calling_conventions(Method* method, Array<InstanceKlass*>* interfaces) {
   bool has_scalarized = method->has_scalarized_args();
   for (int i = 0; i < interfaces->length(); i++) {
     Method* interface_method = interfaces->at(i)->lookup_method(method->name(), method->signature());
@@ -3250,8 +3256,13 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   // Inherit adapter from super method as long as it is compatible with adapters from local interfaces
   InstanceKlass* holder = method->method_holder();
   InstanceKlass* super_klass = holder->super();
+  Method* super_method;
+  bool tmp_scalarized_args = false;
+  bool tmp_c1_stack_repair = false;
+  bool tmp_c2_stack_repair = false;
+
   if (super_klass != nullptr) {
-    Method* super_method = super_klass->lookup_method(method->name(), method->signature());
+    super_method = super_klass->lookup_method(method->name(), method->signature());
     if (super_method != nullptr && super_method->adapter() != nullptr) {
       log_info(aot)("Method %s attempting to inherit adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
                     super_method->has_scalarized_args() ? "true" : "false");
@@ -3260,18 +3271,32 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
       AdapterHandlerEntry* super_adapter = super_method->adapter();
       Array<InstanceKlass*>* interfaces = holder->local_interfaces();
       if (super_method->adapter() != nullptr) {
-        if(super_adapter->check_interface_calling_conventions(method, holder->local_interfaces())) {
-          log_info(aot)("Method %s successfully inherited adapter from %s", method->external_name(), super_method->external_name());
-          if (super_method->has_scalarized_args()) {
-            method->set_has_scalarized_args();
+        if(super_adapter->check_interface_calling_conventions(super_method, holder->local_interfaces())) {
+          {
+            MutexLocker mu(AdapterHandlerLibrary_lock);
+            entry = AdapterHandlerLibrary::copy_entry(super_adapter);
+            //entry = super_adapter;
+            log_info(aot)("Method %s successfully inherited adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
+                          super_method->has_scalarized_args() ? "true" : "false");
+
+            assert(!method->c1_needs_stack_repair(), "must be unset");
+            assert(!method->c2_needs_stack_repair(), "must be unset");
+
+            if (super_method->has_scalarized_args()) {
+              tmp_scalarized_args = true;
+              method->set_has_scalarized_args();
+
+              if (super_method->c1_needs_stack_repair()) {
+                tmp_c1_stack_repair = true;
+                method->set_c1_needs_stack_repair();
+              }
+              if (super_method->c2_needs_stack_repair()) {
+                tmp_c2_stack_repair = true;
+                method->set_c2_needs_stack_repair();
+              }
+            }
           }
-          if (super_method->c1_needs_stack_repair()) {
-            method->set_c1_needs_stack_repair();
-          }
-          if (super_method->c2_needs_stack_repair()) {
-            method->set_c2_needs_stack_repair();
-          }
-          return super_method->adapter();
+          return entry;
         }
       }
       log_info(aot)("Method %s unable to inherit adapter from %s", method->external_name(), super_method->external_name());
@@ -3280,6 +3305,18 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
 
   CompiledEntrySignature ces(method());
   ces.compute_calling_conventions();
+  if (tmp_scalarized_args) {
+    if(!ces.has_scalarized_args()) {
+      ShouldNotReachHere();
+    }
+    if (tmp_c1_stack_repair != ces.c1_needs_stack_repair()) {
+      ShouldNotReachHere();
+    }
+    if (tmp_c2_stack_repair != ces.c2_needs_stack_repair()) {
+      ShouldNotReachHere();
+    }
+  }
+
   if (ces.has_scalarized_args()) {
     if (!method->has_scalarized_args()) {
       method->set_has_scalarized_args();
