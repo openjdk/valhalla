@@ -1,0 +1,50 @@
+file "I.class" {
+  0xCAFEBABE;
+  65535;                                   // minor version
+  71;                                      // version
+  [] {                                     // Constant Pool
+    ;                                      // first element is empty
+    Class #2;                              // #1
+    Utf8 "I";                              // #2
+    Class #4;                              // #3
+    Utf8 "java/lang/Object";               // #4
+    Utf8 "foo";                            // #5
+    Utf8 "(LPoint;)V";                     // #6
+    Utf8 "SourceFile";                     // #7
+    Utf8 "SigTest.java";                   // #8
+    Utf8 "LoadableDescriptors";            // #9
+    Utf8 "LPoint;";                        // #10
+  }
+
+  0x0600;                                  // access
+  #1;                                      // this_cpx
+  #3;                                      // super_cpx
+
+  [] {                                     // Interfaces
+  }                                        // end of Interfaces
+
+  [] {                                     // Fields
+  }                                        // end of Fields
+
+  [] {                                     // Methods
+    {                                      // method
+      0x0401;                              // access
+      #5;                                  // name_index
+      #6;                                  // descriptor_index
+      [] {                                 // Attributes
+      }                                    // end of Attributes
+    }
+  }                                        // end of Methods
+
+  [] {                                     // Attributes
+    Attr(#7) {                             // SourceFile
+      #8;
+    }                                      // end of SourceFile
+    ;
+    Attr(#9) {                             // LoadableDescriptors
+      [] {                                 // Utf8
+        // Removed LPoint
+      }
+    }                                      // end of LoadableDescriptors
+  }                                        // end of Attributes
+}

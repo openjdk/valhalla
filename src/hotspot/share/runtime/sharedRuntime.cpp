@@ -3231,6 +3231,29 @@ void AdapterHandlerLibrary::verify_adapter_sharing(CompiledEntrySignature& ces, 
 }
 #endif /* ASSERT*/
 
+Method* AdapterHandlerLibrary::find_super_method(InstanceKlass* holder, const methodHandle& method) {
+  Method* super_method;
+  Symbol* holder_name = holder->name();
+  JavaThread* current = JavaThread::current();
+  Handle loader(current, method->method_holder()->class_loader());
+
+  // Walk up the class hierarchy and search for super methods
+  InstanceKlass* super_klass = holder->super();
+  while (super_klass != nullptr) {
+    super_method = super_klass->lookup_method(method->name(), method->signature());
+    if (super_method == nullptr) {
+      return nullptr;
+    }
+    if (!super_method->is_static() && !super_method->is_private() &&
+        (!super_method->is_package_private() ||
+        super_method->method_holder()->is_same_class_package(loader(), holder_name))) {
+      return super_method;
+    }
+    super_klass = super_method->method_holder()->super();
+  }
+  return nullptr;
+}
+
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
   assert(!method->is_abstract() || InlineTypePassFieldsAsArgs, "abstract methods do not have adapters");
   // Use customized signature handler.  Need to lock around updates to
@@ -3247,22 +3270,13 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   ResourceMark rm;
   bool new_entry = false;
 
-
-  if (method->name()->equals("foo")) {
-    ResourceMark rm;
-    tty->print_cr("Found it! %s", method->method_holder()->name()->as_C_string());
-  }
-
   // Inherit adapter from super method as long as it is compatible with adapters from local interfaces
   InstanceKlass* holder = method->method_holder();
   InstanceKlass* super_klass = holder->super();
   Method* super_method;
-  bool tmp_scalarized_args = false;
-  bool tmp_c1_stack_repair = false;
-  bool tmp_c2_stack_repair = false;
 
   if (super_klass != nullptr) {
-    super_method = super_klass->lookup_method(method->name(), method->signature());
+    super_method = find_super_method(holder, method);
     if (super_method != nullptr && super_method->adapter() != nullptr) {
       log_info(aot)("Method %s attempting to inherit adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
                     super_method->has_scalarized_args() ? "true" : "false");
@@ -3272,28 +3286,24 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
       Array<InstanceKlass*>* interfaces = holder->local_interfaces();
       if (super_method->adapter() != nullptr) {
         if(super_adapter->check_interface_calling_conventions(super_method, holder->local_interfaces())) {
-          {
-            MutexLocker mu(AdapterHandlerLibrary_lock);
-            entry = AdapterHandlerLibrary::copy_entry(super_adapter);
-            //entry = super_adapter;
-            log_info(aot)("Method %s successfully inherited adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
-                          super_method->has_scalarized_args() ? "true" : "false");
+          entry = super_adapter;
+          log_info(aot)("Method %s successfully inherited adapter from %s (scalarized: %s)", method->external_name(), super_method->external_name(),
+                        super_method->has_scalarized_args() ? "true" : "false");
 
-            assert(!method->c1_needs_stack_repair(), "must be unset");
-            assert(!method->c2_needs_stack_repair(), "must be unset");
+          assert(!method->c1_needs_stack_repair(), "must be unset");
+          assert(!method->c2_needs_stack_repair(), "must be unset");
 
-            if (super_method->has_scalarized_args()) {
-              tmp_scalarized_args = true;
-              method->set_has_scalarized_args();
+          if (super_method->has_scalarized_args()) {
+            tmp_scalarized_args = true;
+            method->set_has_scalarized_args();
 
-              if (super_method->c1_needs_stack_repair()) {
-                tmp_c1_stack_repair = true;
-                method->set_c1_needs_stack_repair();
-              }
-              if (super_method->c2_needs_stack_repair()) {
-                tmp_c2_stack_repair = true;
-                method->set_c2_needs_stack_repair();
-              }
+            if (super_method->c1_needs_stack_repair()) {
+              tmp_c1_stack_repair = true;
+              method->set_c1_needs_stack_repair();
+            }
+            if (super_method->c2_needs_stack_repair()) {
+              tmp_c2_stack_repair = true;
+              method->set_c2_needs_stack_repair();
             }
           }
           return entry;
@@ -3305,18 +3315,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
 
   CompiledEntrySignature ces(method());
   ces.compute_calling_conventions();
-  if (tmp_scalarized_args) {
-    if(!ces.has_scalarized_args()) {
-      ShouldNotReachHere();
-    }
-    if (tmp_c1_stack_repair != ces.c1_needs_stack_repair()) {
-      ShouldNotReachHere();
-    }
-    if (tmp_c2_stack_repair != ces.c2_needs_stack_repair()) {
-      ShouldNotReachHere();
-    }
-  }
-
   if (ces.has_scalarized_args()) {
     if (!method->has_scalarized_args()) {
       method->set_has_scalarized_args();

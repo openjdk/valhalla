@@ -948,6 +948,7 @@ class AdapterHandlerLibrary: public AllStatic {
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint);
   static AdapterHandlerEntry* copy_entry(AdapterHandlerEntry* other);
   static void create_native_wrapper(const methodHandle& method);
+  static Method* find_super_method(InstanceKlass* holder, const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
   static AdapterHandlerEntry* lookup(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false);
   static bool generate_adapter_code(AdapterHandlerEntry* handler,

@@ -1,0 +1,99 @@
+class A {
+  0xCAFEBABE;
+  65535;                                   // minor version
+  71;                                      // version
+  [] {                                     // Constant Pool
+    ;                                      // first element is empty
+    Method #2 #3;                          // #1
+    Class #4;                              // #2
+    NameAndType #5 #6;                     // #3
+    Utf8 "java/lang/Object";               // #4
+    Utf8 "<init>";                         // #5
+    Utf8 "()V";                            // #6
+    Class #8;                              // #7
+    Utf8 "A";                              // #8
+    Class #10;                             // #9
+    Utf8 "I";                              // #10
+    Utf8 "Code";                           // #11
+    Utf8 "LineNumberTable";                // #12
+    Utf8 "foo";                            // #13
+    Utf8 "(LPoint;)V";                     // #14
+    Utf8 "SourceFile";                     // #15
+    Utf8 "SigTest.java";                   // #16
+    Utf8 "LoadableDescriptors";            // #17
+    Utf8 "LPoint;";                        // #18
+  }
+
+  0x0020;                                  // access
+  #7;                                      // this_cpx
+  #2;                                      // super_cpx
+
+  [] {                                     // Interfaces
+    #9;
+  }                                        // end of Interfaces
+
+  [] {                                     // Fields
+  }                                        // end of Fields
+
+  [] {                                     // Methods
+    {                                      // method
+      0x0000;                              // access
+      #5;                                  // name_index
+      #6;                                  // descriptor_index
+      [] {                                 // Attributes
+        Attr(#11) {                        // Code
+          1;                               // max_stack
+          1;                               // max_locals
+          Bytes[]{
+            0x2A 0xB7 0x00 0x01 0xB1;
+          }
+          [] {                             // Traps
+          }                                // end of Traps
+          [] {                             // Attributes
+            Attr(#12) {                    // LineNumberTable
+              [] {                         // line_number_table
+                   0   35;
+              }
+            }                              // end of LineNumberTable
+          }                                // end of Attributes
+        }                                  // end of Code
+      }                                    // end of Attributes
+    }
+    ;
+    {                                      // method
+      0x0001;                              // access
+      #13;                                 // name_index
+      #14;                                 // descriptor_index
+      [] {                                 // Attributes
+        Attr(#11) {                        // Code
+          0;                               // max_stack
+          2;                               // max_locals
+          Bytes[]{
+            0xB1;
+          }
+          [] {                             // Traps
+          }                                // end of Traps
+          [] {                             // Attributes
+            Attr(#12) {                    // LineNumberTable
+              [] {                         // line_number_table
+                   0   36;
+              }
+            }                              // end of LineNumberTable
+          }                                // end of Attributes
+        }                                  // end of Code
+      }                                    // end of Attributes
+    }
+  }                                        // end of Methods
+
+  [] {                                     // Attributes
+    Attr(#15) {                            // SourceFile
+      #16;
+    }                                      // end of SourceFile
+    ;
+    Attr(#17) {                            // LoadableDescriptors
+      [] {                                 // Utf8
+      // Removed LPoint
+      }
+    }                                      // end of LoadableDescriptors
+  }                                        // end of Attributes
+}
