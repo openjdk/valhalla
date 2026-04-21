@@ -77,14 +77,18 @@ import static java.util.stream.Collectors.groupingBy;
  *     <li>{@code @jdk.internal.MigratedValueClass} appears on concrete and
  *         abstract value classes.
  * </ul>
+ *
+ * @implNote This annotation currently accepts and consumes <em>all</em>
+ * annotations. This is a temporary situation to avoid unwanted warnings about
+ * unrelated annotations. See JDK-8382613 for more details.
  */
-@SupportedAnnotationTypes(GenValueClasses.MIGRATED_VALUE_CLASS_ANNOTATION)
-@SupportedOptions("valueclasses.outdir")
+@SupportedAnnotationTypes("*" /* JDK-8382613: GenValueClasses.MIGRATED_VALUE_CLASS_ANNOTATION */)
+@SupportedOptions(GenValueClasses.OUTDIR_OPTION_KEY)
 public final class GenValueClasses extends AbstractProcessor {
     static final String MIGRATED_VALUE_CLASS_ANNOTATION = "jdk.internal.MigratedValueClass";
 
     // Matches preprocessor option flag in CompileJavaModules.gmk.
-    private static final String OUTDIR_OPTION_KEY = "valueclasses.outdir";
+    static final String OUTDIR_OPTION_KEY = "valueclasses.outdir";
 
     private ProcessingEnvironment processingEnv = null;
     private Path outDir = null;
@@ -127,8 +131,7 @@ public final class GenValueClasses extends AbstractProcessor {
                         .forEach(this::generateValueClassSource);
             }
         }
-        // We may not be the only annotation processor to consume this annotation.
-        return false;
+        return true;  // JDK-8382613: false
     }
 
     /** Find the annotation element by name in the given set. */
