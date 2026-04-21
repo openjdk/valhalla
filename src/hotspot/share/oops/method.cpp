@@ -921,9 +921,9 @@ bool Method::is_getter() const {
     default:
       return false;
   }
-  if (has_scalarized_return()) {
+  if (InlineTypeReturnedAsFields && returns_inline_type() != nullptr) {
     // Don't treat this as (trivial) getter method because the
-    // inline type should be returned in a scalarized form.
+    // inline type could be returned in a scalarized form.
     return false;
   }
   return true;
@@ -1299,7 +1299,6 @@ void Method::remove_unshareable_flags() {
   set_is_not_c2_osr_compilable(false);
   set_on_stack_flag(false);
   set_has_scalarized_args(false);
-  set_has_scalarized_return(false);
 }
 #endif
 
@@ -1335,9 +1334,6 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     set_native_function(
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
-  }
-  if (InlineTypeReturnedAsFields && returns_inline_type() && !has_scalarized_return()) {
-    set_has_scalarized_return();
   }
 
   // Setup compiler entrypoint.  This is made eagerly, so we do not need

@@ -363,7 +363,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     if (stopped()) {
       break;
     }
-
+    const Type *type = osr_block->local_type_at(index);
     Node* l = local(index);
     if (l->is_top()) {
       continue;
@@ -389,12 +389,31 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // value and the expected type is a constant.
       continue;
     }
+    if (StressReachabilityFences && type->isa_oopptr() != nullptr) {
+      // Keep all oop locals alive until the method returns as if there are
+      // reachability fences for them at the end of the method.
+      Node* loc = local(index);
+      if (loc->bottom_type() != TypePtr::NULL_PTR) {
+        assert(loc->bottom_type()->isa_oopptr() != nullptr, "%s", Type::str(loc->bottom_type()));
+        _stress_rf_hook->add_req(loc);
+      }
+    }
     set_local(index, check_interpreter_type(l, ci_type, bad_type_exit));
   }
 
   for (index = 0; index < sp(); index++) {
     if (stopped()) {
       break;
+    }
+    const Type *type = osr_block->local_type_at(index);
+    if (StressReachabilityFences && type->isa_oopptr() != nullptr) {
+      // Keep all oops on stack alive until the method returns as if there are
+      // reachability fences for them at the end of the method.
+      Node* stk = stack(index);
+      if (stk->bottom_type() != TypePtr::NULL_PTR) {
+        assert(stk->bottom_type()->isa_oopptr() != nullptr, "%s", Type::str(stk->bottom_type()));
+        _stress_rf_hook->add_req(stk);
+      }
     }
 
     Node* l = stack(index);
@@ -433,11 +452,12 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   _method = parse_method;
   _expected_uses = expected_uses;
   _depth = 1 + (caller->has_method() ? caller->depth() : 0);
-  _wrote_final = false;
+  _wrote_non_strict_final = false;
   _wrote_volatile = false;
   _wrote_stable = false;
   _wrote_fields = false;
   _alloc_with_final_or_stable = nullptr;
+  _stress_rf_hook = (StressReachabilityFences ? new Node(1) : nullptr);
   _block = nullptr;
   _first_return = true;
   _replaced_nodes_for_exceptions = false;
@@ -538,15 +558,13 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _entry_bci = C->entry_bci();
     _flow = method()->get_osr_flow_analysis(osr_bci());
   } else {
-    _tf = TypeFunc::make(method());
+    _tf = TypeFunc::make(method(), false);
     _entry_bci = InvocationEntryBci;
     _flow = method()->get_flow_analysis();
   }
 
   if (_flow->failing()) {
-    // TODO Adding a trap due to an unloaded return type in ciTypeFlow::StateVector::do_invoke
-    // can lead to this. Re-enable once 8284443 is fixed.
-    //assert(false, "type flow analysis failed during parsing");
+    assert(false, "type flow analysis failed during parsing");
     C->record_method_not_compilable(_flow->failure_reason());
 #ifndef PRODUCT
       if (PrintOpto && (Verbose || WizardMode)) {
@@ -671,6 +689,11 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
 
   if (log)  log->done("parse nodes='%d' live='%d' memory='%zu'",
                       C->unique(), C->live_nodes(), C->node_arena()->used());
+
+  if (StressReachabilityFences) {
+    _stress_rf_hook->destruct(&_gvn);
+    _stress_rf_hook = nullptr;
+  }
 }
 
 //---------------------------do_all_blocks-------------------------------------
@@ -1082,7 +1105,7 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if ((method()->is_object_constructor() || method()->is_class_initializer()) &&
-       (wrote_final() || wrote_stable() ||
+       (wrote_non_strict_final() || wrote_stable() ||
          (AlwaysSafeConstructors && wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     Node* recorded_alloc = alloc_with_final_or_stable();
@@ -1266,6 +1289,14 @@ SafePointNode* Parse::create_entry_map() {
   return entry_map;
 }
 
+//-----------------------is_auto_boxed_primitive------------------------------
+// Helper method to detect auto-boxed primitives (result of valueOf() call).
+static bool is_auto_boxed_primitive(Node* n) {
+  return (n->is_Proj() && n->as_Proj()->_con == TypeFunc::Parms &&
+          n->in(0)->is_CallJava() &&
+          n->in(0)->as_CallJava()->method()->is_boxing_method());
+}
+
 //-----------------------------do_method_entry--------------------------------
 // Emit any code needed in the pseudo-block before BCI zero.
 // The main thing to do is lock the receiver of a synchronized method.
@@ -1307,6 +1338,19 @@ void Parse::do_method_entry() {
 
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_entry(method());
+  }
+
+  if (StressReachabilityFences) {
+    // Keep all oop arguments alive until the method returns as if there are
+    // reachability fences for them at the end of the method.
+    int max_locals = jvms()->loc_size();
+    for (int idx = 0; idx < max_locals; idx++) {
+      Node* loc = local(idx);
+      if (loc->bottom_type()->isa_oopptr() != nullptr &&
+          !is_auto_boxed_primitive(loc)) { // ignore auto-boxed primitives
+        _stress_rf_hook->add_req(loc);
+      }
+    }
   }
 
 #ifdef ASSERT
@@ -2470,6 +2514,15 @@ void Parse::return_current(Node* value) {
     // If returning oops to an interface-return, there is a silent free
     // cast from oop to interface allowed by the Verifier. Make it explicit here.
     phi->add_req(value);
+  }
+
+  if (StressReachabilityFences) {
+    // Insert reachability fences for all oop arguments at the end of the method.
+    for (uint i = 1; i < _stress_rf_hook->req(); i++) {
+      Node* referent = _stress_rf_hook->in(i);
+      assert(referent->bottom_type()->isa_oopptr(), "%s", Type::str(referent->bottom_type()));
+      insert_reachability_fence(referent);
+    }
   }
 
   // Do not set_parse_bci, so that return goo is credited to the return insn.

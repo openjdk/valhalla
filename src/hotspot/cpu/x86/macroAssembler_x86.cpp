@@ -6476,7 +6476,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
-  // TODO 8284443 Isn't it an issue if below code uses r14 as tmp when it contains a spilled value?
   // Be careful with r14 because it's used for spilling (see MacroAssembler::spill_reg_for).
   Register val_obj_tmp = r11;
   Register from_reg_tmp = r14;

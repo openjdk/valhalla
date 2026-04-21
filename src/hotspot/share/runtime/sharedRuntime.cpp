@@ -2904,8 +2904,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     int arg_num = 0;
     if (!_method->is_static()) {
       // We shouldn't scalarize 'this' in a value class constructor
-      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
-          (init || _method->is_scalarized_arg(arg_num))) {
+      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
+          !_method->is_object_constructor() && (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
         _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
         has_scalarized = true;
@@ -2920,7 +2920,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
-      if (bt == T_OBJECT) {
+      if (InlineTypePassFieldsAsArgs && bt == T_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
         if (vk != nullptr && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
           // Check for a calling convention mismatch with super method(s)
@@ -3018,7 +3018,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
 
     // Upper bound on stack arguments to avoid hitting the argument limit and
     // bailing out of compilation ("unsupported incoming calling sequence").
-    // TODO we need a reasonable limit (flag?) here
+    // TODO 8281260 We need a reasonable limit (flag?) here
     if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 75) {
       return; // Success
     }

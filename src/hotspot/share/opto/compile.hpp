@@ -82,6 +82,7 @@ class PhaseIterGVN;
 class PhaseRegAlloc;
 class PhaseCCP;
 class PhaseOutput;
+class ReachabilityFenceNode;
 class RootNode;
 class relocInfo;
 class StartNode;
@@ -110,7 +111,8 @@ enum LoopOptsMode {
   LoopOptsMaxUnroll,
   LoopOptsShenandoahExpand,
   LoopOptsSkipSplitIf,
-  LoopOptsVerify
+  LoopOptsVerify,
+  PostLoopOptsExpandReachabilityFences
 };
 
 // The type of all node counts and indexes.
@@ -346,6 +348,7 @@ class Compile : public Phase {
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
   bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flat field
+  bool                  _needs_nm_slot;         // True if an extra stack slot is needed to hold the null marker at scalarized returns
   uint                  _max_vector_size;       // Maximum size of generated vectors
   bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
@@ -393,6 +396,7 @@ class Compile : public Phase {
   // of Template Assertion Predicates themselves.
   GrowableArray<OpaqueTemplateAssertionPredicateNode*>  _template_assertion_predicate_opaques;
   GrowableArray<Node*>  _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
+  GrowableArray<ReachabilityFenceNode*> _reachability_fences; // List of reachability fences
   GrowableArray<Node*>  _for_post_loop_igvn;    // List of nodes for IGVN after loop opts are over
   GrowableArray<Node*>  _inline_type_nodes;     // List of InlineType nodes
   GrowableArray<Node*>  _flat_access_nodes;     // List of LoadFlat and StoreFlat nodes
@@ -675,7 +679,9 @@ public:
 
   // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != nullptr && _method->has_scalarized_args(); }
-  bool              needs_stack_repair()  const  { return _method != nullptr && _method->get_Method()->c2_needs_stack_repair(); }
+  bool              needs_stack_repair()  const  { return _method != nullptr && _method->c2_needs_stack_repair(); }
+  bool              needs_nm_slot()       const  { return _needs_nm_slot; }
+  void          set_needs_nm_slot(bool v)        { _needs_nm_slot = v; }
 
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }
@@ -738,10 +744,12 @@ public:
   int           template_assertion_predicate_count() const { return _template_assertion_predicate_opaques.length(); }
   int           expensive_count()         const { return _expensive_nodes.length(); }
   int           coarsened_count()         const { return _coarsened_locks.length(); }
-
   Node*         macro_node(int idx)       const { return _macro_nodes.at(idx); }
 
   Node*         expensive_node(int idx)   const { return _expensive_nodes.at(idx); }
+
+  ReachabilityFenceNode* reachability_fence(int idx) const { return _reachability_fences.at(idx); }
+  int                    reachability_fences_count() const { return _reachability_fences.length(); }
 
   ConnectionGraph* congraph()                   { return _congraph;}
   void set_congraph(ConnectionGraph* congraph)  { _congraph = congraph;}
@@ -762,6 +770,14 @@ public:
   void add_expensive_node(Node* n);
   void remove_expensive_node(Node* n) {
     _expensive_nodes.remove_if_existing(n);
+  }
+
+  void add_reachability_fence(ReachabilityFenceNode* rf) {
+    _reachability_fences.append(rf);
+  }
+
+  void remove_reachability_fence(ReachabilityFenceNode* n) {
+    _reachability_fences.remove_if_existing(n);
   }
 
   void add_parse_predicate(ParsePredicateNode* n) {
@@ -1344,6 +1360,9 @@ public:
 
   // Definitions of pd methods
   static void pd_compiler2_init();
+
+  // Materialize reachability fences from reachability edges on safepoints.
+  void expand_reachability_edges(Unique_Node_List& safepoints);
 
   // Static parse-time type checking logic for gen_subtype_check:
   enum SubTypeCheckResult { SSC_always_false, SSC_always_true, SSC_easy_test, SSC_full_test };

@@ -63,6 +63,11 @@ bool ciInlineKlass::is_empty() {
   return nof_declared_nonstatic_fields() == 0;
 }
 
+int ciInlineKlass::inline_arg_length() {
+  VM_ENTRY_MARK;
+  return get_InlineKlass()->extended_sig()->length();
+}
+
 // When passing an inline type's fields as arguments, count the number
 // of argument slots that are needed
 int ciInlineKlass::inline_arg_slots() {

@@ -734,19 +734,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     cbz(rscratch1, skip);
 
     blr(rscratch1);
-#ifdef ASSERT
-    // TODO 8284443 Enable
-    if (StressCallingConvention && false) {
-      Label skip_stress;
-      ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-      ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));
-      tstw(rscratch1, MethodFlags::has_scalarized_return_flag());
-      br(Assembler::EQ, skip_stress);
-      load_klass(r0, r0);
-      orr(r0, r0, 1);
-      bind(skip_stress);
-    }
-#endif
     bind(skip);
     // Check above kills sender esp in rscratch2. Reload it.
     ldr(rscratch2, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));

@@ -56,7 +56,6 @@ compiler/c2/irTests/TestDuplicateBackedge.java 8318904 generic-all
 
 compiler/codecache/jmx/PoolsIndependenceTest.java 8264632 macosx-all
 
-compiler/vectorapi/reshape/TestVectorReinterpret.java 8348519 linux-s390x
 compiler/vectorapi/VectorRebracket128Test.java 8330538 generic-all
 
 compiler/vectorization/TestVectorAlgorithms.java#noSuperWord 8376803 aix-ppc64,linux-s390x
@@ -204,6 +203,14 @@ compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 compiler/c2/TestGVNCrash.java 8381268 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java#id1 8381268 generic-all
 compiler/valhalla/inlinetypes/TestArrays.java#id5 8381268 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java#id0       8382504 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java#id1       8382504 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java#id3       8382504 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java#id4       8382504 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java#id5       8382504 generic-all
+compiler/valhalla/inlinetypes/TestIntrinsics.java#id6       8382504 generic-all
+
+serviceability/sa/TestJhsdbJstackMixedWithXComp.java#xcomp-disable-tiered-compilation 8382548 linux-aarch64
 
 vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64

@@ -24,7 +24,7 @@
 
 #include "classfile/classLoaderDataGraph.hpp"
 #include "cppstdlib/new.hpp"
-#include "gc/g1/g1CollectedHeap.hpp"
+#include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1FullCollector.inline.hpp"
 #include "gc/g1/g1FullGCAdjustTask.hpp"
 #include "gc/g1/g1FullGCCompactTask.hpp"

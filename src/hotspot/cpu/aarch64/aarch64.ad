@@ -2203,8 +2203,9 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
   if (!_verified) {
     __ ic_check(1);
   } else {
-    // TODO 8284443 Avoid creation of temporary frame
     if (ra_->C->stub_function() == nullptr) {
+      // Emit the entry barrier in a temporary frame before unpacking because
+      // it can deopt, which would require packing the scalarized args again.
       __ verified_entry(ra_->C, 0);
       __ entry_barrier();
       int framesize = ra_->C->output()->frame_slots() << LogBytesPerInt;

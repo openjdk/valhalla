@@ -223,23 +223,12 @@ PhaseOutput::PhaseOutput()
     _code_offsets(),
     _node_bundling_limit(0),
     _node_bundling_base(nullptr),
-    _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
     _buf_sizes(),
     _block(nullptr),
     _index(0) {
   C->set_output(this);
-  if (C->stub_name() == nullptr) {
-    int fixed_slots = C->fixed_slots();
-    if (C->needs_stack_repair()) {
-      fixed_slots -= 2;
-    }
-    // TODO 8284443 Only reserve extra slot if needed
-    if (InlineTypeReturnedAsFields) {
-      fixed_slots -= 2;
-    }
-    _orig_pc_slot = fixed_slots - (sizeof(address) / VMRegImpl::stack_slot_size);
-  }
+
 }
 
 PhaseOutput::~PhaseOutput() {
@@ -1380,7 +1369,16 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
 
   // Compute the byte offset where we can store the deopt pc.
   if (C->fixed_slots() != 0) {
-    _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_orig_pc_slot));
+    // Skip other fixed slots
+    int current_slot = C->fixed_slots();
+    if (C->needs_stack_repair()) {
+      current_slot -= VMRegImpl::slots_per_word;
+    }
+    if (C->needs_nm_slot()) {
+      current_slot -= VMRegImpl::slots_per_word;
+    }
+    int orig_pc_slot = current_slot - VMRegImpl::slots_per_word;
+    _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(orig_pc_slot));
   }
 
   // Compute prolog code size

@@ -1648,7 +1648,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
   // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
   if (method()->is_object_constructor() &&
-       (scope()->wrote_final() || scope()->wrote_stable() ||
+       (scope()->wrote_non_strict_final() || scope()->wrote_stable() ||
          (AlwaysSafeConstructors && scope()->wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
     need_mem_bar = true;
@@ -1855,8 +1855,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     if (field->is_volatile()) {
       scope()->set_wrote_volatile();
     }
-    if (field->is_final()) {
-      scope()->set_wrote_final();
+    if (field->is_final() && !field->is_strict()) {
+      scope()->set_wrote_non_strict_final();
     }
     if (field->is_stable()) {
       scope()->set_wrote_stable();
@@ -2021,7 +2021,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 set_pending_field_access(dfa);
               }
             } else {
-              scope()->set_wrote_final();
+              if (!field->is_strict()) {
+                scope()->set_wrote_non_strict_final();
+              }
               scope()->set_wrote_fields();
               if (has_pending_load_indexed()) {
                 assert(field->is_null_free(), "nullable fields do not support delayed accesses yet");

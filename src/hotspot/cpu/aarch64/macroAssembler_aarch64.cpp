@@ -60,6 +60,7 @@
 #include "runtime/signature_cc.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/integerCast.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "vmreg_aarch64.inline.hpp"
 #ifdef COMPILER1
@@ -3022,7 +3023,11 @@ void MacroAssembler::increment(Address dst, int value)
 
 // Push lots of registers in the bit set supplied.  Don't push sp.
 // Return the number of words pushed
-int MacroAssembler::push(unsigned int bitset, Register stack) {
+int MacroAssembler::push(RegSet regset, Register stack) {
+  if (regset.bits() == 0) {
+    return 0;
+  }
+  auto bitset = integer_cast<unsigned int>(regset.bits());
   int words_pushed = 0;
 
   // Scan bitset to accumulate register pairs
@@ -3052,7 +3057,11 @@ int MacroAssembler::push(unsigned int bitset, Register stack) {
   return count;
 }
 
-int MacroAssembler::pop(unsigned int bitset, Register stack) {
+int MacroAssembler::pop(RegSet regset, Register stack) {
+  if (regset.bits() == 0) {
+    return 0;
+  }
+  auto bitset = integer_cast<unsigned int>(regset.bits());
   int words_pushed = 0;
 
   // Scan bitset to accumulate register pairs
@@ -3084,7 +3093,11 @@ int MacroAssembler::pop(unsigned int bitset, Register stack) {
 
 // Push lots of registers in the bit set supplied.  Don't push sp.
 // Return the number of dwords pushed
-int MacroAssembler::push_fp(unsigned int bitset, Register stack, FpPushPopMode mode) {
+int MacroAssembler::push_fp(FloatRegSet regset, Register stack, FpPushPopMode mode) {
+  if (regset.bits() == 0) {
+    return 0;
+  }
+  auto bitset = integer_cast<unsigned int>(regset.bits());
   int words_pushed = 0;
   bool use_sve = false;
   int sve_vector_size_in_bytes = 0;
@@ -3197,7 +3210,11 @@ int MacroAssembler::push_fp(unsigned int bitset, Register stack, FpPushPopMode m
 }
 
 // Return the number of dwords popped
-int MacroAssembler::pop_fp(unsigned int bitset, Register stack, FpPushPopMode mode) {
+int MacroAssembler::pop_fp(FloatRegSet regset, Register stack, FpPushPopMode mode) {
+  if (regset.bits() == 0) {
+    return 0;
+  }
+  auto bitset = integer_cast<unsigned int>(regset.bits());
   int words_pushed = 0;
   bool use_sve = false;
   int sve_vector_size_in_bytes = 0;
@@ -3307,7 +3324,11 @@ int MacroAssembler::pop_fp(unsigned int bitset, Register stack, FpPushPopMode mo
 }
 
 // Return the number of dwords pushed
-int MacroAssembler::push_p(unsigned int bitset, Register stack) {
+int MacroAssembler::push_p(PRegSet regset, Register stack) {
+  if (regset.bits() == 0) {
+    return 0;
+  }
+  auto bitset = integer_cast<unsigned int>(regset.bits());
   bool use_sve = false;
   int sve_predicate_size_in_slots = 0;
 
@@ -3344,7 +3365,11 @@ int MacroAssembler::push_p(unsigned int bitset, Register stack) {
 }
 
 // Return the number of dwords popped
-int MacroAssembler::pop_p(unsigned int bitset, Register stack) {
+int MacroAssembler::pop_p(PRegSet regset, Register stack) {
+  if (regset.bits() == 0) {
+    return 0;
+  }
+  auto bitset = integer_cast<unsigned int>(regset.bits());
   bool use_sve = false;
   int sve_predicate_size_in_slots = 0;
 
@@ -7469,7 +7494,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   // runtime so use callee-saved registers for any values that need to be
   // preserved. The GC barrier assembler should take care of saving the
   // Java argument registers.
-  // TODO 8284443 Isn't it an issue if below code uses r14 as tmp when it contains a spilled value?
   // Be careful with r14 because it's used for spilling (see MacroAssembler::spill_reg_for).
   Register val_obj_tmp = r21;
   Register from_reg_tmp = r22;

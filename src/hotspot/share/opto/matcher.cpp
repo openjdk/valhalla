@@ -184,17 +184,17 @@ RegMask* Matcher::return_values_mask(const TypeFunc* tf) {
 
   int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
   if (regs <= 0) {
-    // We ran out of registers to store the null marker for a nullable inline type return.
-    // Since it is only set in the 'call_epilog', we can simply put it on the stack.
-    assert(tf->returns_inline_type_as_fields(), "should have been tested during graph construction");
-    // TODO 8284443 Can we teach the register allocator to reserve a stack slot instead?
-    // mask[--cnt] = STACK_ONLY_mask does not work (test with -XX:+StressGCM)
-    int slot = C->fixed_slots() - 2;
+    // We ran out of registers to store the null marker for a scalarized return.
+    // Put it into a fixed slot on the stack that we reserved for it in
+    // Compile::Compile. Code in 'call_epilog' will then initialize it.
+    assert(C->needs_nm_slot(), "Should have been set during parsing");
+    int current_slot = C->fixed_slots();
     if (C->needs_stack_repair()) {
-      slot -= 2; // Account for stack increment value
+      current_slot -= VMRegImpl::slots_per_word;
     }
+    int nm_slot = current_slot - VMRegImpl::slots_per_word;
     mask[--cnt].clear();
-    mask[cnt].insert(OptoReg::stack2reg(slot));
+    mask[cnt].insert(OptoReg::stack2reg(nm_slot));
   }
   for (uint i = 0; i < cnt; i++) {
     mask[i].clear();

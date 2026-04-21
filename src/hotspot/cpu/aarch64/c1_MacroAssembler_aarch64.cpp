@@ -314,7 +314,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // C1 code is not hot enough to micro optimize the nmethod entry barrier with an out-of-line stub
   bs->nmethod_entry_barrier(this, nullptr /* slow_path */, nullptr /* continuation */, nullptr /* guard */);
 
-  // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r19, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
     far_call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id)));
