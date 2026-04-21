@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,28 +24,32 @@
 package jdk.test.lib.jittester.factories;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import jdk.test.lib.jittester.IRNode;
 import jdk.test.lib.jittester.ProductionFailedException;
-import jdk.test.lib.jittester.ProductionParams;
+import jdk.test.lib.jittester.Symbol;
 import jdk.test.lib.jittester.Type;
-import jdk.test.lib.jittester.classes.Klass;
+import jdk.test.lib.jittester.classes.ValueKlass;
 import jdk.test.lib.jittester.functions.FunctionInfo;
 import jdk.test.lib.jittester.types.TypeKlass;
 import jdk.test.lib.jittester.utils.PseudoRandom;
 
-class KlassFactory extends AbstractKlassFactory<Klass> {
+class ValueKlassFactory extends AbstractKlassFactory<ValueKlass> {
 
-    KlassFactory(String name, long complexityLimit,
+    ValueKlassFactory(String name, long complexityLimit,
             int memberFunctionsLimit, int memberFunctionsArgLimit, int statementsInFunctionLimit,
             int operatorLimit, int level) {
         super(name, complexityLimit, memberFunctionsLimit, memberFunctionsArgLimit,
                 statementsInFunctionLimit, operatorLimit, level);
+        abstractProbabilityAdjustment = 1.0; // We want more abstract value classes
     }
 
     @Override
     protected TypeKlass createThisKlass(String name) {
-        return new TypeKlass(name);
+        TypeKlass thisKlass = new TypeKlass(name);
+        thisKlass.setValueKlass();
+        return thisKlass;
     }
 
     @Override
@@ -54,13 +58,13 @@ class KlassFactory extends AbstractKlassFactory<Klass> {
             return false;
         }
         TypeKlass klass = (TypeKlass) type;
-        return !klass.isFinal() && !klass.isInterface();
+        return klass.isAbstract() && klass.isValueKlass();
     }
 
     @Override
     protected IRNode produceVariableDeclarations(IRNodeBuilder builder, long complexity)
             throws ProductionFailedException {
-        return builder.setComplexityLimit(complexity).getVariableDeclarationBlockFactory().produce();
+        return builder.setComplexityLimit(complexity).getConstantVariableDeclarationBlockFactory().produce();
     }
 
     @Override
@@ -69,27 +73,32 @@ class KlassFactory extends AbstractKlassFactory<Klass> {
         return builder.setComplexityLimit(complexity)
                 .setMemberFunctionsLimit(memberLimit)
                 .setFlags(FunctionInfo.NONE)
+                .setIsSynchronizedAllowed(false)
                 .getFunctionDefinitionBlockFactory()
                 .produce();
     }
 
     @Override
+    protected ArrayList<Symbol> getShuffledOverrideCandidates(HashSet<Symbol> nonAbstractSet) {
+        nonAbstractSet.removeIf(symbol -> (((FunctionInfo) symbol).flags & FunctionInfo.FINAL) > 0);
+        return super.getShuffledOverrideCandidates(nonAbstractSet);
+    }
+
+    @Override
     protected void finalizeClassFlags(TypeKlass thisKlass) {
-        if (!ProductionParams.disableFinalClasses.value()
-                && !thisKlass.isAbstract()
-                && PseudoRandom.randomBoolean()) {
+        if (!thisKlass.isAbstract()) {
             thisKlass.setFinal();
         }
     }
 
     @Override
-    protected Klass createKlassNode(TypeKlass thisKlass, TypeKlass parent,
+    protected ValueKlass createKlassNode(TypeKlass thisKlass, TypeKlass parent,
             ArrayList<TypeKlass> interfaces, String name, int level,
             IRNode variableDeclarations, IRNode constructorDefinitions,
             IRNode functionDefinitions, IRNode abstractFunctionRedefinitions,
             IRNode overridenFunctionRedefinitions, IRNode functionDeclarations,
             IRNode printVariables) {
-        return new Klass(thisKlass, parent, interfaces, name, level,
+        return new ValueKlass(thisKlass, parent, interfaces, name, level,
                 variableDeclarations, constructorDefinitions, functionDefinitions,
                 abstractFunctionRedefinitions, overridenFunctionRedefinitions,
                 functionDeclarations, printVariables);
