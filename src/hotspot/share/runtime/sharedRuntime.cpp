@@ -2899,7 +2899,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     int arg_num = 0;
     if (!_method->is_static()) {
       // We shouldn't scalarize 'this' in a value class constructor
-      if (InlineTypePassFieldsAsArgs && holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
+      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
           !_method->is_object_constructor() && (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
         _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument

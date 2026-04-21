@@ -7329,7 +7329,13 @@ const TypeTuple* osr_domain() {
   return TypeTuple::make(TypeFunc::Parms+1, fields);
 }
 
-//------------------------------make-------------------------------------------
+// Build a TypeFunc with both the Java-signature view ('sig') and the actual calling-
+// convention view ('cc') of inline types. In the signature, an inline type is a single
+// oop slot. In the scalarized calling convention, it is expanded to its field
+// values (plus null marker and optional oop to the heap buffer).
+// The 'is_call' argument distinguishes between the return signature of a method at calls
+// vs. at compilation of that method because at calls we return an additional null marker field.
+// For OSR and mismatching calls, we fall back to the non-scalarized argument view.
 const TypeFunc* TypeFunc::make(ciMethod* method, bool is_call, bool is_osr_compilation) {
   Compile* C = Compile::current();
   const TypeFunc* tf = nullptr;

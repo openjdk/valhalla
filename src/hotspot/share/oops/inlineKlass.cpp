@@ -219,6 +219,16 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
   return count;
 }
 
+// Support for the scalarized calling convention.
+//
+// For arguments, an inline type can be passed in scalarized form instead of as a single
+// oop: the calling convention uses an optional buffer oop together with a null marker,
+// followed by the field values, assigned to the normal argument registers and stack slots.
+// See CompiledEntrySignature::compute_calling_conventions.
+//
+// For returns, an inline type is returned in scalarized form via multiple return registers:
+// the first word is a tri-state value (null, tagged InlineKlass*, or oop) and the remaining
+// registers carry the field values.
 void InlineKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since inline type klasses do
