@@ -113,7 +113,7 @@ private:
   bool add_array_elems_to_safepoint(AllocateNode* alloc, const TypeAryPtr* array_type, SafePointNode* sfpt, Unique_Node_List* value_worklist);
   bool add_inst_fields_to_safepoint(ciInstanceKlass* iklass, AllocateNode* alloc, Node* base, int offset_minus_header, SafePointNode* sfpt, Unique_Node_List* value_worklist);
   Node* value_from_alloc(BasicType ft, const TypeOopPtr* adr_t, AllocateNode* alloc);
-  Node* value_from_mem(Node* mem, Node* ctl, BasicType ft, const Type* ftype, const TypeOopPtr* adr_t, AllocateNode* alloc);
+  Node* value_from_mem(Node* start, Node* ctl, BasicType ft, const Type* ftype, const TypeOopPtr* adr_t, AllocateNode* alloc);
   Node* value_from_mem_phi(Node* mem, BasicType ft, const Type* ftype, const TypeOopPtr* adr_t, AllocateNode* alloc, Node_Stack* value_phis, int level);
   Node* inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int elem_idx, int offset_in_element, bool null_free, AllocateNode* alloc, SafePointNode* sfpt);
 
@@ -233,7 +233,7 @@ private:
                           Node* klass_node, Node* length,
                           Node* size_in_bytes);
 
-  Node* make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type *ftype, AllocateNode *alloc);
+  Node* make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type* ftype, AllocateNode* alloc);
 
 public:
   PhaseMacroExpand(PhaseIterGVN &igvn) : Phase(Macro_Expand), _igvn(igvn) {

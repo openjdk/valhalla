@@ -998,7 +998,7 @@ public:
   }
 
   static const TypeTuple *make( uint cnt, const Type **fields );
-  static const TypeTuple *make_range(ciSignature* sig, InterfaceHandling interface_handling = ignore_interfaces, bool ret_vt_fields = false);
+  static const TypeTuple *make_range(ciSignature* sig, InterfaceHandling interface_handling = ignore_interfaces, bool ret_vt_fields = false, bool is_call = false);
   static const TypeTuple *make_domain(ciMethod* method, InterfaceHandling interface_handling, bool vt_fields_as_args = false);
 
   // Subroutine call type with space allocated for argument types
@@ -2346,8 +2346,8 @@ public:
 //------------------------------TypeFunc---------------------------------------
 // Class of Array Types
 class TypeFunc : public Type {
-  TypeFunc(const TypeTuple *domain_sig, const TypeTuple *domain_cc, const TypeTuple *range_sig, const TypeTuple *range_cc)
-    : Type(Function), _domain_sig(domain_sig), _domain_cc(domain_cc), _range_sig(range_sig), _range_cc(range_cc) {}
+  TypeFunc(const TypeTuple *domain_sig, const TypeTuple* domain_cc, const TypeTuple* range_sig, const TypeTuple* range_cc, bool scalarized_return)
+    : Type(Function), _domain_sig(domain_sig), _domain_cc(domain_cc), _range_sig(range_sig), _range_cc(range_cc), _scalarized_return(scalarized_return) {}
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
   virtual bool singleton(void) const;    // TRUE if type is a singleton
@@ -2366,6 +2366,7 @@ class TypeFunc : public Type {
   // is the actual calling convention.
   const TypeTuple* const _range_sig;
   const TypeTuple* const _range_cc;
+  const bool _scalarized_return;
 
 public:
   // Constants are shared among ADLC and VM
@@ -2383,10 +2384,12 @@ public:
   const TypeTuple* domain_cc()  const { return _domain_cc; }
   const TypeTuple* range_sig()  const { return _range_sig; }
   const TypeTuple* range_cc()   const { return _range_cc; }
+  bool scalarized_return()      const { return _scalarized_return; }
 
-  static const TypeFunc* make(ciMethod* method, bool is_osr_compilation = false);
+  static const TypeFunc* make(ciMethod* method, bool is_call = true, bool is_osr_compilation = false);
   static const TypeFunc *make(const TypeTuple* domain_sig, const TypeTuple* domain_cc,
-                              const TypeTuple* range_sig, const TypeTuple* range_cc);
+                              const TypeTuple* range_sig, const TypeTuple* range_cc,
+                              bool scalarized_return = false);
   static const TypeFunc *make(const TypeTuple* domain, const TypeTuple* range);
 
   virtual const Type *xmeet( const Type *t ) const;
@@ -2394,7 +2397,11 @@ public:
 
   BasicType return_type() const;
 
-  bool returns_inline_type_as_fields() const { return range_sig() != range_cc(); }
+  bool returns_inline_type_as_fields() const {
+    // First condition is not sufficient because returned value class can be empty
+    assert(_range_sig == _range_cc || _scalarized_return, "Only possible with scalarized return");
+    return _scalarized_return;
+  }
 
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping

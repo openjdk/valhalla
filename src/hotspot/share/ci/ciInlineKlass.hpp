@@ -62,9 +62,15 @@ public:
 
   bool maybe_flat_in_array() const;
   bool is_always_flat_in_array() const;
+
+  // Scalarized calling convention support: pass/return this inline type as its
+  // field components in the calling convention (registers/stack), not as a single oop.
+  // See InlineKlass::initialize_calling_convention for details.
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
+
   bool is_empty();
+  int inline_arg_length();
   int inline_arg_slots();
   bool contains_oops() const;
   int oop_count() const;

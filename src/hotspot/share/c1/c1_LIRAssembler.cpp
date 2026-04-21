@@ -30,6 +30,7 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/oopMap.hpp"
 #include "runtime/os.hpp"
@@ -621,10 +622,13 @@ void LIR_Assembler::emit_std_entries() {
   offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
 
   _masm->align(CodeEntryAlignment);
-  const CompiledEntrySignature* ces = compilation()->compiled_entry_signature();
-  if (ces->has_scalarized_args()) {
-    assert(InlineTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
-    CodeOffsets::Entries ro_entry_type = ces->c1_inline_ro_entry_type();
+
+  if (method()->has_scalarized_args()) {
+    VM_ENTRY_MARK;
+    assert(InlineTypePassFieldsAsArgs, "must be");
+    CompiledEntrySignature ces(method()->get_Method());
+    ces.compute_calling_conventions(false);
+    CodeOffsets::Entries ro_entry_type = ces.c1_inline_ro_entry_type();
 
     // UEP: check icache and fall-through
     if (ro_entry_type != CodeOffsets::Verified_Inline_Entry) {
@@ -636,12 +640,12 @@ void LIR_Assembler::emit_std_entries() {
 
     // VIEP_RO: pack all value parameters, except the receiver
     if (ro_entry_type == CodeOffsets::Verified_Inline_Entry_RO) {
-      emit_std_entry(CodeOffsets::Verified_Inline_Entry_RO, ces);
+      emit_std_entry(CodeOffsets::Verified_Inline_Entry_RO, &ces);
     }
 
     // VEP: pack all value parameters
     _masm->align(CodeEntryAlignment);
-    emit_std_entry(CodeOffsets::Verified_Entry, ces);
+    emit_std_entry(CodeOffsets::Verified_Entry, &ces);
 
     // UIEP: check icache and fall-through
     _masm->align(CodeEntryAlignment);

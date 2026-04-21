@@ -266,7 +266,7 @@ class InlineKlass: public InstanceKlass {
   template <typename T, class OopClosureType>
   inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, uintptr_t lo, uintptr_t hi);
 
-  // calling convention support
+  // Support for the scalarized calling convention
   void initialize_calling_convention(TRAPS);
 
   bool can_be_passed_as_fields() const;

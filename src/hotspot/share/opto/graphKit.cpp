@@ -50,6 +50,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
+#include "opto/reachability.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subtypenode.hpp"
@@ -1022,8 +1023,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     int inputs = 0, not_used; // initialized by GraphKit::compute_stack_effects()
     assert(method() == youngest_jvms->method(), "sanity");
     assert(compute_stack_effects(inputs, not_used), "unknown bytecode: %s", Bytecodes::name(java_bc()));
-    // TODO 8371125
-    // assert(out_jvms->sp() >= (uint)inputs, "not enough operands for reexecution");
+    assert(out_jvms->sp() >= (uint)inputs, "not enough operands for reexecution");
 #endif // ASSERT
     out_jvms->set_should_reexecute(true); //NOTE: youngest_jvms not changed
   }
@@ -1383,7 +1383,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
+      // TODO 8350865 Scalarize here (this leads to failures with TestLWorld::test45)
       // vtptr = InlineTypeNode::make_null(_gvn, vtptr->type()->inline_klass());
       // replace_in_map(value, vtptr);
       // return vtptr;
@@ -2030,7 +2030,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     uint arg_idx = i - TypeFunc::Parms;
     Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
-    // TODO 8284443 A static call to a mismatched method should still be scalarized
     if (t->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
@@ -2126,6 +2125,10 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
     ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false);
+    // If we run out of registers to store the null marker, we need to reserve an extra
+    // slot to store it on the stack. Unfortunately, we only know if stack slot is needed
+    // when matching the call (see Matcher::return_values_mask), so we are conservative here.
+    C->set_needs_nm_slot(true);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -2140,7 +2143,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       // Change return type of call to scalarized return
       const TypeFunc* tf = call->_tf;
       const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain, true);
       call->_tf = new_tf;
       _gvn.set_type(call, call->Value(&_gvn));
       _gvn.set_type(ret, ret->Value(&_gvn));
@@ -4102,6 +4105,15 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
   return membar;
 }
 
+//------------------------------insert_reachability_fence----------------------
+Node* GraphKit::insert_reachability_fence(Node* referent) {
+  assert(!referent->is_top(), "");
+  Node* rf = _gvn.transform(new ReachabilityFenceNode(C, control(), referent));
+  set_control(rf);
+  C->record_for_igvn(rf);
+  return rf;
+}
+
 //------------------------------shared_lock------------------------------------
 // Emit locking code.
 FastLockNode* GraphKit::shared_lock(Node* obj) {
@@ -4218,7 +4230,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool xklass = klass_t->klass_is_exact();
     bool can_be_flat = false;
     const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
-    if (UseArrayFlattening && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
+    if (UseArrayFlattening && !xklass && ary_type != nullptr) {
       // Don't constant fold if the runtime type might be a flat array but the static type is not.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
       can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->maybe_flat_in_array());

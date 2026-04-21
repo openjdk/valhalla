@@ -2210,13 +2210,15 @@ static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, u
 
 //------------------------------make-------------------------------------------
 // Make a TypeTuple from the range of a method signature
-const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling interface_handling, bool ret_vt_fields) {
+const TypeTuple* TypeTuple::make_range(ciSignature* sig, InterfaceHandling interface_handling, bool ret_vt_fields, bool is_call) {
   ciType* return_type = sig->return_type();
   uint arg_cnt = return_type->size();
   if (ret_vt_fields) {
     arg_cnt = return_type->as_inline_klass()->inline_arg_slots() + 1;
-    // InlineTypeNode::NullMarker field used for null checking
-    arg_cnt++;
+    if (is_call) {
+      // InlineTypeNode::NullMarker field returned by scalarized calls
+      arg_cnt++;
+    }
   }
   const Type **field_array = fields(arg_cnt);
   switch (return_type->basic_type()) {
@@ -2229,12 +2231,14 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
     field_array[TypeFunc::Parms+1] = Type::HALF;
     break;
   case T_OBJECT:
-    if (return_type->is_inlinetype() && ret_vt_fields) {
+    if (ret_vt_fields) {
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
-      // InlineTypeNode::NullMarker field used for null checking
-      field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+      if (is_call) {
+        // InlineTypeNode::NullMarker field returned by scalarized calls
+        field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+      }
       assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");
       break;
     } else {
@@ -7309,8 +7313,9 @@ const Type* TypeAryKlassPtr::base_element_type(int& dims) const {
 
 //------------------------------make-------------------------------------------
 const TypeFunc *TypeFunc::make(const TypeTuple *domain_sig, const TypeTuple* domain_cc,
-                               const TypeTuple *range_sig, const TypeTuple *range_cc) {
-  return (TypeFunc*)(new TypeFunc(domain_sig, domain_cc, range_sig, range_cc))->hashcons();
+                               const TypeTuple* range_sig, const TypeTuple* range_cc,
+                               bool scalarized_return) {
+  return (TypeFunc*)(new TypeFunc(domain_sig, domain_cc, range_sig, range_cc, scalarized_return))->hashcons();
 }
 
 const TypeFunc *TypeFunc::make(const TypeTuple *domain, const TypeTuple *range) {
@@ -7324,14 +7329,16 @@ const TypeTuple* osr_domain() {
   return TypeTuple::make(TypeFunc::Parms+1, fields);
 }
 
-//------------------------------make-------------------------------------------
-const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
+// Build a TypeFunc with both the Java-signature view ('sig') and the actual calling-
+// convention view ('cc') of inline types. In the signature, an inline type is a single
+// oop slot. In the scalarized calling convention, it is expanded to its field
+// values (plus null marker and optional oop to the heap buffer).
+// The 'is_call' argument distinguishes between the return signature of a method at calls
+// vs. at compilation of that method because at calls we return an additional null marker field.
+// For OSR and mismatching calls, we fall back to the non-scalarized argument view.
+const TypeFunc* TypeFunc::make(ciMethod* method, bool is_call, bool is_osr_compilation) {
   Compile* C = Compile::current();
   const TypeFunc* tf = nullptr;
-  if (!is_osr_compilation) {
-    tf = C->last_tf(method); // check cache
-    if (tf != nullptr)  return tf;  // The hit rate here is almost 50%.
-  }
   // Inline types are not passed/returned by reference, instead each field of
   // the inline type is passed/returned as an argument. We maintain two views of
   // the argument/return list here: one based on the signature (with an inline
@@ -7339,17 +7346,22 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   // convention (with an inline type argument/return as a list of its fields).
   bool has_scalar_args = method->has_scalarized_args() && !is_osr_compilation;
   // Fall back to the non-scalarized calling convention when compiling a call via a mismatching method
-  if (method != C->method() && method->mismatch()) {
+  if (is_call && method->mismatch()) {
     has_scalar_args = false;
+  }
+  ciSignature* sig = method->signature();
+  bool has_scalar_ret = !method->is_native() && sig->return_type()->is_inlinetype() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
+  // Don't cache on scalarized return because the range depends on 'is_call'
+  if (!is_osr_compilation && !has_scalar_ret) {
+    tf = C->last_tf(method); // check cache
+    if (tf != nullptr)  return tf;  // The hit rate here is almost 50%.
   }
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, ignore_interfaces, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, ignore_interfaces, true) : domain_sig;
-  ciSignature* sig = method->signature();
-  bool has_scalar_ret = !method->is_native() && sig->return_type()->is_inlinetype() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
-  const TypeTuple* range_sig = TypeTuple::make_range(sig, ignore_interfaces, false);
-  const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, ignore_interfaces, true) : range_sig;
-  tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
-  if (!is_osr_compilation) {
+  const TypeTuple* range_sig = TypeTuple::make_range(sig, ignore_interfaces);
+  const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, ignore_interfaces, true, is_call) : range_sig;
+  tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc, has_scalar_ret);
+  if (!is_osr_compilation && !has_scalar_ret) {
     C->set_last_tf(method, tf);  // fill cache
   }
   return tf;
@@ -7389,13 +7401,14 @@ bool TypeFunc::eq( const Type *t ) const {
   return _domain_sig == a->_domain_sig &&
     _domain_cc == a->_domain_cc &&
     _range_sig == a->_range_sig &&
-    _range_cc == a->_range_cc;
+    _range_cc == a->_range_cc &&
+    _scalarized_return == a->_scalarized_return;
 }
 
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
 uint TypeFunc::hash(void) const {
-  return (uint)(intptr_t)_domain_sig + (uint)(intptr_t)_domain_cc + (uint)(intptr_t)_range_sig + (uint)(intptr_t)_range_cc;
+  return (uint)(intptr_t)_domain_sig + (uint)(intptr_t)_domain_cc + (uint)(intptr_t)_range_sig + (uint)(intptr_t)_range_cc + (uint)(intptr_t)_scalarized_return;
 }
 
 //------------------------------dump2------------------------------------------

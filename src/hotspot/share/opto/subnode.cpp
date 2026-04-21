@@ -1148,13 +1148,14 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n, bool& might_
 // checking to see an unknown klass subtypes a known klass with no subtypes;
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  // TODO 8284443 in(1) could be cast?
-  if (in(1)->is_InlineType() && phase->type(in(2))->is_zero_type()) {
+  Node* uncast_in1 = in(1)->uncast();
+  Node* uncast_in2 = in(2)->uncast();
+  if (uncast_in1->is_InlineType() && phase->type(uncast_in2)->is_zero_type()) {
     // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    return new CmpINode(in(1)->as_InlineType()->get_null_marker(), phase->intcon(0));
+    return new CmpINode(uncast_in1->as_InlineType()->get_null_marker(), phase->intcon(0));
   }
-  if (in(1)->is_InlineType() || in(2)->is_InlineType()) {
+  if (uncast_in1->is_InlineType() || uncast_in2->is_InlineType()) {
     // In C2 IR, CmpP on value objects is a pointer comparison, not a value comparison.
     // For non-null operands it cannot reliably be true, since their buffer oops are not
     // guaranteed to be identical. Therefore, the comparison can only be true when both
@@ -1163,10 +1164,11 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // CmpLNode::Ideal might optimize this further to avoid keeping buffer allocations alive.
     Node* input[2];
     for (int i = 1; i <= 2; ++i) {
-      if (in(i)->is_InlineType()) {
-        input[i-1] = phase->transform(new ConvI2LNode(in(i)->as_InlineType()->get_null_marker()));
+      Node* uncast_in = in(i)->uncast();
+      if (uncast_in->is_InlineType()) {
+        input[i-1] = phase->transform(new ConvI2LNode(uncast_in->as_InlineType()->get_null_marker()));
       } else {
-        input[i-1] = phase->transform(new CastP2XNode(nullptr, in(i)));
+        input[i-1] = phase->transform(new CastP2XNode(nullptr, uncast_in));
       }
     }
     Node* orL = phase->transform(new OrXNode(input[0], input[1]));

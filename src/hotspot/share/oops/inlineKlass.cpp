@@ -194,7 +194,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
     assert(!fs.access_flags().is_static(), "TopDownHierarchicalNonStaticFieldStreamBase should not let static fields pass.");
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
     InstanceKlass* field_holder = fs.field_descriptor().field_holder();
-    // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
       int field_null_marker_offset = -1;
@@ -220,6 +219,16 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
   return count;
 }
 
+// Support for the scalarized calling convention.
+//
+// For arguments, an inline type can be passed in scalarized form instead of as a single
+// oop: the calling convention uses an optional buffer oop together with a null marker,
+// followed by the field values, assigned to the normal argument registers and stack slots.
+// See CompiledEntrySignature::compute_calling_conventions.
+//
+// For returns, an inline type is returned in scalarized form via multiple return registers:
+// the first word is a tri-state value (null, tagged InlineKlass*, or oop) and the remaining
+// registers carry the field values.
 void InlineKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since inline type klasses do

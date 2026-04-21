@@ -2463,7 +2463,27 @@ void PhaseChaitin::dump_frame() const {
   OptoReg::Name return_addr = _matcher.return_addr();
 
   reg = OptoReg::add(reg, -1);
+
+  // Special fixed slots
+  int current_slot = fixed_slots;
+  int stack_increment_slot = -1;
+  int nm_slot = -1;
+
+  auto next_slot = [&]() {
+    current_slot -= VMRegImpl::slots_per_word;
+    return current_slot;
+  };
+
+  if (C->needs_stack_repair()) {
+    stack_increment_slot = next_slot();
+  }
+  if (C->needs_nm_slot()) {
+    nm_slot = next_slot();
+  }
+  int orig_pc_slot = next_slot();
+
   while (OptoReg::is_stack(reg)) {
+    int stack_slot = (int)OptoReg::reg2stack(reg);
     tty->print("#r%3.3d %s+%2d: ",reg,fp,reg2offset_unchecked(reg));
     if (return_addr == reg) {
       tty->print_cr("return address");
@@ -2476,8 +2496,17 @@ void PhaseChaitin::dump_frame() const {
         tty->print_cr("<Majik cookie>   +VerifyStackAtCalls");
       else
         tty->print_cr("in_preserve");
-    } else if ((int)OptoReg::reg2stack(reg) < fixed_slots) {
-      tty->print_cr("Fixed slot %d", OptoReg::reg2stack(reg));
+    } else if (stack_slot < fixed_slots) {
+      tty->print("Fixed slot %d", OptoReg::reg2stack(reg));
+      if (stack_slot == stack_increment_slot) {
+        tty->print_cr(" (stack increment)");
+      } else if (stack_slot == nm_slot) {
+        tty->print_cr(" (null marker)");
+      } else if (stack_slot == orig_pc_slot) {
+        tty->print_cr(" (original deopt pc)");
+      } else {
+        tty->cr();
+      }
     } else {
       tty->print_cr("pad2, stack alignment");
     }

@@ -1321,10 +1321,11 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
                                                        Node*& dest_offset, Node*& length, BasicType& dest_elem,
                                                        Node*& dest_length) {
 #ifdef ASSERT
+  assert(top_dest->elem()->make_ptr()->is_instptr()->is_inlinetypeptr(), "must be concrete value klass");
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bool needs_barriers = top_dest->elem()->inline_klass()->contains_oops() &&
     bs->array_copy_requires_gc_barriers(dest_length != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization);
-  assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
+  assert(!needs_barriers || StressReflectiveCode, "Flat arraycopy would require GC barriers");
 #endif
   int elem_size = top_dest->flat_elem_size();
   if (elem_size >= 8) {
@@ -1491,19 +1492,35 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
-  // We have no stub to copy flat inline type arrays with oop
-  // fields if we need to emit write barriers.
   //
+  // Go to the slow path but avoid the native method wrapper to JVM_ArrayCopy when:
+  // 1) The component types are not the same or void.
+  // 2) src and dest do not have the same flatness.
+  // 3) src or dest is a flat abstract value class array (we don't know the exact layout and cannot use the stub).
+  // 4) src or dest is a flat value class array with oop fields and requires to emit barriers (we don't have such a stub).
+  // TODO 8251971: This does not handle atomicity. We should probably match on layouts which makes this code easier
+  //               and handles all cases.
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID ||
-      (top_src->is_flat() && top_dest->elem()->inline_klass()->contains_oops() &&
-       bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization))) {
-    // The component types are not the same or are not recognized.  Punt.
-    // (But, avoid the native method wrapper to JVM_ArrayCopy.)
-    {
-      Node* mem = ac->in(TypeFunc::Memory);
-      merge_mem = generate_slow_arraycopy(ac, &ctrl, mem, &io, TypePtr::BOTTOM, src, src_offset, dest, dest_offset, length, false);
-    }
+  bool go_to_slow_path = false;
+  if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID) {
+    // 1) and 2)
+    go_to_slow_path = true;
+  } else if ((top_src->is_flat() && !top_src->elem()->is_inlinetypeptr()) ||
+             (top_dest->is_flat() && !top_dest->elem()->is_inlinetypeptr())) {
+    // 3)
+    go_to_slow_path = true;
+  } else if (top_dest->is_flat() &&
+             bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization) &&
+             top_dest->elem()->inline_klass()->contains_oops()) {
+    // 4)
+    assert(top_src->is_flat() && top_src->elem()->inline_klass()->contains_oops(), "must match");
+    go_to_slow_path = true;
+  }
+
+  if (go_to_slow_path) {
+    // Avoid the native method wrapper to JVM_ArrayCopy.
+    Node* mem = ac->in(TypeFunc::Memory);
+    merge_mem = generate_slow_arraycopy(ac, &ctrl, mem, &io, TypePtr::BOTTOM, src, src_offset, dest, dest_offset, length, false);
 
     _igvn.replace_node(_callprojs->fallthrough_memproj, merge_mem);
     if (_callprojs->fallthrough_ioproj != nullptr) {
@@ -1541,6 +1558,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
   RegionNode* slow_region = new RegionNode(1);
   transform_later(slow_region);
+  const bool same_nullness = top_src->is_null_free() == top_dest->is_null_free();
+  const bool flat_and_same_nullness = top_src->is_flat() && same_nullness;
 
   if (!ac->is_arraycopy_validated()) {
     // (3) operands must not be null
@@ -1581,7 +1600,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
-    if (!(top_src->is_flat() && top_dest->is_flat() && top_src->is_null_free() == top_dest->is_null_free())) {
+    assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
+    if (!flat_and_same_nullness) {
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
       generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
@@ -1591,8 +1611,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // This is where the memory effects are placed:
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
-  if (top_src->is_flat() && top_dest->is_flat() &&
-      top_src->is_null_free() == top_dest->is_null_free()) {
+  assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
+  if (flat_and_same_nullness) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();

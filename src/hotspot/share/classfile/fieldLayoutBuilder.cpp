@@ -1216,7 +1216,13 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     }
 
     // Next step is the nullable layouts: they must include a null marker
-    if (UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening) {
+    // Note about the special case of j.l.Double and j.l.Long: the introduction of
+    // the NULLABLE_NON_ATOMIC_FLAT layout caused an increase of the size of their
+    // instances which causes performance regression (see JDK-8379145).
+    // The temporary solution is to simply disable nullable layouts for these classes
+    // until a better fix is implemented (see JDK-8382361).
+    if ((UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening)
+         && _classname != vmSymbols::java_lang_Double() && _classname != vmSymbols::java_lang_Long()) {
       // Looking if there's an empty slot inside the layout that could be used to store a null marker
       LayoutRawBlock* b = _layout->first_field_block();
       assert(b != nullptr, "A concrete value class must have at least one (possible dummy) field");

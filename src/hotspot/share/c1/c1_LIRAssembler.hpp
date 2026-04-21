@@ -94,7 +94,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_stubs(CodeStubList* stub_list);
 
   bool needs_stack_repair() const {
-    return compilation()->needs_stack_repair();
+    return method()->c1_needs_stack_repair();
   }
 
  public:
