@@ -165,6 +165,7 @@ public final class ValueClass {
     }
 
     /// Returns whether a class or interface declares strict instance fields.
+    /// This does not include inherited instance fields.
     public static boolean hasStrictInstanceField(Class<?> cl) {
         return StrictInstanceFieldClassValue.INSTANCE.get(cl);
     }

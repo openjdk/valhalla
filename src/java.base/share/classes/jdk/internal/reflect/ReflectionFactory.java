@@ -280,7 +280,7 @@ public class ReflectionFactory {
      */
     public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
         if (cl.isValue()) {
-            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes: " + cl);
+            return null;
         }
 
         Class<?> initCl = cl;

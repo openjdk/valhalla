@@ -22,6 +22,7 @@
  */
 
 import java.io.Serializable;
+import java.lang.invoke.MethodHandles;
 
 import jdk.internal.value.ValueClass;
 import jdk.test.lib.helpers.StrictInit;
@@ -39,10 +40,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * @modules java.base/jdk.internal.value
  * @enablePreview
  * @library /test/lib
- * @build ReflectionFactoryPreviewTest
+ * @build ${test.main.class}
  * @run driver jdk.test.lib.helpers.StrictProcessor
  *             ReflectionFactoryPreviewTest$StrictSerializableChild
- * @run junit ReflectionFactoryPreviewTest
+ * @run junit ${test.main.class}
  */
 
 public class ReflectionFactoryPreviewTest {
@@ -55,7 +56,7 @@ public class ReflectionFactoryPreviewTest {
         factory = ReflectionFactory.getReflectionFactory();
     }
 
-    static abstract value class AvcSuperType {
+    abstract static value class AvcSuperType {
         int bar;
 
         static {
@@ -93,17 +94,22 @@ public class ReflectionFactoryPreviewTest {
     }
 
     @Test
-    void checkNewConstructor() {
-        assertThrows(UnsupportedOperationException.class, () ->
-                factory.newConstructorForSerialization(AvcSuperType.class));
+    void checkNewConstructor() throws Exception {
+        MethodHandles.lookup().ensureInitialized(StrictSerializableChild.class);
+        assertNull(factory.newConstructorForSerialization(Integer.class));
+        assertNull(factory.newConstructorForSerialization(AvcSuperType.class));
         assertSame(AvcSuperType.class, factory.newConstructorForSerialization(SerializableChild.class).getDeclaringClass());
         assertNull(factory.newConstructorForSerialization(StrictSerializableChild.class));
 
         assertThrows(UnsupportedOperationException.class, () ->
                 factory.newConstructorForSerialization(Integer.class, Number.class.getDeclaredConstructor()));
-        new StrictSerializableChild();
         assertTrue(ValueClass.hasStrictInstanceField(StrictSerializableChild.class));
+        var avcCtor = AvcSuperType.class.getDeclaredConstructor();
         assertThrows(UnsupportedOperationException.class, () ->
-                factory.newConstructorForSerialization(StrictSerializableChild.class, AvcSuperType.class.getDeclaredConstructor()));
+                factory.newConstructorForSerialization(StrictSerializableChild.class, avcCtor));
+        assertSame(AvcSuperType.class, factory.newConstructorForSerialization(SerializableChild.class, avcCtor).getDeclaringClass());
+
+        assertThrows(UnsupportedOperationException.class, () ->
+                factory.newConstructorForSerialization(AvcSuperType.class, Object.class.getDeclaredConstructor()));
     }
 }
