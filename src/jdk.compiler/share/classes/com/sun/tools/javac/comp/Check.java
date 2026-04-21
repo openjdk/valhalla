@@ -5033,8 +5033,11 @@ public class Check {
 
             checkCtorAccess(p, c);
 
-            // Check for missing serialVersionUID; check *not* done
-            // for enums or records.
+            /* Check for missing serialVersionUID; check *not* done
+             * for enums or records.
+             * Migrated value classes, need the value class and its corresponding
+             * identity class to have the same SVUID.
+             */
             VarSymbol svuidSym = null;
             for (Symbol sym : c.members().getSymbolsByName(names.serialVersionUID)) {
                 if (sym.kind == VAR) {
@@ -5057,7 +5060,7 @@ public class Check {
 
             // Check declarations of serialization-related methods and
             // fields
-            final boolean[] hasWriteReplace = {false};
+            final Map<String, Symbol> declaredSerialMethodNames = new HashMap<>();
             for(Symbol el : c.getEnclosedElements()) {
                 runUnderLint(el, p, (enclosed, tree) -> {
                     String name = null;
@@ -5130,24 +5133,29 @@ public class Check {
                         var method = (MethodSymbol)enclosed;
                         name = method.getSimpleName().toString();
                         if (serialMethodNames.contains(name)) {
-                            switch (name) {
-                            case "writeObject"      -> checkWriteObject(tree, e, method);
-                            case "writeReplace"     -> {hasWriteReplace[0] = true; hasAppropriateWriteReplace(tree, method, true);}
-                            case "readObject"       -> checkReadObject(tree,e, method);
-                            case "readObjectNoData" -> checkReadObjectNoData(tree, e, method);
-                            case "readResolve"      -> checkReadResolve(tree, e, method);
-                            default ->  throw new AssertionError();
+                            if (switch (name) {
+                                case "writeObject"      -> hasAppropriateWriteObject(tree, e, method);
+                                case "writeReplace"     -> hasAppropriateWriteReplace(tree, method, true);
+                                case "readObject"       -> hasAppropriateReadObject(tree, e, method);
+                                case "readObjectNoData" -> hasAppropriateReadObjectNoData(tree, e, method);
+                                case "readResolve"      -> hasAppropriateReadResolve(tree, e, method);
+                                default ->  throw new AssertionError();
+                            }) {
+                                declaredSerialMethodNames.put(name, el);
                             }
                         }
                     }
                     }
                 });
             }
-            if (!hasWriteReplace[0] &&
+            if (declaredSerialMethodNames.get("writeReplace") == null &&
                     (c.isValueClass() || hasAbstractValueSuperClass(c, Set.of(syms.numberType.tsym))) &&
                     !c.isAbstract() && !c.isRecord() &&
                     types.unboxedType(c.type) == Type.noType) {
-                // we need to check if the class is inheriting an appropriate writeReplace method
+                /* if we are dealing with a value class or with a class with a super class that happens to
+                 * be an abstract value class, that is not declaring a proper `writeReplace` method, then we
+                 * need to make sure then that it is inheriting an appropriate one.
+                 */
                 MethodSymbol ms = null;
                 Log.DiagnosticHandler discardHandler = log.new DiscardDiagnosticHandler();
                 try {
@@ -5161,6 +5169,26 @@ public class Check {
                     log.warning(p.pos(),
                             c.isValueClass() ? LintWarnings.SerializableValueClassWithoutWriteReplace1 :
                                     LintWarnings.SerializableValueClassWithoutWriteReplace2);
+                }
+            }
+            if (c.isValueClass()) {
+                /* Value classes are Serializable through the use of the serialization proxy pattern.
+                 * The serialization protocol does not support a standard serialized form for value classes.
+                 * The value class delegates to a serialization proxy by supplying an alternate
+                 * record or object to be serialized instead of the value class.
+                 * When the proxy is deserialized it re-constructs the value object and returns the value object.
+                 *
+                 * In particular methods:
+                 *  - writeObject
+                 *  - readObject and
+                 *  - readObjectNoData
+                 * are not invoked for value classes, we need to warn the user about this
+                 */
+                for (Map.Entry<String, Symbol> entry : declaredSerialMethodNames.entrySet()) {
+                    String key = entry.getKey();
+                    if (key.equals("writeObject") || key.equals("readObject") || key.equals("readObjectNoData")) {
+                        log.warning(TreeInfo.diagnosticPositionFor(entry.getValue(), p), LintWarnings.IneffectualSerialMethodValueClass(key));
+                    }
                 }
             }
             return null;
@@ -5302,17 +5330,17 @@ public class Check {
             }
         }
 
-        private void checkWriteObject(JCClassDecl tree, Element e, MethodSymbol method) {
+        private boolean hasAppropriateWriteObject(JCClassDecl tree, Element e, MethodSymbol method) {
             // The "synchronized" modifier is seen in the wild on
             // readObject and writeObject methods and is generally
             // innocuous.
 
             // private void writeObject(ObjectOutputStream stream) throws IOException
-            checkPrivateNonStaticMethod(tree, method);
-            isExpectedReturnType(tree, method, syms.voidType, true);
-            checkOneArg(tree, e, method, syms.objectOutputStreamType);
-            hasExpectedExceptions(tree, method, true, syms.ioExceptionType);
-            checkExternalizable(tree, e, method);
+            return isPrivateNonStaticMethod(tree, method) &  // no short-circuit we need to log warnings
+                    isExpectedReturnType(tree, method, syms.voidType, true) &
+                    hasExpectedArg(tree, method, syms.objectOutputStreamType) &
+                    hasExpectedExceptions(tree, method, true, syms.ioExceptionType) &
+                    checkExternalizable(tree, e, method);
         }
 
         private boolean hasAppropriateWriteReplace(JCClassDecl tree, MethodSymbol method, boolean warn) {
@@ -5321,45 +5349,45 @@ public class Check {
 
             // Excluding abstract, could have a more complicated
             // rule based on abstract-ness of the class
-            return isConcreteInstanceMethod(tree, method, warn) &&
-                    isExpectedReturnType(tree, method, syms.objectType, warn) &&
-                    hasNoArgs(tree, method, warn) &&
+            return isConcreteInstanceMethod(tree, method, warn) &  // no short-circuit we need to log warnings
+                    isExpectedReturnType(tree, method, syms.objectType, warn) &
+                    hasNoArgs(tree, method, warn) &
                     hasExpectedExceptions(tree, method, warn, syms.objectStreamExceptionType);
         }
 
-        private void checkReadObject(JCClassDecl tree, Element e, MethodSymbol method) {
+        private boolean hasAppropriateReadObject(JCClassDecl tree, Element e, MethodSymbol method) {
             // The "synchronized" modifier is seen in the wild on
             // readObject and writeObject methods and is generally
             // innocuous.
 
             // private void readObject(ObjectInputStream stream)
             //   throws IOException, ClassNotFoundException
-            checkPrivateNonStaticMethod(tree, method);
-            isExpectedReturnType(tree, method, syms.voidType, true);
-            checkOneArg(tree, e, method, syms.objectInputStreamType);
-            hasExpectedExceptions(tree, method, true, syms.ioExceptionType, syms.classNotFoundExceptionType);
-            checkExternalizable(tree, e, method);
+            return isPrivateNonStaticMethod(tree, method) & // no short-circuit we need to log warnings
+                    isExpectedReturnType(tree, method, syms.voidType, true) &
+                    hasExpectedArg(tree, method, syms.objectInputStreamType) &
+                    hasExpectedExceptions(tree, method, true, syms.ioExceptionType, syms.classNotFoundExceptionType) &
+                    checkExternalizable(tree, e, method);
         }
 
-        private void checkReadObjectNoData(JCClassDecl tree, Element e, MethodSymbol method) {
+        private boolean hasAppropriateReadObjectNoData(JCClassDecl tree, Element e, MethodSymbol method) {
             // private void readObjectNoData() throws ObjectStreamException
-            checkPrivateNonStaticMethod(tree, method);
-            isExpectedReturnType(tree, method, syms.voidType, true);
-            hasNoArgs(tree, method, true);
-            hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType);
-            checkExternalizable(tree, e, method);
+            return isPrivateNonStaticMethod(tree, method) & // no short-circuit we need to log warnings
+                    isExpectedReturnType(tree, method, syms.voidType, true) &
+                    hasNoArgs(tree, method, true) &
+                    hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType) &
+                    checkExternalizable(tree, e, method);
         }
 
-        private void checkReadResolve(JCClassDecl tree, Element e, MethodSymbol method) {
+        private boolean hasAppropriateReadResolve(JCClassDecl tree, Element e, MethodSymbol method) {
             // ANY-ACCESS-MODIFIER Object readResolve()
             // throws ObjectStreamException
 
             // Excluding abstract, could have a more complicated
             // rule based on abstract-ness of the class
-            isConcreteInstanceMethod(tree, method, true);
-            isExpectedReturnType(tree, method, syms.objectType, true);
-            hasNoArgs(tree, method, true);
-            hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType);
+            return isConcreteInstanceMethod(tree, method, true) & // no short-circuit we need to log warnings
+                    isExpectedReturnType(tree, method, syms.objectType, true) &
+                    hasNoArgs(tree, method, true) &
+                    hasExpectedExceptions(tree, method, true, syms.objectStreamExceptionType);
         }
 
         private void checkWriteExternalRecord(JCClassDecl tree, Element e, MethodSymbol method, boolean isExtern) {
@@ -5381,19 +5409,23 @@ public class Check {
             }
         }
 
-        void checkPrivateNonStaticMethod(JCClassDecl tree, MethodSymbol method) {
+        boolean isPrivateNonStaticMethod(JCClassDecl tree, MethodSymbol method) {
             var flags = method.flags();
+            boolean result = true;
             if ((flags & PRIVATE) == 0) {
                 log.warning(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodNotPrivate(method.getSimpleName()));
+                result = false;
             }
 
             if ((flags & STATIC) != 0) {
                 log.warning(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodStatic(method.getSimpleName()));
+                result = false;
             }
+            return result;
         }
 
         /**
@@ -5610,7 +5642,7 @@ public class Check {
                         var method = (MethodSymbol)enclosed;
                         switch(name) {
                         case "writeReplace" -> hasAppropriateWriteReplace(tree, method, true);
-                        case "readResolve"  -> checkReadResolve(tree, e, method);
+                        case "readResolve"  -> hasAppropriateReadResolve(tree, e, method);
 
                         case "writeExternal" -> checkWriteExternalRecord(tree, e, method, isExtern);
                         case "readExternal"  -> checkReadExternalRecord(tree, e, method, isExtern);
@@ -5663,11 +5695,9 @@ public class Check {
             return true;
         }
 
-        private void checkOneArg(JCClassDecl tree,
-                                 Element enclosing,
-                                 MethodSymbol method,
-                                 Type expectedType) {
-            String name = method.getSimpleName().toString();
+        private boolean hasExpectedArg(JCClassDecl tree,
+                                       MethodSymbol method,
+                                       Type expectedType) {
 
             var parameters= method.getParameters();
 
@@ -5675,7 +5705,7 @@ public class Check {
                 log.warning(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodOneArg(method.getSimpleName(), parameters.size()));
-                return;
+                return false;
             }
 
             Type parameterType = parameters.get(0).asType();
@@ -5685,7 +5715,9 @@ public class Check {
                             LintWarnings.SerialMethodParameterType(method.getSimpleName(),
                                                                expectedType,
                                                                parameterType));
+                return false;
             }
+            return true;
         }
 
         private boolean hasExactlyOneArgWithType(JCClassDecl tree,
@@ -5711,14 +5743,15 @@ public class Check {
             return true;
         }
 
-        private void checkExternalizable(JCClassDecl tree, Element enclosing, MethodSymbol method) {
+        private boolean checkExternalizable(JCClassDecl tree, Element enclosing, MethodSymbol method) {
             // If the enclosing class is externalizable, warn for the method
             if (isExternalizable((Type)enclosing.asType())) {
                 log.warning(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.IneffectualSerialMethodExternalizable(method.getSimpleName()));
+                return false;
             }
-            return;
+            return true;
         }
 
         private boolean hasExpectedExceptions(JCClassDecl tree,

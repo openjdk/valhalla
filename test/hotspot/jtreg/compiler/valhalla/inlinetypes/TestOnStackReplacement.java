@@ -124,7 +124,7 @@ public class TestOnStackReplacement {
 
     public static void main(String[] args) throws Throwable {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-UseArrayFlattening");
+        scenarios[3].addFlags("-XX:+UnlockDiagnosticVMOptions", "-XX:-UseArrayFlattening");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])

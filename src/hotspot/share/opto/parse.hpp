@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -356,6 +356,7 @@ class Parse : public GraphKit {
   bool          _wrote_stable;       // Did we write a @Stable field?
   bool          _wrote_fields;       // Did we write any field?
   Node*         _alloc_with_final_or_stable; // An allocation node with final or @Stable field
+  Node*         _stress_rf_hook; // StressReachabilityFences support
 
   // Variables which track Java semantics during bytecode parsing:
 
@@ -443,7 +444,7 @@ class Parse : public GraphKit {
 
   // OSR helpers
   Node* fetch_interpreter_state(int index, const Type* type, Node* local_addrs);
-  Node* check_interpreter_type(Node* l, const Type* type, const TypeKlassPtr* klass_type, SafePointNode* &bad_type_exit, bool is_larval);
+  Node* check_interpreter_type(Node* l, ciType* ci_type, SafePointNode* &bad_type_exit);
   void  load_interpreter_state(Node* osr_buf);
 
   // Functions for managing basic blocks:
@@ -474,8 +475,8 @@ class Parse : public GraphKit {
   void merge(          int target_bci);
   // Same as plain merge, except that it allocates a new path number.
   void merge_new_path( int target_bci);
-  // Merge the current mapping into an exception handler.
-  void merge_exception(int target_bci);
+  // Push the exception oop and merge the current mapping into an exception handler.
+  void push_and_merge_exception(int target_bci, Node* ex_oop);
   // Helper: Merge the current mapping into the given basic block
   void merge_common(Block* target, int pnum);
   // Helper functions for merging individual cells.
@@ -575,9 +576,9 @@ class Parse : public GraphKit {
   void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr, Node** stress_count_mem = nullptr);
   void    do_acmp(BoolTest::mask btest, Node* left, Node* right);
   void    acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region);
-  void    acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region);
+  void    acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason);
+  void    acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region);
   Node*   acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, Node*& null_ctl);
-  void    acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region);
   int     repush_if_args();
   void    adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path, bool can_trap = true);
   void    sharpen_type_after_if(BoolTest::mask btest,

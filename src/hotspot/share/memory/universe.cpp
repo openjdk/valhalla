@@ -120,7 +120,7 @@ static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethod
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
-ObjArrayKlass* Universe::_objectArrayKlass            = nullptr;
+RefArrayKlass* Universe::_objectArrayKlass            = nullptr;
 Klass* Universe::_fillerArrayKlass                    = nullptr;
 OopHandle Universe::_basic_type_mirrors[T_VOID+1];
 #if INCLUDE_CDS_JAVA_HEAP
@@ -395,7 +395,7 @@ static void initialize_basic_type_klass(Klass* k, TRAPS) {
     if (k->is_instance_klass()) {
       InstanceKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), nullptr, CHECK);
     } else {
-      ArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
+      TypeArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
     }
   } else
 #endif
@@ -517,8 +517,8 @@ void Universe::genesis(TRAPS) {
     oak->append_to_sibling_list();
 
     // Create a RefArrayKlass (which is the default) and initialize.
-    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayProperties::Default(), THREAD);
-    _objectArrayKlass = rak;
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayProperties::Default(), CHECK);
+    _objectArrayKlass = RefArrayKlass::cast(rak);
   }
 
   #ifdef ASSERT

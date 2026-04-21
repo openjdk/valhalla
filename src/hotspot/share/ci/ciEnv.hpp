@@ -201,7 +201,7 @@ private:
   }
   ciObjArrayKlass* get_obj_array_klass(Klass* o) {
     if (o == nullptr) return nullptr;
-    assert(o->is_objArray_klass() && !o->is_flatArray_klass() && !o->is_refArray_klass(), "must be exact");
+    assert(o->is_unrefined_objArray_klass(), "must be exact");
     return get_metadata(o)->as_obj_array_klass();
   }
   ciFlatArrayKlass* get_flat_array_klass(Klass* o) {

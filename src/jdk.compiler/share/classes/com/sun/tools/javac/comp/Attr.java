@@ -1453,8 +1453,8 @@ public class Attr extends JCTree.Visitor {
         }
 
         void checkNewClassAndMethRefs(JCTree tree, Type t) {
-            if (t.tsym.isEnclosedBy(localEnv.enclClass.sym) &&
-                    !t.tsym.isStatic() &&
+            if (t.tsym.isInner() &&
+                    t.tsym.isEnclosedBy(localEnv.enclClass.sym) &&
                     !t.tsym.isDirectlyOrIndirectlyLocal()) {
                 reportPrologueError(tree, t.getEnclosingType().tsym);
             }
@@ -5663,11 +5663,15 @@ public class Attr extends JCTree.Visitor {
 
     public void visitAnnotatedType(JCAnnotatedType tree) {
         attribAnnotationTypes(tree.annotations, env);
-        Type underlyingType = attribType(tree.underlyingType, env);
-        Type annotatedType = underlyingType.preannotatedType();
+        Type underlyingType = attribTree(tree.underlyingType, env, resultInfo);
+        if (underlyingType.getTag() == PACKAGE) {
+            result = tree.type = underlyingType;
+        } else {
+            Type annotatedType = underlyingType.preannotatedType();
 
-        annotate.annotateTypeSecondStage(tree, tree.annotations, annotatedType);
-        result = tree.type = annotatedType;
+            annotate.annotateTypeSecondStage(tree, tree.annotations, annotatedType);
+            result = tree.type = annotatedType;
+        }
     }
 
     public void visitErroneous(JCErroneous tree) {

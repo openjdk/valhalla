@@ -349,11 +349,12 @@ public class ValueCompositionTest {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+    Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
     Collections.addAll(argsList, "-Xmx512m");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
+    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseNullFreeAtomicValueFlattening" : "-XX:-UseNullFreeAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableAtomicValueFlattening" : "-XX:-UseNullableAtomicValueFlattening");
     Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
@@ -401,10 +402,8 @@ public class ValueCompositionTest {
     ProcessBuilder pb = exec("runtime.valhalla.inlinetypes.field_layout.ValueCompositionTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
-    if (out.getExitValue() != 0) {
-      System.out.print(out.getOutput());
-    }
-    Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+    // Checking the status of the process execution before trying to parse the output
+    out.shouldHaveExitValue(0);
 
     // Get and parse the test output
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());

@@ -177,6 +177,7 @@ jlong Unsafe_field_offset_from_byte_offset(jlong byte_offset) {
   return byte_offset;
 }
 
+
 ///// Data read/writes on the Java heap and in native (off-heap) memory
 
 /**
@@ -255,9 +256,10 @@ public:
   ATTRIBUTE_NO_UBSAN
   void put(T x) {
     GuardUnsafeAccess guard(_thread);
-    assert(_obj == nullptr || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
+    assert(_obj == nullptr || !_obj->is_inline_type(), "receiver cannot be an instance of a value class because they are immutable");
     *addr() = normalize_for_write(x);
   }
+
 
   T get_volatile() {
     GuardUnsafeAccess guard(_thread);
@@ -309,7 +311,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  assert(!p->is_inline_type() || p->mark().is_larval_state(), "must be an object instance or a larval inline type");
+  assert(!p->is_inline_type(), "receiver cannot be an instance of a value class because they are immutable");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
@@ -862,12 +864,10 @@ UNSAFE_ENTRY(jarray, Unsafe_GetFieldMap0(JNIEnv* env, jobject unsafe, jclass cla
   return (jarray) JNIHandles::make_local(THREAD, map);
 } UNSAFE_END
 
-
 UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
   return p->size() * HeapWordSize;
 UNSAFE_END
-
 
 static inline void throw_new(JNIEnv *env, const char *ename) {
   jclass cls = env->FindClass(ename);
@@ -1111,7 +1111,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getFlatValue",         CC "(" OBJ "JI" CLS ")" OBJ, FN_PTR(Unsafe_GetFlatValue)},
     {CC "putFlatValue",         CC "(" OBJ "JI" CLS OBJ ")V", FN_PTR(Unsafe_PutFlatValue)},
     {CC "valueHeaderSize",       CC "(" CLS ")J",         FN_PTR(Unsafe_ValueHeaderSize)},
-
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 
     DECLARE_GETPUTOOP(Boolean, Z),

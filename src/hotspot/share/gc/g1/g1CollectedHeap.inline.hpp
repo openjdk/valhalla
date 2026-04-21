@@ -28,7 +28,6 @@
 #include "gc/g1/g1CollectedHeap.hpp"
 
 #include "gc/g1/g1BarrierSet.hpp"
-#include "gc/g1/g1CollectorState.hpp"
 #include "gc/g1/g1ConcurrentMark.inline.hpp"
 #include "gc/g1/g1EvacFailureRegions.hpp"
 #include "gc/g1/g1EvacStats.inline.hpp"
@@ -42,14 +41,15 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/markBitMap.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/stackChunkOop.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1STWIsAliveClosure::do_object_b(oop p) {
-  // An object is reachable if it is outside the collection set,
-  // or is inside and copied.
-  return !_g1h->is_in_cset(p) || p->is_forwarded();
+  // An object is reachable if it is outside the collection set and not a
+  // humongous candidate, or is inside and copied.
+  return !_g1h->is_in_cset_or_humongous_candidate(p) || p->is_forwarded();
 }
 
 inline JavaThread* const* G1JavaThreadsListClaimer::claim(uint& count) {
@@ -74,6 +74,10 @@ inline void G1JavaThreadsListClaimer::apply(ThreadClosure* cl) {
       cl->do_thread(list[i]);
     }
   }
+}
+
+bool G1CollectedHeap::can_be_marked_through_immediately(oop obj) const {
+  return obj->is_array() && !obj->is_array_with_oops();
 }
 
 G1GCPhaseTimes* G1CollectedHeap::phase_times() const {

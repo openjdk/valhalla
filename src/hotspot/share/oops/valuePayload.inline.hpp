@@ -29,6 +29,7 @@
 
 #include "cppstdlib/type_traits.hpp"
 #include "oops/flatArrayKlass.inline.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopHandle.inline.hpp"
@@ -403,7 +404,7 @@ inline void ValuePayload::assert_pre_copy_invariants(const ValuePayload& src,
         ? cast_to_oop(src.addr() - src_klass->payload_offset())
         : src.container();
 
-    precond(container != src_klass->null_reset_value());
+    precond(!src_klass->supports_nullable_layouts() || container != src_klass->null_reset_value());
   }
 
   const int src_layout_size_in_bytes = src_klass->layout_size_in_bytes(src.layout_kind());
@@ -672,7 +673,7 @@ inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container,
       _storage{layout_helper, element_size} {}
 
 inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container)
-    : FlatArrayPayload(container, FlatArrayKlass::cast(container->klass())) {}
+    : FlatArrayPayload(container, container->klass()) {}
 
 inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container, FlatArrayKlass* klass)
     : FlatArrayPayload(container,
@@ -685,7 +686,7 @@ inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container, FlatArrayKlass
 }
 
 inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container, int index)
-    : FlatArrayPayload(container, index, FlatArrayKlass::cast(container->klass())) {}
+    : FlatArrayPayload(container, index, container->klass()) {}
 
 inline FlatArrayPayload::FlatArrayPayload(flatArrayOop container,
                                           int index,

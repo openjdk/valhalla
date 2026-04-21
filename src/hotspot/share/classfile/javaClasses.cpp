@@ -1104,17 +1104,11 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
 
   // It might also have a component mirror.  This mirror must already exist.
   if (k->is_array_klass()) {
+    assert(!k->is_refined_objArray_klass(), "Should not be called with the refined array klasses");
+
     // The Java code for array classes gets the access flags from the element type.
     set_raw_access_flags(mirror(), 0);
-    if (k->is_flatArray_klass()) {
-      Klass* element_klass = (Klass*) FlatArrayKlass::cast(k)->element_klass();
-      assert(element_klass->is_inline_klass(), "Must be inline type component");
-      if (is_scratch) {
-        comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
-      } else {
-        comp_mirror = Handle(THREAD, element_klass->java_mirror());
-      }
-    } else if (k->is_typeArray_klass()) {
+    if (k->is_typeArray_klass()) {
       BasicType type = TypeArrayKlass::cast(k)->element_type();
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(type));
@@ -1122,15 +1116,13 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
         comp_mirror = Handle(THREAD, Universe::java_mirror(type));
       }
     } else {
-      assert(k->is_objArray_klass(), "Must be");
-      assert(!k->is_refArray_klass() || !k->is_flatArray_klass(), "Must not have mirror");
+      assert(k->is_unrefined_objArray_klass(), "Must be");
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
-      oop comp_oop = element_klass->java_mirror();
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
-        comp_mirror = Handle(THREAD, comp_oop);
+        comp_mirror = Handle(THREAD, element_klass->java_mirror());
       }
     }
     assert(comp_mirror() != nullptr, "must have a mirror");
@@ -1219,9 +1211,9 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  if ((k->class_loader() != nullptr &&
-       k->class_loader() != SystemDictionary::java_platform_loader() &&
-       k->class_loader() != SystemDictionary::java_system_loader())) {
+  if (k->class_loader() != nullptr &&
+      k->class_loader() != SystemDictionary::java_platform_loader() &&
+      k->class_loader() != SystemDictionary::java_system_loader()) {
     // We only archive the mirrors of classes loaded by the built-in loaders
     return;
   }
@@ -1455,9 +1447,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     st->print("<null>");
     return;
   }
-  if (is_instance)  {
-    st->print("L");
-  }
+  if (is_instance)  st->print("L");
   st->write((char*) name->base(), (int) name->utf8_length());
   if (is_instance)  st->print(";");
 }

@@ -75,6 +75,8 @@
                                    unsigned vector_length_in_bytes);
 
  public:
+  using Assembler::sve_cpy;
+
   void entry_barrier();
 
   // jdk.internal.util.ArraysSupport.vectorizedHashCode
@@ -177,6 +179,9 @@
                           FloatRegister fsrc, FloatRegister vsrc,
                           unsigned vector_length_in_bytes, FloatRegister vtmp);
 
+  void neon_reduce_add_fp16(FloatRegister dst, FloatRegister fsrc, FloatRegister vsrc,
+                            unsigned vector_length_in_bytes, FloatRegister vtmp);
+
   void neon_reduce_logical(int opc, Register dst, BasicType bt, Register isrc,
                            FloatRegister vsrc, unsigned vector_length_in_bytes);
 
@@ -246,4 +251,8 @@
   void vector_expand_sve(FloatRegister dst, FloatRegister src, PRegister pg,
                          FloatRegister tmp1, FloatRegister tmp2, BasicType bt,
                          int vector_length_in_bytes);
+
+  void sve_cpy(FloatRegister dst, SIMD_RegVariant T, PRegister pg, int imm8,
+               bool isMerge);
+  int vector_iota_entry_index(BasicType bt);
 #endif // CPU_AARCH64_C2_MACROASSEMBLER_AARCH64_HPP

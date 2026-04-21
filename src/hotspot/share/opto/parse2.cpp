@@ -48,6 +48,7 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 #ifndef PRODUCT
@@ -125,7 +126,8 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
-          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          bool is_null_free = array_type->is_null_free() ||
+                              (!UseNullableAtomicValueFlattening && !UseNullableNonAtomicValueFlattening);
           if (is_null_free) {
             inline_type = cast_not_null(inline_type);
           }
@@ -1988,22 +1990,25 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 }
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
-  inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
-                                 !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
-                                 speculative_ptr_kind(tinput) == ProfileAlwaysNull);
-  dec_sp(2);
   if (btest == BoolTest::ne) {
     {
       PreserveJVMState pjvms(this);
-      replace_in_map(input, cast);
+      inc_sp(2);
+      null_check_common(input, T_OBJECT, true, nullptr,
+                        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                        speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+      dec_sp(2);
       int target_bci = iter().get_dest();
       merge(target_bci);
     }
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
   } else {
-    replace_in_map(input, cast);
+    inc_sp(2);
+    null_check_common(input, T_OBJECT, true, nullptr,
+                      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                      speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+    dec_sp(2);
   }
 }
 
@@ -2019,60 +2024,37 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
   return cast;
 }
 
-void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
+void Parse::acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason reason) {
+  Node* slow_ctl = type_check_receiver(*non_null_input, input_type, 1.0, non_null_input);
   {
     PreserveJVMState pjvms(this);
     inc_sp(2);
     set_control(slow_ctl);
+    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+  }
+}
+
+void Parse::acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
+  Node* null_ctl;
+  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
+
+  if (input_type != nullptr) {
     Deoptimization::DeoptReason reason;
     if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       reason = Deoptimization::Reason_speculate_class_check;
     } else {
       reason = Deoptimization::Reason_class_check;
     }
-    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-  }
-  ne_region->add_req(control());
-
-  record_for_igvn(ne_region);
-  set_control(_gvn.transform(ne_region));
-  if (btest == BoolTest::ne) {
-    {
-      PreserveJVMState pjvms(this);
-      if (null_ctl == top()) {
-        replace_in_map(input, cast);
-      }
-      int target_bci = iter().get_dest();
-      merge(target_bci);
-    }
-    record_for_igvn(eq_region);
-    set_control(_gvn.transform(eq_region));
+    acmp_type_check_or_trap(&cast, input_type, reason);
   } else {
-    if (null_ctl == top()) {
-      replace_in_map(input, cast);
-    }
-    set_control(_gvn.transform(ne_region));
-  }
-}
-
-void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  {
+    // No specific type, check for inline type
     BuildCutout unless(this, inline_type_test(cast, /* is_inline = */ false), PROB_MAX);
     inc_sp(2);
     uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
   }
 
+  Node* ne_region = new RegionNode(2);
+  ne_region->add_req(null_ctl);
   ne_region->add_req(control());
 
   record_for_igvn(ne_region);
@@ -2238,22 +2220,22 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
   if (left_type != nullptr && !left_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, left_type, btest, eq_region);
     return;
   }
   if (right_type != nullptr && !right_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, right_type, btest, eq_region);
     return;
   }
   if (!left_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(left, tleft, left_ptr, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, nullptr, btest, eq_region);
     return;
   }
   if (!right_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(right, tright, right_ptr, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, nullptr, btest, eq_region);
     return;
   }
 
@@ -2265,27 +2247,40 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ne_region->init_req(1, null_ctl);
 
   if (!stopped()) {
-    // First operand is non-null, check if it is an inline type
-    Node* is_value = inline_type_test(not_null_right);
-    IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
-    Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-    ne_region->init_req(2, not_value);
-    set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+    // First operand is non-null, check if it is the speculative inline type if possible
+    // (which later allows isSubstitutable to be intrinsified), or any inline type if no
+    // speculation is available.
+    if (right_type != nullptr && right_type->is_inlinetype()) {
+      acmp_type_check_or_trap(&not_null_right, right_type, Deoptimization::Reason_speculate_class_check);
+    } else {
+      Node* is_value = inline_type_test(not_null_right);
+      IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+      Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
+      ne_region->init_req(2, not_value);
+      set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+    }
 
     // The first operand is an inline type, check if the second operand is non-null
     not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
     ne_region->init_req(3, null_ctl);
-
     if (!stopped()) {
-      // Check if both operands are of the same class.
-      Node* kls_left = load_object_klass(not_null_left);
-      Node* kls_right = load_object_klass(not_null_right);
-      Node* kls_cmp = CmpP(kls_left, kls_right);
-      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-      ne_region->init_req(4, kls_ne);
+      // Check if lhs operand is of a specific speculative inline type (see above).
+      // If not, we don't need to enforce that the lhs is a value object since we know
+      // it already for the rhs, and must enforce that they have the same type.
+      if (left_type != nullptr && left_type->is_inlinetype()) {
+        acmp_type_check_or_trap(&not_null_left, left_type, Deoptimization::Reason_speculate_class_check);
+      }
+      if (!stopped()) {
+        // Check if both operands are of the same class.
+        Node* kls_left = load_object_klass(not_null_left);
+        Node* kls_right = load_object_klass(not_null_right);
+        Node* kls_cmp = CmpP(kls_left, kls_right);
+        Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+        IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+        Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+        set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+        ne_region->init_req(4, kls_ne);
+      }
     }
   }
 
@@ -2552,6 +2547,12 @@ static bool match_type_check(PhaseGVN& gvn,
     //   Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq])
     // or the narrowOop equivalent.
     (*obj) = extract_obj_from_klass_load(&gvn, val);
+    // Some klass comparisons are not directly in the form
+    // Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq]),
+    // e.g. Bool(CmpP(CastPP(LoadKlass(...)), ConP(klass)), [eq]).
+    // These patterns with nullable klasses arise from example from
+    // load_array_klass_from_mirror.
+    if (*obj == nullptr) { return false; }
     (*cast_type) = tcon->isa_klassptr()->as_instance_type();
     return true; // found
   }
@@ -2592,8 +2593,8 @@ static bool match_type_check(PhaseGVN& gvn,
       assert(idx == 1 || idx == 2, "");
       Node* vcon = val->in(idx);
 
-      assert(val->find_edge(con) > 0, "");
       if ((btest == BoolTest::eq && vcon == con) || (btest == BoolTest::ne && vcon != con)) {
+        assert(val->find_edge(con) > 0, "mismatch");
         SubTypeCheckNode* sub = b1->in(1)->as_SubTypeCheck();
         Node* obj_or_subklass = sub->in(SubTypeCheckNode::ObjOrSubKlass);
         Node* superklass = sub->in(SubTypeCheckNode::SuperKlass);
@@ -2622,21 +2623,25 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
                        &obj, &cast_type)) {
     assert(obj != nullptr && cast_type != nullptr, "missing type check info");
     const Type* obj_type = _gvn.type(obj);
-    const TypeOopPtr* tboth = obj_type->join_speculative(cast_type)->isa_oopptr();
-    if (tboth != nullptr && tboth != obj_type && tboth->higher_equal(obj_type)) {
+    const Type* tboth = obj_type->filter_speculative(cast_type);
+    assert(tboth->higher_equal(obj_type) && tboth->higher_equal(cast_type), "sanity");
+    if (tboth == Type::TOP && KillPathsReachableByDeadTypeNode) {
+      // Let dead type node cleaning logic prune effectively dead path for us.
+      // CheckCastPP::Value() == TOP and it will trigger the cleanup during GVN.
+      // Don't materialize the cast when cleanup is disabled, because
+      // it kills data and control leaving IR in broken state.
+      tboth = cast_type;
+    }
+    if (tboth != Type::TOP && tboth != obj_type) {
       int obj_in_map = map()->find_edge(obj);
-      JVMState* jvms = this->jvms();
       if (obj_in_map >= 0 &&
-          (jvms->is_loc(obj_in_map) || jvms->is_stk(obj_in_map))) {
+          (jvms()->is_loc(obj_in_map) || jvms()->is_stk(obj_in_map))) {
         TypeNode* ccast = new CheckCastPPNode(control(), obj, tboth);
-        const Type* tcc = ccast->as_Type()->type();
-        assert(tcc != obj_type && tcc->higher_equal(obj_type), "must improve");
-        // Delay transform() call to allow recovery of pre-cast value
-        // at the control merge.
+        // Delay transform() call to allow recovery of pre-cast value at the control merge.
         _gvn.set_type_bottom(ccast);
         record_for_igvn(ccast);
         if (tboth->is_inlinetypeptr()) {
-          ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass());
+          ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->isa_oopptr()->exact_klass(true)->as_inline_klass());
         }
         // Here's the payoff.
         replace_in_map(obj, ccast);

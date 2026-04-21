@@ -348,7 +348,7 @@ void ShenandoahRegionPartitions::make_all_regions_unavailable() {
     _leftmosts[partition_id] = _max;
     _rightmosts[partition_id] = -1;
     _leftmosts_empty[partition_id] = _max;
-    _rightmosts_empty[partition_id] = -1;;
+    _rightmosts_empty[partition_id] = -1;
     _capacity[partition_id] = 0;
     _region_counts[partition_id] = 0;
     _empty_region_counts[partition_id] = 0;
@@ -445,7 +445,7 @@ void ShenandoahRegionPartitions::increase_humongous_waste(ShenandoahFreeSetParti
 
 size_t ShenandoahRegionPartitions::get_humongous_waste(ShenandoahFreeSetPartitionId which_partition) {
   assert (which_partition < NumPartitions, "Partition must be valid");
-  return _humongous_waste[int(which_partition)];;
+  return _humongous_waste[int(which_partition)];
 }
 
 void ShenandoahRegionPartitions::set_capacity_of(ShenandoahFreeSetPartitionId which_partition, size_t value) {
@@ -510,7 +510,7 @@ void ShenandoahRegionPartitions::decrease_available(ShenandoahFreeSetPartitionId
 
 size_t ShenandoahRegionPartitions::get_available(ShenandoahFreeSetPartitionId which_partition) {
   assert (which_partition < NumPartitions, "Partition must be valid");
-  return _available[int(which_partition)];;
+  return _available[int(which_partition)];
 }
 
 void ShenandoahRegionPartitions::increase_region_counts(ShenandoahFreeSetPartitionId which_partition, size_t regions) {
@@ -1569,7 +1569,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
   // We must call try_recycle_under_lock() even if !r->is_trash().  The reason is that if r is being recycled at this
   // moment by a GC worker thread, it may appear to be not trash even though it has not yet been fully recycled.  If
   // we proceed without waiting for the worker to finish recycling the region, the worker thread may overwrite the
-  // region's affiliation with FREE after we set the region's affiliation to req.afiliation() below
+  // region's affiliation with FREE after we set the region's affiliation to req.affiliation() below
   r->try_recycle_under_lock();
   in_new_region = r->is_empty();
   if (in_new_region) {
@@ -1585,7 +1585,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       // concurrent preparations for mixed evacuations are completed), we mark this region as not requiring any
       // coalesce-and-fill processing.
       r->end_preemptible_coalesce_and_fill();
-      _heap->old_generation()->clear_cards_for(r);
     }
 #ifdef ASSERT
     ShenandoahMarkingContext* const ctx = _heap->marking_context();
@@ -2799,7 +2798,7 @@ size_t ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_o
   size_t empty_regions_to_collector = 0;
   size_t empty_regions_to_old_collector = 0;
 
-  size_t old_collector_available = _partitions.available_in(ShenandoahFreeSetPartitionId::OldCollector);;
+  size_t old_collector_available = _partitions.available_in(ShenandoahFreeSetPartitionId::OldCollector);
   size_t collector_available = _partitions.available_in(ShenandoahFreeSetPartitionId::Collector);
 
   for (size_t i = _heap->num_regions(); i > 0; i--) {
@@ -2848,7 +2847,7 @@ size_t ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_o
                               _partitions.leftmost(ShenandoahFreeSetPartitionId::OldCollector),
                               _partitions.rightmost(ShenandoahFreeSetPartitionId::OldCollector));
           old_region_count++;
-          assert(ac = ShenandoahHeapRegion::region_size_bytes(), "Cannot move to old unless entire region is in alloc capacity");
+          assert(ac == ShenandoahHeapRegion::region_size_bytes(), "Cannot move to old unless entire region is in alloc capacity");
           mutator_allocatable_words -= ShenandoahHeapRegion::region_size_words();
           continue;
         }

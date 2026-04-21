@@ -35,6 +35,7 @@
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/vmClasses.hpp"
@@ -89,9 +90,6 @@
 #include "utilities/ostream.hpp"
 #include "utilities/stringUtils.hpp"
 #include "utilities/utf8.hpp"
-#if INCLUDE_CDS
-#include "classfile/systemDictionaryShared.hpp"
-#endif
 
 // We generally try to create the oops directly when parsing, rather than
 // allocating temporary data structures and copying the bytes twice. A
@@ -502,8 +500,6 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
           "Invalid constant pool index %u in class file %s",
           class_index, CHECK);
 
-        Symbol* const name = cp->symbol_at(class_index);
-        const unsigned int name_len = name->utf8_length();
         cp->unresolved_klass_at_put(index, class_index, num_klasses++);
         break;
       }
@@ -713,7 +709,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
                 "Bad method name at constant pool index %u in class file %s",
                 name_ref_index, THREAD);
               return;
-            } else if (!Signature::is_void_method(signature)) {  // must have void signature.
+            } else if (!Signature::is_void_method(signature)) { // must have void signature.
               throwIllegalSignature("Method", name, signature, CHECK);
             }
           }
@@ -733,24 +729,15 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
             const int name_ref_index =
               cp->name_ref_index_at(name_and_type_ref_index);
             const Symbol* const name = cp->symbol_at(name_ref_index);
-
-            if (name != vmSymbols::object_initializer_name()) { // !<init>
-              if (ref_kind == JVM_REF_newInvokeSpecial) {
+            if (ref_kind == JVM_REF_newInvokeSpecial) {
+              if (name != vmSymbols::object_initializer_name()) {
                 classfile_parse_error(
                   "Bad constructor name at constant pool index %u in class file %s",
                     name_ref_index, THREAD);
                 return;
               }
-            } else { // <init>
-              // The allowed invocation mode of <init> depends on its signature.
-              // This test corresponds to verify_invoke_instructions in the verifier.
-              const int signature_ref_index =
-                cp->signature_ref_index_at(name_and_type_ref_index);
-              const Symbol* const signature = cp->symbol_at(signature_ref_index);
-              if (signature->is_void_method_signature()
-                  && ref_kind == JVM_REF_newInvokeSpecial) {
-                // OK, could be a constructor call
-              } else {
+            } else {
+              if (name == vmSymbols::object_initializer_name()) {
                 classfile_parse_error(
                   "Bad method name at constant pool index %u in class file %s",
                   name_ref_index, THREAD);
@@ -802,26 +789,11 @@ using NameSigHashtable = HashTable<NameSigHash, int,
                                            AnyObj::RESOURCE_AREA, mtInternal,
                                            &NameSigHash::hash, &NameSigHash::equals>;
 
-static void check_identity_and_value_modifiers(ClassFileParser* current, const InstanceKlass* super_type, TRAPS) {
-  assert(super_type != nullptr,"Method doesn't support null super type");
-  if (super_type->access_flags().is_identity_class() && !current->access_flags().is_identity_class()
-      && super_type->name() != vmSymbols::java_lang_Object()) {
-      THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                err_msg("Value type %s has an identity type as supertype",
-                current->class_name()->as_klass_external_name()));
-  }
-}
-
-void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
-                                       int itfs_len,
-                                       ConstantPool* cp,
+// Side-effects: populates the _local_interfaces field
+void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
+                                       const int itfs_len,
+                                       ConstantPool* const cp,
                                        bool* const has_nonstatic_concrete_methods,
-                                       // FIXME: lots of these functions
-                                       // declare their parameters as const,
-                                       // which adds only noise to the code.
-                                       // Remove the spurious const modifiers.
-                                       // Many are of the form "const int x"
-                                       // or "T* const x".
                                        TRAPS) {
   assert(stream != nullptr, "invariant");
   assert(cp != nullptr, "invariant");
@@ -829,18 +801,47 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
 
   if (itfs_len == 0) {
     _local_interfaces = Universe::the_empty_instance_klass_array();
-
   } else {
     assert(itfs_len > 0, "only called for len>0");
-    _local_interface_indexes = new GrowableArray<u2>(itfs_len);
-    int index = 0;
+    _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, nullptr, CHECK);
+
+    int index;
     for (index = 0; index < itfs_len; index++) {
       const u2 interface_index = stream->get_u2(CHECK);
+      Klass* interf;
       guarantee_property(
         valid_klass_reference_at(interface_index),
         "Interface name has bad constant pool index %u in class file %s",
         interface_index, CHECK);
-      _local_interface_indexes->at_put_grow(index, interface_index);
+      if (cp->tag_at(interface_index).is_klass()) {
+        interf = cp->resolved_klass_at(interface_index);
+      } else {
+        Symbol* const unresolved_klass  = cp->klass_name_at(interface_index);
+
+        // Don't need to check legal name because it's checked when parsing constant pool.
+        // But need to make sure it's not an array type.
+        guarantee_property(unresolved_klass->char_at(0) != JVM_SIGNATURE_ARRAY,
+                           "Bad interface name in class file %s", CHECK);
+
+        // Call resolve on the interface class name with class circularity checking
+        interf = SystemDictionary::resolve_super_or_fail(_class_name,
+                                                         unresolved_klass,
+                                                         Handle(THREAD, _loader_data->class_loader()),
+                                                         false, CHECK);
+      }
+
+      if (!interf->is_interface()) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  err_msg("class %s can not implement %s, because it is not an interface (%s)",
+                          _class_name->as_klass_external_name(),
+                          interf->external_name(),
+                          interf->class_in_module_of_loader()));
+      }
+
+      if (InstanceKlass::cast(interf)->has_nonstatic_concrete_methods()) {
+        *has_nonstatic_concrete_methods = true;
+      }
+      _local_interfaces->at_put(index, InstanceKlass::cast(interf));
     }
 
     if (!_need_verify || itfs_len <= 1) {
@@ -852,7 +853,8 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
     // Set containing interface names
     HashTable<Symbol*, int>* interface_names = new HashTable<Symbol*, int>();
     for (index = 0; index < itfs_len; index++) {
-      Symbol* interface_name = cp->klass_name_at(_local_interface_indexes->at(index));
+      const InstanceKlass* const k = _local_interfaces->at(index);
+      Symbol* interface_name = k->name();
       // If no duplicates, add (name, nullptr) in hashtable interface_names.
       if (!interface_names->put(interface_name, 0)) {
         classfile_parse_error("Duplicate interface name \"%s\" in class file %s",
@@ -1499,7 +1501,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
           }
           is_null_restricted = true;
         }
-        parsed_annotations.set_field_annotations(nullptr);
       }
       if (parsed_annotations.field_type_annotations() != nullptr) {
         if (_fields_type_annotations == nullptr) {
@@ -1582,7 +1583,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
   if (is_inline_type) {
     // Inject static ".null_reset" field. This is an all-zero value with its null-channel set to zero.
-    // IT should never be seen by user code, it is used when writing "null" to a nullable flat field
+    // It should never be seen by user code, it is used when writing "null" to a nullable flat field
     // The all-zero value ensure that any embedded oop will be set to null, to avoid keeping dead objects
     // alive.
     FieldInfo::FieldFlags fflags2(0);
@@ -2244,8 +2245,6 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
-                                      bool is_value_class,
-                                      bool is_abstract_class,
                                       const ConstantPool* cp,
                                       bool* const has_localvariable_table,
                                       TRAPS) {
@@ -2287,7 +2286,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       return nullptr;
     }
   } else {
-    verify_legal_method_modifiers(flags, access_flags() , name, CHECK_NULL);
+    verify_legal_method_modifiers(flags, access_flags(), name, CHECK_NULL);
   }
 
   if (name == vmSymbols::object_initializer_name() && is_interface) {
@@ -2838,8 +2837,6 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 // Side-effects: populates the _methods field in the parser
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
-                                    bool is_value_class,
-                                    bool is_abstract_type,
                                     bool* const has_localvariable_table,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -2864,8 +2861,6 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
     for (int index = 0; index < length; index++) {
       Method* method = parse_method(cfs,
                                     is_interface,
-                                    is_value_class,
-                                    is_abstract_type,
                                     _cp,
                                     has_localvariable_table,
                                     CHECK);
@@ -4246,10 +4241,9 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
   } else if (max_transitive_size == super_size) {
     // no new local interfaces added, share superklass' transitive interface array
     return super->transitive_interfaces();
-    // The three lines below are commented to work around bug JDK-8245487
-//  } else if (max_transitive_size == local_size) {
-//    // only local interfaces added, share local interface array
-//    return local_ifs;
+  } else if (max_transitive_size == local_size) {
+    // only local interfaces added, share local interface array
+    return local_ifs;
   } else {
     ResourceMark rm;
     GrowableArray<InstanceKlass*>* const result = new GrowableArray<InstanceKlass*>(max_transitive_size);
@@ -4609,8 +4603,8 @@ void ClassFileParser::verify_class_version(u2 major, u2 minor, Symbol* class_nam
 }
 
 void ClassFileParser:: verify_legal_field_modifiers(jint flags,
-                                                   AccessFlags class_access_flags,
-                                                   TRAPS) const {
+                                                    AccessFlags class_access_flags,
+                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
   const bool is_public    = (flags & JVM_ACC_PUBLIC)      != 0;
@@ -4692,14 +4686,12 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
   const bool major_gte_8     = _major_version >= JAVA_8_VERSION;
   const bool major_gte_17    = _major_version >= JAVA_17_VERSION;
   const bool is_initializer  = (name == vmSymbols::object_initializer_name());
-  // LW401 CR required: removal of value factories support
   const bool is_interface    = class_access_flags.is_interface();
   const bool is_identity_class = class_access_flags.is_identity_class();
-  const bool is_abstract_class = class_access_flags.is_abstract();
 
   bool is_illegal = false;
-
   const char* class_note = "";
+
   if (is_interface) {
     if (major_gte_8) {
       // Class file version is JAVA_8_VERSION or later Methods of
@@ -4761,8 +4753,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
       "Method %s in class %s%s has illegal modifiers: 0x%X",
-      name->as_C_string(), _class_name->as_C_string(),
-      class_note, flags);
+      name->as_C_string(), _class_name->as_C_string(), class_note, flags);
     return;
   }
 }
@@ -4946,7 +4937,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
         }
       }
       else {
-        // Skip leading 'L' or 'Q' and ignore first appearance of ';'
+        // Skip leading 'L' and ignore first appearance of ';'
         signature++;
         const char* c = (const char*) memchr(signature, JVM_SIGNATURE_ENDCLASS, length - 1);
         // Format check signature
@@ -5069,8 +5060,7 @@ void ClassFileParser::verify_legal_method_name(const Symbol* name, TRAPS) const 
 
   if (length > 0) {
     if (bytes[0] == JVM_SIGNATURE_SPECIAL) {
-      if (name == vmSymbols::object_initializer_name() ||
-          name == vmSymbols::class_initializer_name()) {
+      if (name == vmSymbols::object_initializer_name() || name == vmSymbols::class_initializer_name()) {
         legal = true;
       }
     } else if (_major_version < JAVA_1_5_VERSION) {
@@ -5114,11 +5104,8 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
-  const char* const bytes = (const char*)signature->bytes();
-  const unsigned int length = signature->utf8_length();
-  const char* const p = skip_over_field_signature(bytes, false, length, CHECK);
-
-  if (p == nullptr || (p - bytes) != (int)length) {
+  if (!legal_field_signature(signature, THREAD)) {
+    CLEAR_PENDING_EXCEPTION;  // throw this exception instead
     throwIllegalSignature("Field", name, signature, CHECK);
   }
 }
@@ -5142,9 +5129,9 @@ void ClassFileParser::verify_legal_name_with_signature(const Symbol* name,
 
   int sig_length = signature->utf8_length();
   if (name->utf8_length() > 0 &&
-    name->char_at(0) == JVM_SIGNATURE_SPECIAL &&
-    sig_length > 0 &&
-    signature->char_at(sig_length - 1) != JVM_SIGNATURE_VOID) {
+      name->char_at(0) == JVM_SIGNATURE_SPECIAL &&
+      sig_length > 0 &&
+      signature->char_at(sig_length - 1) != JVM_SIGNATURE_VOID) {
     throwIllegalSignature("Method", name, signature, THREAD);
   }
 }
@@ -5322,6 +5309,50 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
 
   assert(_klass == ik, "invariant");
   return ik;
+}
+
+void ClassFileParser::create_acmp_maps(InstanceKlass* ik, TRAPS) {
+  ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
+  // Current format of acmp maps:
+  // All maps are stored contiguously in a single int array because it might
+  // be too early to instantiate an Object array (to be investigated)
+  // Format is:
+  // [number_of_nonoop_entries][offset0][size0][offset1][size1]...[oop_offset0][oop_offset1]...
+  //                           ^               ^
+  //                           |               |
+  //                           --------------------- Pair of integer describing a segment of
+  //                                                 contiguous non-oop fields
+  // First element is the number of segment of contiguous non-oop fields
+  // Then, each segment of contiguous non-oop fields is described by two consecutive elements:
+  // the offset then the size.
+  // After the last segment of contiguous non-oop fields, oop fields are described, one element
+  // per oop field, containing the offset of the field.
+  int nonoop_acmp_map_size = _layout_info->_nonoop_acmp_map->length() * 2;
+  int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
+  int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
+
+  typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
+  typeArrayHandle map_h(THREAD, map);
+  Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
+
+  map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
+  acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
+  for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
+    map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i)._offset);
+    map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i)._size);
+
+    // Also store acmp maps as metadata for regeneration when using dynamic archive or AOT training data.
+    acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i)._offset);
+    acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i)._size);
+  }
+  int oop_map_start = nonoop_acmp_map_size + 1;
+  for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
+    map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+    acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+  }
+  assert(acmp_maps_array->length() == map_h->length(), "sanity");
+  ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
+  ik->set_acmp_maps_array(acmp_maps_array);
 }
 
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
@@ -5547,53 +5578,16 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (Arguments::is_valhalla_enabled() && !access_flags().is_identity_class() && !access_flags().is_interface()
       && _class_name != vmSymbols::java_lang_Object()) {
     // Both abstract and concrete value classes need a field map for acmp
-    ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
-    // Current format of acmp maps:
-    // All maps are stored contiguously in a single int array because it might
-    // be too early to instantiate an Object array (to be investigated)
-    // Format is:
-    // [number_of_nonoop_entries][offset0][size[0][offset1][size1]...[oop_offset0][oop_offset1]...
-    //                           ^               ^
-    //                           |               |
-    //                           --------------------- Pair of integer describing a segment of
-    //                                                 contiguous non-oop fields
-    // First element is the number of segment of contiguous non-oop fields
-    // Then, each segment of contiguous non-oop fields is described by two consecutive elements:
-    // the offset then the size.
-    // After the last segment of contiguous non-oop fields, oop fields are described, one element
-    // per oop field, containing the offset of the field.
-    int nonoop_acmp_map_size = _layout_info->_nonoop_acmp_map->length() * 2;
-    int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
-    int acmp_map_size = nonoop_acmp_map_size + oop_acmp_map_size + 1;
-
-    typeArrayOop map = oopFactory::new_intArray(acmp_map_size, CHECK);
-    typeArrayHandle map_h(THREAD, map);
-    Array<int>* acmp_maps_array = MetadataFactory::new_array<int>(loader_data(), acmp_map_size, CHECK);
-
-    map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
-    acmp_maps_array->at_put(0, _layout_info->_nonoop_acmp_map->length());
-    for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
-      map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
-      map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
-
-      // Also store acmp maps as metadata for regeneration when using dynamic archive or AOT training data.
-      acmp_maps_array->at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
-      acmp_maps_array->at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
-    }
-    int oop_map_start = nonoop_acmp_map_size + 1;
-    for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
-      map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
-      acmp_maps_array->at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
-    }
-    assert(acmp_maps_array->length() == map_h->length(), "sanity");
-    ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
-    ik->set_acmp_maps_array(acmp_maps_array);
+    create_acmp_maps(ik, CHECK);
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
 
   if (!is_internal()) {
     ik->print_class_load_logging(_loader_data, module_entry, _stream);
+    if (CDSConfig::is_dumping_archive()) {
+      SystemDictionaryShared::check_code_source(ik, _stream);
+    }
 
     if (ik->minor_version() == JAVA_PREVIEW_MINOR_VERSION &&
         ik->major_version() == JVM_CLASSFILE_MAJOR_VERSION &&
@@ -5673,7 +5667,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _loadable_descriptors(nullptr),
   _record_components(nullptr),
   _local_interfaces(nullptr),
-  _local_interface_indexes(nullptr),
   _transitive_interfaces(nullptr),
   _combined_annotations(nullptr),
   _class_annotations(nullptr),
@@ -6020,6 +6013,8 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                    &_has_nonstatic_concrete_methods,
                    CHECK);
 
+  assert(_local_interfaces != nullptr, "invariant");
+
   // Fields (offsets are filled in later)
   parse_fields(stream,
                _access_flags,
@@ -6032,9 +6027,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
   // Methods
   parse_methods(stream,
-                is_interface(),
-                !is_identity_class(),
-                is_abstract_class(),
+                _access_flags.is_interface(),
                 &_has_localvariable_table,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
@@ -6122,7 +6115,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     // Set _super_klass after class file is parsed and format is checked
     assert(_super_class_index > 0, "any class other than Object must have a super class");
     Symbol* const super_class_name = cp->klass_name_at(_super_class_index);
-    if (is_interface()) {
+    if (_access_flags.is_interface()) {
       // Before attempting to resolve the superclass, check for class format
       // errors not checked yet.
       guarantee_property(super_class_name == vmSymbols::java_lang_Object(),
@@ -6155,7 +6148,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
 
     if (Arguments::is_valhalla_enabled()) {
-      check_identity_and_value_modifiers(this, _super_klass, CHECK);
+      // If this class is an value class, its super class cannot be an identity class unless it is java.lang.Object.
+      if (_super_klass->access_flags().is_identity_class() && !access_flags().is_identity_class() &&
+          _super_klass != vmClasses::Object_klass()) {
+        ResourceMark rm(THREAD);
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  err_msg("Value type %s has an identity type as supertype", _class_name->as_C_string()));
+      }
     }
 
     if (_super_klass->has_nonstatic_concrete_methods()) {
@@ -6190,52 +6189,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
   }
 
-  int itfs_len = _local_interface_indexes == nullptr ? 0 : _local_interface_indexes->length();
-  _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, nullptr, CHECK);
-  if (_local_interface_indexes != nullptr) {
-    for (int i = 0; i < _local_interface_indexes->length(); i++) {
-      u2 interface_index = _local_interface_indexes->at(i);
-      Klass* interf;
-      if (cp->tag_at(interface_index).is_klass()) {
-        interf = cp->resolved_klass_at(interface_index);
-      } else {
-        Symbol* const unresolved_klass  = cp->klass_name_at(interface_index);
-
-        // Don't need to check legal name because it's checked when parsing constant pool.
-        // But need to make sure it's not an array type.
-        guarantee_property(unresolved_klass->char_at(0) != JVM_SIGNATURE_ARRAY,
-                            "Bad interface name in class file %s", CHECK);
-
-        // Call resolve on the interface class name with class circularity checking
-        interf = SystemDictionary::resolve_super_or_fail(
-                                                  _class_name,
-                                                  unresolved_klass,
-                                                  Handle(THREAD, _loader_data->class_loader()),
-                                                  false,
-                                                  CHECK);
-      }
-
-      if (!interf->is_interface()) {
-        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                  err_msg("class %s can not implement %s, because it is not an interface (%s)",
-                          _class_name->as_klass_external_name(),
-                          interf->external_name(),
-                          interf->class_in_module_of_loader()));
-      }
-
-      if (Arguments::is_valhalla_enabled()) {
-        // Check modifiers and set carries_identity_modifier/carries_value_modifier flags
-        check_identity_and_value_modifiers(this, InstanceKlass::cast(interf), CHECK);
-      }
-
-      if (InstanceKlass::cast(interf)->has_nonstatic_concrete_methods()) {
-        _has_nonstatic_concrete_methods = true;
-      }
-      _local_interfaces->at_put(i, InstanceKlass::cast(interf));
-    }
-  }
-  assert(_local_interfaces != nullptr, "invariant");
-
   // Compute the transitive list of all unique interfaces implemented by this class
   _transitive_interfaces =
     compute_transitive_interfaces(_super_klass,
@@ -6269,89 +6222,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != nullptr, "invariant");
 
   if (Arguments::is_valhalla_enabled()) {
-    for (GrowableArrayIterator<FieldInfo> it = _temp_field_info->begin(); it != _temp_field_info->end(); ++it) {
-      FieldInfo fieldinfo = *it;
-      if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
-      Symbol* sig = fieldinfo.signature(cp);
-      if (fieldinfo.field_flags().is_null_free_inline_type()) {
-        // Pre-load classes of null-free fields that are candidate for flattening
-        TempNewSymbol s = Signature::strip_envelope(sig);
-        if (s == _class_name) {
-          THROW_MSG(vmSymbols::java_lang_ClassCircularityError(),
-                    err_msg("Class %s cannot have a null-free non-static field of its own type", _class_name->as_C_string()));
-        }
-        log_info(class, preload)("Preloading of class %s during loading of class %s. "
-                                  "Cause: a null-free non-static field is declared with this type",
-                                  s->as_C_string(), _class_name->as_C_string());
-        InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection(_class_name, s,
-                                                                                    Handle(THREAD,
-                                                                                    _loader_data->class_loader()),
-                                                                                    false, THREAD);
-        if (HAS_PENDING_EXCEPTION) {
-          log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                      "(cause: null-free non-static field) failed: %s",
-                                      s->as_C_string(), _class_name->as_C_string(),
-                                      PENDING_EXCEPTION->klass()->name()->as_C_string());
-          return; // Exception is still pending
-        }
-        assert(klass != nullptr, "Sanity check");
-        InstanceKlass::check_can_be_annotated_with_NullRestricted(klass, _class_name, CHECK);
-        set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
-        log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                 "(cause: null-free non-static field) succeeded",
-                                 s->as_C_string(), _class_name->as_C_string());
-      } else if (Signature::has_envelope(sig) && PreloadClasses) {
-        // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
-        // Those classes would be required later for the flattening of nullable inline type fields
-        TempNewSymbol name = Signature::strip_envelope(sig);
-        if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
-          log_info(class, preload)("Preloading of class %s during loading of class %s. "
-                                   "Cause: field type in LoadableDescriptors attribute",
-                                   name->as_C_string(), _class_name->as_C_string());
-          oop loader = loader_data()->class_loader();
-          InstanceKlass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
-                                                                         Handle(THREAD, loader),
-                                                                         false, THREAD);
-
-          assert((klass == nullptr) == HAS_PENDING_EXCEPTION, "Must be the same");
-
-          if (klass != nullptr) {
-            if (klass->is_inline_klass()) {
-              set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
-              log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                       "(cause: field type in LoadableDescriptors attribute) succeeded",
-                                       name->as_C_string(), _class_name->as_C_string());
-            } else {
-              // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log this
-              log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                       "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
-                                       name->as_C_string(), _class_name->as_C_string());
-            }
-          } else {
-            log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                     "(cause: field type in LoadableDescriptors attribute) failed : %s",
-                                     name->as_C_string(), _class_name->as_C_string(),
-                                     PENDING_EXCEPTION->klass()->name()->as_C_string());
-
-            // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
-            // impact loading of current class.
-            CLEAR_PENDING_EXCEPTION;
-          }
-        } else {
-          // Just poking the system dictionary to see if the class has already be loaded. Looking for migrated classes
-          // used when --enable-preview when jdk isn't compiled with --enable-preview so doesn't include LoadableDescriptors.
-          // This is temporary.
-          oop loader = loader_data()->class_loader();
-          InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
-          if (klass != nullptr && klass->is_inline_klass()) {
-            set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
-            log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                     "(cause: field type not in LoadableDescriptors attribute) succeeded",
-                                     name->as_C_string(), _class_name->as_C_string());
-          }
-        }
-      }
-    }
+    fetch_field_classes(cp, CHECK);
   }
 
   _layout_info = new FieldLayoutInfo();
@@ -6397,6 +6268,101 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
     assert(found_one == _has_strict_static_fields,
            "correct prediction = %d", (int)_has_strict_static_fields);
+  }
+}
+
+// In order to be able to optimize fields layouts by applying heap flattening,
+// the JVM needs to know the layout of the class of the fields, which implies
+// having these classes loaded. The strategy has two folds:
+//  1 - if the current class has a LoadableDescriptors attribute containing the
+//      name of the class of the field and PreloadClasses is true, the JVM will
+//      try to speculatively load this class. Failures to load the class are
+//      silently discarded, and loadings resulting in a non-optimizable class
+//      are ignored
+//  2 - if step 1 cannot be applied, the JVM will simply check if the class
+//      loader of the current class already knows these classes (no class
+//      loading triggered in this case). Note that the migrated value classes
+//      of the JDK are automatically registered to all class loaders, and
+//      are guaranteed to be found in this step even if the current class
+//      has not been recompiled with JEP 401 features enabled
+void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
+  for (FieldInfo fieldinfo : *_temp_field_info) {
+    if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
+    Symbol* sig = fieldinfo.signature(cp);
+    if (Signature::has_envelope(sig)) {
+      TempNewSymbol name = Signature::strip_envelope(sig);
+      if (name == _class_name) continue;
+      if (PreloadClasses && is_class_in_loadable_descriptors_attribute(sig)) {
+        log_info(class, preload)("Preloading of class %s during loading of class %s. "
+                                 "Cause: field type in LoadableDescriptors attribute",
+                                 name->as_C_string(), _class_name->as_C_string());
+        oop loader = loader_data()->class_loader();
+        InstanceKlass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
+                                                                       Handle(THREAD, loader),
+                                                                       false, THREAD);
+
+        assert((klass == nullptr) == HAS_PENDING_EXCEPTION, "Must be the same");
+
+        if (klass != nullptr) {
+          if (klass->is_inline_klass()) {
+            set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
+            log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                     "(cause: field type in LoadableDescriptors attribute) succeeded",
+                                     name->as_C_string(), _class_name->as_C_string());
+          } else {
+            // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log this
+            log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                     "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
+                                     name->as_C_string(), _class_name->as_C_string());
+            if (fieldinfo.field_flags().is_null_free_inline_type()) {
+              log_warning(class, preload)("After preloading of class %s during loading of class %s "
+                                     "field was annotated with @NullRestricted but loaded class is not a value class, "
+                                     "the annotation is ignored",
+                                     name->as_C_string(), _class_name->as_C_string());
+              fieldinfo.field_flags().update_null_free_inline_type(false);
+            }
+          }
+        } else {
+          log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                   "(cause: field type in LoadableDescriptors attribute) failed : %s",
+                                   name->as_C_string(), _class_name->as_C_string(),
+                                   PENDING_EXCEPTION->klass()->name()->as_C_string());
+          if (fieldinfo.field_flags().is_null_free_inline_type()) {
+            log_warning(class, preload)("After preloading of class %s during loading of class %s failed,"
+                                   "field was annotated with @NullRestricted but class is unknown, "
+                                   "the annotation is ignored",
+                                   name->as_C_string(), _class_name->as_C_string());
+            fieldinfo.field_flags().update_null_free_inline_type(false);
+          }
+
+          // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
+          // impact loading of current class.
+          CLEAR_PENDING_EXCEPTION;
+        }
+      } else {
+        oop loader = loader_data()->class_loader();
+        InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
+        if (klass != nullptr && klass->is_inline_klass()) {
+          set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
+          log_info(class, preload)("During loading of class %s , class %s found in local system dictionary"
+                                   "(field type not in LoadableDescriptors attribute)",
+                                   _class_name->as_C_string(), name->as_C_string());
+        } else if (fieldinfo.field_flags().is_null_free_inline_type()) {
+          if (klass == nullptr) {
+          log_warning(class, preload)("During loading of class %s, class %s is unknown, "
+                                 "but a field of this type was annotated with @NullRestricted, "
+                                 "the annotation is ignored",
+                                 _class_name->as_C_string(), name->as_C_string());
+          } else {
+            log_warning(class, preload)("During loading of class %s, class %s was found in the local system dictionary "
+                                 "and is not a concrete value class, but a field of this type was annotated with "
+                                 "@NullRestricted, the annotation is ignored",
+                                 _class_name->as_C_string(), name->as_C_string());
+          }
+          fieldinfo.field_flags().update_null_free_inline_type(false);
+        }
+      }
+    }
   }
 }
 

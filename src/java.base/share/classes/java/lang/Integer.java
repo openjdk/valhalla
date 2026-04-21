@@ -913,7 +913,12 @@ public final class Integer extends Number
         static Integer[] archivedCache;
 
         static {
-            runtimeSetup();
+            if (!PreviewFeatures.isEnabled()) {
+                runtimeSetup();
+            } else {
+                cache = null;
+                assert archivedCache == null;
+            }
         }
 
         @AOTRuntimeSetup

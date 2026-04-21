@@ -50,12 +50,14 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/arrayProperties.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -289,11 +291,9 @@ bool Runtime1::initialize(BufferBlob* blob) {
     if (!generate_blob_for(blob, id)) {
       return false;
     }
-    if (id == StubId::c1_forward_exception_id) {
-      // publish early c1 stubs at this point so later stubs can refer to them
-      AOTCodeCache::init_early_c1_table();
-    }
   }
+  // disallow any further c1 stub generation
+  AOTCodeCache::set_c1_stubs_complete();
   // printing
 #ifndef PRODUCT
   if (PrintSimpleStubs) {
@@ -535,9 +535,9 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   current->set_vm_result_oop(obj);
 JRT_END
 
-JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, arrayOopDesc* array, int index, oopDesc* value))
   // TOOD 8350865 We can call here with a non-flat array because of LIR_Assembler::emit_opFlattenedArrayCheck
-  if (array->klass()->is_flatArray_klass()) {
+  if (array->is_flatArray()) {
     profile_flat_array(current, false, array->is_null_free_array());
   }
 
@@ -545,8 +545,8 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
   if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
-    assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->obj_at_put(index, value, CHECK);
+    // Here we know that we have a flat array
+    oop_cast<flatArrayOop>(array)->obj_at_put(index, value, CHECK);
   }
 JRT_END
 
@@ -570,7 +570,7 @@ extern "C" void ps();
 void Runtime1::buffer_inline_args_impl(JavaThread* current, Method* m, bool allocate_receiver) {
   JavaThread* THREAD = current;
   methodHandle method(current, m); // We are inside the verified_entry or verified_inline_ro_entry of this method.
-  oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, CHECK);
+  oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, true, CHECK);
   current->set_vm_result_oop(obj);
 }
 

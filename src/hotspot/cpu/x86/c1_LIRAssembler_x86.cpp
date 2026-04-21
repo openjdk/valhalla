@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/threadIdentifier.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "vmreg_x86.inline.hpp"
 
@@ -73,29 +74,23 @@ static jlong *double_signmask_pool = double_quadword(&fp_signmask_pool[2*2],    
 static jlong *float_signflip_pool  = double_quadword(&fp_signmask_pool[3*2], (jlong)UCONST64(0x8000000080000000), (jlong)UCONST64(0x8000000080000000));
 static jlong *double_signflip_pool = double_quadword(&fp_signmask_pool[4*2], (jlong)UCONST64(0x8000000000000000), (jlong)UCONST64(0x8000000000000000));
 
+#if INCLUDE_CDS
+// publish external addresses defined in this file
+void LIR_Assembler::init_AOTAddressTable(GrowableArray<address>& external_addresses) {
+#define ADD(addr) external_addresses.append((address)(addr));
+  ADD(float_signmask_pool);
+  ADD(double_signmask_pool);
+  ADD(float_signflip_pool);
+  ADD(double_signflip_pool);
+#undef ADD
+}
+#endif // INCLUDE_CDS
 
 NEEDS_CLEANUP // remove this definitions ?
 const Register SYNC_header = rax;   // synchronization header
 const Register SHIFT_count = rcx;   // where count for shift operations must be
 
 #define __ _masm->
-
-
-static void select_different_registers(Register preserve,
-                                       Register extra,
-                                       Register &tmp1,
-                                       Register &tmp2) {
-  if (tmp1 == preserve) {
-    assert_different_registers(tmp1, tmp2, extra);
-    tmp1 = extra;
-  } else if (tmp2 == preserve) {
-    assert_different_registers(tmp1, tmp2, extra);
-    tmp2 = extra;
-  }
-  assert_different_registers(preserve, tmp1, tmp2);
-}
-
-
 
 static void select_different_registers(Register preserve,
                                        Register extra,
@@ -586,10 +581,23 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
     }
 
     case T_LONG: {
+#if INCLUDE_CDS
+      if (AOTCodeCache::is_on_for_dump()) {
+        address b = c->as_pointer();
+        if (b == (address)ThreadIdentifier::unsafe_offset()) {
+          __ lea(dest->as_register_lo(), ExternalAddress(b));
+          break;
+        }
+      }
+#endif
       assert(patch_code == lir_patch_none, "no patching handled here");
 #if INCLUDE_CDS
       if (AOTCodeCache::is_on_for_dump()) {
         address b = c->as_pointer();
+        if (b == (address)ThreadIdentifier::unsafe_offset()) {
+          __ lea(dest->as_register_lo(), ExternalAddress(b));
+          break;
+        }
         if (AOTRuntimeConstants::contains(b)) {
           __ load_aotrc_address(dest->as_register_lo(), b);
           break;
@@ -1360,12 +1368,8 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   } else if (obj == klass_RInfo) {
     klass_RInfo = dst;
   }
-  if (k->is_loaded() && !UseCompressedClassPointers) {
-    select_different_registers(obj, dst, k_RInfo, klass_RInfo);
-  } else {
-    Rtmp1 = op->tmp3()->as_register();
-    select_different_registers(obj, dst, k_RInfo, klass_RInfo, Rtmp1);
-  }
+  Rtmp1 = op->tmp3()->as_register();
+  select_different_registers(obj, dst, k_RInfo, klass_RInfo, Rtmp1);
 
   assert_different_registers(obj, k_RInfo, klass_RInfo);
 
@@ -1402,12 +1406,8 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     assert(!k->is_loaded() || !k->is_obj_array_klass(), "Use refined array for a direct pointer comparison");
     // get object class
     // not a safepoint as obj null check happens earlier
-    if (UseCompressedClassPointers) {
-      __ load_klass(Rtmp1, obj, tmp_load_klass);
-      __ cmpptr(k_RInfo, Rtmp1);
-    } else {
-      __ cmpptr(k_RInfo, Address(obj, oopDesc::klass_offset_in_bytes()));
-    }
+    __ load_klass(Rtmp1, obj, tmp_load_klass);
+    __ cmpptr(k_RInfo, Rtmp1);
     __ jcc(Assembler::notEqual, *failure_target);
     // successful cast, fall through to profile or jump
   } else {
@@ -1605,7 +1605,9 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
   //     FIXME: do null check only if the operand is nullable
-  __ testptr(left, right);
+  __ testptr(left, left);
+  __ jcc(Assembler::zero, L_oops_not_equal);
+  __ testptr(right, right);
   __ jcc(Assembler::zero, L_oops_not_equal);
 
   ciKlass* left_klass = op->left_klass();
@@ -1616,11 +1618,11 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    Register tmp1  = op->tmp1()->as_register();
-    __ movptr(tmp1, (intptr_t)markWord::inline_type_pattern);
-    __ andptr(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
-    __ andptr(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ cmpptr(tmp1, (intptr_t)markWord::inline_type_pattern);
+    Register tmp = op->tmp1()->as_register();
+    __ movptr(tmp, (intptr_t)markWord::inline_type_pattern);
+    __ andptr(tmp, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andptr(tmp, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ cmpptr(tmp, (intptr_t)markWord::inline_type_pattern);
     __ jcc(Assembler::notEqual, L_oops_not_equal);
   }
 
@@ -1629,19 +1631,9 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     // No need to load klass -- the operands are statically known to be the same inline klass.
     __ jmp(*op->stub()->entry());
   } else {
-    Register left_klass_op = op->left_klass_op()->as_register();
-    Register right_klass_op = op->right_klass_op()->as_register();
-
-    if (UseCompressedClassPointers) {
-      __ movl(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ movl(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpl(left_klass_op, right_klass_op);
-    } else {
-      __ movptr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
-      __ movptr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
-      __ cmpptr(left_klass_op, right_klass_op);
-    }
-
+    Register tmp1 = op->tmp1()->as_register();
+    Register tmp2 = op->tmp2()->as_register();
+    __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
     __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal
   }
@@ -2859,9 +2851,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // but not necessarily exactly of type default_type.
     Label known_ok, halt;
     __ mov_metadata(tmp, default_type->constant_encoding());
-    if (UseCompressedClassPointers) {
-      __ encode_klass_not_null(tmp, rscratch1);
-    }
+    __ encode_klass_not_null(tmp, rscratch1);
 
     if (basic_type != T_OBJECT) {
       __ cmp_klass(tmp, dst, tmp2);

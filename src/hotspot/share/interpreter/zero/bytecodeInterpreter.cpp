@@ -36,6 +36,7 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
@@ -1502,7 +1503,7 @@ run:
           ARRAY_LOADTO32(T_FLOAT, jfloat, "%f",   STACK_FLOAT, 0);
       CASE(_aaload): {
           ARRAY_INTRO(-2);
-          if (((objArrayOop) arrObj)->is_flatArray()) {
+          if (arrObj->is_flatArray()) {
             CALL_VM(InterpreterRuntime::flat_array_load(THREAD, (objArrayOop) arrObj, index), handle_exception);
             SET_STACK_OBJECT(THREAD->vm_result_oop(), -2);
             THREAD->set_vm_result_oop(nullptr);

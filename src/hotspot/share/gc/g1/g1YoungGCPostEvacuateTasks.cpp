@@ -29,7 +29,7 @@
 #include "gc/g1/g1CardTableEntryClosure.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1CollectionSetCandidates.inline.hpp"
-#include "gc/g1/g1CollectorState.hpp"
+#include "gc/g1/g1CollectorState.inline.hpp"
 #include "gc/g1/g1ConcurrentMark.inline.hpp"
 #include "gc/g1/g1EvacFailureRegions.inline.hpp"
 #include "gc/g1/g1EvacInfo.hpp"
@@ -395,11 +395,11 @@ public:
     {
       ResourceMark rm;
       bool allocated_after_mark_start = r->bottom() == _g1h->concurrent_mark()->top_at_mark_start(r);
-      bool mark_in_progress = _g1h->collector_state()->mark_in_progress();
-      guarantee(obj->is_typeArray() || (allocated_after_mark_start || !mark_in_progress),
-                "Only eagerly reclaiming primitive arrays is supported, other humongous objects only if allocated after mark start, but the object "
-                PTR_FORMAT " (%s) is not (mark %d allocated after mark: %d).",
-                p2i(r->bottom()), obj->klass()->name()->as_C_string(), mark_in_progress, allocated_after_mark_start);
+      bool mark_in_progress = _g1h->collector_state()->is_in_marking();
+      guarantee(_g1h->can_be_marked_through_immediately(obj) || (allocated_after_mark_start || !mark_in_progress),
+                "Only eagerly reclaiming arrays without oops is always supported, other humongous objects only if allocated after mark start, but the object "
+                PTR_FORMAT " (%s) is not (allocated after mark: %d mark in progress %d marked immediately %d is_array %d array_with_oops %d).",
+                p2i(r->bottom()), obj->klass()->name()->as_C_string(), allocated_after_mark_start, mark_in_progress, _g1h->can_be_marked_through_immediately(obj), obj->is_array(), obj->is_array_with_oops());
     }
     log_debug(gc, humongous)("Reclaimed humongous region %u (object size %zu @ " PTR_FORMAT ")",
                              region_index,
@@ -501,7 +501,7 @@ class G1PostEvacuateCollectionSetCleanupTask2::ProcessEvacuationFailedRegionsTas
       // Concurrent mark does not mark through regions that we retain (they are root
       // regions wrt to marking), so we must clear their mark data (tams, bitmap, ...)
       // set eagerly or during evacuation failure.
-      bool clear_mark_data = !g1h->collector_state()->in_concurrent_start_gc() ||
+      bool clear_mark_data = !g1h->collector_state()->is_in_concurrent_start_gc() ||
                              g1h->policy()->should_retain_evac_failed_region(r);
 
       if (clear_mark_data) {

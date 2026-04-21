@@ -233,6 +233,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
   _holder = declared_field->holder();
   _offset = declared_field->offset_in_bytes() + (subfield->offset_in_bytes() - declared_field->type()->as_inline_klass()->payload_offset());
 
+  ResourceMark rm;
   char buffer[256];
   jio_snprintf(buffer, sizeof(buffer), "%s.%s", declared_field->name()->as_utf8(), subfield->name()->as_utf8());
   _name = ciSymbol::make(buffer);
@@ -260,6 +261,7 @@ ciField::ciField(ciField* declared_field) {
   _holder = declared_field->holder();
   _offset = declared_field->null_marker_offset();
 
+  ResourceMark rm;
   char buffer[256];
   jio_snprintf(buffer, sizeof(buffer), "%s.$nullMarker$", declared_field->name()->as_utf8());
   _name = ciSymbol::make(buffer);
@@ -497,7 +499,9 @@ bool ciField::is_call_site_target() {
 
 bool ciField::is_autobox_cache() {
   ciSymbol* klass_name = holder()->name();
-  return (name() == ciSymbols::cache_field_name() &&
+  // The box cache is disabled when boxes are value classes.
+  return (!Arguments::is_valhalla_enabled() &&
+          name() == ciSymbols::cache_field_name() &&
           holder()->uses_default_loader() &&
           (klass_name == ciSymbols::java_lang_Character_CharacterCache() ||
             klass_name == ciSymbols::java_lang_Byte_ByteCache() ||

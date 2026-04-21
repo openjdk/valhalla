@@ -31,7 +31,7 @@
  * @compile StrictFinalTest.java
  * @run driver jdk.test.lib.helpers.StrictProcessor StrictFinalTest
  *             StrictFinalTest$Container5 StrictFinalTest$Container6
- * @run main/othervm -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableNonAtomicValueFlattening StrictFinalTest
  */
 
 
@@ -255,6 +255,7 @@ public class StrictFinalTest {
         List<String> argsList = new ArrayList<>();
         Collections.addAll(argsList, "--enable-preview");
         Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+        Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
         Collections.addAll(argsList, "-XX:+PrintFieldLayout");
         Collections.addAll(argsList, "-Xshare:off");
         Collections.addAll(argsList, "-Xmx256m");
@@ -273,10 +274,8 @@ public class StrictFinalTest {
         ProcessBuilder pb = exec("StrictFinalTest$TestRunner");
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
-        if (out.getExitValue() != 0) {
-            System.out.print(out.getOutput());
-        }
-        Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+        // Checking the status of the process execution before trying to parse the output
+        out.shouldHaveExitValue(0);
 
         // Get and parse the test output
         FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());

@@ -595,9 +595,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
     Node* field_ptr = kit->basic_plus_adr(base, ptr, field_off);
     if (field->is_flat()) {
       // Recursively store the flat inline type field
-      ciInlineKlass* fvk = ft->as_inline_klass();
       bool atomic = field->is_atomic();
-
       field_val->as_InlineType()->store_flat(kit, base, field_ptr, atomic, immutable_memory, field_null_free, decorators);
     } else {
       // Store field value to memory
@@ -697,7 +695,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
       other_base = nullptr;
     } else {
       // 'other' is an oop, compute address of the field
-      other_field = igvn->register_new_node_with_optimizer(new AddPNode(base, other, igvn->MakeConX(field_off)));
+      other_field = igvn->register_new_node_with_optimizer(AddPNode::make_with_base(base, other, igvn->MakeConX(field_off)));
       if (field->is_flat()) {
         // Flat field, load is handled recursively below
         assert(this_field->is_InlineType(), "inconsistent field value");
@@ -725,7 +723,7 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
             null_marker = other_field->as_InlineType()->get_null_marker();
           } else {
             Node* nm_offset = igvn->MakeConX(ft->as_inline_klass()->null_marker_offset_in_payload());
-            Node* nm_adr = igvn->register_new_node_with_optimizer(new AddPNode(base, other_field, nm_offset));
+            Node* nm_adr = igvn->register_new_node_with_optimizer(AddPNode::make_with_base(base, other_field, nm_offset));
             C2AccessValuePtr addr(nm_adr, nm_adr->bottom_type()->is_ptr());
             C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
             null_marker = bs->load_at(access, TypeInt::BOOL);
@@ -1308,9 +1306,17 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
 
 InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
-  if (!in) {
+  if (!in || multi->is_Start()) {
     // Keep track of the oop. The returned inline type might already be buffered.
-    Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
+    Node* oop = nullptr;
+    if (multi->is_Start()) {
+      oop = kit->gvn().transform(new ParmNode(multi->as_Start(), base_input++));
+    } else {
+      oop = kit->gvn().transform(new ProjNode(multi, base_input++));
+    }
+    vt->set_oop(kit->gvn(), oop);
+  } else {
+    Node* oop = multi->as_Call()->in(base_input++);
     vt->set_oop(kit->gvn(), oop);
   }
   GrowableArray<ciType*> visited;
@@ -1379,7 +1385,10 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.longcon((jlong)bits);
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
+void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free, bool root) {
+  if (root) {
+    n->init_req(base_input++, get_oop());
+  }
   if (!null_free && in) {
     n->init_req(base_input++, get_null_marker());
   }

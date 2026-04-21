@@ -255,7 +255,7 @@ checkStaticFieldID(JavaThread* thr, jfieldID fid, jclass cls, int ftype, bool se
   if (!id->find_local_field(&fd))
     ReportJNIFatalError(thr, fatal_static_field_not_found);
   if ((fd.field_type() != ftype) &&
-      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT))  {
+      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_static_field_mismatch);
   }
 
@@ -358,9 +358,9 @@ check_primitive_array_type(JavaThread* thr, jarray jArray, BasicType elementType
 }
 
 static inline void
-check_is_obj_or_inline_array(JavaThread* thr, jarray jArray) {
+check_is_obj_array(JavaThread* thr, jarray jArray) {
   arrayOop aOop = check_is_array(thr, jArray);
-  if (!aOop->is_objArray() && !aOop->is_flatArray()) {
+  if (!aOop->is_objArray()) {
     ReportJNIFatalError(thr, fatal_object_array_expected);
   }
 }
@@ -1667,7 +1667,7 @@ JNI_ENTRY_CHECKED(jobject,
                                     jsize index))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_or_inline_array(thr, array);
+      check_is_obj_array(thr, array);
     )
     jobject result = UNCHECKED()->GetObjectArrayElement(env,array,index);
     functionExit(thr);
@@ -1681,7 +1681,7 @@ JNI_ENTRY_CHECKED(void,
                                     jobject val))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_or_inline_array(thr, array);
+      check_is_obj_array(thr, array);
     )
     UNCHECKED()->SetObjectArrayElement(env,array,index,val);
     functionExit(thr);

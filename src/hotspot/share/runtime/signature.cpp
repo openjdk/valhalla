@@ -589,6 +589,7 @@ void ResolvingSignatureStream::cache_handles() {
 }
 
 #ifdef ASSERT
+
 extern bool signature_constants_sane(); // called from basic_types_init()
 
 bool signature_constants_sane() {
@@ -679,14 +680,14 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset) {
-  sig->append(SigEntry(bt, offset, name, false));
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset, bool null_marker, bool vt_oop) {
+  sig->append(SigEntry(bt, offset, name, null_marker, vt_oop));
   if (bt == T_LONG || bt == T_DOUBLE) {
-    sig->append(SigEntry(T_VOID, offset, name, false)); // Longs and doubles take two stack slots
+    sig->append(SigEntry(T_VOID, offset, name, false, false)); // Longs and doubles take two stack slots
   }
 }
 void SigEntry::add_null_marker(GrowableArray<SigEntry>* sig, Symbol* name, int offset) {
-  sig->append(SigEntry(T_BOOLEAN, offset, name, true));
+  sig->append(SigEntry(T_BOOLEAN, offset, name, true, false));
 }
 
 // Returns true if the argument at index 'i' is not an inline type delimiter
@@ -732,4 +733,13 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = 'V';
   sig_str[idx++] = '\0';
   return SymbolTable::new_symbol(sig_str);
+}
+
+void SigEntry::print_on(outputStream* st) const {
+  st->print("SigEntry: type=%d offset=%d null_marker=%d ", _bt, _offset, _null_marker);
+  if (_name != nullptr) {
+    _name->print_on(st);
+  } else {
+    st->print("name=nullptr");
+  }
 }

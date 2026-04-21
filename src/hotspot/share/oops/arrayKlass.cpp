@@ -44,7 +44,7 @@
 #include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
-ArrayKlass::ArrayKlass() {
+ArrayKlass::ArrayKlass() : _properties() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
@@ -115,9 +115,9 @@ static markWord calc_prototype_header(Klass::KlassKind kind, ArrayProperties pro
 ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props)
     : Klass(kind, calc_prototype_header(kind, props)),
   _dimension(n),
-  _properties(props),
   _higher_dimension(nullptr),
-  _lower_dimension(nullptr) {
+  _lower_dimension(nullptr),
+  _properties(props) {
   // Arrays don't add any new methods, so their vtable is the same size as
   // the vtable of klass Object.
   set_vtable_length(Universe::base_vtable_size());
@@ -129,6 +129,7 @@ ArrayKlass::ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties prop
   JFR_ONLY(INIT_ID(this);)
   log_array_class_load(this);
 }
+
 
 // Initialization of vtables and mirror object is done separately from base_create_array_klass,
 // since a GC can happen. At this point all instance variables of the ArrayKlass must be setup.
@@ -143,7 +144,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
          "module entry not available post " JAVA_BASE_NAME " definition");
   oop module_oop = (module_entry != nullptr) ? module_entry->module_oop() : (oop)nullptr;
 
-  if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+  if (k->is_refined_objArray_klass()) {
     assert(super_klass != nullptr, "Must be");
     assert(k->super() != nullptr, "Must be");
     assert(k->super() == super_klass, "Must be");
@@ -168,7 +169,8 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+      ObjArrayKlass* ak =
+          ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");
@@ -230,6 +232,7 @@ ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
       return ArrayProperties::Default();
     default:
       ShouldNotReachHere();
+      return ArrayProperties::Default();
   }
 }
 

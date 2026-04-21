@@ -123,6 +123,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, Symbol* name) {
     clear_native_function();
     set_signature_handler(nullptr);
   }
+
   NOT_PRODUCT(set_compiled_invocation_count(0);)
   // Name is very useful for debugging.
   NOT_PRODUCT(_name = name;)
@@ -168,11 +169,17 @@ address Method::get_c2i_entry() {
 }
 
 address Method::get_c2i_inline_entry() {
+  if (is_abstract()) {
+    return SharedRuntime::get_handle_wrong_method_abstract_stub();
+  }
   assert(adapter() != nullptr, "must have");
   return adapter()->get_c2i_inline_entry();
 }
 
 address Method::get_c2i_inline_ro_entry() {
+  if (is_abstract()) {
+    return SharedRuntime::get_handle_wrong_method_abstract_stub();
+  }
   assert(adapter() != nullptr, "must have");
   return adapter()->get_c2i_inline_ro_entry();
 }
@@ -1341,20 +1348,14 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // called from the vtable.  We need adapters on such methods that get loaded
   // later.  Ditto for mega-morphic itable calls.  If this proves to be a
   // problem we'll make these lazily later.
-  if (is_abstract()) {
-    address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-    h_method->_from_compiled_entry = wrong_method_abstract;
-    h_method->_from_compiled_inline_entry = wrong_method_abstract;
-    h_method->_from_compiled_inline_ro_entry = wrong_method_abstract;
-  } else if (_adapter == nullptr) {
-    (void) make_adapters(h_method, CHECK);
-#ifndef ZERO
-    assert(adapter()->is_linked(), "Adapter must have been linked");
-#endif
-    h_method->_from_compiled_entry = adapter()->get_c2i_entry();
-    h_method->_from_compiled_inline_entry = adapter()->get_c2i_inline_entry();
-    h_method->_from_compiled_inline_ro_entry = adapter()->get_c2i_inline_ro_entry();
+  // With the scalarized calling convention, create adapters for abstract
+  // methods as well because the adapter is used to propagate the signature.
+  if (_adapter == nullptr && (!h_method->is_abstract() || InlineTypePassFieldsAsArgs)) {
+    make_adapters(h_method, CHECK);
   }
+  h_method->_from_compiled_entry = h_method->get_c2i_entry();
+  h_method->_from_compiled_inline_entry = h_method->get_c2i_inline_entry();
+  h_method->_from_compiled_inline_ro_entry = h_method->get_c2i_inline_ro_entry();
 
   // ONLY USE the h_method now as make_adapter may have blocked
 
@@ -1373,8 +1374,8 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   }
 }
 
-address Method::make_adapters(const methodHandle& mh, TRAPS) {
-  assert(!mh->is_abstract(), "abstract methods do not have adapters");
+void Method::make_adapters(const methodHandle& mh, TRAPS) {
+  assert(!mh->is_abstract() || InlineTypePassFieldsAsArgs, "abstract methods do not have adapters");
   PerfTraceTime timer(ClassLoader::perf_method_adapters_time());
 
   // Adapters for compiled code are made eagerly here.  They are fairly
@@ -1388,14 +1389,16 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
       // Java exception object.
       vm_exit_during_initialization("Out of space in CodeCache for adapters");
     } else {
-      THROW_MSG_NULL(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
+      THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
     }
   }
 
-  assert(!mh->has_scalarized_args() || adapter->get_sig_cc() != nullptr, "sigcc should not be null here");
+  assert(!mh->has_scalarized_args() || (adapter->get_sig_cc() != nullptr && adapter->get_sig_cc_ro() != nullptr), "should be initialized");
 
   mh->set_adapter_entry(adapter);
-  return adapter->get_c2i_entry();
+#ifndef ZERO
+  assert(adapter->is_linked(), "Adapter must have been linked");
+#endif
 }
 
 // The verified_code_entry() must be called when a invoke is resolved
@@ -2290,6 +2293,35 @@ bool Method::is_scalarized_arg(int idx) const {
     }
   }
   return depth != 0;
+}
+
+bool Method::is_scalarized_buffer_arg(int idx) const {
+  if (!has_scalarized_args()) {
+    return false;
+  }
+  // Search through signature and check if argument is wrapped in T_METADATA/T_VOID
+  int depth = 0;
+  const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
+  for (int i = 0; i < sig->length(); i++) {
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_METADATA) {
+      depth++;
+      continue;
+    }
+    if (bt == T_VOID && (sig->at(i-1)._bt != T_LONG && sig->at(i-1)._bt != T_DOUBLE)) {
+      depth--;
+      continue;
+    }
+    if (idx == 0) {
+      if (sig->at(i)._vt_oop) {
+        assert(depth == 1, "only for root value");
+        return true;
+      }
+      break; // Argument found
+    }
+    idx--; // Advance to next argument
+  }
+  return false;
 }
 
 // Printing

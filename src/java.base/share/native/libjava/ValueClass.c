@@ -53,9 +53,9 @@ Java_jdk_internal_value_ValueClass_newReferenceArray(JNIEnv *env, jclass cls, jc
 }
 
 JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isFlatArray(JNIEnv *env, jclass cls, jobject obj)
+Java_jdk_internal_value_ValueClass_isFlatArray(JNIEnv *env, jclass cls, jarray array)
 {
-    return JVM_IsFlatArray(env, obj);
+    return JVM_IsFlatArray(env, array);
 }
 
 JNIEXPORT jarray JNICALL
@@ -65,13 +65,13 @@ Java_jdk_internal_value_ValueClass_copyOfSpecialArray0(JNIEnv *env, jclass cls, 
 }
 
 JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls, jobject obj)
+Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls, jarray array)
 {
-    return JVM_IsNullRestrictedArray(env, obj);
+    return JVM_IsNullRestrictedArray(env, array);
 }
 
 JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isAtomicArray(JNIEnv *env, jclass cls, jobject obj)
+Java_jdk_internal_value_ValueClass_isAtomicArray(JNIEnv *env, jclass cls, jarray array)
 {
-    return JVM_IsAtomicArray(env, obj);
+    return JVM_IsAtomicArray(env, array);
 }

@@ -40,6 +40,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/oopCast.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
+#include "oops/refArrayOop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/globals.hpp"
@@ -1147,6 +1148,7 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
         // create dummy snapshot
         dump_result.add_thread_snapshot();
       } else {
+        assert(dump_result.t_list()->includes(jt), "Must be protected");
         dump_result.add_thread_snapshot(jt);
       }
     }
@@ -1574,7 +1576,7 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
     refArrayOop ta = oop_cast<refArrayOop>(JNIHandles::resolve_non_null(names));
     refArrayHandle names_ah(THREAD, ta);
     // Make sure we have a String array
-    Klass* element_klass = RefArrayKlass::cast(names_ah->klass())->element_klass();
+    Klass* element_klass = names_ah->klass()->element_klass();
     if (element_klass != vmClasses::String_klass()) {
       THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(),
                  "Array element type is not String class", 0);
@@ -2002,7 +2004,7 @@ JVM_ENTRY(void, jmm_GetDiagnosticCommandInfo(JNIEnv *env, jobjectArray cmds,
   refArrayHandle cmds_ah(THREAD, ca);
 
   // Make sure we have a String array
-  Klass* element_klass = RefArrayKlass::cast(cmds_ah->klass())->element_klass();
+  Klass* element_klass = cmds_ah->klass()->element_klass();
   if (element_klass != vmClasses::String_klass()) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
                "Array element type is not String class");
