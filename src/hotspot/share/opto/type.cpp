@@ -2210,7 +2210,7 @@ static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, u
 
 //------------------------------make-------------------------------------------
 // Make a TypeTuple from the range of a method signature
-const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling interface_handling, bool ret_vt_fields, bool is_call) {
+const TypeTuple* TypeTuple::make_range(ciSignature* sig, InterfaceHandling interface_handling, bool ret_vt_fields, bool is_call) {
   ciType* return_type = sig->return_type();
   uint arg_cnt = return_type->size();
   if (ret_vt_fields) {
