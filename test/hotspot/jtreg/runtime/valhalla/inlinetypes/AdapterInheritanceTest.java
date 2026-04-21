@@ -25,61 +25,22 @@
  * @test
  * @summary Test that adapters are properly inherited or calculated during method linking
  * @enablePreview
- * @compile A.jcod I.jcod
+ * @library /test/lib
+ * @compile A.jcod I.jcod AdapterInheritanceApp.java
  * @run main/othervm AdapterInheritanceTest
  */
+
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+
 public class AdapterInheritanceTest {
-    public static void main(String[] args) {
-        A a = new A();
-        B b = new B();
-        C c = new C();
 
-        for (int i = 0; i < 100000; i++) {
-            // A.foo() should be non-scalarized because Point is not present in the
-            // LoadableDescriptors attribute for either class A or interface I
-            a.foo(new Point(0, 0));
-
-            // B.foo() will inherit the adapter from A.foo() and will also be non-scalarized.
-            b.foo(new Point(0, 1));
-
-            // C.foo() will try to inherit the non-scalarizeda dapter from B.foo() but it
-            // will run into a mismatch when checking J.foo() which has scalarized calling
-            // conventions for foo(). The calling conventions must then be recalculated.
-            c.foo(new Point(1, 0));
-        }
+    public static void main(String[] args) throws Exception {
+        ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder("--enable-preview", "-Xlog:adapters", "AdapterInheritanceApp");
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        output.shouldHaveExitValue(0);
+        output.shouldContain("Method void B.foo(Point) successfully inherited adapter from void A.foo(Point) (scalarized: false)");
+        output.shouldContain("Super method void B.foo(Point) has scalarized/non-scalarized calling convention mismatch with interface method void J.foo(Point)");
+        output.shouldContain("Method void C.foo(Point) unable to inherit adapter from void B.foo(Point)");
     }
-}
-
-value class Point {
-    int x;
-    int y;
-
-    Point(int x, int y) {
-        this.x = x;
-        this.y = y;
-    }
-}
-
-// For this test, these classes are derived from JCOD files which remove Point
-// from the LoadableDescriptors attribute so that Point will not be loaded when
-// trying to link foo()
-//
-// interface I {
-//     void foo(Point i);
-// }
-
-// class A implements I {
-//     void foo(Point i) {}
-// }
-
-interface J {
-    void foo(Point i);
-}
-
-class B extends A {
-    public void foo(Point i) {}
-}
-
-class C extends B implements J {
-    public void foo(Point i) {}
 }
