@@ -2346,7 +2346,7 @@ public:
 //------------------------------TypeFunc---------------------------------------
 // Class of Array Types
 class TypeFunc : public Type {
-  TypeFunc(const TypeTuple *domain_sig, const TypeTuple *domain_cc, const TypeTuple *range_sig, const TypeTuple *range_cc, bool scalarized_return)
+  TypeFunc(const TypeTuple *domain_sig, const TypeTuple* domain_cc, const TypeTuple* range_sig, const TypeTuple* range_cc, bool scalarized_return)
     : Type(Function), _domain_sig(domain_sig), _domain_cc(domain_cc), _range_sig(range_sig), _range_cc(range_cc), _scalarized_return(scalarized_return) {}
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
