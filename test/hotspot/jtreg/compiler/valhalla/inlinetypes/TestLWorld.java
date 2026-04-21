@@ -5335,5 +5335,78 @@ public class TestLWorld {
         int v2 = (int) rL;
         Asserts.assertEQ(v1, testScalarReplaceArray(v1, v2));
     }
+
+    static class BadCastWrapperA {
+        static BadCastA a;
+        static BadCastA2 a2 = new BadCastV4();
+    }
+
+    @ForceCompileClassInitializer
+    static value class BadCastV {
+        static int i;
+        @NullRestricted
+        BadCastA a;
+
+        // C1: trigger in access_field() for ByteCodes::_putstatic in <clinit>
+        @NullRestricted
+        static BadCastA2 a2Static = BadCastWrapperA.a2;
+
+        @ForceInline
+        BadCastV() {
+            this.a = BadCastWrapperA.a;
+        }
+    }
+
+    static abstract value class BadCastA {
+        @NullRestricted
+        BadCastA2 a2 = BadCastWrapperA.a2;
+
+        @NullRestricted
+        static BadCastA2 a2Static = BadCastWrapperA.a2;
+    }
+
+    static value class BadCastV1 extends BadCastA {}
+    static value class BadCastV2 extends BadCastA {}
+
+
+    static abstract value class BadCastA2 {}
+
+    static value class BadCastV3 extends BadCastA2 {}
+    static value class BadCastV4 extends BadCastA2 {}
+
+
+    static int loadBadCastV = BadCastV.i; // Load BadCastV
+    static BadCastA aBadCast;
+    static BadCastA2 a2BadCast;
+
+    // Load these classes
+    static BadCastV1 v1BadCast = new BadCastV1();
+    static BadCastV2 v2BadCast = new BadCastV2();
+    static BadCastV3 v3BadCast = new BadCastV3();
+    static BadCastV4 v4BadCast = new BadCastV4();
+
+    @Test
+    static void testBadCastToInlineKlass() {
+        // triggers in do_get_xxx()
+        // 'a2' is null-free and an abstract value class and thus an InstanceKlass -> cannot cast to InlineKlass
+        a2BadCast = aBadCast.a2;
+
+        // C1: trigger in access_field() for ByteCodes::_putfield
+        // C2: triggers in do_set_xxx()
+        // in BadCastV(), we assign 'a' which is null-free and an abstract value class and thus an InstanceKlass
+        // -> cannot cast to InlineKlass
+        new BadCastV();
+    }
+
+    @Run(test = "testBadCastToInlineKlass")
+    @Warmup(0)
+    public static void testBadCastToInlineKlass_verifier() {
+        try {
+            testBadCastToInlineKlass();
+            Asserts.fail("should not reach");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
 }
 
