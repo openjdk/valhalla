@@ -7313,7 +7313,7 @@ const Type* TypeAryKlassPtr::base_element_type(int& dims) const {
 
 //------------------------------make-------------------------------------------
 const TypeFunc *TypeFunc::make(const TypeTuple *domain_sig, const TypeTuple* domain_cc,
-                               const TypeTuple *range_sig, const TypeTuple *range_cc,
+                               const TypeTuple* range_sig, const TypeTuple* range_cc,
                                bool scalarized_return) {
   return (TypeFunc*)(new TypeFunc(domain_sig, domain_cc, range_sig, range_cc, scalarized_return))->hashcons();
 }
