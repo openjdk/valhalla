@@ -1128,9 +1128,8 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
     // oops, the app has substituted a different version of k! Does not fail fatally
     log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                 "(cause: null-free non-static field) failed : "
-                                "app substituted a different version of %s",
-                                name->as_C_string(), ik->name()->as_C_string(),
-                                name->as_C_string());
+                                "app substituted a different version",
+                                name->as_C_string(), ik->name()->as_C_string());
     return false;
   }
   log_info(class, preload)("Preloading of class %s during loading of shared class %s "
@@ -1162,9 +1161,8 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
       // oops, the app has substituted a different version of k!
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                   "(cause: field type in LoadableDescriptors attribute) failed : "
-                                  "app substituted a different version of %s",
-                                  name->as_C_string(), ik->name()->as_C_string(),
-                                  name->as_C_string());
+                                  "app substituted a different version",
+                                  name->as_C_string(), ik->name()->as_C_string());
       return;
     } else if (real_k != nullptr) {
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
