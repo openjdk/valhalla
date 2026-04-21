@@ -39,8 +39,8 @@ public class AdapterInheritanceTest {
         ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder("--enable-preview", "-Xlog:adapters", "AdapterInheritanceApp");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
-        output.shouldContain("Method void B.foo(Point) successfully inherited adapter from void A.foo(Point) (scalarized: false)");
-        output.shouldContain("Super method void B.foo(Point) has scalarized/non-scalarized calling convention mismatch with interface method void J.foo(Point)");
-        output.shouldContain("Method void C.foo(Point) unable to inherit adapter from void B.foo(Point)");
+        output.shouldContain("B.foo(Point) successfully inherited adapter from void A.foo(Point) (scalarized: false)");
+        output.shouldContain("B.foo(Point) has scalarized/non-scalarized calling convention mismatch with interface method void J.foo(Point)");
+        output.shouldContain("C.foo(Point) unable to inherit adapter from void B.foo(Point)");
     }
 }
