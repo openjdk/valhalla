@@ -5731,7 +5731,7 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
 
 bool TypeAryPtr::empty(void) const {
   if (_ary->empty())       return true;
-  // FIXME: Does this belong here? Or in the meet code itself?
+  // TODO 8350865 This should go to the meet implementation
   if (is_flat() && is_not_flat()) {
     return true;
   }

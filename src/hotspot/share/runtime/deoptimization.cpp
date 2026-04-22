@@ -314,7 +314,7 @@ static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, Obj
       ArrayProperties props(checked_cast<ArrayProperties::Type>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint()));
       k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
     } else {
-      // TODO Graal needs to be fixed. Just go with the default properties for now
+      // TODO 8382708 JVMCI does not yet pass properties. Just go with the default for now.
       k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayProperties::Default(), THREAD);
     }
   }

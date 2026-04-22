@@ -6608,7 +6608,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     //
     // Space for the return pc and saved rbp is reserved twice. But only the #1 copies
     // contain the real values of return pc and saved rbp. The #2 copies are not reliable
-    // and should not be used. They are mostly needed to add space between the  extension
+    // and should not be used. They are mostly needed to add space between the extension
     // space and the locals, as there would be between the real arguments and the locals
     // if we don't need to do unpacking (from the scalarized entry point).
     //

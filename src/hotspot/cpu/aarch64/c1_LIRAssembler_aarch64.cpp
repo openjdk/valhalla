@@ -698,8 +698,6 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     break;
   case T_OBJECT:
   case T_ARRAY:
-    // Non-null case is not handled on aarch64 but handled on x86
-    // FIXME: do we need to add it here?
     assert(c->as_jobject() == nullptr, "should be");
     if (UseCompressedOops && !wide) {
       insn = &Assembler::strw;
@@ -1554,11 +1552,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
-  //     FIXME: do null check only if the operand is nullable
-  {
-    __ cbz(left, L_oops_not_equal);
-    __ cbz(right, L_oops_not_equal);
-  }
+  __ cbz(left, L_oops_not_equal);
+  __ cbz(right, L_oops_not_equal);
 
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();

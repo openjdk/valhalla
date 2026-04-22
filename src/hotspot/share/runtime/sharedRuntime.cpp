@@ -4191,7 +4191,6 @@ JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method
   methodHandle callee(current, callee_method);
   oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, false, CHECK);
   current->set_vm_result_oop(array);
-  current->set_vm_result_metadata(callee()); // TODO: required to keep callee live?
 JRT_END
 
 // We're returning from an interpreted method: load each field into a

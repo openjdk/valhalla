@@ -288,6 +288,8 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
+  // TODO 8350865 The refined type should be used here
+  // return ciArrayKlass::make(klass(), false, true, true);
   return ciArrayKlass::make(klass());
 }
 

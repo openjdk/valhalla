@@ -575,24 +575,20 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
   }
 }
 
-void LIR_Assembler::add_scalarized_entry_info(int pc_offset) {
-  flush_debug_info(pc_offset);
-  DebugInformationRecorder* debug_info = compilation()->debug_info_recorder();
+void LIR_Assembler::add_scalarized_debug_info(int pc_offset) {
   // The VEP and VIEP(RO) of a C1-compiled method call buffer_inline_args_xxx()
   // before doing any argument shuffling. This call may cause GC. When GC happens,
   // all the parameters are still as passed by the caller, so we just use
   // map->set_include_argument_oops() inside frame::sender_for_compiled_frame(RegisterMap* map).
-  // There's no need to build a GC map here.
+  // Deoptimization is delayed until we enter the method body, so we only need a
+  // scope for stack walking here. There are no materialized locals, expression
+  // stack entries, or monitors yet.
+  flush_debug_info(pc_offset);
   OopMap* oop_map = new OopMap(0, 0);
+  DebugInformationRecorder* debug_info = compilation()->debug_info_recorder();
   debug_info->add_safepoint(pc_offset, oop_map);
-  DebugToken* locvals = debug_info->create_scope_values(nullptr); // FIXME is this needed (for Java debugging to work properly??)
-  DebugToken* expvals = debug_info->create_scope_values(nullptr); // FIXME is this needed (for Java debugging to work properly??)
-  DebugToken* monvals = debug_info->create_monitor_values(nullptr); // FIXME: need testing with synchronized method
   bool reexecute = false;
-  bool return_oop = false; // This flag will be ignored since it used only for C2 with escape analysis.
-  bool rethrow_exception = false;
-  bool is_method_handle_invoke = false;
-  debug_info->describe_scope(pc_offset, methodHandle(), method(), 0, reexecute, rethrow_exception, is_method_handle_invoke, return_oop, false, locvals, expvals, monvals);
+  debug_info->describe_scope(pc_offset, methodHandle(), method(), 0, reexecute);
   debug_info->end_safepoint(pc_offset);
 }
 
@@ -691,13 +687,13 @@ void LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEnt
       clinit_barrier(method());
     }
     int rt_call_offset = _masm->verified_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), in_bytes(frame_map()->sp_offset_for_orig_pc()), _verified_inline_entry);
-    add_scalarized_entry_info(rt_call_offset);
+    add_scalarized_debug_info(rt_call_offset);
     break;
   }
   case CodeOffsets::Verified_Inline_Entry_RO: {
     assert(!needs_clinit_barrier_on_entry(method()), "can't be static");
     int rt_call_offset = _masm->verified_inline_ro_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), in_bytes(frame_map()->sp_offset_for_orig_pc()), _verified_inline_entry);
-    add_scalarized_entry_info(rt_call_offset);
+    add_scalarized_debug_info(rt_call_offset);
     break;
   }
   case CodeOffsets::Verified_Inline_Entry: {
