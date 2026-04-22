@@ -5370,51 +5370,26 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
   auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * BitsPerByte) << (start * BitsPerByte); };
   int64_t mask = 0;
 
-  if (UseNewCode) {
-    tty->print("##### ");
-    _class_name->print();
-    tty->print_cr("");
-  }
-
   worklist.push(InlineKlassAtOffset{0, vk});
   while (!worklist.is_empty()) {
     InlineKlassAtOffset inline_klass_at_offset = worklist.pop();
     const InlineKlass* vk = inline_klass_at_offset.vk;
     int payload_offset = vk->payload_offset() - inline_klass_at_offset.offset;
-    if (UseNewCode) {
-      tty->print("=> ");
-      vk->name()->print();
-      tty->print_cr("");
-    }
     for (const InstanceKlass* ik = vk; ik != nullptr; ik = ik->super()) {
-      if (UseNewCode) {
-        tty->print("~> ");
-        ik->name()->print();
-        tty->print_cr("");
-      }
       for (int i = 0; i < ik->total_fields_count(); ++i) {
         fieldDescriptor fd(ik, i);
         if (fd.is_static() || fd.is_injected()) continue;
-        if (UseNewCode) {
-          tty->print("-> ");
-          fd.print();
-          tty->print_cr("");
-        }
         int field_start = fd.offset() - payload_offset;
-        if (UseNewCode) tty->print_cr("  field_start=%d", field_start);
         if (fd.is_flat()) {
           assert(ik->inline_layout_info_array() != nullptr, "");
           assert(i < ik->inline_layout_info_array()->length(), "");
           InlineLayoutInfo ili = ik->inline_layout_info(i);
           if (LayoutKindHelper::is_nullable_flat(ili.kind())) {
             int nm_offset = field_start + ili.klass()->null_marker_offset_in_payload();
-            if (UseNewCode) tty->print_cr("  nm_offset=%d", field_start);
             if (nm_offset >= 8) {
-              if (UseNewCode) tty->print_cr("  null marker out of bounds => BREAK");
               return;
             }
             int64_t mask_piece = make_mask_piece(nm_offset, 1);
-            if (UseNewCode) tty->print_cr("  null marker mask piece " INT64_FORMAT_X_0, mask_piece);
             mask |= mask_piece;
           }
           worklist.push(InlineKlassAtOffset{field_start, ili.klass()});
@@ -5422,30 +5397,22 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
           BasicType bt = fd.field_type();
           int field_size = type2aelembytes(bt);
           int field_end = field_start + field_size - 1;
-          if (UseNewCode) tty->print_cr("  start:%d size:%d end:%d", field_start, field_size, field_end);
           if (!is_java_primitive(bt)) {
-            if (UseNewCode) tty->print_cr("  field is an oop => BREAK");
             return;
           } else if (field_end >= 8) {
-            if (UseNewCode) tty->print_cr("  field is out of bounds => BREAK");
             return;
           } else {
             int64_t mask_piece = make_mask_piece(field_start, field_size);
-            if (UseNewCode) tty->print_cr("  mask piece " INT64_FORMAT_X_0, mask_piece);
             mask |= mask_piece;
           }
         }
-        if (UseNewCode) tty->print_cr("------");
       }
-      if (UseNewCode) tty->print_cr(".....");
     }
-    if (UseNewCode) tty->print_cr("======");
   }
 
   // If the mask starts with 0s we can move it to a lower offset (toward the beginning of the object) to make sure not to over-read.
   // Since an object cannot be less than 8 bytes, it's surely safe.
   if (mask == 0) {
-    if (UseNewCode) tty->print_cr("payload_offset: %d\nmask offset: %d\nmask: " INT64_FORMAT_X_0 "\n", _layout_info->_payload_offset, 0, mask);
     vk->set_fast_acmp_offset(0);
     vk->set_fast_acmp_mask(mask);
   } else {
@@ -5455,7 +5422,6 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
     assert(count_leading_zeros(mask) == 0, "fast acmp mask can be moved further!");
     int offset = _layout_info->_payload_offset - leading_zeroes / BitsPerByte;
     assert(offset >= 0, "fast acmp path shouldn't load before the object");
-    if (UseNewCode) tty->print_cr("payload_offset: %d\nmask offset: %d\nmask: " INT64_FORMAT_X_0 "\n", _layout_info->_payload_offset, offset, mask);
     vk->set_fast_acmp_offset(offset);
     vk->set_fast_acmp_mask(mask);
   }
