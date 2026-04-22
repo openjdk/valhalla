@@ -179,6 +179,13 @@ void InlineLayoutInfo::print_on(outputStream* st) const {
   st->print("_null_marker_offset: %d", _null_marker_offset);
 }
 
+bool InstanceKlass::is_naturally_atomic(bool null_free) const {
+  assert(!is_identity_class(), "Doesn't have sense for an identity class");
+  if (!_misc_flags.is_naturally_atomic()) return false;
+  if (null_free) return true;
+  return InlineKlass::cast(this)->is_empty_inline_type();
+}
+
 bool InstanceKlass::_finalization_enabled = true;
 static int call_class_initializer_counter = 0;   // for debugging
 

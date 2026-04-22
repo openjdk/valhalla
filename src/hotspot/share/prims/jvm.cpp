@@ -592,7 +592,8 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jarray array))
     if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) {
       return true;
     }
-    if (fak->element_klass()->is_naturally_atomic()) {
+    bool is_null_free = !LayoutKindHelper::is_nullable_flat(fak->layout_kind());
+    if (fak->element_klass()->is_naturally_atomic(is_null_free)) {
       return true;
     }
 

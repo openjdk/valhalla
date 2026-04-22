@@ -79,7 +79,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
     if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
-      if (vk->is_naturally_atomic() && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
+      if (vk->is_naturally_atomic(true) && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
       return (vk->has_null_free_atomic_layout() && can_use_atomic_flat) ? LayoutKind::NULL_FREE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return vk->has_null_free_non_atomic_layout() ? LayoutKind::NULL_FREE_NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
@@ -976,7 +976,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
         InlineKlass* vk = _inline_layout_info_array->adr_at(field_index)->klass();
-        if (!vk->is_naturally_atomic()) _has_non_naturally_atomic_fields = true;
+        if (!vk->is_naturally_atomic(true)) _has_non_naturally_atomic_fields = true;
         group->add_flat_field(idx, vk, lk);
         _inline_layout_info_array->adr_at(field_index)->set_kind(lk);
         _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
@@ -1190,8 +1190,19 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   // Determining if the value class is naturally atomic:
   if ((!_layout->super_has_nonstatic_fields() && _declared_nonstatic_fields_count <= 1 && !_has_non_naturally_atomic_fields)
-      || (_layout->super_has_nonstatic_fields() && _super_klass->is_naturally_atomic() && _declared_nonstatic_fields_count == 0)) {
-        _is_naturally_atomic = true;
+      || (_layout->super_has_nonstatic_fields() && _super_klass->is_naturally_atomic(true) && _declared_nonstatic_fields_count == 0)) {
+    if (_declared_nonstatic_fields_count == 1) {
+        LayoutRawBlock* field = _layout->first_field_block();
+        bool is_nullable_flat = LayoutKindHelper::is_nullable_flat(field->layout_kind());
+        bool is_empty_value = is_nullable_flat ? field->inline_klass()->is_empty_inline_type() : false;
+        if (is_nullable_flat && !is_empty_value) {
+          _is_naturally_atomic = false;
+        } else {
+          _is_naturally_atomic = true;
+        }
+    } else {
+      _is_naturally_atomic = true;
+    }
   }
 
   // At this point, the characteristics of the raw layout (used in standalone instances) are known.
