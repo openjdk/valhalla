@@ -90,14 +90,12 @@ public final class GenValueClasses extends AbstractProcessor {
     // Matches preprocessor option flag in CompileJavaModules.gmk.
     static final String OUTDIR_OPTION_KEY = "valueclasses.outdir";
 
-    private ProcessingEnvironment processingEnv = null;
     private Path outDir = null;
     private Trees trees = null;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        this.processingEnv = processingEnv;
         String outDir = this.processingEnv.getOptions().get(OUTDIR_OPTION_KEY);
         if (outDir != null) {
             // No need to convert '/' for Windows in build tools.
