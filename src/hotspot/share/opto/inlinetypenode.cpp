@@ -1617,6 +1617,12 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
     return Type::TOP;
   }
   const Type* t = toop->filter_speculative(_type);
+  // Because of contradicting type profiling, we can end up with top as speculative type,
+  // which would then get removed by cleanup_speculative. In this case we have to run filter_speculative
+  // again, otherwise we would break the idempotence of Value
+  if (t->speculative() == nullptr && toop->speculative() != nullptr) {
+    t = toop->filter_speculative(t);
+  }
   if (t->singleton()) {
     // Don't replace InlineType by a constant
     t = _type;
