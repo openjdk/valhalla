@@ -773,7 +773,7 @@ public:
       DEFINE_CLASS_ID(InlineType, Type, 8)
       DEFINE_CLASS_ID(Con, Type, 9)
           DEFINE_CLASS_ID(ConI, Con, 0)
-    DEFINE_CLASS_ID(SafePointScalarMerge, Type, 10)
+      DEFINE_CLASS_ID(SafePointScalarMerge, Type, 10)
       DEFINE_CLASS_ID(Convert, Type, 11)
 
 
