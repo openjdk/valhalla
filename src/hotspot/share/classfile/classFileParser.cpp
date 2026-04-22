@@ -5386,7 +5386,7 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
           InlineLayoutInfo ili = ik->inline_layout_info(i);
           if (LayoutKindHelper::is_nullable_flat(ili.kind())) {
             int nm_offset = field_start + ili.klass()->null_marker_offset_in_payload();
-            if (nm_offset >= 8) {
+            if (nm_offset >= BytesPerLong) {
               return;
             }
             int64_t mask_piece = make_mask_piece(nm_offset, 1);
@@ -5399,7 +5399,7 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
           int field_end = field_start + field_size - 1;
           if (!is_java_primitive(bt)) {
             return;
-          } else if (field_end >= 8) {
+          } else if (field_end >= BytesPerLong) {
             return;
           } else {
             int64_t mask_piece = make_mask_piece(field_start, field_size);
