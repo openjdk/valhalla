@@ -26,13 +26,13 @@ package compiler.valhalla.inlinetypes;
 /*
  * @test
  * @bug 8380927
- * @summary Polluted call-site profiling must not break the idempotence of InlineTypeNode::Value
+ * @summary Polluted callsite profiling must not break the idempotence of InlineTypeNode::Value
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -Xbatch
- *                   -XX:VerifyIterativeGVN=1110
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
+ *                   -XX:-TieredCompilation -XX:VerifyIterativeGVN=1110
  *                   -XX:CompileCommand=compileonly,${test.main.class}::test
  *                   -XX:CompileCommand=dontinline,${test.main.class}::call
  *                   -XX:+AlwaysIncrementalInline -XX:-InlineTypeReturnedAsFields
@@ -61,7 +61,7 @@ public class TestPollutedCallsiteProfileInlineType {
     static MyValue callWrapper(boolean throwRE) {
         return call(throwRE); // profile at callsite: ProfileAlwaysNull
     }
-    
+
     public static MyValue test() {
         return callWrapper(true); // profile at callsite: ProfileNeverNull
     }
