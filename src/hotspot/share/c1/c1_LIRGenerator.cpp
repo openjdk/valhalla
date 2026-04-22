@@ -1916,7 +1916,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flat_array) {
-    // TODO 8350865 This is currently dead code and still assumes that flat arrays are n
+    // TODO 8350865 This is currently dead code and still assumes that flat arrays are null-free
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
