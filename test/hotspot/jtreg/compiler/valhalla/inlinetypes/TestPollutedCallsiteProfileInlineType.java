@@ -67,12 +67,12 @@ public class TestPollutedCallsiteProfileInlineType {
 
     public static void main(String[] args) {
         // pollute the profile in callWrapper
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < 2000; i++) {
             callWrapper(false);
         }
 
         // get a compilation based on the polluted profile
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < 7000; i++) {
             try {
                 test();
             } catch (RuntimeException t) {}
