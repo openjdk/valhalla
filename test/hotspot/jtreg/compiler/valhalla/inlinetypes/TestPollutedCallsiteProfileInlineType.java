@@ -31,7 +31,8 @@ package compiler.valhalla.inlinetypes;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xbatch
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions
+ *                   -XX:+UnlockDiagnosticVMOptions -Xbatch
  *                   -XX:-TieredCompilation -XX:VerifyIterativeGVN=1110
  *                   -XX:CompileCommand=compileonly,${test.main.class}::test
  *                   -XX:CompileCommand=dontinline,${test.main.class}::call
@@ -41,11 +42,9 @@ package compiler.valhalla.inlinetypes;
  */
 
 public class TestPollutedCallsiteProfileInlineType {
-    static value class MyValue {
-        int i = 0;
-    }
+    static value class MyValue {}
 
-    public static MyValue call(boolean throwRE) {
+    static MyValue call(boolean throwRE) {
         if (throwRE) {
             // 1) At the outer callsite (in test) we want ProfileNeverNull:
             // ==> we should never observe a null return value
@@ -59,11 +58,11 @@ public class TestPollutedCallsiteProfileInlineType {
     }
 
     static MyValue callWrapper(boolean throwRE) {
-        return call(throwRE); // profile at callsite: ProfileAlwaysNull
+        return call(throwRE); // profile: ProfileAlwaysNull
     }
 
-    public static MyValue test() {
-        return callWrapper(true); // profile at callsite: ProfileNeverNull
+    static MyValue test() {
+        return callWrapper(true); // profile: ProfileNeverNull
     }
 
     public static void main(String[] args) {
