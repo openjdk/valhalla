@@ -286,7 +286,7 @@ public class TestAcmpFastPath {
         return a != b;
     }
 
-    // No acm fast path: the type is precise, and the call will be intrinsified
+    // No acmp fast path: the type is precise, and the call will be intrinsified
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, failOn = {AND_L})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, failOn = {AND_L, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
@@ -300,7 +300,7 @@ public class TestAcmpFastPath {
         return a != b;
     }
 
-    // No acm fast path: single concrete derived
+    // No acmp fast path: single concrete derived
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, failOn = {AND_L})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, failOn = {AND_L, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
@@ -314,7 +314,7 @@ public class TestAcmpFastPath {
         return a != b;
     }
 
-    // No acm fast path: the type is precise, and the call will be intrinsified
+    // No acmp fast path: the type is precise, and the call will be intrinsified
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, failOn = {AND_L})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, failOn = {AND_L, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
@@ -328,7 +328,7 @@ public class TestAcmpFastPath {
         return a != b;
     }
 
-    // Get acm fast path: multiple derived
+    // Get acmp fast path: multiple derived
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
@@ -342,7 +342,7 @@ public class TestAcmpFastPath {
         return a != b;
     }
 
-    // No acm fast path: the lhs type is precise, and the call will be intrinsified
+    // No acmp fast path: the lhs type is precise, and the call will be intrinsified
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1"}, failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
@@ -356,7 +356,7 @@ public class TestAcmpFastPath {
         return a != b;
     }
 
-    // No acm fast path: the lhs type is precise, and the call will be intrinsified
+    // No acmp fast path: the lhs type is precise, and the call will be intrinsified
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, failOn = {AND_L})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, failOn = {AND_L, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})

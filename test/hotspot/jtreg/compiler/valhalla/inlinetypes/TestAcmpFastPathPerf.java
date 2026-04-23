@@ -34,7 +34,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-// In debug build, it's about 1s with acm fast path, ~ 4 min without, and < 0.5s without Valhalla
+// In debug build, it's about 1s with acmp fast path, ~ 4 min without, and < 0.5s without Valhalla
 // In product build, it's resp. 1s, 1 min, < 0.5s.
 public class TestAcmpFastPathPerf {
     static final int BIG_SIZE = 10_000;
