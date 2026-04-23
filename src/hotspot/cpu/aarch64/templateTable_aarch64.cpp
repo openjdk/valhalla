@@ -3991,7 +3991,6 @@ void TemplateTable::checkcast()
   if (ProfileInterpreter) {
     __ profile_null_seen(r2);
   }
-
   __ bind(done);
 }
 

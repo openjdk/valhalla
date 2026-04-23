@@ -3988,6 +3988,7 @@ void TemplateTable::instanceof() {
   // rax = 1: obj != nullptr and obj is     an instanceof the specified klass
 }
 
+
 //----------------------------------------------------------------------------------------------------
 // Breakpoints
 void TemplateTable::_breakpoint() {

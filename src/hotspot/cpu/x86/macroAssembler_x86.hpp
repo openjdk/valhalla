@@ -547,7 +547,6 @@ public:
   }
 
   // allocation
-
   void tlab_allocate(
     Register obj,                      // result: pointer to object after successful allocation
     Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
