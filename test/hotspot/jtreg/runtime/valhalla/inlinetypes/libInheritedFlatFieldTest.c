@@ -52,3 +52,7 @@ Java_runtime_valhalla_inlinetypes_InheritedFlatFieldTest_writeBaseValue(JNIEnv* 
     jfieldID field_id = get_field_id(env, obj, BASE_FIELD_NAME);
     (*env)->SetObjectField(env, obj, field_id, value);
 }
+
+#undef VALUE_SIGNATURE
+#undef BASE_FIELD_NAME
+#undef DERIVED_FIELD_NAME

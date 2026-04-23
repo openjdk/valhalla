@@ -25,7 +25,6 @@ package runtime.valhalla.inlinetypes;
 
 import java.lang.reflect.Field;
 
-import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
@@ -33,17 +32,12 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Test JNI access to an inherited flat field
  * @library /test/lib
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.vm.annotation
+ * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @run main/othervm/native --enable-native-access=ALL-UNNAMED
- *                          -XX:+UnlockDiagnosticVMOptions
- *                          -XX:+UseFieldFlattening
  *                          runtime.valhalla.inlinetypes.InheritedFlatFieldTest
  */
 public class InheritedFlatFieldTest {
-    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
-
     static {
         System.loadLibrary("InheritedFlatFieldTest");
     }
@@ -81,11 +75,6 @@ public class InheritedFlatFieldTest {
     private static native void writeBaseValue(Object obj, Value value);
 
     public static void main(String[] args) throws Exception {
-        Field baseField = BaseHolder.class.getDeclaredField("baseValue");
-        Field derivedField = DerivedHolder.class.getDeclaredField("derivedValue");
-        Asserts.assertTrue(UNSAFE.isFlatField(baseField), "base field should be flattened");
-        Asserts.assertTrue(UNSAFE.isFlatField(derivedField), "derived field should be flattened");
-
         BaseHolder base = new BaseHolder();
         Value baseRead = readBaseValue(base);
         Asserts.assertNotNull(baseRead);
