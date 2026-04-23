@@ -66,7 +66,7 @@ abstract class AbstractKlassFactory<T extends Klass> extends Factory<T> {
         this.operatorLimit = operatorLimit;
         this.level = level;
         interfaces = new ArrayList<>();
-        abstractProbabilityAdjustment = 0.2; // Probability to consider making class an abstract
+        abstractProbabilityAdjustment = 0.2; // Probability to consider making class abstract
     }
 
     @Override
