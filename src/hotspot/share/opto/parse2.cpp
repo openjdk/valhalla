@@ -2304,6 +2304,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   IfNode* mask_iff = nullptr;
   // If any operand has a precisely known type, isSubstitutable will be intrinsified, so we don't need the fast path
   if (!_gvn.type(not_null_left)->is_inlinetypeptr() && !_gvn.type(not_null_right)->is_inlinetypeptr()) {
+    /* Here, we are generating the fast path (the slow path being the call to isSubstitutable)
+     * See the declarations of _fast_acmp_offset and _fast_acmp_mask in InlineKlass::Members
+     * for details about the fast path logic, and the meaning of these values.
+     */
     Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
     Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
     Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
