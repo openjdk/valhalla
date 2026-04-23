@@ -841,6 +841,7 @@ class GraphKit : public Phase {
   Node* flat_array_test(Node* array_or_klass, bool flat = true);
   Node* null_free_array_test(Node* array, bool null_free = true);
   Node* null_free_atomic_array_test(Node* array, ciInlineKlass* vk);
+  Node* atomic_layout_array_test_and_get_layout_kind(Node* array, RegionNode* atomic_region);
   Node* inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
 
   Node* gen_subtype_check(Node* obj, Node* superklass);
