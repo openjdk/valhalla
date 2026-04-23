@@ -34,7 +34,6 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -392,9 +391,7 @@ bool ciInstanceKlass::has_finalizable_subclass() {
   return Dependencies::find_finalizable_subclass(get_instanceKlass()) != nullptr;
 }
 
-// ------------------------------------------------------------------
-// ciInstanceKlass::contains_field_offset
-bool ciInstanceKlass::contains_field_offset(int offset) {
+bool ciInstanceKlass::contains_field_offset(int offset) const {
   VM_ENTRY_MARK;
   return get_instanceKlass()->contains_field_offset(offset);
 }

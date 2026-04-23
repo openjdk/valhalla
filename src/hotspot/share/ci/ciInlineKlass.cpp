@@ -27,7 +27,6 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/array.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -63,14 +62,14 @@ bool ciInlineKlass::is_empty() {
   return nof_declared_nonstatic_fields() == 0;
 }
 
-int ciInlineKlass::inline_arg_length() {
+int ciInlineKlass::inline_arg_length() const {
   VM_ENTRY_MARK;
   return get_InlineKlass()->extended_sig()->length();
 }
 
 // When passing an inline type's fields as arguments, count the number
 // of argument slots that are needed
-int ciInlineKlass::inline_arg_slots() {
+int ciInlineKlass::inline_arg_slots() const {
   VM_ENTRY_MARK;
   const Array<SigEntry>* sig_vk = get_InlineKlass()->extended_sig();
   int slots = 0;

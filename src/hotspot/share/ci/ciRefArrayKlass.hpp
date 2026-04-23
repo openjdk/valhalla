@@ -39,12 +39,12 @@ protected:
     assert(k->is_refArray_klass(), "wrong type");
   }
 
-  virtual const char* type_string() override { return "ciRefArrayKlass"; }
+  const char* type_string() override { return "ciRefArrayKlass"; }
 
 public:
-  virtual bool is_ref_array_klass() const override { return true; }
+  bool is_ref_array_klass() const override { return true; }
 
-  virtual ciKlass* exact_klass() override {
+  ciKlass* exact_klass() override {
     return this;
   }
 };

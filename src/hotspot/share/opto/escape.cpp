@@ -1336,7 +1336,6 @@ bool ConnectionGraph::reduce_phi_on_safepoints_helper(Node* ophi, Node* cast, No
 #ifdef ASSERT
       const Type* res_type = alloc->result_cast()->bottom_type();
       if (res_type->is_inlinetypeptr() && !Compile::current()->has_circular_inline_type()) {
-        PhiNode* phi = ophi->as_Phi();
         assert(!ophi->as_Phi()->can_push_inline_types_down(_igvn), "missed earlier scalarization opportunity");
       }
 #endif
