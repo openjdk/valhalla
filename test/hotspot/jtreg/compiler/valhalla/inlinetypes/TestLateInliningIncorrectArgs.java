@@ -35,6 +35,7 @@ public class TestLateInliningIncorrectArgs {
     static public void main(String[] args) {
         for (int i = 0; i < 20_000; i++) {
             test1();
+            test2();
         }
     }
 
@@ -49,6 +50,14 @@ public class TestLateInliningIncorrectArgs {
     }
 
     static int lateInlined1(MyValue1 v1, C c) {
+        return c.field;
+    }
+
+    static void test2() {
+        lateInlined2(v1, v1, c);
+    }
+
+    static int lateInlined2(MyValue1 v1, MyValue1 v2, C c) {
         return c.field;
     }
 
