@@ -660,7 +660,6 @@ public class JavaCodeVisitor implements Visitor<String> {
     public String visit(ValueKlass node) {
         TypeKlass thisKlass = node.getThisKlass();
         String r = (ProductionParams.enableStrictFP.value() ? "strictfp " : "")
-                + (thisKlass.isFinal() ? "final " : "")
                 + (thisKlass.isAbstract() ? "abstract " : "")
                 + "value class " + node.getName()
                 + (node.getParentKlass() != null && !node.getParentKlass().equals(TypeList.OBJECT)
