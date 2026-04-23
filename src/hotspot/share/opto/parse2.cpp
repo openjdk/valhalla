@@ -2484,7 +2484,7 @@ IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallSt
   if (!zero_i->type()->is_int()->is_con(0)) return nullptr;
 
   assert(load_offset->in(2) != nullptr, "");
-  if(!load_offset->in(2)->is_AddP()) return nullptr;
+  if (!load_offset->in(2)->is_AddP()) return nullptr;
   AddPNode* offset_addr_add = load_offset->in(2)->as_AddP();
 
   assert(offset_addr_add->in(AddPNode::Base) != nullptr, "");
@@ -2496,7 +2496,7 @@ IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallSt
   if (!is_con_offset(offset_addr_add->in(AddPNode::Offset), InlineKlass::fast_acmp_offset_offset())) return nullptr;
 
   assert(load_members->in(2) != nullptr, "");
-  if(!load_members->in(2)->is_AddP()) return nullptr;
+  if (!load_members->in(2)->is_AddP()) return nullptr;
   AddPNode* members_addr_add = load_members->in(2)->as_AddP();
 
   assert(members_addr_add->in(AddPNode::Base) != nullptr, "");

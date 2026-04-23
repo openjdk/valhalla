@@ -100,7 +100,7 @@ class InlineKlass: public InstanceKlass {
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
     /* When we can't intrinsify the substitutability check, we can still avoid the call to isSubstitutable at runtime if the value object is small enough.
-     * If all the fields are contained at once in a single long, we can load such a long on both operand, use a bitwise mask to remove the extra bits
+     * If all the fields are contained at once in a single long, we can load such a long from both operands, use a bitwise mask to remove the extra bits
      * (from header, padding...), and compare these masked long.
      *
      * This doesn't always apply, for instance, if there are oops among the fields, we shouldn't carelessly load and compare: the GC might move the object in between.
@@ -204,7 +204,7 @@ class InlineKlass: public InstanceKlass {
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
-  int64_t fast_acmp_offset() const                              { return members()._fast_acmp_offset; }
+  int64_t fast_acmp_offset() const                            { return members()._fast_acmp_offset; }
   void set_fast_acmp_offset(int offset)                       { members()._fast_acmp_offset = offset; }
 
   int64_t fast_acmp_mask() const                              { return members()._fast_acmp_mask; }
