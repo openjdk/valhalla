@@ -43,10 +43,7 @@ protected:
 
 public:
   bool is_ref_array_klass() const override { return true; }
-
-  ciKlass* exact_klass() override {
-    return this;
-  }
+  ciKlass* exact_klass() override { return this; }
 };
 
 #endif // SHARE_VM_CI_CIREFARRAYKLASS_HPP
