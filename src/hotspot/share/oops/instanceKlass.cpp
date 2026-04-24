@@ -179,11 +179,25 @@ void InlineLayoutInfo::print_on(outputStream* st) const {
   st->print("_null_marker_offset: %d", _null_marker_offset);
 }
 
+// A value class is considered naturally atomic if its layout,
+// once all fields flattening have been applied, contains a single primitive
+// or oop field. Because primitive types and oops are already handled
+// atomically by the JVM, it means that there's no need to take
+// special precautions when reading or writing this value to guarantee
+// cross-fields invariants. Nullability has to be taken into consideration,
+// as the null-marker has to be considered as a pseudo-field which must
+// be kept consistent with the payload. The only kind of value class
+// that can be considered naturally atomic when nullable is the empty
+// value classes because the dummy field is re-used as a null-marker.
 bool InstanceKlass::is_naturally_atomic(bool null_free) const {
   assert(!is_identity_class(), "Doesn't have sense for an identity class");
-  if (!_misc_flags.is_naturally_atomic()) return false;
-  if (null_free) return true;
-  return InlineKlass::cast(this)->is_empty_inline_type();
+  if (null_free) {
+    // No extra null-marker, just check the layout of the fields
+    return _misc_flags.is_naturally_atomic();
+  } else {
+    // Requires a null-marker, can't have any other fields
+    return InlineKlass::cast(this)->is_empty_inline_type();
+  }
 }
 
 bool InstanceKlass::_finalization_enabled = true;
