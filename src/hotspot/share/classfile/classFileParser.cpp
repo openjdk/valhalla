@@ -5363,20 +5363,15 @@ struct InlineKlassAtOffset {
 };
 
 // We exit early if fast path doesn't apply: the default value for _fast_acmp_offset and _fast_acmp_mask is fine for that.
-void ClassFileParser::set_fast_acmp_members_old(InlineKlass* vk) const {
+void ClassFileParser::set_fast_acmp_members_old(InlineKlass* outer_vk) const {
+  if (UseNewCode) tty->print_cr("OLD WAY");
 #ifdef VM_LITTLE_ENDIAN
   GrowableArray<InlineKlassAtOffset> worklist;
 
   auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * BitsPerByte) << (start * BitsPerByte); };
   int64_t mask = 0;
 
-  if (UseNewCode) {
-    tty->print("##### ");
-    _class_name->print();
-    tty->print_cr("");
-  }
-
-  worklist.push(InlineKlassAtOffset{0, vk});
+  worklist.push(InlineKlassAtOffset{0, outer_vk});
   while (!worklist.is_empty()) {
     InlineKlassAtOffset inline_klass_at_offset = worklist.pop();
     const InlineKlass* vk = inline_klass_at_offset.vk;
@@ -5411,8 +5406,8 @@ void ClassFileParser::set_fast_acmp_members_old(InlineKlass* vk) const {
             if (UseNewCode) tty->print_cr("  nm_offset=%d", field_start);
             if (nm_offset >= BytesPerLong) {
               if (UseNewCode) tty->print_cr("  null marker out of bounds => BREAK");
-              assert(vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", vk->fast_acmp_offset());
-              assert(vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+              assert(outer_vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", outer_vk->fast_acmp_offset());
+              assert(outer_vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, outer_vk->fast_acmp_mask());
               return;
             }
             int64_t mask_piece = make_mask_piece(nm_offset, 1);
@@ -5427,13 +5422,13 @@ void ClassFileParser::set_fast_acmp_members_old(InlineKlass* vk) const {
           if (UseNewCode) tty->print_cr("  start:%d size:%d end:%d", field_start, field_size, field_end);
           if (!is_java_primitive(bt)) {
             if (UseNewCode) tty->print_cr("  field is an oop => BREAK");
-            assert(vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", vk->fast_acmp_offset());
-            assert(vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+            assert(outer_vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", outer_vk->fast_acmp_offset());
+            assert(outer_vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, outer_vk->fast_acmp_mask());
             return;
           } else if (field_end >= BytesPerLong) {
             if (UseNewCode) tty->print_cr("  field is out of bounds => BREAK");
-            assert(vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", vk->fast_acmp_offset());
-            assert(vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+            assert(outer_vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", outer_vk->fast_acmp_offset());
+            assert(outer_vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, outer_vk->fast_acmp_mask());
             return;
           } else {
             int64_t mask_piece = make_mask_piece(field_start, field_size);
@@ -5452,8 +5447,8 @@ void ClassFileParser::set_fast_acmp_members_old(InlineKlass* vk) const {
   // Since an object cannot be less than 8 bytes, it's surely safe.
   if (mask == 0) {
     if (UseNewCode) tty->print_cr("payload_offset: %d\nmask offset: %d\nmask: " INT64_FORMAT_X_0 "\n", _layout_info->_payload_offset, 0, mask);
-    assert(vk->fast_acmp_offset() == 0, "fast_acmp_offset: %d", vk->fast_acmp_offset());
-    assert(vk->fast_acmp_mask() == mask, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+    assert(outer_vk->fast_acmp_offset() == 0, "fast_acmp_offset: %d", outer_vk->fast_acmp_offset());
+    assert(outer_vk->fast_acmp_mask() == mask, "fast_acmp_offset: " INT64_FORMAT_X_0, outer_vk->fast_acmp_mask());
   } else {
     int leading_zeroes = static_cast<int>(count_leading_zeros(mask));
     assert(leading_zeroes % BitsPerByte == 0, "we should mask full bytes");
@@ -5462,8 +5457,8 @@ void ClassFileParser::set_fast_acmp_members_old(InlineKlass* vk) const {
     int offset = _layout_info->_payload_offset - leading_zeroes / BitsPerByte;
     assert(offset >= 0, "fast acmp path shouldn't load before the object");
     if (UseNewCode) tty->print_cr("payload_offset: %d\nmask offset: %d\nmask: " INT64_FORMAT_X_0 "\n", _layout_info->_payload_offset, offset, mask);
-    assert(vk->fast_acmp_offset() == offset, "fast_acmp_offset: %d vs %d", vk->fast_acmp_offset(), offset);
-    assert(vk->fast_acmp_mask() == mask, "fast_acmp_offset: " INT64_FORMAT_X_0 " vs " INT64_FORMAT_X_0, vk->fast_acmp_mask(), mask);
+    assert(outer_vk->fast_acmp_offset() == offset, "fast_acmp_offset: %d vs %d", outer_vk->fast_acmp_offset(), offset);
+    assert(outer_vk->fast_acmp_mask() == mask, "fast_acmp_offset: " INT64_FORMAT_X_0 " vs " INT64_FORMAT_X_0, outer_vk->fast_acmp_mask(), mask);
   }
 
 #else
@@ -5478,9 +5473,15 @@ void ClassFileParser::set_fast_acmp_members_old(InlineKlass* vk) const {
 // See the declarations of _fast_acmp_offset and _fast_acmp_mask in InlineKlass::Members
 // for details about the fast path logic, and the meaning of these values.
 void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
+  if (UseNewCode) {
+    tty->print("##### ");
+    _class_name->print();
+    tty->print_cr("");
+  }
   if (UseNewCode) tty->print_cr("NEW WAY");
   if (UseNewCode) tty->print_cr("  _layout_info->_oop_acmp_map->length(): %d", _layout_info->_oop_acmp_map->length());
   if (_layout_info->_oop_acmp_map->length() > 0) {  // Oops are not allowed in the fast path
+    if (UseNewCode) tty->print_cr("  contains an oop => BREAK");
     return;
   }
 
@@ -5502,6 +5503,7 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
     if (UseNewCode) tty->print_cr("  start: %d; size: %d; end: %d", field_start, field_size, field_end);
 
     if (field_end >= BytesPerLong) {  // Too far! Can't fit in a 8-byte load, fast path will not be taken
+      if (UseNewCode) tty->print_cr("  field is out of bound => BREAK");
       return;
     }
     int64_t mask_piece = make_mask_piece(field_start, field_size);
