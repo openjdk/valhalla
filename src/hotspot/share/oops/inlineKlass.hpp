@@ -204,7 +204,7 @@ class InlineKlass: public InstanceKlass {
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
-  int64_t fast_acmp_offset() const                            { return members()._fast_acmp_offset; }
+  int fast_acmp_offset() const                                { return members()._fast_acmp_offset; }
   void set_fast_acmp_offset(int offset)                       { members()._fast_acmp_offset = offset; }
 
   int64_t fast_acmp_mask() const                              { return members()._fast_acmp_mask; }

@@ -1202,11 +1202,13 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       // Check if the field layout can be optimized
       if (vt->can_emit_substitutability_check(right)) {
         PhaseIterGVN* igvn = phase->is_IterGVN();
-        // Sabotage the fast acmp path
-        IfNode* fast_path_if = Parse::acmp_fast_path_if_from_substitutable_call(phase, this);
-        if (fast_path_if != nullptr) {
-          fast_path_if->set_req(1, phase->intcon(1));
-          igvn->_worklist.push(fast_path_if);
+        if (UseAcmpFastPath) {
+          // Sabotage the fast acmp path
+          IfNode* fast_path_if = Parse::acmp_fast_path_if_from_substitutable_call(phase, this);
+          if (fast_path_if != nullptr) {
+            fast_path_if->set_req(1, phase->intcon(1));
+            igvn->_worklist.push(fast_path_if);
+          }
         }
 
         Node* ctrl = control();

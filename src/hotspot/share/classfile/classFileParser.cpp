@@ -5469,6 +5469,60 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
 #endif
 }
 
+void ClassFileParser::set_fast_acmp_members_new(InlineKlass* vk) const {
+#ifdef VM_LITTLE_ENDIAN
+  if (UseNewCode) tty->print_cr("NEW WAY");
+  if (UseNewCode) tty->print_cr("  _layout_info->_oop_acmp_map->length(): %d", _layout_info->_oop_acmp_map->length());
+  if (_layout_info->_oop_acmp_map->length() > 0) {
+    assert(vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", vk->fast_acmp_offset());
+    assert(vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+    return;
+  }
+
+  int64_t mask = 0;
+  auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * BitsPerByte) << (start * BitsPerByte); };
+
+  for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
+    int field_start = _layout_info->_nonoop_acmp_map->at(i)._offset - _layout_info->_payload_offset;
+    int field_size = _layout_info->_nonoop_acmp_map->at(i)._size;
+    int field_end = field_start + field_size - 1;
+
+    if (UseNewCode) tty->print_cr("  start: %d; size: %d; end: %d", field_start, field_size, field_end);
+
+    if (field_end >= BytesPerLong) {
+      assert(vk->fast_acmp_offset() == -1, "fast_acmp_offset: %d", vk->fast_acmp_offset());
+      assert(vk->fast_acmp_mask() == 0, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+      return;
+    }
+    int64_t mask_piece = make_mask_piece(field_start, field_size);
+    mask |= mask_piece;
+  }
+
+  // If the mask starts with 0s we can move it to a lower offset (toward the beginning of the object) to make sure not to over-read.
+  // Since an object cannot be less than 8 bytes, it's surely safe.
+  if (mask == 0) {
+    assert(vk->fast_acmp_offset() == 0, "fast_acmp_offset: %d", vk->fast_acmp_offset());
+    assert(vk->fast_acmp_mask() == mask, "fast_acmp_offset: " INT64_FORMAT_X_0, vk->fast_acmp_mask());
+  } else {
+    int leading_zeroes = static_cast<int>(count_leading_zeros(mask));
+    assert(leading_zeroes % BitsPerByte == 0, "we should mask full bytes");
+    mask <<= leading_zeroes;
+    assert(count_leading_zeros(mask) == 0, "fast acmp mask can be moved further!");
+    int offset = _layout_info->_payload_offset - leading_zeroes / BitsPerByte;
+    assert(offset >= 0, "fast acmp path shouldn't load before the object");
+    assert(vk->fast_acmp_offset() == offset, "fast_acmp_offset: %d vs %d", vk->fast_acmp_offset(), offset);
+    assert(vk->fast_acmp_mask() == mask, "fast_acmp_offset: " INT64_FORMAT_X_0 " vs " INT64_FORMAT_X_0, vk->fast_acmp_mask(), mask);
+  }
+
+#else
+  /* Leaving the mask and offset to default values (that is just "return;") is a correct and easy way to implement this for other endianness, but it will
+   * have a runtime cost in do_acmp, without the benefit. It is better, and probably easy with access to such an architecture, to adapt the logic above
+   * for big-endian architectures, but filling the mask from the other end. I prefer not to do it blindly.
+   */
+  Unimplemented()
+#endif
+}
+
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                           bool changed_by_loadhook,
                                           const ClassInstanceInfo& cl_inst_info,
@@ -5687,7 +5741,10 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
 
-    set_fast_acmp_members(vk);
+    if (UseAcmpFastPath) {
+      set_fast_acmp_members(vk);
+      set_fast_acmp_members_new(vk);
+    }
 
     vk->initialize_calling_convention(CHECK);
   }

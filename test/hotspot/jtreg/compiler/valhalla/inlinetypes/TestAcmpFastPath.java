@@ -98,6 +98,83 @@
  * @run main ${test.main.class} 6
  */
 
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 7
+ */
+
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 8
+ */
+
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 9
+ */
+
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 10
+ */
+
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 11
+ */
+
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 12
+ */
+
+/*
+ * @test
+ * @summary Test acmp fast path with value classes
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main ${test.main.class} 13
+ */
+
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
@@ -108,8 +185,14 @@ import static compiler.lib.ir_framework.IRNode.*;
 public class TestAcmpFastPath {
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        int idx = Integer.parseInt(args[0]);
+        Scenario scenario = scenarios[idx % 7];
+        if (idx / 7 == 1) {
+            scenario.addFlags("-XX:-UseAcmpFastPath");
+        }
+        scenario.addFlags();
         InlineTypes.getFramework()
-                .addScenarios(scenarios[Integer.parseInt(args[0])])
+                .addScenarios(scenario)
                 .addHelperClasses(MyValueClass1.class,
                         MyValueClass2.class,
                         MyValueClass2Inline.class)
@@ -274,14 +357,18 @@ public class TestAcmpFastPath {
 
     // Get acmp fast path
     @Test
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
-    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
     boolean eq_object(Object a, Object b) {
         return a == b;
     }
     @Test
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
-    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
     boolean neq_object(Object a, Object b) {
         return a != b;
     }
@@ -330,14 +417,18 @@ public class TestAcmpFastPath {
 
     // Get acmp fast path: multiple derived
     @Test
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
-    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
     boolean eq_base(MultiplyDerivedBase a, MultiplyDerivedBase b) {
         return a == b;
     }
     @Test
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
-    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
     boolean neq_base(MultiplyDerivedBase a, MultiplyDerivedBase b) {
         return a != b;
     }
@@ -372,14 +463,18 @@ public class TestAcmpFastPath {
 
     // Get acmp fast path
     @Test
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
-    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
     boolean eq_object_base(Object a, MultiplyDerivedBase b) {
         return a == b;
     }
     @Test
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
-    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "false"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.PRINT_IDEAL}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"UseAcmpFastPath", "true"})
     boolean neq_object_base(Object a, MultiplyDerivedBase b) {
         return a != b;
     }
@@ -394,14 +489,16 @@ public class TestAcmpFastPath {
     // Later, type becomes precise, call is intrinsified and fast path is removed.
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, failOn = {AND_L}, applyIf = {"AlwaysIncrementalInline", "false"})
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"AlwaysIncrementalInline", "true"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIfAnd = {"AlwaysIncrementalInline", "true", "UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIfAnd = {"AlwaysIncrementalInline", "true", "UseAcmpFastPath", "false"})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, failOn = {AND_L, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     boolean eq_derived_hidden_type(Derived a, Derived b) {
         return getter(a) == getter(b);
     }
     @Test
     @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, failOn = {AND_L}, applyIf = {"AlwaysIncrementalInline", "false"})
-    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIf = {"AlwaysIncrementalInline", "true"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "3", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIfAnd = {"AlwaysIncrementalInline", "true", "UseAcmpFastPath", "true"})
+    @IR(phase = {CompilePhase.AFTER_PARSING}, counts = {AND_L, "1", STATIC_CALL_OF_METHOD, "isSubstitutable.*", "1"}, applyIfAnd = {"AlwaysIncrementalInline", "true", "UseAcmpFastPath", "false"})
     @IR(phase = {CompilePhase.PRINT_IDEAL}, failOn = {AND_L, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     boolean neq_derived_hidden_type(Derived a, Derived b) {
         return getter(a) != getter(b);

@@ -920,6 +920,9 @@
                                                                             \
   develop(bool, StressCountedLoop, false,                                   \
           "Randomly delay conversion to counted loops")                     \
+                                                                            \
+  product(bool, UseAcmpFastPath, true, DIAGNOSTIC,                          \
+          "Use fast path for acmp.")                                        \
 
 // end of C2_FLAGS
 
