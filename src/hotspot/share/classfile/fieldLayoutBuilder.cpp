@@ -79,7 +79,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
     if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
-      if (vk->is_naturally_atomic(true) && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
+      if (vk->is_naturally_atomic(true /* null-free */) && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
       return (vk->has_null_free_atomic_layout() && can_use_atomic_flat) ? LayoutKind::NULL_FREE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return vk->has_null_free_non_atomic_layout() ? LayoutKind::NULL_FREE_NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
@@ -1190,7 +1190,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   // Determining if the value class is naturally atomic:
   if (_declared_nonstatic_fields_count == 0) {
-    _is_naturally_atomic = _super_klass == vmClasses::Object_klass() || _super_klass->is_naturally_atomic(true);
+    _is_naturally_atomic = _super_klass == vmClasses::Object_klass() || _super_klass->is_naturally_atomic(true /* null-free */);
   } else if (_declared_nonstatic_fields_count == 1) {
     _is_naturally_atomic = !_layout->super_has_nonstatic_fields() && !_has_non_naturally_atomic_fields;
   } else {
