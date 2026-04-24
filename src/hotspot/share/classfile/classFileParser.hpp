@@ -544,7 +544,6 @@ class ClassFileParser {
   bool supports_inline_types() const;
 
   void create_acmp_maps(InstanceKlass* ik, TRAPS);
-  void set_fast_acmp_members_old(InlineKlass* vk) const;
   void set_fast_acmp_members(InlineKlass* vk) const;
 
  public:
