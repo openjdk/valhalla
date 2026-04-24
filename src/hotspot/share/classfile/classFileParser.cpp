@@ -6286,7 +6286,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 //      are guaranteed to be found in this step even if the current class
 //      has not been recompiled with JEP 401 features enabled
 void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
-  for (FieldInfo fieldinfo : *_temp_field_info) {
+  for (int i = 0; i < _temp_field_info->length(); i++) {
+    FieldInfo& fieldinfo = _temp_field_info->at(i);
     if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
     Symbol* sig = fieldinfo.signature(cp);
     if (Signature::has_envelope(sig)) {
@@ -6319,7 +6320,7 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                      "field was annotated with @NullRestricted but loaded class is not a value class, "
                                      "the annotation is ignored",
                                      name->as_C_string(), _class_name->as_C_string());
-              fieldinfo.field_flags().update_null_free_inline_type(false);
+              fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
             }
           }
         } else {
@@ -6332,7 +6333,7 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                    "field was annotated with @NullRestricted but class is unknown, "
                                    "the annotation is ignored",
                                    name->as_C_string(), _class_name->as_C_string());
-            fieldinfo.field_flags().update_null_free_inline_type(false);
+            fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
           }
 
           // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not
@@ -6359,7 +6360,7 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                  "@NullRestricted, the annotation is ignored",
                                  _class_name->as_C_string(), name->as_C_string());
           }
-          fieldinfo.field_flags().update_null_free_inline_type(false);
+          fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
         }
       }
     }
