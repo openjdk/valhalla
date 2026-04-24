@@ -78,7 +78,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
-    if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
+    if (vk->must_be_atomic()) {
       if (vk->is_naturally_atomic() && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
       return (vk->has_null_free_atomic_layout() && can_use_atomic_flat) ? LayoutKind::NULL_FREE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
@@ -1202,7 +1202,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if (UseNullFreeNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (UseNullFreeNonAtomicValueFlattening && (!_must_be_atomic || _is_naturally_atomic)) {
       _null_free_non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _null_free_non_atomic_layout_alignment = _payload_alignment;
     }
