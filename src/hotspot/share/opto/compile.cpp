@@ -3266,8 +3266,6 @@ void Compile::Optimize() {
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
 #endif
 
-  assert(_late_inlines.length() == 0 || IncrementalInlineMH || IncrementalInlineVirtual, "not empty");
-
   if (_late_inlines.length() > 0) {
     // More opportunities to optimize virtual and MH calls.
     // Though it's maybe too late to perform inlining, strength-reducing them to direct calls is still an option.
@@ -3277,6 +3275,7 @@ void Compile::Optimize() {
     }
     process_inline_types(igvn);
   }
+  assert(_late_inlines.length() == 0, "late inline queue must be drained");
 
   {
     TracePhase tp(_t_macroExpand);
