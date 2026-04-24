@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,18 @@
 
 /**
  * @test
- * @summary Sanity tests for GetLocalObject/SetLocalObject/GetLocalInstance with value classes.
+ * @summary Sanity tests for GetLocalObject/GetLocalInstance with value classes.
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueGetSetLocal ValueGetSetLocal
+ * @run main/othervm/native -agentlib:ValueGetCtorLocal ValueGetCtorLocal
  */
 
 import java.util.Objects;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
-public class ValueGetSetLocal {
+public class ValueGetCtorLocal {
 
     @LooselyConsistentValue
     private static value class ValueClass {
@@ -53,21 +53,12 @@ public class ValueGetSetLocal {
 
         public ValueHolder(int v) {
             f1 = new ValueClass(v, v + 100);
-            f2 = new ValueClass(v + 1, v + 200);
-        }
-
-        // slot 0 is "this"
-        public void meth(ValueClass obj1,       // slot 1
-                         ValueHolder obj2) {    // slot 2
-            Object obj3 = obj2;                 // slot 3
-            // SetLocalObject can only set locals for top frame of virtual threads.
-            boolean testSetLocal = !Thread.currentThread().isVirtual();
-            if (!nTestLocals(Thread.currentThread(), testSetLocal)) {
-                throw new RuntimeException("Failed: error in nTestLocals");
+            if (!nTestCtorThis(Thread.currentThread())) {
+                throw new RuntimeException("Failed: error in nTestCtorThis #1");
             }
-            // nTestLocals sets obj3 = obj1
-            if (testSetLocal && !Objects.equals(obj3, obj1)) {
-                throw new RuntimeException("Failed: obj3 != obj1" + " (obj3 = " + obj3 + ")");
+            f2 = new ValueClass(v + 1, v + 200);
+            if (!nTestCtorThis(Thread.currentThread())) {
+                throw new RuntimeException("Failed: error in nTestCtorThis #2");
             }
         }
     }
@@ -75,8 +66,7 @@ public class ValueGetSetLocal {
     public static void main(String[] args) throws Exception {
         ValueClass testObj1 = new ValueClass(7, 8);
         ValueHolder testObj2 = new ValueHolder(9);
-        testObj2.meth(testObj1, testObj2);
     }
 
-    private static native boolean nTestLocals(Thread thread, boolean testSetLocal);
+    private static native boolean nTestCtorThis(Thread thread);
 }

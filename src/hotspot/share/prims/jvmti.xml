@@ -5888,6 +5888,9 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
+              If the frame's method is a value object constructor and
+              the requested local is the "<code>this</code>" object then the
+              value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
       </parameters>
@@ -5941,6 +5944,8 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
+              If the frame's method is a value object constructor then the 
+              value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
       </parameters>

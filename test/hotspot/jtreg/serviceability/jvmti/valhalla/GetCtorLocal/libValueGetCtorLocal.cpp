@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,11 +78,6 @@ static jobject get_local(JNIEnv *jni, jthread thread, jint depth, jint slot) {
   return value;
 }
 
-static void set_local(jthread thread, jint depth, jint slot, jobject value) {
-  LOG("SetLocalObject for slot %d\n", (int)slot);
-  check_jvmti_error(jvmti->SetLocalObject(thread, depth, slot, value), "SetLocalObject");
-}
-
 static jobject get_this(JNIEnv *jni, jthread thread, jint depth) {
   LOG("GetLocalInstance\n");
   jobject value = nullptr;
@@ -94,37 +89,36 @@ static jobject get_this(JNIEnv *jni, jthread thread, jint depth) {
 }
 
 JNIEXPORT jboolean JNICALL
-Java_ValueGetSetLocal_nTestLocals(JNIEnv *jni, jclass thisClass, jthread thread, jboolean testSetLocal) {
-  bool result = true;
+Java_ValueGetCtorLocal_nTestCtorThis(JNIEnv *jni, jclass thisClass, jthread thread) {
   const jint depth = 1;
 
-  LOG("\nnTestLocals\n");
+  jmethodID method = get_frame_method(jvmti, jni, thread, depth);
+  char* mname = get_method_name(jvmti, jni, method);
+
+  LOG("\nnTestCtorThis: frame method: %s\n", mname);
   jobject obj0 = get_local(jni, thread, depth, 0);
-  jobject obj1 = get_local(jni, thread, depth, 1);
-  jobject obj2 = get_local(jni, thread, depth, 2);
-  jobject obj3 = get_local(jni, thread, depth, 3);
   jobject obj_this = get_this(jni, thread, depth);
 
-  // obj0 is expected to be equal "this"
-  if (!jni->IsSameObject(obj0, obj_this)) {
+  // obj0 is expected to be equal to "this"
+  jboolean result = jni->IsSameObject(obj0, obj_this);
+  LOG("nTestCtorThis: obj0: %p obj_this: %p objects are equal: %d\n",
+      (void*)obj0, (void*)obj_this, result);
+
+  if (!result) {
     fatal(jni, "Failed: obj0 != obj_this\n");
-    result = false;
   }
-  // obj3 is expected to be equal obj2
-  if (!jni->IsSameObject(obj3, obj2)) {
-    fatal(jni, "Failed: obj3 != obj2\n");
-    result = false;
+  if (cached_this == nullptr) { // first call to nTestCtorThis
+    cached_this = jni->NewGlobalRef(obj_this);
+  } else {
+    // cached_this must be a snapshot that not mutate with the ctor changes
+    if (jni->IsSameObject(cached_this, obj_this)) {
+      fatal(jni, "Failed: unexpected: cached_this == obj_this\n");
+    }
   }
-
-  if (testSetLocal) {
-    // set obj3 = obj1
-    set_local(thread, depth, 3, obj1);
-  }
-
-  return result ? JNI_TRUE : JNI_FALSE;
+  deallocate(jvmti, jni, (void*)mname);
+  return result;
 }
 
 #ifdef __cplusplus
 }
 #endif
-
