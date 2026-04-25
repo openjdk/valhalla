@@ -982,7 +982,6 @@ class CompileReplay : public StackObj {
           }
           break;
         }
-
         case JVM_CONSTANT_Long:
         case JVM_CONSTANT_Double:
           parsed_two_word = i + 1;

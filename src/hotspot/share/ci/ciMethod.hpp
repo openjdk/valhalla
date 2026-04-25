@@ -271,10 +271,11 @@ class ciMethod : public ciMetadata {
   bool          argument_profiled_type(int bci, int i, ciKlass*& type, ProfilePtrKind& ptr_kind);
   bool          parameter_profiled_type(int i, ciKlass*& type, ProfilePtrKind& ptr_kind);
   bool          return_profiled_type(int bci, ciKlass*& type, ProfilePtrKind& ptr_kind);
-  bool          array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass*& element_type, ProfilePtrKind& element_ptr, bool &flat_array, bool &null_free);
+  bool          array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass*& element_type, ProfilePtrKind& element_ptr,
+                                           bool& flat_array, bool& null_free);
   bool          acmp_profiled_type(int bci, ciKlass*& left_type, ciKlass*& right_type,
                                    ProfilePtrKind& left_ptr, ProfilePtrKind& right_ptr,
-                                   bool &left_inline_type, bool &right_inline_type);
+                                   bool& left_inline_type, bool& right_inline_type);
   ciField*      get_field_at_bci( int bci, bool &will_link);
   ciMethod*     get_method_at_bci(int bci, bool &will_link, ciSignature* *declared_signature);
   ciMethod*     get_method_at_bci(int bci) {

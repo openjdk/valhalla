@@ -153,7 +153,6 @@ protected:
 
 JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
-  PhaseGVN& gvn = kit.gvn();
   bool is_static = method()->is_static();
   address target = is_static ? SharedRuntime::get_resolve_static_call_stub()
                              : SharedRuntime::get_resolve_opt_virtual_call_stub();
@@ -183,9 +182,6 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     call->set_optimized_virtual(true);
   }
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);
@@ -283,9 +279,6 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   _call_node = call;  // Save the call node in case we need it later
 
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false /*must_throw*/, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);

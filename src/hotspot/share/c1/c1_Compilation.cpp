@@ -594,6 +594,7 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
     _cfg_printer_output = new CFGPrinterOutput(this);
   }
 #endif
+
   CompilationMemoryStatisticMark cmsm(directive);
 
   compile_method();

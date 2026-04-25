@@ -1046,8 +1046,6 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
 
   // Loop over the map input edges associated with jvms, add them
   // to the call node, & reset all offsets to match call node array.
-
-  JVMState* callee_jvms = nullptr;
   for (JVMState* in_jvms = youngest_jvms; in_jvms != nullptr; ) {
     uint debug_end   = debug_ptr;
     uint debug_start = debug_ptr - in_jvms->debug_size();
@@ -1126,7 +1124,6 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     assert(out_jvms->debug_size() == in_jvms->debug_size(), "size must match");
 
     // Update the two tail pointers in parallel.
-    callee_jvms = out_jvms;
     out_jvms = out_jvms->caller();
     in_jvms  = in_jvms->caller();
   }
@@ -2182,7 +2179,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
         } ideal.end_if();
       } else {
         for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-          Node* proj =_gvn.transform(new ProjNode(call, i));
+          // Will be rewired later in replace_call().
+          _gvn.transform(new ProjNode(call, i));
         }
         ideal.set(res, ret);
       }
