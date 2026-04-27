@@ -531,6 +531,7 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
     if (b->next_block()->offset() > (b->offset() + b->size())) {
       int size = b->next_block()->offset() - (b->offset() + b->size());
       // FIXME it would be better if initial empty block where tagged as PADDING for value classes
+      // Tracked by JDK-8383383
       LayoutRawBlock* empty = new LayoutRawBlock(filling_type, size);
       empty->set_offset(b->offset() + b->size());
       empty->set_next_block(b->next_block());
