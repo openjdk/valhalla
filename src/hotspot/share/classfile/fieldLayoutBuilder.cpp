@@ -175,7 +175,7 @@ FieldGroup::FieldGroup(int contended_group) :
   _big_primitive_fields(nullptr),
   _oop_fields(nullptr),
   _contended_group(contended_group),  // -1 means no contended group, 0 means default contended group
-  _oop_count(0) {}
+  _has_embedded_oops(false) {}
 
 void FieldGroup::add_primitive_field(int idx, BasicType type) {
   int size = type2aelembytes(type);
@@ -194,7 +194,7 @@ void FieldGroup::add_oop_field(int idx) {
     _oop_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _oop_fields->append(block);
-  _oop_count++;
+  _has_embedded_oops = true;
 }
 
 void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
@@ -206,6 +206,10 @@ void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
   block->set_layout_kind(lk);
   if (block->size() >= heapOopSize) {
     add_to_big_primitive_list(block);
+
+    if (vk->contains_oops()) {
+      _has_embedded_oops = true;
+    }
   } else {
     assert(!vk->contains_oops(), "Size of Inline klass with oops should be >= heapOopSize");
     add_to_small_primitive_list(block);
@@ -1533,8 +1537,7 @@ void FieldLayoutBuilder::epilogue() {
   if (!_contended_groups.is_empty()) {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
-      if (cg->oop_count() > 0) {
-        assert(cg->oop_fields() != nullptr && cg->oop_fields()->at(0) != nullptr, "oop_count > 0 but no oop fields found");
+      if (cg->has_embedded_oops()) {
         register_embedded_oops(nonstatic_oop_maps, cg);
       }
     }

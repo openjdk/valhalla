@@ -144,7 +144,7 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* _big_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
   int _contended_group;
-  int _oop_count;
+  bool _has_embedded_oops;
   static const int INITIAL_LIST_SIZE = 16;
 
  public:
@@ -156,7 +156,7 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* big_primitive_fields() const { return _big_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
   int contended_group() const { return _contended_group; }
-  int oop_count() const { return _oop_count; }
+  bool has_embedded_oops() const { return _has_embedded_oops; }
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
