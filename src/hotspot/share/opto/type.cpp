@@ -5783,29 +5783,32 @@ const TypeAryPtr* TypeAryPtr::with_field_offset(int offset) const {
 }
 
 const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
+  if (!is_flat() || !klass_is_exact() || offset == OffsetBot || offset == OffsetTop) {
+    return add_offset(offset);
+  }
+
+  // Handle flat concrete value class array with known 'offset' which could refer to an actual field in the flat storage.
   int adj = 0;
-  if (is_flat() && klass_is_exact() && offset != Type::OffsetBot && offset != Type::OffsetTop) {
-    if (_offset.get() != OffsetBot && _offset.get() != OffsetTop) {
-      adj = _offset.get();
-      offset += _offset.get();
+  if (_offset != Offset::bottom && _offset != Offset::top) {
+    adj = _offset.get();
+    offset += _offset.get();
+  }
+  uint header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+  if (_field_offset != Offset::bottom && _field_offset != Offset::top) {
+    offset += _field_offset.get();
+    if (_offset == Offset::bottom || _offset == Offset::top) {
+      offset += header;
     }
-    uint header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
-    if (_field_offset.get() != OffsetBot && _field_offset.get() != OffsetTop) {
-      offset += _field_offset.get();
-      if (_offset.get() == OffsetBot || _offset.get() == OffsetTop) {
-        offset += header;
-      }
-    }
-    if (elem()->make_oopptr()->is_inlinetypeptr() && (offset >= (intptr_t)header || offset < 0)) {
-      // Try to get the field of the inline type array element we are pointing to
-      ciInlineKlass* vk = elem()->inline_klass();
-      int shift = flat_log_elem_size();
-      int mask = (1 << shift) - 1;
-      intptr_t field_offset = ((offset - header) & mask);
-      ciField* field = vk->get_field_by_offset(field_offset + vk->payload_offset(), false);
-      if (field != nullptr || field_offset == vk->null_marker_offset_in_payload()) {
-        return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
-      }
+  }
+  if (elem()->make_oopptr()->is_inlinetypeptr() && (offset >= (intptr_t)header || offset < 0)) {
+    // Try to get the field of the inline type array element we are pointing to
+    ciInlineKlass* vk = elem()->inline_klass();
+    int shift = flat_log_elem_size();
+    int mask = (1 << shift) - 1;
+    int field_offset = static_cast<int>((offset - header) & mask);
+    ciField* field = vk->get_field_by_offset(field_offset + vk->payload_offset(), false);
+    if (field != nullptr || field_offset == vk->null_marker_offset_in_payload()) {
+      return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
     }
   }
   return add_offset(offset - adj);
