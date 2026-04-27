@@ -5889,7 +5889,7 @@ class C2 extends C1 implements I2 {
             <description>
               On return, points to the variable's value.
               If the frame's method is a value object constructor and
-              the requested local is the "<code>this</code>" object. the
+              the requested local is the "<code>this</code>" object, the
               value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
