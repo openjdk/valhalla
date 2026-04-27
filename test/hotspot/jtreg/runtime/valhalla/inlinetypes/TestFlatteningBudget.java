@@ -68,6 +68,7 @@ public class TestFlatteningBudget {
     static class Test0 {
         public static void main(String[] args) {
             var h = new Holder();
+            System.out.println("SUCCESS");
         }
     }
 
@@ -84,13 +85,42 @@ public class TestFlatteningBudget {
         public Value1 v1;
     }
 
+
+
     // Test 1 : impact of flattening budget on flattening decisions
     static class Test1 {
         static final Unsafe UNSAFE = Unsafe.getUnsafe();
+        static HotSpotDiagnosticMXBean hsDiag = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+
+        static int getIntVMOption(String vmOption) {
+            VMOption option = hsDiag.getVMOption(vmOption);
+            return Integer.valueOf(option.getValue()).intValue();
+        }
+
+        static boolean getBooleanVMOption(String vmOption) {
+            VMOption option = hsDiag.getVMOption(vmOption);
+            return Boolean.valueOf(option.getValue()).booleanValue();
+        }
+
         public static void main(String[] args) throws Exception {
-            HotSpotDiagnosticMXBean hsDiag = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
-            VMOption flatteningBudgetOption = hsDiag.getVMOption("FlatteningBudget");
-            int flatteningBudget = Integer.valueOf(flatteningBudgetOption.getValue()).intValue();;
+
+            // Pre-conditions
+            boolean useFieldFlattening = getBooleanVMOption("UseFieldFlattening");
+            // Test cannot work properly if field flattening is disabled
+            if (!useFieldFlattening) {
+              System.out.println("Test skipped because field flattening is disabled");
+              return;
+            }
+            boolean nullableAtomicLayout = getBooleanVMOption("UseNullableAtomicValueFlattening");
+            boolean nullableNonAtomicLayout = getBooleanVMOption("UseNullableNonAtomicValueFlattening");
+            // Test cannot work properly if nullable field flattening is disabled
+            if (!nullableAtomicLayout && !nullableNonAtomicLayout) {
+              System.out.println("Test skipped because nullable flat layouts are disabled");
+              return;
+            }
+
+            // Test
+            int flatteningBudget = getIntVMOption("FlatteningBudget");
             var c = new Container();
             Class<?> klass = c.getClass();
             Field f0 = klass.getDeclaredField("v0");
@@ -113,6 +143,7 @@ public class TestFlatteningBudget {
                     throw new RuntimeException("Test 1: field f1 is unexpectedly flat with flattening budget of " + flatteningBudget);
                 }
             }
+            System.out.println("SUCCESS");
         }
     }
 
@@ -126,14 +157,16 @@ public class TestFlatteningBudget {
         }
         ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(allArgs.toArray(new String[allArgs.size()]));
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
+        System.out.println(out.getOutput());
         out.shouldHaveExitValue(0);
     }
 
     static public void main(String[] args) throws Exception {
         runTest("runtime.valhalla.inlinetypes.TestFlatteningBudget$Test0");
+        runTest("runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
         runTest("-XX:FlatteningBudget=128", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
         runTest("-XX:FlatteningBudget=4", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
         runTest("-XX:FlatteningBudget=2", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
+        runTest("-XX:FlatteningBudget=0", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
     }
-
 }
