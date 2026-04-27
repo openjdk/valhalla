@@ -32,6 +32,7 @@
  * @run main PreloadCircularityTest
  */
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,7 +68,11 @@ public class PreloadCircularityTest {
     }
 
     void test_0() throws Exception {
-        OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class0a");
+        OutputAnalyzer out = tryLoadClassAndCheckNullRestricted("PreloadCircularityTest$Class0a",
+                                                                "PreloadCircularityTest$Class0b",
+                                                                "vc",
+                                                                true);
+
         out.shouldHaveExitValue(0);
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class0b during loading of class PreloadCircularityTest$Class0a. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class0c during loading of class PreloadCircularityTest$Class0b. Cause: field type in LoadableDescriptors attribute");
@@ -117,7 +122,10 @@ public class PreloadCircularityTest {
     }
 
     void test_2() throws Exception {
-        OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class2a");
+        OutputAnalyzer out = tryLoadClassAndCheckNullRestricted("PreloadCircularityTest$Class2a",
+                                                                "PreloadCircularityTest$Class2c",
+                                                                "vb",
+                                                                false);
         out.shouldHaveExitValue(0);
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b. Cause: field type in LoadableDescriptors attribute");
@@ -162,11 +170,14 @@ public class PreloadCircularityTest {
 
     static value class Class4b {
         @NullRestricted
-        Class4a vc = new Class4a();
+        Class4a va = new Class4a();
     }
 
     void test_4() throws Exception {
-        OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class4a");
+        OutputAnalyzer out = tryLoadClassAndCheckNullRestricted("PreloadCircularityTest$Class4a",
+                                                                "PreloadCircularityTest$Class4b",
+                                                                "va",
+                                                                false);
         out.shouldHaveExitValue(0);
 
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a. Cause: field type in LoadableDescriptors attribute");
@@ -286,7 +297,21 @@ public class PreloadCircularityTest {
     public static class TestHelper {
         public static void main(String[] args) {
             try {
-                Class c = Class.forName(args[0]);
+                switch (args[0]) {
+                    case "load":
+                        Class.forName(args[1]);
+                        break;
+                    case "isNullRestricted":
+                        Class.forName(args[1]);
+
+                        Class fieldClass = Class.forName(args[2]);
+                        Field field = fieldClass.getDeclaredField(args[3]);
+                        Boolean isNullRestricted = Boolean.parseBoolean(args[4]);
+                        Asserts.assertEquals(ValueClass.isNullRestrictedField(field), isNullRestricted);
+                        break;
+                    default:
+                        throw new RuntimeException("Unknown mode: " + args[0]);
+              }
             } catch (Throwable ex) {
                 ex.printStackTrace();
                 System.exit(1);
@@ -296,7 +321,23 @@ public class PreloadCircularityTest {
     }
 
     static OutputAnalyzer tryLoadingClass(String className) throws Exception {
-        ProcessBuilder pb = exec("PreloadCircularityTest$TestHelper", className);
+        ProcessBuilder pb = exec("PreloadCircularityTest$TestHelper",
+                                 "load",
+                                 className);
+
+        OutputAnalyzer out = new OutputAnalyzer(pb.start());
+        System.out.println(out.getOutput());
+        return out;
+    }
+
+    static OutputAnalyzer tryLoadClassAndCheckNullRestricted(String loadClass, String fieldClass, String field, boolean isNullRestricted) throws Exception {
+        ProcessBuilder pb = exec("PreloadCircularityTest$TestHelper",
+                                 "isNullRestricted",
+                                 loadClass,
+                                 fieldClass,
+                                 field,
+                                 Boolean.toString(isNullRestricted));
+
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
         System.out.println(out.getOutput());
         return out;
@@ -305,6 +346,7 @@ public class PreloadCircularityTest {
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
         Collections.addAll(argsList, "--enable-preview");
+        Collections.addAll(argsList, "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, "-Xlog:class+preload=info");
         Collections.addAll(argsList, args);
