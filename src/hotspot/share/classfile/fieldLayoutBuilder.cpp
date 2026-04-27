@@ -111,7 +111,6 @@ static LayoutKind adjust_with_budget(FieldInfo field_info, Array<InlineLayoutInf
   InlineKlass* vk = inline_field_info->klass();
   int size = vk->layout_size_in_bytes(lk);
   if (size > *budget) {
-    *budget = 0;
     return LayoutKind::REFERENCE;
   } else {
     *budget -= size;
