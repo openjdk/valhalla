@@ -1691,7 +1691,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
                   value.result(), info != nullptr ? new CodeEmitInfo(info) : nullptr, info);
 }
 
-// FIXME -- I can't find any other way to pass an address to access_load_at().
+// TODO 8350865 Can we find another way to pass an address to access_load_at()?
 class TempResolvedAddress: public Instruction {
  public:
   TempResolvedAddress(ValueType* type, LIR_Opr addr) : Instruction(type) {
@@ -1703,6 +1703,10 @@ class TempResolvedAddress: public Instruction {
 };
 
 LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& index) {
+#ifndef _LP64
+  // We need to be careful with overflows in 32-bit arithmetic
+  Unimplemented();
+#endif
   ciType* array_type = array.value()->declared_type();
   ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
   assert(flat_array_klass->is_loaded(), "must be");
@@ -1710,18 +1714,6 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
   int array_header_size = flat_array_klass->array_header_in_bytes();
   int shift = flat_array_klass->log2_element_size();
 
-#ifndef _LP64
-  LIR_Opr index_op = new_register(T_INT);
-  // FIXME -- on 32-bit, the shift below can overflow, so we need to check that
-  // the top (shift+1) bits of index_op must be zero, or
-  // else throw ArrayIndexOutOfBoundsException
-  if (index.result()->is_constant()) {
-    jint const_index = index.result()->as_jint();
-    __ move(LIR_OprFact::intConst(const_index << shift), index_op);
-  } else {
-    __ shift_left(index_op, shift, index.result());
-  }
-#else
   LIR_Opr index_op = new_register(T_LONG);
   if (index.result()->is_constant()) {
     jint const_index = index.result()->as_jint();
@@ -1731,7 +1723,6 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
     // Need to shift manually, as LIR_Address can scale only up to 3.
     __ shift_left(index_op, shift, index_op);
   }
-#endif
 
   LIR_Opr elm_op = new_pointer_register();
   LIR_Address* elm_address = generate_address(array.result(), index_op, 0, array_header_size, T_ADDRESS);
@@ -1925,7 +1916,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flat_array) {
-    // TODO 8350865 This is currently dead code
+    // TODO 8350865 This is currently dead code and still assumes that flat arrays are null-free
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }

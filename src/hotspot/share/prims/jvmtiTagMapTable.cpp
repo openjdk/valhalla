@@ -177,8 +177,15 @@ void JvmtiTagMapKey::release_handle() {
 }
 
 JvmtiHeapwalkObject JvmtiTagMapKey::heapwalk_object() const {
-  return _obj != nullptr ? JvmtiHeapwalkObject(_obj->obj(), _obj->offset(), _obj->inline_klass(), _obj->layout_kind())
-                         : JvmtiHeapwalkObject(object_no_keepalive());
+  if (_obj != nullptr) {
+    return JvmtiHeapwalkObject(_obj->obj(), _obj->offset(), _obj->inline_klass(), _obj->layout_kind());
+  }
+  oop obj = object_no_keepalive();
+  if (obj == nullptr) {
+    // The object was deleted by CG while tag still exists
+    return JvmtiHeapwalkObject();
+  }
+  return JvmtiHeapwalkObject(obj);
 }
 
 oop JvmtiTagMapKey::object() const {

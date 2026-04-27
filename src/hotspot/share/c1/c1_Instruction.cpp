@@ -133,7 +133,7 @@ bool Instruction::is_loaded_flat_array() const {
   return false;
 }
 
-bool Instruction::maybe_flat_array() {
+bool Instruction::maybe_flat_array() const {
   if (UseArrayFlattening) {
     ciType* type = declared_type();
     if (type != nullptr) {
@@ -160,7 +160,7 @@ bool Instruction::maybe_flat_array() {
   return false;
 }
 
-bool Instruction::maybe_null_free_array() {
+bool Instruction::maybe_null_free_array() const {
   ciType* type = declared_type();
   if (type != nullptr) {
     if (type->is_obj_array_klass()) {
@@ -288,6 +288,8 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
+  // TODO 8350865 The refined type should be used here
+  // return ciArrayKlass::make(klass(), false, true, true);
   return ciArrayKlass::make(klass());
 }
 

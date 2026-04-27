@@ -396,10 +396,10 @@ public:
       ResourceMark rm;
       bool allocated_after_mark_start = r->bottom() == _g1h->concurrent_mark()->top_at_mark_start(r);
       bool mark_in_progress = _g1h->collector_state()->is_in_marking();
-      guarantee(obj->is_typeArray() || (allocated_after_mark_start || !mark_in_progress),
-                "Only eagerly reclaiming primitive arrays is supported, other humongous objects only if allocated after mark start, but the object "
-                PTR_FORMAT " (%s) is not (mark %d allocated after mark: %d).",
-                p2i(r->bottom()), obj->klass()->name()->as_C_string(), mark_in_progress, allocated_after_mark_start);
+      guarantee(_g1h->can_be_marked_through_immediately(obj) || (allocated_after_mark_start || !mark_in_progress),
+                "Only eagerly reclaiming arrays without oops is always supported, other humongous objects only if allocated after mark start, but the object "
+                PTR_FORMAT " (%s) is not (allocated after mark: %d mark in progress %d marked immediately %d is_array %d array_with_oops %d).",
+                p2i(r->bottom()), obj->klass()->name()->as_C_string(), allocated_after_mark_start, mark_in_progress, _g1h->can_be_marked_through_immediately(obj), obj->is_array(), obj->is_array_with_oops());
     }
     log_debug(gc, humongous)("Reclaimed humongous region %u (object size %zu @ " PTR_FORMAT ")",
                              region_index,
@@ -802,7 +802,7 @@ public:
     for (uint worker = 0; worker < _active_workers; worker++) {
       _worker_stats[worker].~FreeCSetStats();
     }
-    FREE_C_HEAP_ARRAY(FreeCSetStats, _worker_stats);
+    FREE_C_HEAP_ARRAY(_worker_stats);
 
     _g1h->clear_collection_set();
 

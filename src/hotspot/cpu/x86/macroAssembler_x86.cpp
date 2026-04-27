@@ -59,6 +59,7 @@
 #include "runtime/signature_cc.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER2
@@ -393,7 +394,8 @@ void MacroAssembler::warn(const char* msg) {
   // Windows always allocates space for its register args
   subq(rsp,  frame::arg_reg_save_area_bytes);
 #endif
-  lea(c_rarg0, ExternalAddress((address) msg));
+  const char* str = (code_section()->scratch_emit()) ? msg : AOTCodeCache::add_C_string(msg);
+  lea(c_rarg0, ExternalAddress((address) str));
   call(RuntimeAddress(CAST_FROM_FN_PTR(address, warning)));
 
 #ifdef _WIN64
@@ -2656,6 +2658,17 @@ void MacroAssembler::sign_extend_byte(Register reg) {
 
 void MacroAssembler::sign_extend_short(Register reg) {
   movswl(reg, reg); // movsxw
+}
+
+void MacroAssembler::narrow_subword_type(Register reg, BasicType bt) {
+  assert(is_subword_type(bt), "required");
+  switch (bt) {
+  case T_BOOLEAN: andl(reg, 1); break;
+  case T_BYTE:    movsbl(reg, reg); break;
+  case T_CHAR:    movzwl(reg, reg); break;
+  case T_SHORT:   movswl(reg, reg); break;
+  default:        ShouldNotReachHere();
+  }
 }
 
 void MacroAssembler::testl(Address dst, int32_t imm32) {
@@ -5992,7 +6005,12 @@ void MacroAssembler::encode_and_move_klass_not_null(Register dst, Register src) 
   BLOCK_COMMENT("encode_and_move_klass_not_null {");
   assert_different_registers(src, dst);
   if (CompressedKlassPointers::base() != nullptr) {
-    movptr(dst, -(intptr_t)CompressedKlassPointers::base());
+    if (AOTCodeCache::is_on_for_dump()) {
+      movptr(dst, ExternalAddress(CompressedKlassPointers::base_addr()));
+      negq(dst);
+    } else {
+      movptr(dst, -(intptr_t)CompressedKlassPointers::base());
+    }
     addq(dst, src);
   } else {
     movptr(dst, src);
@@ -6040,7 +6058,11 @@ void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src)
   } else {
     if (CompressedKlassPointers::shift() <= Address::times_8) {
       if (CompressedKlassPointers::base() != nullptr) {
-        movptr(dst, (intptr_t)CompressedKlassPointers::base());
+        if (AOTCodeCache::is_on_for_dump()) {
+          movptr(dst, ExternalAddress(CompressedKlassPointers::base_addr()));
+        } else {
+          movptr(dst, (intptr_t)CompressedKlassPointers::base());
+        }
       } else {
         xorq(dst, dst);
       }
@@ -6052,9 +6074,14 @@ void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src)
       }
     } else {
       if (CompressedKlassPointers::base() != nullptr) {
-        const intptr_t base_right_shifted =
-            (intptr_t)CompressedKlassPointers::base() >> CompressedKlassPointers::shift();
-        movptr(dst, base_right_shifted);
+        if (AOTCodeCache::is_on_for_dump()) {
+          movptr(dst, ExternalAddress(CompressedKlassPointers::base_addr()));
+          shrq(dst, CompressedKlassPointers::shift());
+        } else {
+          const intptr_t base_right_shifted =
+               (intptr_t)CompressedKlassPointers::base() >> CompressedKlassPointers::shift();
+          movptr(dst, base_right_shifted);
+        }
       } else {
         xorq(dst, dst);
       }
@@ -6131,7 +6158,7 @@ void  MacroAssembler::cmp_narrow_klass(Address dst, Klass* k) {
 
 void MacroAssembler::reinit_heapbase() {
   if (UseCompressedOops) {
-    if (Universe::heap() != nullptr) {
+    if (Universe::heap() != nullptr && !AOTCodeCache::is_on_for_dump()) {
       if (CompressedOops::base() == nullptr) {
         MacroAssembler::xorptr(r12_heapbase, r12_heapbase);
       } else {
@@ -6461,7 +6488,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
-  // TODO 8284443 Isn't it an issue if below code uses r14 as tmp when it contains a spilled value?
   // Be careful with r14 because it's used for spilling (see MacroAssembler::spill_reg_for).
   Register val_obj_tmp = r11;
   Register from_reg_tmp = r14;
@@ -6594,7 +6620,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     //
     // Space for the return pc and saved rbp is reserved twice. But only the #1 copies
     // contain the real values of return pc and saved rbp. The #2 copies are not reliable
-    // and should not be used. They are mostly needed to add space between the  extension
+    // and should not be used. They are mostly needed to add space between the extension
     // space and the locals, as there would be between the real arguments and the locals
     // if we don't need to do unpacking (from the scalarized entry point).
     //

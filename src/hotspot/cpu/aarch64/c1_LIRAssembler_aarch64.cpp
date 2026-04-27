@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
+ * Copyright 2026 Arm Limited and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +46,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/threadIdentifier.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
@@ -569,6 +571,10 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 #if INCLUDE_CDS
       if (AOTCodeCache::is_on_for_dump()) {
         address b = c->as_pointer();
+        if (b == (address)ThreadIdentifier::unsafe_offset()) {
+          __ lea(dest->as_register_lo(), ExternalAddress(b));
+          break;
+        }
         if (AOTRuntimeConstants::contains(b)) {
           __ load_aotrc_address(dest->as_register_lo(), b);
           break;
@@ -693,8 +699,6 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     break;
   case T_OBJECT:
   case T_ARRAY:
-    // Non-null case is not handled on aarch64 but handled on x86
-    // FIXME: do we need to add it here?
     assert(c->as_jobject() == nullptr, "should be");
     if (UseCompressedOops && !wide) {
       insn = &Assembler::strw;
@@ -957,8 +961,15 @@ void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
   reg2stack(temp, dest, dest->type());
 }
 
+void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type,
+                            LIR_PatchCode patch_code, CodeEmitInfo* info,
+                            bool wide) {
+  mem2reg(src, dest, type, patch_code, info, wide, false);
+}
 
-void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool wide) {
+void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type,
+                            LIR_PatchCode patch_code, CodeEmitInfo* info,
+                            bool wide, bool is_volatile) {
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
@@ -971,10 +982,27 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     return;
   }
 
+  if (is_volatile) {
+    load_volatile(from_addr, dest, type, info);
+  } else {
+    load_unordered(from_addr, dest, type, wide, info);
+  }
+
+  if (is_reference_type(type)) {
+    if (UseCompressedOops && !wide) {
+      __ decode_heap_oop(dest->as_register());
+    }
+
+    __ verify_oop(dest->as_register());
+  }
+}
+
+void LIR_Assembler::load_unordered(LIR_Address *from_addr, LIR_Opr dest,
+                                   BasicType type, bool wide, CodeEmitInfo* info) {
   if (info != nullptr) {
     add_debug_info_for_null_check_here(info);
   }
-  int null_check_here = code_offset();
+
   switch (type) {
     case T_FLOAT: {
       __ ldrs(dest->as_float_reg(), as_Address(from_addr));
@@ -1032,14 +1060,6 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     default:
       ShouldNotReachHere();
   }
-
-  if (is_reference_type(type)) {
-    if (UseCompressedOops && !wide) {
-      __ decode_heap_oop(dest->as_register());
-    }
-
-    __ verify_oop(dest->as_register());
-  }
 }
 
 void LIR_Assembler::move(LIR_Opr src, LIR_Opr dst) {
@@ -1054,6 +1074,43 @@ void LIR_Assembler::move(LIR_Opr src, LIR_Opr dst) {
     const2reg(src, dst, lir_patch_none, nullptr);
   } else {
     ShouldNotReachHere();
+  }
+}
+
+void LIR_Assembler::load_volatile(LIR_Address *from_addr, LIR_Opr dest,
+                                  BasicType type, CodeEmitInfo* info) {
+  __ lea(rscratch1, as_Address(from_addr));
+
+  Register dest_reg = rscratch2;
+  if (!is_floating_point_type(type)) {
+    dest_reg = (dest->is_single_cpu()
+                ? dest->as_register() : dest->as_register_lo());
+  }
+
+  if (info != nullptr) {
+    add_debug_info_for_null_check_here(info);
+  }
+
+  // Uses LDAR to ensure memory ordering.
+  __ load_store_volatile(dest_reg, type, rscratch1, /*is_load*/true);
+
+  switch (type) {
+    // LDAR is unsigned so need to sign-extend for byte and short
+    case T_BYTE:
+      __ sxtb(dest_reg, dest_reg);
+      break;
+    case T_SHORT:
+      __ sxth(dest_reg, dest_reg);
+      break;
+    // need to move from GPR to FPR after LDAR with FMOV for floating types
+    case T_FLOAT:
+      __ fmovs(dest->as_float_reg(), dest_reg);
+      break;
+    case T_DOUBLE:
+      __ fmovd(dest->as_double_reg(), dest_reg);
+      break;
+    default:
+      break;
   }
 }
 
@@ -1549,11 +1606,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
-  //     FIXME: do null check only if the operand is nullable
-  {
-    __ cbz(left, L_oops_not_equal);
-    __ cbz(right, L_oops_not_equal);
-  }
+  __ cbz(left, L_oops_not_equal);
+  __ cbz(right, L_oops_not_equal);
 
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
@@ -2977,7 +3031,9 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
 }
 
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
-  if (dest->is_address() || src->is_address()) {
+  if (src->is_address()) {
+    mem2reg(src, dest, type, lir_patch_none, info, /*wide*/false, /*is_volatile*/true);
+  } else if (dest->is_address()) {
     move_op(src, dest, type, lir_patch_none, info, /*wide*/false);
   } else {
     ShouldNotReachHere();
