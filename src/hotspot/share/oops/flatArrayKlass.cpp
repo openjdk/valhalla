@@ -107,8 +107,10 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties pr
          "Null-restricted nonatomic arrays are unsupported");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  // If the array is non-atomic, then the element should not require atomicity.
-  assert(!props.is_non_atomic() || !element_klass->must_be_atomic(),
+  // If the array is non-atomic, then the element should be one of the following:
+  // a) naturally atomic, so atomicity relaxation has no impact; or
+  // b) explicitly marked as allowing non-atomicity.
+  assert(!props.is_non_atomic() || (element_klass->is_naturally_atomic() || !element_klass->must_be_atomic()),
          "Cannot conform to atomicity requirements");
 
   // Eagerly allocate the direct array supertype.
