@@ -53,13 +53,9 @@ public class ValueGetCtorLocal {
 
         public ValueHolder(int v) {
             f1 = new ValueClass(v, v + 100);
-            if (!nTestCtorThis(Thread.currentThread())) {
-                throw new RuntimeException("Failed: error in nTestCtorThis #1");
-            }
+            testCtorThis(Thread.currentThread());
             f2 = new ValueClass(v + 1, v + 200);
-            if (!nTestCtorThis(Thread.currentThread())) {
-                throw new RuntimeException("Failed: error in nTestCtorThis #2");
-            }
+            testCtorThis(Thread.currentThread());
         }
     }
 
@@ -68,5 +64,5 @@ public class ValueGetCtorLocal {
         ValueHolder testObj2 = new ValueHolder(9);
     }
 
-    private static native boolean nTestCtorThis(Thread thread);
+    private static native void testCtorThis(Thread thread);
 }

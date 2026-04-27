@@ -54,60 +54,26 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
   return JNI_OK;
 }
 
-static void log_value(JNIEnv *jni, jobject value) {
-  jclass cls = jni->GetObjectClass(value);
-  if (cls == nullptr) {
-    fatal(jni, "Failed: value class is nullptr\n");
-    return;
-  }
-
-  char* sig = nullptr;
-  check_jvmti_error(jvmti->GetClassSignature(cls, &sig, nullptr), "GetClassSignature");
-
-  LOG(" - the value class: %s\n", sig);
-  jvmti->Deallocate((unsigned char *)sig);
-}
-
-static jobject get_local(JNIEnv *jni, jthread thread, jint depth, jint slot) {
-  LOG("GetLocalObject for slot %d\n", (int)slot);
-  jobject value = nullptr;
-  check_jvmti_error(jvmti->GetLocalObject(thread, depth, slot, &value), "GetLocalObject");
-
-  log_value(jni, value);
-
-  return value;
-}
-
-static jobject get_this(JNIEnv *jni, jthread thread, jint depth) {
-  LOG("GetLocalInstance\n");
-  jobject value = nullptr;
-  check_jvmti_error(jvmti->GetLocalInstance(thread, depth, &value), "GetLocalInstance");
-
-  log_value(jni, value);
-
-  return value;
-}
-
-JNIEXPORT jboolean JNICALL
-Java_ValueGetCtorLocal_nTestCtorThis(JNIEnv *jni, jclass thisClass, jthread thread) {
+JNIEXPORT void JNICALL
+Java_ValueGetCtorLocal_testCtorThis(JNIEnv *jni, jclass thisClass, jthread thread) {
   const jint depth = 1;
 
   jmethodID method = get_frame_method(jvmti, jni, thread, depth);
   char* mname = get_method_name(jvmti, jni, method);
 
-  LOG("\nnTestCtorThis: frame method: %s\n", mname);
-  jobject obj0 = get_local(jni, thread, depth, 0);
-  jobject obj_this = get_this(jni, thread, depth);
+  LOG("\ntestCtorThis: frame method: %s\n", mname);
+  jobject obj0 = get_local_object(jvmti, jni, thread, depth, 0);
+  jobject obj_this = get_local_instance(jvmti, jni, thread, depth);
 
   // obj0 is expected to be equal to "this"
-  jboolean result = jni->IsSameObject(obj0, obj_this);
-  LOG("nTestCtorThis: obj0: %p obj_this: %p objects are equal: %d\n",
-      (void*)obj0, (void*)obj_this, result);
+  jboolean is_equal = jni->IsSameObject(obj0, obj_this);
+  LOG("testCtorThis: obj0: %p obj_this: %p objects are equal: %d\n",
+      (void*)obj0, (void*)obj_this, is_equal);
 
-  if (!result) {
+  if (!is_equal) {
     fatal(jni, "Failed: obj0 != obj_this\n");
   }
-  if (cached_this == nullptr) { // first call to nTestCtorThis
+  if (cached_this == nullptr) { // first call to testCtorThis
     cached_this = jni->NewGlobalRef(obj_this);
   } else {
     // cached_this must be a snapshot that not mutate with the ctor changes
@@ -116,7 +82,6 @@ Java_ValueGetCtorLocal_nTestCtorThis(JNIEnv *jni, jclass thisClass, jthread thre
     }
   }
   deallocate(jvmti, jni, (void*)mname);
-  return result;
 }
 
 #ifdef __cplusplus

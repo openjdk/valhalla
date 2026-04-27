@@ -424,6 +424,46 @@ find_method(jvmtiEnv *jvmti, JNIEnv *jni, jclass klass, const char* mname) {
   return method;
 }
 
+static void
+log_object_class(jvmtiEnv *jvmti, JNIEnv *jni, jobject obj) {
+  jclass cls = jni->GetObjectClass(obj);
+  if (cls == nullptr) {
+    fatal(jni, "Failed: class is nullptr\n");
+    return;
+  }
+  char* sig = nullptr;
+  check_jvmti_error(jvmti->GetClassSignature(cls, &sig, nullptr), "GetClassSignature");
+
+  LOG(" - got an object of class: %s\n", sig);
+  jvmti->Deallocate((unsigned char *)sig);
+}
+
+static jobject
+get_local_object(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread, jint depth, jint slot) {
+  LOG("GetLocalObject: depth: %d slot %d\n", (int)depth, (int)slot);
+  jobject obj = nullptr;
+  check_jvmti_error(jvmti->GetLocalObject(thread, depth, slot, &obj), "GetLocalObject");
+
+  log_object_class(jvmti, jni, obj);
+  return obj;
+}
+
+static jobject
+get_local_instance(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread, jint depth) {
+  LOG("GetLocalInstance: depth: %d\n", (int)depth);
+  jobject obj = nullptr;
+  check_jvmti_error(jvmti->GetLocalInstance(thread, depth, &obj), "GetLocalInstance");
+
+  log_object_class(jvmti, jni, obj);
+  return obj;
+}
+
+static void
+set_local_object(jvmtiEnv *jvmti, jthread thread, jint depth, jint slot, jobject obj) {
+  LOG("SetLocalObject for slot %d\n", (int)slot);
+  check_jvmti_error(jvmti->SetLocalObject(thread, depth, slot, obj), "SetLocalObject");
+}
+
 // Wait for target thread to reach the required JVMTI thread state.
 // The state jint bitmask is returned by the JVMTI GetThreadState.
 // Some examples are:

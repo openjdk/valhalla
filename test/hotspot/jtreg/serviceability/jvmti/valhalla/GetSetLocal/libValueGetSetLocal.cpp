@@ -32,7 +32,6 @@ extern "C" {
 #endif
 
 static jvmtiEnv *jvmti = nullptr;
-static jobject cached_this = nullptr;
 
 JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
@@ -54,74 +53,34 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
   return JNI_OK;
 }
 
-static void log_value(JNIEnv *jni, jobject value) {
-  jclass cls = jni->GetObjectClass(value);
-  if (cls == nullptr) {
-    fatal(jni, "Failed: value class is nullptr\n");
-    return;
-  }
-
-  char* sig = nullptr;
-  check_jvmti_error(jvmti->GetClassSignature(cls, &sig, nullptr), "GetClassSignature");
-
-  LOG(" - the value class: %s\n", sig);
-  jvmti->Deallocate((unsigned char *)sig);
-}
-
-static jobject get_local(JNIEnv *jni, jthread thread, jint depth, jint slot) {
-  LOG("GetLocalObject for slot %d\n", (int)slot);
-  jobject value = nullptr;
-  check_jvmti_error(jvmti->GetLocalObject(thread, depth, slot, &value), "GetLocalObject");
-
-  log_value(jni, value);
-
-  return value;
-}
-
-static void set_local(jthread thread, jint depth, jint slot, jobject value) {
-  LOG("SetLocalObject for slot %d\n", (int)slot);
-  check_jvmti_error(jvmti->SetLocalObject(thread, depth, slot, value), "SetLocalObject");
-}
-
-static jobject get_this(JNIEnv *jni, jthread thread, jint depth) {
-  LOG("GetLocalInstance\n");
-  jobject value = nullptr;
-  check_jvmti_error(jvmti->GetLocalInstance(thread, depth, &value), "GetLocalInstance");
-
-  log_value(jni, value);
-
-  return value;
-}
-
-JNIEXPORT jboolean JNICALL
-Java_ValueGetSetLocal_nTestLocals(JNIEnv *jni, jclass thisClass, jthread thread, jboolean testSetLocal) {
-  bool result = true;
+JNIEXPORT void JNICALL
+Java_ValueGetSetLocal_testLocals(JNIEnv *jni, jclass thisClass, jthread thread, jboolean testSetLocal) {
   const jint depth = 1;
 
-  LOG("\nnTestLocals\n");
-  jobject obj0 = get_local(jni, thread, depth, 0);
-  jobject obj1 = get_local(jni, thread, depth, 1);
-  jobject obj2 = get_local(jni, thread, depth, 2);
-  jobject obj3 = get_local(jni, thread, depth, 3);
-  jobject obj_this = get_this(jni, thread, depth);
+  LOG("\ntestLocals\n");
+  jobject obj0 = get_local_object(jvmti, jni, thread, depth, 0);
+  jobject obj1 = get_local_object(jvmti, jni, thread, depth, 1);
+  jobject obj2 = get_local_object(jvmti, jni, thread, depth, 2);
+  jobject obj3 = get_local_object(jvmti, jni, thread, depth, 3);
+  jobject obj_this = get_local_instance(jvmti, jni, thread, depth);
 
   // obj0 is expected to be equal "this"
   if (!jni->IsSameObject(obj0, obj_this)) {
     fatal(jni, "Failed: obj0 != obj_this\n");
-    result = false;
   }
   // obj3 is expected to be equal obj2
   if (!jni->IsSameObject(obj3, obj2)) {
     fatal(jni, "Failed: obj3 != obj2\n");
-    result = false;
   }
 
   if (testSetLocal) {
     // set obj3 = obj1
-    set_local(thread, depth, 3, obj1);
+    set_local_object(jvmti, thread, depth, 3, obj1);
+    obj3 = get_local_object(jvmti, jni, thread, depth, 3);
+    if (!jni->IsSameObject(obj3, obj1)) {
+      fatal(jni, "Failed: obj3 != obj1\n");
+    }
   }
-
-  return result ? JNI_TRUE : JNI_FALSE;
 }
 
 #ifdef __cplusplus
