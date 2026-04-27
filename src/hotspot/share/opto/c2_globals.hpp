@@ -969,9 +969,6 @@
   product(uint, HotCodeCallLevel, 1, EXPERIMENTAL,                          \
           "Number of levels of callees to relocate per candidate")          \
           range(0, max_juint)                                               \
-                                                                            \
-  product(bool, UseAcmpFastPath, true, DIAGNOSTIC,                          \
-          "Use fast path for acmp.")                                        \
 
 // end of C2_FLAGS
 
