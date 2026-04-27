@@ -72,16 +72,16 @@ public class TestFlatteningBudget {
     }
 
     static value class Value0 {
-	      byte b = (byte)0;
+        byte b = (byte)0;
     }
 
     static value class Value1 {
-	      int i = 0;
+        int i = 0;
     }
 
     static class Container {
-	      public Value0 v0;
-	      public Value1 v1;
+        public Value0 v0;
+        public Value1 v1;
     }
 
     // Test 1 : impact of flattening budget on flattening decisions
