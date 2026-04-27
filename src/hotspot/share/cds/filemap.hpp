@@ -111,7 +111,8 @@ public:
   f(UseNullFreeNonAtomicValueFlattening) \
   f(UseNullFreeAtomicValueFlattening) \
   f(UseNullableAtomicValueFlattening) \
-  f(UseNullableNonAtomicValueFlattening)
+  f(UseNullableNonAtomicValueFlattening) \
+  f(FlatteningBudget)
 
 
 class CDSMustMatchFlags {
