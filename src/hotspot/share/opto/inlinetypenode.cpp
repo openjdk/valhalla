@@ -106,7 +106,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
 
 // Checks if the inputs of the InlineTypeNode were replaced by PhiNodes
 // for the given region (see InlineTypeNode::clone_with_phis).
-bool InlineTypeNode::has_phi_inputs(Node* region) {
+bool InlineTypeNode::has_phi_inputs(Node* region) const {
   // Check oop input
   bool result = get_oop()->is_Phi() && get_oop()->as_Phi()->region() == region;
 #ifdef ASSERT
@@ -181,7 +181,7 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
 }
 
 // Adds a new merge path to an inline type node with phi inputs
-void InlineTypeNode::add_new_path(Node* region) {
+void InlineTypeNode::add_new_path(Node* region) const {
   assert(has_phi_inputs(region), "must have phi inputs");
 
   PhiNode* phi = get_oop()->as_Phi();
@@ -260,7 +260,7 @@ ciField* InlineTypeNode::field(uint index) const {
   return inline_klass()->declared_nonstatic_field_at(index);
 }
 
-uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) {
+uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) const {
   uint cnt = 0;
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
@@ -286,13 +286,13 @@ uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePoi
   return cnt;
 }
 
-void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const {
   JVMState* jvms = sfpt->jvms();
   assert(jvms != nullptr, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
 
   // Iterate over the inline type fields in order of increasing offset and add the
-  // field values to the safepoint. Nullable inline types have an null marker field that
+  // field values to the safepoint. Nullable inline types have a null marker field that
   // needs to be checked before using the field values.
   sfpt->add_req(get_null_marker());
   uint nfields = add_fields_to_safepoint(worklist, sfpt);
@@ -711,7 +711,6 @@ void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* regi
 
     if (this_field->is_InlineType()) {
       RegionNode* done_region = new RegionNode(1);
-      ciField* field = this->field(i);
       assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
       if (!field->is_null_free()) {
         // Nullable field, check null marker before accessing the fields
@@ -876,7 +875,7 @@ static void replace_proj(Compile* C, CallNode* call, uint& proj_idx, Node* value
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
-void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
+void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) const {
   uint proj_idx = TypeFunc::Parms;
   // Replace oop projection
   replace_proj(C, call, proj_idx, get_oop(), T_OBJECT);
@@ -887,7 +886,7 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
   assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
 }
 
-void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) {
+void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) const {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     ciField* field = this->field(i);
@@ -1042,11 +1041,11 @@ InlineTypeNode* InlineTypeNode::make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass*
     } else if (ft->is_inlinetype()) {
       int old_len = visited.length();
       visited.push(ft);
-      ciInlineKlass* vk = ft->as_inline_klass();
+      ciInlineKlass* vk_field = ft->as_inline_klass();
       if (field->is_null_free()) {
-        value = make_all_zero_impl(gvn, vk, visited);
+        value = make_all_zero_impl(gvn, vk_field, visited);
       } else {
-        value = make_null_impl(gvn, vk, visited);
+        value = make_null_impl(gvn, vk_field, visited);
       }
       visited.trunc_to(old_len);
     }
@@ -1133,7 +1132,6 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   } else {
     // Oop can never be null
     vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
-    Node* init_ctl = kit->control();
     vt->set_is_buffered(gvn);
     vt->set_null_marker(gvn);
     Node* payload_ptr = kit->basic_plus_adr(oop, vk->payload_offset());
@@ -1319,7 +1317,7 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) {
+Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) const {
   if (vk == nullptr) {
     vk = inline_klass();
   }
@@ -1462,15 +1460,15 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region, visited);
       if (!field->is_null_free()) {
         assert(field->null_marker_offset() != -1, "inconsistency");
-        Node* null_marker = nullptr;
+        Node* null_marker_field_vt = nullptr;
         if (multi->is_Start()) {
-          null_marker = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+          null_marker_field_vt = gvn.transform(new ParmNode(multi->as_Start(), base_input));
         } else if (in) {
-          null_marker = multi->as_Call()->in(base_input);
+          null_marker_field_vt = multi->as_Call()->in(base_input);
         } else {
-          null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+          null_marker_field_vt = gvn.transform(new ProjNode(multi->as_Call(), base_input));
         }
-        vt->set_req(NullMarker, null_marker);
+        vt->set_req(NullMarker, null_marker_field_vt);
         base_input++;
       }
       parm = gvn.transform(vt);
@@ -1528,7 +1526,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
 // Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
-void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
+void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) const {
   PhaseIterGVN* igvn = &phase->igvn();
   // Search for allocations of this inline type. Ignore scalar replaceable ones, they
   // will be removed anyway and changing the memory chain will confuse other optimizations.
@@ -1708,7 +1706,7 @@ bool LoadFlatNode::expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const {
   return true;
 }
 
-bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
+bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) const {
   assert(igvn.delay_transform(), "transformation must be delayed");
   if ((_decorators & C2_MISMATCHED) != 0) {
     return false;
@@ -1756,7 +1754,7 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
   return true;
 }
 
-void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
+void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) const {
   assert(igvn.delay_transform(), "transformation must be delayed");
   GraphKit kit(this, igvn);
   Node* base = this->base();
@@ -1839,7 +1837,7 @@ InlineTypeNode* LoadFlatNode::collect_projs(GraphKit* kit, ciInlineKlass* vk, in
 }
 
 // Extract the values of the flattened fields from the loaded payload
-void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* payload) {
+void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* payload) const {
   BasicType payload_bt = _vk->atomic_size_to_basic_type(_null_free);
   for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
@@ -1917,7 +1915,7 @@ void StoreFlatNode::store(GraphKit* kit, Node* base, Node* ptr, InlineTypeNode* 
   kit->set_all_memory(kit->gvn().transform(new ProjNode(store, TypeFunc::Memory)));
 }
 
-bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
+bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) const {
   assert(igvn.delay_transform(), "transformation must be delayed");
   if ((_decorators & C2_MISMATCHED) != 0) {
     return false;
@@ -1935,7 +1933,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     const TypePtr* field_ptr_type = field_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(field_ptr, field_ptr_type);
     Node* field_value = value->field_value_by_offset(field->offset_in_bytes(), true);
-    Node* store = kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
+    kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
   }
 
   if (!_null_free) {
@@ -1943,7 +1941,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(null_marker_ptr, null_marker_ptr_type);
     Node* null_marker_value = value->get_null_marker();
-    Node* store = kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
+    kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
   }
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
@@ -1958,7 +1956,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
   return true;
 }
 
-void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
+void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) const {
   // Convert to a payload value <= 64-bit and write atomically.
   // The payload might contain at most two oop fields that must be narrow because otherwise they would be 64-bit
   // in size and would then be written by a "normal" oop store. If the payload contains oops, its size is always

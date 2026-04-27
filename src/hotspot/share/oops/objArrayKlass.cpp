@@ -201,7 +201,7 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
       }
     } else {
       // Null-restricted + atomic
-      if (vk->is_naturally_atomic() && vk->has_null_free_non_atomic_layout()) {
+      if (vk->is_naturally_atomic(true /* null-free */) && vk->has_null_free_non_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, props, LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
       } else if (vk->has_null_free_atomic_layout()) {
         return ArrayDescription(FlatArrayKlassKind, props, LayoutKind::NULL_FREE_ATOMIC_FLAT);

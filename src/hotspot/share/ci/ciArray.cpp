@@ -27,7 +27,6 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -141,12 +140,12 @@ ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
   return element_value((jint) index);
 }
 
-bool ciArray::is_null_free() {
+bool ciArray::is_null_free() const {
   VM_ENTRY_MARK;
   return get_arrayOop()->is_null_free_array();
 }
 
-bool ciArray::is_atomic() {
+bool ciArray::is_atomic() const {
   VM_ENTRY_MARK;
   arrayOop oop = get_arrayOop();
   return !oop->is_flatArray() || LayoutKindHelper::is_atomic_flat(FlatArrayKlass::cast(oop->klass())->layout_kind());

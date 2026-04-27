@@ -3975,13 +3975,12 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     // Determine null-free/flat properties
     bool flat;
     bool not_flat;
-    bool is_null_free;
     bool not_null_free;
     bool atomic;
     if (xk) {
       flat = array_klass->is_flat_array_klass();
       not_flat = !flat;
-      is_null_free = array_klass->is_elem_null_free();
+      bool is_null_free = array_klass->is_elem_null_free();
       not_null_free = !is_null_free;
       atomic = array_klass->is_elem_atomic();
 
@@ -5815,7 +5814,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
 // Return offset incremented by field_offset for flat inline type arrays
 int TypeAryPtr::flat_offset() const {
   int offset = _offset.get();
-  if (offset != Type::OffsetBot && offset != Type::OffsetTop &&
+  if (offset != OffsetBot && offset != OffsetTop &&
       _field_offset != Offset::bottom && _field_offset != Offset::top) {
     offset += _field_offset.get();
   }
@@ -7110,7 +7109,7 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
         ptr = NotNull;
       interfaces = this_interfaces->intersection_with(tp_interfaces);
       FlatInArray flat_in_array = meet_flat_in_array(NotFlat, tp->flat_in_array());
-      return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, tp->flat_in_array());
+      return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, flat_in_array);
     }
     default: typerr(t);
     }

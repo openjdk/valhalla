@@ -511,8 +511,8 @@ class Instruction: public CompilationResourceObj {
   }
 
   bool is_loaded_flat_array() const;
-  bool maybe_flat_array();
-  bool maybe_null_free_array();
+  bool maybe_flat_array() const;
+  bool maybe_null_free_array() const;
 
   Instruction *insert_after_same_bci(Instruction *i) {
 #ifndef PRODUCT
