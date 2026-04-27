@@ -131,6 +131,7 @@ public final class ClassTypeImpl extends InvokableTypeImpl
         return false;
     }
 
+    /* No longer needed, but kept for future reference
     public boolean isValueClass() {
         if (!vm.supportsValueClasses()) {
             return false;
@@ -140,6 +141,7 @@ public final class ClassTypeImpl extends InvokableTypeImpl
         }
         return (modifiers & VMModifiers.IDENTITY) == 0;
     }
+    */
 
     public void setValue(Field field, Value value)
         throws InvalidTypeException, ClassNotLoadedException {
