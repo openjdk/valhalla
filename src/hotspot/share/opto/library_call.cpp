@@ -4834,7 +4834,8 @@ bool LibraryCallKit::inline_getArrayProperties(ArrayPropertiesCheck check) {
       Node* array_element_klass_flags_addr = off_heap_plus_addr(array_element_klass, klass_flags_offset);
       Node* array_element_klass_flags = make_load(control(), array_element_klass_flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
 
-      Node* is_null_free_cmp = _gvn.transform(new CmpINode(layout_kind, intcon(static_cast<jint>(LayoutKind::NULL_FREE_ATOMIC_FLAT))));
+      // Here, layout can only be non-atomic, otherwise atomic_layout_array_test_and_get_layout_kind already decides the array to be atomic.
+      Node* is_null_free_cmp = _gvn.transform(new CmpINode(layout_kind, intcon(static_cast<jint>(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT))));
       Node* is_null_free_bol = _gvn.transform(new BoolNode(is_null_free_cmp, BoolTest::eq));
       IfNode* iff_is_null_free_bol = create_and_xform_if(control(), is_null_free_bol, PROB_FAIR, COUNT_UNKNOWN);
       Node* is_null_free_ctl = _gvn.transform(new IfTrueNode(iff_is_null_free_bol));
