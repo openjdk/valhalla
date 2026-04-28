@@ -174,8 +174,7 @@ FieldGroup::FieldGroup(int contended_group) :
   _small_primitive_fields(nullptr),
   _big_primitive_fields(nullptr),
   _oop_fields(nullptr),
-  _contended_group(contended_group),  // -1 means no contended group, 0 means default contended group
-  _has_embedded_oops(false) {}
+  _contended_group(contended_group) {} // -1 means no contended group, 0 means default contended group
 
 void FieldGroup::add_primitive_field(int idx, BasicType type) {
   int size = type2aelembytes(type);
@@ -194,7 +193,6 @@ void FieldGroup::add_oop_field(int idx) {
     _oop_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _oop_fields->append(block);
-  _has_embedded_oops = true;
 }
 
 void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
@@ -206,10 +204,6 @@ void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
   block->set_layout_kind(lk);
   if (block->size() >= heapOopSize) {
     add_to_big_primitive_list(block);
-
-    if (vk->contains_oops()) {
-      _has_embedded_oops = true;
-    }
   } else {
     assert(!vk->contains_oops(), "Size of Inline klass with oops should be >= heapOopSize");
     add_to_small_primitive_list(block);
@@ -1344,8 +1338,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   epilogue();
 }
 
-void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps,
-                InlineKlass* vklass, int offset) {
+void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps, InlineKlass* vklass, int offset) {
   int diff = offset - vklass->payload_offset();
   const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
   const OopMapBlock* last_map = map + vklass->nonstatic_oop_map_count();
@@ -1356,7 +1349,10 @@ void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oo
 }
 
 void FieldLayoutBuilder::register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list) {
-  if (list == nullptr) return;
+  if (list == nullptr) {
+    return;
+  }
+
   for (int i = 0; i < list->length(); i++) {
     LayoutRawBlock* f = list->at(i);
     if (f->block_kind() == LayoutRawBlock::FLAT) {
@@ -1537,9 +1533,7 @@ void FieldLayoutBuilder::epilogue() {
   if (!_contended_groups.is_empty()) {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
-      if (cg->has_embedded_oops()) {
-        register_embedded_oops(nonstatic_oop_maps, cg);
-      }
+      register_embedded_oops(nonstatic_oop_maps, cg);
     }
   }
   nonstatic_oop_maps->compact();
