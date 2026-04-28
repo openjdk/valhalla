@@ -284,7 +284,7 @@ get_frame_method(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread, jint depth) {
   jmethodID method;
   jlocation loc;
   jvmtiError err = jvmti->GetFrameLocation(thread, depth, &method, &loc);
-  check_jvmti_status(jni, err, "notifyFramePop: Failed in JVMTI GetFrameLocation");
+  check_jvmti_status(jni, err, "get_frame_method: error in JVMTI GetFrameLocation");
   return method;
 }
 
@@ -428,7 +428,7 @@ static void
 log_object_class(jvmtiEnv *jvmti, JNIEnv *jni, jobject obj) {
   jclass cls = jni->GetObjectClass(obj);
   if (cls == nullptr) {
-    fatal(jni, "Failed: class is nullptr\n");
+    fatal(jni, "log_object_class: class is nullptr\n");
     return;
   }
   char* sig = nullptr;

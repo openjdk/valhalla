@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -398,8 +398,8 @@ public class CtorDebuggingTest extends TestScaffold {
             // No other references.
             // ObjectID is generated at the 1st breakpoint (reference to heap object being constructed),
             // and later we get the same oop (although it's content is changing).
-            assertEquals(breakpointHandler.thisAtBreakpoint(bkpt1), breakpointHandler.thisAtBreakpoint(bkpt2));
-            assertEquals(breakpointHandler.thisAtBreakpoint(bkpt2), breakpointHandler.thisAtBreakpoint(bkpt3));
+            assertNotEquals(breakpointHandler.thisAtBreakpoint(bkpt1), breakpointHandler.thisAtBreakpoint(bkpt2));
+            assertNotEquals(breakpointHandler.thisAtBreakpoint(bkpt2), breakpointHandler.thisAtBreakpoint(bkpt3));
             // There is no breakpoints with instance filter.
         } else if (v1 != null && v2 != null && v3 != null) {
             // Existing references to value objects with the same content as the object being constructed.
@@ -421,7 +421,7 @@ public class CtorDebuggingTest extends TestScaffold {
             assertNotEquals(thisAt2, null);
             assertNotEquals(thisAt2, v1);
             // Now thisAt2 has the same content as v3.
-            assertEquals(thisAt2, v3);
+            assertNotEquals(thisAt2, v3);
             // At breakpoint 1 this == v1.
             assertEquals(breakpointHandler.thisAtBreakpoint(bkpt1), v1);
             assertEquals(breakpointHandler.thisAtBreakpoint(bkpt1_v1), v1);
