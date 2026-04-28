@@ -107,7 +107,7 @@ class InlineKlass: public InstanceKlass {
      * To signal this fast path cannot be done on this current class, simply put 0 in _fast_acmp_mask.
      *
      * We also should take care of not loading further than the object, even if it means reading part of the header. For this reason, we can't use _payload_offset,
-     * but we need our special offset.
+     * but we need our special offset. The offset doesn't need to be aligned on word boundary, or anything else.
      */
     int _fast_acmp_offset;    // if < 0, fast acmp doesn't apply
     int64_t _fast_acmp_mask;  // can be 0 for empty value classes

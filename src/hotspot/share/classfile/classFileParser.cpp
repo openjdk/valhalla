@@ -5364,7 +5364,15 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
 
   int64_t mask = 0;
 #ifdef VM_LITTLE_ENDIAN
-  auto make_mask_piece = [](int start, int size)-> int64_t { return right_n_bits<int64_t>(size * BitsPerByte) << (start * BitsPerByte); };
+  // Compute the mask for a memory zone with offset "start" and of size "size", both in bytes,
+  // assuming it won't overflow the long. In little endian, the byte with smallest address/smallest offset/closest from header
+  // will be the least significant byte.
+  //                         Value                    Memory layout
+  // make_mask_piece(0, 1) = 0x0000 0000 0000 00ff => ff | 00 | 00 | 00 | 00 | 00 | 00 | 00
+  // make_mask_piece(0, 1) = 0x0000 0000 0000 ffff => ff | ff | 00 | 00 | 00 | 00 | 00 | 00
+  // make_mask_piece(1, 1) = 0x0000 0000 0000 ff00 => 00 | ff | 00 | 00 | 00 | 00 | 00 | 00
+  // make_mask_piece(1, 3) = 0x0000 0000 ffff ff00 => 00 | ff | ff | ff | 00 | 00 | 00 | 00
+  auto make_mask_piece = [](int start, int size) -> int64_t { return right_n_bits<int64_t>(size * BitsPerByte) << (start * BitsPerByte); };
 #else
   // Leaving the mask and offset to default values (that is just "return;") is a correct and easy way to implement this for other endianness, but it will
   // have a runtime cost in do_acmp, without the benefit. It is better, and probably easy with access to such an architecture, to adapt the logic above
@@ -5372,28 +5380,39 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
   Unimplemented()
 #endif
 
+  // We build the mask for a 64-bit load from the start of the payload. For each contiguous piece of memory
+  // we build the mask containing 1's where it would be in the loaded long: it must be as
+  // long as the memory that is being accessed, but the placement depends on the endianness.
   for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
-    int field_start = _layout_info->_nonoop_acmp_map->at(i)._offset - _layout_info->_payload_offset;
-    int field_size = _layout_info->_nonoop_acmp_map->at(i)._size;
-    int field_end = field_start + field_size - 1;
-    if (field_end >= BytesPerLong) {  // Too far! Can't fit in an 8-byte load, fast path will not be taken
+    int piece_start = _layout_info->_nonoop_acmp_map->at(i)._offset - _layout_info->_payload_offset;
+    int piece_size = _layout_info->_nonoop_acmp_map->at(i)._size;
+    int piece_end = piece_start + piece_size - 1;
+    if (piece_end >= BytesPerLong) {  // Too far! Can't fit in an 8-byte load, fast path will not be taken
       return;
     }
-    int64_t mask_piece = make_mask_piece(field_start, field_size);
+    int64_t mask_piece = make_mask_piece(piece_start, piece_size);
     mask |= mask_piece;
   }
 
-  // If the mask starts with 0s we can move it to a lower offset (toward the beginning of the object) to make sure not to over-read,
-  // even if it means to read (part of) the header.
+  // If the payload is smaller than 64 bits, reading a long after the header can lead to an over-read. To avoid that, we can move the
+  // load to a lower offset (toward the beginning of the object), and adjust the mask accordingly, even if it means reading (part of)
+  // the header: the mask will filter that out.
   // Since an object cannot be less than 8 bytes, it's surely safe.
   if (mask == 0) {
     // Special case: empty object. There is nothing to compare, and no payload. We can just read from the start
-    // of the header to ensure we load within the object. We can't use the general case: count_leading_zeros doesn't
-    // accept null argument.
+    // of the header to ensure we load within the object. We can't use the general case: count_leading_zeros/count_trailing_zeros doesn't
+    // accept null argument. This case is endianness-agnostic.
     vk->set_fast_acmp_offset(0);
     vk->set_fast_acmp_mask(mask);
   } else {
 #ifdef VM_LITTLE_ENDIAN
+    // In little endian, if the payload is not a full 64 bits, the mask will have leading 0s (most significant bytes are bytes with
+    // higher addresses/higher offset/further from the header). We can shift the mask so that there aren't leading 0s anymore, and
+    // decrease the offset by the same amount.
+    // For instance, let's say _payload_offset is 16, and the mask is 0x0000 ffff ffff 00ff, we have 16 leading 0s (the bubble at offset 1 is fine:
+    // it might be due to padding). Reading from the start of the payload might read 2 bytes after the end of the payload. To avoid that, we
+    // are going to shift the payload by 16 bits, and remove 2 bytes from the offset we should load from. At the end, fast_acmp_offset will be 14
+    // and the mask 0xffff ffff 00ff 0000. The lowest 16 0s introduced by the shift will filter out the 2 bytes we read from the header.
     int leading_zeroes = static_cast<int>(count_leading_zeros(mask));
     assert(leading_zeroes % BitsPerByte == 0, "we should mask full bytes");
     mask <<= leading_zeroes;
@@ -5404,6 +5423,7 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
     vk->set_fast_acmp_mask(mask);
 #else
     // Big endian architectures probably need to look at count_trailing_zeros, and shift right until the last bit is 1.
+    // The offset still needs to be decreased.
     Unimplemented()
 #endif
   }
