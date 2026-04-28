@@ -22,17 +22,23 @@
  */
 package runtime.valhalla.inlinetypes;
 
-import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.Contended;
 import java.lang.ref.WeakReference;
+
+import jdk.test.lib.Asserts;
+import jdk.test.whitebox.WhiteBox;
 
 /*
  * @test ContendedFlatFieldOopMap
  * @library /test/lib
- * @requires vm.flagless
+ * @requires vm.gc != "Z"
  * @modules java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
  * @enablePreview
- * @run main/othervm -XX:-RestrictContended runtime.valhalla.inlinetypes.ContendedFlatFieldOopMap
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -XX:-RestrictContended
+ *                   -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ *                   runtime.valhalla.inlinetypes.ContendedFlatFieldOopMap
  */
 public class ContendedFlatFieldOopMap {
 
@@ -55,6 +61,8 @@ public class ContendedFlatFieldOopMap {
 
     private static Holder holder;
 
+    private static final WhiteBox WB = WhiteBox.getWhiteBox();
+
     public static void main(String[] args) {
         Object[] obj = new Object[1024 * 1024];
         WeakReference ref = new WeakReference(obj);
@@ -63,7 +71,7 @@ public class ContendedFlatFieldOopMap {
 
         Asserts.assertNotEquals(ref.get(), null);
 
-        System.gc();
+        WB.fullGC();
 
         // obj must have stayed alive after we've run a GC. If it stayed alive,
         // it must mean that obj was reachable through the Holder class' OopMap.
