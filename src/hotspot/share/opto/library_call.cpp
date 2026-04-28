@@ -4796,7 +4796,7 @@ bool LibraryCallKit::inline_getArrayProperties(ArrayPropertiesCheck check) {
     case IsFlat:
       // TODO 8350865 Use the object version here instead of loading the klass
       // The problem is that PhaseMacroExpand::expand_flatarraycheck_node can only handle some IR shapes and will fail, for example, if the bol is directly wired to a ReturnNode
-      bol = flat_array_test(load_object_klass(array));
+      bol = flat_array_test(array);
       break;
     case IsNullRestricted:
       bol = null_free_array_test(array);
