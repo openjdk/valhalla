@@ -104,7 +104,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties pr
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
   assert(props.is_null_restricted() || !props.is_non_atomic(),
-         "Null-restricted nonatomic arrays are unsupported");
+         "Nullable non-atomic arrays are unsupported");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
   // If the array is non-atomic, then the element should be one of the following:
