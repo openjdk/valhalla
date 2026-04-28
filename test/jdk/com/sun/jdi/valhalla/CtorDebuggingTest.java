@@ -397,7 +397,7 @@ public class CtorDebuggingTest extends TestScaffold {
         if (v1 == null && v2 == null && v3 == null) {
             // No other references.
             // ObjectID is generated at the 1st breakpoint (reference to a snapshot of heap object being constructed),
-            // and later we get snapshots of the updated oop as it's content is changing.
+            // and later we get snapshots of the updated oop as its content is changing.
             assertNotEquals(breakpointHandler.thisAtBreakpoint(bkpt1), breakpointHandler.thisAtBreakpoint(bkpt2));
             assertNotEquals(breakpointHandler.thisAtBreakpoint(bkpt2), breakpointHandler.thisAtBreakpoint(bkpt3));
             // There is no breakpoints with instance filter.

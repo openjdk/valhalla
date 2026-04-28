@@ -76,7 +76,7 @@ Java_ValueGetCtorLocal_testCtorThis(JNIEnv *jni, jclass thisClass, jthread threa
   if (cached_this == nullptr) { // first call to testCtorThis
     cached_this = jni->NewGlobalRef(obj_this);
   } else {
-    // cached_this must be a snapshot that idoes not mutate
+    // cached_this must be a snapshot that does not mutate
     // when the ctor changes field values
     if (jni->IsSameObject(cached_this, obj_this)) {
       fatal(jni, "Failed: unexpected: cached_this == obj_this\n");
