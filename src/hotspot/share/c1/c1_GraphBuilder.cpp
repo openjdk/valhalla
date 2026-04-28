@@ -1182,12 +1182,12 @@ void GraphBuilder::store_indexed(BasicType type) {
 void GraphBuilder::stack_op(Bytecodes::Code code) {
   switch (code) {
     case Bytecodes::_pop:
-      { Value w = state()->raw_pop();
+      { state()->raw_pop();
       }
       break;
     case Bytecodes::_pop2:
-      { Value w1 = state()->raw_pop();
-        Value w2 = state()->raw_pop();
+      { state()->raw_pop();
+        state()->raw_pop();
       }
       break;
     case Bytecodes::_dup:

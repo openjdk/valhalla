@@ -133,7 +133,7 @@ bool Instruction::is_loaded_flat_array() const {
   return false;
 }
 
-bool Instruction::maybe_flat_array() {
+bool Instruction::maybe_flat_array() const {
   if (UseArrayFlattening) {
     ciType* type = declared_type();
     if (type != nullptr) {
@@ -160,7 +160,7 @@ bool Instruction::maybe_flat_array() {
   return false;
 }
 
-bool Instruction::maybe_null_free_array() {
+bool Instruction::maybe_null_free_array() const {
   ciType* type = declared_type();
   if (type != nullptr) {
     if (type->is_obj_array_klass()) {

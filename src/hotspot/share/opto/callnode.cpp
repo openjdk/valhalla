@@ -925,7 +925,7 @@ bool CallNode::has_non_debug_use(const Node* n) {
   return false;
 }
 
-bool CallNode::has_debug_use(const Node* n) {
+bool CallNode::has_debug_use(const Node* n) const {
   if (jvms() != nullptr) {
     for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
       if (in(i) == n) {

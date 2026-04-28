@@ -102,7 +102,8 @@ public class ImageReaderTest {
             "/modules/modbar",
             "/modules/modfoo/com",
             "/modules/modfoo/com/foo",
-            "/modules/modfoo/com/foo/bar"})
+            "/modules/modfoo/com/foo/bar",
+    })
     public void testModuleDirectories_expected(String name) throws IOException {
         try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
             assertDir(reader, name);
@@ -117,7 +118,8 @@ public class ImageReaderTest {
             "/modules/unknown",
             "/modules/modbar/",
             "/modules/modfoo//com",
-            "/modules/modfoo/com/"})
+            "/modules/modfoo/com/",
+    })
     public void testModuleNodes_absent(String name) throws IOException {
         try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
             assertAbsent(reader, name);
@@ -144,13 +146,15 @@ public class ImageReaderTest {
             "modbar:com/bar/One.class",
     })
     public void testResource_present(String modName, String resPath) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            assertNotNull(reader.findResourceNode(modName, resPath));
-            assertTrue(reader.containsResource(modName, resPath));
+        for (PreviewMode mode : List.of(PreviewMode.ENABLED, PreviewMode.DISABLED)) {
+            try (ImageReader reader = ImageReader.open(image, mode)) {
+                assertNotNull(reader.findResourceNode(modName, resPath));
+                assertTrue(reader.containsResource(modName, resPath));
 
-            String canonicalNodeName = "/modules/" + modName + "/" + resPath;
-            Node node = reader.findNode(canonicalNodeName);
-            assertTrue(node != null && node.isResource());
+                String canonicalNodeName = "/modules/" + modName + "/" + resPath;
+                Node node = reader.findNode(canonicalNodeName);
+                assertTrue(node != null && node.isResource());
+            }
         }
     }
 
@@ -169,17 +173,22 @@ public class ImageReaderTest {
             "packages:com.foo/modfoo",
             // Empty module names/paths do not find resources.
             "'':modfoo/com/foo/HasPreviewVersion.class",
-            "modfoo:''"})
+            "modfoo:''",
+            // Make sure preview paths are excluded.
+            "modfoo:META-INF/preview/com/foo/HasPreviewVersion.class",
+    })
     public void testResource_absent(String modName, String resPath) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            assertNull(reader.findResourceNode(modName, resPath));
-            assertFalse(reader.containsResource(modName, resPath));
+        for (PreviewMode mode : List.of(PreviewMode.ENABLED, PreviewMode.DISABLED)) {
+            try (ImageReader reader = ImageReader.open(image, mode)) {
+                assertNull(reader.findResourceNode(modName, resPath));
+                assertFalse(reader.containsResource(modName, resPath));
 
-            // Non-existent resources names should either not be found,
-            // or (in the case of directory nodes) not be resources.
-            String canonicalNodeName = "/modules/" + modName + "/" + resPath;
-            Node node = reader.findNode(canonicalNodeName);
-            assertTrue(node == null || !node.isResource());
+                // Non-existent resources names should either not be found,
+                // or (in the case of directory nodes) not be resources.
+                String canonicalNodeName = "/modules/" + modName + "/" + resPath;
+                Node node = reader.findNode(canonicalNodeName);
+                assertTrue(node == null || !node.isResource());
+            }
         }
     }
 
@@ -191,9 +200,11 @@ public class ImageReaderTest {
             "modules/modfoo/com:foo/HasPreviewVersion.class",
     })
     public void testResource_invalid(String modName, String resPath) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            assertThrows(IllegalArgumentException.class, () -> reader.containsResource(modName, resPath));
-            assertThrows(IllegalArgumentException.class, () -> reader.findResourceNode(modName, resPath));
+        for (PreviewMode mode : List.of(PreviewMode.ENABLED, PreviewMode.DISABLED)) {
+            try (ImageReader reader = ImageReader.open(image, mode)) {
+                assertThrows(IllegalArgumentException.class, () -> reader.containsResource(modName, resPath));
+                assertThrows(IllegalArgumentException.class, () -> reader.findResourceNode(modName, resPath));
+            }
         }
     }
 
