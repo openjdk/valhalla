@@ -497,7 +497,10 @@ void VM_BaseGetOrSetLocal::check_and_clone_this_value_object() {
     BufferedValuePayload src(thisObj);
     BufferedValuePayload dst(obj_copy, klass);
     src.copy_to(dst);
-  }
+
+    // Must ensure the content of the buffered value is visible
+    // before publishing the buffered value oop
+    OrderAccess::storestore();  }
   _value.l = JNIHandles::make_local(_calling_thread, obj_copy);
 }
 
