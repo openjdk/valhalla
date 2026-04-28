@@ -110,7 +110,9 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties pr
   // If the array is non-atomic, then the element should be one of the following:
   // a) naturally atomic, so atomicity relaxation has no impact; or
   // b) explicitly marked as allowing non-atomicity.
-  assert(!props.is_non_atomic() || (element_klass->is_naturally_atomic() || !element_klass->must_be_atomic()),
+  assert(!props.is_non_atomic() ||
+         (element_klass->is_naturally_atomic(props.is_null_restricted()) ||
+         !element_klass->must_be_atomic()),
          "Cannot conform to atomicity requirements");
 
   // Eagerly allocate the direct array supertype.
