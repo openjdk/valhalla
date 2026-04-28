@@ -32,6 +32,7 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -68,6 +69,7 @@ public class BasicImageReader implements AutoCloseable {
             isSystemProperty("sun.arch.data.model", "64", "32");
     private static final boolean USE_JVM_MAP =
             isSystemProperty("jdk.image.use.jvm.map", "true", "true");
+    // Whether to map the entire file contents.
     private static final boolean MAP_ALL =
             isSystemProperty("jdk.image.map.all", "true", IS_64_BIT ? "true" : "false");
 
@@ -77,7 +79,7 @@ public class BasicImageReader implements AutoCloseable {
     private final ByteBuffer memoryMap;
     private final FileChannel channel;
     private final ImageHeader header;
-    private final long indexSize;
+    private final int indexSize;
     private final IntBuffer redirect;
     private final IntBuffer offsets;
     private final ByteBuffer locations;
@@ -92,13 +94,15 @@ public class BasicImageReader implements AutoCloseable {
         this.byteOrder = Objects.requireNonNull(byteOrder);
         this.name = this.imagePath.toString();
 
+        // Only the runtime image is loaded with the root class-loader.
+        final boolean isRuntimeImage = BasicImageReader.class.getClassLoader() == null;
         ByteBuffer map;
 
-        if (USE_JVM_MAP && BasicImageReader.class.getClassLoader() == null) {
+        if (USE_JVM_MAP && isRuntimeImage) {
             // Check to see if the jvm has opened the file using libjimage
             // native entry when loading the image for this runtime
             map = NativeImageBuffer.getNativeMap(name);
-         } else {
+        } else {
             map = null;
         }
 
@@ -111,7 +115,7 @@ public class BasicImageReader implements AutoCloseable {
             AccessController.doPrivileged(new PrivilegedAction<Void>() {
                 @Override
                 public Void run() {
-                    if (BasicImageReader.class.getClassLoader() == null) {
+                    if (isRuntimeImage) {
                         try {
                             Class<?> fileChannelImpl =
                                 Class.forName("sun.nio.ch.FileChannelImpl");
@@ -134,33 +138,44 @@ public class BasicImageReader implements AutoCloseable {
 
         // If no memory map yet and 64 bit jvm then memory map entire file
         if (MAP_ALL && map == null) {
-            map = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+            if (isRuntimeImage) {
+                map = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+            } else {
+                // Non-runtime images are used for compiler tasks, and we avoid
+                // memory mapping them so the file handles can be closed when the task
+                // completes (rather than having to wait for garbage collection).
+                // This is important when long-lived server processes compile code
+                // across multiple runtime images. Once this code no longer requires
+                // JDK-8, we might be able to switch to using MemorySegment here.
+                int imageFileSize = (int) channel.size();
+                if ((long) imageFileSize != channel.size()) {
+                    throw new IOException("\"" + name + "\" too large");
+                }
+                map = readDirectBuffer(channel, imageFileSize, name);
+            }
         }
 
-        // Assume we have a memory map to read image file header
+        // headerBuffer is a temporary buffer for reading the heading (which
+        // may be the full buffer, or a scratch buffer we discard later).
         ByteBuffer headerBuffer = map;
         int headerSize = ImageHeader.getHeaderSize();
 
         // If no memory map then read header from image file
         if (headerBuffer == null) {
-            headerBuffer = ByteBuffer.allocateDirect(headerSize);
-            if (channel.read(headerBuffer, 0L) == headerSize) {
-                headerBuffer.rewind();
-            } else {
-                throw new IOException("\"" + name + "\" is not an image file");
-            }
+            headerBuffer = readDirectBuffer(channel, headerSize, name);
         } else if (headerBuffer.capacity() < headerSize) {
+            // A fully mapped file cannot be smaller than the header size.
             throw new IOException("\"" + name + "\" is not an image file");
         }
 
-        // Interpret the image file header
+        // Read the header and find the index size, which is the minimum buffer
+        // size we need to read if we haven't already mapped the entire file.
         header = readHeader(intBuffer(headerBuffer, 0, headerSize));
         indexSize = header.getIndexSize();
 
         // If no memory map yet then must be 32 bit jvm not previously mapped
         if (map == null) {
-            // Just map the image index
-            map = channel.map(FileChannel.MapMode.READ_ONLY, 0, indexSize);
+            map = readDirectBuffer(channel, indexSize, name);
         }
 
         memoryMap = map.asReadOnlyBuffer();
@@ -176,6 +191,16 @@ public class BasicImageReader implements AutoCloseable {
 
         stringsReader = new ImageStringsReader(this);
         decompressor = new Decompressor();
+    }
+
+    private static ByteBuffer readDirectBuffer(FileChannel channel, int size, String name)
+            throws IOException {
+        ByteBuffer map = ByteBuffer.allocateDirect(size);
+        if (channel.read(map, 0L) != size) {
+            throw new IOException("\"" + name + "\" is not an image file");
+        }
+        map.rewind();
+        return map;
     }
 
     protected BasicImageReader(Path imagePath) throws IOException {

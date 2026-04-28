@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,9 @@
 package com.sun.tools.javac.code;
 
 import java.io.IOException;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
+import java.nio.file.ProviderNotFoundException;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -217,14 +219,20 @@ public class ClassFinder {
         } else {
             useCtProps = false;
         }
-        if (useCtProps && JRTIndex.isAvailable()) {
+        JRTIndex index = null;
+        if (useCtProps) {
             Preview preview = Preview.instance(context);
-            JavaCompiler comp = JavaCompiler.instance(context);
-            jrtIndex = JRTIndex.instance(preview.isEnabled());
-            comp.closeables = comp.closeables.prepend(jrtIndex);
-        } else {
-            jrtIndex = null;
+            try {
+                index = JRTIndex.instance(preview.isEnabled());
+            } catch (ProviderNotFoundException | FileSystemNotFoundException e) {
+                // Leave index null.
+            }
+            if (index != null) {
+                JavaCompiler comp = JavaCompiler.instance(context);
+                comp.closeables = comp.closeables.prepend(index);
+            }
         }
+        jrtIndex = index;
 
         profile = Profile.instance(context);
         cachedCompletionFailure = new CompletionFailure(null, () -> null, dcfh);

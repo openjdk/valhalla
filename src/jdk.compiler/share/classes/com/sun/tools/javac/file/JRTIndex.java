@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,16 +95,6 @@ public final class JRTIndex implements Closeable {
             return new JRTIndex(previewMode);
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
-        }
-    }
-
-    /** {@return whether the JRT file-system is available to create an index} */
-    public static boolean isAvailable() {
-        try {
-            FileSystems.getFileSystem(URI.create("jrt:/"));
-            return true;
-        } catch (ProviderNotFoundException | FileSystemNotFoundException e) {
-            return false;
         }
     }
 

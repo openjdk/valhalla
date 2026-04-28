@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -313,6 +314,12 @@ class JrtFileSystem extends FileSystem {
             isOpen = false;
             image.close();
             image = null;
+
+            // Closes the jrt-fs.jar !!!
+            ClassLoader cl = provider.getClass().getClassLoader();
+            if (cl instanceof URLClassLoader) {
+                ((URLClassLoader) cl).close();
+            }
         }
     }
 

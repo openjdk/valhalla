@@ -27,6 +27,7 @@ package jdk.internal.jimage;
 import jdk.internal.jimage.ImageLocation.LocationType;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -89,12 +91,11 @@ import static jdk.internal.jimage.ImageLocation.PREVIEW_INFIX;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public final class ImageReader implements AutoCloseable {
-    private final SharedImageReader reader;
-
-    private volatile boolean closed;
+    // Set to null when closed to allow GC of underlying buffers to unmap files.
+    private final AtomicReference<SharedImageReader> reader;
 
     private ImageReader(SharedImageReader reader) {
-        this.reader = reader;
+        this.reader = new AtomicReference<>(reader);
     }
 
     /**
@@ -123,23 +124,19 @@ public final class ImageReader implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        if (closed) {
+        SharedImageReader r = reader.getAndSet(null);
+        if (r == null) {
             throw new IOException("image file already closed");
         }
-        reader.close(this);
-        closed = true;
+        r.close(this);
     }
 
-    private void ensureOpen() throws IOException {
-        if (closed) {
+    private SharedImageReader ensureOpen() throws IOException {
+        SharedImageReader r = reader.get();
+        if (r == null) {
             throw new IOException("image file closed");
         }
-    }
-
-    private void requireOpen() {
-        if (closed) {
-            throw new IllegalStateException("image file closed");
-        }
+        return r;
     }
 
     /**
@@ -150,8 +147,7 @@ public final class ImageReader implements AutoCloseable {
      * @return a node representing a resource, directory or symbolic link.
      */
     public Node findNode(String name) throws IOException {
-        ensureOpen();
-        return reader.findNode(name);
+        return ensureOpen().findNode(name);
     }
 
     /**
@@ -170,8 +166,7 @@ public final class ImageReader implements AutoCloseable {
      */
     public Node findResourceNode(String moduleName, String resourcePath)
             throws IOException {
-        ensureOpen();
-        return reader.findResourceNode(moduleName, resourcePath);
+        return ensureOpen().findResourceNode(moduleName, resourcePath);
     }
 
     /**
@@ -189,8 +184,7 @@ public final class ImageReader implements AutoCloseable {
      */
     public boolean containsResource(String moduleName, String resourcePath)
             throws IOException {
-        ensureOpen();
-        return reader.containsResource(moduleName, resourcePath);
+        return ensureOpen().containsResource(moduleName, resourcePath);
     }
 
     /**
@@ -202,24 +196,30 @@ public final class ImageReader implements AutoCloseable {
      * given node is not a resource node).
      */
     public byte[] getResource(Node node) throws IOException {
-        ensureOpen();
-        return reader.getResource(node);
+        return ensureOpen().getResource(node);
     }
 
     /**
      * Returns the content of a resource node in a newly allocated byte buffer.
      */
     public ByteBuffer getResourceBuffer(Node node) {
-        requireOpen();
         if (!node.isResource()) {
             throw new IllegalArgumentException("Not a resource node: " + node);
         }
-        return reader.getResourceBuffer(node.getLocation());
+        try {
+            return ensureOpen().getResourceBuffer(node.getLocation());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     // Package protected for use only by SystemImageReader.
     ResourceEntries getResourceEntries() {
-        return reader.getResourceEntries();
+        try {
+            return ensureOpen().getResourceEntries();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static final class SharedImageReader extends BasicImageReader {
