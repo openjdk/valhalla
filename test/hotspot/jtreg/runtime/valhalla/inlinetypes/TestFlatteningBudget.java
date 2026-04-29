@@ -28,6 +28,8 @@
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
+ * @requires vm.opt.UseFieldFlattening != "false"
+ * @requires vm.opt.UseNullableAtomicValueFlattening != "false"
  * @run main runtime.valhalla.inlinetypes.TestFlatteningBudget
  */
 
@@ -92,35 +94,9 @@ public class TestFlatteningBudget {
         static final Unsafe UNSAFE = Unsafe.getUnsafe();
         static HotSpotDiagnosticMXBean hsDiag = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
 
-        static int getIntVMOption(String vmOption) {
-            VMOption option = hsDiag.getVMOption(vmOption);
-            return Integer.valueOf(option.getValue()).intValue();
-        }
-
-        static boolean getBooleanVMOption(String vmOption) {
-            VMOption option = hsDiag.getVMOption(vmOption);
-            return Boolean.valueOf(option.getValue()).booleanValue();
-        }
-
         public static void main(String[] args) throws Exception {
 
-            // Pre-conditions
-            boolean useFieldFlattening = getBooleanVMOption("UseFieldFlattening");
-            // Test cannot work properly if field flattening is disabled
-            if (!useFieldFlattening) {
-              System.out.println("Test skipped because field flattening is disabled");
-              return;
-            }
-            boolean nullableAtomicLayout = getBooleanVMOption("UseNullableAtomicValueFlattening");
-            boolean nullableNonAtomicLayout = getBooleanVMOption("UseNullableNonAtomicValueFlattening");
-            // Test cannot work properly if nullable field flattening is disabled
-            if (!nullableAtomicLayout && !nullableNonAtomicLayout) {
-              System.out.println("Test skipped because nullable flat layouts are disabled");
-              return;
-            }
-
-            // Test
-            int flatteningBudget = getIntVMOption("FlatteningBudget");
+            int flatteningBudget = Integer.valueOf(args[0]);
             var c = new Container();
             Class<?> klass = c.getClass();
             Field f0 = klass.getDeclaredField("v0");
@@ -152,6 +128,7 @@ public class TestFlatteningBudget {
         allArgs.add("--enable-preview");
         allArgs.add("--add-exports");
         allArgs.add("java.base/jdk.internal.misc=ALL-UNNAMED");
+        allArgs.add("-XX:+UnlockExperimentalVMOptions");
         for (String s : args) {
           allArgs.add(s);
         }
@@ -163,10 +140,9 @@ public class TestFlatteningBudget {
 
     static public void main(String[] args) throws Exception {
         runTest("runtime.valhalla.inlinetypes.TestFlatteningBudget$Test0");
-        runTest("runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
-        runTest("-XX:FlatteningBudget=128", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
-        runTest("-XX:FlatteningBudget=4", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
-        runTest("-XX:FlatteningBudget=2", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
-        runTest("-XX:FlatteningBudget=0", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1");
+        runTest("-XX:FlatteningBudget=128", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1", "128");
+        runTest("-XX:FlatteningBudget=4", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1", "4");
+        runTest("-XX:FlatteningBudget=2", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1", "2");
+        runTest("-XX:FlatteningBudget=0", "runtime.valhalla.inlinetypes.TestFlatteningBudget$Test1", "0");
     }
 }
