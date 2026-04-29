@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -513,16 +513,16 @@ class HistoClosure : public KlassInfoClosure {
   }
 };
 
-class FindClassByNameClosure : public KlassInfoClosure {
+class FindClassByExternalNameClosure : public KlassInfoClosure {
  private:
   GrowableArray<Klass*>* _klasses;
-  Symbol* _classname;
+  const char* _classname;
  public:
-  FindClassByNameClosure(GrowableArray<Klass*>* klasses, Symbol* classname) :
+  FindClassByExternalNameClosure(GrowableArray<Klass*>* klasses, const char* classname) :
     _klasses(klasses), _classname(classname) { }
 
   void do_cinfo(KlassInfoEntry* cie) {
-    if (cie->klass()->name() == _classname) {
+    if (strcmp(cie->klass()->external_name(), _classname) == 0) {
       _klasses->append(cie->klass());
     }
   }
@@ -600,13 +600,10 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     return;
   }
 
-  Thread* THREAD = Thread::current();
-
-  Symbol* classname = SymbolTable::probe(class_name, (int)strlen(class_name));
-
   GrowableArray<Klass*>* klasses = new (mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
 
-  FindClassByNameClosure fbnc(klasses, classname);
+  ResourceMark rm;
+  FindClassByExternalNameClosure fbnc(klasses, class_name);
   cit.iterate(&fbnc);
 
   for(int i = 0; i < klasses->length(); i++) {
@@ -614,9 +611,8 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     if (!klass->is_instance_klass()) continue;  // Skip
     InstanceKlass* ik = InstanceKlass::cast(klass);
     int tab = 1;
-    st->print_cr("Class %s [@%s]:", klass->name()->as_C_string(),
+    st->print_cr("Class %s [@%s]:", klass->external_name(),
         klass->class_loader_data()->loader_name());
-    ResourceMark rm;
     GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
     for (AllFieldStream fd(ik); !fd.done(); fd.next()) {
       if (!fd.access_flags().is_static()) {
