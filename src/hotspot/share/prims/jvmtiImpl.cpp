@@ -500,7 +500,8 @@ void VM_BaseGetOrSetLocal::check_and_clone_this_value_object() {
 
     // Must ensure the content of the buffered value is visible
     // before publishing the buffered value oop
-    OrderAccess::storestore();  }
+    OrderAccess::storestore();
+  }
   _value.l = JNIHandles::make_local(_calling_thread, obj_copy);
 }
 
