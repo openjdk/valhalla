@@ -31,7 +31,7 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test ContendedFlatFieldOopMap
  * @library /test/lib
- * @requires vm.gc != "Z"
+ * @requires vm.gc != "Z" & (vm.opt.RestrictContended == null | vm.opt.RestrictContended == "false")
  * @modules java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @enablePreview
