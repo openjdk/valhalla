@@ -832,7 +832,7 @@ const int ObjectAlignmentInBytes = 8;
           "Max number of embedded object references in a value container "  \
           "before no flattening attempts are made, <0 indicates no limit")  \
                                                                             \
-  product(intx, FlatteningBudget, 1024, EXPERIMENTAL,                       \
+  product(uint, FlatteningBudget, 1024, EXPERIMENTAL,                       \
           "Maximum size (in bytes) dedicated to flat fields in an instance")\
           range(0, 1024 * 1024)                                             \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \
