@@ -4861,9 +4861,9 @@ bool LibraryCallKit::inline_getArrayProperties(ArrayPropertiesCheck check) {
 
       // ...non-atomic, but we tried everything.
       RegionNode* decision = new RegionNode(3);
-      PhiNode* result = PhiNode::make(decision, intcon(1), TypeInt::BOOL);
       decision->set_req(1, _gvn.transform(atomic_region));
       decision->set_req(2, _gvn.transform(non_atomic_region));
+      PhiNode* result = PhiNode::make(decision, intcon(1), TypeInt::BOOL);
       result->set_req(2, intcon(0));
       set_control(_gvn.transform(decision));
       set_result(_gvn.transform(result));
