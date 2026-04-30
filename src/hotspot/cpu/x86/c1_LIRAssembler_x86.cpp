@@ -1604,7 +1604,6 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
-  //     FIXME: do null check only if the operand is nullable
   __ testptr(left, left);
   __ jcc(Assembler::zero, L_oops_not_equal);
   __ testptr(right, right);
@@ -1633,8 +1632,12 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   } else {
     Register tmp1 = op->tmp1()->as_register();
     Register tmp2 = op->tmp2()->as_register();
-    __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
-    __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
+    if (left == right) { // same operand, so clearly the same klasses, let's save the check
+      __ jmp (*op->stub()->entry());  //  -> do slow check
+    } else {
+      __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
+      __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
+    }
     // fall through to L_oops_not_equal
   }
 

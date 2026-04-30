@@ -215,7 +215,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_profile_inline_type(LIR_OpProfileInlineType* op);
   void emit_std_entries();
   void emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);
-  void add_scalarized_entry_info(int call_offset);
+  void add_scalarized_debug_info(int call_offset);
 
   void arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info);
   void arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr temp, LIR_Opr result, CodeEmitInfo* info);

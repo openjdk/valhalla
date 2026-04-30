@@ -925,7 +925,7 @@ bool CallNode::has_non_debug_use(const Node* n) {
   return false;
 }
 
-bool CallNode::has_debug_use(const Node* n) {
+bool CallNode::has_debug_use(const Node* n) const {
   if (jvms() != nullptr) {
     for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
       if (in(i) == n) {
@@ -1206,6 +1206,14 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       // Check if the field layout can be optimized
       if (vt->can_emit_substitutability_check(right)) {
         PhaseIterGVN* igvn = phase->is_IterGVN();
+        if (UseAcmpFastPath) {
+          // Sabotage the fast acmp path
+          IfNode* fast_path_if = Parse::acmp_fast_path_if_from_substitutable_call(phase, this);
+          if (fast_path_if != nullptr) {
+            fast_path_if->set_req(1, phase->intcon(1));
+            igvn->_worklist.push(fast_path_if);
+          }
+        }
 
         Node* ctrl = control();
         RegionNode* region = new RegionNode(1);

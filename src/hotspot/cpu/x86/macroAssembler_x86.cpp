@@ -59,6 +59,7 @@
 #include "runtime/signature_cc.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER2
@@ -2657,6 +2658,17 @@ void MacroAssembler::sign_extend_byte(Register reg) {
 
 void MacroAssembler::sign_extend_short(Register reg) {
   movswl(reg, reg); // movsxw
+}
+
+void MacroAssembler::narrow_subword_type(Register reg, BasicType bt) {
+  assert(is_subword_type(bt), "required");
+  switch (bt) {
+  case T_BOOLEAN: andl(reg, 1); break;
+  case T_BYTE:    movsbl(reg, reg); break;
+  case T_CHAR:    movzwl(reg, reg); break;
+  case T_SHORT:   movswl(reg, reg); break;
+  default:        ShouldNotReachHere();
+  }
 }
 
 void MacroAssembler::testl(Address dst, int32_t imm32) {
@@ -6608,7 +6620,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     //
     // Space for the return pc and saved rbp is reserved twice. But only the #1 copies
     // contain the real values of return pc and saved rbp. The #2 copies are not reliable
-    // and should not be used. They are mostly needed to add space between the  extension
+    // and should not be used. They are mostly needed to add space between the extension
     // space and the locals, as there would be between the real arguments and the locals
     // if we don't need to do unpacking (from the scalarized entry point).
     //

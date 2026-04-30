@@ -687,7 +687,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       // We get an array of objects from the runtime call
       __ get_vm_result_oop(buf_array, rthread);
-      __ get_vm_result_metadata(rmethod, rthread); // TODO: required to keep the callee Method live?
     }
   }
 

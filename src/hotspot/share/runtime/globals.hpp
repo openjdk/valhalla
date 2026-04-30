@@ -905,6 +905,9 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, TimeOopMap, false,                                          \
           "Time calls to GenerateOopMap::compute_map() in sum")             \
                                                                             \
+  develop(bool, GenerateOopMapALot, false,                                  \
+          "Generate interpreter oopmaps at all safepoints")                 \
+                                                                            \
   develop(bool, TraceFinalizerRegistration, false,                          \
           "Trace registration of final references")                         \
                                                                             \
@@ -2033,6 +2036,9 @@ const int ObjectAlignmentInBytes = 8;
   develop(uint, BinarySearchThreshold, 16,                                  \
           "Minimal number of elements in a sorted collection to prefer"     \
           "binary search over simple linear search." )                      \
+                                                                            \
+  product(bool, UseAcmpFastPath, true, DIAGNOSTIC,                          \
+          "Use fast path for acmp.")                                        \
 
 // end of RUNTIME_FLAGS
 

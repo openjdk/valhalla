@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -89,7 +89,6 @@ public final class BufWriterImpl implements BufWriter {
     }
 
     private boolean doStrictFieldsMatchCheck(ClassModel cm) {
-        // TODO only check for preview class files?
         // UTF8 Entry can be used as equality objects
         var checks = new HashSet<>(Arrays.asList(getStrictInstanceFields()));
         for (var f : cm.fields()) {
@@ -116,6 +115,7 @@ public final class BufWriterImpl implements BufWriter {
         this.labelsMatch = labelsMatch;
     }
 
+    // Always empty for older majors where STRICT_INIT was not defined
     public WritableField.UnsetField[] getStrictInstanceFields() {
         assert strictInstanceFields != null : "should access only after setter call in DirectClassBuilder";
         return strictInstanceFields;

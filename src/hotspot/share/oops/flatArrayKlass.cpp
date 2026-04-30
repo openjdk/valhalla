@@ -100,12 +100,20 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Too-early construction of a flat array klass");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
+  assert(props.is_null_restricted() || !props.is_non_atomic(),
+         "Nullable non-atomic arrays are unsupported");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  assert(element_klass->must_be_atomic() || (!AlwaysAtomicAccesses), "Atomic by-default");
+  // If the array is non-atomic, then the element should be one of the following:
+  // a) naturally atomic, so atomicity relaxation has no impact; or
+  // b) explicitly marked as allowing non-atomicity.
+  assert(!props.is_non_atomic() ||
+         (element_klass->is_naturally_atomic(props.is_null_restricted()) ||
+         !element_klass->must_be_atomic()),
+         "Cannot conform to atomicity requirements");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
