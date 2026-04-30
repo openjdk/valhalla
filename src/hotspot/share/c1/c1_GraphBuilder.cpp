@@ -44,7 +44,6 @@
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/layoutKind.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/checkedCast.hpp"
@@ -1094,7 +1093,7 @@ void GraphBuilder::load_indexed(BasicType type) {
       bool next_needs_patching = !next_field->holder()->is_initialized() ||
                                  !next_field->will_link(method(), Bytecodes::_getfield) ||
                                  PatchALot;
-      bool needs_atomic_access = LayoutKindHelper::is_atomic_flat(array_klass->layout_kind());
+      bool needs_atomic_access = array_klass->is_elem_atomic();
       can_delay_access = is_null_free && C1UseDelayedFlattenedFieldReads &&
                          !next_needs_patching && !needs_atomic_access;
     }

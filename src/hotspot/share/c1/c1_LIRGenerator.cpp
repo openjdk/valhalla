@@ -41,7 +41,6 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/klass.inline.hpp"
-#include "oops/layoutKind.hpp"
 #include "oops/methodCounters.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -1776,7 +1775,7 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
   }
 
   bool null_free = array_klass->is_elem_null_free();
-  bool atomic = LayoutKindHelper::is_atomic_flat(array_klass->layout_kind());
+  bool atomic = array_klass->is_elem_atomic();
   assert(null_free || atomic, "nullable flat arrays must use an atomic layout");
   if (atomic) {
     assert(field == nullptr && sub_offset == 0, "delayed sub-element access is only supported for non-atomic arrays");
