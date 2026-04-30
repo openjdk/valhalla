@@ -513,16 +513,16 @@ class HistoClosure : public KlassInfoClosure {
   }
 };
 
-class FindClassByExternalNameClosure : public KlassInfoClosure {
+class FindClassByNameClosure : public KlassInfoClosure {
  private:
   GrowableArray<Klass*>* _klasses;
-  const char* _classname;
+  Symbol* _classname;
  public:
-  FindClassByExternalNameClosure(GrowableArray<Klass*>* klasses, const char* classname) :
+  FindClassByNameClosure(GrowableArray<Klass*>* klasses, Symbol* classname) :
     _klasses(klasses), _classname(classname) { }
 
   void do_cinfo(KlassInfoEntry* cie) {
-    if (strcmp(cie->klass()->external_name(), _classname) == 0) {
+    if (cie->klass()->name() == _classname) {
       _klasses->append(cie->klass());
     }
   }
@@ -600,10 +600,18 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     return;
   }
 
-  GrowableArray<Klass*>* klasses = new (mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
-
   ResourceMark rm;
-  FindClassByExternalNameClosure fbnc(klasses, class_name);
+  char* normalized_name = NEW_RESOURCE_ARRAY(char, strlen(class_name) + 1);
+  strcpy(normalized_name, class_name);
+  for (char* p = normalized_name; *p != '\0'; p++) {
+    if (*p == '.') {
+      *p = '/';
+    }
+  }
+  Symbol* classname = SymbolTable::probe(normalized_name, (int)strlen(normalized_name));
+
+  GrowableArray<Klass*>* klasses = new (mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
+  FindClassByNameClosure fbnc(klasses, classname);
   cit.iterate(&fbnc);
 
   for(int i = 0; i < klasses->length(); i++) {
@@ -611,6 +619,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     if (!klass->is_instance_klass()) continue;  // Skip
     InstanceKlass* ik = InstanceKlass::cast(klass);
     int tab = 1;
+    ResourceMark rm;
     st->print_cr("Class %s [@%s]:", klass->external_name(),
         klass->class_loader_data()->loader_name());
     GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
