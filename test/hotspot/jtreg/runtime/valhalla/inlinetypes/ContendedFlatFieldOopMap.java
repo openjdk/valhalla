@@ -36,7 +36,7 @@ import jdk.test.whitebox.WhiteBox;
  * @build jdk.test.whitebox.WhiteBox
  * @enablePreview
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:-RestrictContended
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-RestrictContended
  *                   -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  *                   runtime.valhalla.inlinetypes.ContendedFlatFieldOopMap
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 static jvmtiEnv *jvmti = nullptr;
+static jobject cached_this = nullptr;
 
 JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
@@ -54,36 +55,36 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
 }
 
 JNIEXPORT void JNICALL
-Java_ValueGetSetLocal_testLocals(JNIEnv *jni, jclass thisClass, jthread thread, jboolean testSetLocal) {
+Java_ValueGetCtorLocal_testCtorThis(JNIEnv *jni, jclass thisClass, jthread thread) {
   const jint depth = 1;
 
-  LOG("\ntestLocals\n");
+  jmethodID method = get_frame_method(jvmti, jni, thread, depth);
+  char* mname = get_method_name(jvmti, jni, method);
+
+  LOG("\ntestCtorThis: frame method: %s\n", mname);
   jobject obj0 = get_local_object(jvmti, jni, thread, depth, 0);
-  jobject obj1 = get_local_object(jvmti, jni, thread, depth, 1);
-  jobject obj2 = get_local_object(jvmti, jni, thread, depth, 2);
-  jobject obj3 = get_local_object(jvmti, jni, thread, depth, 3);
   jobject obj_this = get_local_instance(jvmti, jni, thread, depth);
 
-  // obj0 is expected to be equal "this"
-  if (!jni->IsSameObject(obj0, obj_this)) {
+  // obj0 is expected to be equal to "this"
+  jboolean is_equal = jni->IsSameObject(obj0, obj_this);
+  LOG("testCtorThis: obj0: %p obj_this: %p objects are equal: %d\n",
+      (void*)obj0, (void*)obj_this, is_equal);
+
+  if (!is_equal) {
     fatal(jni, "Failed: obj0 != obj_this\n");
   }
-  // obj3 is expected to be equal obj2
-  if (!jni->IsSameObject(obj3, obj2)) {
-    fatal(jni, "Failed: obj3 != obj2\n");
-  }
-
-  if (testSetLocal) {
-    // set obj3 = obj1
-    set_local_object(jvmti, thread, depth, 3, obj1);
-    obj3 = get_local_object(jvmti, jni, thread, depth, 3);
-    if (!jni->IsSameObject(obj3, obj1)) {
-      fatal(jni, "Failed: obj3 != obj1\n");
+  if (cached_this == nullptr) { // first call to testCtorThis
+    cached_this = jni->NewGlobalRef(obj_this);
+  } else {
+    // cached_this must be a snapshot that does not mutate
+    // when the ctor changes field values
+    if (jni->IsSameObject(cached_this, obj_this)) {
+      fatal(jni, "Failed: unexpected: cached_this == obj_this\n");
     }
   }
+  deallocate(jvmti, jni, (void*)mname);
 }
 
 #ifdef __cplusplus
 }
 #endif
-
