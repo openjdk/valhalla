@@ -1101,3 +1101,4 @@ void RangeCheckPredicate::check_state() {
 void ProfileInvoke::state_values_do(ValueVisitor* f) {
   if (state() != nullptr) state()->values_do(f);
 }
+

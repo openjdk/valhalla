@@ -967,15 +967,15 @@ class DelayedLoadIndexed;
 
 LEAF(LoadIndexed, AccessIndexed)
  private:
-  NullCheck*  _explicit_null_check;              // For explicit null check elimination
-  Value _vt;
+  NullCheck*  _explicit_null_check;  // For explicit null check elimination
+  Value _buffer;                     // Buffer for load from flat arrays
   DelayedLoadIndexed* _delayed;
 
  public:
   // creation
   LoadIndexed(Value array, Value index, Value length, BasicType elt_type, ValueStack* state_before, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _explicit_null_check(nullptr), _vt(nullptr), _delayed(nullptr) {}
+  , _explicit_null_check(nullptr), _buffer(nullptr), _delayed(nullptr) {}
 
   // accessors
   NullCheck* explicit_null_check() const         { return _explicit_null_check; }
@@ -987,24 +987,25 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  Value vt() const { return _vt; }
-  void set_vt(Value vt) {
-    assert(vt == nullptr || vt->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must be a NewInstance");
-    _vt = vt;
+  Value buffer() const { return _buffer; }
+  void set_buffer(Value buffer) {
+    assert(buffer == nullptr || buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must be a NewInstance");
+    _buffer = buffer;
   }
 
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
-  // generic;
   virtual void input_values_do(ValueVisitor* f) {
     AccessIndexed::input_values_do(f);
-    if (_vt != nullptr) {
-      f->visit(&_vt);
-      assert(_vt->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must stay a NewInstance");
+    if (_buffer != nullptr) {
+      f->visit(&_buffer);
+      assert(_buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must stay a NewInstance");
     }
   }
-  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), vt())
+
+  // generic;
+  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), buffer())
 };
 
 class DelayedLoadIndexed : public CompilationResourceObj {

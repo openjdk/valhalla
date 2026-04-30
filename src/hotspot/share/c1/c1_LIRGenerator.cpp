@@ -2354,11 +2354,10 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   Value element = nullptr;
-  if (x->vt() != nullptr) {
+  if (x->buffer() != nullptr) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
-    LIRItem obj_item(x->vt(), this);
-
+    LIRItem obj_item(x->buffer(), this);
     LIR_Opr payload = access_flat_array(true, array, index, obj_item,
                                         x->delayed() == nullptr ? nullptr : x->delayed()->field(),
                                         x->delayed() == nullptr ? 0 : x->delayed()->offset());
