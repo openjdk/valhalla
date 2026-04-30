@@ -1678,7 +1678,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       bool is_constant_null = value.is_constant() && value.value()->is_null_obj();
       if (!is_constant_null) {
         LabelObj* L_isNull = new LabelObj();
-        bool needs_null_check = !value.is_constant() || value.value()->is_null_obj();
+        bool needs_null_check = !value.is_constant();
         if (needs_null_check) {
           __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
           __ branch(lir_cond_equal, L_isNull->label());
@@ -1761,7 +1761,7 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
 }
 
 LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
-                                          ciField* field, size_t sub_offset) {
+                                        ciField* field, size_t sub_offset) {
   assert(sub_offset == 0 || field != nullptr, "Sanity check");
 
   // Find the starting address of the source (inside the array)
@@ -1786,11 +1786,12 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
     LIRItem elm_item(elm_resolved_addr, this);
     DecoratorSet decorators = IN_HEAP;
     if (is_load) {
-      access_load_at(decorators, bt, elm_item, LIR_OprFact::intConst(0), payload,
-                     nullptr, nullptr);
+      access_load_at(decorators, bt, elm_item, LIR_OprFact::intConst(0), payload, nullptr, nullptr);
       access_store_at(decorators, bt, obj_item, LIR_OprFact::intConst(elem_klass->payload_offset()), payload,
                       nullptr, nullptr, elem_klass);
+      // Null check is performed in the caller
     } else {
+      // Zero the payload
       LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
       __ move(zero, payload);
 
@@ -1807,6 +1808,7 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
             __ cmp(lir_cond_equal, obj_item.result(), LIR_OprFact::oopConst(nullptr));
             __ branch(lir_cond_equal, L_isNull->label());
           }
+          // Load payload (if not empty) and set null marker.
           if (!elem_klass->is_empty()) {
             access_load_at(decorators, bt, obj_item, LIR_OprFact::intConst(elem_klass->payload_offset()), payload);
           }
@@ -1816,8 +1818,7 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
           }
         }
       }
-      access_store_at(decorators, bt, elm_item, LIR_OprFact::intConst(0), payload,
-                      nullptr, nullptr, elem_klass);
+      access_store_at(decorators, bt, elm_item, LIR_OprFact::intConst(0), payload, nullptr, nullptr, elem_klass);
     }
     return payload;
   }
@@ -2358,20 +2359,21 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   if (x->buffer() != nullptr) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
-    LIRItem obj_item(x->buffer(), this);
-    LIR_Opr payload = access_flat_array(true, array, index, obj_item,
+    LIRItem buffer(x->buffer(), this);
+    LIR_Opr payload = access_flat_array(true, array, index, buffer,
                                         x->delayed() == nullptr ? nullptr : x->delayed()->field(),
                                         x->delayed() == nullptr ? 0 : x->delayed()->offset());
     ciFlatArrayKlass* array_klass = x->array()->declared_type()->as_flat_array_klass();
     if (array_klass->is_elem_null_free()) {
-      set_no_result(x);
+      set_result(x, x->buffer()->operand());
     } else {
+      // Check the null marker and set result to null if it's not set
       ciInlineKlass* elem_klass = array_klass->element_klass()->as_inline_klass();
       BasicType bt = elem_klass->atomic_size_to_basic_type(false);
       assert(payload->is_valid(), "nullable flat array load must return the atomic payload");
       __ logical_and(payload, null_marker_mask(bt, elem_klass->null_marker_offset_in_payload()), payload);
       __ cmp(lir_cond_equal, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
-      __ cmove(lir_cond_equal, LIR_OprFact::oopConst(nullptr), obj_item.result(), rlock_result(x), T_OBJECT);
+      __ cmove(lir_cond_equal, LIR_OprFact::oopConst(nullptr), buffer.result(), rlock_result(x), T_OBJECT);
     }
   } else if (x->delayed() != nullptr) {
     assert(x->array()->is_loaded_flat_array(), "must be");

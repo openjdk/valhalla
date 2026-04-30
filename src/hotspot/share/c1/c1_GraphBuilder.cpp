@@ -1109,9 +1109,6 @@ void GraphBuilder::load_indexed(BasicType type) {
       buffer->set_null_free(true);
       _memory->new_instance(buffer);
       result = append_split(buffer);
-      if (is_null_free) {
-        apush(result);
-      }
       load_indexed = new LoadIndexed(array, index, length, type, state_before);
       load_indexed->set_buffer(buffer);
       // The LoadIndexed node will initialize this instance by copying from
@@ -1133,9 +1130,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     append(new MemBar(lir_membar_storestore));
   }
   assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
-  if (!array->is_loaded_flat_array() || !is_null_free) {
-    push(as_ValueType(type), result);
-  }
+  push(as_ValueType(type), result);
 }
 
 
