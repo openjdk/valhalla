@@ -44,6 +44,7 @@
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/layoutKind.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/checkedCast.hpp"
@@ -1074,12 +1075,14 @@ void GraphBuilder::load_indexed(BasicType type) {
   }
 
   bool need_membar = false;
+  bool is_null_free = false;
   LoadIndexed* load_indexed = nullptr;
   Instruction* result = nullptr;
   if (array->is_loaded_flat_array()) {
-    // TODO 8350865 This is currently dead code. Can we use set_null_free on the result here if the array is null-free?
     ciType* array_type = array->declared_type();
-    ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
+    ciFlatArrayKlass* array_klass = array_type->as_flat_array_klass();
+    is_null_free = array_klass->is_elem_null_free();
+    ciInlineKlass* elem_klass = array_klass->element_klass()->as_inline_klass();
 
     bool can_delay_access = false;
     ciBytecodeStream s(method());
@@ -1091,7 +1094,9 @@ void GraphBuilder::load_indexed(BasicType type) {
       bool next_needs_patching = !next_field->holder()->is_initialized() ||
                                  !next_field->will_link(method(), Bytecodes::_getfield) ||
                                  PatchALot;
-      can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
+      bool needs_atomic_access = LayoutKindHelper::is_atomic_flat(array_klass->layout_kind());
+      can_delay_access = is_null_free && C1UseDelayedFlattenedFieldReads &&
+                         !next_needs_patching && !needs_atomic_access;
     }
     if (can_delay_access) {
       // potentially optimizable array access, storing information for delayed decision
@@ -1102,8 +1107,13 @@ void GraphBuilder::load_indexed(BasicType type) {
       return; // Nothing else to do for now
     } else {
       NewInstance* new_instance = new NewInstance(elem_klass, state_before, false, true);
+      new_instance->set_null_free(true);
       _memory->new_instance(new_instance);
-      apush(append_split(new_instance));
+      Instruction* buffer = append_split(new_instance);
+      // TODO ???
+      if (is_null_free) {
+        apush(buffer);
+      }
       load_indexed = new LoadIndexed(array, index, length, type, state_before);
       load_indexed->set_vt(new_instance);
       // The LoadIndexed node will initialise this instance by copying from
@@ -1125,7 +1135,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     append(new MemBar(lir_membar_storestore));
   }
   assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
-  if (!array->is_loaded_flat_array()) {
+  if (!array->is_loaded_flat_array() || !is_null_free) {
     push(as_ValueType(type), result);
   }
 }
@@ -2030,6 +2040,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 assert(!needs_patching, "Can't patch delayed field access");
                 pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
                 NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
+                vt->set_null_free(true);
                 _memory->new_instance(vt);
                 pending_load_indexed()->load_instr()->set_vt(vt);
                 apush(append_split(vt));

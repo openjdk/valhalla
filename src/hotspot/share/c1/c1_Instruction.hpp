@@ -968,7 +968,7 @@ class DelayedLoadIndexed;
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
-  NewInstance* _vt;
+  Value _vt;
   DelayedLoadIndexed* _delayed;
 
  public:
@@ -987,13 +987,23 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  NewInstance* vt() const { return _vt; }
-  void set_vt(NewInstance* vt) { _vt = vt; }
+  Value vt() const { return _vt; }
+  void set_vt(Value vt) {
+    assert(vt == nullptr || vt->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must be a NewInstance");
+    _vt = vt;
+  }
 
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
   // generic;
+  virtual void input_values_do(ValueVisitor* f) {
+    AccessIndexed::input_values_do(f);
+    if (_vt != nullptr) {
+      f->visit(&_vt);
+      assert(_vt->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must stay a NewInstance");
+    }
+  }
   HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), vt())
 };
 
