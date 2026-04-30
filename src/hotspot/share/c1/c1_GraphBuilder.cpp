@@ -2040,6 +2040,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 assert(!needs_patching, "Can't patch delayed field access");
                 pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
                 NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
+                // TODO should we do that for all NewInstance??
                 vt->set_null_free(true);
                 _memory->new_instance(vt);
                 pending_load_indexed()->load_instr()->set_vt(vt);

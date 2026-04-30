@@ -447,7 +447,7 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* current, Klass* array_kla
   }
 JRT_END
 
-
+// TODO 8265122 This is currently dead code until the array factory methods are intrinsified
 JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
   NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
 
