@@ -1704,15 +1704,16 @@ void LIRGenerator::do_StoreField(StoreField* x) {
                   value.result(), info != nullptr ? new CodeEmitInfo(info) : nullptr, info);
 }
 
-// TODO 8350865 Can we find another way to pass an address to access_load_at()?
-class TempResolvedAddress: public Instruction {
+// Wrap an already computed address register as a C1 Instruction so it
+// can be passed as LIRItem into access_load_at() / access_store_at().
+class ComputedAddressValue: public Instruction {
  public:
-  TempResolvedAddress(ValueType* type, LIR_Opr addr) : Instruction(type) {
+  ComputedAddressValue(ValueType* type, LIR_Opr addr) : Instruction(type) {
     set_operand(addr);
   }
   virtual void input_values_do(ValueVisitor*) {}
   virtual void visit(InstructionVisitor* v)   {}
-  virtual const char* name() const  { return "TempResolvedAddress"; }
+  virtual const char* name() const { return "ComputedAddressValue"; }
 };
 
 LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& index) {
@@ -1750,13 +1751,13 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   LIR_Opr elm_op = get_and_load_element_address(array, index);
 
   BasicType subelt_type = field->type()->basic_type();
-  TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(subelt_type), elm_op);
+  ComputedAddressValue* elm_resolved_addr = new ComputedAddressValue(as_ValueType(subelt_type), elm_op);
   LIRItem elm_item(elm_resolved_addr, this);
 
   DecoratorSet decorators = IN_HEAP;
   access_load_at(decorators, subelt_type,
-                     elm_item, LIR_OprFact::longConst(sub_offset), result,
-                     nullptr, nullptr);
+                 elm_item, LIR_OprFact::longConst(sub_offset), result,
+                 nullptr, nullptr);
 }
 
 LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
@@ -1781,7 +1782,7 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
     assert(field == nullptr && sub_offset == 0, "delayed sub-element access is only supported for non-atomic arrays");
     BasicType bt = elem_klass->atomic_size_to_basic_type(null_free);
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
-    TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(bt), elm_op);
+    ComputedAddressValue* elm_resolved_addr = new ComputedAddressValue(as_ValueType(bt), elm_op);
     LIRItem elm_item(elm_resolved_addr, this);
     DecoratorSet decorators = IN_HEAP;
     if (is_load) {
@@ -1842,7 +1843,7 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
     }
 
     LIR_Opr temp = new_register(reg_type);
-    TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(field_type), elm_op);
+    ComputedAddressValue* elm_resolved_addr = new ComputedAddressValue(as_ValueType(field_type), elm_op);
     LIRItem elm_item(elm_resolved_addr, this);
 
     DecoratorSet decorators = IN_HEAP;
