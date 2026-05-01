@@ -179,13 +179,18 @@ public final class Objects {
     }
 
    /**
-    * {@return {@code true} if the object is a non-null reference
-    * to an {@linkplain Class#isIdentity() identity object}, otherwise {@code false}}
+    * {@return {@code true} if the input is a non-null reference
+    * to an object with identity, and {@code false} otherwise}
+    *
+    * <p>If the object is an instance of a concrete {@linkplain Class#isValue()
+    * value class}, it does not have identity and the result will be
+    * {@code false}. All other objects, including arrays, are identity objects
+    * and the result will be {@code true}.
     *
     * @apiNote
     * If the parameter is {@code null}, there is no object
-    * and hence no class to check for identity; the return is {@code false}.
-    * To test for a {@linkplain Class#isValue() value object} use:
+    * and hence no identity; the result is {@code false}.
+    * To test for a value object use:
     * {@snippet type="java" :
     *     if (obj != null && !Objects.hasIdentity(obj)) {
     *         // obj is a non-null value object
@@ -197,7 +202,7 @@ public final class Objects {
    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 //    @IntrinsicCandidate
     public static boolean hasIdentity(Object obj) {
-        return (obj == null) ? false : obj.getClass().isIdentity();
+        return (obj == null) ? false : !obj.getClass().isValue();
     }
 
     /**
@@ -210,7 +215,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
