@@ -200,19 +200,6 @@ public final class Objects {
         return (obj == null) ? false : obj.getClass().isIdentity();
     }
 
-   /**
-    * {@return {@code true} if the object is a non-null reference
-    * to a {@linkplain Class#isValue() value object}, otherwise {@code false}}
-    *
-    * @param obj an object or {@code null}
-    * @since Valhalla
-    */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
-//    @IntrinsicCandidate
-    public static boolean isValueObject(Object obj) {
-        return (obj == null) ? false : obj.getClass().isValue();
-    }
-
     /**
      * Checks that the specified object reference is an identity object.
      *
