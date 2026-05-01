@@ -199,7 +199,7 @@ public final class Objects {
     * @param obj an object or {@code null}
     * @since Valhalla
     */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
 //    @IntrinsicCandidate
     public static boolean hasIdentity(Object obj) {
         return (obj == null) ? false : !obj.getClass().isValue();
@@ -215,7 +215,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
