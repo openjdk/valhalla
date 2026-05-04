@@ -1667,30 +1667,23 @@ void LIRGenerator::do_StoreField(StoreField* x) {
     LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
     __ move(zero, payload);
 
-    if (field->is_null_free()) {
-      if (!x->value()->is_null_free()) {
-        __ null_check(value.result(), new CodeEmitInfo(state_for(x)));
+    bool is_constant_null = value.is_constant() && value.value()->is_null_obj();
+    if (!is_constant_null) {
+      LabelObj* L_isNull = new LabelObj();
+      bool needs_null_check = !value.is_constant();
+      if (needs_null_check) {
+        __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
+        __ branch(lir_cond_equal, L_isNull->label());
       }
+      // Load payload (if not empty) and set null marker (if not null-free)
       if (!vk->is_empty()) {
         access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
       }
-    } else {
-      bool is_constant_null = value.is_constant() && value.value()->is_null_obj();
-      if (!is_constant_null) {
-        LabelObj* L_isNull = new LabelObj();
-        bool needs_null_check = !value.is_constant();
-        if (needs_null_check) {
-          __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
-          __ branch(lir_cond_equal, L_isNull->label());
-        }
-        // Load payload (if not empty) and set null marker.
-        if (!vk->is_empty()) {
-          access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
-        }
+      if (!field->is_null_free()) {
         __ logical_or(payload, null_marker_mask(bt, field), payload);
-        if (needs_null_check) {
-          __ branch_destination(L_isNull->label());
-        }
+      }
+      if (needs_null_check) {
+        __ branch_destination(L_isNull->label());
       }
     }
     access_store_at(decorators, bt, object, LIR_OprFact::intConst(x->offset()), payload,
