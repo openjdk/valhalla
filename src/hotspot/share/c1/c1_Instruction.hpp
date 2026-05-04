@@ -988,6 +988,7 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* declared_type() const;
 
   Value buffer() const { return _buffer; }
+  
   void set_buffer(Value buffer) {
     assert(buffer == nullptr || buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must be a NewInstance");
     _buffer = buffer;
