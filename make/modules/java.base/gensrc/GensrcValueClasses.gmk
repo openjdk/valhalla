@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,8 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/lang/Character.java \
     java/lang/Number.java \
     java/lang/Record.java \
+    java/math/UInt64.java \
+    java/math/UInt128.java \
     java/util/Optional.java \
     java/util/OptionalInt.java \
     java/util/OptionalLong.java \
