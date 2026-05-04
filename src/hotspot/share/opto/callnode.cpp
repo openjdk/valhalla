@@ -1401,18 +1401,20 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
 // if either operand is not a value object, or comparing their fields if either operand is an
 // object of a known value type
 Node* CallStaticJavaNode::replace_is_substitutable(PhaseIterGVN* igvn) {
+  Node* left = in(TypeFunc::Parms);
+  Node* right = in(TypeFunc::Parms + 1);
+  if (!InlineTypeNode::can_emit_substitutability_check(left, right)) {
+    return nullptr;
+  }
+
   // Delay IGVN during macro expansion
   assert(!igvn->delay_transform(), "must not delay during Ideal");
   igvn->set_delay_transform(true);
   GraphKit kit(this, *igvn);
 
-  Node* left = in(TypeFunc::Parms);
-  Node* right = in(TypeFunc::Parms + 1);
   Node* replace = InlineTypeNode::emit_substitutability_check(&kit, left, right);
   igvn->set_delay_transform(false);
-  if (replace == nullptr) {
-    return nullptr;
-  }
+  assert(replace != nullptr, "must succeed");
 
   if (UseAcmpFastPath) {
     // Sabotage the fast acmp path

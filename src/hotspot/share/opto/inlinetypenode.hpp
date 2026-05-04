@@ -134,6 +134,7 @@ public:
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Implementation of the substitutability check for acmp
+  static bool can_emit_substitutability_check(Node* lhs, Node* rhs);
   static Node* emit_substitutability_check(GraphKit* kit, Node* lhs, Node* rhs);
 
   // Allocates the inline type (if not yet allocated)

@@ -614,6 +614,85 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
   }
 }
 
+// If a value class contains cycle, bail out from trying to expand substitutability check involving it
+static bool check_cycle(ciInlineKlass* vk) {
+  ResourceMark rm;
+  GrowableArray<Pair<ciInlineKlass*, int>> visited;
+  visited.push(Pair(vk, 0));
+  while (visited.is_nonempty()) {
+    ciInlineKlass* current = visited.top().first;
+    bool finish = true;
+    for (int field_idx = visited.top().second; field_idx < current->nof_nonstatic_fields(); field_idx++) {
+      ciField* field = current->nonstatic_field_at(field_idx);
+      ciType* ft = field->type();
+      if (!ft->is_inlinetype()) {
+        continue;
+      } else if (visited.find_if([&](const auto& entry) { return entry.first == ft; }) >= 0) {
+        return true;
+      } else {
+        visited.top().second = field_idx + 1;
+        visited.push(Pair(ft->as_inline_klass(), 0));
+        finish = false;
+        break;
+      }
+    }
+    if (finish) {
+      visited.pop();
+    }
+  }
+  return false;
+}
+
+// Check if a substitutability check between 'lhs' and 'rhs' can be implemented in IR
+bool InlineTypeNode::can_emit_substitutability_check(Node* lhs, Node* rhs) {
+  if (!lhs->bottom_type()->isa_ptr() ||
+      (rhs != nullptr && !rhs->bottom_type()->isa_ptr())) {
+    return false;
+  }
+
+  if (rhs != nullptr && lhs->eqv_uncast(rhs)) {
+    return true;
+  }
+
+  if (!lhs->bottom_type()->is_ptr()->can_be_inline_type() ||
+      (rhs != nullptr && !rhs->bottom_type()->is_ptr()->can_be_inline_type())) {
+    return true;
+  }
+
+  if (!lhs->is_InlineType() && (rhs == nullptr || !rhs->is_InlineType())) {
+    return false;
+  }
+
+  if (!lhs->is_InlineType()) {
+    swap(lhs, rhs);
+  }
+
+  InlineTypeNode* lhs_inline = lhs->as_InlineType();
+  InlineTypeNode* rhs_inline = rhs != nullptr ? rhs->isa_InlineType() : nullptr;
+  if (rhs_inline != nullptr && lhs_inline->type()->inline_klass() != rhs_inline->type()->inline_klass()) {
+    // Dead code, can skip the substitutability check
+    return true;
+  }
+
+  if (check_cycle(lhs_inline->inline_klass())) {
+    return false;
+  }
+
+  for (uint i = 0; i < lhs_inline->field_count(); i++) {
+    ciType* ft = lhs_inline->field(i)->type();
+    if (!ft->can_be_inline_klass()) {
+      continue;
+    }
+
+    Node* lhs_fv = lhs_inline->field_value(i);
+    Node* rhs_fv = rhs_inline != nullptr ? rhs_inline->field_value(i) : nullptr;
+    if (!can_emit_substitutability_check(lhs_fv, rhs_fv)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Compare lhs and rhs given they are not value objects
 static void emit_substitutability_check_primitive(GraphKit* kit, PhiNode* result, Node* lhs, Node* rhs, BasicType bt) {
   PhaseGVN& gvn = kit->gvn();
@@ -646,35 +725,6 @@ static void emit_substitutability_check_primitive(GraphKit* kit, PhiNode* result
   kit->set_control(iff_true);
 }
 
-// If a value class contains cycle, bail out from trying to expand substitutability check involving it
-static bool check_cycle(ciInlineKlass* vk) {
-  ResourceMark rm;
-  GrowableArray<Pair<ciInlineKlass*, int>> visited;
-  visited.push(Pair(vk, 0));
-  while (visited.is_nonempty()) {
-    ciInlineKlass* current = visited.top().first;
-    bool finish = true;
-    for (int field_idx = visited.top().second; field_idx < current->nof_nonstatic_fields(); field_idx++) {
-      ciField* field = current->nonstatic_field_at(field_idx);
-      ciType* ft = field->type();
-      if (!ft->is_inlinetype()) {
-        continue;
-      } else if (visited.find_if([&](const auto& entry) { return entry.first == ft; }) >= 0) {
-        return true;
-      } else {
-        visited.top().second = field_idx + 1;
-        visited.push(Pair(ft->as_inline_klass(), 0));
-        finish = false;
-        break;
-      }
-    }
-    if (finish) {
-      visited.pop();
-    }
-  }
-  return false;
-}
-
 // Try to see what should be done with lhs and rhs. Either we can emit the answer if it is simple,
 // give up and emit a call to runtime, or start comparing the value objects field-by-field. In the
 // last case, NodeSentinel is returned.
@@ -691,7 +741,9 @@ static Node* emit_substitutability_check_pointer(GraphKit* kit, PhiNode* result,
   }
 
   Node* cmp = nullptr;
-  if (!lhs_type->is_ptr()->can_be_inline_type() || !rhs_type->is_ptr()->can_be_inline_type()) {
+  if (lhs->eqv_uncast(rhs)) {
+    cmp = kit->intcon(0);
+  } else if (!lhs_type->is_ptr()->can_be_inline_type() || !rhs_type->is_ptr()->can_be_inline_type()) {
     // If one of the sides is not a value object, can only be substitutable if they are the same
     cmp = kit->CmpP(lhs, rhs);
   } else if (lhs_type->is_instptr()->as_klass_type()->join(rhs_type->is_instptr()->as_klass_type())->empty()) {

@@ -5116,7 +5116,7 @@ public class TestLWorld {
     }
 
     // Same as test178 but with object argument
-    @Test
+    @Test(allowNotCompilable = true) // TODO 8378943: reason should be "failed spill-split-recycle sanity check"
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, STATIC_CALL_OF_METHOD, "isSubstitutable.*"})
     public boolean test179(Value178 x, Object y) {
         return getter(x) == getter(y);
@@ -5234,7 +5234,7 @@ public class TestLWorld {
         Asserts.assertTrue(test182(val3, val4));
     }
 
-        @Test
+    @Test
     @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ALLOC})
     public boolean test183(Integer o1, Value181 o2) {
         // The only intersection is null

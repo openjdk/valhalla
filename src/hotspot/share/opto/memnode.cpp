@@ -1315,7 +1315,7 @@ static Node* see_through_inline_type(PhaseValues* phase, const LoadNode* load, N
   // but we should not recklessly fold the load
   ciInstanceKlass* expected_type = base_type->instance_klass();
   ciInlineKlass* actual_type = vt->type()->inline_klass();
-  if (expected_type == actual_type && offset >= actual_type->payload_offset()) {
+  if (expected_type == actual_type && actual_type->get_field_by_offset(offset, false) != nullptr) {
     Node* value = vt->field_value_by_offset(offset, true);
     assert(value != nullptr, "must see some value");
     return value;
