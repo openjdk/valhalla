@@ -1,5 +1,6 @@
 /*
  * Copyright Amazon.com Inc. or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +32,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=objArrayOop -XX:+UseCompressedOops
+ * @run main/native GTestWrapper --gtest_filter=objArrayOop.* -XX:+UseCompressedOops -XX:ObjectAlignmentInBytes=8
  */
 
 /* @test id=no-coops
@@ -39,7 +40,23 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=objArrayOop -XX:-UseCompressedOops
+ * @run main/native GTestWrapper --gtest_filter=objArrayOop.* -XX:-UseCompressedOops -XX:ObjectAlignmentInBytes=8
+ */
+
+/* @test id=with-coops-medium-align
+ * @summary Run object array size tests with compressed oops
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.xml
+ * @run main/native GTestWrapper --gtest_filter=objArrayOop.* -XX:+UseCompressedOops -XX:ObjectAlignmentInBytes=16
+ */
+
+/* @test id=no-coops-medium-align
+ * @summary Run object array size tests with compressed oops
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.xml
+ * @run main/native GTestWrapper --gtest_filter=objArrayOop.* -XX:-UseCompressedOops -XX:ObjectAlignmentInBytes=16
  */
 
 /* @test id=with-coops-large-align
@@ -47,7 +64,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=objArrayOop -XX:+UseCompressedOops -XX:ObjAlignmentInBytes=256
+ * @run main/native GTestWrapper --gtest_filter=objArrayOop.* -XX:+UseCompressedOops -XX:ObjectAlignmentInBytes=256
  */
 
 /* @test id=no-coops-large-align
@@ -55,5 +72,5 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=objArrayOop -XX:-UseCompressedOops -XX:ObjAlignmentInBytes=256
+ * @run main/native GTestWrapper --gtest_filter=objArrayOop.* -XX:-UseCompressedOops -XX:ObjectAlignmentInBytes=256
  */
