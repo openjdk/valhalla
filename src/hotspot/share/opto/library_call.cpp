@@ -594,6 +594,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_Reference_get0:           return inline_reference_get0();
   case vmIntrinsics::_Reference_refersTo0:      return inline_reference_refersTo0(false);
+  case vmIntrinsics::_Reference_reachabilityFence: return inline_reference_reachabilityFence();
   case vmIntrinsics::_PhantomReference_refersTo0: return inline_reference_refersTo0(true);
   case vmIntrinsics::_Reference_clear0:         return inline_reference_clear0(false);
   case vmIntrinsics::_PhantomReference_clear0:  return inline_reference_clear0(true);
@@ -4726,7 +4727,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   if (obj != nullptr && is_array_ctrl != nullptr && is_array_ctrl != top()) {
     // Keep track of the fact that 'obj' is an array to prevent
     // array specific accesses from floating above the guard.
-    *obj = _gvn.transform(new CastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
+    *obj = _gvn.transform(new CheckCastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
   }
   return ctrl;
 }
@@ -5018,6 +5019,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // write barrier. Conservatively, go to slow path.
     // TODO 8251971: Optimize for the case when flat src/dst are later found
     // to not contain oops (i.e., move this check to the macro expansion phase).
+    // TODO 8382226: Revisit for flat abstract value class arrays
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
     const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();
@@ -5073,7 +5075,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         } else {
           generate_fair_guard(flat_array_test(refined_klass_node, /* flat = */ false), bailout);
         }
-        // TODO 8350865 This is not correct anymore. Write tests and fix logic similar to arraycopy.
+        // TODO 8251971 This is not correct anymore. Write tests and fix logic similar to arraycopy.
       } else if (UseArrayFlattening && (orig_t == nullptr || !orig_t->is_not_flat()) &&
                  // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
                  ((!tklass->is_flat() && tklass->can_be_inline_array()) || !can_validate)) {
@@ -6644,7 +6646,7 @@ bool LibraryCallKit::inline_arraycopy() {
       slow_region->add_req(not_subtype_ctrl);
     }
 
-    // TODO 8350865 Improve this. What about atomicity? Make sure this is always folded for type arrays.
+    // TODO 8251971 Improve this. What about atomicity? Make sure this is always folded for type arrays.
     // If destination is null-restricted, source must be null-restricted as well: src_null_restricted || !dst_null_restricted
     Node* src_klass = load_object_klass(src);
     Node* adr_prop_src = basic_plus_adr(top(), src_klass, in_bytes(ArrayKlass::properties_offset()));
@@ -6667,7 +6669,7 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
     generate_fair_guard(tst, slow_region);
 
-    // TODO 8350865 This is too strong
+    // TODO 8251971 This is too strong
     generate_fair_guard(flat_array_test(src), slow_region);
     generate_fair_guard(flat_array_test(dest), slow_region);
 
@@ -7727,6 +7729,14 @@ bool LibraryCallKit::inline_reference_clear0(bool is_phantom) {
   final_sync(ideal);
 #undef __
 
+  return true;
+}
+
+//-----------------------inline_reference_reachabilityFence-----------------
+// bool java.lang.ref.Reference.reachabilityFence();
+bool LibraryCallKit::inline_reference_reachabilityFence() {
+  Node* referent = argument(0);
+  insert_reachability_fence(referent);
   return true;
 }
 

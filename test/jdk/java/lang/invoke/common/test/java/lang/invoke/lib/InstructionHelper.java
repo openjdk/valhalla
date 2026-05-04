@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,19 +137,18 @@ public class InstructionHelper {
         return ClassDesc.ofDescriptor(classDescStr);
     }
 
-
     public static MethodHandle buildMethodHandle(MethodHandles.Lookup l, String methodName, MethodType methodType, Consumer<? super CodeBuilder> builder) {
         ClassDesc genClassDesc = classDesc(l.lookupClass(), "$Code_" + COUNT.getAndIncrement());
         return buildMethodHandle(l, genClassDesc, methodName, methodType, builder);
     }
 
-    public static MethodHandle buildMethodHandle(MethodHandles.Lookup l, ClassDesc classDesc, String methodName, MethodType methodType, Consumer<? super CodeBuilder> builder) {
+    private static MethodHandle buildMethodHandle(MethodHandles.Lookup l, ClassDesc classDesc, String methodName, MethodType methodType, Consumer<? super CodeBuilder> builder) {
         try {
             byte[] bytes = ClassFile.of().build(classDesc, classBuilder -> {
                 classBuilder.withMethod(methodName,
-                                        MethodTypeDesc.ofDescriptor(methodType.toMethodDescriptorString()),
-                                        ClassFile.ACC_PUBLIC + ClassFile.ACC_STATIC,
-                                        methodBuilder -> methodBuilder.withCode(builder));
+                        MethodTypeDesc.ofDescriptor(methodType.toMethodDescriptorString()),
+                        ClassFile.ACC_PUBLIC + ClassFile.ACC_STATIC,
+                        methodBuilder -> methodBuilder.withCode(builder));
             });
             Class<?> clazz = l.defineClass(bytes);
             return l.findStatic(clazz, methodName, methodType);
@@ -158,5 +157,4 @@ public class InstructionHelper {
             throw new RuntimeException("Failed to buildMethodHandle: " + methodName + " type " + methodType);
         }
     }
-
 }

@@ -78,8 +78,8 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
-    if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
-      if (vk->is_naturally_atomic() && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
+    if (vk->must_be_atomic()) {
+      if (vk->is_naturally_atomic(true /* null-free */) && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
       return (vk->has_null_free_atomic_layout() && can_use_atomic_flat) ? LayoutKind::NULL_FREE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return vk->has_null_free_non_atomic_layout() ? LayoutKind::NULL_FREE_NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
@@ -174,8 +174,7 @@ FieldGroup::FieldGroup(int contended_group) :
   _small_primitive_fields(nullptr),
   _big_primitive_fields(nullptr),
   _oop_fields(nullptr),
-  _contended_group(contended_group),  // -1 means no contended group, 0 means default contended group
-  _oop_count(0) {}
+  _contended_group(contended_group) {} // -1 means no contended group, 0 means default contended group
 
 void FieldGroup::add_primitive_field(int idx, BasicType type) {
   int size = type2aelembytes(type);
@@ -194,7 +193,6 @@ void FieldGroup::add_oop_field(int idx) {
     _oop_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _oop_fields->append(block);
-  _oop_count++;
 }
 
 void FieldGroup::add_flat_field(int idx, InlineKlass* vk, LayoutKind lk) {
@@ -531,6 +529,7 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
     if (b->next_block()->offset() > (b->offset() + b->size())) {
       int size = b->next_block()->offset() - (b->offset() + b->size());
       // FIXME it would be better if initial empty block where tagged as PADDING for value classes
+      // Tracked by JDK-8383383
       LayoutRawBlock* empty = new LayoutRawBlock(filling_type, size);
       empty->set_offset(b->offset() + b->size());
       empty->set_next_block(b->next_block());
@@ -976,7 +975,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
         assert(_inline_layout_info_array->adr_at(field_index)->klass() != nullptr, "Klass must have been set");
         _has_inlined_fields = true;
         InlineKlass* vk = _inline_layout_info_array->adr_at(field_index)->klass();
-        if (!vk->is_naturally_atomic()) _has_non_naturally_atomic_fields = true;
+        if (!vk->is_naturally_atomic(LayoutKindHelper::is_null_free_flat(lk))) _has_non_naturally_atomic_fields = true;
         group->add_flat_field(idx, vk, lk);
         _inline_layout_info_array->adr_at(field_index)->set_kind(lk);
         _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
@@ -1189,9 +1188,12 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   }
 
   // Determining if the value class is naturally atomic:
-  if ((!_layout->super_has_nonstatic_fields() && _declared_nonstatic_fields_count <= 1 && !_has_non_naturally_atomic_fields)
-      || (_layout->super_has_nonstatic_fields() && _super_klass->is_naturally_atomic() && _declared_nonstatic_fields_count == 0)) {
-        _is_naturally_atomic = true;
+  if (_declared_nonstatic_fields_count == 0) {
+    _is_naturally_atomic = _super_klass == vmClasses::Object_klass() || _super_klass->is_naturally_atomic(true /* null-free */);
+  } else if (_declared_nonstatic_fields_count == 1) {
+    _is_naturally_atomic = !_layout->super_has_nonstatic_fields() && !_has_non_naturally_atomic_fields;
+  } else {
+    _is_naturally_atomic = false;
   }
 
   // At this point, the characteristics of the raw layout (used in standalone instances) are known.
@@ -1202,7 +1204,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if (UseNullFreeNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (UseNullFreeNonAtomicValueFlattening && (!_must_be_atomic || _is_naturally_atomic)) {
       _null_free_non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _null_free_non_atomic_layout_alignment = _payload_alignment;
     }
@@ -1216,7 +1218,13 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     }
 
     // Next step is the nullable layouts: they must include a null marker
-    if (UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening) {
+    // Note about the special case of j.l.Double and j.l.Long: the introduction of
+    // the NULLABLE_NON_ATOMIC_FLAT layout caused an increase of the size of their
+    // instances which causes performance regression (see JDK-8379145).
+    // The temporary solution is to simply disable nullable layouts for these classes
+    // until a better fix is implemented (see JDK-8382361).
+    if ((UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening)
+         && _classname != vmSymbols::java_lang_Double() && _classname != vmSymbols::java_lang_Long()) {
       // Looking if there's an empty slot inside the layout that could be used to store a null marker
       LayoutRawBlock* b = _layout->first_field_block();
       assert(b != nullptr, "A concrete value class must have at least one (possible dummy) field");
@@ -1334,8 +1342,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   epilogue();
 }
 
-void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps,
-                InlineKlass* vklass, int offset) {
+void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps, InlineKlass* vklass, int offset) {
   int diff = offset - vklass->payload_offset();
   const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
   const OopMapBlock* last_map = map + vklass->nonstatic_oop_map_count();
@@ -1346,7 +1353,10 @@ void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oo
 }
 
 void FieldLayoutBuilder::register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list) {
-  if (list == nullptr) return;
+  if (list == nullptr) {
+    return;
+  }
+
   for (int i = 0; i < list->length(); i++) {
     LayoutRawBlock* f = list->at(i);
     if (f->block_kind() == LayoutRawBlock::FLAT) {
@@ -1527,10 +1537,7 @@ void FieldLayoutBuilder::epilogue() {
   if (!_contended_groups.is_empty()) {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
-      if (cg->oop_count() > 0) {
-        assert(cg->oop_fields() != nullptr && cg->oop_fields()->at(0) != nullptr, "oop_count > 0 but no oop fields found");
-        register_embedded_oops(nonstatic_oop_maps, cg);
-      }
+      register_embedded_oops(nonstatic_oop_maps, cg);
     }
   }
   nonstatic_oop_maps->compact();
@@ -1665,12 +1672,12 @@ void FieldLayoutBuilder::epilogue() {
       }
       st.print("Non-oop acmp map <offset,size>: ");
       for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
-        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
+        st.print("<%d,%d> ", _nonoop_acmp_map->at(i)._offset,  _nonoop_acmp_map->at(i)._size);
       }
       st.print_cr("");
       st.print("oop acmp map: ");
       for (int i = 0 ; i < _oop_acmp_map->length(); i++) {
-        st.print("%d, ", _oop_acmp_map->at(i));
+        st.print("%d ", _oop_acmp_map->at(i));
       }
       st.print_cr("");
     }

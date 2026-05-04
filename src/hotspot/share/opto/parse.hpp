@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -351,11 +351,12 @@ class Parse : public GraphKit {
   int           _block_count;   // Number of elements in _blocks.
 
   GraphKit      _exits;         // Record all normal returns and throws here.
-  bool          _wrote_final;   // Did we write a final field?
+  bool          _wrote_non_strict_final; // Did we write a non-strict final field?
   bool          _wrote_volatile;     // Did we write a volatile field?
   bool          _wrote_stable;       // Did we write a @Stable field?
   bool          _wrote_fields;       // Did we write any field?
   Node*         _alloc_with_final_or_stable; // An allocation node with final or @Stable field
+  Node*         _stress_rf_hook; // StressReachabilityFences support
 
   // Variables which track Java semantics during bytecode parsing:
 
@@ -392,8 +393,8 @@ class Parse : public GraphKit {
   int           block_count()   const { return _block_count; }
 
   GraphKit&     exits()               { return _exits; }
-  bool          wrote_final() const   { return _wrote_final; }
-  void      set_wrote_final(bool z)   { _wrote_final = z; }
+  bool          wrote_non_strict_final() const { return _wrote_non_strict_final; }
+  void      set_wrote_non_strict_final(bool z) { _wrote_non_strict_final = z; }
   bool          wrote_volatile() const { return _wrote_volatile; }
   void      set_wrote_volatile(bool z) { _wrote_volatile = z; }
   bool          wrote_stable() const  { return _wrote_stable; }
@@ -443,7 +444,7 @@ class Parse : public GraphKit {
 
   // OSR helpers
   Node* fetch_interpreter_state(int index, const Type* type, Node* local_addrs);
-  Node* check_interpreter_type(Node* l, const Type* type, const TypeKlassPtr* klass_type, SafePointNode* &bad_type_exit, bool is_larval);
+  Node* check_interpreter_type(Node* l, ciType* ci_type, SafePointNode* &bad_type_exit);
   void  load_interpreter_state(Node* osr_buf);
 
   // Functions for managing basic blocks:
@@ -474,8 +475,8 @@ class Parse : public GraphKit {
   void merge(          int target_bci);
   // Same as plain merge, except that it allocates a new path number.
   void merge_new_path( int target_bci);
-  // Merge the current mapping into an exception handler.
-  void merge_exception(int target_bci);
+  // Push the exception oop and merge the current mapping into an exception handler.
+  void push_and_merge_exception(int target_bci, Node* ex_oop);
   // Helper: Merge the current mapping into the given basic block
   void merge_common(Block* target, int pnum);
   // Helper functions for merging individual cells.
@@ -578,6 +579,9 @@ class Parse : public GraphKit {
   void    acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason);
   void    acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region);
   Node*   acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, Node*& null_ctl);
+public:
+  static IfNode* acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallStaticJavaNode* call);
+private:
   int     repush_if_args();
   void    adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path, bool can_trap = true);
   void    sharpen_type_after_if(BoolTest::mask btest,

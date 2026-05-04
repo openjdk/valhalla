@@ -153,7 +153,6 @@ protected:
 
 JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
-  PhaseGVN& gvn = kit.gvn();
   bool is_static = method()->is_static();
   address target = is_static ? SharedRuntime::get_resolve_static_call_stub()
                              : SharedRuntime::get_resolve_opt_virtual_call_stub();
@@ -183,9 +182,6 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     call->set_optimized_virtual(true);
   }
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);
@@ -283,9 +279,6 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   _call_node = call;  // Save the call node in case we need it later
 
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false /*must_throw*/, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);
@@ -638,6 +631,20 @@ void CallGenerator::do_late_inline_helper() {
   }
 
   Compile* C = Compile::current();
+
+  uint endoff = call->jvms()->endoff();
+  if (C->inlining_incrementally()) {
+    // No reachability edges should be present when incremental inlining takes place.
+    // Inlining logic doesn't expect any extra edges past debug info and fails with
+    // an assert in SafePointNode::grow_stack.
+    assert(endoff == call->req(), "reachability edges not supported");
+  } else {
+    if (call->req() > endoff) { // reachability edges present
+      assert(OptimizeReachabilityFences, "required");
+      return; // keep the original call node as the holder of reachability info
+    }
+  }
+
   // Remove inlined methods from Compiler's lists.
   if (call->is_macro()) {
     C->remove_macro_node(call);
@@ -701,6 +708,9 @@ void CallGenerator::do_late_inline_helper() {
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
         Node* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+        // GraphKit::access_load_at() may be called from InlineTypeNode::make_from_multi() and it may change the map
+        // that arg_kit uses.
+        map = arg_kit.map();
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {
@@ -1068,29 +1078,6 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     return kit.transfer_exceptions_into_jvms();
   }
 
-  // Allocate inline types if they are merged with objects (similar to Parse::merge_common())
-  uint tos = kit.jvms()->stkoff() + kit.sp();
-  uint limit = slow_map->req();
-  for (uint i = TypeFunc::Parms; i < limit; i++) {
-    Node* m = kit.map()->in(i);
-    Node* n = slow_map->in(i);
-    const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
-    // TODO 8284443 still needed?
-    if (m->is_InlineType() && !t->is_inlinetypeptr()) {
-      // Allocate inline type in fast path
-      m = m->as_InlineType()->buffer(&kit);
-      kit.map()->set_req(i, m);
-    }
-    if (n->is_InlineType() && !t->is_inlinetypeptr()) {
-      // Allocate inline type in slow path
-      PreserveJVMState pjvms(&kit);
-      kit.set_map(slow_map);
-      n = n->as_InlineType()->buffer(&kit);
-      kit.map()->set_req(i, n);
-      slow_map = kit.stop();
-    }
-  }
-
   // There are 2 branches and the replaced nodes are only valid on
   // one: restore the replaced nodes to what they were before the
   // branch.
@@ -1114,6 +1101,8 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
       mms.set_memory(gvn.transform(phi));
     }
   }
+  uint tos = kit.jvms()->stkoff() + kit.sp();
+  uint limit = slow_map->req();
   for (uint i = TypeFunc::Parms; i < limit; i++) {
     // Skip unused stack slots; fast forward to monoff();
     if (i == tos) {

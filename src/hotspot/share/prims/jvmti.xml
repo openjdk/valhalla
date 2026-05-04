@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="jvmti.xsl"?>
 <!--
- Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -5888,6 +5888,9 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
+              If the frame's method is a value object constructor and
+              the requested local is the "<code>this</code>" object, the
+              value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
       </parameters>
@@ -5941,6 +5944,8 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
+              If the frame's method is a value object constructor, the 
+              value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
       </parameters>

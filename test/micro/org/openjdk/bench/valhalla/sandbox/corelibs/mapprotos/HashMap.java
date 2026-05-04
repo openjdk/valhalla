@@ -1619,8 +1619,8 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
             while (!t[index].isValue()) {
                 count ++;
                 index = (index + REHASH_HASH) & lowbitmask;
-		if (index == 0)
-		    return -1;
+                if (index == 0)
+                    return -1;
             }
             return index;
         }

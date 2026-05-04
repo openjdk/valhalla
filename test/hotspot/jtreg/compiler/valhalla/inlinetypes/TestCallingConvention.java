@@ -1490,21 +1490,20 @@ public class TestCallingConvention {
     }
 
     // Method handle with a scalarized return that will always throw an exception
-    // TODO JDK-8380927 this should be re-introduced once fixed
-    // @Test
-    // public static MyValue2 test59(MyValue2 val) throws Throwable {
-    //     return (MyValue2)test59_mh.invokeExact(val);
-    // }
+    @Test
+    public static MyValue2 test59(MyValue2 val) throws Throwable {
+        return (MyValue2)test59_mh.invokeExact(val);
+    }
 
-    // @Run(test = "test59")
-    // @Warmup(10000) // Trigger compilation of LambdaForm method
-    // public void test59_verifier() throws Throwable {
-    //     try {
-    //         test59(null);
-    //     } catch (ArithmeticException e) {
-    //         // Expected
-    //     }
-    // }
+    @Run(test = "test59")
+    @Warmup(10000) // Trigger compilation of LambdaForm method
+    public void test59_verifier() throws Throwable {
+        try {
+            test59(null);
+        } catch (ArithmeticException e) {
+            // Expected
+        }
+    }
 
     static interface Interface60 {
         public void m(MyValue2 val);

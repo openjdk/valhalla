@@ -233,6 +233,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
   _holder = declared_field->holder();
   _offset = declared_field->offset_in_bytes() + (subfield->offset_in_bytes() - declared_field->type()->as_inline_klass()->payload_offset());
 
+  ResourceMark rm;
   char buffer[256];
   jio_snprintf(buffer, sizeof(buffer), "%s.%s", declared_field->name()->as_utf8(), subfield->name()->as_utf8());
   _name = ciSymbol::make(buffer);
@@ -260,6 +261,7 @@ ciField::ciField(ciField* declared_field) {
   _holder = declared_field->holder();
   _offset = declared_field->null_marker_offset();
 
+  ResourceMark rm;
   char buffer[256];
   jio_snprintf(buffer, sizeof(buffer), "%s.$nullMarker$", declared_field->name()->as_utf8());
   _name = ciSymbol::make(buffer);

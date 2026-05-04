@@ -147,16 +147,16 @@ class StrictStackMapsTest {
                         .iconst_0()
                         .ifThenElse(thb -> thb
                                 .iconst_3()
-                                .putfield(classDesc, "fPlain", CD_int), elb -> elb
+                                .putfield(classDesc, "fPlain", CD_char), elb -> elb
                                 .iconst_2()
-                                .putfield(classDesc, "fPlain", CD_int))
+                                .putfield(classDesc, "fPlain", CD_char))
                         .aload(0)
                         .iconst_5()
                         .putfield(classDesc, "fsf", CD_int)
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_()));
-        // runtimeVerify(className, classBytes); // TODO VM fix branching
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -351,7 +351,7 @@ class StrictStackMapsTest {
                            // jump to else - fs, fsf unset
                            frames.add(StackMapFrameInfo.of(elb.startLabel(),
                                    List.of(StackMapFrameInfo.SimpleVerificationTypeInfo.UNINITIALIZED_THIS),
-                                   List.of(),
+                                   List.of(StackMapFrameInfo.SimpleVerificationTypeInfo.UNINITIALIZED_THIS),
                                    List.of(elb.constantPool().nameAndTypeEntry("fs", CD_int),
                                            elb.constantPool().nameAndTypeEntry("fsf", CD_int))));
                            elb.iconst_2()
@@ -376,7 +376,7 @@ class StrictStackMapsTest {
                     cob.return_()
                        .with(StackMapTableAttribute.of(frames));
                 }));
-        // runtimeVerify(className, classBytes); // TODO VM fix
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();

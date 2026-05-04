@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1798,43 +1798,6 @@ JDWP "Java(tm) Debug Wire Protocol"
             (Error INVALID_OBJECT    "object is not a known ID.")
             (Error ILLEGAL_ARGUMENT  "maxReferrers is less than zero.")
             (Error NOT_IMPLEMENTED)
-            (Error VM_DEAD)
-        )
-    )
-    (Command IsSameObject=11
-        "<b>IsSameObject is a preview API of the Java platform.</b> "
-        "<em>Preview features may be removed in a future release, or upgraded to "
-        "permanent features of the Java platform.</em>"
-        "<p>"
-        "Determines whether two objects refer to the same Java object."
-        "<p>Since JDWP version 27."
-        (Out
-            (object object1 "The object ID")
-            (object object2 "The object ID")
-        )
-        (Reply
-            (boolean isSameObject "true if the objects refer to the same Java object; false otherwise")
-        )
-        (ErrorSet
-            (Error INVALID_OBJECT)
-            (Error VM_DEAD)
-        )
-    )
-    (Command ObjectHashCode=12
-        "<b>ObjectHashCode is a preview API of the Java platform.</b> "
-        "<em>Preview features may be removed in a future release, or upgraded to "
-        "permanent features of the Java platform.</em>"
-        "<p>"
-        "Returns hash code for an object."
-        "<p>Since JDWP version 27."
-        (Out
-            (object object "The object ID")
-        )
-        (Reply
-            (int hashCode "hash code value for the object")
-        )
-        (ErrorSet
-            (Error INVALID_OBJECT)
             (Error VM_DEAD)
         )
     )
