@@ -290,6 +290,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
+  // Returns the refined type
   return ciObjArrayKlass::make(klass());
 }
 

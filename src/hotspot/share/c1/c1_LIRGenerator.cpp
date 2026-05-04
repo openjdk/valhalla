@@ -1724,7 +1724,7 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
   LIR_Opr index_op = new_register(T_LONG);
   if (index.result()->is_constant()) {
     jint const_index = index.result()->as_jint();
-    __ move(LIR_OprFact::longConst((jlong)const_index << shift), index_op);
+    __ move(LIR_OprFact::longConst(static_cast<jlong>(const_index) << shift), index_op);
   } else {
     __ convert(Bytecodes::_i2l, index.result(), index_op);
     // Need to shift manually, as LIR_Address can scale only up to 3.

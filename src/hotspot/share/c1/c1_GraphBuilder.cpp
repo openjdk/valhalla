@@ -1074,13 +1074,11 @@ void GraphBuilder::load_indexed(BasicType type) {
   }
 
   bool need_membar = false;
-  bool is_null_free = false;
   LoadIndexed* load_indexed = nullptr;
   Instruction* result = nullptr;
   if (array->is_loaded_flat_array()) {
     ciType* array_type = array->declared_type();
     ciFlatArrayKlass* array_klass = array_type->as_flat_array_klass();
-    is_null_free = array_klass->is_elem_null_free();
     ciInlineKlass* elem_klass = array_klass->element_klass()->as_inline_klass();
 
     bool can_delay_access = false;
@@ -1088,6 +1086,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     s.force_bci(bci());
     s.next();
     if (s.cur_bc() == Bytecodes::_getfield) {
+      bool is_null_free = array_klass->is_elem_null_free();
       bool will_link;
       ciField* next_field = s.get_field(will_link);
       bool next_needs_patching = !next_field->holder()->is_initialized() ||
