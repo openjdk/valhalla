@@ -600,15 +600,13 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     return;
   }
 
-  ResourceMark rm;
-  char* normalized_name = NEW_RESOURCE_ARRAY(char, strlen(class_name) + 1);
-  strcpy(normalized_name, class_name);
-  for (char* p = normalized_name; *p != '\0'; p++) {
-    if (*p == '.') {
-      *p = '/';
+  for (char* p = class_name; *p != '\0'; p++) {
+    if (*p == JVM_SIGNATURE_DOT) {
+      *p = JVM_SIGNATURE_SLASH;
     }
   }
-  Symbol* classname = SymbolTable::probe(normalized_name, (int)strlen(normalized_name));
+
+  Symbol* classname = SymbolTable::probe(class_name, (int)strlen(class_name));
 
   GrowableArray<Klass*>* klasses = new (mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
   FindClassByNameClosure fbnc(klasses, classname);
