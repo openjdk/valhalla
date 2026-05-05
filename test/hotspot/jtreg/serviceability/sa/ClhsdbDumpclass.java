@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import jtreg.SkippedException;
  * @bug 8240990
  * @summary Test clhsdb dumpclass command
  * @requires vm.hasSA
+ * @requires vm.gc != "Z"
  * @requires (os.arch != "riscv64" | !(vm.cpu.features ~= ".*qemu.*"))
  * @library /test/lib
  * @run driver ClhsdbDumpclass
@@ -88,7 +89,7 @@ public class ClhsdbDumpclass {
             System.out.println(out.getStdout());
             System.err.println(out.getStderr());
             out.shouldHaveExitValue(0);
-            out.shouldMatch("public identity class " + APP_DOT_CLASSNAME);
+            out.shouldMatch("public class " + APP_DOT_CLASSNAME);
             // StackMapTable might not be generated for a class
             // containing only methods with sequential control flows.
             // But the class used here (LingeredApp) is not such a case.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,6 @@ import java.lang.classfile.Label;
 import java.lang.classfile.TypeKind;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Platform;
 
 import javax.tools.*;
@@ -80,10 +79,14 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
 
  final class ContainerValue1 {
     static TestValue1 staticInlineField;
-    @Strict
     @NullRestricted
-    TestValue1 nonStaticInlineField = new TestValue1();
+    TestValue1 nonStaticInlineField;
     TestValue1[] valueArray;
+
+    ContainerValue1() {
+        nonStaticInlineField = new TestValue1();
+        super();
+    }
 }
 
 @LooselyConsistentValue
@@ -121,10 +124,14 @@ value class TestValue1 {
 
 final class ContainerValue2 {
     static TestValue2 staticInlineField;
-    @Strict
     @NullRestricted
-    TestValue2 nonStaticInlineField = new TestValue2();
+    TestValue2 nonStaticInlineField;
     TestValue2[] valueArray;
+
+    ContainerValue2() {
+        nonStaticInlineField = new TestValue2();
+        super();
+    }
 }
 
 @LooselyConsistentValue
@@ -169,10 +176,14 @@ value class TestValue2 {
 
 final class ContainerValue3 {
     static TestValue3 staticInlineField;
-    @Strict
     @NullRestricted
-    TestValue3 nonStaticInlineField = new TestValue3();
+    TestValue3 nonStaticInlineField;
     TestValue3[] valueArray;
+
+    ContainerValue3() {
+        nonStaticInlineField = new TestValue3();
+        super();
+    }
 }
 
 @LooselyConsistentValue
@@ -205,10 +216,14 @@ value class TestValue3 {
 
 final class ContainerValue4 {
     static TestValue4 staticInlineField;
-    @Strict
     @NullRestricted
-    TestValue4 nonStaticInlineField = new TestValue4();
+    TestValue4 nonStaticInlineField;
     TestValue4[] valueArray;
+
+    ContainerValue4() {
+        nonStaticInlineField = new TestValue4();
+        super();
+    }
 }
 
 @LooselyConsistentValue

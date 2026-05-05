@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import jdk.test.lib.Asserts;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 
 /**
@@ -62,12 +61,12 @@ value class MyValueNestmateAccess implements MyInterfaceNestmateAccess {
 
 // Test load from flattened field in nestmate when nest-host is not loaded.
 class Test1NestmateAccess {
-    @Strict
     @NullRestricted
     private MyValueNestmateAccess vt;
 
     public Test1NestmateAccess(final MyValueNestmateAccess vt) {
         this.vt = vt;
+        super();
     }
 
     public MyInterfaceNestmateAccess test() {
@@ -84,7 +83,6 @@ class Test1NestmateAccess {
 // Same as Test1NestmateAccess but outer class is a value class
 @LooselyConsistentValue
 value class Test2NestmateAccess {
-    @Strict
     @NullRestricted
     private MyValueNestmateAccess vt;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,8 +25,10 @@
 
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -50,6 +52,7 @@
 #include "opto/mempointer.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/narrowptrnode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/regmask.hpp"
@@ -167,22 +170,27 @@ static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, P
 
   Node* base_uncasted = base->uncast();
   if (base_uncasted->is_Proj()) {
-    MultiNode* multi = base_uncasted->in(0)->as_Multi();
-    if (multi->is_Allocate()) {
+    Node* multi = base_uncasted->in(0);
+    if (multi->is_top()) {
+      // The pointer dies, make the memory die, too
+      return multi;
+    } else if (multi->is_Allocate()) {
       base_local = base_uncasted->as_Proj();
       return nullptr;
     } else if (multi->is_Call()) {
-      // The oop is returned from a call, the memory can be the fallthrough output of the call
-      return find_call_fallthrough_mem_output(multi->as_Call());
+      if (!multi->is_CallJava() || multi->as_CallJava()->method() == nullptr || !multi->as_CallJava()->method()->return_value_is_larval()) {
+        // The oop is returned from a call, the memory can be the fallthrough output of the call
+        return find_call_fallthrough_mem_output(multi->as_Call());
+      }
     } else if (multi->is_Start()) {
       // The oop is a parameter
-      if (phase->C->method()->is_object_constructor() && base_uncasted->as_Proj()->_con == TypeFunc::Parms) {
+      if (base_uncasted->as_Proj()->_con == TypeFunc::Parms && phase->C->method()->receiver_maybe_larval()) {
         // The receiver of a constructor is similar to the result of an AllocateNode
         base_local = base_uncasted->as_Proj();
         return nullptr;
       } else {
         // Use the start memory otherwise
-        return multi->proj_out(TypeFunc::Memory);
+        return multi->as_Start()->proj_out(TypeFunc::Memory);
       }
     }
   }
@@ -200,7 +208,13 @@ static bool call_can_modify_local_object(ciField* field, CallNode* call) {
   }
 
   ciMethod* target = call->as_CallJava()->method();
-  if (target == nullptr || !target->is_object_constructor()) {
+  if (target == nullptr) {
+    return false;
+  } else if (target->intrinsic_id() == vmIntrinsicID::_linkToSpecial) {
+    // linkToSpecial can be used to call a constructor, used in the construction of objects in the
+    // reflection API
+    return true;
+  } else if (!target->is_object_constructor()) {
     return false;
   }
 
@@ -565,7 +579,7 @@ Node *MemNode::Ideal_common(PhaseGVN *phase, bool can_reshape) {
 // and 'DomResult::EncounteredDeadCode' if we can't decide due to
 // dead code, but at the end of IGVN, we know the definite result
 // once the dead code is cleaned up.
-Node::DomResult MemNode::maybe_all_controls_dominate(Node* dom, Node* sub) {
+Node::DomResult MemNode::maybe_all_controls_dominate(Node* dom, Node* sub, PhaseGVN* phase) {
   if (dom == nullptr || dom->is_top() || sub == nullptr || sub->is_top()) {
     return DomResult::EncounteredDeadCode; // Conservative answer for dead code
   }
@@ -645,6 +659,9 @@ Node::DomResult MemNode::maybe_all_controls_dominate(Node* dom, Node* sub) {
           return dom_result;
         }
       } else {
+        if (n->Value(phase) == Type::TOP) {
+          return DomResult::EncounteredDeadCode;
+        }
         // First, own control edge.
         Node* m = n->find_exact_control(n->in(0));
         if (m != nullptr) {
@@ -675,7 +692,19 @@ Node::DomResult MemNode::maybe_all_controls_dominate(Node* dom, Node* sub) {
 // if any, which have been previously discovered by the caller.
 bool MemNode::detect_ptr_independence(Node* p1, AllocateNode* a1,
                                       Node* p2, AllocateNode* a2,
-                                      PhaseTransform* phase) {
+                                      PhaseGVN* phase) {
+  // Trivial case: Non-overlapping values. Be careful, we can cast a raw pointer to an oop (e.g. in
+  // the allocation pattern) so joining the types only works if both are oops. join may also give
+  // an incorrect result when both pointers are nullable and the result is supposed to be
+  // TypePtr::NULL_PTR, so we exclude that case.
+  const Type* p1_type = p1->bottom_type();
+  const Type* p2_type = p2->bottom_type();
+  if (p1_type->isa_oopptr() && p2_type->isa_oopptr() &&
+      (!p1_type->maybe_null() || !p2_type->maybe_null()) &&
+      p1_type->join(p2_type)->empty()) {
+    return true;
+  }
+
   // Attempt to prove that these two pointers cannot be aliased.
   // They may both manifestly be allocations, and they should differ.
   // Or, if they are not both allocations, they can be distinct constants.
@@ -686,13 +715,12 @@ bool MemNode::detect_ptr_independence(Node* p1, AllocateNode* a1,
     return (a1 != a2);
   } else if (a1 != nullptr) {                  // one allocation a1
     // (Note:  p2->is_Con implies p2->in(0)->is_Root, which dominates.)
-    return all_controls_dominate(p2, a1);
+    return all_controls_dominate(p2, a1, phase);
   } else { //(a2 != null)                   // one allocation a2
-    return all_controls_dominate(p1, a2);
+    return all_controls_dominate(p1, a2, phase);
   }
   return false;
 }
-
 
 // Find an arraycopy ac that produces the memory state represented by parameter mem.
 // Return ac if
@@ -807,150 +835,33 @@ ArrayCopyNode* MemNode::find_array_copy_clone(Node* ld_alloc, Node* mem) const {
 // specific to loads and stores, so they are handled by the callers.
 // (Currently, only LoadNode::Ideal has steps (c), (d).  More later.)
 //
-Node* MemNode::find_previous_store(PhaseValues* phase) {
-  Node*         ctrl   = in(MemNode::Control);
-  Node*         adr    = in(MemNode::Address);
-  intptr_t      offset = 0;
-  Node*         base   = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base);
+Node* MemNode::find_previous_store(PhaseGVN* phase) {
+  AccessAnalyzer analyzer(phase, this);
 
-  if (offset == Type::OffsetBot)
-    return nullptr;            // cannot unalias unless there are precise offsets
-
-  const bool adr_maybe_raw = check_if_adr_maybe_raw(adr);
-  const TypeOopPtr *addr_t = adr->bottom_type()->isa_oopptr();
-
-  intptr_t size_in_bytes = memory_size();
-
-  Node* mem = in(MemNode::Memory);   // start searching here...
-
-  int cnt = 50;             // Cycle limiter
-  for (;;) {                // While we can dance past unrelated stores...
-    if (--cnt < 0)  break;  // Caught in cycle or a complicated dance?
-
-    Node* prev = mem;
-    if (mem->is_Store()) {
-      Node* st_adr = mem->in(MemNode::Address);
-      intptr_t st_offset = 0;
-      Node* st_base = AddPNode::Ideal_base_and_offset(st_adr, phase, st_offset);
-      if (st_base == nullptr)
-        break;              // inscrutable pointer
-
-      // For raw accesses it's not enough to prove that constant offsets don't intersect.
-      // We need the bases to be the equal in order for the offset check to make sense.
-      if ((adr_maybe_raw || check_if_adr_maybe_raw(st_adr)) && st_base != base) {
-        break;
-      }
-
-      if (st_offset != offset && st_offset != Type::OffsetBot) {
-        const int MAX_STORE = MAX2(BytesPerLong, (int)MaxVectorSize);
-        assert(mem->as_Store()->memory_size() <= MAX_STORE, "");
-        if (st_offset >= offset + size_in_bytes ||
-            st_offset <= offset - MAX_STORE ||
-            st_offset <= offset - mem->as_Store()->memory_size()) {
-          // Success:  The offsets are provably independent.
-          // (You may ask, why not just test st_offset != offset and be done?
-          // The answer is that stores of different sizes can co-exist
-          // in the same sequence of RawMem effects.  We sometimes initialize
-          // a whole 'tile' of array elements with a single jint or jlong.)
-          mem = mem->in(MemNode::Memory);
-          continue;           // (a) advance through independent store memory
-        }
-      }
-      if (st_base != base &&
-          detect_ptr_independence(base, alloc,
-                                  st_base,
-                                  AllocateNode::Ideal_allocation(st_base),
-                                  phase)) {
-        // Success:  The bases are provably independent.
-        mem = mem->in(MemNode::Memory);
-        continue;           // (a) advance through independent store memory
-      }
-
-      // (b) At this point, if the bases or offsets do not agree, we lose,
-      // since we have not managed to prove 'this' and 'mem' independent.
-      if (st_base == base && st_offset == offset) {
-        return mem;         // let caller handle steps (c), (d)
-      }
-
-    } else if (mem->is_Proj() && mem->in(0)->is_Initialize()) {
-      InitializeNode* st_init = mem->in(0)->as_Initialize();
-      AllocateNode*  st_alloc = st_init->allocation();
-      if (st_alloc == nullptr) {
-        break;              // something degenerated
-      }
-      bool known_identical = false;
-      bool known_independent = false;
-      if (alloc == st_alloc) {
-        known_identical = true;
-      } else if (alloc != nullptr) {
-        known_independent = true;
-      } else if (all_controls_dominate(this, st_alloc)) {
-        known_independent = true;
-      }
-
-      if (known_independent) {
-        // The bases are provably independent: Either they are
-        // manifestly distinct allocations, or else the control
-        // of this load dominates the store's allocation.
-        int alias_idx = phase->C->get_alias_index(adr_type());
-        if (alias_idx == Compile::AliasIdxRaw) {
-          mem = st_alloc->in(TypeFunc::Memory);
-        } else {
-          mem = st_init->memory(alias_idx);
-        }
-        continue;           // (a) advance through independent store memory
-      }
-
-      // (b) at this point, if we are not looking at a store initializing
-      // the same allocation we are loading from, we lose.
-      if (known_identical) {
-        // From caller, can_see_stored_value will consult find_captured_store.
-        return mem;         // let caller handle steps (c), (d)
-      }
-
-    } else if (find_previous_arraycopy(phase, alloc, mem, false) != nullptr) {
-      if (prev != mem) {
-        // Found an arraycopy but it doesn't affect that load
-        continue;
-      }
-      // Found an arraycopy that may affect that load
-      return mem;
-    } else if (addr_t != nullptr && addr_t->is_known_instance_field()) {
-      // Can't use optimize_simple_memory_chain() since it needs PhaseGVN.
-      if (mem->is_Proj() && mem->in(0)->is_Call()) {
-        // ArrayCopyNodes processed here as well.
-        CallNode *call = mem->in(0)->as_Call();
-        if (!call->may_modify(addr_t, phase)) {
-          mem = call->in(TypeFunc::Memory);
-          continue;         // (a) advance through independent call memory
-        }
-      } else if (mem->is_Proj() && mem->in(0)->is_MemBar()) {
-        ArrayCopyNode* ac = nullptr;
-        if (ArrayCopyNode::may_modify(addr_t, mem->in(0)->as_MemBar(), phase, ac)) {
-          break;
-        }
-        mem = mem->in(0)->in(TypeFunc::Memory);
-        continue;           // (a) advance through independent MemBar memory
-      } else if (mem->is_ClearArray()) {
-        if (ClearArrayNode::step_through(&mem, (uint)addr_t->instance_id(), phase)) {
-          // (the call updated 'mem' value)
-          continue;         // (a) advance through independent allocation memory
-        } else {
-          // Can not bypass initialization of the instance
-          // we are looking for.
-          return mem;
-        }
-      } else if (mem->is_MergeMem()) {
-        int alias_idx = phase->C->get_alias_index(adr_type());
-        mem = mem->as_MergeMem()->memory_at(alias_idx);
-        continue;           // (a) advance through independent MergeMem memory
-      }
+  Node* mem = in(MemNode::Memory); // start searching here...
+  int cnt = 50;                    // Cycle limiter
+  for (;; cnt--) {
+    // While we can dance past unrelated stores...
+    if (phase->type(mem) == Type::TOP) {
+      // Encounter a dead node
+      return phase->C->top();
+    } else if (cnt <= 0) {
+      // Caught in cycle or a complicated dance?
+      return nullptr;
+    } else if (mem->is_Phi()) {
+      return nullptr;
     }
 
-    // Unless there is an explicit 'continue', we must bail out here,
-    // because 'mem' is an inscrutable memory state (e.g., a call).
-    break;
+    AccessAnalyzer::AccessIndependence independence = analyzer.detect_access_independence(mem);
+    if (independence.independent) {
+      // (a) advance through the independent store
+      mem = independence.mem;
+      assert(mem != nullptr, "must not be nullptr");
+    } else {
+      // (b) found the store that this access observes if this is not null
+      // Otherwise, give up if it is null
+      return independence.mem;
+    }
   }
 
   return nullptr;              // bail out
@@ -1000,6 +911,174 @@ uint8_t MemNode::barrier_data(const Node* n) {
   return 0;
 }
 
+AccessAnalyzer::AccessAnalyzer(PhaseGVN* phase, MemNode* n)
+  : _phase(phase), _n(n), _memory_size(n->memory_size()), _alias_idx(-1) {
+  Node* adr  = _n->in(MemNode::Address);
+  _offset    = 0;
+  _base      = AddPNode::Ideal_base_and_offset(adr, _phase, _offset);
+  _maybe_raw = MemNode::check_if_adr_maybe_raw(adr);
+  _alloc     = AllocateNode::Ideal_allocation(_base);
+  _adr_type = _n->adr_type();
+
+  if (_adr_type != nullptr && _adr_type->base() != TypePtr::AnyPtr) {
+    // Avoid the cases that will upset Compile::get_alias_index
+    _alias_idx = _phase->C->get_alias_index(_adr_type);
+    assert(_alias_idx != Compile::AliasIdxTop, "must not be a dead node");
+    assert(_alias_idx != Compile::AliasIdxBot || !phase->C->do_aliasing(), "must not be a very wide access");
+  }
+}
+
+// Decide whether the memory accessed by '_n' and 'other' may overlap. This function may be used
+// when we want to walk the memory graph to fold a load, or when we want to hoist a load above a
+// loop when there are no stores that may overlap with the load inside the loop.
+AccessAnalyzer::AccessIndependence AccessAnalyzer::detect_access_independence(Node* other) const {
+  assert(_phase->type(other) == Type::MEMORY, "must be a memory node %s", other->Name());
+  assert(!other->is_Phi(), "caller must handle Phi");
+
+  if (_adr_type == nullptr) {
+    // This means the access is dead
+    return {false, _phase->C->top()};
+  } else if (_adr_type->base() == TypePtr::AnyPtr) {
+    // An example for this case is an access into the memory address 0 performed using Unsafe
+    assert(_adr_type->ptr() == TypePtr::Null, "MemNode should never access a wide memory");
+    return {false, nullptr};
+  }
+
+  if (_offset == Type::OffsetBot) {
+    // cannot unalias unless there are precise offsets
+    return {false, nullptr};
+  }
+
+  const TypeOopPtr* adr_oop_type = _adr_type->isa_oopptr();
+  Node* prev = other;
+  if (other->is_Store()) {
+    Node* st_adr = other->in(MemNode::Address);
+    intptr_t st_offset = 0;
+    Node* st_base = AddPNode::Ideal_base_and_offset(st_adr, _phase, st_offset);
+    if (st_base == nullptr) {
+      // inscrutable pointer
+      return {false, nullptr};
+    }
+
+    // If the bases are the same and the offsets are the same, it seems that this is the exact
+    // store we are looking for, the caller will check if the type of the store matches using
+    // MemNode::can_see_stored_value
+    if (st_base == _base && st_offset == _offset) {
+      return {false, other};
+    }
+
+    // If it is provable that the memory accessed by 'other' does not overlap the memory accessed
+    // by '_n', we may walk past 'other'.
+    // For raw accesses, 2 accesses are independent if they have the same base and the offsets
+    // say that they do not overlap.
+    // For heap accesses, 2 accesses are independent if either the bases are provably different
+    // at runtime or the offsets say that the accesses do not overlap.
+    if ((_maybe_raw || MemNode::check_if_adr_maybe_raw(st_adr)) && st_base != _base) {
+      // Raw accesses can only be provably independent if they have the same base
+      return {false, nullptr};
+    }
+
+    // If the offsets say that the accesses do not overlap, then it is provable that 'other' and
+    // '_n' do not overlap. For example, a LoadI from Object+8 is independent from a StoreL into
+    // Object+12, no matter what the bases are.
+    if (st_offset != _offset && st_offset != Type::OffsetBot) {
+      const int MAX_STORE = MAX2(BytesPerLong, (int)MaxVectorSize);
+      assert(other->as_Store()->memory_size() <= MAX_STORE, "");
+      if (st_offset >= _offset + _memory_size ||
+          st_offset <= _offset - MAX_STORE ||
+          st_offset <= _offset - other->as_Store()->memory_size()) {
+        // Success:  The offsets are provably independent.
+        // (You may ask, why not just test st_offset != offset and be done?
+        // The answer is that stores of different sizes can co-exist
+        // in the same sequence of RawMem effects.  We sometimes initialize
+        // a whole 'tile' of array elements with a single jint or jlong.)
+        return {true, other->in(MemNode::Memory)};
+      }
+    }
+
+    // Same base and overlapping offsets, it seems provable that the accesses overlap, give up
+    if (st_base == _base) {
+      return {false, nullptr};
+    }
+
+    // Try to prove that 2 different base nodes at compile time are different values at runtime
+    bool known_independent = false;
+    if (MemNode::detect_ptr_independence(_base, _alloc, st_base, AllocateNode::Ideal_allocation(st_base), _phase)) {
+      known_independent = true;
+    }
+
+    if (known_independent) {
+      return {true, other->in(MemNode::Memory)};
+    }
+  } else if (other->is_Proj() && other->in(0)->is_Initialize()) {
+    InitializeNode* st_init = other->in(0)->as_Initialize();
+    AllocateNode* st_alloc = st_init->allocation();
+    if (st_alloc == nullptr) {
+      // Something degenerated
+      return {false, nullptr};
+    }
+    bool known_identical = false;
+    bool known_independent = false;
+    if (_alloc == st_alloc) {
+      known_identical = true;
+    } else if (_alloc != nullptr) {
+      known_independent = true;
+    } else if (MemNode::all_controls_dominate(_n, st_alloc, _phase)) {
+      known_independent = true;
+    }
+
+    if (known_independent) {
+      // The bases are provably independent: Either they are
+      // manifestly distinct allocations, or else the control
+      // of _n dominates the store's allocation.
+      if (_alias_idx == Compile::AliasIdxRaw) {
+        other = st_alloc->in(TypeFunc::Memory);
+      } else {
+        other = st_init->memory(_alias_idx);
+      }
+      return {true, other};
+    }
+
+    // If we are not looking at a store initializing the same
+    // allocation we are loading from, we lose.
+    if (known_identical) {
+      // From caller, can_see_stored_value will consult find_captured_store.
+      return {false, other};
+    }
+
+  } else if (_n->find_previous_arraycopy(_phase, _alloc, other, false) != nullptr) {
+    // Find an arraycopy that may or may not affect the MemNode
+    return {prev != other, other};
+  } else if (other->is_MergeMem()) {
+    return {true, other->as_MergeMem()->memory_at(_alias_idx)};
+  } else if (adr_oop_type != nullptr && adr_oop_type->is_known_instance_field()) {
+    // Can't use optimize_simple_memory_chain() since it needs PhaseGVN.
+    if (other->is_Proj() && other->in(0)->is_Call()) {
+      // ArrayCopyNodes processed here as well.
+      CallNode* call = other->in(0)->as_Call();
+      if (!call->may_modify(adr_oop_type, _phase)) {
+        return {true, call->in(TypeFunc::Memory)};
+      }
+    } else if (other->is_Proj() && other->in(0)->is_MemBar()) {
+      ArrayCopyNode* ac = nullptr;
+      if (!ArrayCopyNode::may_modify(adr_oop_type, other->in(0)->as_MemBar(), _phase, ac)) {
+        return {true, other->in(0)->in(TypeFunc::Memory)};
+      }
+    } else if (other->is_ClearArray()) {
+      if (ClearArrayNode::step_through(&other, (uint)adr_oop_type->instance_id(), _phase)) {
+        // (the call updated 'other' value)
+        return {true, other};
+      } else {
+        // Can not bypass initialization of the instance
+        // we are looking for.
+        return {false, other};
+      }
+    }
+  }
+
+  return {false, nullptr};
+}
+
 //=============================================================================
 // Should LoadNode::Ideal() attempt to remove control edges?
 bool LoadNode::can_remove_control() const {
@@ -1024,7 +1103,7 @@ void LoadNode::dump_spec(outputStream *st) const {
     // standard dump does this in Verbose and WizardMode
     st->print(" #"); _type->dump_on(st);
   }
-  if (!depends_only_on_test()) {
+  if (in(0) != nullptr && !depends_only_on_test()) {
     st->print(" (does not depend only on test, ");
     if (control_dependency() == UnknownControl) {
       st->print("unknown control");
@@ -1071,6 +1150,7 @@ bool LoadNode::is_immutable_value(Node* adr) {
 Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, const Type* rt, BasicType bt, MemOrd mo,
                      ControlDependency control_dependency, bool require_atomic_access, bool unaligned, bool mismatched, bool unsafe, uint8_t barrier_data) {
   Compile* C = gvn.C;
+  assert(adr->is_top() || C->get_alias_index(gvn.type(adr)->is_ptr(), true) == C->get_alias_index(adr_type, true), "adr and adr_type must agree");
 
   // sanity check the alias category against the created node type
   assert(!(adr_type->isa_oopptr() &&
@@ -1109,7 +1189,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
     }
     break;
   default:
-    assert(false, "unexpected basic type %s", type2name(bt));
+    guarantee(false, "unexpected basic type %s", type2name(bt));
     break;
   }
   assert(load != nullptr, "LoadNode should have been created");
@@ -1148,14 +1228,6 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
   }
 
   return false;
-}
-
-LoadNode* LoadNode::pin_array_access_node() const {
-  const TypePtr* adr_type = this->adr_type();
-  if (adr_type != nullptr && adr_type->isa_aryptr()) {
-    return clone_pinned();
-  }
-  return nullptr;
 }
 
 // Is the value loaded previously stored by an arraycopy? If so return
@@ -1224,9 +1296,26 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
   return nullptr;
 }
 
-static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, Node* base, int offset) {
-  if (!load->is_mismatched_access() && base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
-    InlineTypeNode* vt = base->as_InlineType();
+static Node* see_through_inline_type(PhaseValues* phase, const LoadNode* load, Node* base, int offset) {
+  if (load->is_mismatched_access() || base == nullptr) {
+    return nullptr;
+  }
+
+  InlineTypeNode* vt = base->uncast()->isa_InlineType();
+  if (vt == nullptr) {
+    return nullptr;
+  }
+
+  const TypeInstPtr* base_type = phase->type(base)->isa_instptr();
+  if (base_type == nullptr) {
+    return nullptr;
+  }
+
+  // There can be cases when an InlineTypeNode is casted to some unrelated type, the graph is dead
+  // but we should not recklessly fold the load
+  ciInstanceKlass* expected_type = base_type->instance_klass();
+  ciInlineKlass* actual_type = vt->type()->inline_klass();
+  if (expected_type == actual_type && actual_type->get_field_by_offset(offset, false) != nullptr) {
     Node* value = vt->field_value_by_offset(offset, true);
     assert(value != nullptr, "must see some value");
     return value;
@@ -1235,7 +1324,6 @@ static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, No
   return nullptr;
 }
 
-//---------------------------can_see_stored_value------------------------------
 // This routine exists to make sure this set of tests is done the same
 // everywhere.  We need to make a coordinated change: first LoadNode::Ideal
 // will change the graph shape in a way which makes memory alive twice at the
@@ -1243,41 +1331,40 @@ static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, No
 // LoadXNode::Identity will fold things back to the equivalence-class model
 // of aliasing.
 // This method may find an unencoded node instead of the corresponding encoded one.
-Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
+Node* LoadNode::can_see_stored_value_through_membars(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
   // Try to see through an InlineTypeNode
-  // LoadN is special because the input is not compressed
-  if (Opcode() != Op_LoadN) {
-    Node* value = see_through_inline_type(phase, this, ld_base, ld_off);
-    if (value != nullptr) {
-      return value;
-    }
+  Node* value = see_through_inline_type(phase, this, ld_base, ld_off);
+  if (value != nullptr) {
+    return value;
   }
 
-  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
   const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
   Compile::AliasType* atp = (tp != nullptr) ? phase->C->alias_type(tp) : nullptr;
-  // This is more general than load from boxing objects.
+
   if (skip_through_membars(atp, tp, phase->C->eliminate_boxing())) {
     uint alias_idx = atp->index();
     Node* result = nullptr;
     Node* current = st;
-    // Skip through chains of MemBarNodes checking the MergeMems for
-    // new states for the slice of this load.  Stop once any other
-    // kind of node is encountered.  Loads from final memory can skip
-    // through any kind of MemBar but normal loads shouldn't skip
-    // through MemBarAcquire since the could allow them to move out of
-    // a synchronized region. It is not safe to step over MemBarCPUOrder,
-    // because alias info above them may be inaccurate (e.g., due to
-    // mixed/mismatched unsafe accesses).
+    // Skip through chains of MemBarNodes checking the MergeMems for new states for the slice of
+    // this load. Stop once any other kind of node is encountered.
+    //
+    // In principle, folding a load is moving it up until it meets a matching store.
+    //
+    // store(ptr, v);          store(ptr, v);          store(ptr, v);
+    // membar1;          ->    membar1;          ->    load(ptr);
+    // membar2;                load(ptr);              membar1;
+    // load(ptr);              membar2;                membar2;
+    //
+    // So, we can decide which kinds of barriers we can walk past. It is not safe to step over
+    // MemBarCPUOrder, even if the memory is not rewritable, because alias info above them may be
+    // inaccurate (e.g., due to mixed/mismatched unsafe accesses).
     bool is_final_mem = !atp->is_rewritable();
     while (current->is_Proj()) {
       int opc = current->in(0)->Opcode();
-      if ((is_final_mem && (opc == Op_MemBarAcquire ||
-                            opc == Op_MemBarAcquireLock ||
-                            opc == Op_LoadFence)) ||
+      if ((is_final_mem && (opc == Op_MemBarAcquire || opc == Op_MemBarAcquireLock || opc == Op_LoadFence)) ||
           opc == Op_MemBarRelease ||
           opc == Op_StoreFence ||
           opc == Op_MemBarReleaseLock ||
@@ -1303,6 +1390,17 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       st = result;
     }
   }
+
+  return can_see_stored_value(st, phase);
+}
+
+// If st is a store to the same location as this, return the stored value
+Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
+  Node* ld_adr = in(MemNode::Address);
+  intptr_t ld_off = 0;
+  Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
+  Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
+  const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
 
   // Loop around twice in the case Load -> Initialize -> Store.
   // (See PhaseIterGVN::add_users_to_worklist, which knows about this case.)
@@ -1338,7 +1436,12 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       }
       // LoadVector/StoreVector needs additional check to ensure the types match.
       if (st->is_StoreVector()) {
-        const TypeVect*  in_vt = st->as_StoreVector()->vect_type();
+        if ((Opcode() != Op_LoadVector && Opcode() != Op_StoreVector) || st->Opcode() != Op_StoreVector) {
+          // Some kind of masked access or gather/scatter
+          return nullptr;
+        }
+
+        const TypeVect* in_vt = st->as_StoreVector()->vect_type();
         const TypeVect* out_vt = is_Load() ? as_LoadVector()->vect_type() : as_StoreVector()->vect_type();
         if (in_vt != out_vt) {
           return nullptr;
@@ -1456,7 +1559,7 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   // If the previous store-maker is the right kind of Store, and the store is
   // to the same address, then we are equal to the value stored.
   Node* mem = in(Memory);
-  Node* value = can_see_stored_value(mem, phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if( value ) {
     // byte, short & char stores truncate naturally.
     // A load has to load the truncated value which requires
@@ -1528,8 +1631,12 @@ Node* LoadNode::convert_to_unsigned_load(PhaseGVN& gvn) {
       assert(false, "no unsigned variant: %s", Name());
       return nullptr;
   }
+  const Type* mem_t = gvn.type(in(MemNode::Address));
+  if (mem_t == Type::TOP) {
+    return gvn.C->top();
+  }
   return LoadNode::make(gvn, in(MemNode::Control), in(MemNode::Memory), in(MemNode::Address),
-                        raw_adr_type(), rt, bt, _mo, _control_dependency,
+                        mem_t->is_ptr(), rt, bt, _mo, _control_dependency,
                         false /*require_atomic_access*/, is_unaligned_access(), is_mismatched_access());
 }
 
@@ -1548,8 +1655,12 @@ Node* LoadNode::convert_to_signed_load(PhaseGVN& gvn) {
       assert(false, "no signed variant: %s", Name());
       return nullptr;
   }
+  const Type* mem_t = gvn.type(in(MemNode::Address));
+  if (mem_t == Type::TOP) {
+    return gvn.C->top();
+  }
   return LoadNode::make(gvn, in(MemNode::Control), in(MemNode::Memory), in(MemNode::Address),
-                        raw_adr_type(), rt, bt, _mo, _control_dependency,
+                        mem_t->is_ptr(), rt, bt, _mo, _control_dependency,
                         false /*require_atomic_access*/, is_unaligned_access(), is_mismatched_access());
 }
 
@@ -1576,8 +1687,12 @@ Node* LoadNode::convert_to_reinterpret_load(PhaseGVN& gvn, const Type* rt) {
   const int op = Opcode();
   bool require_atomic_access = (op == Op_LoadL && ((LoadLNode*)this)->require_atomic_access()) ||
                                (op == Op_LoadD && ((LoadDNode*)this)->require_atomic_access());
+  const Type* mem_t = gvn.type(in(MemNode::Address));
+  if (mem_t == Type::TOP) {
+    return gvn.C->top();
+  }
   return LoadNode::make(gvn, in(MemNode::Control), in(MemNode::Memory), in(MemNode::Address),
-                        raw_adr_type(), rt, bt, _mo, _control_dependency,
+                        mem_t->is_ptr(), rt, bt, _mo, _control_dependency,
                         require_atomic_access, is_unaligned_access(), is_mismatched);
 }
 
@@ -1599,8 +1714,12 @@ Node* StoreNode::convert_to_reinterpret_store(PhaseGVN& gvn, Node* val, const Ty
   const int op = Opcode();
   bool require_atomic_access = (op == Op_StoreL && ((StoreLNode*)this)->require_atomic_access()) ||
                                (op == Op_StoreD && ((StoreDNode*)this)->require_atomic_access());
+  const Type* mem_t = gvn.type(in(MemNode::Address));
+  if (mem_t == Type::TOP) {
+    return gvn.C->top();
+  }
   StoreNode* st = StoreNode::make(gvn, in(MemNode::Control), in(MemNode::Memory), in(MemNode::Address),
-                                  raw_adr_type(), val, bt, _mo, require_atomic_access);
+                                  mem_t->is_ptr(), val, bt, _mo, require_atomic_access);
 
   bool is_mismatched = is_mismatched_access();
   const TypeRawPtr* raw_type = gvn.type(in(MemNode::Memory))->isa_rawptr();
@@ -1762,20 +1881,24 @@ bool LoadNode::can_split_through_phi_base(PhaseGVN* phase) {
   intptr_t ignore  = 0;
   Node*    base    = AddPNode::Ideal_base_and_offset(address, phase, ignore);
 
+  if (base == nullptr) {
+    return false;
+  }
+
   if (base->is_CastPP()) {
     base = base->in(1);
   }
 
-  if (req() > 3 || base == nullptr || !base->is_Phi()) {
+  if (req() > 3 || !base->is_Phi()) {
     return false;
   }
 
   if (!mem->is_Phi()) {
-    if (!MemNode::all_controls_dominate(mem, base->in(0))) {
+    if (!MemNode::all_controls_dominate(mem, base->in(0), phase)) {
       return false;
     }
   } else if (base->in(0) != mem->in(0)) {
-    if (!MemNode::all_controls_dominate(mem, base->in(0))) {
+    if (!MemNode::all_controls_dominate(mem, base->in(0), phase)) {
       return false;
     }
   }
@@ -1870,20 +1993,20 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase, bool ignore_missing_instance_
     region = mem->in(0);
     // Skip if the region dominates some control edge of the address.
     // We will check `dom_result` later.
-    dom_result = MemNode::maybe_all_controls_dominate(address, region);
+    dom_result = MemNode::maybe_all_controls_dominate(address, region, phase);
   } else if (!mem->is_Phi()) {
     assert(base_is_phi, "sanity");
     region = base->in(0);
     // Skip if the region dominates some control edge of the memory.
     // We will check `dom_result` later.
-    dom_result = MemNode::maybe_all_controls_dominate(mem, region);
+    dom_result = MemNode::maybe_all_controls_dominate(mem, region, phase);
   } else if (base->in(0) != mem->in(0)) {
     assert(base_is_phi && mem->is_Phi(), "sanity");
-    dom_result = MemNode::maybe_all_controls_dominate(mem, base->in(0));
+    dom_result = MemNode::maybe_all_controls_dominate(mem, base->in(0), phase);
     if (dom_result == DomResult::Dominate) {
       region = base->in(0);
     } else {
-      dom_result = MemNode::maybe_all_controls_dominate(address, mem->in(0));
+      dom_result = MemNode::maybe_all_controls_dominate(address, mem->in(0), phase);
       if (dom_result == DomResult::Dominate) {
         region = mem->in(0);
       }
@@ -1946,7 +2069,7 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase, bool ignore_missing_instance_
       }
       if (base_is_phi && (base->in(0) == region)) {
         Node* base_x = base->in(i); // Clone address for loads from boxed objects.
-        Node* adr_x = phase->transform(new AddPNode(base_x,base_x,address->in(AddPNode::Offset)));
+        Node* adr_x = phase->transform(AddPNode::make_with_base(base_x, address->in(AddPNode::Offset)));
         x->set_req(Address, adr_x);
       }
     }
@@ -1989,7 +2112,7 @@ Node* LoadNode::split_through_phi(PhaseGVN* phase, bool ignore_missing_instance_
       }
     }
     if (x != the_clone && the_clone != nullptr) {
-      igvn->remove_dead_node(the_clone);
+      igvn->remove_dead_node(the_clone, PhaseIterGVN::NodeOrigin::Speculative);
     }
     phi->set_req(i, x);
   }
@@ -2028,7 +2151,6 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   Node* ctrl    = in(MemNode::Control);
   Node* address = in(MemNode::Address);
-  bool progress = false;
 
   bool addr_mark = ((phase->type(address)->isa_oopptr() || phase->type(address)->isa_narrowoop()) &&
          phase->type(address)->is_ptr()->offset() == oopDesc::mark_offset_in_bytes());
@@ -2041,7 +2163,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       (depends_only_on_test() || has_unknown_control_dependency())) {
     ctrl = ctrl->in(0);
     set_req(MemNode::Control,ctrl);
-    progress = true;
+    return this;
   }
 
   intptr_t ignore = 0;
@@ -2054,10 +2176,10 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         && !(phase->type(address)->is_inlinetypeptr() && is_mismatched_access())
         && can_remove_control()
         && phase->type(base)->higher_equal(TypePtr::NOTNULL)
-        && all_controls_dominate(base, phase->C->start())) {
+        && all_controls_dominate(base, phase->C->start(), phase)) {
       // A method-invariant, non-null address (constant or 'this' argument).
       set_req(MemNode::Control, nullptr);
-      progress = true;
+      return this;
     }
   }
 
@@ -2130,6 +2252,10 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // the alias index stuff.  So instead, peek through Stores and IFF we can
   // fold up, do so.
   Node* prev_mem = find_previous_store(phase);
+  if (prev_mem != nullptr && prev_mem->is_top()) {
+    // find_previous_store returns top when the access is dead
+    return prev_mem;
+  }
   if (prev_mem != nullptr) {
     Node* value = can_see_arraycopy_value(prev_mem, phase);
     if (value != nullptr) {
@@ -2141,20 +2267,17 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // (c) See if we can fold up on the spot, but don't fold up here.
     // Fold-up might require truncation (for LoadB/LoadS/LoadUS) or
     // just return a prior value, which is done by Identity calls.
-    if (can_see_stored_value(prev_mem, phase)) {
+    if (can_see_stored_value_through_membars(prev_mem, phase)) {
       // Make ready for step (d):
       set_req_X(MemNode::Memory, prev_mem, phase);
       return this;
     }
   }
 
-  if (progress) {
-    return this;
-  }
-
   if (!can_reshape) {
     phase->record_for_igvn(this);
   }
+
   return nullptr;
 }
 
@@ -2201,7 +2324,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   Compile* C = phase->C;
 
   // If load can see a previous constant store, use that.
-  Node* value = can_see_stored_value(mem, phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con()) {
     if (phase->type(value)->isa_ptr() && _type->isa_narrowoop()) {
       return phase->type(value)->make_narrowoop();
@@ -2230,7 +2353,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       ciObject* aobj = ary->const_oop();
       if (aobj != nullptr && off_beyond_header && adr->is_AddP() && off != Type::OffsetBot) {
         int stable_dimension = (ary->stable_dimension() > 0 ? ary->stable_dimension() - 1 : 0);
-        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off,
+        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off, ary->field_offset().get(),
                                                                       stable_dimension,
                                                                       value_basic_type(), is_unsigned());
         if (con_type != nullptr) {
@@ -2295,7 +2418,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             // Default value load
             tp->is_instptr()->instance_klass() == ciEnv::current()->Class_klass() ||
             // unsafe field access may not have a constant offset
-            C->has_unsafe_access(),
+            is_unsafe_access(),
             "Field accesses must be precise" );
     // For oop loads, we expect the _type to be precise.
 
@@ -2303,7 +2426,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     BasicType bt = value_basic_type();
 
     // Fold loads of the field map
-    if (UseAltSubstitutabilityMethod && tinst != nullptr) {
+    if (tinst != nullptr) {
       ciInstanceKlass* ik = tinst->instance_klass();
       int offset = tinst->offset();
       if (ik == phase->C->env()->Class_klass()) {
@@ -2375,7 +2498,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       }
       if (klass->is_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::properties_offset())) {
         assert(klass->is_type_array_klass() || tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
-        return TypeInt::make(klass->as_array_klass()->properties());
+        return TypeInt::make((jint)klass->as_array_klass()->properties().value());
       }
       if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
         assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
@@ -2507,7 +2630,7 @@ uint LoadNode::match_edge(uint idx) const {
 //
 Node* LoadBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_BYTE, value, _type, phase, false);
     if (narrow != value) {
@@ -2520,7 +2643,7 @@ Node* LoadBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadBNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2541,7 +2664,7 @@ const Type* LoadBNode::Value(PhaseGVN* phase) const {
 //
 Node* LoadUBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem, phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_BOOLEAN, value, _type, phase, false);
     if (narrow != value) {
@@ -2554,7 +2677,7 @@ Node* LoadUBNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadUBNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2575,7 +2698,7 @@ const Type* LoadUBNode::Value(PhaseGVN* phase) const {
 //
 Node* LoadUSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_CHAR, value, _type, phase, false);
     if (narrow != value) {
@@ -2588,7 +2711,7 @@ Node* LoadUSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadUSNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2609,7 +2732,7 @@ const Type* LoadUSNode::Value(PhaseGVN* phase) const {
 //
 Node* LoadSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr) {
     Node* narrow = Compile::narrow_value(T_SHORT, value, _type, phase, false);
     if (narrow != value) {
@@ -2622,7 +2745,7 @@ Node* LoadSNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 const Type* LoadSNode::Value(PhaseGVN* phase) const {
   Node* mem = in(MemNode::Memory);
-  Node* value = can_see_stored_value(mem,phase);
+  Node* value = can_see_stored_value_through_membars(mem, phase);
   if (value != nullptr && value->is_Con() &&
       !value->bottom_type()->higher_equal(_type)) {
     // If the input to the store does not fit with the load's result type,
@@ -2635,17 +2758,8 @@ const Type* LoadSNode::Value(PhaseGVN* phase) const {
 }
 
 Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  // Loading from an InlineType, find the input and make an EncodeP
-  Node* addr = in(Address);
-  intptr_t offset;
-  Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  Node* value = see_through_inline_type(phase, this, base, offset);
-  if (value != nullptr) {
-    return new EncodePNode(value, type());
-  }
-
   // Can see the corresponding value, may need to add an EncodeP
-  value = can_see_stored_value(in(Memory), phase);
+  Node* value = can_see_stored_value_through_membars(in(Memory), phase);
   if (value != nullptr && phase->type(value)->isa_ptr() && type()->isa_narrowoop()) {
     return new EncodePNode(value, type());
   }
@@ -2663,7 +2777,6 @@ Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at
   assert(adr_type != nullptr, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
-    assert(UseCompressedClassPointers, "no compressed klasses");
     Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
     return new DecodeNKlassNode(load_klass, load_klass->bottom_type()->make_ptr());
   }
@@ -2834,7 +2947,13 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
             && adr2->is_AddP()) {
           int mirror_field = in_bytes(Klass::java_mirror_offset());
           if (tkls->offset() == mirror_field) {
-            return adr2->in(AddPNode::Base);
+#ifdef ASSERT
+            const TypeKlassPtr* tkls2 = phase->type(adr2->in(AddPNode::Address))->is_klassptr();
+            assert(tkls2->offset() == 0, "not a load of java_mirror");
+#endif
+            assert(adr2->in(AddPNode::Base)->is_top(), "not an off heap load");
+            assert(adr2->in(AddPNode::Offset)->find_intptr_t_con(-1) == in_bytes(Klass::java_mirror_offset()), "incorrect offset");
+            return adr2->in(AddPNode::Address);
           }
         }
       }
@@ -2850,6 +2969,21 @@ LoadNode* LoadNode::clone_pinned() const {
   return ld;
 }
 
+// Pin a LoadNode if it carries a dependency on its control input. There are cases when the node
+// does not actually have any dependency on its control input. For example, if we have a LoadNode
+// being used only outside a loop but it must be scheduled inside the loop, we can clone the node
+// for each of its use so that all the clones can be scheduled outside the loop. Then, to prevent
+// the clones from being GVN-ed again, we add a control input for each of them at the loop exit. In
+// those case, since there is not a dependency between the node and its control input, we do not
+// need to pin it.
+LoadNode* LoadNode::pin_node_under_control_impl() const {
+  const TypePtr* adr_type = this->adr_type();
+  if (adr_type != nullptr && adr_type->isa_aryptr()) {
+    // Only array accesses have dependencies on their control input
+    return clone_pinned();
+  }
+  return nullptr;
+}
 
 //------------------------------Value------------------------------------------
 const Type* LoadNKlassNode::Value(PhaseGVN* phase) const {
@@ -2961,6 +3095,7 @@ Node* LoadRangeNode::Identity(PhaseGVN* phase) {
 StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val, BasicType bt, MemOrd mo, bool require_atomic_access) {
   assert((mo == unordered || mo == release), "unexpected");
   Compile* C = gvn.C;
+  assert(adr_type == nullptr || adr->is_top() || C->get_alias_index(gvn.type(adr)->is_ptr()) == C->get_alias_index(adr_type), "adr and adr_type must agree");
   assert(C->get_alias_index(adr_type) != Compile::AliasIdxRaw ||
          ctl != nullptr, "raw memory operations should have control edge");
 
@@ -2982,8 +3117,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
       val = gvn.transform(new EncodePNode(val, val->bottom_type()->make_narrowoop()));
       return new StoreNNode(ctl, mem, adr, adr_type, val, mo);
     } else if (adr->bottom_type()->is_ptr_to_narrowklass() ||
-               (UseCompressedClassPointers && val->bottom_type()->isa_klassptr() &&
-                adr->bottom_type()->isa_rawptr())) {
+               (val->bottom_type()->isa_klassptr() && adr->bottom_type()->isa_rawptr())) {
       val = gvn.transform(new EncodePKlassNode(val, val->bottom_type()->make_narrowklass()));
       return new StoreNKlassNode(ctl, mem, adr, adr_type, val, mo);
     }
@@ -2992,7 +3126,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
       return new StorePNode(ctl, mem, adr, adr_type, val, mo);
     }
   default:
-    assert(false, "unexpected basic type %s", type2name(bt));
+    guarantee(false, "unexpected basic type %s", type2name(bt));
     return (StoreNode*)nullptr;
   }
 }
@@ -3676,7 +3810,6 @@ Node *StoreNode::Ideal(PhaseGVN *phase, bool can_reshape) {
              (Opcode() == Op_StoreL && st->Opcode() == Op_StoreI) || // expanded ClearArrayNode
              (Opcode() == Op_StoreI && st->Opcode() == Op_StoreL) || // initialization by arraycopy
              (Opcode() == Op_StoreL && st->Opcode() == Op_StoreN) ||
-             (st->adr_type()->isa_aryptr() && st->adr_type()->is_aryptr()->is_flat()) || // TODO 8343835
              (is_mismatched_access() || st->as_Store()->is_mismatched_access()),
              "no mismatched stores, except on raw memory: %s %s", NodeClassNames[Opcode()], NodeClassNames[st->Opcode()]);
 
@@ -3779,8 +3912,11 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
       val->in(MemNode::Address)->eqv_uncast(adr) &&
       val->in(MemNode::Memory )->eqv_uncast(mem) &&
       val->as_Load()->store_Opcode() == Opcode()) {
-    // Ensure vector type is the same
-    if (!is_StoreVector() || (mem->is_LoadVector() && as_StoreVector()->vect_type() == mem->as_LoadVector()->vect_type())) {
+    if (!is_StoreVector()) {
+      result = mem;
+    } else if (Opcode() == Op_StoreVector && val->Opcode() == Op_LoadVector &&
+               as_StoreVector()->vect_type() == val->as_LoadVector()->vect_type()) {
+      // Ensure both are not masked accesses or gathers/scatters and vector types are the same
       result = mem;
     }
   }
@@ -3826,6 +3962,10 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
       Node* prev_mem = find_previous_store(phase);
       // Steps (a), (b):  Walk past independent stores to find an exact match.
       if (prev_mem != nullptr) {
+        if (prev_mem->is_top()) {
+          // find_previous_store returns top when the access is dead
+          return prev_mem;
+        }
         Node* prev_val = can_see_stored_value(prev_mem, phase);
         if (prev_val != nullptr && prev_val == val) {
           // prev_val and val might differ by a cast; it would be good
@@ -4187,7 +4327,6 @@ const Type* SCMemProjNode::Value(PhaseGVN* phase) const
 LoadStoreNode::LoadStoreNode( Node *c, Node *mem, Node *adr, Node *val, const TypePtr* at, const Type* rt, uint required )
   : Node(required),
     _type(rt),
-    _adr_type(at),
     _barrier_data(0)
 {
   init_req(MemNode::Control, c  );
@@ -4195,6 +4334,7 @@ LoadStoreNode::LoadStoreNode( Node *c, Node *mem, Node *adr, Node *val, const Ty
   init_req(MemNode::Address, adr);
   init_req(MemNode::ValueIn, val);
   init_class_id(Class_LoadStore);
+  DEBUG_ONLY(_adr_type = at; adr_type();)
 }
 
 //------------------------------Value-----------------------------------------
@@ -4218,6 +4358,11 @@ const Type* LoadStoreNode::Value(PhaseGVN* phase) const {
   return bottom_type();
 }
 
+const TypePtr* LoadStoreNode::adr_type() const {
+  const TypePtr* cross_check = DEBUG_ONLY(_adr_type) NOT_DEBUG(nullptr);
+  return MemNode::calculate_adr_type(in(MemNode::Address)->bottom_type(), cross_check);
+}
+
 uint LoadStoreNode::ideal_reg() const {
   return _type->ideal_reg();
 }
@@ -4230,7 +4375,7 @@ uint LoadStoreNode::ideal_reg() const {
 bool LoadStoreNode::result_not_used() const {
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node *x = fast_out(i);
-    if (x->Opcode() == Op_SCMemProj) {
+    if (x->Opcode() == Op_SCMemProj || x->is_ReachabilityFence()) {
       continue;
     }
     if (x->bottom_type() == TypeTuple::MEMBAR &&
@@ -4347,9 +4492,9 @@ Node *ClearArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   Node *off  = phase->MakeConX(BytesPerLong);
   mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   count--;
-  while( count-- ) {
+  while (count--) {
     mem = phase->transform(mem);
-    adr = phase->transform(new AddPNode(base,adr,off));
+    adr = phase->transform(AddPNode::make_with_base(base,adr,off));
     mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   }
   return mem;
@@ -4381,6 +4526,15 @@ bool ClearArrayNode::step_through(Node** np, uint instance_id, PhaseValues* phas
   return true;
 }
 
+Node* ClearArrayNode::make_address(Node* dest, Node* offset, bool raw_base, PhaseGVN* phase) {
+  Node* base = dest;
+  if (raw_base) {
+    // May be called as part of the initialization of a just allocated object
+    base = phase->C->top();
+  }
+  return phase->transform(AddPNode::make_with_base(base, dest, offset));
+}
+
 //----------------------------clear_memory-------------------------------------
 // Generate code to initialize object storage to zero.
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
@@ -4388,13 +4542,13 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
                                    Node* raw_val,
                                    intptr_t start_offset,
                                    Node* end_offset,
+                                   bool raw_base,
                                    PhaseGVN* phase) {
   intptr_t offset = start_offset;
 
   int unit = BytesPerLong;
   if ((offset % unit) != 0) {
-    Node* adr = new AddPNode(dest, dest, phase->MakeConX(offset));
-    adr = phase->transform(adr);
+    Node* adr = make_address(dest, phase->MakeConX(offset), raw_base, phase);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
     if (val != nullptr) {
       assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
@@ -4409,13 +4563,14 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
   assert((offset % unit) == 0, "");
 
   // Initialize the remaining stuff, if any, with a ClearArray.
-  return clear_memory(ctl, mem, dest, raw_val, phase->MakeConX(offset), end_offset, phase);
+  return clear_memory(ctl, mem, dest, raw_val, phase->MakeConX(offset), end_offset, raw_base, phase);
 }
 
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
                                    Node* raw_val,
                                    Node* start_offset,
                                    Node* end_offset,
+                                   bool raw_base,
                                    PhaseGVN* phase) {
   if (start_offset == end_offset) {
     // nothing to do
@@ -4435,7 +4590,7 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
 
   // Bulk clear double-words
   Node* zsize = phase->transform(new SubXNode(zend, zbase) );
-  Node* adr = phase->transform(new AddPNode(dest, dest, start_offset) );
+  Node* adr = make_address(dest, start_offset, raw_base, phase);
   if (raw_val == nullptr) {
     raw_val = phase->MakeConX(0);
   }
@@ -4448,6 +4603,7 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
                                    Node* raw_val,
                                    intptr_t start_offset,
                                    intptr_t end_offset,
+                                   bool raw_base,
                                    PhaseGVN* phase) {
   if (start_offset == end_offset) {
     // nothing to do
@@ -4461,11 +4617,10 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
   }
   if (done_offset > start_offset) {
     mem = clear_memory(ctl, mem, dest, val, raw_val,
-                       start_offset, phase->MakeConX(done_offset), phase);
+                       start_offset, phase->MakeConX(done_offset), raw_base, phase);
   }
   if (done_offset < end_offset) { // emit the final 32-bit store
-    Node* adr = new AddPNode(dest, dest, phase->MakeConX(done_offset));
-    adr = phase->transform(adr);
+    Node* adr = make_address(dest, phase->MakeConX(done_offset), raw_base, phase);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
     if (val != nullptr) {
       assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
@@ -4515,7 +4670,9 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
   case Op_StoreStoreFence:   return new StoreStoreFenceNode(C, atp, pn);
   case Op_MemBarAcquireLock: return new MemBarAcquireLockNode(C, atp, pn);
   case Op_MemBarReleaseLock: return new MemBarReleaseLockNode(C, atp, pn);
+  case Op_MemBarStoreLoad:   return new MemBarStoreLoadNode(C, atp, pn);
   case Op_MemBarVolatile:    return new MemBarVolatileNode(C, atp, pn);
+  case Op_MemBarFull:        return new MemBarFullNode(C, atp, pn);
   case Op_MemBarCPUOrder:    return new MemBarCPUOrderNode(C, atp, pn);
   case Op_OnSpinWait:        return new OnSpinWaitNode(C, atp, pn);
   case Op_Initialize:        return new InitializeNode(C, atp, pn);
@@ -4984,7 +5141,7 @@ bool InitializeNode::detect_init_independence(Node* value, PhaseGVN* phase) {
       // must have preceded the init, or else be equal to the init.
       // Even after loop optimizations (which might change control edges)
       // a store is never pinned *before* the availability of its inputs.
-      if (!MemNode::all_controls_dominate(n, this)) {
+      if (!MemNode::all_controls_dominate(n, this, phase)) {
         return false;                  // failed to prove a good control
       }
     }
@@ -5214,8 +5371,7 @@ Node* InitializeNode::make_raw_address(intptr_t offset,
   Node* addr = in(RawAddress);
   if (offset != 0) {
     Compile* C = phase->C;
-    addr = phase->transform( new AddPNode(C->top(), addr,
-                                                 phase->MakeConX(offset)) );
+    addr = phase->transform(AddPNode::make_off_heap(addr, phase->MakeConX(offset)));
   }
   return addr;
 }
@@ -5262,7 +5418,7 @@ Node* InitializeNode::capture_store(StoreNode* st, intptr_t start,
     else
       ins_req(i, C->top());     // build a new edge
   }
-  Node* new_st = st->clone();
+  Node* new_st = st->clone_with_adr_type(TypeRawPtr::BOTTOM);
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   new_st->set_req(MemNode::Control, in(Control));
   new_st->set_req(MemNode::Memory,  prev_mem);
@@ -5688,6 +5844,7 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
                                               allocation()->in(AllocateNode::InitValue),
                                               allocation()->in(AllocateNode::RawInitValue),
                                               zeroes_done, zeroes_needed,
+                                              true,
                                               phase);
         zeroes_done = zeroes_needed;
         if (zsize > InitArrayShortSize && ++big_init_gaps > 2)
@@ -5748,7 +5905,7 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
       rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
                                             allocation()->in(AllocateNode::InitValue),
                                             allocation()->in(AllocateNode::RawInitValue),
-                                            zeroes_done, size_in_bytes, phase);
+                                            zeroes_done, size_in_bytes, true, phase);
     }
   }
 
@@ -5985,6 +6142,11 @@ Node* MergeMemNode::Identity(PhaseGVN* phase) {
 //------------------------------Ideal------------------------------------------
 // This method is invoked recursively on chains of MergeMem nodes
 Node *MergeMemNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  if (Identity(phase) != this) {
+    // Let Identity handle this case
+    return nullptr;
+  }
+
   // Remove chain'd MergeMems
   //
   // This is delicate, because the each "in(i)" (i >= Raw) is interpreted

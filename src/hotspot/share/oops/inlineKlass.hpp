@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,12 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/valuePayload.hpp"
+#include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -88,14 +91,30 @@ class InlineKlass: public InstanceKlass {
     int _payload_offset;           // offset of the beginning of the payload in a heap buffered instance
     int _payload_size_in_bytes;    // size of payload layout
     int _payload_alignment;        // alignment required for payload
-    int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
-    int _non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
-    int _atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
-    int _nullable_size_in_bytes;   // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+    int _null_free_non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
+    int _null_free_non_atomic_alignment;     // alignment requirement for null-free non-atomic layout
+    int _null_free_atomic_size_in_bytes;     // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
+    int _nullable_atomic_size_in_bytes;      // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+    int _nullable_non_atomic_size_in_bytes;  // size and alignment requirement for a nullable non-atomic layout, -1 if not available
     int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
+    /* When we can't intrinsify the substitutability check, we can still avoid the call to isSubstitutable at runtime if the value object is small enough.
+     * If all the fields are contained at once in a single long, we can load such a long from both operands, use a bitwise mask to remove the extra bits
+     * (from header, padding...), and compare these masked long.
+     *
+     * This doesn't always apply, for instance, if there are oops among the fields, we shouldn't carelessly load and compare: the GC might move the object in between.
+     * To signal this fast path cannot be done on this current class, simply put 0 in _fast_acmp_mask.
+     *
+     * We also should take care of not loading further than the object, even if it means reading part of the header. For this reason, we can't use _payload_offset,
+     * but we need our special offset. The offset doesn't need to be aligned on word boundary, or anything else.
+     */
+    int _fast_acmp_offset;    // if < 0, fast acmp doesn't apply
+    int64_t _fast_acmp_mask;  // can be 0 for empty value classes
+
     Members();
+
+    void print_on(outputStream* st) const;
   };
 
   InlineKlass();
@@ -142,7 +161,7 @@ class InlineKlass: public InstanceKlass {
   address unpack_handler() const                              { return members()._unpack_handler; }
   void set_unpack_handler(address unpack_handler)             { members()._unpack_handler = unpack_handler; }
 
-  int null_reset_value_offset() {
+  int null_reset_value_offset() const {
     int offset = members()._null_reset_value_offset;
     assert(offset != 0, "must not be called if not initialized");
     return offset;
@@ -162,47 +181,65 @@ class InlineKlass: public InstanceKlass {
   int payload_alignment() const                               { return members()._payload_alignment; }
   void set_payload_alignment(int alignment)                   { members()._payload_alignment = alignment; }
 
-  int non_atomic_size_in_bytes() const                        { return members()._non_atomic_size_in_bytes; }
-  void set_non_atomic_size_in_bytes(int size)                 { members()._non_atomic_size_in_bytes = size; }
-  bool has_non_atomic_layout() const                          { return non_atomic_size_in_bytes() != -1; }
+  int null_free_non_atomic_size_in_bytes() const              { return members()._null_free_non_atomic_size_in_bytes; }
+  void set_null_free_non_atomic_size_in_bytes(int size)       { members()._null_free_non_atomic_size_in_bytes = size; }
+  bool has_null_free_non_atomic_layout() const                { return null_free_non_atomic_size_in_bytes() != -1; }
 
-  int non_atomic_alignment() const                            { return members()._non_atomic_alignment; }
-  void set_non_atomic_alignment(int alignment)                { members()._non_atomic_alignment = alignment; }
+  int null_free_non_atomic_alignment() const                  { return members()._null_free_non_atomic_alignment; }
+  void set_null_free_non_atomic_alignment(int alignment)      { members()._null_free_non_atomic_alignment = alignment; }
 
-  int atomic_size_in_bytes() const                            { return members()._atomic_size_in_bytes; }
-  void set_atomic_size_in_bytes(int size)                     { members()._atomic_size_in_bytes = size; }
-  bool has_atomic_layout() const                              { return atomic_size_in_bytes() != -1; }
+  int null_free_atomic_size_in_bytes() const                  { return members()._null_free_atomic_size_in_bytes; }
+  void set_null_free_atomic_size_in_bytes(int size)           { members()._null_free_atomic_size_in_bytes = size; }
+  bool has_null_free_atomic_layout() const                    { return null_free_atomic_size_in_bytes() != -1; }
 
-  // FIXME: These names are not consistent w.r.t the atomic part.
-  int nullable_atomic_size_in_bytes() const                   { return members()._nullable_size_in_bytes; }
-  void set_nullable_size_in_bytes(int size)                   { members()._nullable_size_in_bytes = size; }
+  int nullable_atomic_size_in_bytes() const                   { return members()._nullable_atomic_size_in_bytes; }
+  void set_nullable_atomic_size_in_bytes(int size)            { members()._nullable_atomic_size_in_bytes = size; }
   bool has_nullable_atomic_layout() const                     { return nullable_atomic_size_in_bytes() != -1; }
+
+  int nullable_non_atomic_size_in_bytes() const               { return members()._nullable_non_atomic_size_in_bytes; }
+  void set_nullable_non_atomic_size_in_bytes(int size)        { members()._nullable_non_atomic_size_in_bytes = size; }
+  bool has_nullable_non_atomic_layout() const                 { return nullable_non_atomic_size_in_bytes() != -1; }
 
   int null_marker_offset() const                              { return members()._null_marker_offset; }
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
+  int fast_acmp_offset() const                                { return members()._fast_acmp_offset; }
+  void set_fast_acmp_offset(int offset)                       { members()._fast_acmp_offset = offset; }
+
+  int64_t fast_acmp_mask() const                              { return members()._fast_acmp_mask; }
+  void set_fast_acmp_mask(int64_t mask)                       { members()._fast_acmp_mask = mask; }
+
+  bool supports_nullable_layouts() const {
+    return has_nullable_non_atomic_layout() || has_nullable_atomic_layout();
+  }
+
   jbyte* null_marker_address(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
+    assert(supports_nullable_layouts(), " Must do");
     return (jbyte*)payload + null_marker_offset_in_payload();
   }
 
   bool is_payload_marked_as_null(address payload) {
+    assert(supports_nullable_layouts(), " Must do");
     return *null_marker_address(payload) == 0;
   }
 
   void mark_payload_as_non_null(address payload) {
+    assert(supports_nullable_layouts(), " Must do");
     *null_marker_address(payload) = 1;
   }
 
   void mark_payload_as_null(address payload) {
+    assert(supports_nullable_layouts(), " Must do");
     *null_marker_address(payload) = 0;
   }
 
-  bool is_layout_supported(LayoutKind lk);
+  inline bool layout_has_null_marker(LayoutKind lk) const;
 
-  int layout_alignment(LayoutKind kind) const;
-  int layout_size_in_bytes(LayoutKind kind) const;
+  inline bool is_layout_supported(LayoutKind lk) const;
+
+  inline int layout_alignment(LayoutKind kind) const;
+  inline int layout_size_in_bytes(LayoutKind kind) const;
 
 #if INCLUDE_CDS
   void remove_unshareable_info() override;
@@ -231,7 +268,7 @@ class InlineKlass: public InstanceKlass {
 
   // Allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
-  instanceOop allocate_instance(TRAPS);
+  inlineOop allocate_instance(TRAPS);
 
   address payload_addr(oop o) const;
 
@@ -241,25 +278,14 @@ class InlineKlass: public InstanceKlass {
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
 
-  // Methods to copy payload between containers
-  //
-  // Methods taking a LayoutKind argument expect that both the source and the destination
-  // layouts are compatible with the one specified in argument (alignment, size, presence
-  // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
-  // is compatible with all the other layouts.
-
-  void write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS);
-  oop read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS);
-  void copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized);
-
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
 
   template <typename T, class OopClosureType>
-  inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi);
+  inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, uintptr_t lo, uintptr_t hi);
 
-  // calling convention support
+  // Support for the scalarized calling convention
   void initialize_calling_convention(TRAPS);
 
   bool can_be_passed_as_fields() const;
@@ -299,16 +325,25 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(Members, _null_marker_offset);
   }
 
-  oop null_reset_value();
+  static ByteSize fast_acmp_offset_offset() {
+    return byte_offset_of(Members, _fast_acmp_offset);
+  }
+
+  static ByteSize fast_acmp_mask_offset() {
+    return byte_offset_of(Members, _fast_acmp_mask);
+  }
+
+  oop null_reset_value() const;
   void set_null_reset_value(oop val);
 
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;
 
+  void print_on(outputStream* st) const override;
+
   // Verification
   void verify_on(outputStream* st) override;
   void oop_verify_on(oop obj, outputStream* st) override;
-
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASS_HPP

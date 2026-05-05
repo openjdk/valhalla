@@ -474,7 +474,8 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
      *         {@code null} if there was no mapping for {@code key}.
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
-     * @throws IdentityException if {@code key} is a value object
+     * @throws IdentityException if {@code key} is a {@link
+     *         java.util.Objects#isValueObject(Object) value object}
      */
     public V put(@jdk.internal.RequiresIdentity K key, V value) {
         Object k = maskNull(key);
@@ -567,7 +568,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
      * of the keys currently in the specified map.
      *
      * @apiNote If the specified map contains keys that are {@linkplain Objects#isValueObject value objects}
-     * an {@linkplain IdentityException } is thrown when the first value object key is encountered.
+     * an {@linkplain IdentityException} is thrown when the first value object key is encountered.
      * Zero or more mappings may have already been copied to this map.
      *
      * @param m mappings to be stored in this map.

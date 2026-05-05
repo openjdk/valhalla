@@ -39,7 +39,6 @@
 // cases.
 // HierarchicalFieldStream allows to also iterate over fields of supertypes.
 class FieldStreamBase : public StackObj {
-
  protected:
   const Array<u1>*    _fieldinfo_stream;
   FieldInfoReader     _reader;
@@ -377,7 +376,7 @@ class TopDownHierarchicalNonStaticFieldStreamBase final : public HierarchicalFie
     next_stream_if_needed();
   }
 
-  void closest_non_static() {
+  void closest_nonstatic() {
     while (!done() && access_flags().is_static()) {
       raw_next();
     }
@@ -392,12 +391,12 @@ class TopDownHierarchicalNonStaticFieldStreamBase final : public HierarchicalFie
     _current_stream_index(_super_types->length() - 1),
     _current_stream(JavaFieldStream(_super_types->at(_current_stream_index))) {
     next_stream_if_needed();
-    closest_non_static();
+    closest_nonstatic();
   }
 
   void next() {
     raw_next();
-    closest_non_static();
+    closest_nonstatic();
   }
 
   bool done() const { return _current_stream_index < 0; }

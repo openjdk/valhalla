@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/z/zAddress.hpp"
 
 class ZBarrierSetAssembler;
+class ValuePayload;
 
 class ZBarrierSet : public BarrierSet {
 private:
@@ -101,6 +102,7 @@ public:
     static zaddress oop_copy_one_barriers(zpointer* dst, zpointer* src);
     static OopCopyResult oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass);
     static OopCopyResult oop_copy_one(zpointer* dst, zpointer* src);
+    static OopCopyResult oop_clear_one(zpointer* dst);
 
     static OopCopyResult oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass);
     static OopCopyResult oop_arraycopy_in_heap_no_check_cast(zpointer* dst, zpointer* src, size_t length);
@@ -140,7 +142,7 @@ public:
                                                size_t length);
     static OopCopyResult oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, oop* src_raw,
                                                arrayOop dst_obj, size_t dst_offset_in_bytes, oop* dst_raw,
-                                              size_t length) {
+                                               size_t length) {
       return oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, (zpointer*)src_raw,
                                    dst_obj, dst_offset_in_bytes, (zpointer*)dst_raw,
                                    length);
@@ -151,7 +153,8 @@ public:
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk);
+    static void value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst);
+    static void value_store_null_in_heap(const ValuePayload& dst);
 
     //
     // Not in heap

@@ -145,7 +145,7 @@ class IRScope: public CompilationResourceObj {
   XHandlers*    _xhandlers;                      // the exception handlers
   int           _number_of_locks;                // the number of monitor lock slots needed
   bool          _monitor_pairing_ok;             // the monitor pairing info
-  bool          _wrote_final;                    // has written final field
+  bool          _wrote_non_strict_final;         // has written non-strict final field
   bool          _wrote_fields;                   // has written fields
   bool          _wrote_volatile;                 // has written volatile field
   bool          _wrote_stable;                   // has written @Stable field
@@ -181,8 +181,8 @@ class IRScope: public CompilationResourceObj {
   void          set_min_number_of_locks(int n)   { if (n > _number_of_locks) _number_of_locks = n; }
   bool          monitor_pairing_ok() const       { return _monitor_pairing_ok; }
   BlockBegin*   start() const                    { return _start; }
-  void          set_wrote_final()                { _wrote_final = true; }
-  bool          wrote_final    () const          { return _wrote_final; }
+  void          set_wrote_non_strict_final()     { _wrote_non_strict_final = true; }
+  bool          wrote_non_strict_final() const   { return _wrote_non_strict_final; }
   void          set_wrote_fields()               { _wrote_fields = true; }
   bool          wrote_fields    () const         { return _wrote_fields; }
   void          set_wrote_volatile()             { _wrote_volatile = true; }
