@@ -45,7 +45,7 @@ public value class VMObjectAllocValueTest {
         MethodHandles.Lookup publicLookup = MethodHandles.publicLookup();
         MethodType mt = MethodType.methodType(void.class, String.class);
         MethodHandle mh = publicLookup.findConstructor(VMObjectAllocValueTest.class, mt);
-        mh.invoke("str");
+        mh.invoke("str"); // to trigger a VMObjectAlloc event invoke ctor not from Java
 
         if (getNumberOfAllocation() != 1) {
             throw new Exception("Number of allocation != 1");
