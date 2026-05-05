@@ -72,23 +72,44 @@ static int* decode_guard_from_instruction(nmethod* nm, address& instruction) {
   return result;
 }
 
+// The NativeNMethodBarrier class encapsulates up to three entrypoints and handles their
+// arming/verification.
+// An entrypoint is defined as a tuple of <instr. address, guard address>:
+// * The instr. address corresponds to the ldr of the guard value of that entrypoint.
+// * The guard address is the address where the guard value of that entrypoint resides.
+//
+// Each nmethod has at least one entrypoint. The default must always be well-defined
+// (neither instruction nor guard are nullptr).
+//
+// When using C1/C2 and scalarization, up to two additional (verified) entrypoints,
+// alt1 and alt2 can be present. The meaning of these depends on who compiled the nmethod.
+//
+// The mapping of C1-compiled methods (scalarization used) looks as follows:
+// * alt1: verified entry point
+// * alt2 (optional): verified inline ro entry point
+//
+// The mapping of C2-compiled methods (scalarization used) looks as follows:
+// * alt1: verified inline entry point
+// * alt2 (optional): verified inline ro entry point
+//
+// In other scenarios, neither alt1 nor alt2 are defined.
 class NativeNMethodBarrier {
  private:
   // The addresses of the instructions that act as the guards.
-  address _verified_entry_instruction;
+  address _default_entry_instruction;
   address _verified_alt1_instruction;
   address _verified_alt2_instruction;
   // Pointers representing the actual guard values themselves.
-  int* _verified_entry_guard;
+  int* _default_entry_guard;
   int* _verified_alt1_guard;
   int* _verified_alt2_guard;
 
  public:
   NativeNMethodBarrier(nmethod* nm) :
-    _verified_entry_instruction(nullptr),
+    _default_entry_instruction(nullptr),
     _verified_alt1_instruction(nullptr),
     _verified_alt2_instruction(nullptr),
-    _verified_entry_guard(nullptr),
+    _default_entry_guard(nullptr),
     _verified_alt1_guard(nullptr),
     _verified_alt2_guard(nullptr) {
 #if INCLUDE_JVMCI
@@ -99,35 +120,35 @@ class NativeNMethodBarrier {
       guarantee(iter.type() == relocInfo::section_word_type, "unexpected reloc");
 
       // Only set the verified entry, the others are not supported.
-      _verified_entry_guard = (int*) iter.section_word_reloc()->target();
-      _verified_entry_instruction = pc;
+      _default_entry_guard = (int*) iter.section_word_reloc()->target();
+      _default_entry_instruction = pc;
     } else
 #endif
     {
       // The default entry point has a known address. The guard address can be
       // decoded from the literal in the instruction. Verification will confirm
       // that this instruction corresponds to a load.
-      _verified_entry_instruction = nm->code_begin() + nm->frame_complete_offset() + entry_barrier_offset(nm);
-      _verified_entry_guard = decode_guard_from_instruction(nm, _verified_entry_instruction);
+      _default_entry_instruction = nm->code_begin() + nm->frame_complete_offset() + entry_barrier_offset(nm);
+      _default_entry_guard = decode_guard_from_instruction(nm, _default_entry_instruction);
 
       // If the nmethod has scalarized arguments, then there are more entry
       // points, each with their own nmethod entry barrier.
       if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
         assert(nm->verified_entry_point() != nm->verified_inline_entry_point(), "scalarized entry point not found");
         address method_body = nm->is_compiled_by_c1() ? nm->verified_inline_entry_point() : nm->verified_entry_point();
-        int barrier_offset = _verified_entry_instruction - method_body;
+        int barrier_offset = _default_entry_instruction - method_body;
 
         // Set the first alternative entry point.
         address entry_point2 = nm->is_compiled_by_c1() ? nm->verified_entry_point() : nm->verified_inline_entry_point();
         _verified_alt1_instruction = entry_point2 + barrier_offset;
-        assert(_verified_entry_instruction != _verified_alt1_instruction, "sanity");
+        assert(_default_entry_instruction != _verified_alt1_instruction, "sanity");
         _verified_alt1_guard = decode_guard_from_instruction(nm, _verified_alt1_instruction);
 
         // If there is a second alternative entry point, set it too.
         if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
           _verified_alt2_instruction = nm->verified_inline_ro_entry_point() + barrier_offset;
           _verified_alt2_guard = decode_guard_from_instruction(nm, _verified_alt2_instruction);
-          assert(_verified_entry_instruction != _verified_alt2_instruction &&
+          assert(_default_entry_instruction != _verified_alt2_instruction &&
                  _verified_alt1_instruction != _verified_alt2_instruction,
                  "sanity");
         }
@@ -138,16 +159,16 @@ class NativeNMethodBarrier {
     }
   }
 
-  // Gets the value of the default verified entry guard.
+  // Gets the value of the default entry guard.
   // This does not consider the alternative entrypoints, as these should
   // all be consistent. It is up to the caller to enforce this.
-  int get_verified_guard_value() {
-    return AtomicAccess::load_acquire(_verified_entry_guard);
+  int get_default_guard_value() {
+    return AtomicAccess::load_acquire(_default_entry_guard);
   }
 
   // Sets the value for all barriers.
   void set_values(int value, int bit_mask) {
-    set_value_impl(_verified_entry_guard, value, bit_mask);
+    set_value_impl(_default_entry_guard, value, bit_mask);
     if (_verified_alt1_guard != nullptr) {
       set_value_impl(_verified_alt1_guard, value, bit_mask);
     }
@@ -159,7 +180,7 @@ class NativeNMethodBarrier {
   // Verifies that all potential barriers are correct.
   bool check_barriers(err_msg& msg) {
     // The default entry barrier should always be checked.
-    if (!check_barrier_impl(_verified_entry_instruction, msg)) {
+    if (!check_barrier_impl(_default_entry_instruction, msg)) {
       return false;
     }
     // Check the alternative entry barriers only if they are specified.
@@ -278,7 +299,7 @@ int BarrierSetNMethod::guard_value(nmethod* nm) {
   }
 
   NativeNMethodBarrier barrier(nm);
-  return barrier.get_verified_guard_value();
+  return barrier.get_default_guard_value();
 }
 
 #if INCLUDE_JVMCI
