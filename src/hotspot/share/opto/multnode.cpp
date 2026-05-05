@@ -24,6 +24,7 @@
 
 #include "opto/callnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/mathexactnode.hpp"
 #include "opto/multnode.hpp"
@@ -130,11 +131,16 @@ const Type* ProjNode::proj_type(const Type* t) const {
     return Type::BOTTOM;
   }
   t = t->is_tuple()->field_at(_con);
-  Node* n = in(0);
-  if ((_con == TypeFunc::Parms) &&
-      n->is_CallStaticJava() && n->as_CallStaticJava()->is_boxing_method()) {
+  CallStaticJavaNode* call = in(0)->isa_CallStaticJava();
+  if (call != nullptr && call->is_boxing_method()) {
     // The result of autoboxing is always non-null on normal path.
-    t = t->join_speculative(TypePtr::NOTNULL);
+    if (call->tf()->returns_inline_type_as_fields() && (_con == TypeFunc::Parms + 2)) {
+      // Null marker
+      return TypeInt::ONE;
+    } else if (!call->tf()->returns_inline_type_as_fields() && _con == TypeFunc::Parms) {
+      // Oop return
+      t = t->join_speculative(TypePtr::NOTNULL);
+    }
   }
   return t;
 }
@@ -203,6 +209,35 @@ Node* ProjNode::Identity(PhaseGVN* phase) {
   if (in(0) != nullptr && in(0)->Opcode() == Op_Tuple) {
     // Jumping over Tuples: the i-th projection of a Tuple is the i-th input of the Tuple.
     return in(0)->in(_con);
+  }
+
+  CallStaticJavaNode* call = in(0)->isa_CallStaticJava();
+  if (call != nullptr) {
+    // Integer.valueOf(int)
+    if (call->is_boxing_method() && call->method()->return_type()->is_inlinetype()) {
+      if (call->tf()->returns_inline_type_as_fields()) {
+        if (_con == TypeFunc::Parms) {
+          // TODO we loose the oop here ... Can we keep it connected? It would be removed if not used, for example in the testBoxUnboxExplicit case
+          return phase->makecon(TypeOopPtr::NULL_PTR);
+        } else if (_con == TypeFunc::Parms + 1) {
+          return call->in(TypeFunc::Parms);
+        }
+      } else {
+        if (_con == TypeFunc::Parms) {
+          // TODO Implement?
+        }
+      }
+    // Integer.intValue()
+    } else if (call->is_unboxing_method() && (_con == TypeFunc::Parms)) {
+      if (call->method()->has_scalarized_args()) {
+        return call->in(TypeFunc::Parms + 1);
+      } else {
+        Node* arg = call->in(TypeFunc::Parms);
+        if (arg->is_InlineType()) {
+          return arg->as_InlineType()->field_value(0);
+        }
+      }
+    }
   }
   return this;
 }
