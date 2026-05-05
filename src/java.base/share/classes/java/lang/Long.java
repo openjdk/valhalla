@@ -36,6 +36,7 @@ import java.util.Optional;
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.ValueClass;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
@@ -933,25 +934,29 @@ public final class Long extends Number
         static Long[] archivedCache;
 
         static {
-            if (!PreviewFeatures.isEnabled()) {
-                int size = -(-128) + 127 + 1;
+            int size = -(-128) + 127 + 1;
 
-                // Load and use the archived cache if it exists
+            // Load and use the archived cache if it exists
+            if (!PreviewFeatures.isEnabled()) {
                 CDS.initializeFromArchive(LongCache.class);
-                if (archivedCache == null) {
-                    Long[] c = new Long[size];
-                    long value = -128;
-                    for(int i = 0; i < size; i++) {
-                        c[i] = new Long(value++);
-                    }
-                    archivedCache = c;
-                }
-                cache = archivedCache;
-                assert cache.length == size;
-            } else {
-                cache = null;
-                assert archivedCache == null;
             }
+            if (archivedCache == null) {
+                Long[] c = newCacheArray(size);
+                long value = -128;
+                for(int i = 0; i < size; i++) {
+                    c[i] = new Long(value++);
+                }
+                archivedCache = c;
+            }
+            cache = archivedCache;
+            assert cache.length == size;
+        }
+
+        private static Long[] newCacheArray(int size) {
+            if (PreviewFeatures.isEnabled()) {
+                return (Long[]) ValueClass.newReferenceArray(Long.class, size);
+            }
+            return new Long[size];
         }
     }
 
@@ -985,11 +990,9 @@ public final class Long extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Long valueOf(long l) {
-        if (!PreviewFeatures.isEnabled()) {
-            if (l >= -128 && l <= 127) { // will cache
-                final int offset = 128;
-                return LongCache.cache[(int) l + offset];
-            }
+        if (l >= -128 && l <= 127) { // will cache
+            final int offset = 128;
+            return LongCache.cache[(int) l + offset];
         }
         return new Long(l);
     }

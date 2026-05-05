@@ -327,7 +327,7 @@ const Type* Type::make_from_constant(ciConstant constant, bool require_constant,
         } else {
           guarantee(require_constant || oop_constant->should_be_constant(), "con_type must get computed");
           con_type = TypeOopPtr::make_from_constant(oop_constant, require_constant);
-          if (Compile::current()->eliminate_boxing() && is_autobox_cache) {
+          if (is_autobox_cache) {
             con_type = con_type->is_aryptr()->cast_to_autobox_cache();
           }
           if (stable_dimension > 0) {

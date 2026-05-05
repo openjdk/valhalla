@@ -28,6 +28,7 @@ package java.lang;
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -250,25 +251,29 @@ public final class Short extends Number implements Comparable<Short>, Constable 
         static Short[] archivedCache;
 
         static {
-            if (!PreviewFeatures.isEnabled()) {
-                int size = -(-128) + 127 + 1;
+            int size = -(-128) + 127 + 1;
 
-                // Load and use the archived cache if it exists
+            // Load and use the archived cache if it exists
+            if (!PreviewFeatures.isEnabled()) {
                 CDS.initializeFromArchive(ShortCache.class);
-                if (archivedCache == null) {
-                    Short[] c = new Short[size];
-                    short value = -128;
-                    for(int i = 0; i < size; i++) {
-                        c[i] = new Short(value++);
-                    }
-                    archivedCache = c;
-                }
-                cache = archivedCache;
-                assert cache.length == size;
-            } else {
-                cache = null;
-                assert archivedCache == null;
             }
+            if (archivedCache == null) {
+                Short[] c = newCacheArray(size);
+                short value = -128;
+                for(int i = 0; i < size; i++) {
+                    c[i] = new Short(value++);
+                }
+                archivedCache = c;
+            }
+            cache = archivedCache;
+            assert cache.length == size;
+        }
+
+        private static Short[] newCacheArray(int size) {
+            if (PreviewFeatures.isEnabled()) {
+                return (Short[]) ValueClass.newReferenceArray(Short.class, size);
+            }
+            return new Short[size];
         }
     }
 
@@ -302,12 +307,10 @@ public final class Short extends Number implements Comparable<Short>, Constable 
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Short valueOf(short s) {
-        if (!PreviewFeatures.isEnabled()) {
-            final int offset = 128;
-            int sAsInt = s;
-            if (sAsInt >= -128 && sAsInt <= 127) { // must cache
-                return ShortCache.cache[sAsInt + offset];
-            }
+        final int offset = 128;
+        int sAsInt = s;
+        if (sAsInt >= -128 && sAsInt <= 127) { // must cache
+            return ShortCache.cache[sAsInt + offset];
         }
         return new Short(s);
     }

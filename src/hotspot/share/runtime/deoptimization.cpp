@@ -1146,7 +1146,6 @@ template<typename PrimitiveType, typename CacheType, typename BoxType> class Box
 protected:
   static BoxCache<PrimitiveType, CacheType, BoxType> *_singleton;
   BoxCache(Thread* thread) {
-    assert(!Arguments::is_valhalla_enabled(), "Should not use box caches with enable preview");
     InstanceKlass* ik = BoxCacheBase<CacheType>::find_cache_klass(thread, CacheType::symbol());
     if (ik->is_in_error_state()) {
       _low = 1;
@@ -1256,10 +1255,6 @@ public:
 BooleanBoxCache* BooleanBoxCache::_singleton = nullptr;
 
 oop Deoptimization::get_cached_box(AutoBoxObjectValue* bv, frame* fr, RegisterMap* reg_map, bool& cache_init_error, TRAPS) {
-  if (Arguments::enable_preview()) {
-    // Box caches are not used with enable preview.
-    return nullptr;
-  }
    Klass* k = java_lang_Class::as_Klass(bv->klass()->as_ConstantOopReadValue()->value()());
    BasicType box_type = vmClasses::box_klass_type(k);
    if (box_type != T_OBJECT) {

@@ -30,6 +30,7 @@ import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
@@ -913,12 +914,7 @@ public final class Integer extends Number
         static Integer[] archivedCache;
 
         static {
-            if (!PreviewFeatures.isEnabled()) {
-                runtimeSetup();
-            } else {
-                cache = null;
-                assert archivedCache == null;
-            }
+            runtimeSetup();
         }
 
         @AOTRuntimeSetup
@@ -939,18 +935,22 @@ public final class Integer extends Number
             high = h;
 
             Integer[] precomputed = null;
-            if (cache != null) {
-                // IntegerCache has been AOT-initialized.
-                precomputed = cache;
-            } else {
-                // Legacy CDS archive support (to be deprecated):
-                // Load IntegerCache.archivedCache from archive, if possible
-                CDS.initializeFromArchive(IntegerCache.class);
-                precomputed = archivedCache;
+            if (!PreviewFeatures.isEnabled()) {
+                if (cache != null) {
+                    // IntegerCache has been AOT-initialized.
+                    precomputed = cache;
+                } else {
+                    // Legacy CDS archive support (to be deprecated):
+                    // Load IntegerCache.archivedCache from archive, if possible
+                    CDS.initializeFromArchive(IntegerCache.class);
+                    precomputed = archivedCache;
+                }
             }
 
             cache = loadOrInitializeCache(precomputed);
-            archivedCache = cache; // Legacy CDS archive support (to be deprecated)
+            if (!PreviewFeatures.isEnabled()) {
+                archivedCache = cache; // Legacy CDS archive support (to be deprecated)
+            }
             // range [-128, 127] must be interned (JLS7 5.1.7)
             assert IntegerCache.high >= 127;
         }
@@ -963,7 +963,7 @@ public final class Integer extends Number
                 return precomputed;
             }
 
-            Integer[] c = new Integer[size];
+            Integer[] c = newCacheArray(size);
             int j = low;
             // If we loading a precomputed cache (from AOT cache or CDS archive),
             // we must use all instances from it.
@@ -980,6 +980,13 @@ public final class Integer extends Number
                 c[i] = new Integer(j++);
             }
             return c;
+        }
+
+        private static Integer[] newCacheArray(int size) {
+            if (PreviewFeatures.isEnabled()) {
+                return (Integer[]) ValueClass.newReferenceArray(Integer.class, size);
+            }
+            return new Integer[size];
         }
 
         private IntegerCache() {}
@@ -1015,10 +1022,8 @@ public final class Integer extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (!PreviewFeatures.isEnabled()) {
-            if (i >= IntegerCache.low && i <= IntegerCache.high)
-                return IntegerCache.cache[i + (-IntegerCache.low)];
-        }
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
         return new Integer(i);
     }
 
