@@ -14034,6 +14034,7 @@ myInit() {
         <jobject/>
           <description>
             JNI local reference to the object that was allocated.
+            Null if a value object was allocated.
           </description>
       </param>
       <param id="object_klass">
@@ -14080,6 +14081,7 @@ myInit() {
       In conjunction with weak references and the function
       <functionlink id="GetStackTrace"></functionlink>, a user can track which objects were allocated from which
       stack trace, and which are still live during the execution of the program.
+      Note that value objects are not supported by weak references.
     </description>
     <origin>new</origin>
     <capabilities>
@@ -14104,6 +14106,7 @@ myInit() {
         <jobject/>
         <description>
           JNI local reference to the object that was allocated.
+          Null if a value object was allocated.
         </description>
       </param>
       <param id="object_klass">
