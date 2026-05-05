@@ -53,7 +53,7 @@ VMObjectAlloc(jvmtiEnv *jvmti,
   }
 
   if (strcmp(signature, "LVMObjectAllocValueTest;") == 0) {
-    LOG("VMObjectAlloc called for %s obj: %p size: %ld\n", signature, (void*)object, size);
+    LOG("VMObjectAlloc called for %s obj: %p\n", signature, (void*)object);
     number_of_allocation++;
     if (object != nullptr) {
       fatal(jni, "Failed: object parameter for value object alloc is expected to be nullptr");
