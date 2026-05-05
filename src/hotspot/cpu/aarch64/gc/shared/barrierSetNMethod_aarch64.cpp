@@ -132,10 +132,10 @@ class NativeNMethodBarrier {
                  "sanity");
         }
       }
+      // Perform the checking as verification.
+      err_msg msg("%s", "");
+      assert(check_barriers(msg), "%s", msg.buffer());
     }
-    // Perform the checking as verification.
-    err_msg msg("%s", "");
-    assert(check_barriers(msg), "%s", msg.buffer());
   }
 
   // Gets the value of the default verified entry guard.
