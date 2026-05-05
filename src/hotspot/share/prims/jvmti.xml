@@ -13988,6 +13988,8 @@ myInit() {
       VM. These methods should send this event.
       Virtual machines which are incapable of bytecode instrumentation
       for some or all of their methods can send this event.
+      When preview features are enabled and a value object is allocated, the <code>null</code>
+      is passed for the <paramlink id="object"></paramlink> parameter.
 
       Note that the <internallink
       id="SampledObjectAlloc">SampledObjectAlloc</internallink>
@@ -14034,7 +14036,7 @@ myInit() {
         <jobject/>
           <description>
             JNI local reference to the object that was allocated.
-            Null if a value object was allocated.
+            Null when preview features are enabled and a value object was allocated.
           </description>
       </param>
       <param id="object_klass">
@@ -14081,6 +14083,8 @@ myInit() {
       In conjunction with weak references and the function
       <functionlink id="GetStackTrace"></functionlink>, a user can track which objects were allocated from which
       stack trace, and which are still live during the execution of the program.
+      When preview features are enabled and a value object is allocated, the <code>null</code>
+      is passed for the <paramlink id="object"></paramlink> parameter.
       Note that value objects are not supported by weak references.
     </description>
     <origin>new</origin>
@@ -14106,7 +14110,7 @@ myInit() {
         <jobject/>
         <description>
           JNI local reference to the object that was allocated.
-          Null if a value object was allocated.
+          Null when preview features are enabled and a value object was allocated.
         </description>
       </param>
       <param id="object_klass">
