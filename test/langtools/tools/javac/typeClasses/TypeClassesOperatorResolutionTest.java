@@ -297,7 +297,6 @@ public class TypeClassesOperatorResolutionTest {
         assertEquals(eR, numBox(-1));
     }
 
-    @Test
     static NumBox testStackmapUnary(NumBox e1, boolean cond) {
         NumBox eR = null;
         if (cond) {
