@@ -1147,7 +1147,6 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
-
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   CodeEmitInfo* info = nullptr;
   if (x->state_before() != nullptr && x->state_before()->force_reexecute()) {
