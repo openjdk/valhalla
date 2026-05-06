@@ -45,6 +45,11 @@ is_test_class(jvmtiEnv* jvmti, JNIEnv* jni, jclass cls) {
 
 JNIEXPORT void JNICALL
 Java_SampledObjectAllocValue_enableEvents(JNIEnv* jni, jclass klass, jthread thread, jclass tested_class) {
+  if (events_counter != 0) {
+    fatal(jni, "SampledObjectAlloc events counter shouldn be zero");
+  }
+  LOG("enableEvents: events_counter: %d\n", events_counter.load());
+
   expected_class = (jclass)jni->NewGlobalRef(tested_class);
   jvmtiError err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, thread);
   check_jvmti_error(err, "SetEventNotificationMode for SAMPLED_OBJECT_ALLOC");
@@ -52,22 +57,20 @@ Java_SampledObjectAllocValue_enableEvents(JNIEnv* jni, jclass klass, jthread thr
 
 JNIEXPORT void JNICALL
 SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jobject object, jclass klass, jlong size) {
-  if (!is_test_class(jvmti, jni, klass)) {
-    return; // interested in tested value class only
+  if (klass == nullptr) {
+    fatal(jni, "klass in SampledObjectAlloc callback is not expected to be null");
+  }
+  if (size == 0L) {
+    fatal(jni, "size in SampledObjectAlloc callback is not expected to be 0");
   }
   if (object != nullptr) {
     fatal(jni, "object in SampledObjectAlloc callback is expected to be null for value object allocations");
   }
+  if (!is_test_class(jvmti, jni, klass)) {
+    return; // interested in tested value class only
+  }
   events_counter++;
   LOG("SampledObjectAlloc: events_counter: %d\n", events_counter.load());
-}
-
-void JNICALL
-VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-  if (events_counter != 0) {
-    fatal(jni, "SampledObjectAlloc events counter shouldn be zero");
-  }
-  LOG("VMInit: events_counter: %d\n", events_counter.load());
 }
 
 void JNICALL
@@ -101,7 +104,6 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   }
 
   memset(&callbacks, 0, sizeof(callbacks));
-  callbacks.VMInit = &VMInit;
   callbacks.VMDeath = &VMDeath;
   callbacks.SampledObjectAlloc = &SampledObjectAlloc;
 
@@ -111,9 +113,6 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   // Interval should be small enough to triggger sampling event.
   err = jvmti->SetHeapSamplingInterval(100);
   check_jvmti_error(err, "SetHeapSamplingInterval");
-
-  err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, nullptr);
-  check_jvmti_error(err, "SetEventNotificationMode for VM_INIT");
 
   err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, nullptr);
   check_jvmti_error(err, "SetEventNotificationMode for VM_DEATH");

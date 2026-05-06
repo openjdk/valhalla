@@ -28,9 +28,7 @@
 extern "C" {
 
 static jvmtiEnv *jvmti = nullptr;
-// JVMTI_ERROR_WRONG_PHASE guard
 static jrawMonitorID event_mon = nullptr;
-static bool is_vm_dead = false;
 
 static int number_of_allocation = 0;
 
@@ -42,23 +40,21 @@ VMObjectAlloc(jvmtiEnv *jvmti,
               jclass cls,
               jlong size) {
   RawMonitorLocker locker(jvmti, jni, event_mon);
-  if (is_vm_dead) {
-    return;
-  }
 
-  char *signature = nullptr;
-  jvmtiError err = jvmti->GetClassSignature(cls, &signature, nullptr);
+  char *sig = nullptr;
+  jvmtiError err = jvmti->GetClassSignature(cls, &sig, nullptr);
   if (err != JVMTI_ERROR_NONE) {
     jni->FatalError("Failed during the GetClassSignature call");
   }
 
-  if (strcmp(signature, "LVMObjectAllocValueTest;") == 0) {
-    LOG("VMObjectAlloc called for %s obj: %p\n", signature, (void*)object);
+  if (strcmp(sig, "LVMObjectAllocValueTest;") == 0) {
+    LOG("VMObjectAlloc called for %s obj: %p\n", sig, (void*)object);
     number_of_allocation++;
     if (object != nullptr) {
       fatal(jni, "Failed: object parameter for value object alloc is expected to be nullptr");
     }
   }
+  jvmti->Deallocate((unsigned char *)sig);
 }
 
 static void JNICALL
@@ -66,7 +62,6 @@ VMDeath(jvmtiEnv *jvmti, JNIEnv* jni) {
   RawMonitorLocker locker(jvmti, jni, event_mon);
 
   LOG("VMDeath\n");
-  is_vm_dead = true;
 }
 
 JNIEXPORT jint JNICALL

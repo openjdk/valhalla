@@ -48,7 +48,8 @@ public class SampledObjectAllocValue {
 
     public static void main(String[] args) throws Exception {
         enableEvents(Thread.currentThread(), ValueClass.class);
-        // Allocate value objects to trigger JVMYI SampledObjectAlloc events.
+        // Allocate value objects to trigger JVMTI SampledObjectAlloc events.
+        // Here we assume that flat array layout is not used for ValueClass objects.
         for (int i = 0; i < tmp.length; i++) {
             tmp[i] = new ValueClass(i, i + 100);
         }

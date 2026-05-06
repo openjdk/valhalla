@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @summary Verifies that a VMObjectAlloc event is generated for object created using MethodHandle
+ * @summary Verifies that a VMObjectAlloc event is generated for a value object created using MethodHandle
  * @requires vm.jvmti
  * @enablePreview
  * @run main/othervm/native -agentlib:VMObjectAllocValueTest VMObjectAllocValueTest
