@@ -126,7 +126,7 @@ private:
   inline static void do_print(outputStream* st, bool v);
   inline static void do_print(outputStream* st, uint v);
   inline static void do_print(outputStream* st, intx v);
-  inline static void do_print(outputStream* st, uintx v);
+  LP64_ONLY(inline static void do_print(outputStream* st, uintx v);)
   inline static void do_print(outputStream* st, double v);
   void print_info() const;
 

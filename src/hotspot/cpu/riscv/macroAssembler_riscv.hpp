@@ -33,6 +33,8 @@
 #include "oops/compressedOops.hpp"
 #include "utilities/powerOfTwo.hpp"
 
+class ciInlineKlass;
+
 // MacroAssembler extends Assembler by frequently used macros.
 //
 // Instructions for which a 'better' code sequence exists depending
