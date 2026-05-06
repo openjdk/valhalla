@@ -803,7 +803,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _fields_size_sum(0),
   _declared_nonstatic_fields_count(0),
   _flattening_budget((int)FlatteningBudget),  // uint -> int convertion but FlatteningBudget value has
-                                              // been validated in arguments.cpp (range [0, 1024 * 1024]).
+                                              // been validated in VM flags parsing (range [0, 1024 * 1024]).
   _has_non_naturally_atomic_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(must_be_atomic),
