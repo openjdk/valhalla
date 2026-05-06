@@ -28,7 +28,6 @@
  * @library /test/lib
  * @requires vm.flagless
  * @requires os.arch=="aarch64"
- * @requires os.family != "windows"
  * @run main/native GTestWrapper --gtest_filter=SpinPause*
  * @run main/native GTestWrapper --gtest_filter=SpinPause* -XX:+UnlockDiagnosticVMOptions -XX:OnSpinWaitInst=none
  * @run main/native GTestWrapper --gtest_filter=SpinPause* -XX:+UnlockDiagnosticVMOptions -XX:OnSpinWaitInst=nop
@@ -42,6 +41,6 @@
  * @summary Run SpinPause gtest using SB instruction for SpinPause
  * @library /test/lib
  * @requires vm.flagless
- * @requires (os.arch=="aarch64" & vm.cpu.features ~= ".*sb.*" & os.family != "windows")
+ * @requires (os.arch=="aarch64" & vm.cpu.features ~= ".*sb.*")
  * @run main/native GTestWrapper --gtest_filter=SpinPause* -XX:+UnlockDiagnosticVMOptions -XX:OnSpinWaitInst=sb
  */

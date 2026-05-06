@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,12 +238,7 @@ public class CodeSource implements java.io.Serializable {
         } else if (certs != null) {
             // Convert the certs to code signers
             signers = convertCertArrayToSignerArray(certs);
-            if (signers != null) {
-                return signers.clone();
-
-            } else {
-                return new CodeSigner[0];
-            }
+            return signers.clone();
 
         } else {
             return null;

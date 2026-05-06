@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ import jdk.internal.net.http.qpack.Encoder;
 import jdk.internal.net.http.qpack.HeaderField;
 import jdk.internal.net.http.hpack.QuickHuffman;
 import jdk.internal.net.http.qpack.StaticTable;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -39,13 +41,10 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /*
  * @test
@@ -61,9 +60,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  *          java.net.http/jdk.internal.net.http.http3.frames
  *          java.net.http/jdk.internal.net.http.http3
  * @build EncoderDecoderConnector
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm EncoderDecoderTest
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class EncoderDecoderTest {
     private final Random random = new Random();
 
@@ -74,6 +72,7 @@ public class EncoderDecoderTest {
         fail(http3Error + "QPACK error:" + http3Error, error);
     }
 
+    @DataProvider(name = "indexProvider")
     public Object[][] indexProvider() {
         AtomicLong index = new AtomicLong();
         return StaticTable.HTTP3_HEADER_FIELDS.stream()
@@ -82,6 +81,7 @@ public class EncoderDecoderTest {
                 .toArray(Object[][]::new);
     }
 
+    @DataProvider(name = "nameReferenceProvider")
     public Object[][] nameReferenceProvider() {
         AtomicLong tableIndex = new AtomicLong();
         Map<String, List<Long>> map = new HashMap<>();
@@ -98,6 +98,7 @@ public class EncoderDecoderTest {
                 .map(List::toArray).toArray(Object[][]::new);
     }
 
+    @DataProvider(name = "literalProvider")
     public Object[][] literalProvider() {
         var output = new String[100][];
         for (int i = 0; i < 100; i++) {
@@ -111,8 +112,7 @@ public class EncoderDecoderTest {
         if (error != null) throw new AssertionError(error);
     }
 
-    @ParameterizedTest
-    @MethodSource("indexProvider")
+    @Test(dataProvider = "indexProvider")
     public void encodeDecodeIndexedOnStaticTable(long index, HeaderField h) throws IOException {
         var actual = allocateIndexTestBuffer(index);
         List<ByteBuffer> buffers = new ArrayList<>();
@@ -148,7 +148,7 @@ public class EncoderDecoderTest {
 
         // Write the header
         headerFrameWriter.write(actual);
-        assertNotEquals(0, actual.position());
+        assertNotEquals(actual.position(), 0);
         actual.flip();
         buffers.add(actual);
 
@@ -161,8 +161,7 @@ public class EncoderDecoderTest {
         assertNotFailed(error);
     }
 
-    @ParameterizedTest
-    @MethodSource("nameReferenceProvider")
+    @Test(dataProvider = "nameReferenceProvider")
     public void encodeDecodeLiteralWithNameRefOnStaticTable(String name, String value, List<Long> validIndices) throws IOException {
         long index = Collections.max(validIndices);
         boolean sensitive = random.nextBoolean();
@@ -195,7 +194,7 @@ public class EncoderDecoderTest {
 
         // Write the header
         headerFrameWriter.write(actual);
-        assertNotEquals(0, actual.position());
+        assertNotEquals(actual.position(), 0);
         actual.flip();
         buffers.add(actual);
 
@@ -208,8 +207,7 @@ public class EncoderDecoderTest {
         assertNotFailed(error);
     }
 
-    @ParameterizedTest
-    @MethodSource("literalProvider")
+    @Test(dataProvider = "literalProvider")
     public void encodeDecodeLiteralWithLiteralNameOnStaticTable(String name, String value) throws IOException {
         boolean sensitive = random.nextBoolean();
         List<ByteBuffer> buffers = new ArrayList<>();
@@ -239,7 +237,7 @@ public class EncoderDecoderTest {
         encoder.header(context, name, value, sensitive);
         // Write the header
         headerFrameWriter.write(actual);
-        assertNotEquals(0, actual.position());
+        assertNotEquals(actual.position(), 0);
         actual.flip();
         buffers.add(actual);
 
@@ -414,9 +412,9 @@ public class EncoderDecoderTest {
 
         @Override
         public void onIndexed(long actualIndex, CharSequence actualName, CharSequence actualValue) {
-            assertEquals(index, actualIndex);
-            assertEquals(name, actualName);
-            assertEquals(value, actualValue);
+            assertEquals(actualIndex, index);
+            assertEquals(actualName, name);
+            assertEquals(actualValue, value);
         }
 
         @Override
@@ -424,21 +422,21 @@ public class EncoderDecoderTest {
                                                CharSequence actualValue, boolean huffmanValue,
                                                boolean actualHideIntermediary) {
             assertTrue(validIndices.contains(actualIndex));
-            assertEquals(name, actualName.toString());
-            assertEquals(value, actualValue.toString());
+            assertEquals(actualName.toString(), name);
+            assertEquals(actualValue.toString(), value);
             assertEquals(huffmanValue, huffmanValue);
-            assertEquals(sensitive, actualHideIntermediary);
+            assertEquals(actualHideIntermediary, sensitive);
         }
 
         @Override
         public void onLiteralWithLiteralName(CharSequence actualName, boolean actualHuffmanName,
                                              CharSequence actualValue, boolean actualHuffmanValue,
                                              boolean actualHideIntermediary) {
-            assertEquals(name, actualName.toString());
-            assertEquals(huffmanName, actualHuffmanName);
-            assertEquals(value, actualValue.toString());
-            assertEquals(huffmanValue, actualHuffmanValue);
-            assertEquals(sensitive, actualHideIntermediary);
+            assertEquals(actualName.toString(), name);
+            assertEquals(actualHuffmanName, huffmanName);
+            assertEquals(actualValue.toString(), value);
+            assertEquals(actualHuffmanValue, huffmanValue);
+            assertEquals(actualHideIntermediary, sensitive);
         }
     }
 }

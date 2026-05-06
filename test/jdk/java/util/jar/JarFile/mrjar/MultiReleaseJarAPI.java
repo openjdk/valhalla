@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  *        CreateMultiReleaseTestJars
  *        jdk.test.lib.compiler.Compiler
  *        jdk.test.lib.util.JarBuilder
- * @run junit MultiReleaseJarAPI
+ * @run testng MultiReleaseJarAPI
  */
 
 import java.io.File;
@@ -44,41 +44,37 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarFile;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import jdk.test.lib.RandomFactory;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 public class MultiReleaseJarAPI {
 
     private static final Random RANDOM = RandomFactory.getRandom();
 
-    private static final String userdir = System.getProperty("user.dir", ".");
-    private static final CreateMultiReleaseTestJars creator = new CreateMultiReleaseTestJars();
-    private static final File unversioned = new File(userdir, "unversioned.jar");
-    private static final File multirelease = new File(userdir, "multi-release.jar");
-    private static final File signedmultirelease = new File(userdir, "signed-multi-release.jar");
+    String userdir = System.getProperty("user.dir",".");
+    CreateMultiReleaseTestJars creator =  new CreateMultiReleaseTestJars();
+    File unversioned = new File(userdir, "unversioned.jar");
+    File multirelease = new File(userdir, "multi-release.jar");
+    File signedmultirelease = new File(userdir, "signed-multi-release.jar");
 
-    @BeforeAll
-    public static void initialize() throws Exception {
+
+    @BeforeClass
+    public void initialize() throws Exception {
         creator.compileEntries();
         creator.buildUnversionedJar();
         creator.buildMultiReleaseJar();
         creator.buildSignedMultiReleaseJar();
     }
 
-    @AfterAll
-    public static void close() throws IOException {
+    @AfterClass
+    public void close() throws IOException {
         Files.delete(unversioned.toPath());
         Files.delete(multirelease.toPath());
         Files.delete(signedmultirelease.toPath());
@@ -87,19 +83,19 @@ public class MultiReleaseJarAPI {
     @Test
     public void isMultiReleaseJar() throws Exception {
         try (JarFile jf = new JarFile(unversioned)) {
-            assertFalse(jf.isMultiRelease());
+            Assert.assertFalse(jf.isMultiRelease());
         }
 
         try (JarFile jf = new JarFile(unversioned, true, ZipFile.OPEN_READ, Runtime.version())) {
-            assertFalse(jf.isMultiRelease());
+            Assert.assertFalse(jf.isMultiRelease());
         }
 
         try (JarFile jf = new JarFile(multirelease)) {
-            assertTrue(jf.isMultiRelease());
+            Assert.assertTrue(jf.isMultiRelease());
         }
 
         try (JarFile jf = new JarFile(multirelease, true, ZipFile.OPEN_READ, Runtime.version())) {
-            assertTrue(jf.isMultiRelease());
+            Assert.assertTrue(jf.isMultiRelease());
         }
 
         testCustomMultiReleaseValue("true", true);
@@ -159,46 +155,45 @@ public class MultiReleaseJarAPI {
         creator.buildCustomMultiReleaseJar(fileName, value, extraAttributes);
         File custom = new File(userdir, fileName);
         try (JarFile jf = new JarFile(custom, true, ZipFile.OPEN_READ, Runtime.version())) {
-            assertEquals(expected, jf.isMultiRelease());
+            Assert.assertEquals(jf.isMultiRelease(), expected);
         }
         Files.delete(custom.toPath());
     }
 
-    public static Stream<Arguments> createVersionData() {
-        return Stream.of(
-                Arguments.of(JarFile.baseVersion(), 8),
-                Arguments.of(JarFile.runtimeVersion(), Runtime.version().major()),
-                Arguments.of(Runtime.version(), Runtime.version().major()),
-                Arguments.of(Runtime.Version.parse("7.1"), JarFile.baseVersion().major()),
-                Arguments.of(Runtime.Version.parse("9"), 9),
-                Arguments.of(Runtime.Version.parse("9.1.5-ea+200"), 9)
-        );
+    @DataProvider(name = "versions")
+    public Object[][] createVersionData() throws Exception {
+        return new Object[][]{
+                {JarFile.baseVersion(), 8},
+                {JarFile.runtimeVersion(), Runtime.version().major()},
+                {Runtime.version(), Runtime.version().major()},
+                {Runtime.Version.parse("7.1"), JarFile.baseVersion().major()},
+                {Runtime.Version.parse("9"), 9},
+                {Runtime.Version.parse("9.1.5-ea+200"), 9}
+        };
     }
 
-    @ParameterizedTest
-    @MethodSource("createVersionData")
+    @Test(dataProvider="versions")
     public void testVersioning(Runtime.Version value, int xpected) throws Exception {
         Runtime.Version expected = Runtime.Version.parse(String.valueOf(xpected));
         Runtime.Version base = JarFile.baseVersion();
 
         // multi-release jar, opened as unversioned
         try (JarFile jar = new JarFile(multirelease)) {
-            assertEquals(base, jar.getVersion());
+            Assert.assertEquals(jar.getVersion(), base);
         }
 
         System.err.println("test versioning for Release " + value);
         try (JarFile jf = new JarFile(multirelease, true, ZipFile.OPEN_READ, value)) {
-            assertEquals(expected, jf.getVersion());
+            Assert.assertEquals(jf.getVersion(), expected);
         }
 
         // regular, unversioned, jar
         try (JarFile jf = new JarFile(unversioned, true, ZipFile.OPEN_READ, value)) {
-            assertEquals(base, jf.getVersion());
+            Assert.assertEquals(jf.getVersion(), base);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("createVersionData")
+    @Test(dataProvider="versions")
     public void testAliasing(Runtime.Version version, int xpected) throws Exception {
         int n = Math.max(version.major(), JarFile.baseVersion().major());
         Runtime.Version value = Runtime.Version.parse(String.valueOf(n));
@@ -236,7 +231,7 @@ public class MultiReleaseJarAPI {
         }
         assert versionedBytes.length > 0;
 
-        assertTrue(Arrays.equals(baseBytes, versionedBytes));
+        Assert.assertTrue(Arrays.equals(baseBytes, versionedBytes));
     }
 
     @Test
@@ -248,11 +243,11 @@ public class MultiReleaseJarAPI {
         try (JarFile jf = new JarFile(multirelease)) {
             ze1 = jf.getEntry(vname);
         }
-        assertEquals(vname, ze1.getName());
+        Assert.assertEquals(ze1.getName(), vname);
         try (JarFile jf = new JarFile(multirelease, true, ZipFile.OPEN_READ, Runtime.Version.parse("9"))) {
             ze2 = jf.getEntry(rname);
         }
-        assertEquals(rname, ze2.getName());
-        assertNotEquals(ze2.getName(), ze1.getName());
+        Assert.assertEquals(ze2.getName(), rname);
+        Assert.assertNotEquals(ze1.getName(), ze2.getName());
     }
 }

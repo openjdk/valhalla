@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  *  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  *  This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 
 package jdk.internal.foreign;
 
-import jdk.internal.ValueBased;
 import jdk.internal.access.JavaNioAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.ForceInline;
@@ -99,7 +98,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
 
     // factories
 
-    @ValueBased
     public static final class OfByte extends HeapMemorySegmentImpl {
 
         OfByte(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {
@@ -127,7 +125,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
         }
     }
 
-    @ValueBased
     public static final class OfChar extends HeapMemorySegmentImpl {
 
         OfChar(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {
@@ -155,7 +152,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
         }
     }
 
-    @ValueBased
     public static final class OfShort extends HeapMemorySegmentImpl {
 
         OfShort(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {
@@ -183,7 +179,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
         }
     }
 
-    @ValueBased
     public static final class OfInt extends HeapMemorySegmentImpl {
 
         OfInt(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {
@@ -211,7 +206,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
         }
     }
 
-    @ValueBased
     public static final class OfLong extends HeapMemorySegmentImpl {
 
         OfLong(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {
@@ -239,7 +233,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
         }
     }
 
-    @ValueBased
     public static final class OfFloat extends HeapMemorySegmentImpl {
 
         OfFloat(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {
@@ -267,7 +260,6 @@ abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegmentImpl {
         }
     }
 
-    @ValueBased
     public static final class OfDouble extends HeapMemorySegmentImpl {
 
         OfDouble(long offset, Object base, long length, boolean readOnly, MemorySessionImpl session) {

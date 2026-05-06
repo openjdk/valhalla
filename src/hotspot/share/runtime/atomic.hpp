@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #define SHARE_RUNTIME_ATOMIC_HPP
 
 #include "cppstdlib/type_traits.hpp"
-#include "metaprogramming/dependentAlwaysFalse.hpp"
+#include "metaprogramming/enableIf.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -58,10 +58,9 @@
 //     ValueType -> T
 //
 //   special functions:
-//     constexpr constructor()             // See (2) below
-//     explicit constexpr constructor(T)
+//     explicit constructor(T)
 //     noncopyable
-//     destructor                          // Trivial
+//     destructor
 //
 //   static member functions:
 //     value_offset_in_bytes() -> int   // constexpr
@@ -76,7 +75,6 @@
 //     v.release_store(x) -> void
 //     v.release_store_fence(x) -> void
 //     v.compare_exchange(x, y [, o]) -> T
-//     v.compare_set(x, y [, o]) -> bool
 //     v.exchange(x [, o]) -> T
 //
 // (2) All atomic types are default constructible.
@@ -91,12 +89,8 @@
 // value will be initialized as if by translating the value that would be
 // provided by default constructing an atomic type for the value type's
 // decayed type.
-//
-// (3) Constructors for all atomic types are constexpr, to ensure non-local
-// atomic variables are constant initialized (C++17 6.6.2) when initialized
-// with suitable arguments.
-//
-// (4) Atomic pointers and atomic integers additionally provide
+
+// (3) Atomic pointers and atomic integers additionally provide
 //
 //   member functions:
 //     v.add_then_fetch(i [, o]) -> T
@@ -108,7 +102,7 @@
 // type of i must be signed, or both must be unsigned. Atomic pointers perform
 // element arithmetic.
 //
-// (5) Atomic integers additionally provide
+// (4) Atomic integers additionally provide
 //
 //   member functions:
 //     v.and_then_fetch(x [, o]) -> T
@@ -118,7 +112,7 @@
 //     v.fetch_then_or(x [, o]) -> T
 //     v.fetch_then_xor(x [, o]) -> T
 //
-// (6) Atomic pointers additionally provide
+// (5) Atomic pointers additionally provide
 //
 //   nested types:
 //     ElementType -> std::remove_pointer_t<T>
@@ -223,7 +217,7 @@ class AtomicImpl::CommonCore {
   T volatile _value;
 
 protected:
-  explicit constexpr CommonCore(T value) : _value(value) {}
+  explicit CommonCore(T value) : _value(value) {}
   ~CommonCore() = default;
 
   T volatile* value_ptr() { return &_value; }
@@ -269,11 +263,6 @@ public:
     return AtomicAccess::cmpxchg(value_ptr(), compare_value, new_value, order);
   }
 
-  bool compare_set(T compare_value, T new_value,
-                   atomic_memory_order order = memory_order_conservative) {
-    return compare_exchange(compare_value, new_value, order) == compare_value;
-  }
-
   T exchange(T new_value,
              atomic_memory_order order = memory_order_conservative) {
     return AtomicAccess::xchg(this->value_ptr(), new_value, order);
@@ -301,7 +290,7 @@ class AtomicImpl::SupportsArithmetic : public CommonCore<T> {
   }
 
 protected:
-  explicit constexpr SupportsArithmetic(T value) : CommonCore<T>(value) {}
+  explicit SupportsArithmetic(T value) : CommonCore<T>(value) {}
   ~SupportsArithmetic() = default;
 
 public:
@@ -344,8 +333,7 @@ class AtomicImpl::Atomic<T, AtomicImpl::Category::Integer>
   : public SupportsArithmetic<T>
 {
 public:
-  constexpr Atomic() : Atomic(0) {}
-  explicit constexpr Atomic(T value) : SupportsArithmetic<T>(value) {}
+  explicit Atomic(T value = 0) : SupportsArithmetic<T>(value) {}
 
   NONCOPYABLE(Atomic);
 
@@ -385,8 +373,7 @@ class AtomicImpl::Atomic<T, AtomicImpl::Category::Byte>
   : public CommonCore<T>
 {
 public:
-  constexpr Atomic() : Atomic(0) {}
-  explicit constexpr Atomic(T value) : CommonCore<T>(value) {}
+  explicit Atomic(T value = 0) : CommonCore<T>(value) {}
 
   NONCOPYABLE(Atomic);
 
@@ -402,8 +389,7 @@ class AtomicImpl::Atomic<T, AtomicImpl::Category::Pointer>
   : public SupportsArithmetic<T>
 {
 public:
-  constexpr Atomic() : Atomic(nullptr) {}
-  explicit constexpr Atomic(T value) : SupportsArithmetic<T>(value) {}
+  explicit Atomic(T value = nullptr) : SupportsArithmetic<T>(value) {}
 
   NONCOPYABLE(Atomic);
 
@@ -424,21 +410,12 @@ class AtomicImpl::Atomic<T, AtomicImpl::Category::Translated> {
 
   Atomic<Decayed> _value;
 
-  // The decay function and the constructors are constexpr so that a non-local
-  // atomic object constructed with constant arguments will be a constant
-  // initialization.  One might ask why it's not a problem that some
-  // specializations of these functions are not constant expressions. The
-  // answer lies in C++17 10.1.5/6, along with us having *some* constexpr
-  // translator decay functions, constexpr ctors for some translated types,
-  // and constexpr ctors for some decayed types.  Also, C++23 removes those
-  // restrictions on constexpr functions and ctors.
-
-  static constexpr Decayed decay(T x) { return Translator::decay(x); }
+  static Decayed decay(T x) { return Translator::decay(x); }
   static T recover(Decayed x) { return Translator::recover(x); }
 
   // Support for default construction via the default construction of _value.
   struct UseDecayedCtor {};
-  explicit constexpr Atomic(UseDecayedCtor) : _value() {}
+  explicit Atomic(UseDecayedCtor) : _value() {}
   using DefaultCtorSelect =
     std::conditional_t<std::is_default_constructible_v<T>, T, UseDecayedCtor>;
 
@@ -447,9 +424,9 @@ public:
 
   // If T is default constructible, construct from a default constructed T.
   // Otherwise, default construct the underlying Atomic<Decayed>.
-  constexpr Atomic() : Atomic(DefaultCtorSelect()) {}
+  Atomic() : Atomic(DefaultCtorSelect()) {}
 
-  explicit constexpr Atomic(T value) : _value(decay(value)) {}
+  explicit Atomic(T value) : _value(decay(value)) {}
 
   NONCOPYABLE(Atomic);
 
@@ -487,13 +464,6 @@ public:
     return recover(_value.compare_exchange(decay(compare_value),
                                            decay(new_value),
                                            order));
-  }
-
-  bool compare_set(T compare_value, T new_value,
-                   atomic_memory_order order = memory_order_conservative) {
-    return _value.compare_set(decay(compare_value),
-                              decay(new_value),
-                              order);
   }
 
   T exchange(T new_value, atomic_memory_order order = memory_order_conservative) {

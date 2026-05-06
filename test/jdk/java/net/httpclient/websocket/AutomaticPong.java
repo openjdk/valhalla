@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.websocket.debug=true
- *       ${test.main.class}
+ *       AutomaticPong
  */
 import jdk.internal.net.http.websocket.Frame;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.http.WebSocket;
@@ -37,14 +39,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static java.net.http.HttpClient.newHttpClient;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class AutomaticPong {
     /*
@@ -88,7 +86,7 @@ public class AutomaticPong {
                         MockListener.Invocation.onPing(webSocket, hello),
                         MockListener.Invocation.onClose(webSocket, 1005, "")
                 );
-                assertEquals(expected, actual);
+                assertEquals(actual, expected);
             } finally {
                 webSocket.abort();
             }
@@ -106,8 +104,7 @@ public class AutomaticPong {
      *     b) the last Pong corresponds to the last Ping
      *     c) there are no unrelated Pongs
      */
-    @ParameterizedTest
-    @MethodSource("nPings")
+    @Test(dataProvider = "nPings")
     public void automaticPongs(int nPings) throws Exception {
         // big enough to not bother with resize
         ByteBuffer buffer = ByteBuffer.allocate(65536);
@@ -136,7 +133,7 @@ public class AutomaticPong {
                     .join();
             try {
                 List<MockListener.Invocation> inv = listener.invocations();
-                assertEquals(nPings + 2, inv.size()); // n * onPing + onOpen + onClose
+                assertEquals(inv.size(), nPings + 2); // n * onPing + onOpen + onClose
 
                 ByteBuffer data = server.read();
                 Frame.Reader reader = new Frame.Reader();
@@ -174,7 +171,7 @@ public class AutomaticPong {
                             closed = true;
                             return;
                         }
-                        assertEquals(Frame.Opcode.PONG, value);
+                        assertEquals(value, Frame.Opcode.PONG);
                     }
 
                     @Override
@@ -185,7 +182,7 @@ public class AutomaticPong {
                     @Override
                     public void payloadLen(long value) {
                         if (!closed)
-                            assertEquals(4, value);
+                            assertEquals(value, 4);
                     }
 
                     @Override
@@ -225,7 +222,8 @@ public class AutomaticPong {
     }
 
 
-    public static Object[][] nPings() {
+    @DataProvider(name = "nPings")
+    public Object[][] nPings() {
         return new Object[][]{{1}, {2}, {4}, {8}, {9}, {256}};
     }
 }

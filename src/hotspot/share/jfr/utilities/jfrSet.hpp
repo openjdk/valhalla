@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 #ifndef SHARE_JFR_UTILITIES_JFRSET_HPP
 #define SHARE_JFR_UTILITIES_JFRSET_HPP
 
-#include "cppstdlib/new.hpp"
-#include "cppstdlib/type_traits.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.hpp"
 
@@ -69,9 +67,7 @@ class JfrSetStorage : public AnyObj {
     } else {
       table = NEW_RESOURCE_ARRAY(K, table_size);
     }
-    for (unsigned i = 0; i < table_size; ++i) {
-      ::new (&table[i]) K{};
-    }
+    memset(table, 0, table_size * sizeof(K));
     return table;
   }
 
@@ -82,7 +78,7 @@ class JfrSetStorage : public AnyObj {
 
   ~JfrSetStorage() {
     if (CONFIG::alloc_type() == C_HEAP) {
-      FREE_C_HEAP_ARRAY(_table);
+      FREE_C_HEAP_ARRAY(K, _table);
     }
   }
 
@@ -92,7 +88,7 @@ class JfrSetStorage : public AnyObj {
     assert(is_nonempty(), "invariant");
     for (unsigned i = 0; i < _table_size; ++i) {
       K k = _table[i];
-      if (k != K{}) {
+      if (k != 0) {
         functor(k);
       }
     }
@@ -111,14 +107,7 @@ class JfrSetStorage : public AnyObj {
   }
 
   void clear() {
-    for (unsigned i = 0; i < _table_size; ++i) {
-      if constexpr (std::is_copy_assignable_v<K>) {
-        _table[i] = K{};
-      } else {
-        _table[i].~K();
-        ::new (&_table[i]) K{};
-      }
-    }
+    memset(_table, 0, _table_size * sizeof(K));
   }
 };
 
@@ -147,11 +136,11 @@ class JfrSet : public JfrSetStorage<CONFIG> {
     _resize_threshold = old_table_size;
     for (unsigned i = 0; i < old_table_size; ++i) {
       const K k = old_table[i];
-      if (k != K{}) {
+      if (k != 0) {
         uint32_t idx = slot_idx(CONFIG::hash(k));
         do {
           K v = this->_table[idx];
-          if (v == K{}) {
+          if (v == 0) {
             this->_table[idx] = k;
             break;
           }
@@ -160,7 +149,7 @@ class JfrSet : public JfrSetStorage<CONFIG> {
       }
     }
     if (CONFIG::alloc_type() == AnyObj::C_HEAP) {
-      FREE_C_HEAP_ARRAY(old_table);
+      FREE_C_HEAP_ARRAY(K, old_table);
     }
     assert(_table_mask + 1 == this->_table_size, "invariant");
     assert(_resize_threshold << 1 == this->_table_size, "invariant");
@@ -172,7 +161,7 @@ class JfrSet : public JfrSetStorage<CONFIG> {
     K* result = nullptr;
     while (true) {
       K v = this->_table[idx];
-      if (v == K{}) {
+      if (v == 0) {
         result = &this->_table[idx];
         break;
       }
@@ -207,7 +196,7 @@ class JfrSet : public JfrSetStorage<CONFIG> {
       // Already exists.
       return false;
     }
-    assert(*slot == K{}, "invariant");
+    assert(*slot == 0, "invariant");
     *slot = k;
     if (++this->_elements == _resize_threshold) {
       resize();

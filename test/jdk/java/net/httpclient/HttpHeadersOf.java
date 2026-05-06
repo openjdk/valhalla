@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Tests for HttpHeaders.of factory method
- * @run junit ${test.main.class}
+ * @run testng HttpHeadersOf
  */
 
 import java.net.http.HttpHeaders;
@@ -33,16 +33,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class HttpHeadersOf {
 
@@ -62,12 +59,12 @@ public class HttpHeadersOf {
             @Override public String toString() { return "REJECT_ALL"; }
         };
 
-    public static Object[][] predicates() {
+    @DataProvider(name = "predicates")
+    public Object[][] predicates() {
         return new Object[][] { { ACCEPT_ALL }, { REJECT_ALL } };
     }
 
-    @ParameterizedTest
-    @MethodSource("predicates")
+    @Test(dataProvider = "predicates")
     public void testNull(BiPredicate<String,String> filter) {
         assertThrows(NPE, () -> HttpHeaders.of(null, null));
         assertThrows(NPE, () -> HttpHeaders.of(null, filter));
@@ -83,7 +80,8 @@ public class HttpHeadersOf {
     }
 
 
-    public static Object[][] filterMaps() {
+    @DataProvider(name = "filterMaps")
+    public Object[][] filterMaps() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("A", List.of("B"),           "X", List.of("Y", "Z")),
                 Map.of("A", List.of("B", "C"),      "X", List.of("Y", "Z")),
@@ -92,33 +90,33 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("filterMaps")
+    @Test(dataProvider = "filterMaps")
     public void testFilter(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, REJECT_ALL);
-        assertEquals(0, headers.map().size());
+        assertEquals(headers.map().size(), 0);
         assertFalse(headers.firstValue("A").isPresent());
-        assertEquals(0, headers.allValues("A").size());
+        assertEquals(headers.allValues("A").size(), 0);
 
         headers = HttpHeaders.of(map, (name, value) -> {
             if (name.equals("A")) return true; else return false; });
-        assertEquals(1, headers.map().size());
+        assertEquals(headers.map().size(), 1);
         assertTrue(headers.firstValue("A").isPresent());
-        assertEquals(map.get("A"), headers.allValues("A"));
-        assertEquals(map.get("A").size(), headers.allValues("A").size());
+        assertEquals(headers.allValues("A"), map.get("A"));
+        assertEquals(headers.allValues("A").size(), map.get("A").size());
         assertFalse(headers.firstValue("X").isPresent());
 
         headers = HttpHeaders.of(map, (name, value) -> {
             if (name.equals("X")) return true; else return false; });
-        assertEquals(1, headers.map().size());
+        assertEquals(headers.map().size(), 1);
         assertTrue(headers.firstValue("X").isPresent());
-        assertEquals(map.get("X"), headers.allValues("X"));
-        assertEquals(map.get("X").size(), headers.allValues("X").size());
+        assertEquals(headers.allValues("X"), map.get("X"));
+        assertEquals(headers.allValues("X").size(), map.get("X").size());
         assertFalse(headers.firstValue("A").isPresent());
     }
 
 
-    public static Object[][] mapValues() {
+    @DataProvider(name = "mapValues")
+    public Object[][] mapValues() {
         List<Map<String, List<String>>> maps = List.of(
             Map.of("A", List.of("B")),
             Map.of("A", List.of("B", "C")),
@@ -139,19 +137,18 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("mapValues")
+    @Test(dataProvider = "mapValues")
     public void testMapValues(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, ACCEPT_ALL);
 
-        assertEquals(map.size(), headers.map().size());
+        assertEquals(headers.map().size(), map.size());
         assertTrue(headers.firstValue("A").isPresent());
         assertTrue(headers.firstValue("a").isPresent());
-        assertEquals("B", headers.firstValue("A").get());
-        assertEquals("B", headers.firstValue("a").get());
-        assertEquals(map.get("A"), headers.allValues("A"));
-        assertEquals(map.get("A"), headers.allValues("a"));
-        assertEquals(0, headers.allValues("F").size());
+        assertEquals(headers.firstValue("A").get(), "B");
+        assertEquals(headers.firstValue("a").get(), "B");
+        assertEquals(headers.allValues("A"), map.get("A"));
+        assertEquals(headers.allValues("a"), map.get("A"));
+        assertEquals(headers.allValues("F").size(), 0);
         assertTrue(headers.map().get("A").contains("B"));
         assertFalse(headers.map().get("A").contains("F"));
         assertThrows(NFE, () -> headers.firstValueAsLong("A"));
@@ -170,7 +167,8 @@ public class HttpHeadersOf {
     }
 
 
-    public static Object[][] caseInsensitivity() {
+    @DataProvider(name = "caseInsensitivity")
+    public Object[][] caseInsensitivity() {
         List<Map<String, List<String>>> maps = List.of(
              Map.of("Accept-Encoding", List.of("gzip, deflate")),
              Map.of("accept-encoding", List.of("gzip, deflate")),
@@ -181,8 +179,7 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("caseInsensitivity")
+    @Test(dataProvider = "caseInsensitivity")
     public void testCaseInsensitivity(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, ACCEPT_ALL);
 
@@ -190,11 +187,11 @@ public class HttpHeadersOf {
                                    "aCCept-EnCODing", "accepT-encodinG")) {
             assertTrue(headers.firstValue(name).isPresent());
             assertTrue(headers.allValues(name).contains("gzip, deflate"));
-            assertEquals("gzip, deflate", headers.firstValue(name).get());
-            assertEquals(1, headers.allValues(name).size());
-            assertEquals(1, headers.map().size());
-            assertEquals(1, headers.map().get(name).size());
-            assertEquals("gzip, deflate", headers.map().get(name).get(0));
+            assertEquals(headers.firstValue(name).get(), "gzip, deflate");
+            assertEquals(headers.allValues(name).size(), 1);
+            assertEquals(headers.map().size(), 1);
+            assertEquals(headers.map().get(name).size(), 1);
+            assertEquals(headers.map().get(name).get(0), "gzip, deflate");
         }
     }
 
@@ -215,8 +212,8 @@ public class HttpHeadersOf {
                 HttpHeaders h2 = HttpHeaders.of(m2, ACCEPT_ALL);
                 if (!m1.equals(m2)) mapDiffer++;
                 if (m1.hashCode() != m2.hashCode()) mapHashDiffer++;
-                assertEquals(h2, h1, "HttpHeaders differ");
-                assertEquals(h2.hashCode(), h1.hashCode(),
+                assertEquals(h1, h2, "HttpHeaders differ");
+                assertEquals(h1.hashCode(), h2.hashCode(),
                         "hashCode differ for " + List.of(m1,m2));
             }
         }
@@ -224,7 +221,8 @@ public class HttpHeadersOf {
         assertTrue(mapHashDiffer > 0, "all maps had same hashCode!");
     }
 
-    public static Object[][] valueAsLong() {
+    @DataProvider(name = "valueAsLong")
+    public Object[][] valueAsLong() {
         return new Object[][] {
             new Object[] { Map.of("Content-Length", List.of("10")), 10l },
             new Object[] { Map.of("Content-Length", List.of("101")), 101l },
@@ -234,15 +232,15 @@ public class HttpHeadersOf {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("valueAsLong")
+    @Test(dataProvider = "valueAsLong")
     public void testValueAsLong(Map<String,List<String>> map, long expected) {
         HttpHeaders headers = HttpHeaders.of(map, ACCEPT_ALL);
-        assertEquals(expected, headers.firstValueAsLong("Content-Length").getAsLong());
+        assertEquals(headers.firstValueAsLong("Content-Length").getAsLong(), expected);
     }
 
 
-    public static Object[][] duplicateNames() {
+    @DataProvider(name = "duplicateNames")
+    public Object[][] duplicateNames() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("X-name", List.of(),
                        "x-name", List.of()),
@@ -264,8 +262,7 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("duplicateNames")
+    @Test(dataProvider = "duplicateNames")
     public void testDuplicates(Map<String,List<String>> map) {
         HttpHeaders headers;
         try {
@@ -278,7 +275,8 @@ public class HttpHeadersOf {
     }
 
 
-    public static Object[][] noSplittingJoining() {
+    @DataProvider(name = "noSplittingJoining")
+    public Object[][] noSplittingJoining() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("A", List.of("B")),
                 Map.of("A", List.of("B", "C")),
@@ -298,24 +296,24 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("noSplittingJoining")
+    @Test(dataProvider = "noSplittingJoining")
     public void testNoSplittingJoining(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, ACCEPT_ALL);
         Map<String,List<String>> headersMap = headers.map();
 
-        assertEquals(map.size(), headers.map().size());
+        assertEquals(headers.map().size(), map.size());
         for (Map.Entry<String,List<String>> entry : map.entrySet()) {
             String headerName = entry.getKey();
             List<String> headerValues = entry.getValue();
-            assertEquals(headersMap.get(headerName), headerValues);
-            assertEquals(headers.allValues(headerName), headerValues);
-            assertEquals(headers.firstValue(headerName).get(), headerValues.get(0));
+            assertEquals(headerValues, headersMap.get(headerName));
+            assertEquals(headerValues, headers.allValues(headerName));
+            assertEquals(headerValues.get(0), headers.firstValue(headerName).get());
         }
     }
 
 
-    public static Object[][] trimming() {
+    @DataProvider(name = "trimming")
+    public Object[][] trimming() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("A", List.of("B")),
                 Map.of(" A", List.of("B")),
@@ -333,23 +331,23 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("trimming")
+    @Test(dataProvider = "trimming")
     public void testTrimming(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, (name, value) -> {
-            assertEquals("A", name);
-            assertEquals("B", value);
+            assertEquals(name, "A");
+            assertEquals(value, "B");
             return true;
         });
 
-        assertEquals(1, headers.map().size());
-        assertEquals("B", headers.firstValue("A").get());
-        assertEquals(List.of("B"), headers.allValues("A"));
-        assertEquals(List.of("B"), headers.map().get("A"));
+        assertEquals(headers.map().size(), 1);
+        assertEquals(headers.firstValue("A").get(), "B");
+        assertEquals(headers.allValues("A"), List.of("B"));
+        assertTrue(headers.map().get("A").equals(List.of("B")));
     }
 
 
-    public static Object[][] emptyKey() {
+    @DataProvider(name = "emptyKey")
+    public Object[][] emptyKey() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("", List.of("B")),
                 Map.of(" ", List.of("B")),
@@ -360,8 +358,7 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("emptyKey")
+    @Test(dataProvider = "emptyKey")
     public void testEmptyKey(Map<String,List<String>> map) {
         HttpHeaders headers;
         try {
@@ -374,7 +371,8 @@ public class HttpHeadersOf {
     }
 
 
-    public static Object[][] emptyValue() {
+    @DataProvider(name = "emptyValue")
+    public Object[][] emptyValue() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("A", List.of("")),
                 Map.of("A", List.of("", "")),
@@ -385,41 +383,40 @@ public class HttpHeadersOf {
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("emptyValue")
+    @Test(dataProvider = "emptyValue")
     public void testEmptyValue(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, (name, value) -> {
-            assertEquals("", value);
+            assertEquals(value, "");
             return true;
         });
-        assertEquals(map.size(), headers.map().size());
-        assertEquals("", headers.map().get("A").get(0));
-        headers.allValues("A").forEach(v -> assertEquals("", v));
-        assertEquals("", headers.firstValue("A").get());
+        assertEquals(headers.map().size(), map.size());
+        assertEquals(headers.map().get("A").get(0), "");
+        headers.allValues("A").forEach(v -> assertEquals(v, ""));
+        assertEquals(headers.firstValue("A").get(), "");
     }
 
 
-    public static Object[][] noValues() {
+    @DataProvider(name = "noValues")
+    public Object[][] noValues() {
         List<Map<String, List<String>>> maps = List.of(
                 Map.of("A", List.of()),
                 Map.of("A", List.of(), "B", List.of()),
                 Map.of("A", List.of(), "B", List.of(), "C", List.of()),
-                Map.of("A", new ArrayList<>()),
-                Map.of("A", new LinkedList<>())
+                Map.of("A", new ArrayList()),
+                Map.of("A", new LinkedList())
         );
         return maps.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("noValues")
+    @Test(dataProvider = "noValues")
     public void testNoValues(Map<String,List<String>> map) {
         HttpHeaders headers = HttpHeaders.of(map, (name, value) -> {
             fail("UNEXPECTED call to filter");
             return true;
         });
-        assertEquals(0, headers.map().size());
-        assertNull(headers.map().get("A"));
-        assertEquals(0, headers.allValues("A").size());
+        assertEquals(headers.map().size(), 0);
+        assertEquals(headers.map().get("A"), null);
+        assertEquals(headers.allValues("A").size(), 0);
         assertFalse(headers.firstValue("A").isPresent());
     }
 }

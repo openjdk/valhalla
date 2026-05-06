@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,20 @@
  * questions.
  */
 
+import jdk.internal.net.http.quic.CodingContext;
 import jdk.internal.net.http.quic.frames.AckFrame;
 import jdk.internal.net.http.quic.frames.AckFrame.AckFrameBuilder;
 import jdk.internal.net.http.quic.frames.AckFrame.AckRange;
 import jdk.internal.net.http.quic.frames.QuicFrame;
+import jdk.internal.net.http.quic.packets.QuicPacket;
+import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
+import jdk.internal.net.http.quic.QuicConnectionId;
+import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.test.lib.RandomFactory;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,24 +43,66 @@ import java.util.Random;
 import java.util.function.LongPredicate;
 import java.util.stream.LongStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
 
-/*
+/**
  * @test
  * @summary tests the logic to build an AckFrame
  * @library /test/lib
- * @run junit ${test.main.class}
+ * @run testng AckFrameTest
  */
 public class AckFrameTest {
 
     static final Random RANDOM = RandomFactory.getRandom();
 
-    public record Acknowledged(long first, long last) {
+    private static abstract class TestCodingContext implements CodingContext {
+        TestCodingContext() { }
+        @Override
+        public int writePacket(QuicPacket packet, ByteBuffer buffer) {
+            throw new AssertionError("should not come here!");
+        }
+        @Override
+        public QuicPacket parsePacket(ByteBuffer src) throws IOException {
+            throw new AssertionError("should not come here!");
+        }
+        @Override
+        public boolean verifyToken(QuicConnectionId destinationID, byte[] token) {
+            return true;
+        }
+        @Override
+        public QuicTLSEngine getTLSEngine() {
+            throw new AssertionError("should not come here!");
+        }
+    }
+
+    static final int CIDLEN = RANDOM.nextInt(5, QuicConnectionId.MAX_CONNECTION_ID_LENGTH + 1);
+
+    private static final TestCodingContext CONTEXT = new TestCodingContext() {
+
+        @Override
+        public long largestProcessedPN(PacketNumberSpace packetSpace) {
+            return 0;
+        }
+
+        @Override
+        public long largestAckedPN(PacketNumberSpace packetSpace) {
+            return 0;
+        }
+
+        @Override
+        public int connectionIdLength() {
+            return CIDLEN;
+        }
+
+        @Override
+        public QuicConnectionId originalServerConnId() {
+            return null;
+        }
+    };
+
+    public static record Acknowledged(long first, long last) {
         public boolean contains(long packet) {
             return first <= packet && last >= packet;
         }
@@ -66,7 +116,7 @@ public class AckFrameTest {
             return List.copyOf(res);
         }
     }
-    public record Packet(long packetNumber) {
+    public static record Packet(long packetNumber) {
         static List<Packet> ofAcks(List<Acknowledged> acks) {
             return packets(acks);
         }
@@ -75,7 +125,7 @@ public class AckFrameTest {
         }
     }
 
-    public record TestCase(List<Acknowledged> acks, List<Packet> packets, boolean shuffled) {
+    public static record TestCase(List<Acknowledged> acks, List<Packet> packets, boolean shuffled) {
         public TestCase(List<Acknowledged> acks) {
             this(acks, Packet.ofAcks(acks), false);
         }
@@ -87,7 +137,7 @@ public class AckFrameTest {
         }
     }
 
-    static List<TestCase> generateTests() {
+    List<TestCase> generateTests() {
         List<TestCase> tests = new ArrayList<>();
         List<TestCase> simples = List.of(
                 new TestCase(List.of(new Acknowledged(5,5))),
@@ -127,7 +177,7 @@ public class AckFrameTest {
         return tests;
     }
 
-    static List<Acknowledged> generateAcks() {
+    List<Acknowledged> generateAcks() {
         int count = RANDOM.nextInt(3, 10);
         List<Acknowledged> acks = new ArrayList<>(count);
         long prev = -1;
@@ -152,19 +202,22 @@ public class AckFrameTest {
         return res;
     }
 
-    public static Object[][] tests() {
+    @DataProvider(name = "tests")
+    public Object[][] tests() {
         return generateTests().stream()
                 .map(List::of)
                 .map(List::toArray)
                 .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("tests")
+    @Test(dataProvider = "tests")
     public void testAckFrames(TestCase testCase) {
         AckFrameBuilder builder = new AckFrameBuilder();
         List<Acknowledged> acks = testCase.acks;
         List<Packet> packets = testCase.packets;
+        long largest = packets.stream()
+                .mapToLong(Packet::packetNumber)
+                .max().getAsLong();
         System.out.printf("%ntestAckFrames(%s, %s)%n", acks, testCase.shuffled);
         builder.ackDelay(250);
         packets.stream().mapToLong(Packet::packetNumber).forEach(builder::addAck);
@@ -174,8 +227,8 @@ public class AckFrameTest {
         checkAcknowledging(builder::isAcknowledging, testCase, packets);
 
         AckFrameBuilder dup = new AckFrameBuilder(frame);
-        assertEquals(dup.build(), frame);
-        assertEquals(builder.build(), frame);
+        assertEquals(frame, dup.build());
+        assertEquals(frame, builder.build());
         checkAcknowledging(dup::isAcknowledging, testCase, packets);
 
         packets.stream().mapToLong(Packet::packetNumber).forEach(builder::addAck);
@@ -202,25 +255,25 @@ public class AckFrameTest {
         long largest = testCase.packets.stream()
                 .mapToLong(Packet::packetNumber)
                 .max().getAsLong();
-        assertEquals(largest, frame.largestAcknowledged());
+        assertEquals(frame.largestAcknowledged(), largest);
         checkAcknowledging(frame::isAcknowledging, testCase, packets);
         for (var ack : testCase.acks) {
             checkRangeAcknowledged(frame, ack.first, ack.last);
         }
-        assertEquals(reference, frame);
+        assertEquals(frame, reference);
         int size = frame.size();
         ByteBuffer buffer = ByteBuffer.allocate(size + 10);
         buffer.position(5);
         buffer.limit(size + 5);
         try {
             frame.encode(buffer);
-            assertEquals(buffer.limit(), buffer.position());
+            assertEquals(buffer.position(), buffer.limit());
             buffer.position(5);
             buffer.limit(buffer.capacity());
             var decoded = QuicFrame.decode(buffer);
-            assertEquals(size + 5, buffer.position());
-            assertEquals(frame, decoded);
-            assertEquals(reference, decoded);
+            assertEquals(buffer.position(), size + 5);
+            assertEquals(decoded, frame);
+            assertEquals(decoded, reference);
         } catch (Exception e) {
             throw new AssertionError("Can't encode or decode frame: " + frame, e);
         }
@@ -274,14 +327,14 @@ public class AckFrameTest {
             if (isAcknowledging != expected && testCase.shuffled) {
                 System.out.printf("   -> %s%n", packets);
             }
-            assertEquals(expected, isAcknowledging, String.valueOf(pn));
+            assertEquals(isAcknowledging, expected, String.valueOf(pn));
         }
         for (var p : testCase.packets) {
             boolean isAcknowledging = isAckPredicate.test(p.packetNumber);
             if (!isAcknowledging && testCase.shuffled) {
                 System.out.printf("   -> %s%n", packets);
             }
-            assertEquals(true, isAcknowledging, p.toString());
+            assertEquals(isAcknowledging, true, p.toString());
         }
     }
 
@@ -292,9 +345,9 @@ public class AckFrameTest {
         assertTrue(frame.isAcknowledging(1), "1 should be acked");
         assertFalse(frame.isAcknowledging(0), "0 should not be acked");
         assertFalse(frame.isAcknowledging(2), "2 should not be acked");
-        assertEquals(1, frame.smallestAcknowledged());
-        assertEquals(1, frame.largestAcknowledged());
-        assertEquals(List.of(1L), frame.acknowledged().boxed().toList());
+        assertEquals(frame.smallestAcknowledged(), 1);
+        assertEquals(frame.largestAcknowledged(), 1);
+        assertEquals(frame.acknowledged().toArray(), new long[] {1L});
         assertTrue(frame.isRangeAcknowledged(1,1), "[1,1] should be acked");
         assertFalse(frame.isRangeAcknowledged(0, 1), "[0,1] should not be acked");
         assertFalse(frame.isRangeAcknowledged(1, 2), "[1,2] should not be acked");
@@ -305,9 +358,9 @@ public class AckFrameTest {
         assertTrue(frame.isAcknowledging(1), "1 should be acked");
         assertTrue(frame.isAcknowledging(0), "0 should be acked");
         assertFalse(frame.isAcknowledging(2), "2 should not be acked");
-        assertEquals(0, frame.smallestAcknowledged());
-        assertEquals(1, frame.largestAcknowledged());
-        assertEquals(List.of(1L, 0L), frame.acknowledged().boxed().toList());
+        assertEquals(frame.smallestAcknowledged(), 0);
+        assertEquals(frame.largestAcknowledged(), 1);
+        assertEquals(frame.acknowledged().toArray(), new long[] {1L, 0L});
         assertTrue(frame.isRangeAcknowledged(0,0), "[0,0] should be acked");
         assertTrue(frame.isRangeAcknowledged(1,1), "[1,1] should be acked");
         assertTrue(frame.isRangeAcknowledged(0, 1), "[0,1] should be acked");

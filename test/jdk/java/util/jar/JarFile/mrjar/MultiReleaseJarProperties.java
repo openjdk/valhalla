@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,17 +29,17 @@
  * @build CreateMultiReleaseTestJars
  *        jdk.test.lib.compiler.Compiler
  *        jdk.test.lib.util.JarBuilder
- * @run junit MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=0   MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=8   MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=9   MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=100 MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=8   -Djdk.util.jar.enableMultiRelease=false MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=9   -Djdk.util.jar.enableMultiRelease=false MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=8   -Djdk.util.jar.enableMultiRelease=force MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.version=9   -Djdk.util.jar.enableMultiRelease=force MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.enableMultiRelease=false MultiReleaseJarProperties
- * @run junit/othervm -Djdk.util.jar.enableMultiRelease=force MultiReleaseJarProperties
+ * @run testng MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=0   MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=8   MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=9   MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=100 MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=8   -Djdk.util.jar.enableMultiRelease=false MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=9   -Djdk.util.jar.enableMultiRelease=false MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=8   -Djdk.util.jar.enableMultiRelease=force MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.version=9   -Djdk.util.jar.enableMultiRelease=force MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.enableMultiRelease=false MultiReleaseJarProperties
+ * @run testng/othervm -Djdk.util.jar.enableMultiRelease=force MultiReleaseJarProperties
  */
 
 import java.io.File;
@@ -54,15 +54,12 @@ import java.nio.file.Files;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class MultiReleaseJarProperties {
     final static int BASE_VERSION = JarFile.baseVersion().major();
 
@@ -73,7 +70,7 @@ public class MultiReleaseJarProperties {
     protected ClassLoader cldr;
     protected Class<?> rootClass;
 
-    @BeforeAll
+    @BeforeClass
     public void initialize() throws Exception {
         CreateMultiReleaseTestJars creator = new CreateMultiReleaseTestJars();
         creator.compileEntries();
@@ -100,7 +97,7 @@ public class MultiReleaseJarProperties {
         rootClass = cldr.loadClass("version.Main");
     }
 
-    @AfterAll
+    @AfterClass
     public void close() throws IOException {
         ((URLClassLoader) cldr).close();
         Files.delete(multirelease.toPath());
@@ -118,7 +115,7 @@ public class MultiReleaseJarProperties {
     protected void invokeMethod(Class<?> vcls, int expected) throws Throwable {
         MethodType mt = MethodType.methodType(int.class);
         MethodHandle mh = MethodHandles.lookup().findVirtual(vcls, "getVersion", mt);
-        assertEquals(expected, (int) mh.invoke(vcls.newInstance()));
+        Assert.assertEquals(expected, (int) mh.invoke(vcls.newInstance()));
     }
 
     /*
@@ -180,7 +177,7 @@ public class MultiReleaseJarProperties {
             resource = new String(bytes);
         }
         String match = "return " + rtVersion + ";";
-        assertTrue(resource.contains(match));
+        Assert.assertTrue(resource.contains(match));
     }
 
     @Test
@@ -197,6 +194,6 @@ public class MultiReleaseJarProperties {
             resource = new String(bytes);
         }
         String match = "return " + rtVersion + ";";
-        assertTrue(resource.contains(match));
+        Assert.assertTrue(resource.contains(match));
     }
 }

@@ -88,10 +88,7 @@ function setup() {
   fi
 
   if [[ -z ${CMD+x} ]]; then
-    CMD="$(type -p cmd.exe 2>/dev/null)"
-    if [[ -z "$CMD" ]]; then
-      CMD="$DRIVEPREFIX/c/windows/system32/cmd.exe"
-    fi
+    CMD="$DRIVEPREFIX/c/windows/system32/cmd.exe"
   fi
 
   if [[ -z ${WINTEMP+x} ]]; then

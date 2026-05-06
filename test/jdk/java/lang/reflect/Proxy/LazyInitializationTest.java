@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,14 @@
 
 import java.lang.reflect.Proxy;
 
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8285401
  * @summary Avoid initialization of parameter types in proxy construction
- * @run junit LazyInitializationTest
+ * @run testng LazyInitializationTest
  */
 public final class LazyInitializationTest {
     private static volatile boolean initialized = false;
@@ -51,9 +50,9 @@ public final class LazyInitializationTest {
         Intf value = (Intf) Proxy.newProxyInstance(LazyInitializationTest.class.getClassLoader(),
                 new Class<?>[]{ Intf.class },
                 (proxy, method, args) -> null);
-        assertFalse(initialized, "parameter type initialized unnecessarily");
+        Assert.assertFalse(initialized, "parameter type initialized unnecessarily");
 
         value.m(new Parameter());
-        assertTrue(initialized, "parameter type initialized after instantiation");
+        Assert.assertTrue(initialized, "parameter type initialized after instantiation");
     }
 }

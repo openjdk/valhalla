@@ -60,16 +60,17 @@
  */
 package test.java.time;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.testng.Assert.assertSame;
 
 import java.util.Set;
 import java.time.ZoneOffset;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test ZoneOffset.
  */
+@Test
 public class TestZoneOffset extends AbstractTest {
 
     @Test

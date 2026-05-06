@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,39 +22,36 @@
  */
 
 /* @test
- * @run junit/othervm -ea -esa test.java.lang.invoke.ArrayLengthTest
+ * @run testng/othervm -ea -esa test.java.lang.invoke.ArrayLengthTest
  */
 package test.java.lang.invoke;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.AssertJUnit.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.annotations.*;
 
 public class ArrayLengthTest {
 
-    static Object[] arrayClasses() {
-        return new Object[] {
-                int[].class,
-                long[].class,
-                float[].class,
-                double[].class,
-                boolean[].class,
-                byte[].class,
-                short[].class,
-                char[].class,
-                Object[].class,
-                StringBuffer[].class
+    @DataProvider
+    Object[][] arrayClasses() {
+        return new Object[][] {
+                {int[].class},
+                {long[].class},
+                {float[].class},
+                {double[].class},
+                {boolean[].class},
+                {byte[].class},
+                {short[].class},
+                {char[].class},
+                {Object[].class},
+                {StringBuffer[].class}
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("arrayClasses")
+    @Test(dataProvider = "arrayClasses")
     public void testArrayLength(Class<?> arrayClass) throws Throwable {
         MethodHandle arrayLength = MethodHandles.arrayLength(arrayClass);
         assertEquals(int.class, arrayLength.type().returnType());
@@ -63,28 +60,25 @@ public class ArrayLengthTest {
         assertEquals(10, arrayLength.invoke(array));
     }
 
-    @ParameterizedTest
-    @MethodSource("arrayClasses")
+    @Test(dataProvider = "arrayClasses", expectedExceptions = NullPointerException.class)
     public void testArrayLengthInvokeNPE(Class<?> arrayClass) throws Throwable {
         MethodHandle arrayLength = MethodHandles.arrayLength(arrayClass);
-        assertThrows(NullPointerException.class, () -> arrayLength.invoke(null));
+        arrayLength.invoke(null);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testArrayLengthNoArray() {
-        assertThrows(IllegalArgumentException.class, () -> MethodHandles.arrayLength(String.class));
+        MethodHandles.arrayLength(String.class);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testArrayLengthNPE() {
-        assertThrows(NullPointerException.class, () -> MethodHandles.arrayLength(null));
+        MethodHandles.arrayLength(null);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testNullReference() throws Throwable {
         MethodHandle arrayLength = MethodHandles.arrayLength(String[].class);
-        assertThrows(NullPointerException.class, () -> {
-            int len = (int)arrayLength.invokeExact((String[])null);
-        });
+        int len = (int)arrayLength.invokeExact((String[])null);
     }
 }

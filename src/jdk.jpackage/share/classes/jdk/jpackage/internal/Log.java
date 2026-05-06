@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package jdk.jpackage.internal;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Log
@@ -59,6 +60,16 @@ public class Log {
         public void setPrintWriter(PrintWriter out, PrintWriter err) {
             this.out = out;
             this.err = err;
+        }
+
+        public void flush() {
+            if (out != null) {
+                out.flush();
+            }
+
+            if (err != null) {
+                err.flush();
+            }
         }
 
         public void info(String msg) {
@@ -94,6 +105,29 @@ public class Log {
             }
         }
 
+        public void verbose(List<String> strings,
+                List<String> output, int returnCode, long pid) {
+            if (verbose) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("Command [PID: ");
+                sb.append(pid);
+                sb.append("]:\n   ");
+
+                for (String s : strings) {
+                    sb.append(" " + s);
+                }
+                verbose(sb.toString());
+                if (output != null && !output.isEmpty()) {
+                    sb = new StringBuilder("Output:");
+                    for (String s : output) {
+                        sb.append("\n    " + s);
+                    }
+                    verbose(sb.toString());
+                }
+                verbose("Returned: " + returnCode + "\n");
+            }
+        }
+
         private String addTimestamp(String msg) {
             SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
             Date time = new Date(System.currentTimeMillis());
@@ -101,27 +135,51 @@ public class Log {
         }
     }
 
+    private static final InheritableThreadLocal<Logger> instance =
+            new InheritableThreadLocal<Logger>() {
+                @Override protected Logger initialValue() {
+                    return new Logger();
+                }
+            };
+
+    public static void setPrintWriter (PrintWriter out, PrintWriter err) {
+        instance.get().setPrintWriter(out, err);
+    }
+
+    public static void flush() {
+        instance.get().flush();
+    }
+
     public static void info(String msg) {
-        Globals.instance().logger().info(msg);
+        instance.get().info(msg);
     }
 
     public static void fatalError(String msg) {
-        Globals.instance().logger().fatalError(msg);
+        instance.get().fatalError(msg);
     }
 
     public static void error(String msg) {
-        Globals.instance().logger().error(msg);
+        instance.get().error(msg);
+    }
+
+    public static void setVerbose() {
+        instance.get().setVerbose();
     }
 
     public static boolean isVerbose() {
-        return Globals.instance().logger().isVerbose();
+        return instance.get().isVerbose();
     }
 
     public static void verbose(String msg) {
-        Globals.instance().logger().verbose(msg);
+       instance.get().verbose(msg);
     }
 
     public static void verbose(Throwable t) {
-        Globals.instance().logger().verbose(t);
+       instance.get().verbose(t);
+    }
+
+    public static void verbose(List<String> strings, List<String> out,
+            int ret, long pid) {
+       instance.get().verbose(strings, out, ret, pid);
     }
 }

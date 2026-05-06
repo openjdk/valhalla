@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, 2022, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -28,7 +28,6 @@
 
 #include "gc/shared/freeListAllocator.hpp"
 #include "nmt/memTag.hpp"
-#include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/lockFreeStack.hpp"
 
@@ -66,27 +65,27 @@ private:
   // AllocOptions provides parameters for Segment sizing and expansion.
   const AllocOptions* _alloc_options;
 
-  Atomic<Segment*> _first;       // The (start of the) list of all segments.
-  Segment* _last;                // The last segment of the list of all segments.
-  Atomic<uint> _num_segments;    // Number of assigned segments to this allocator.
-  Atomic<size_t> _mem_size;      // Memory used by all segments.
+  Segment* volatile _first;       // The (start of the) list of all segments.
+  Segment* _last;                 // The last segment of the list of all segments.
+  volatile uint _num_segments;    // Number of assigned segments to this allocator.
+  volatile size_t _mem_size;      // Memory used by all segments.
 
   SegmentFreeList* _segment_free_list;  // The global free segment list to preferentially
                                         // get new segments from.
 
-  Atomic<uint> _num_total_slots; // Number of slots available in all segments (allocated + not yet used).
-  Atomic<uint> _num_allocated_slots; // Number of total slots allocated ever (including free and pending).
+  volatile uint _num_total_slots; // Number of slots available in all segments (allocated + not yet used).
+  volatile uint _num_allocated_slots; // Number of total slots allocated ever (including free and pending).
 
   inline Segment* new_segment(Segment* const prev);
 
   DEBUG_ONLY(uint calculate_length() const;)
 
 public:
-  const Segment* first_segment() const { return _first.load_relaxed(); }
+  const Segment* first_segment() const { return AtomicAccess::load(&_first); }
 
-  uint num_total_slots() const { return _num_total_slots.load_relaxed(); }
+  uint num_total_slots() const { return AtomicAccess::load(&_num_total_slots); }
   uint num_allocated_slots() const {
-    uint allocated = _num_allocated_slots.load_relaxed();
+    uint allocated = AtomicAccess::load(&_num_allocated_slots);
     assert(calculate_length() == allocated, "Must be");
     return allocated;
   }
@@ -117,11 +116,11 @@ static constexpr uint SegmentPayloadMaxAlignment = 8;
 class alignas(SegmentPayloadMaxAlignment) G1MonotonicArena::Segment {
   const uint _slot_size;
   const uint _num_slots;
-  Atomic<Segment*> _next;
+  Segment* volatile _next;
   // Index into the next free slot to allocate into. Full if equal (or larger)
   // to _num_slots (can be larger because we atomically increment this value and
   // check only afterwards if the allocation has been successful).
-  Atomic<uint> _next_allocate;
+  uint volatile _next_allocate;
   const MemTag _mem_tag;
 
   static size_t header_size() { return align_up(sizeof(Segment), SegmentPayloadMaxAlignment); }
@@ -140,21 +139,21 @@ class alignas(SegmentPayloadMaxAlignment) G1MonotonicArena::Segment {
   Segment(uint slot_size, uint num_slots, Segment* next, MemTag mem_tag);
   ~Segment() = default;
 public:
-  Atomic<Segment*>* next_addr() { return &_next; }
+  Segment* volatile* next_addr() { return &_next; }
 
   void* allocate_slot();
 
   uint num_slots() const { return _num_slots; }
 
-  Segment* next() const { return _next.load_relaxed(); }
+  Segment* next() const { return _next; }
 
   void set_next(Segment* next) {
     assert(next != this, " loop condition");
-    _next.store_relaxed(next);
+    _next = next;
   }
 
   void reset(Segment* next) {
-    _next_allocate.store_relaxed(0);
+    _next_allocate = 0;
     assert(next != this, " loop condition");
     set_next(next);
     memset(payload(0), 0, payload_size());
@@ -167,7 +166,7 @@ public:
   uint length() const {
     // _next_allocate might grow larger than _num_slots in multi-thread environments
     // due to races.
-    return MIN2(_next_allocate.load_relaxed(), _num_slots);
+    return MIN2(_next_allocate, _num_slots);
   }
 
   static size_t size_in_bytes(uint slot_size, uint num_slots) {
@@ -177,7 +176,7 @@ public:
   static Segment* create_segment(uint slot_size, uint num_slots, Segment* next, MemTag mem_tag);
   static void delete_segment(Segment* segment);
 
-  bool is_full() const { return _next_allocate.load_relaxed() >= _num_slots; }
+  bool is_full() const { return _next_allocate >= _num_slots; }
 };
 
 static_assert(alignof(G1MonotonicArena::Segment) >= SegmentPayloadMaxAlignment, "assert alignment of Segment (and indirectly its payload)");
@@ -187,15 +186,15 @@ static_assert(alignof(G1MonotonicArena::Segment) >= SegmentPayloadMaxAlignment, 
 // performed by multiple threads concurrently.
 // Counts and memory usage are current on a best-effort basis if accessed concurrently.
 class G1MonotonicArena::SegmentFreeList {
-  static Atomic<Segment*>* next_ptr(Segment& segment) {
+  static Segment* volatile* next_ptr(Segment& segment) {
     return segment.next_addr();
   }
   using SegmentStack = LockFreeStack<Segment, &SegmentFreeList::next_ptr>;
 
   SegmentStack _list;
 
-  Atomic<size_t> _num_segments;
-  Atomic<size_t> _mem_size;
+  volatile size_t _num_segments;
+  volatile size_t _mem_size;
 
 public:
   SegmentFreeList() : _list(), _num_segments(0), _mem_size(0) { }
@@ -211,8 +210,8 @@ public:
 
   void print_on(outputStream* out, const char* prefix = "");
 
-  size_t num_segments() const { return _num_segments.load_relaxed(); }
-  size_t mem_size() const { return _mem_size.load_relaxed(); }
+  size_t num_segments() const { return AtomicAccess::load(&_num_segments); }
+  size_t mem_size() const { return AtomicAccess::load(&_mem_size); }
 };
 
 // Configuration for G1MonotonicArena, e.g slot size, slot number of next Segment.

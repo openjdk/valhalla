@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.util.List;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
 /*
@@ -48,7 +49,7 @@ import jdk.test.whitebox.WhiteBox;
 
  public class AnnotationsTests {
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
-    private static final boolean UseNullableAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableAtomicValueFlattening");
+    private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
@@ -67,6 +68,68 @@ import jdk.test.whitebox.WhiteBox;
                 }
             }
         }
+    }
+
+    static class BadClass0 {
+        @Strict
+        @NullRestricted
+        String s = new String("bad");
+    }
+
+    // Test detection of illegal usage of NullRestricted on an identity field
+    void test_0() {
+        Throwable exception = null;
+        try {
+            BadClass0 bc = new BadClass0();
+        } catch (IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received " + e);
+        }
+        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted");
+    }
+
+    // Test detection of non-static field annotated with @NullRestricted but not @Strict
+    static value class ValueClass1 {
+        int i = 0;
+        int j = 0;
+    }
+
+    static class BadClass1 {
+        @NullRestricted
+        ValueClass1 vc;
+    }
+
+    void test_1() {
+        Throwable exception = null;
+        try {
+            BadClass1 tc = new BadClass1();
+        } catch (ClassFormatError e) {
+            exception = e;
+            System.out.println("Received " + e);
+        }
+        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted without @Strict on a non-static field");
+    }
+
+    // Invalid usage of @NullRestricted on a non-strict non-static field
+    static value class ValueClass2 {
+        int i = 0;
+        int j = 0;
+    }
+
+    static class BadClass2 {
+        @NullRestricted
+        static ValueClass2 val;
+    }
+
+    void test_2() {
+        Throwable exception = null;
+        try {
+            BadClass2 tc = new BadClass2();
+        } catch (ClassFormatError e) {
+            exception = e;
+            System.out.println("Received " + e);
+        }
+        Asserts.assertNotNull(exception, "FFailed to detect illegal use of @NullRestricted without @Strict on a static field");
     }
 
     // Test invalid usage of @LooselyConsistentValue on an identity class
@@ -96,13 +159,9 @@ import jdk.test.whitebox.WhiteBox;
     static class GoodClass5 {
         ValueClass5 f0 = new ValueClass5();
 
+        @Strict
         @NullRestricted
-        ValueClass5 f1;
-
-        GoodClass5() {
-            f1 = new ValueClass5();
-            super();
-        }
+        ValueClass5 f1 = new ValueClass5();
     }
 
     void test_5() {
@@ -110,7 +169,7 @@ import jdk.test.whitebox.WhiteBox;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            if (UseNullableAtomicValueFlattening) {
+            if (UseNullableValueFlattening) {
                 Asserts.assertTrue(UNSAFE.isFlatField(f0), "Flat field expected, but field is not flat");
             } else {
                 Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
@@ -130,34 +189,32 @@ import jdk.test.whitebox.WhiteBox;
     // Test detection/handling of circularity
 
     static value class ValueClass6a {
+        @Strict
         @NullRestricted
         ValueClass6b val = new ValueClass6b();
     }
 
     static value class ValueClass6b {
+        @Strict
         @NullRestricted
         ValueClass6a val = new ValueClass6a();
     }
 
     static class BadClass6 {
+        @Strict
         @NullRestricted
-        ValueClass6a val;
-
-        BadClass6() {
-            val = new ValueClass6a();
-            super();
-        }
+        ValueClass6a val = new ValueClass6a();
     }
 
     void test_6() {
         Throwable exception = null;
         try {
             BadClass6 bc = new BadClass6();
-        } catch (StackOverflowError e) {
+        } catch (ClassCircularityError e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Failed to trigger infinite recursion");
+        Asserts.assertNotNull(exception, "Failed to detect circularity");
     }
 
     // Test null restricted static field
@@ -166,6 +223,7 @@ import jdk.test.whitebox.WhiteBox;
     }
 
     static class GoodClass7 {
+        @Strict
         @NullRestricted
         static ValueClass7 sval = new ValueClass7();
     }
@@ -184,6 +242,7 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test circularity on static fields
     static value class ValueClass8 {
+        @Strict
         @NullRestricted
         static ValueClass8 sval = new ValueClass8();
     }
@@ -206,13 +265,9 @@ import jdk.test.whitebox.WhiteBox;
     }
 
     static class GoodClass9 {
+        @Strict
         @NullRestricted
-        ValueClass9 val;
-
-        GoodClass9() {
-            val = new ValueClass9();
-            super();
-        }
+        ValueClass9 val = new ValueClass9();
     }
 
     void test_9() {
@@ -229,6 +284,7 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test that writing null to a @NullRestricted static field throws an exception
     static value class ValueClass10 {
+        @Strict
         @NullRestricted
         static ValueClass10 sval = new ValueClass10();
     }
@@ -244,15 +300,34 @@ import jdk.test.whitebox.WhiteBox;
         Asserts.assertNotNull(exception, "Expected NullPointerException not received");
     }
 
+    // Test static null restricted field that is not declared strict
+    static value class ValueClass11 {
+        int i = 0;
+        int j = 0;
+    }
+
+    static class BadClass11 {
+        @NullRestricted
+        static ValueClass11 val = new ValueClass11();
+    }
+
+    void test_11() {
+        Throwable exception = null;
+        try {
+            ValueClass11 val = BadClass11.val;
+            System.out.println(val);
+        } catch(ClassFormatError e) {
+            exception = e;
+            System.out.println("Received " + e);
+        }
+        Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
+    }
+
     // Test illegal use of @NullRestricted on a primitive field
     static class BadClass12 {
+        @Strict
         @NullRestricted
-        int i;
-
-        BadClass12() {
-            i = 0;
-            super();
-        }
+        int i = 0;
     }
     void test_12() {
         Throwable exception = null;
@@ -268,13 +343,9 @@ import jdk.test.whitebox.WhiteBox;
 
     // Test illegal use of @NullRestricted on an array field
     static class BadClass13 {
+        @Strict
         @NullRestricted
-        int[] intArray;
-
-        BadClass13() {
-            intArray = new int[1];
-            super();
-        }
+        int[] intArray = new int[1];
     }
     void test_13() {
         Throwable exception = null;

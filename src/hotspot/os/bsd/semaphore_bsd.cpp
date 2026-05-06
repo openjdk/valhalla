@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,37 +81,27 @@ bool OSXSemaphore::timedwait(int64_t millis) {
 
   // kernel semaphores take a relative timeout
   mach_timespec_t waitspec;
-  int64_t starttime;
-  const bool is_trywait = millis == 0;
+  int secs = millis / MILLIUNITS;
+  int nsecs = millis_to_nanos(millis % MILLIUNITS);
+  waitspec.tv_sec = secs;
+  waitspec.tv_nsec = nsecs;
 
-  if (!is_trywait) {
-    int secs = millis / MILLIUNITS;
-    int nsecs = millis_to_nanos(millis % MILLIUNITS);
-    waitspec.tv_sec = secs;
-    waitspec.tv_nsec = nsecs;
-
-    starttime = os::javaTimeNanos();
-  } else {
-    waitspec.tv_sec = 0;
-    waitspec.tv_nsec = 0;
-  }
+  int64_t starttime = os::javaTimeNanos();
 
   kr = semaphore_timedwait(_semaphore, waitspec);
   while (kr == KERN_ABORTED) {
-    if (!is_trywait) {
-      // reduce the timeout and try again
-      int64_t totalwait = millis_to_nanos(millis);
-      int64_t current = os::javaTimeNanos();
-      int64_t passedtime = current - starttime;
+    // reduce the timeout and try again
+    int64_t totalwait = millis_to_nanos(millis);
+    int64_t current = os::javaTimeNanos();
+    int64_t passedtime = current - starttime;
 
-      if (passedtime >= totalwait) {
-        waitspec.tv_sec = 0;
-        waitspec.tv_nsec = 0;
-      } else {
-        int64_t waittime = totalwait - (current - starttime);
-        waitspec.tv_sec = waittime / NANOSECS_PER_SEC;
-        waitspec.tv_nsec = waittime % NANOSECS_PER_SEC;
-      }
+    if (passedtime >= totalwait) {
+      waitspec.tv_sec = 0;
+      waitspec.tv_nsec = 0;
+    } else {
+      int64_t waittime = totalwait - (current - starttime);
+      waitspec.tv_sec = waittime / NANOSECS_PER_SEC;
+      waitspec.tv_nsec = waittime % NANOSECS_PER_SEC;
     }
 
     kr = semaphore_timedwait(_semaphore, waitspec);

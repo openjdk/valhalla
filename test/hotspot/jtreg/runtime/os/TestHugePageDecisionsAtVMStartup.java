@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2023, 2024, Red Hat Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -26,7 +26,6 @@
  * @test id=Default
  * @summary Test JVM large page setup (default options)
  * @library /test/lib
- * @requires vm.flagless
  * @requires os.family == "linux"
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -37,7 +36,6 @@
  * @test id=LP_enabled
  * @summary Test JVM large page setup (+LP)
  * @library /test/lib
- * @requires vm.flagless
  * @requires os.family == "linux"
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -48,7 +46,6 @@
  * @test id=THP_enabled
  * @summary Test JVM large page setup (+THP)
  * @library /test/lib
- * @requires vm.flagless
  * @requires os.family == "linux"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc

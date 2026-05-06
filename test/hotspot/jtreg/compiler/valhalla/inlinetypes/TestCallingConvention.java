@@ -38,13 +38,13 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import static compiler.lib.ir_framework.IRNode.ALLOC;
-import static compiler.lib.ir_framework.IRNode.CALL_OF_METHOD;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -168,27 +168,10 @@ public class TestCallingConvention {
 
             mt = MethodType.methodType(MyValue2.class, boolean.class);
             test56_mh = lookup.findVirtual(clazz, "test56_callee", mt);
-
-            mt = MethodType.methodType(MyValue2.class, MyValue2.class);
-            test59_mh = lookup.findStatic(clazz, "test59_callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
         }
-    }
-
-    public TestCallingConvention() {
-        test15_vt = MyValue3.create();
-        test16_vt = MyValue3.create();
-        test17_vt = MyValue3.create();
-        test18_vt = MyValue4.create();
-        test19_vt = MyValue4.create();
-        test20_vt = MyValue4.create();
-        test21_vt = MyValue3.create();
-        test29_vt = MyValue3.create();
-        test50_vt = MyValue3.create();
-        test50_vt2 = MyValue3.create();
-        super();
     }
 
     public static void main(String[] args) {
@@ -456,12 +439,13 @@ public class TestCallingConvention {
     public void test14_verifier(RunInfo info) {
         MyValue2 result = test14(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        Asserts.assertEQ(v, result);
+        Asserts.assertEQ(result.hash(), v.hash());
     }
 
     // Return value objects in registers from interpreter -> compiled
+    @Strict
     @NullRestricted
-    final MyValue3 test15_vt;
+    final MyValue3 test15_vt = MyValue3.create();
 
     @DontCompile
     public MyValue3 test15_interp() {
@@ -481,8 +465,9 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @Strict
     @NullRestricted
-    final MyValue3 test16_vt;
+    final MyValue3 test16_vt = MyValue3.create();
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
@@ -498,8 +483,9 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @Strict
     @NullRestricted
-    final MyValue3 test17_vt;
+    final MyValue3 test17_vt = MyValue3.create();
 
     @DontInline
     public MyValue3 test17_comp() {
@@ -527,8 +513,9 @@ public class TestCallingConvention {
     // Same tests as above but with a value class that cannot be returned in registers
 
     // Return value objects in registers from interpreter -> compiled
+    @Strict
     @NullRestricted
-    final MyValue4 test18_vt;
+    final MyValue4 test18_vt = MyValue4.create();
 
     @DontCompile
     public MyValue4 test18_interp() {
@@ -549,8 +536,9 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @Strict
     @NullRestricted
-    final MyValue4 test19_vt;
+    final MyValue4 test19_vt = MyValue4.create();
 
     @Test
     public MyValue4 test19() {
@@ -564,8 +552,9 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @Strict
     @NullRestricted
-    final MyValue4 test20_vt;
+    final MyValue4 test20_vt = MyValue4.create();
 
     @DontInline
     public MyValue4 test20_comp() {
@@ -591,8 +580,9 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
+    @Strict
     @NullRestricted
-    final MyValue3 test21_vt;
+    final MyValue3 test21_vt = MyValue3.create();
 
     public MyValue3 test21_inlined() {
         throw new RuntimeException();
@@ -698,7 +688,7 @@ public class TestCallingConvention {
         MyValue2 vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
-        Asserts.assertEQ(MyValue2.createWithFieldsInline(rI, rD), vt);
+        Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
     }
 
     // Test calling convention with deep hierarchy of flattened fields
@@ -772,8 +762,9 @@ public class TestCallingConvention {
     }
 
     // Test calling a method returning a value object as fields via reflection
+    @Strict
     @NullRestricted
-    MyValue3 test29_vt;
+    MyValue3 test29_vt = MyValue3.create();
 
     @Test
     public MyValue3 test29() {
@@ -837,7 +828,7 @@ public class TestCallingConvention {
     public void test32_verifier(RunInfo info) throws Throwable {
         MyValue2 result = test32(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI+32, rD);
-        Asserts.assertEQ(v, result);
+        Asserts.assertEQ(result.hash(), v.hash());
     }
 
     // Same as test32, except the return type is not flattenable.
@@ -862,7 +853,7 @@ public class TestCallingConvention {
     public void test33_verifier(RunInfo info) throws Throwable {
         MyValue2 result = test33(!info.isWarmUp());
         MyValue2 v = MyValue2.createWithFieldsInline(rI+33, rD);
-        Asserts.assertEQ(v, result);
+        Asserts.assertEQ(result.hash(), v.hash());
     }
 
     // Test selection of correct entry point in SharedRuntime::handle_wrong_method
@@ -1103,6 +1094,7 @@ public class TestCallingConvention {
 
     @LooselyConsistentValue
     static value class EmptyContainer {
+        @Strict
         @NullRestricted
         private MyValueEmpty empty;
 
@@ -1121,6 +1113,7 @@ public class TestCallingConvention {
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val;
+        @Strict
         @NullRestricted
         private EmptyContainer empty;
 
@@ -1261,10 +1254,12 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
+    @Strict
     @NullRestricted
-    final MyValue3 test50_vt;
+    final MyValue3 test50_vt = MyValue3.create();
+    @Strict
     @NullRestricted
-    final MyValue3 test50_vt2;
+    final MyValue3 test50_vt2 = MyValue3.create();
 
     public MyValue3 test50_inlined1(boolean b) {
         if (b) {
@@ -1416,9 +1411,9 @@ public class TestCallingConvention {
     @Warmup(10000)
     public void test56_verifier(RunInfo info) throws Throwable {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
-        Asserts.assertEQ(vt, test56(true));
+        Asserts.assertEQ(test56(true).hash(), vt.hash());
         if (!info.isWarmUp()) {
-            Asserts.assertEQ(null, test56(false));
+            Asserts.assertEQ(test56(false), null);
         }
     }
 
@@ -1438,6 +1433,7 @@ public class TestCallingConvention {
     // Test abstract value class with flat fields
     @LooselyConsistentValue
     abstract value class MyAbstract58 {
+        @Strict
         @NullRestricted
         MyValue58Inline nullfree = new MyValue58Inline();
 
@@ -1462,6 +1458,7 @@ public class TestCallingConvention {
     value class MyValue58C extends MyAbstract58 {
         int x = rI;
 
+        @Strict
         @NullRestricted
         MyValue1 nullfree = MyValue1.DEFAULT;
 
@@ -1479,140 +1476,5 @@ public class TestCallingConvention {
     @Run(test = "test58")
     public void test58_verifier() {
         Asserts.assertEQ(test58(new MyValue58A(), new MyValue58B(), new MyValue58C()), new MyValue58C());
-    }
-
-    static MethodHandle test59_mh;
-
-    public static MyValue2 test59_callee(MyValue2 arg) {
-        int div = 0;
-        int res = 42 / div; // Always throws an ArithmeticException
-        return arg;
-    }
-
-    // Method handle with a scalarized return that will always throw an exception
-    @Test
-    public static MyValue2 test59(MyValue2 val) throws Throwable {
-        return (MyValue2)test59_mh.invokeExact(val);
-    }
-
-    @Run(test = "test59")
-    @Warmup(10000) // Trigger compilation of LambdaForm method
-    public void test59_verifier() throws Throwable {
-        try {
-            test59(null);
-        } catch (ArithmeticException e) {
-            // Expected
-        }
-    }
-
-    static interface Interface60 {
-        public void m(MyValue2 val);
-    }
-
-    static class Impl60_1 implements Interface60 {
-        public void m(MyValue2 val) {
-            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-        }
-    }
-
-    static class Impl60_2 implements Interface60 {
-        public void m(MyValue2 val) {
-            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-        }
-    }
-
-    static class Impl60_3 implements Interface60 {
-        public void m(MyValue2 val) {
-            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-        }
-    }
-
-    // Verify that the scalarized calling convention works for abstract methods
-    @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC})
-    public void test60(Interface60 intf) {
-        intf.m(MyValue2.createWithFieldsInline(rI, rD));
-    }
-
-    @Run(test = "test60")
-    public void test60_verifier() {
-        test60(new Impl60_1());
-        test60(new Impl60_2());
-        test60(new Impl60_3());
-    }
-
-    static abstract value class ValueClass61 {
-        public abstract void m(MyValue2 val);
-    }
-
-    static value class Impl61_1 extends ValueClass61 {
-        public void m(MyValue2 val) {
-            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-        }
-    }
-
-    static value class Impl61_2 extends ValueClass61 {
-        public void m(MyValue2 val) {
-            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-        }
-    }
-
-    static value class Impl61_3 extends ValueClass61 {
-        public void m(MyValue2 val) {
-            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-        }
-    }
-
-    // Same as test60 but with abstract value class
-    @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC})
-    public void test61(ValueClass61 intf) {
-        intf.m(MyValue2.createWithFieldsInline(rI, rD));
-    }
-
-    @Run(test = "test61")
-    public void test61_verifier() {
-        test61(new Impl61_1());
-        test61(new Impl61_2());
-        test61(new Impl61_3());
-    }
-
-    public static abstract value class ValueClass62 {
-        public abstract void m(MyValue2 val);
-    }
-
-    public static value class Impl62_1 extends ValueClass62 {
-        @ForceInline
-        public void m(MyValue2 val) {
-            // Empty to keep IR matching in test62 simple
-        }
-    }
-
-    // Hide the second subclass from the IR framework to prevent it from class loading
-    static class Holder {
-        static value class Impl62_2 extends ValueClass62 {
-            public void m(MyValue2 val) {
-                Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
-            }
-        }
-    }
-
-    // Test strength reduction of virtual call to static call with scalarized receiver
-    @Test
-    @IR(failOn = {ALLOC, CALL_OF_METHOD, "m"})
-    public static void test62(ValueClass62 intf, MyValue2 val) {
-        intf.m(val);
-    }
-
-    static boolean alwaysFalse = false;
-
-    @Run(test = "test62")
-    public void test62_verifier(RunInfo info) {
-        test62(new Impl62_1(), MyValue2.createWithFieldsInline(rI, rD));
-        if (!info.isWarmUp()) {
-            test62(new Holder.Impl62_2(), MyValue2.createWithFieldsInline(rI, rD));
-        }
     }
 }

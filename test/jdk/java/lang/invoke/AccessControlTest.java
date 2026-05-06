@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /* @test
  * @summary test access checking by java.lang.invoke.MethodHandles.Lookup
  * @compile AccessControlTest.java AccessControlTest_subpkg/Acquaintance_remote.java
- * @run junit/othervm test.java.lang.invoke.AccessControlTest
+ * @run testng/othervm test.java.lang.invoke.AccessControlTest
  */
 
 package test.java.lang.invoke;
@@ -33,13 +33,12 @@ import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import org.testng.annotations.*;
 
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodHandles.Lookup.*;
 import static java.lang.invoke.MethodType.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
 
 import test.java.lang.invoke.AccessControlTest_subpkg.Acquaintance_remote;
 
@@ -70,7 +69,7 @@ public class AccessControlTest {
             this.prevLookupClass = lookup.previousLookupClass();
             this.lookupModes = lookup.lookupModes();
 
-            assertEquals(lookupString(), lookup.toString());
+            assert(lookupString().equals(lookup.toString()));
             numberOf(lookupClass().getClassLoader()); // assign CL#
         }
         public LookupCase(Class<?> lookupClass, Class<?> prevLookupClass, int lookupModes) {
@@ -97,7 +96,7 @@ public class AccessControlTest {
                 int cmp = c1.getName().compareTo(c2.getName());
                 if (cmp != 0)  return cmp;
                 cmp = numberOf(c1.getClassLoader()) - numberOf(c2.getClassLoader());
-                assertNotEquals(0, cmp);
+                assert(cmp != 0);
                 return cmp;
             } else if (p1 != p2){
                 if (p1 == null)
@@ -107,7 +106,7 @@ public class AccessControlTest {
                 int cmp = p1.getName().compareTo(p2.getName());
                 if (cmp != 0)  return cmp;
                 cmp = numberOf(p1.getClassLoader()) - numberOf(p2.getClassLoader());
-                assertNotEquals(0, cmp);
+                assert(cmp != 0);
                 return cmp;
             }
             return -(this.lookupModes() - that.lookupModes());
@@ -212,8 +211,8 @@ public class AccessControlTest {
                                    c1.getPackageName().equals(c2.getPackageName()));
             boolean sameTopLevel = (topLevelClass(c1) == topLevelClass(c2));
             boolean sameClass = (c1 == c2);
-            assertTrue(samePackage  || !sameTopLevel);
-            assertTrue(sameTopLevel || !sameClass);
+            assert(samePackage  || !sameTopLevel);
+            assert(sameTopLevel || !sameClass);
             boolean accessible = sameClass;
 
             if ((modes1 & PACKAGE) != 0)  accessible |= samePackage;
@@ -252,17 +251,17 @@ public class AccessControlTest {
                 changed |= (PRIVATE|PROTECTED);  // [A5]
             }
             if (sameClass) {
-                assertEquals(0, changed);       // [A11] (no deprivation if same class)
+                assert(changed == 0);       // [A11] (no deprivation if same class)
             }
 
-            if (accessible) assertEquals(0, changed & PUBLIC);
+            if (accessible)  assert((changed & PUBLIC) == 0);
             int modes2 = modes1 & ~changed;
             Class<?> plc = (m1 == m2) ? prevLookupClass() : c1; // [A9] [A10]
             if ((modes1 & UNCONDITIONAL) != 0) plc = null;      // [A8]
             LookupCase l2 = new LookupCase(c2, plc, modes2);
-            assertSame(l2.lookupClass(), c2);         // [A1]
-            assertEquals(modes1, modes1 | modes2);    // [A1-a] (no elevation of access)
-            assertTrue(l2.prevLookupClass() == null || (modes2 & MODULE) == 0);
+            assert(l2.lookupClass() == c2);         // [A1]
+            assert((modes1 | modes2) == modes1);    // [A1-a] (no elevation of access)
+            assert(l2.prevLookupClass() == null || (modes2 & MODULE) == 0);
             return l2;
         }
 
@@ -281,8 +280,8 @@ public class AccessControlTest {
             }
             if (newModes == oldModes) return this;  // return self if no change
             LookupCase l2 = new LookupCase(lookupClass(), prevLookupClass(), newModes);
-            assertEquals(oldModes, oldModes | newModes);    // [A2] (no elevation of access)
-            assertTrue(l2.prevLookupClass() == null || (newModes & MODULE) == 0);
+            assert((oldModes | newModes) == oldModes);    // [A2] (no elevation of access)
+            assert(l2.prevLookupClass() == null || (newModes & MODULE) == 0);
             return l2;
         }
 
@@ -332,7 +331,7 @@ public class AccessControlTest {
                        && Modifier.isPublic(m.getModifiers());
             }
 
-            assertNull(prevLookupClass);
+            assert(m1 == m2 && prevLookupClass == null);
 
             if (!willAccessClass(c2, false))
                 return false;
@@ -381,7 +380,7 @@ public class AccessControlTest {
                     && Modifier.isPublic(c2.getModifiers());
             }
 
-            assertNull(prevLookupClass);
+            assert(m1 == m2 && prevLookupClass == null);
 
             LookupCase lc = this.in(c2);
             int modes1 = lc.lookupModes();
@@ -410,8 +409,8 @@ public class AccessControlTest {
         Class<?> c = cls;
         for (Class<?> ec; (ec = c.getEnclosingClass()) != null; )
             c = ec;
-        assertNull(c.getEnclosingClass());
-        assertTrue(c == cls || cls.getEnclosingClass() != null);
+        assert(c.getEnclosingClass() == null);
+        assert(c == cls || cls.getEnclosingClass() != null);
         return c;
     }
 
@@ -444,14 +443,14 @@ public class AccessControlTest {
         if (edges == null)  CASE_EDGES.put(l2, edges = new TreeSet<>());
         if (edges.add(l1)) {
             Class<?> c1 = l1.lookupClass();
-            assertSame(l2.lookupClass(), c2); // [A1]
+            assert(l2.lookupClass() == c2); // [A1]
             int m1 = l1.lookupModes();
             int m2 = l2.lookupModes();
-            assertEquals(m1, (m1 | m2));        // [A2] (no elevation of access)
+            assert((m1 | m2) == m1);        // [A2] (no elevation of access)
             LookupCase expect = dropAccess == 0 ? l1.in(c2) : l1.in(c2).dropLookupMode(dropAccess);
             if (!expect.equals(l2))
                 System.out.println("*** expect "+l1+" => "+expect+" but got "+l2);
-            assertEquals(expect, l2);
+            assertEquals(l2, expect);
         }
     }
 
@@ -568,7 +567,7 @@ public class AccessControlTest {
         if (willAccess != didAccess) {
             System.out.println(sourceCase+" => "+targetClass.getSimpleName()+(isFindOrAccessClass?"":"."+methodName+methodType));
             System.out.println("fail "+(isFindOrAccessClass?kind:"on "+method)+" ex="+accessError);
-            assertEquals(didAccess, willAccess);
+            assertEquals(willAccess, didAccess);
         }
         testCount++;
         if (!didAccess)  testCountFails++;
@@ -580,10 +579,10 @@ public class AccessControlTest {
             System.out.println(targetClass.getSimpleName()+"."+methodName+methodType);
         try {
             Method method = targetClass.getDeclaredMethod(methodName, methodType.parameterArray());
-            assertEquals(methodType.returnType(), method.getReturnType());
+            assertEquals(method.getReturnType(), methodType.returnType());
             int haveMods = method.getModifiers();
-            assertTrue(Modifier.isStatic(haveMods));
-            assertEquals(targetAccess, fixMods(haveMods));
+            assert(Modifier.isStatic(haveMods));
+            assert(targetAccess == fixMods(haveMods));
             return method;
         } catch (NoSuchMethodException ex) {
             throw new AssertionError(methodName, ex);
@@ -605,7 +604,7 @@ public class AccessControlTest {
         case PACKAGE:    return "pkg_in_";
         case PRIVATE:    return "pri_in_";
         }
-        fail();
+        assert(false);
         return "?";
     }
     private static final int[] ACCESS_CASES = {

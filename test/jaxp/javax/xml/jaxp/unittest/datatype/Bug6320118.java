@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,26 @@
 
 package datatype;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 6320118
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run junit/othervm datatype.Bug6320118
+ * @run testng/othervm datatype.Bug6320118
  * @summary Test xml datatype XMLGregorianCalendar.
  */
 public class Bug6320118 {
 
     DatatypeFactory df;
 
-    @BeforeEach
+    @BeforeClass
     public void createDataTypeFactory() throws DatatypeConfigurationException {
         df = DatatypeFactory.newInstance();
     }
@@ -52,30 +50,30 @@ public class Bug6320118 {
     @Test
     public void test1() {
         XMLGregorianCalendar calendar = df.newXMLGregorianCalendar(1970, 1, 1, 24, 0, 0, 0, 0);
-        assertEquals(1970, calendar.getYear());
-        assertEquals(1, calendar.getMonth());
-        assertEquals(2, calendar.getDay());
-        assertEquals(0, calendar.getHour(), "hour 24 needs to be treated as hour 0 of next day");
+        Assert.assertEquals(calendar.getYear(), 1970);
+        Assert.assertEquals(calendar.getMonth(), 1);
+        Assert.assertEquals(calendar.getDay(), 2);
+        Assert.assertEquals(calendar.getHour(), 0, "hour 24 needs to be treated as hour 0 of next day");
     }
 
     @Test
     public void test2() {
         XMLGregorianCalendar calendar = df.newXMLGregorianCalendarTime(24, 0, 0, 0);
-        assertEquals(0, calendar.getHour(), "hour 24 needs to be treated as hour 0 of next day");
+        Assert.assertEquals(calendar.getHour(), 0, "hour 24 needs to be treated as hour 0 of next day");
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void test3() {
         XMLGregorianCalendar calendar = df.newXMLGregorianCalendar();
         // Must fail as other params are not 0 but undefined
-        assertThrows(IllegalArgumentException.class, () -> calendar.setHour(24));
+        calendar.setHour(24);
     }
 
     @Test
     public void test4() {
         XMLGregorianCalendar calendar = df.newXMLGregorianCalendar();
         calendar.setTime(24, 0, 0, 0);
-        assertEquals(0, calendar.getHour(), "hour 24 needs to be treated as hour 0 of next day");
+        Assert.assertEquals(calendar.getHour(), 0, "hour 24 needs to be treated as hour 0 of next day");
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,15 +24,15 @@
 /* @test
  * @bug 8243999
  * @summary Checks to ensure that Multicast constructors behave as expected
- * @run junit ${test.main.class}
+ * @run testng Constructor
  */
 
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.MulticastSocket;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertTrue;
 
 public class Constructor {
     @Test

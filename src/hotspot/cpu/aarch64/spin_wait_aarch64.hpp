@@ -24,8 +24,6 @@
 #ifndef CPU_AARCH64_SPIN_WAIT_AARCH64_HPP
 #define CPU_AARCH64_SPIN_WAIT_AARCH64_HPP
 
-#include "utilities/debug.hpp"
-
 class SpinWait {
 public:
   enum Inst {
@@ -33,30 +31,21 @@ public:
     NOP,
     ISB,
     YIELD,
-    SB,
-    WFET
+    SB
   };
 
 private:
   Inst _inst;
   int _count;
-  int _delay;
 
   Inst from_name(const char *name);
 
 public:
-  SpinWait(Inst inst = NONE, int count = 0, int delay = -1)
-    : _inst(inst), _count(inst == NONE ? 0 : count), _delay(delay) {}
-  SpinWait(const char *name, int count, int delay)
-    : SpinWait(from_name(name), count, delay) {}
+  SpinWait(Inst inst = NONE, int count = 0) : _inst(inst), _count(inst == NONE ? 0 : count) {}
+  SpinWait(const char *name, int count) : SpinWait(from_name(name), count) {}
 
   Inst inst() const { return _inst; }
   int inst_count() const { return _count; }
-  int delay() const {
-    assert(_inst == WFET, "Specifying the delay value is only supported for WFET");
-    assert(_delay > 0, "The delay value must be positive");
-    return _delay;
-  }
 
   static bool supports(const char *name);
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @summary Demonstrates how to achieve testing without network connections
  * @build DelegatingHttpClient FixedHttpResponse FixedResponseHttpClient
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm OfflineTesting
  */
 
 import java.io.IOException;
@@ -40,15 +40,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
+import org.testng.annotations.Test;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class OfflineTesting {
 
@@ -74,9 +72,9 @@ public class OfflineTesting {
             client.sendAsync(request, BodyHandlers.ofString())
                     .thenAccept(response -> {
                         System.out.println("response: " + response);
-                        assertEquals(200, response.statusCode());
+                        assertEquals(response.statusCode(), 200);
                         assertTrue(response.headers().firstValue("Server").isPresent());
-                        assertEquals("A response message", response.body());
+                        assertEquals(response.body(), "A response message");
                     })
                     .join();
         }
@@ -93,9 +91,9 @@ public class OfflineTesting {
             client.sendAsync(request, BodyHandlers.ofByteArray())
                     .thenAccept(response -> {
                         System.out.println("response: " + response);
-                        assertEquals(200, response.statusCode());
+                        assertEquals(response.statusCode(), 200);
                         assertTrue(response.headers().firstValue("Content-Type").isPresent());
-                        Assertions.assertArrayEquals("A response message".getBytes(UTF_8), response.body());
+                        assertEquals(response.body(), "A response message".getBytes(UTF_8));
                     })
                     .join();
         }
@@ -127,9 +125,9 @@ public class OfflineTesting {
         try (var client = fixedClient) {
             client.sendAsync(request, BodyHandlers.ofString())
                     .thenAccept(response -> {
-                        assertEquals(404, response.statusCode());
+                        assertEquals(response.statusCode(), 404);
                         response.headers().firstValue("Content-Type")
-                                .ifPresentOrElse(type -> assertEquals("text/html", type),
+                                .ifPresentOrElse(type -> assertEquals(type, "text/html"),
                                         () -> fail("Content-Type not present"));
                         assertTrue(response.body().contains("404 Not Found"));
                     })
@@ -153,8 +151,8 @@ public class OfflineTesting {
             client.sendAsync(request, BodyHandlers.ofString())
                     .thenAccept(response -> {
                         System.out.println("response: " + response);
-                        assertEquals(200, response.statusCode());
-                        assertEquals("Hello World", response.body());
+                        assertEquals(response.statusCode(), 200);
+                        assertEquals(response.body(), "Hello World");
                     })
                     .join();
         }
@@ -174,8 +172,8 @@ public class OfflineTesting {
 
             HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
             System.out.println("response: " + response);
-            assertEquals(200, response.statusCode());
-            assertEquals("Hello chegar!!", response.body());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.body(), "Hello chegar!!");
         }
     }
 

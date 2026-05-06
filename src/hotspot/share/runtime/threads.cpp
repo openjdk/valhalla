@@ -113,7 +113,6 @@
 #endif
 #ifdef COMPILER2
 #include "opto/idealGraphPrinter.hpp"
-#include "runtime/hotCodeCollector.hpp"
 #endif
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
@@ -800,12 +799,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     StringDedup::start();
   }
 
-#ifdef COMPILER2
-  if (HotCodeHeap) {
-    HotCodeCollector::initialize();
-  }
-#endif // COMPILER2
-
   // Pre-initialize some JSR292 core classes to avoid deadlock during class loading.
   // It is done after compilers are initialized, because otherwise compilations of
   // signature polymorphic MH intrinsics can be missed
@@ -1063,7 +1056,7 @@ void Threads::destroy_vm() {
 
 #if INCLUDE_JVMCI
   if (JVMCICounterSize > 0) {
-    FREE_C_HEAP_ARRAY(JavaThread::_jvmci_old_thread_counters);
+    FREE_C_HEAP_ARRAY(jlong, JavaThread::_jvmci_old_thread_counters);
   }
 #endif
 
@@ -1135,7 +1128,7 @@ void Threads::remove(JavaThread* p, bool is_daemon) {
     ConditionalMutexLocker throttle_ml(ThreadsLockThrottle_lock, UseThreadsLockThrottleLock);
     MonitorLocker ml(Threads_lock);
 
-    if (ThreadIdTable::is_initialized_acquire()) {
+    if (ThreadIdTable::is_initialized()) {
       // This cleanup must be done before the current thread's GC barrier
       // is detached since we need to touch the threadObj oop.
       jlong tid = SharedRuntime::get_java_tid(p);

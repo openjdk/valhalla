@@ -60,11 +60,10 @@
 package test.java.time;
 
 import static java.time.temporal.ChronoField.YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
@@ -75,21 +74,19 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test LocalDate.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestLocalDate extends AbstractTest {
 
     private LocalDate TEST_2007_07_15;
 
-    @BeforeEach
+    @BeforeMethod
     public void setUp() {
         TEST_2007_07_15 = LocalDate.of(2007, 7, 15);
     }
@@ -183,6 +180,7 @@ public class TestLocalDate extends AbstractTest {
     //-----------------------------------------------------------------------
     // plusWeeks()
     //-----------------------------------------------------------------------
+    @DataProvider(name="samplePlusWeeksSymmetry")
     Object[][] provider_samplePlusWeeksSymmetry() {
         return new Object[][] {
             {LocalDate.of(-1, 1, 1)},
@@ -214,15 +212,14 @@ public class TestLocalDate extends AbstractTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_samplePlusWeeksSymmetry")
+    @Test(dataProvider="samplePlusWeeksSymmetry")
     public void test_plusWeeks_symmetry(LocalDate reference) {
         for (int weeks = 0; weeks < 365 * 8; weeks++) {
             LocalDate t = reference.plusWeeks(weeks).plusWeeks(-weeks);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
 
             t = reference.plusWeeks(-weeks).plusWeeks(weeks);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
         }
     }
 
@@ -235,6 +232,7 @@ public class TestLocalDate extends AbstractTest {
     //-----------------------------------------------------------------------
     // plusDays()
     //-----------------------------------------------------------------------
+    @DataProvider(name="samplePlusDaysSymmetry")
     Object[][] provider_samplePlusDaysSymmetry() {
         return new Object[][] {
             {LocalDate.of(-1, 1, 1)},
@@ -266,15 +264,14 @@ public class TestLocalDate extends AbstractTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_samplePlusDaysSymmetry")
+    @Test(dataProvider="samplePlusDaysSymmetry")
     public void test_plusDays_symmetry(LocalDate reference) {
         for (int days = 0; days < 365 * 8; days++) {
             LocalDate t = reference.plusDays(days).plusDays(-days);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
 
             t = reference.plusDays(-days).plusDays(days);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
         }
     }
 
@@ -311,6 +308,7 @@ public class TestLocalDate extends AbstractTest {
     //-----------------------------------------------------------------------
     // minusWeeks()
     //-----------------------------------------------------------------------
+    @DataProvider(name="sampleMinusWeeksSymmetry")
     Object[][] provider_sampleMinusWeeksSymmetry() {
         return new Object[][] {
             {LocalDate.of(-1, 1, 1)},
@@ -342,15 +340,14 @@ public class TestLocalDate extends AbstractTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_sampleMinusWeeksSymmetry")
+    @Test(dataProvider="sampleMinusWeeksSymmetry")
     public void test_minusWeeks_symmetry(LocalDate reference) {
         for (int weeks = 0; weeks < 365 * 8; weeks++) {
             LocalDate t = reference.minusWeeks(weeks).minusWeeks(-weeks);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
 
             t = reference.minusWeeks(-weeks).minusWeeks(weeks);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
         }
     }
 
@@ -363,6 +360,7 @@ public class TestLocalDate extends AbstractTest {
     //-----------------------------------------------------------------------
     // minusDays()
     //-----------------------------------------------------------------------
+    @DataProvider(name="sampleMinusDaysSymmetry")
     Object[][] provider_sampleMinusDaysSymmetry() {
         return new Object[][] {
             {LocalDate.of(-1, 1, 1)},
@@ -394,15 +392,14 @@ public class TestLocalDate extends AbstractTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_sampleMinusDaysSymmetry")
+    @Test(dataProvider="sampleMinusDaysSymmetry")
     public void test_minusDays_symmetry(LocalDate reference) {
         for (int days = 0; days < 365 * 8; days++) {
             LocalDate t = reference.minusDays(days).minusDays(-days);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
 
             t = reference.minusDays(-days).minusDays(days);
-            assertEquals(reference, t);
+            assertEquals(t, reference);
         }
     }
 
@@ -418,12 +415,12 @@ public class TestLocalDate extends AbstractTest {
 
         LocalDate test = LocalDate.of(0, 1, 1);
         for (long i = date_0000_01_01; i < 700000; i++) {
-            assertEquals(test, LocalDate.ofEpochDay(test.toEpochDay()));
+            assertEquals(LocalDate.ofEpochDay(test.toEpochDay()), test);
             test = next(test);
         }
         test = LocalDate.of(0, 1, 1);
         for (long i = date_0000_01_01; i > -2000000; i--) {
-            assertEquals(test, LocalDate.ofEpochDay(test.toEpochDay()));
+            assertEquals(LocalDate.ofEpochDay(test.toEpochDay()), test);
             test = previous(test);
         }
     }
@@ -437,11 +434,11 @@ public class TestLocalDate extends AbstractTest {
         int[] offsets = new int[] { 0, 1, 2, 3, 28, 29, 30, 31, 32, 363, 364, 365, 366, 367 };
         for (int offset : offsets) {
             LocalDate minDate = LocalDate.ofEpochDay(minDay + offset);
-            assertEquals(LocalDate.MIN.plusDays(offset), minDate);
+            assertEquals(minDate, LocalDate.MIN.plusDays(offset));
             assertTrue(ChronoField.YEAR.range().isValidValue(minDate.getYear()));
 
             LocalDate maxDate = LocalDate.ofEpochDay(maxDay - offset);
-            assertEquals(LocalDate.MAX.minusDays(offset), maxDate);
+            assertEquals(maxDate, LocalDate.MAX.minusDays(offset));
             assertTrue(ChronoField.YEAR.range().isValidValue(maxDate.getYear()));
 
             try {
@@ -466,24 +463,25 @@ public class TestLocalDate extends AbstractTest {
                 LocalDate b = localDates[j];
                 if (i < j) {
                     assertTrue(a.compareTo(b) < 0, a + " <=> " + b);
-                    assertEquals(true, a.isBefore(b), a + " <=> " + b);
-                    assertEquals(false, a.isAfter(b), a + " <=> " + b);
-                    assertEquals(false, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.isBefore(b), true, a + " <=> " + b);
+                    assertEquals(a.isAfter(b), false, a + " <=> " + b);
+                    assertEquals(a.equals(b), false, a + " <=> " + b);
                 } else if (i > j) {
                     assertTrue(a.compareTo(b) > 0, a + " <=> " + b);
-                    assertEquals(false, a.isBefore(b), a + " <=> " + b);
-                    assertEquals(true, a.isAfter(b), a + " <=> " + b);
-                    assertEquals(false, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.isBefore(b), false, a + " <=> " + b);
+                    assertEquals(a.isAfter(b), true, a + " <=> " + b);
+                    assertEquals(a.equals(b), false, a + " <=> " + b);
                 } else {
-                    assertEquals(0, a.compareTo(b), a + " <=> " + b);
-                    assertEquals(false, a.isBefore(b), a + " <=> " + b);
-                    assertEquals(false, a.isAfter(b), a + " <=> " + b);
-                    assertEquals(true, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.compareTo(b), 0, a + " <=> " + b);
+                    assertEquals(a.isBefore(b), false, a + " <=> " + b);
+                    assertEquals(a.isAfter(b), false, a + " <=> " + b);
+                    assertEquals(a.equals(b), true, a + " <=> " + b);
                 }
             }
         }
     }
 
+    @DataProvider(name="quarterYearsToAdd")
     Object[][] provider_quarterYearsToAdd() {
         return new Object[][] {
             {Long.valueOf(-1000000000)},
@@ -498,8 +496,7 @@ public class TestLocalDate extends AbstractTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_quarterYearsToAdd")
+    @Test(dataProvider="quarterYearsToAdd")
     public void test_plus_QuarterYears(long quarterYears) {
         LocalDate t0 = TEST_2007_07_15
                 .plus(quarterYears, IsoFields.QUARTER_YEARS);
@@ -507,11 +504,10 @@ public class TestLocalDate extends AbstractTest {
                 .plus(quarterYears, ChronoUnit.MONTHS)
                 .plus(quarterYears, ChronoUnit.MONTHS)
                 .plus(quarterYears, ChronoUnit.MONTHS);
-        assertEquals(t1, t0);
+        assertEquals(t0, t1);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_quarterYearsToAdd")
+    @Test(dataProvider="quarterYearsToAdd")
     public void test_minus_QuarterYears(long quarterYears) {
         LocalDate t0 = TEST_2007_07_15
                 .minus(quarterYears, IsoFields.QUARTER_YEARS);
@@ -519,7 +515,7 @@ public class TestLocalDate extends AbstractTest {
                 .minus(quarterYears, ChronoUnit.MONTHS)
                 .minus(quarterYears, ChronoUnit.MONTHS)
                 .minus(quarterYears, ChronoUnit.MONTHS);
-        assertEquals(t1, t0);
+        assertEquals(t0, t1);
     }
 
     // Verify serialized fields types are backward compatible
@@ -528,9 +524,9 @@ public class TestLocalDate extends AbstractTest {
         var osc = ObjectStreamClass.lookup(LocalDate.class);
         for (ObjectStreamField f : osc.getFields()) {
             switch (f.getName()) {
-                case "year" -> assertEquals(int.class, f.getType(), f.getName());
+                case "year" -> assertEquals(f.getType(), int.class, f.getName());
                 case "month",
-                     "day" -> assertEquals(short.class, f.getType());
+                     "day" -> assertEquals(f.getType(), short.class);
                 default -> fail("unknown field in LocalDate: " + f.getName());
             }
         }

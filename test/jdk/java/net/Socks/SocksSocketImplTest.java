@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,10 @@
  * questions.
  */
 
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import sun.net.spi.DefaultProxySelector;
 
 import java.io.IOException;
@@ -33,33 +37,25 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
-
 /**
  * @test
  * @bug 8230310
  * @summary Tests java.net.SocksSocketImpl
- * @run junit ${test.main.class}
+ * @run testng SocksSocketImplTest
  * @modules java.base/sun.net.spi:+open
  */
 public class SocksSocketImplTest {
 
-    private static ProxySelector previousDefault;
+    private ProxySelector previousDefault;
 
-    @BeforeAll
-    public static void beforeTest() {
+    @BeforeTest
+    public void beforeTest() {
         previousDefault = ProxySelector.getDefault();
         ProxySelector.setDefault(new SchemeStrippedProxySelector());
     }
 
-    @AfterAll
-    public static void afterTest() {
+    @AfterTest
+    public void afterTest() {
         ProxySelector.setDefault(previousDefault);
     }
 
@@ -69,14 +65,17 @@ public class SocksSocketImplTest {
      * which throws a {@link IllegalArgumentException}. This test then verifies that this IAE gets wrapped
      * by {@code java.net.SocksSocketImpl} into an {@link IOException} before being thrown
      *
-     * @throws Exception if the test fails
+     * @throws Exception
      */
     @Test
     public void testIOEOnProxySelection() throws Exception {
         final int backlog = -1;
         final int port = 0;
-        try (ServerSocket ss = new ServerSocket(port, backlog, InetAddress.getLoopbackAddress())) {
-             IOException ioe = assertThrows(IOException.class, () -> new Socket(ss.getInetAddress(), ss.getLocalPort()));
+        try (ServerSocket ss = new ServerSocket(port, backlog, InetAddress.getLoopbackAddress());
+             Socket s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
+             Socket s2 = ss.accept()) {
+            Assert.fail("IOException was expected to be thrown, but wasn't");
+        } catch (IOException ioe) {
             // expected
             // now verify the IOE was thrown for the correct expected reason
             if (!(ioe.getCause() instanceof IllegalArgumentException)) {
@@ -97,7 +96,7 @@ public class SocksSocketImplTest {
 
         @Override
         public List<Proxy> select(final URI uri) {
-            System.err.println("Proxy selection for " + uri);
+            System.out.println("Proxy selection for " + uri);
             final URI schemeStrippedURI;
             try {
                 // strip the scheme and pass the rest
@@ -105,7 +104,7 @@ public class SocksSocketImplTest {
             } catch (URISyntaxException e) {
                 throw new RuntimeException(e);
             }
-            System.err.println("Scheme stripped URI " + schemeStrippedURI + " is being used to select a proxy");
+            System.out.println("Scheme stripped URI " + schemeStrippedURI + " is being used to select a proxy");
             return super.select(schemeStrippedURI);
         }
     }

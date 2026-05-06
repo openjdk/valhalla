@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,45 +21,55 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 4842702 8211765
  * @summary Check that constructors throw specified exceptions
- * @run junit Constructor
+ * @author Martin Buchholz
  */
-
-import org.junit.jupiter.api.Test;
 
 import java.util.jar.JarFile;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 public class Constructor {
+    private static void Unreached (Object o)
+        throws Exception
+    {
+        // Should never get here
+        throw new Exception ("Expected exception was not thrown");
+    }
 
-    @Test
-    void constructorTest() {
+    public static void main(String[] args)
+        throws Exception
+    {
+        try { Unreached (new JarFile ((File) null, true, JarFile.OPEN_READ)); }
+        catch (NullPointerException e) {}
 
-        assertThrows(NullPointerException.class, () -> new JarFile ((File) null, true, JarFile.OPEN_READ));
+        try { Unreached (new JarFile ((File) null, true)); }
+        catch (NullPointerException e) {}
 
-        assertThrows(NullPointerException.class, () -> new JarFile ((File) null, true));
+        try { Unreached (new JarFile ((File) null)); }
+        catch (NullPointerException e) {}
 
-        assertThrows(NullPointerException.class, () -> new JarFile ((File) null));
+        try { Unreached (new JarFile ((String) null, true)); }
+        catch (NullPointerException e) {}
 
-        assertThrows(NullPointerException.class, () -> new JarFile ((String) null, true));
+        try { Unreached (new JarFile ((String) null)); }
+        catch (NullPointerException e) {}
 
-        assertThrows(NullPointerException.class, () -> new JarFile ((String) null));
+        try { Unreached (new JarFile ("NoSuchJar.jar")); }
+        catch (IOException e) {}
 
-        assertThrows(IOException.class, () -> new JarFile ("NoSuchJar.jar"));
-
-        assertThrows(IOException.class, () -> new JarFile (new File ("NoSuchJar.jar")));
+        try { Unreached (new JarFile (new File ("NoSuchJar.jar"))); }
+        catch (IOException e) {}
 
         // Test that an IOExcception is thrown when an invalid charater
         // is part of the path on Windows and Unix
         final String invalidOSPath = System.getProperty("os.name")
                 .startsWith("Windows") ? "C:\\*" : "foo\u0000bar";
 
-        assertThrows(IOException.class, () -> new JarFile (invalidOSPath));
+        try { Unreached (new JarFile (invalidOSPath)); }
+        catch (IOException e) {}
     }
 }

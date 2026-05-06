@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package jdk.jpackage.internal;
 
+import static jdk.jpackage.internal.model.StandardPackageType.LINUX_DEB;
 import static jdk.jpackage.internal.util.function.ThrowingFunction.toFunction;
 
 import java.io.IOException;
@@ -75,11 +76,11 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
 
             try {
                 // Try the real path first as it works better on newer Ubuntu versions
-                return findProvidingPackages(realPath, sysEnv);
+                return findProvidingPackages(realPath, sysEnv.dpkg());
             } catch (IOException ex) {
                 // Try the default path if differ
                 if (!realPath.equals(file)) {
-                    return findProvidingPackages(file, sysEnv);
+                    return findProvidingPackages(file, sysEnv.dpkg());
                 } else {
                     throw ex;
                 }
@@ -104,9 +105,9 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
         List<String> cmdline = new ArrayList<>(List.of(
                 sysEnv.dpkgdeb().toString(), "-f", outputPackageFile().toString()));
 
-        properties.forEach(property -> cmdline.add(property.name()));
+        properties.forEach(property -> cmdline.add(property.name));
 
-        Map<String, String> actualValues = Executor.of(cmdline)
+        Map<String, String> actualValues = Executor.of(cmdline.toArray(String[]::new))
                 .saveOutput(true)
                 .executeExpectSuccess()
                 .getOutput().stream()
@@ -116,7 +117,7 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
                                 components -> components[1]));
 
         for (var property : properties) {
-            Optional.ofNullable(property.verifyValue(actualValues.get(property.name()))).ifPresent(errors::add);
+            Optional.ofNullable(property.verifyValue(actualValues.get(property.name))).ifPresent(errors::add);
         }
 
         return errors;
@@ -147,6 +148,8 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
 
         Path debFile = outputPackageFile();
 
+        Log.verbose(I18N.format("message.outputting-to-location", debFile.toAbsolutePath()));
+
         List<String> cmdline = new ArrayList<>();
         Stream.of(sysEnv.fakeroot(), sysEnv.dpkgdeb()).map(Path::toString).forEach(cmdline::add);
         if (Log.isVerbose()) {
@@ -155,8 +158,11 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
         cmdline.addAll(List.of("-b", env.appImageDir().toString(), debFile.toAbsolutePath().toString()));
 
         // run dpkg
-        Executor.of(cmdline).retryOnKnownErrorMessage(
-                "semop(1): encountered an error: Invalid argument").execute();
+        RetryExecutor.retryOnKnownErrorMessage(
+                "semop(1): encountered an error: Invalid argument").execute(
+                        cmdline.toArray(String[]::new));
+
+        Log.verbose(I18N.format("message.output-to-location", debFile.toAbsolutePath()));
     }
 
     @Override
@@ -227,7 +233,7 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
         }
     }
 
-    private static Stream<String> findProvidingPackages(Path file, LinuxDebSystemEnvironment sysEnv) throws IOException {
+    private static Stream<String> findProvidingPackages(Path file, Path dpkg) throws IOException {
         //
         // `dpkg -S` command does glob pattern lookup. If not the absolute path
         // to the file is specified it might return mltiple package names.
@@ -273,9 +279,9 @@ final class LinuxDebPackager extends LinuxPackager<LinuxDebPackage> {
         Set<String> archPackages = new HashSet<>();
         Set<String> otherPackages = new HashSet<>();
 
-        var debArch = sysEnv.packageArch().value();
+        var debArch = LinuxPackageArch.getValue(LINUX_DEB);
 
-        Executor.of(sysEnv.dpkg().toString(), "-S", file.toString())
+        Executor.of(dpkg.toString(), "-S", file.toString())
                 .saveOutput(true).executeExpectSuccess()
                 .getOutput().forEach(line -> {
                     Matcher matcher = PACKAGE_NAME_REGEX.matcher(line);

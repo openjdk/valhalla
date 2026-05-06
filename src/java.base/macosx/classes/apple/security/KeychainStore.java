@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,6 @@ import java.security.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
 import java.security.spec.*;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import javax.crypto.*;
@@ -116,7 +114,7 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
     // SecCertificateRef.  When we delete the key we have to delete all of the corresponding
     // native objects.
     static class KeyEntry {
-        Instant date; // the creation instant of this entry
+        Date date; // the creation date of this entry
         byte[] protectedPrivKey;
         char[] password;
         long keyRef;  // SecKeyRef for this key
@@ -126,7 +124,7 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
 
     // Trusted certificates
     static class TrustedCertEntry {
-        Instant date; // the creation instant of this entry
+        Date date; // the creation date of this entry
 
         Certificate cert;
         long certRef;  // SecCertificateRef for this key
@@ -407,32 +405,13 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
      * not exist
      */
     public Date engineGetCreationDate(String alias) {
-        final Instant instant = this.engineGetCreationInstant(alias);
-        if (instant == null) {
-            return null;
-        }
-        return Date.from(instant);
-    }
-
-    /**
-     * Returns the instant that the entry identified by the given alias was
-     * created.
-     *
-     * @param alias the alias name
-     *
-     * @return the instant that the entry identified by the given alias
-     * was created, or {@code null} if the given alias does not exist
-     *
-     * @since 27
-     */
-    public Instant engineGetCreationInstant(String alias) {
-        final Object entry = entries.get(alias.toLowerCase(Locale.ROOT));
+        Object entry = entries.get(alias.toLowerCase(Locale.ROOT));
 
         if (entry != null) {
-            if (entry instanceof TrustedCertEntry trustedCertEntry) {
-                return trustedCertEntry.date;
+            if (entry instanceof TrustedCertEntry) {
+                return new Date(((TrustedCertEntry)entry).date.getTime());
             } else {
-                return ((KeyEntry)entry).date;
+                return new Date(((KeyEntry)entry).date.getTime());
             }
         } else {
             return null;
@@ -468,7 +447,7 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
         synchronized(entries) {
             try {
                 KeyEntry entry = new KeyEntry();
-                entry.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+                entry.date = new Date();
 
                 if (key instanceof PrivateKey) {
                     if ((key.getFormat().equals("PKCS#8")) ||
@@ -546,7 +525,7 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
                                             + "EncryptedPrivateKeyInfo");
             }
 
-            entry.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            entry.date = new Date();
 
             if ((chain != null) &&
                 (chain.length != 0)) {
@@ -948,9 +927,9 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
 
             // Make a creation date.
             if (creationDate != 0)
-                tce.date = Instant.ofEpochMilli(creationDate);
+                tce.date = new Date(creationDate);
             else
-                tce.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+                tce.date = new Date();
 
             entries.put(alias.toLowerCase(Locale.ROOT), tce);
         } catch (Exception e) {
@@ -973,9 +952,9 @@ abstract sealed class KeychainStore extends KeyStoreSpi {
 
         // Make a creation date.
         if (creationDate != 0)
-            ke.date = Instant.ofEpochMilli(creationDate);
+            ke.date = new Date(creationDate);
         else
-            ke.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            ke.date = new Date();
 
         // Next, create X.509 Certificate objects from the raw data.  This is complicated
         // because a certificate's public key may be too long for Java's default encryption strength.

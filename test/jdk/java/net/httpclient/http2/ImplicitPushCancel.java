@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,10 @@
  * @test
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=errors,requests,responses,trace
- *      ${test.main.class}
+ *      ImplicitPushCancel
  */
 
 import java.io.ByteArrayInputStream;
@@ -51,16 +51,15 @@ import java.util.concurrent.ConcurrentMap;
 import jdk.httpclient.test.lib.http2.Http2TestServer;
 import jdk.httpclient.test.lib.http2.Http2TestExchange;
 import jdk.httpclient.test.lib.http2.Http2Handler;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 public class ImplicitPushCancel {
 
-    static final Map<String,String> PUSH_PROMISES = Map.of(
+    static Map<String,String> PUSH_PROMISES = Map.of(
             "/x/y/z/1", "the first push promise body",
             "/x/y/z/2", "the second push promise body",
             "/x/y/z/3", "the third push promise body",
@@ -73,11 +72,11 @@ public class ImplicitPushCancel {
     );
     static final String MAIN_RESPONSE_BODY = "the main response body";
 
-    private static Http2TestServer server;
-    private static URI uri;
+    Http2TestServer server;
+    URI uri;
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         server = new Http2TestServer(false, 0);
         Http2Handler handler = new ServerPushHandler(MAIN_RESPONSE_BODY,
                                                      PUSH_PROMISES);
@@ -88,13 +87,13 @@ public class ImplicitPushCancel {
         uri = new URI("http://localhost:" + port + "/foo/a/b/c");
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
         server.stop();
     }
 
     static final <T> HttpResponse<T> assert200ResponseCode(HttpResponse<T> response) {
-        assertEquals(200, response.statusCode());
+        assertEquals(response.statusCode(), 200);
         return response;
     }
 
@@ -129,11 +128,11 @@ public class ImplicitPushCancel {
         promises.entrySet().stream().forEach(entry -> {
             HttpRequest request = entry.getKey();
             HttpResponse<String> response = entry.getValue().join();
-            assertEquals(200, response.statusCode());
+            assertEquals(response.statusCode(), 200);
             if (PUSH_PROMISES.containsKey(request.uri().getPath())) {
-                assertEquals(PUSH_PROMISES.get(request.uri().getPath()), response.body());
+                assertEquals(response.body(), PUSH_PROMISES.get(request.uri().getPath()));
             } else {
-                assertEquals(MAIN_RESPONSE_BODY, response.body());
+                assertEquals(response.body(), MAIN_RESPONSE_BODY);
             }
 
         } );

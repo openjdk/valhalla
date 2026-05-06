@@ -31,7 +31,7 @@
  */
 package test.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.DayOfWeek;
 import java.time.ZonedDateTime;
@@ -50,16 +50,15 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test JavaTime with BCP47 U extensions
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestUnicodeExtension {
     private static TimeZone defaultTZ;
 
@@ -88,17 +87,18 @@ public class TestUnicodeExtension {
 
     private static final String PATTERN = "GGGG MMMM-dd-uu HH:mm:ss zzzz";
 
-    @BeforeAll
+    @BeforeTest
     public void beforeTest() {
         defaultTZ = TimeZone.getDefault();
         TimeZone.setDefault(TimeZone.getTimeZone(AMLA));
     }
 
-    @AfterAll
+    @AfterTest
     public void afterTest() {
         TimeZone.setDefault(defaultTZ);
     }
 
+    @DataProvider(name="localizedBy")
     Object[][] localizedBy() {
         return new Object[][] {
             // Locale, Chrono override, Zone override, Expected Chrono, Expected Zone,
@@ -188,6 +188,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="withLocale")
     Object[][] withLocale() {
         return new Object[][] {
             // Locale, Chrono override, Zone override, Expected Chrono, Expected Zone,
@@ -276,6 +277,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="firstDayOfWeek")
     Object[][] firstDayOfWeek () {
         return new Object[][] {
             // Locale, Expected DayOfWeek,
@@ -302,6 +304,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="minDaysInFirstWeek")
     Object[][] minDaysInFrstWeek () {
         return new Object[][] {
             // Locale, Expected minDay,
@@ -313,6 +316,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="ofPattern")
     Object[][] ofPattern() {
         return new Object[][] {
             // Locale, Expected Chrono, Expected Zone,
@@ -338,6 +342,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="shortTZID")
     Object[][] shortTZID() {
         return new Object[][] {
             // LDML's short ID, Expected Zone,
@@ -812,6 +817,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="getLocalizedDateTimePattern")
     Object[][] getLocalizedDateTimePattern() {
         return new Object[][] {
             // Locale, Expected pattern,
@@ -826,6 +832,7 @@ public class TestUnicodeExtension {
         };
     }
 
+    @DataProvider(name="getDisplayName")
     Object[][] getDisplayName() {
         return new Object[][] {
             // Locale, field, Expected name,
@@ -834,8 +841,7 @@ public class TestUnicodeExtension {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("localizedBy")
+    @Test(dataProvider="localizedBy")
     public void test_localizedBy(Locale locale, Chronology chrono, ZoneId zone,
                                 Chronology chronoExpected, ZoneId zoneExpected,
                                 String formatExpected) {
@@ -849,94 +855,91 @@ public class TestUnicodeExtension {
                 DateTimeFormatter dtf =
                         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.FULL)
                                 .withChronology(chrono).withZone(zone).localizedBy(locale);
-                assertEquals(chronoExpected, dtf.getChronology());
-                assertEquals(zoneExpected, dtf.getZone());
+                assertEquals(dtf.getChronology(), chronoExpected);
+                assertEquals(dtf.getZone(), zoneExpected);
                 String formatted = dtf.format(ZDT);
-                assertEquals(formatExpected, formatted);
-                assertEquals(zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT, dtf.parse(formatted, ZonedDateTime::from));
+                assertEquals(formatted, formatExpected);
+                assertEquals(dtf.parse(formatted, ZonedDateTime::from),
+                        zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT);
             });
         } finally {
             Locale.setDefault(def);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("withLocale")
+    @Test(dataProvider="withLocale")
     public void test_withLocale(Locale locale, Chronology chrono, ZoneId zone,
                                 Chronology chronoExpected, ZoneId zoneExpected,
                                 String formatExpected) {
         DateTimeFormatter dtf =
             DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.FULL)
                 .withChronology(chrono).withZone(zone).withLocale(locale);
-        assertEquals(chronoExpected, dtf.getChronology());
-        assertEquals(zoneExpected, dtf.getZone());
+        assertEquals(dtf.getChronology(), chronoExpected);
+        assertEquals(dtf.getZone(), zoneExpected);
         String formatted = dtf.format(ZDT);
-        assertEquals(formatExpected, formatted);
-        assertEquals(zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT, dtf.parse(formatted, ZonedDateTime::from));
+        assertEquals(formatted, formatExpected);
+        assertEquals(dtf.parse(formatted, ZonedDateTime::from),
+            zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT);
     }
 
-    @ParameterizedTest
-    @MethodSource("firstDayOfWeek")
+    @Test(dataProvider="firstDayOfWeek")
     public void test_firstDayOfWeek(Locale locale, DayOfWeek dowExpected) {
         DayOfWeek dow = WeekFields.of(locale).getFirstDayOfWeek();
-        assertEquals(dowExpected, dow);
+        assertEquals(dow, dowExpected);
     }
 
-    @ParameterizedTest
-    @MethodSource("minDaysInFrstWeek")
+    @Test(dataProvider="minDaysInFirstWeek")
     public void test_minDaysInFirstWeek(Locale locale, int minDaysExpected) {
         int minDays = WeekFields.of(locale).getMinimalDaysInFirstWeek();
-        assertEquals(minDaysExpected, minDays);
+        assertEquals(minDays, minDaysExpected);
     }
 
-    @ParameterizedTest
-    @MethodSource("ofPattern")
+    @Test(dataProvider="ofPattern")
     public void test_ofPattern(Locale locale,
                                 Chronology chronoExpected, ZoneId zoneExpected,
                                 String formatExpected) {
         DateTimeFormatter dtf =
             DateTimeFormatter.ofPattern(PATTERN, locale);
-        assertEquals(chronoExpected, dtf.getChronology());
-        assertEquals(zoneExpected, dtf.getZone());
+        assertEquals(dtf.getChronology(), chronoExpected);
+        assertEquals(dtf.getZone(), zoneExpected);
         String formatted = dtf.format(ZDT);
-        assertEquals(formatExpected, formatted);
-        assertEquals(zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT, dtf.parse(formatted, ZonedDateTime::from));
+        assertEquals(formatted, formatExpected);
+        assertEquals(dtf.parse(formatted, ZonedDateTime::from),
+            zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT);
     }
 
-    @ParameterizedTest
-    @MethodSource("ofPattern")
+    @Test(dataProvider="ofPattern")
     public void test_toFormatter(Locale locale,
                                 Chronology chronoExpected, ZoneId zoneExpected,
                                 String formatExpected) {
         DateTimeFormatter dtf =
             new DateTimeFormatterBuilder().appendPattern(PATTERN).toFormatter(locale);
-        assertEquals(chronoExpected, dtf.getChronology());
-        assertEquals(zoneExpected, dtf.getZone());
+        assertEquals(dtf.getChronology(), chronoExpected);
+        assertEquals(dtf.getZone(), zoneExpected);
         String formatted = dtf.format(ZDT);
-        assertEquals(formatExpected, formatted);
-        assertEquals(zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT, dtf.parse(formatted, ZonedDateTime::from));
+        assertEquals(formatted, formatExpected);
+        assertEquals(dtf.parse(formatted, ZonedDateTime::from),
+            zoneExpected != null ? ZDT.withZoneSameInstant(zoneExpected) : ZDT);
     }
 
-    @ParameterizedTest
-    @MethodSource("shortTZID")
+    @Test(dataProvider="shortTZID")
     public void test_shortTZID(String shortID, String expectedZone) {
         Locale l = Locale.forLanguageTag("en-US-u-tz-" + shortID);
         DateTimeFormatter dtf =
             DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL, FormatStyle.FULL)
                 .localizedBy(l);
-        assertEquals(ZoneId.of(expectedZone), dtf.getZone());
+        assertEquals(dtf.getZone(), ZoneId.of(expectedZone));
     }
 
-    @ParameterizedTest
-    @MethodSource("getLocalizedDateTimePattern")
+    @Test(dataProvider="getLocalizedDateTimePattern")
     public void test_getLocalizedDateTimePattern(Locale l, FormatStyle s, String expectedPattern) {
         DateTimeFormatterBuilder dtfb = new DateTimeFormatterBuilder();
-        assertEquals(expectedPattern, dtfb.getLocalizedDateTimePattern(s, s, IsoChronology.INSTANCE, l));
+        assertEquals(dtfb.getLocalizedDateTimePattern(s, s, IsoChronology.INSTANCE, l),
+            expectedPattern);
     }
 
-    @ParameterizedTest
-    @MethodSource("getDisplayName")
+    @Test(dataProvider="getDisplayName")
     public void test_getDisplayName(Locale l, TemporalField f, String expectedName) {
-        assertEquals(expectedName, f.getDisplayName(l));
+        assertEquals(f.getDisplayName(l), expectedName);
     }
 }

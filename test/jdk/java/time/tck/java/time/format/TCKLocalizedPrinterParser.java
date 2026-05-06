@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@
  */
 package tck.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.text.DateFormat;
 import java.text.ParsePosition;
@@ -72,35 +72,33 @@ import java.time.temporal.TemporalAccessor;
 import java.util.Date;
 import java.util.Locale;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test localized behavior of formatter.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKLocalizedPrinterParser {
 
     private DateTimeFormatterBuilder builder;
     private ParsePosition pos;
 
-    @BeforeEach
+    @BeforeMethod
     public void setUp() {
         builder = new DateTimeFormatterBuilder();
         pos = new ParsePosition(0);
     }
 
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_parse_negativePosition() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendLocalized(null, null));
+        builder.appendLocalized(null, null);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="date")
     Object[][] data_date() {
         return new Object[][] {
                 {LocalDate.of(2012, 6, 30), FormatStyle.SHORT, DateFormat.SHORT, Locale.UK},
@@ -126,8 +124,7 @@ public class TCKLocalizedPrinterParser {
     }
 
     @SuppressWarnings("deprecation")
-    @ParameterizedTest
-    @MethodSource("data_date")
+    @Test(dataProvider="date")
     public void test_date_print(LocalDate date, FormatStyle dateStyle, int dateStyleOld, Locale locale) {
         DateFormat old = DateFormat.getDateInstance(dateStyleOld, locale);
         Date oldDate = new Date(date.getYear() - 1900, date.getMonthValue() - 1, date.getDayOfMonth());
@@ -135,12 +132,11 @@ public class TCKLocalizedPrinterParser {
 
         DateTimeFormatter f = builder.appendLocalized(dateStyle, null).toFormatter(locale);
         String formatted = f.format(date);
-        assertEquals(text, formatted);
+        assertEquals(formatted, text);
     }
 
     @SuppressWarnings("deprecation")
-    @ParameterizedTest
-    @MethodSource("data_date")
+    @Test(dataProvider="date")
     public void test_date_parse(LocalDate date, FormatStyle dateStyle, int dateStyleOld, Locale locale) {
         DateFormat old = DateFormat.getDateInstance(dateStyleOld, locale);
         Date oldDate = new Date(date.getYear() - 1900, date.getMonthValue() - 1, date.getDayOfMonth());
@@ -148,12 +144,13 @@ public class TCKLocalizedPrinterParser {
 
         DateTimeFormatter f = builder.appendLocalized(dateStyle, null).toFormatter(locale);
         TemporalAccessor parsed = f.parse(text, pos);
-        assertEquals(text.length(), pos.getIndex());
-        assertEquals(-1, pos.getErrorIndex());
-        assertEquals(date, LocalDate.from(parsed));
+        assertEquals(pos.getIndex(), text.length());
+        assertEquals(pos.getErrorIndex(), -1);
+        assertEquals(LocalDate.from(parsed), date);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="time")
     Object[][] data_time() {
         return new Object[][] {
                 {LocalTime.of(11, 30), FormatStyle.SHORT, DateFormat.SHORT, Locale.UK},
@@ -180,8 +177,7 @@ public class TCKLocalizedPrinterParser {
     }
 
     @SuppressWarnings("deprecation")
-    @ParameterizedTest
-    @MethodSource("data_time")
+    @Test(dataProvider="time")
     public void test_time_print(LocalTime time, FormatStyle timeStyle, int timeStyleOld, Locale locale) {
         DateFormat old = DateFormat.getTimeInstance(timeStyleOld, locale);
         Date oldDate = new Date(1970 - 1900, 0, 0, time.getHour(), time.getMinute(), time.getSecond());
@@ -189,12 +185,11 @@ public class TCKLocalizedPrinterParser {
 
         DateTimeFormatter f = builder.appendLocalized(null, timeStyle).toFormatter(locale);
         String formatted = f.format(time);
-        assertEquals(text, formatted);
+        assertEquals(formatted, text);
     }
 
     @SuppressWarnings("deprecation")
-    @ParameterizedTest
-    @MethodSource("data_time")
+    @Test(dataProvider="time")
     public void test_time_parse(LocalTime time, FormatStyle timeStyle, int timeStyleOld, Locale locale) {
         DateFormat old = DateFormat.getTimeInstance(timeStyleOld, locale);
         Date oldDate = new Date(1970 - 1900, 0, 0, time.getHour(), time.getMinute(), time.getSecond());
@@ -202,9 +197,9 @@ public class TCKLocalizedPrinterParser {
 
         DateTimeFormatter f = builder.appendLocalized(null, timeStyle).toFormatter(locale);
         TemporalAccessor parsed = f.parse(text, pos);
-        assertEquals(text.length(), pos.getIndex());
-        assertEquals(-1, pos.getErrorIndex());
-        assertEquals(time, LocalTime.from(parsed));
+        assertEquals(pos.getIndex(), text.length());
+        assertEquals(pos.getErrorIndex(), -1);
+        assertEquals(LocalTime.from(parsed), time);
     }
 
 }

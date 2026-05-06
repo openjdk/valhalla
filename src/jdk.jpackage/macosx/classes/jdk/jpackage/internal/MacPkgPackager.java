@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
@@ -51,11 +52,11 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import jdk.internal.util.Architecture;
+import jdk.internal.util.OSVersion;
 import jdk.jpackage.internal.PackagingPipeline.PackageTaskID;
 import jdk.jpackage.internal.PackagingPipeline.TaskID;
 import jdk.jpackage.internal.model.MacPkgPackage;
 import jdk.jpackage.internal.resources.ResourceLocator;
-import jdk.jpackage.internal.util.Enquoter;
 import jdk.jpackage.internal.util.XmlUtils;
 import org.xml.sax.SAXException;
 
@@ -107,7 +108,7 @@ record MacPkgPackager(BuildEnv env, MacPkgPackage pkg, Optional<Services> servic
             cmdline.addAll(allPkgbuildArgs());
             try {
                 Files.createDirectories(path.getParent());
-                Executor.of(cmdline).executeExpectSuccess();
+                IOUtils.exec(new ProcessBuilder(cmdline), false, null, true, Executor.INFINITE_TIMEOUT);
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
@@ -214,6 +215,7 @@ record MacPkgPackager(BuildEnv env, MacPkgPackage pkg, Optional<Services> servic
     @Override
     public void accept(PackagingPipeline.Builder pipelineBuilder) {
         pipelineBuilder
+                .excludeDirFromCopying(outputDir)
                 .task(PkgPackageTaskID.PREPARE_MAIN_SCRIPTS)
                         .action(this::prepareMainScripts)
                         .addDependent(PackageTaskID.RUN_POST_IMAGE_USER_SCRIPT)
@@ -485,13 +487,15 @@ record MacPkgPackager(BuildEnv env, MacPkgPackage pkg, Optional<Services> servic
 
         Files.createDirectories(cpl.getParent());
 
-        Executor.of("/usr/bin/pkgbuild",
+        final var pb = new ProcessBuilder("/usr/bin/pkgbuild",
                 "--root",
                 normalizedAbsolutePathString(env.appImageDir()),
                 "--install-location",
                 normalizedAbsolutePathString(installLocation()),
                 "--analyze",
-                normalizedAbsolutePathString(cpl)).executeExpectSuccess();
+                normalizedAbsolutePathString(cpl));
+
+        IOUtils.exec(pb, false, null, true, Executor.INFINITE_TIMEOUT);
 
         patchCPLFile(cpl);
     }
@@ -508,6 +512,11 @@ record MacPkgPackager(BuildEnv env, MacPkgPackage pkg, Optional<Services> servic
 
         // maybe sign
         if (pkg.sign()) {
+            if (OSVersion.current().compareTo(new OSVersion(10, 12)) >= 0) {
+                // we need this for OS X 10.12+
+                Log.verbose(I18N.getString("message.signing.pkg"));
+            }
+
             final var pkgSigningConfig = pkg.signingConfig().orElseThrow();
 
             commandLine.add("--sign");
@@ -535,7 +544,8 @@ record MacPkgPackager(BuildEnv env, MacPkgPackage pkg, Optional<Services> servic
         }
         commandLine.add(normalizedAbsolutePathString(finalPkg));
 
-        Executor.of(commandLine).executeExpectSuccess();
+        final var pb = new ProcessBuilder(commandLine);
+        IOUtils.exec(pb, false, null, true, Executor.INFINITE_TIMEOUT);
     }
 
     private static Optional<Services> createServices(BuildEnv env, MacPkgPackage pkg) {

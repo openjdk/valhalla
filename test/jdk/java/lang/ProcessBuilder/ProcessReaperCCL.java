@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,9 @@
 
 /*
  * @test
- * @summary verify that Process Reaper threads have a null CCL
  * @bug 8269488
- * @run junit ProcessReaperCCL
+ * @summary verify that Process Reaper threads have a null CCL
+ * @run testng ProcessReaperCCL
  */
 
 import java.io.File;
@@ -34,13 +34,14 @@ import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 
 public class ProcessReaperCCL {
 
     @Test
-    void test() throws Exception {
+    static void test() throws Exception {
         // create a class loader
         File dir = new File(".");
         URL[] urls = new URL[] {dir.toURI().toURL()};
@@ -52,12 +53,12 @@ public class ProcessReaperCCL {
         Process p = pb.start();
         CompletableFuture<Process> cf = p.onExit();
         int exitValue = cf.get().exitValue();
-        Assertions.assertEquals(0, exitValue, "error exit value");
+        Assert.assertEquals(exitValue, 0, "error exit value");
 
         // Verify all "Process Reaper" threads have a null CCL
         for (Thread th : Thread.getAllStackTraces().keySet()) {
             if (th.getName().startsWith("process reaper")) {
-                Assertions.assertNull(th.getContextClassLoader(), "CCL not null");
+                Assert.assertEquals(th.getContextClassLoader(), null, "CCL not null");
             }
         }
     }

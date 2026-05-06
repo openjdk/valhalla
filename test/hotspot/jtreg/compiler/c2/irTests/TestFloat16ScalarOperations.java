@@ -24,7 +24,7 @@
 
 /**
 * @test
-* @bug 8308363 8336406 8381617
+* @bug 8308363 8336406
 * @summary Validate compiler IR for various Float16 scalar operations.
 * @modules jdk.incubator.vector
 * @requires vm.compiler2.enabled
@@ -714,13 +714,9 @@ public class TestFloat16ScalarOperations {
 
     @Test
     @IR(counts = {IRNode.FMA_HF, " 0 ", IRNode.REINTERPRET_S2HF, " 0 ", IRNode.REINTERPRET_HF2S, " 0 "},
-        applyIfCPUFeatureOr = {"avx512_fp16", "true", "zfh", "true"},
-        // On Windows, both GCC and MSVC don't set __STDC_IEC_559__, so FMAs on constants are not folded.
-        applyIfPlatform = {"windows", "false"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "zfh", "true"})
     @IR(counts = {IRNode.FMA_HF, " 0 ", IRNode.REINTERPRET_S2HF, " 0 ", IRNode.REINTERPRET_HF2S, " 0 "},
-        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"},
-        // On Windows, both GCC and MSVC don't set __STDC_IEC_559__, so FMAs on constants are not folded.
-        applyIfPlatform = {"windows", "false"})
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     @Warmup(10000)
     public void testFMAConstantFolding() {
         // If any argument is NaN, the result is NaN.
@@ -756,13 +752,9 @@ public class TestFloat16ScalarOperations {
 
     @Test
     @IR(failOn = {IRNode.ADD_HF, IRNode.SUB_HF, IRNode.MUL_HF, IRNode.DIV_HF, IRNode.SQRT_HF, IRNode.FMA_HF},
-        applyIfCPUFeatureOr = {"avx512_fp16", "true", "zfh", "true"},
-        // On Windows, both GCC and MSVC don't set __STDC_IEC_559__, so FMAs on constants are not folded.
-        applyIfPlatform = {"windows", "false"})
+        applyIfCPUFeatureOr = {"avx512_fp16", "true", "zfh", "true"})
     @IR(failOn = {IRNode.ADD_HF, IRNode.SUB_HF, IRNode.MUL_HF, IRNode.DIV_HF, IRNode.SQRT_HF, IRNode.FMA_HF},
-        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"},
-        // On Windows, both GCC and MSVC don't set __STDC_IEC_559__, so FMAs on constants are not folded.
-        applyIfPlatform = {"windows", "false"})
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
     @Warmup(10000)
     public void testRounding1() {
         dst[0] = float16ToRawShortBits(add(RANDOM1, RANDOM2));

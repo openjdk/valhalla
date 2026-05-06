@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,19 +66,26 @@ public class SleepyCat {
      * @param pids the processes to dump status for
      */
     static void dumpState(Process... pids) {
+        if (!System.getProperty("os.name").contains("SunOS")) {
+            return;
+        }
         try {
             String[] psArgs = {"ps", "-elf"};
-            try (Process ps = new ProcessBuilder(psArgs).inheritIO().start()) {
-                ps.waitFor();
-            }
+            Process ps = new ProcessBuilder(psArgs).inheritIO().start();
+            ps.waitFor();
+            String[] sfiles = {"pfiles", "self"};
+            Process fds = new ProcessBuilder(sfiles).inheritIO().start();
+            fds.waitFor();
 
             for (Process p : pids) {
                 if (p == null)
                     continue;
-                String[] pfiles = {"lsof", "-p", Long.toString(p.pid())};
-                try (Process fds = new ProcessBuilder(pfiles).inheritIO().start()) {
-                    fds.waitFor();
-                }
+                String[] pfiles = {"pfiles", Long.toString(p.pid())};
+                fds = new ProcessBuilder(pfiles).inheritIO().start();
+                fds.waitFor();
+                String[] pstack = {"pstack", Long.toString(p.pid())};
+                fds = new ProcessBuilder(pstack).inheritIO().start();
+                fds.waitFor();
             }
         } catch (IOException | InterruptedException i) {
             i.printStackTrace();

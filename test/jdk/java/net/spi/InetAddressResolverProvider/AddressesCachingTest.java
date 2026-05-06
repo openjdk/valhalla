@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,10 @@
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import impl.SimpleResolverProviderImpl;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 
 /*
@@ -40,26 +37,26 @@ import static org.junit.jupiter.api.Assertions.fail;
  * @library lib providers/simple
  * @build test.library/testlib.ResolutionRegistry
  *  simple.provider/impl.SimpleResolverProviderImpl AddressesCachingTest
- * @run junit/othervm -Djava.security.properties=${test.src}/props/NeverCache.props
+ * @run testng/othervm -Djava.security.properties=${test.src}/props/NeverCache.props
  *  -Dtest.cachingDisabled=true AddressesCachingTest
- * @run junit/othervm -Djava.security.properties=${test.src}/props/ForeverCache.props
+ * @run testng/othervm -Djava.security.properties=${test.src}/props/ForeverCache.props
  *  -Dtest.cachingDisabled=false AddressesCachingTest
- * @run junit/othervm
+ * @run testng/othervm
  *  -Djava.security.properties=${test.src}/props/NeverCacheIgnoreMinusStale.props
  *  -Dtest.cachingDisabled=true AddressesCachingTest
- * @run junit/othervm
+ * @run testng/othervm
  *  -Djava.security.properties=${test.src}/props/NeverCacheIgnorePositiveStale.props
  *  -Dtest.cachingDisabled=true AddressesCachingTest
- * @run junit/othervm
+ * @run testng/othervm
  *  -Djava.security.properties=${test.src}/props/NeverCacheIgnoreZeroStale.props
  *  -Dtest.cachingDisabled=true AddressesCachingTest
- * @run junit/othervm
+ * @run testng/othervm
  *  -Djava.security.properties=${test.src}/props/ForeverCacheIgnoreMinusStale.props
  *  -Dtest.cachingDisabled=false AddressesCachingTest
- * @run junit/othervm
+ * @run testng/othervm
  *  -Djava.security.properties=${test.src}/props/ForeverCacheIgnorePositiveStale.props
  *  -Dtest.cachingDisabled=false AddressesCachingTest
- * @run junit/othervm
+ * @run testng/othervm
  *  -Djava.security.properties=${test.src}/props/ForeverCacheIgnoreZeroStale.props
  *  -Dtest.cachingDisabled=false AddressesCachingTest
  */
@@ -69,10 +66,10 @@ public class AddressesCachingTest {
     public void testPositiveCaching() {
         boolean observedTwoLookups = performLookups(false);
         if (CACHING_DISABLED) {
-            assertTrue(observedTwoLookups,
+            Assert.assertTrue(observedTwoLookups,
                     "Two positive lookups are expected with caching disabled");
         } else {
-            assertFalse(observedTwoLookups,
+            Assert.assertFalse(observedTwoLookups,
                     "Only one positive lookup is expected with caching enabled");
         }
     }
@@ -81,10 +78,10 @@ public class AddressesCachingTest {
     public void testNegativeCaching() {
         boolean observedTwoLookups = performLookups(true);
         if (CACHING_DISABLED) {
-            assertTrue(observedTwoLookups,
+            Assert.assertTrue(observedTwoLookups,
                     "Two negative lookups are expected with caching disabled");
         } else {
-            assertFalse(observedTwoLookups,
+            Assert.assertFalse(observedTwoLookups,
                     "Only one negative lookup is expected with caching enabled");
         }
     }
@@ -110,11 +107,11 @@ public class AddressesCachingTest {
         try {
             InetAddress.getByName(hostName);
             if (performNegativeLookup) {
-                fail("Host name is expected to get unresolved");
+                Assert.fail("Host name is expected to get unresolved");
             }
         } catch (UnknownHostException uhe) {
             if (!performNegativeLookup) {
-                fail("Host name is expected to get resolved");
+                Assert.fail("Host name is expected to get resolved");
             }
         }
     }

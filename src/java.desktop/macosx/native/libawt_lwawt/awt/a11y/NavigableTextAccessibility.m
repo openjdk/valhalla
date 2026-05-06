@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, JetBrains s.r.o.. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -60,22 +60,6 @@ static jmethodID sjm_getAccessibleEditableText = NULL;
     return [fJavaRole isEqualToString:@"passwordtext"];
 }
 
-- (id)init {
-    self = [super init];
-    if (self) {
-        _announceEditUpdates = YES;
-    }
-    return self;
-}
-
-- (void)suppressEditUpdates {
-    _announceEditUpdates = NO;
-}
-
-- (void)resumeEditUpdates {
-    _announceEditUpdates = YES;
-}
-
 // NSAccessibilityElement protocol methods
 
 - (NSRect)accessibilityFrameForRange:(NSRange)range
@@ -133,9 +117,6 @@ static jmethodID sjm_getAccessibleEditableText = NULL;
 
 - (NSString *)accessibilityStringForRange:(NSRange)range
 {
-    if (!_announceEditUpdates) {
-        return @"";
-    }
     JNIEnv *env = [ThreadUtilities getJNIEnv];
     GET_CACCESSIBLETEXT_CLASS_RETURN(nil);
     DECLARE_STATIC_METHOD_RETURN(jm_getStringForRange, sjc_CAccessibleText, "getStringForRange",
@@ -323,12 +304,6 @@ static jmethodID sjm_getAccessibleEditableText = NULL;
 - (id)accessibilityParent
 {
     return [super accessibilityParent];
-}
-
-- (void)postSelectedTextChanged
-{
-    [super postSelectedTextChanged];
-    [self resumeEditUpdates];
 }
 
 /*

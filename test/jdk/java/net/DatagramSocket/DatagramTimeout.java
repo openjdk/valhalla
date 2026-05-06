@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,24 +26,23 @@
  * @bug 4163126 8222829
  * @summary Test to see if timeout hangs. Also checks that
  * negative timeout value fails as expected.
- * @run junit ${test.main.class}
+ * @run testng DatagramTimeout
  */
 
-import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.channels.DatagramChannel;
-import java.util.List;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 
 public class DatagramTimeout {
     private static final Class<IllegalArgumentException> IAE =
@@ -52,46 +51,49 @@ public class DatagramTimeout {
             SocketTimeoutException.class;
     private static final Class<SocketException> SE = SocketException.class;
 
-    public static List<DatagramSocket> sockets() throws IOException {
-        // Note that Closeable arguments passed to a ParameterizedTest are automatically
-        // closed by JUnit. We do not want to rely on this, but we do need to
-        // create a new set of sockets for each invocation of this method, so that
-        // the next test method invoked doesn't get a closed socket.
-        return List.of(
-                new DatagramSocket(),
-                new MulticastSocket(),
-                DatagramChannel.open().socket());
+    private DatagramSocket datagramSocket, multicastSocket,
+            datagramSocketAdaptor;
+
+    @BeforeTest
+    public void setUp() throws Exception {
+        datagramSocket = new DatagramSocket();
+        multicastSocket = new MulticastSocket();
+        datagramSocketAdaptor = DatagramChannel.open().socket();
     }
 
-    @ParameterizedTest
-    @MethodSource("sockets")
-    public void testSetNegTimeout(DatagramSocket socket)  {
-        try (var ds = socket) {
-            assertFalse(ds.isClosed());
-            assertThrows(IAE, () -> ds.setSoTimeout(-1));
-        }
+    @DataProvider(name = "data")
+    public Object[][] variants() {
+        return new Object[][]{
+                { datagramSocket        },
+                { datagramSocketAdaptor },
+                { multicastSocket       },
+        };
     }
 
-    @ParameterizedTest
-    @MethodSource("sockets")
-    public void testSetTimeout(DatagramSocket socket) throws Exception {
-        try (var ds = socket) {
-            assertFalse(ds.isClosed());
-            byte[] buffer = new byte[50];
-            DatagramPacket pkt = new DatagramPacket(buffer, buffer.length);
-            ds.setSoTimeout(2);
-            assertThrows(STE, () -> ds.receive(pkt));
-        }
+    @Test(dataProvider = "data")
+    public void testSetNegTimeout(DatagramSocket ds)  {
+        assertThrows(IAE, () -> ds.setSoTimeout(-1));
     }
 
-    @ParameterizedTest
-    @MethodSource("sockets")
-    public void testGetTimeout(DatagramSocket socket) throws Exception {
-        try (var ds = socket) {
-            assertFalse(ds.isClosed());
-            ds.setSoTimeout(10);
-            assertEquals(10, ds.getSoTimeout());
-        }
+    @Test(dataProvider = "data")
+    public void testSetTimeout(DatagramSocket ds) throws Exception {
+        byte[] buffer = new byte[50];
+        DatagramPacket pkt = new DatagramPacket(buffer, buffer.length);
+        ds.setSoTimeout(2);
+        assertThrows(STE, () -> ds.receive(pkt));
+    }
+
+    @Test(dataProvider = "data")
+    public void testGetTimeout(DatagramSocket ds) throws Exception {
+        ds.setSoTimeout(10);
+        assertEquals(10, ds.getSoTimeout());
+    }
+
+    @AfterTest
+    public void tearDown() {
+        datagramSocket.close();
+        multicastSocket.close();
+        datagramSocketAdaptor.close();
     }
 
     @Test

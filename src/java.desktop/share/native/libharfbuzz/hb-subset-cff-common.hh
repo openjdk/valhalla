@@ -861,7 +861,8 @@ struct subr_subsetter_t
         {
           // Hack to point vector to static string.
           auto &b = buffArray.arrayZ[last];
-          b.set_storage (const_cast<unsigned char *>(endchar_str), 1);
+          b.length = 1;
+          b.arrayZ = const_cast<unsigned char *>(endchar_str);
         }
 
       last++; // Skip over gid
@@ -876,7 +877,8 @@ struct subr_subsetter_t
       {
         // Hack to point vector to static string.
         auto &b = buffArray.arrayZ[last];
-        b.set_storage (const_cast<unsigned char *>(endchar_str), 1);
+        b.length = 1;
+        b.arrayZ = const_cast<unsigned char *>(endchar_str);
       }
 
     return true;

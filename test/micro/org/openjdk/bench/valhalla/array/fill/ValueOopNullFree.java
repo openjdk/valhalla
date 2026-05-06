@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@ package org.openjdk.bench.valhalla.array.fill;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
@@ -77,19 +78,16 @@ public class ValueOopNullFree extends FillBase {
     }
 
     public static class StaticHolder {
+        @Strict
         @NullRestricted
         public static ValueRef VALUE = new ValueRef(new IdentityInt(42));
     }
 
     @State(Scope.Thread)
     public static class InstanceHolder {
+        @Strict
         @NullRestricted
-        public ValueRef VALUE;
-
-        public InstanceHolder() {
-            VALUE = new ValueRef(new IdentityInt(42));
-            super();
-        }
+        public ValueRef VALUE = new ValueRef(new IdentityInt(42));
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)

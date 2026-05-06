@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,6 +55,7 @@ StackChunkFrameStream<frame_kind>::StackChunkFrameStream(stackChunkOop chunk) DE
   _end = chunk->bottom_address();
   _sp = chunk->start_address() + chunk->sp();
   assert(_sp <= chunk->end_address() + frame::metadata_words, "");
+  _callee_augmented = false;
 
   get_cb();
 
@@ -92,6 +93,7 @@ StackChunkFrameStream<frame_kind>::StackChunkFrameStream(stackChunkOop chunk, co
   }
   assert(_sp >= chunk->start_address(), "");
   assert(_sp <= chunk->end_address() + frame::metadata_words, "");
+  _callee_augmented = false;
 
   if (f.cb() != nullptr) {
     _oopmap = nullptr;
@@ -219,6 +221,7 @@ template <typename RegisterMapT>
 inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop) {
   update_reg_map(map);
   bool is_runtime_stub = is_stub();
+  _callee_augmented = false;
   if (frame_kind == ChunkFrames::Mixed) {
     if (is_interpreted()) {
       next_for_interpreter_frame();
@@ -226,22 +229,25 @@ inline void StackChunkFrameStream<frame_kind>::next(RegisterMapT* map, bool stop
       _sp = _unextended_sp + cb()->frame_size();
       if (_sp >= _end - frame::metadata_words) {
         _sp = _end;
-#ifndef ZERO
-      } else if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
-        _sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
-#endif
       }
-      _unextended_sp = is_interpreted() ? unextended_sp_for_interpreter_frame() : _sp;
+      if (is_interpreted()) {
+        _unextended_sp = unextended_sp_for_interpreter_frame();
+      } else if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
+        _unextended_sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
+        _callee_augmented = _unextended_sp != _sp;
+      } else {
+        _unextended_sp = _sp;
+      }
     }
     assert(_unextended_sp >= _sp - frame::metadata_words, "");
   } else {
     _sp = _unextended_sp + cb()->frame_size();
-#ifndef ZERO
     if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
-      _sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
+      _unextended_sp = frame::repair_sender_sp(cb()->as_nmethod(), _unextended_sp, (intptr_t**)(_sp - frame::sender_sp_offset));
+      _callee_augmented = _unextended_sp != _sp;
+    } else {
+      _unextended_sp = _sp;
     }
-#endif
-    _unextended_sp = _sp;
   }
   assert(!is_interpreted() || _unextended_sp == unextended_sp_for_interpreter_frame(), "");
 

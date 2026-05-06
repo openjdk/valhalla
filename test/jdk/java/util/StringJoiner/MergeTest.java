@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,18 +27,17 @@
  * @summary test  StringJoiner::merge
  * @modules java.base/jdk.internal.util
  * @requires vm.bits == "64" & os.maxMemory > 4G
- * @run junit/othervm -Xmx4g -XX:+CompactStrings MergeTest
+ * @run testng/othervm -Xmx4g -XX:+CompactStrings MergeTest
  */
 
 import java.util.StringJoiner;
 import java.util.stream.Stream;
+import org.testng.annotations.Test;
 import static jdk.internal.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.Test;
-
+@Test
 public class MergeTest {
     private static final String[] PREFIXES = {"", "{", "@#$%"};
     private static final String[] SUFFIXES = {"", "}", "*&%$"};
@@ -70,13 +69,12 @@ public class MergeTest {
         return builder.build();
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void testNull() {
         StringJoiner sj = new StringJoiner(",", "{", "}");
-        Assertions.assertThrows(NullPointerException.class, () -> sj.merge(null));
+        sj.merge(null);
     }
 
-    @Test
     public void testSimple() {
         fixesStream().forEach(fixes -> {
             StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0);
@@ -85,11 +83,10 @@ public class MergeTest {
             Stream.of("d", "e", "f").forEachOrdered(other::add);
 
             sj.merge(other);
-            assertEquals(fixes.pre0 + "a,b,c,d,e,f" + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + "a,b,c,d,e,f" + fixes.suf0);
         });
     }
 
-    @Test
     public void testEmptyOther() {
         fixesStream().forEach(fixes -> {
             StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0);
@@ -97,15 +94,14 @@ public class MergeTest {
             Stream.of("a", "b", "c").forEachOrdered(sj::add);
 
             sj.merge(other);
-            assertEquals(fixes.pre0 + "a,b,c" + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + "a,b,c" + fixes.suf0);
 
             other.setEmptyValue("EMPTY");
             sj.merge(other);
-            assertEquals(fixes.pre0 + "a,b,c" + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + "a,b,c" + fixes.suf0);
         });
     }
 
-    @Test
     public void testEmptyThis() {
         fixesStream().forEach(fixes -> {
             StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0);
@@ -113,36 +109,34 @@ public class MergeTest {
             Stream.of("d", "e", "f").forEachOrdered(other::add);
 
             sj.merge(other);
-            assertEquals(fixes.pre0 + "d:e:f" + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + "d:e:f" + fixes.suf0);
 
             sj = new StringJoiner(",", fixes.pre0, fixes.suf0).setEmptyValue("EMPTY");
-            assertEquals("EMPTY", sj.toString());
+            assertEquals(sj.toString(), "EMPTY");
             sj.merge(other);
-            assertEquals(fixes.pre0 + "d:e:f" + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + "d:e:f" + fixes.suf0);
         });
     }
 
-    @Test
     public void testEmptyBoth() {
         fixesStream().forEach(fixes -> {
             StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0);
             StringJoiner other = new StringJoiner(":", fixes.pre1, fixes.suf1);
 
             sj.merge(other);
-            assertEquals(fixes.pre0 + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + fixes.suf0);
 
             other.setEmptyValue("NOTHING");
             sj.merge(other);
-            assertEquals(fixes.pre0 + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + fixes.suf0);
 
             sj = new StringJoiner(",", fixes.pre0, fixes.suf0).setEmptyValue("EMPTY");
-            assertEquals("EMPTY", sj.toString());
+            assertEquals(sj.toString(), "EMPTY");
             sj.merge(other);
-            assertEquals("EMPTY", sj.toString());
+            assertEquals(sj.toString(), "EMPTY");
         });
     }
 
-    @Test
     public void testCascadeEmpty() {
         fixesStream().forEach(fixes -> {
             StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0);
@@ -150,14 +144,13 @@ public class MergeTest {
             StringJoiner o2 = new StringJoiner(",", "<", ">").setEmptyValue("Empty2");
 
             o1.merge(o2);
-            assertEquals("Empty1", o1.toString());
+            assertEquals(o1.toString(), "Empty1");
 
             sj.merge(o1);
-            assertEquals(fixes.pre0 + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + fixes.suf0);
         });
     }
 
-    @Test
     public void testDelimiter() {
         fixesStream().forEach(fixes -> {
             StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0);
@@ -166,20 +159,18 @@ public class MergeTest {
             Stream.of("d", "e", "f").forEachOrdered(other::add);
 
             sj.merge(other);
-            assertEquals(fixes.pre0 + "a,b,c,d:e:f" + fixes.suf0, sj.toString());
+            assertEquals(sj.toString(), fixes.pre0 + "a,b,c,d:e:f" + fixes.suf0);
         });
     }
 
-    @Test
     public void testMergeSelf() {
         fixesStream().forEach(fixes -> {
             final StringJoiner sj = new StringJoiner(",", fixes.pre0, fixes.suf0).add("a").add("b");
-            assertEquals(fixes.pre0 + "a,b,a,b" + fixes.suf0, sj.merge(sj).toString());
-            assertEquals(fixes.pre0 + "a,b,a,b,a,b,a,b" + fixes.suf0, sj.merge(sj).toString());
+            assertEquals(sj.merge(sj).toString(), fixes.pre0 + "a,b,a,b" + fixes.suf0);
+            assertEquals(sj.merge(sj).toString(), fixes.pre0 + "a,b,a,b,a,b,a,b" + fixes.suf0);
         });
     }
 
-    @Test
     public void OOM() {
         String maxString = "*".repeat(SOFT_MAX_ARRAY_LENGTH);
 

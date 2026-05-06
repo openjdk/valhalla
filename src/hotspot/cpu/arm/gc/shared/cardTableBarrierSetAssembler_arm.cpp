@@ -67,7 +67,9 @@ void CardTableBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet d
 void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                                     Register addr, Register count, Register tmp) {
   BLOCK_COMMENT("CardTablePostBarrier");
-  CardTableBarrierSet* ctbs = CardTableBarrierSet::barrier_set();
+  BarrierSet* bs = BarrierSet::barrier_set();
+  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+  CardTable* ct = ctbs->card_table();
 
   Label L_cardtable_loop, L_done;
 
@@ -81,7 +83,7 @@ void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembl
   __ sub(count, count, addr); // nb of cards
 
   // warning: Rthread has not been preserved
-  __ mov_address(tmp, (address)ctbs->card_table_base_const());
+  __ mov_address(tmp, (address) ct->byte_map_base());
   __ add(addr,tmp, addr);
 
   Register zero = __ zero_register(tmp);
@@ -120,7 +122,8 @@ void CardTableBarrierSetAssembler::store_check_part1(MacroAssembler* masm, Regis
   assert(bs->kind() == BarrierSet::CardTableBarrierSet,
          "Wrong barrier set kind");
 
-  CardTableBarrierSet* ctbs = CardTableBarrierSet::barrier_set();
+  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+  CardTable* ct = ctbs->card_table();
 
   // Load card table base address.
 
@@ -137,7 +140,7 @@ void CardTableBarrierSetAssembler::store_check_part1(MacroAssembler* masm, Regis
      Possible cause is a cache miss (card table base address resides in a
      rarely accessed area of thread descriptor).
   */
-  __ mov_address(card_table_base, (address)ctbs->card_table_base_const());
+  __ mov_address(card_table_base, (address)ct->byte_map_base());
 }
 
 // The 2nd part of the store check.
@@ -167,8 +170,8 @@ void CardTableBarrierSetAssembler::store_check_part2(MacroAssembler* masm, Regis
 
 void CardTableBarrierSetAssembler::set_card(MacroAssembler* masm, Register card_table_base, Address card_table_addr, Register tmp) {
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
-
-  if ((((uintptr_t)ctbs->card_table_base_const() & 0xff) == 0)) {
+  CardTable* ct = ctbs->card_table();
+  if ((((uintptr_t)ct->byte_map_base() & 0xff) == 0)) {
     // Card table is aligned so the lowest byte of the table address base is zero.
     // This works only if the code is not saved for later use, possibly
     // in a context where the base would no longer be aligned.

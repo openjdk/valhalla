@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,13 @@ import jdk.internal.net.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
 import jdk.test.lib.Utils;
+import org.testng.IRetryAnalyzer;
+import org.testng.ITestResult;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -60,18 +67,11 @@ import java.util.concurrent.TimeUnit;
 import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
 /*
  * @test
- * @bug 8373409 8377181
+ * @bug 8373409
  * @key intermittent
  * @comment testResetControlStream may fail if the client doesn't read the stream type
  *              before the stream is reset,
@@ -82,16 +82,17 @@ import static org.junit.jupiter.api.Assertions.*;
  * @build jdk.test.lib.net.SimpleSSLContext
  *        jdk.httpclient.test.lib.common.HttpServerAdapters
  * @build java.net.http/jdk.internal.net.http.Http3ConnectionAccess
- * @run junit/othervm
+ * @run testng/othervm
  *              -Djdk.internal.httpclient.debug=true
- *              -Djdk.httpclient.HttpClient.log=requests,responses,errors ${test.main.class}
+ *              -Djdk.httpclient.HttpClient.log=requests,responses,errors H3ErrorHandlingTest
  */
 public class H3ErrorHandlingTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static QuicStandaloneServer server;
-    private static String requestURIBase;
+    private SSLContext sslContext;
+    private QuicStandaloneServer server;
+    private String requestURIBase;
 
+    @DataProvider
     public static Object[][] controlStreams() {
         // control / encoder / decoder
         return new Object[][] {{(byte)0}, {(byte)2}, {(byte)3}};
@@ -147,22 +148,26 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
         return result;
     }
 
+    @DataProvider
     public static Object[][] malformedSettingsFrames() {
         // 2-byte ID, 2-byte value
         byte[] settingsFrame = new byte[]{(byte)4,(byte)4,(byte)0x40, (byte)6, (byte)0x40, (byte)6};
         return chopFrame(settingsFrame, 1, 2, 3);
     }
 
+    @DataProvider
     public static Object[][] malformedCancelPushFrames() {
         byte[] cancelPush = new byte[]{(byte)3,(byte)2, (byte)0x40, (byte)0};
         return chopFrame(cancelPush, 0, 1, 3, 9);
     }
 
+    @DataProvider
     public static Object[][] malformedGoawayFrames() {
         byte[] goaway = new byte[]{(byte)7,(byte)2, (byte)0x40, (byte)0};
         return chopFrame(goaway, 0, 1, 3, 9);
     }
 
+    @DataProvider
     public static Object[][] malformedResponseHeadersFrames() {
         byte[] responseHeaders = HexFormat.of().parseHex(
                 "011a0000"+ // headers, length 26, section prefix
@@ -171,6 +176,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
         return chopFrame(responseHeaders, 0, 1, 4, 5, 6, 7);
     }
 
+    @DataProvider
     public static Object[][] truncatedResponseFrames() {
         byte[] response = HexFormat.of().parseHex(
                 "01030000"+ // headers, length 3, section prefix
@@ -181,6 +187,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
         return chopBytes(response, 1, 2, 3, 4, 6, 7, 9, 10);
     }
 
+    @DataProvider
     public static Object[][] truncatedControlFrames() {
         byte[] response = HexFormat.of().parseHex(
                 "00"+ // stream type: control
@@ -191,10 +198,12 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
         return chopBytes(response, 2, 3, 4, 6, 7, 9, 10);
     }
 
+    @DataProvider
     public static Object[][] malformedPushPromiseFrames() {
         return chopFrame(valid_push_promise, 0, 1, 2, 4, 5, 6);
     }
 
+    @DataProvider
     public static Object[][] invalidControlFrames() {
         // frames not valid on the server control stream (after settings)
         // all except cancel_push / goaway (max_push_id is client-only)
@@ -202,6 +211,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
                 {reserved1}, {reserved2}, {reserved3}, {reserved4}};
     }
 
+    @DataProvider
     public static Object[][] invalidResponseFrames() {
         // frames not valid on the response stream
         // all except headers / push_promise
@@ -210,6 +220,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
                 {reserved1}, {reserved2}, {reserved3}, {reserved4}};
     }
 
+    @DataProvider
     public static Object[][] invalidPushFrames() {
         // frames not valid on the push promise stream
         // all except headers
@@ -218,8 +229,12 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
                 {reserved1}, {reserved2}, {reserved3}, {reserved4}};
     }
 
-    @BeforeAll
-    public static void beforeClass() throws Exception {
+    @BeforeClass
+    public void beforeClass() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         server = QuicStandaloneServer.newBuilder()
                 .availableVersions(new QuicVersion[]{QuicVersion.QUIC_V1})
                 .sslContext(sslContext)
@@ -231,8 +246,8 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
                 .port(server.getAddress().getPort()).build().toString();
     }
 
-    @AfterAll
-    public static void afterClass() throws Exception {
+    @AfterClass
+    public void afterClass() throws Exception {
         if (server != null) {
             System.out.println("Stopping server " + server.getAddress());
             server.close();
@@ -245,7 +260,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testNonSettingsFrame() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -263,11 +278,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server opens 2 control streams
      */
-    @ParameterizedTest
-    @MethodSource("controlStreams")
+    @Test(dataProvider = "controlStreams")
     public void testTwoControlStreams(byte type) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
 
             QuicSenderStream controlStream, controlStream2;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
@@ -289,11 +303,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server closes control stream
      */
-    @ParameterizedTest
-    @MethodSource("controlStreams")
+    @Test(dataProvider = "controlStreams")
     public void testCloseControlStream(byte type) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var controlscheduler = SequentialScheduler.lockingScheduler(() -> {});
@@ -306,34 +319,26 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
         triggerError(errorCF, Http3Error.H3_CLOSED_CRITICAL_STREAM);
     }
 
-    /**
-     * Server resets control stream
-     */
-    @ParameterizedTest
-    @MethodSource("controlStreams")
-    public void testResetControlStream(byte type) throws Exception {
-        try {
-            System.out.printf("testResetControlStream(%s) - first attempt%n", type);
-            System.err.printf("%ntestResetControlStream(%s) - first attempt%n", type);
-            testResetControlStreamImpl(type);
-            System.out.printf("testResetControlStream(%s) - first attempt succeeded!%n", type);
-            System.err.printf("%ntestResetControlStream(%s) - first attempt succeeded!%n", type);
-        } catch (Throwable t) {
-            System.out.printf("testResetControlStream(%s) - first attempt failed: %s%n",
-                    type, t);
-            System.err.printf("%ntestResetControlStream(%s) - first attempt failed: %s%n",
-                    type);
-            System.out.printf("testResetControlStream(%s) - retrying...%n", type);
-            System.err.printf("%ntestResetControlStream(%s) - retrying...%n", type);
-            testResetControlStreamImpl(type);
-            System.out.printf("testResetControlStream(%s) - retry succeeded!%n", type);
-            System.err.printf("%ntestResetControlStream(%s) - retry succeeded!%n", type);
+    public static class RetryOnce implements IRetryAnalyzer {
+        boolean retried;
+
+        @Override
+        public boolean retry(ITestResult iTestResult) {
+            if (!retried) {
+                retried = true;
+                return true;
+            }
+            return false;
         }
     }
 
-    private void testResetControlStreamImpl(byte type) throws Exception {
+    /**
+     * Server resets control stream
+     */
+    @Test(dataProvider = "controlStreams", retryAnalyzer = RetryOnce.class)
+    public void testResetControlStream(byte type) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var controlscheduler = SequentialScheduler.lockingScheduler(() -> {});
@@ -361,11 +366,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends unexpected frame on control stream
      */
-    @ParameterizedTest
-    @MethodSource("invalidControlFrames")
+    @Test(dataProvider = "invalidControlFrames")
     public void testUnexpectedControlFrame(byte[] frame) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -387,11 +391,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends malformed settings frame
      */
-    @ParameterizedTest
-    @MethodSource("malformedSettingsFrames")
+    @Test(dataProvider = "malformedSettingsFrames")
     public void testMalformedSettingsFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -413,11 +416,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends malformed goaway frame
      */
-    @ParameterizedTest
-    @MethodSource("malformedGoawayFrames")
+    @Test(dataProvider = "malformedGoawayFrames")
     public void testMalformedGoawayFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -439,11 +441,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends malformed cancel push frame
      */
-    @ParameterizedTest
-    @MethodSource("malformedCancelPushFrames")
+    @Test(dataProvider = "malformedCancelPushFrames")
     public void testMalformedCancelPushFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -468,7 +469,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testInvalidGoAwaySequence() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -490,7 +491,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testInvalidGoAwayId() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -512,7 +513,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testInvalidCancelPushId() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -532,11 +533,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends unexpected frame on push stream
      */
-    @ParameterizedTest
-    @MethodSource("invalidPushFrames")
+    @Test(dataProvider = "invalidPushFrames")
     public void testUnexpectedPushFrame(byte[] frame) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream pushStream;
             pushStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -560,11 +560,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends malformed frame on push stream
      */
-    @ParameterizedTest
-    @MethodSource("malformedResponseHeadersFrames")
+    @Test(dataProvider = "malformedResponseHeadersFrames")
     public void testMalformedPushStreamFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream pushStream;
             pushStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -590,11 +589,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends malformed frame on push stream
      */
-    @ParameterizedTest
-    @MethodSource("malformedPushPromiseFrames")
+    @Test(dataProvider = "malformedPushPromiseFrames")
     public void testMalformedPushPromiseFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             // write PUSH_PROMISE frame
             s.outputStream().write(frame);
             // ignore the request stream; we're expecting the client to close the connection
@@ -611,7 +609,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testDuplicatePushStream() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream pushStream, pushStream2;
             pushStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             pushStream2 = c.openNewLocalUniStream(Duration.ZERO).resultNow();
@@ -640,7 +638,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testInvalidPushPromiseId() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             // write PUSH_PROMISE frame
             s.outputStream().write(huge_id_push_promise);
             // ignore the request stream; we're expecting the client to close the connection
@@ -655,7 +653,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testInvalidPushStreamId() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream pushStream;
             pushStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -675,11 +673,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends unexpected frame on response stream
      */
-    @ParameterizedTest
-    @MethodSource("invalidResponseFrames")
+    @Test(dataProvider = "invalidResponseFrames")
     public void testUnexpectedResponseFrame(byte[] frame) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             s.outputStream().write(frame);
             // ignore the request stream; we're expecting the client to close the connection
             completeUponTermination(c, errorCF);
@@ -690,11 +687,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server sends malformed headers frame on response stream
      */
-    @ParameterizedTest
-    @MethodSource("malformedResponseHeadersFrames")
+    @Test(dataProvider = "malformedResponseHeadersFrames")
     public void testMalformedResponseFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             s.outputStream().write(frame);
             // ignore the request stream; we're expecting the client to close the connection
             completeUponTermination(c, errorCF);
@@ -707,11 +703,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server truncates a frame on the response stream
      */
-    @ParameterizedTest
-    @MethodSource("truncatedResponseFrames")
+    @Test(dataProvider = "truncatedResponseFrames")
     public void testTruncatedResponseFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             try (OutputStream outputStream = s.outputStream()) {
                 outputStream.write(frame);
             }
@@ -724,11 +719,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server truncates a frame on the control stream
      */
-    @ParameterizedTest
-    @MethodSource("truncatedControlFrames")
+    @Test(dataProvider = "truncatedControlFrames")
     public void testTruncatedControlFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var controlscheduler = SequentialScheduler.lockingScheduler(() -> {});
@@ -745,11 +739,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     /**
      * Server truncates a frame on the push stream
      */
-    @ParameterizedTest
-    @MethodSource("truncatedResponseFrames")
+    @Test(dataProvider = "truncatedResponseFrames")
     public void testTruncatedPushStreamFrame(byte[] frame, int bytes) throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream pushStream;
             pushStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -776,7 +769,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
     @Test
     public void testReservedSettingsFrames() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream controlStream;
             controlStream = c.openNewLocalUniStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -796,7 +789,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testStatelessReset() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             // stateless reset
             QuicConnectionId localConnId = c.localConnectionId();
             ByteBuffer resetDatagram = c.endpoint().idFactory().statelessReset(localConnId.asReadOnlyBuffer(), 43);
@@ -830,10 +823,10 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      * Server opens a bidi stream
      */
     @Test
-    @Disabled("BiDi streams are rejected by H3 client at QUIC level")
+    @Ignore("BiDi streams are rejected by H3 client at QUIC level")
     public void testBidiStream() throws Exception {
         CompletableFuture<TerminationCause> errorCF = new CompletableFuture<>();
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             QuicSenderStream bidiStream;
             bidiStream = c.openNewLocalBidiStream(Duration.ZERO).resultNow();
             var scheduler = SequentialScheduler.lockingScheduler(() -> {
@@ -853,7 +846,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testConnectionCloseQUIC() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             TerminationCause tc = TerminationCause.forException(
                     new QuicTransportException("ignored", null, 0,
                             QuicTransportErrors.INTERNAL_ERROR)
@@ -870,7 +863,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testConnectionCloseCryptoQUIC() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             TerminationCause tc = TerminationCause.forException(
                     new QuicTransportException("ignored", null, 0,
                             QuicTransportErrors.CRYPTO_ERROR.from() + 80 /*Alert.INTERNAL_ERROR.id*/, null)
@@ -887,7 +880,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testConnectionCloseUnknownCryptoQUIC() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             TerminationCause tc = TerminationCause.forException(
                     new QuicTransportException("ignored", null, 0,
                             QuicTransportErrors.CRYPTO_ERROR.from() + 5, null)
@@ -904,7 +897,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testConnectionCloseUnknownQUIC() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             TerminationCause tc = TerminationCause.forException(
                     new QuicTransportException("ignored", null, 0,
                             QuicTransportErrors.CRYPTO_ERROR.to() + 1 /*0x200*/, null)
@@ -921,7 +914,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testConnectionCloseH3() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             TerminationCause tc = TerminationCause.appLayerClose(Http3Error.H3_EXCESSIVE_LOAD.code());
             tc.peerVisibleReason("testtest");
             c.connectionTerminator().terminate(tc);
@@ -935,7 +928,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
      */
     @Test
     public void testConnectionCloseH3Unknown() throws Exception {
-        server.setHandler((c, s)-> {
+        server.addHandler((c,s)-> {
             TerminationCause tc = TerminationCause.appLayerClose(0x1f21);
             tc.peerVisibleReason("testtest");
             c.connectionTerminator().terminate(tc);
@@ -985,7 +978,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
             System.out.println("Server reason: \"" + terminationCause.getPeerVisibleReason()+'"');
             final long actual = terminationCause.getCloseCode();
             // expected
-            assertEquals(expected.code(), actual, "Expected " + toHexString(expected) + " got 0x" + Long.toHexString(actual));
+            assertEquals(actual, expected.code(), "Expected " + toHexString(expected) + " got 0x" + Long.toHexString(actual));
         } finally {
             client.shutdownNow();
         }
@@ -1038,7 +1031,7 @@ public class H3ErrorHandlingTest implements HttpServerAdapters {
             System.out.println("Server reason: \"" + terminationCause.getPeerVisibleReason()+'"');
             final long actual = terminationCause.getCloseCode();
             // expected
-            assertEquals(http3Error.code(), actual, "Expected " + toHexString(http3Error) + " got 0x" + Long.toHexString(actual));
+            assertEquals(actual, http3Error.code(), "Expected " + toHexString(http3Error) + " got 0x" + Long.toHexString(actual));
         } finally {
             client.shutdownNow();
         }

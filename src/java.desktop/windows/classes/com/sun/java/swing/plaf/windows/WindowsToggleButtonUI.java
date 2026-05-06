@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,14 @@ import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.basic.BasicGraphicsUtils;
 import javax.swing.plaf.basic.BasicToggleButtonUI;
 
+import sun.awt.AppContext;
+
 /**
  * A Windows toggle button.
  *
  * @author Jeff Dinkins
  */
-public class WindowsToggleButtonUI extends BasicToggleButtonUI
+public final class WindowsToggleButtonUI extends BasicToggleButtonUI
 {
     protected int dashedRectGapX;
     protected int dashedRectGapY;
@@ -52,12 +54,19 @@ public class WindowsToggleButtonUI extends BasicToggleButtonUI
 
     protected Color focusColor;
 
-    private static final ComponentUI UI = new WindowsToggleButtonUI();
+    private static final Object WINDOWS_TOGGLE_BUTTON_UI_KEY = new Object();
 
     private boolean defaults_initialized = false;
 
     public static ComponentUI createUI(JComponent b) {
-        return UI;
+        AppContext appContext = AppContext.getAppContext();
+        WindowsToggleButtonUI windowsToggleButtonUI =
+                (WindowsToggleButtonUI) appContext.get(WINDOWS_TOGGLE_BUTTON_UI_KEY);
+        if (windowsToggleButtonUI == null) {
+            windowsToggleButtonUI = new WindowsToggleButtonUI();
+            appContext.put(WINDOWS_TOGGLE_BUTTON_UI_KEY, windowsToggleButtonUI);
+        }
+        return windowsToggleButtonUI;
     }
 
 

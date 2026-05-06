@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,30 +54,27 @@
  */
 package tck.java.time.chrono;
 
-import java.time.DateTimeException;
 import static java.time.temporal.ChronoField.ERA;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.time.chrono.Era;
 import java.time.chrono.JapaneseChronology;
 import java.time.chrono.JapaneseEra;
 import java.util.List;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Tests for JapaneseEra
  * @bug 8068278
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKJapaneseEra {
 
+    @DataProvider(name = "JapaneseEras")
     Object[][] data_of_eras() {
         return new Object[][] {
                     {JapaneseEra.REIWA, "Reiwa", 3},
@@ -88,6 +85,7 @@ public class TCKJapaneseEra {
         };
     }
 
+    @DataProvider(name = "InvalidJapaneseEras")
     Object[][] data_of_invalid_eras() {
         return new Object[][] {
                 {-2},
@@ -101,12 +99,11 @@ public class TCKJapaneseEra {
     //-----------------------------------------------------------------------
     // JapaneseEra value test
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_of_eras")
+    @Test(dataProvider="JapaneseEras")
     public void test_valueOf(JapaneseEra era , String eraName, int eraValue) {
-        assertEquals(eraValue, era.getValue());
-        assertEquals(era, JapaneseEra.of(eraValue));
-        assertEquals(era, JapaneseEra.valueOf(eraName));
+        assertEquals(era.getValue(), eraValue);
+        assertEquals(JapaneseEra.of(eraValue), era);
+        assertEquals(JapaneseEra.valueOf(eraName), era);
     }
 
     //-----------------------------------------------------------------------
@@ -116,7 +113,7 @@ public class TCKJapaneseEra {
     public void test_values() {
         List<Era> eraList = JapaneseChronology.INSTANCE.eras();
         JapaneseEra[] eras = JapaneseEra.values();
-        assertEquals(eras.length, eraList.size());
+        assertEquals(eraList.size(), eras.length);
         for (JapaneseEra era : eras) {
             assertTrue(eraList.contains(era));
         }
@@ -129,19 +126,18 @@ public class TCKJapaneseEra {
     public void test_range() {
         // eras may be added after release
         for (JapaneseEra era : JapaneseEra.values()) {
-            assertEquals(-1, era.range(ERA).getMinimum());
-            assertEquals(-1, era.range(ERA).getLargestMinimum());
-            assertEquals(era.range(ERA).getMaximum(), era.range(ERA).getSmallestMaximum());
-            assertEquals(true, era.range(ERA).getMaximum() >= 2);
+            assertEquals(era.range(ERA).getMinimum(), -1);
+            assertEquals(era.range(ERA).getLargestMinimum(), -1);
+            assertEquals(era.range(ERA).getSmallestMaximum(), era.range(ERA).getMaximum());
+            assertEquals(era.range(ERA).getMaximum() >= 2, true);
         }
     }
 
     //-----------------------------------------------------------------------
     // JapaneseChronology.INSTANCE.eraOf invalid era test
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_of_invalid_eras")
+    @Test(dataProvider="InvalidJapaneseEras", expectedExceptions=java.time.DateTimeException.class)
     public void test_outofrange(int era) {
-        Assertions.assertThrows(DateTimeException.class, () -> JapaneseChronology.INSTANCE.eraOf(era));
+        JapaneseChronology.INSTANCE.eraOf(era);
     }
 }

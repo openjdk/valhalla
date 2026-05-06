@@ -30,11 +30,10 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 /**
  * Tests Era.getDisplayName() correctly returns the name based on each
@@ -43,7 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  *
  * @bug 8171049 8224105 8240626 8354548
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestEraDisplayName {
     private static final Locale THAI = Locale.forLanguageTag("th-TH");
     private static final Locale EGYPT = Locale.forLanguageTag("ar-EG");
@@ -53,6 +52,7 @@ public class TestEraDisplayName {
          DateTimeFormatter.ofPattern("yyyy MM dd GGGG G GGGGG")
             .withChronology(JapaneseChronology.INSTANCE);
 
+    @DataProvider(name="eraDisplayName")
     Object[][] eraDisplayName() {
         return new Object[][] {
             // Era, text style, displyay locale, expected name
@@ -141,6 +141,7 @@ public class TestEraDisplayName {
         };
     }
 
+    @DataProvider
     Object[][] allLocales() {
         return Arrays.stream(Locale.getAvailableLocales())
             .map(Stream::of)
@@ -148,6 +149,7 @@ public class TestEraDisplayName {
             .toArray(Object[][]::new);
     }
 
+    @DataProvider
     Object[][] allEras() {
         return Stream.of(IsoEra.values(),
                         JapaneseEra.values(),
@@ -160,28 +162,29 @@ public class TestEraDisplayName {
             .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("eraDisplayName")
+    @Test(dataProvider="eraDisplayName")
     public void test_eraDisplayName(Era era, TextStyle style, Locale locale, String expected) {
-        assertEquals(expected, era.getDisplayName(style, locale));
+        assertEquals(era.getDisplayName(style, locale), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("allLocales")
+    @Test(dataProvider="allLocales")
     public void test_reiwaNames(Locale locale) throws DateTimeParseException {
         DateTimeFormatter f = JAPANESE_FORMATTER.withLocale(locale);
-        assertEquals(REIWA_1ST, LocalDate.parse(REIWA_1ST.format(f), f));
+        assertEquals(LocalDate.parse(REIWA_1ST.format(f), f), REIWA_1ST);
     }
 
     // Make sure era display names aren't empty
     // @bug 8240626
-    @ParameterizedTest
-    @MethodSource("allEras")
+    @Test(dataProvider="allEras")
     public void test_noEmptyEraNames(Era era) {
         Arrays.stream(Locale.getAvailableLocales())
-            .forEach(l -> Arrays.stream(TextStyle.values())
-                .forEach(s -> assertFalse(era.getDisplayName(s, l).isEmpty(),
-                    "getDisplayName() returns empty display name for era: " + era
-                    + ", style: " + s + ", locale: " + l)));
+            .forEach(l -> {
+                Arrays.stream(TextStyle.values())
+                    .forEach(s -> {
+                        assertFalse(era.getDisplayName(s, l).isEmpty(),
+                            "getDisplayName() returns empty display name for era: " + era
+                            + ", style: " + s + ", locale: " + l);
+                    });
+            });
     }
 }

@@ -4,7 +4,7 @@
  *
  *   FreeType API for accessing BDF-specific strings (specification).
  *
- * Copyright (C) 2002-2025 by
+ * Copyright (C) 2002-2024 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -44,8 +44,7 @@ FT_BEGIN_HEADER
    *
    * @description:
    *   This section contains the declaration of functions specific to BDF and
-   *   PCF fonts.  They also work for SFNT bitmap fonts that contain a 'BDF~'
-   *   table like X11's `.otb` fonts.
+   *   PCF fonts.
    *
    */
 
@@ -152,9 +151,7 @@ FT_BEGIN_HEADER
    *   FreeType error code.  0~means success.
    *
    * @note:
-   *   This function only works with BDF faces and SFNT fonts that have a
-   *   'BDF~' table, returning an error otherwise.  For the latter, a bitmap
-   *   strike size must be selected first.
+   *   This function only works with BDF faces, returning an error otherwise.
    */
   FT_EXPORT( FT_Error )
   FT_Get_BDF_Charset_ID( FT_Face       face,
@@ -168,7 +165,7 @@ FT_BEGIN_HEADER
    *    FT_Get_BDF_Property
    *
    * @description:
-   *    Retrieve a BDF property from a BDF or PCF font.
+   *    Retrieve a BDF property from a BDF or PCF font file.
    *
    * @input:
    *    face ::
@@ -199,9 +196,6 @@ FT_BEGIN_HEADER
    *
    *   In case of error, `aproperty->type` is always set to
    *   @BDF_PROPERTY_TYPE_NONE.
-   *
-   *   This also works with SFNT fonts that have a 'BDF~' table, after a
-   *   bitmap strike size has been selected.
    */
   FT_EXPORT( FT_Error )
   FT_Get_BDF_Property( FT_Face           face,

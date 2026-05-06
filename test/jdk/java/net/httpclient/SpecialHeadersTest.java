@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,22 +31,35 @@
  *        jdk.httpclient.test.lib.http2.Http2TestServer
  *        jdk.test.lib.net.SimpleSSLContext
  * @requires (vm.compMode != "Xcomp")
- * @run junit/othervm/timeout=480
+ * @run testng/othervm/timeout=480
  *       -Djdk.httpclient.HttpClient.log=requests,headers,errors
- *       ${test.main.class}
- * @run junit/othervm/timeout=480 -Djdk.httpclient.allowRestrictedHeaders=Host
+ *       SpecialHeadersTest
+ * @run testng/othervm/timeout=480 -Djdk.httpclient.allowRestrictedHeaders=Host
  *       -Djdk.httpclient.HttpClient.log=requests,headers,errors
- *       ${test.main.class}
+ *       SpecialHeadersTest
  */
 
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 import jdk.internal.net.http.common.OperationTrackers.Tracker;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.SkipException;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -70,7 +83,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
+import jdk.httpclient.test.lib.http2.Http2TestServer;
 
 import static java.lang.System.err;
 import static java.lang.System.out;
@@ -78,37 +93,22 @@ import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpClient.Version.HTTP_3;
-import static java.net.http.HttpOption.H3_DISCOVERY;
-import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.extension.BeforeEachCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.extension.TestWatcher;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.Assert;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class SpecialHeadersTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
-    private static HttpTestServer httpsTestServer;        // HTTPS/1.1
-    private static HttpTestServer http2TestServer;        // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;       // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;        // HTTP/3
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
-    private static String https3URI;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
+    HttpTestServer httpsTestServer;        // HTTPS/1.1
+    HttpTestServer http2TestServer;        // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;       // HTTP/2 ( h2  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
 
     static final String[][] headerNamesAndValues = new String[][]{
             {"User-Agent: <DEFAULT>"},
@@ -132,7 +132,8 @@ public class SpecialHeadersTest implements HttpServerAdapters {
             {"hoSt: mixed"}
     };
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         String prop = System.getProperty("jdk.httpclient.allowRestrictedHeaders");
         boolean hostTest = prop != null && prop.equalsIgnoreCase("host");
         final String[][] testInput = hostTest ? headerNamesAndValues1 : headerNamesAndValues;
@@ -151,9 +152,6 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                     .forEach(list::add);
             Arrays.asList(testInput).stream()
                     .map(e -> new Object[] {https2URI, e[0], sameClient})
-                    .forEach(list::add);
-            Arrays.asList(testInput).stream()
-                    .map(e -> new Object[] {https3URI, e[0], sameClient})
                     .forEach(list::add);
         }
         return list.stream().toArray(Object[][]::new);
@@ -175,8 +173,8 @@ public class SpecialHeadersTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private static volatile HttpClient sharedClient;
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -211,39 +209,38 @@ public class SpecialHeadersTest implements HttpServerAdapters {
 
     }
 
-    private static boolean stopAfterFirstFailure() {
+    protected boolean stopAfterFirstFailure() {
         return Boolean.getBoolean("jdk.internal.httpclient.debug");
     }
 
-    static final class TestStopper implements TestWatcher, BeforeEachCallback {
-        final AtomicReference<String> failed = new AtomicReference<>();
-        TestStopper() { }
-        @Override
-        public void testFailed(ExtensionContext context, Throwable cause) {
-            if (stopAfterFirstFailure()) {
-                String msg = "Aborting due to: " + cause;
-                failed.compareAndSet(null, msg);
-                FAILURES.putIfAbsent(context.getDisplayName(), cause);
-                System.out.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
-                        now(), context.getDisplayName(), cause);
-                System.err.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
-                        now(), context.getDisplayName(), cause);
-            }
-        }
+    final AtomicReference<SkipException> skiptests = new AtomicReference<>();
+    void checkSkip() {
+        var skip = skiptests.get();
+        if (skip != null) throw skip;
+    }
+    static String name(ITestResult result) {
+        var params = result.getParameters();
+        return result.getName()
+                + (params == null ? "()" : Arrays.toString(result.getParameters()));
+    }
 
-        @Override
-        public void beforeEach(ExtensionContext context) {
-            String msg = failed.get();
-            Assumptions.assumeTrue(msg == null, msg);
+    @BeforeMethod
+    void beforeMethod(ITestContext context) {
+        if (stopAfterFirstFailure() && context.getFailedTests().size() > 0) {
+            if (skiptests.get() == null) {
+                SkipException skip = new SkipException("some tests failed");
+                skip.setStackTrace(new StackTraceElement[0]);
+                skiptests.compareAndSet(null, skip);
+            }
         }
     }
 
-    @RegisterExtension
-    static final TestStopper stopper = new TestStopper();
-
-    @AfterAll
-    static void printFailedTests() {
+    @AfterClass
+    static final void printFailedTests(ITestContext context) {
         out.println("\n=========================");
+        var failed = context.getFailedTests().getAllResults().stream()
+                .collect(Collectors.toMap(r -> name(r), ITestResult::getThrowable));
+        FAILURES.putAll(failed);
         try {
             out.printf("%n%sCreated %d servers and %d clients%n",
                     now(), serverCount.get(), clientCount.get());
@@ -263,7 +260,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
 
     private HttpClient makeNewClient() {
         clientCount.incrementAndGet();
-        return newClientBuilderForH3()
+        return HttpClient.newBuilder()
                 .proxy(NO_PROXY)
                 .executor(executor)
                 .sslContext(sslContext)
@@ -310,8 +307,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
         if (throwable instanceof Error e) throw e;
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void test(String uriString,
               String headerNameAndValue,
               boolean sameClient)
@@ -339,10 +335,6 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                 }
 
                 HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
-                if (uriString.contains("/http3")) {
-                    requestBuilder.version(HTTP_3);
-                    requestBuilder.setOption(H3_DISCOVERY, HTTP_3_URI_ONLY);
-                }
                 if (!useDefault) {
                     requestBuilder.header(name, value);
                 }
@@ -351,7 +343,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
 
                 out.println("Got response: " + resp);
                 out.println("Got body: " + resp.body());
-                assertEquals(200, resp.statusCode(),
+                assertEquals(resp.statusCode(), 200,
                         "Expected 200, got:" + resp.statusCode());
 
                 boolean isInitialRequest = i == 0;
@@ -374,10 +366,10 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                             : resp.headers().firstValue("X-" + key).get();
                     out.println("Got X-" + key + ": " + resp.headers().allValues("X-" + key));
                     if (value != null) {
-                        assertEquals(value, receivedHeaderString);
-                        assertEquals(List.of(value), resp.headers().allValues("X-" + key));
+                        assertEquals(receivedHeaderString, value);
+                        assertEquals(resp.headers().allValues("X-" + key), List.of(value));
                     } else {
-                        assertEquals(0, resp.headers().allValues("X-" + key).size());
+                        assertEquals(resp.headers().allValues("X-" + key).size(), 0);
                     }
                 }
             } catch (Throwable x) {
@@ -397,8 +389,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void testHomeMadeIllegalHeader(String uriString,
                                    String headerNameAndValue,
                                    boolean sameClient)
@@ -452,7 +443,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
 
             try {
                 HttpResponse<String> response = client.send(req, BodyHandlers.ofString());
-                Assertions.fail("Unexpected reply: " + response);
+                Assert.fail("Unexpected reply: " + response);
             } catch (IllegalArgumentException ee) {
                 out.println("Got IAE as expected");
             }
@@ -474,8 +465,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
 
 
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void testAsync(String uriString, String headerNameAndValue, boolean sameClient)
             throws Exception
     {
@@ -500,10 +490,6 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                 }
 
                 HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
-                if (uriString.contains("/http3")) {
-                    requestBuilder.version(HTTP_3);
-                    requestBuilder.setOption(H3_DISCOVERY, HTTP_3_URI_ONLY);
-                }
                 if (!useDefault) {
                     requestBuilder.header(name, value);
                 }
@@ -518,7 +504,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                         .thenApply(response -> {
                             out.println("Got response: " + response);
                             out.println("Got body: " + response.body());
-                            assertEquals(200, response.statusCode());
+                            assertEquals(response.statusCode(), 200);
                             return response;
                         })
                         .thenAccept(resp -> {
@@ -536,10 +522,10 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                                         : resp.headers().firstValue("X-" + key).orElse(null);
                                 out.println("Got X-" + key + ": " + resp.headers().allValues("X-" + key));
                                 if (value != null) {
-                                    assertEquals(value, receivedHeaderString);
-                                    assertEquals(List.of(value), resp.headers().allValues("X-" + key));
+                                    assertEquals(receivedHeaderString, value);
+                                    assertEquals(resp.headers().allValues("X-" + key), List.of(value));
                                 } else {
-                                    assertEquals(1, resp.headers().allValues("X-" + key).size());
+                                    assertEquals(resp.headers().allValues("X-" + key).size(), 1);
                                 }
                             }
                         })
@@ -566,9 +552,12 @@ public class SpecialHeadersTest implements HttpServerAdapters {
                 + server.getAddress().getPort();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         out.println("--- Starting setup " + now());
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
 
         HttpTestHandler handler = new HttpUriStringHandler();
         httpTestServer = HttpTestServer.create(HTTP_1_1);
@@ -587,19 +576,14 @@ public class SpecialHeadersTest implements HttpServerAdapters {
         https2TestServer.addHandler(handler, "/https2");
         https2URI = "https://" + https2TestServer.serverAuthority() + "/https2";
 
-        http3TestServer = HttpTestServer.create(HTTP_3_URI_ONLY, sslContext);
-        http3TestServer.addHandler(handler, "/http3");
-        https3URI = "https://" + http3TestServer.serverAuthority() + "/http3";
-
         httpTestServer.start();
         httpsTestServer.start();
         http2TestServer.start();
         https2TestServer.start();
-        http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         out.println("\n--- Teardown " + now());
         HttpClient shared = sharedClient;
         String sharedClientName =
@@ -614,7 +598,6 @@ public class SpecialHeadersTest implements HttpServerAdapters {
             httpsTestServer.stop();
             http2TestServer.stop();
             https2TestServer.stop();
-            http3TestServer.start();
             executor.shutdown();
         } finally {
             if (fail != null) {

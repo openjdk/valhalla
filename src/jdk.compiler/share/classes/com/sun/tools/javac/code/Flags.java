@@ -167,11 +167,6 @@ public class Flags {
     @Use({FlagTarget.CLASS})
     public static final int IMPLICIT_CLASS    = 1<<19;
 
-    /** Variable with implicit/inferred type.
-     */
-    @Use(FlagTarget.VARIABLE)
-    public static final int VAR_VARIABLE     = 1<<21;
-
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -181,11 +176,6 @@ public class Flags {
     /** Marks a type as a value class */
     @Use({FlagTarget.CLASS})
     public static final int VALUE_CLASS      = 1<<20;
-
-    /** A parameter of a lambda function.
-     */
-    @Use(FlagTarget.VARIABLE)
-    public static final int LAMBDA_PARAMETER     = 1<<23;
 
     /** Flag is set for ClassSymbols that are being compiled from source.
      */
@@ -533,6 +523,12 @@ public class Flags {
     public static final long NON_SEALED = 1L<<63;  // part of ExtendedStandardFlags, cannot be reused
 
     /**
+     * Flag to indicate that a class has at least one strict field
+     */
+    @Use({FlagTarget.CLASS})
+    public static final long HAS_STRICT = 1L<<52; // ClassSymbols, temporary hack
+
+    /**
      * Flag to indicate that a field is strict
      */
     @Use({FlagTarget.VARIABLE})
@@ -583,7 +579,6 @@ public class Flags {
         LocalVarFlags                     = FINAL | PARAMETER,
         ReceiverParamFlags                = PARAMETER;
 
-    @SuppressWarnings("preview") // allow use of VALUE_CLASS when building jdk.compiler.interim
     public static Set<Modifier> asModifierSet(long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
         if (modifiers == null) {

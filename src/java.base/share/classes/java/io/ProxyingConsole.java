@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,32 +27,19 @@ package java.io;
 
 import java.nio.charset.Charset;
 import java.util.Locale;
-import java.util.function.Supplier;
 
-import jdk.internal.ValueBased;
 import jdk.internal.io.JdkConsole;
 
 /**
  * Console implementation for internal use. Custom Console delegate may be
  * provided with jdk.internal.io.JdkConsoleProvider.
  */
-@ValueBased
 final class ProxyingConsole extends Console {
     private final JdkConsole delegate;
-    private final LazyConstant<Reader> reader =
-        LazyConstant.of(new Supplier<>(){
-            @Override
-            public Reader get() {
-                return new WrappingReader(delegate.reader());
-            }
-        });
-    private final LazyConstant<PrintWriter> printWriter =
-        LazyConstant.of(new Supplier<>() {
-            @Override
-            public PrintWriter get() {
-                return new WrappingWriter(delegate.writer());
-            }
-        });
+    private final Object readLock = new Object();
+    private final Object writeLock = new Object();
+    private volatile Reader reader;
+    private volatile PrintWriter printWriter;
 
     ProxyingConsole(JdkConsole delegate) {
         this.delegate = delegate;
@@ -63,7 +50,17 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public PrintWriter writer() {
-        return printWriter.get();
+        PrintWriter printWriter = this.printWriter;
+        if (printWriter == null) {
+            synchronized (this) {
+                printWriter = this.printWriter;
+                if (printWriter == null) {
+                    printWriter = new WrappingWriter(delegate.writer(), writeLock);
+                    this.printWriter = printWriter;
+                }
+            }
+        }
+        return printWriter;
     }
 
     /**
@@ -71,7 +68,17 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public Reader reader() {
-        return reader.get();
+        Reader reader = this.reader;
+        if (reader == null) {
+            synchronized (this) {
+                reader = this.reader;
+                if (reader == null) {
+                    reader = new WrappingReader(delegate.reader(), readLock);
+                    this.reader = reader;
+                }
+            }
+        }
+        return reader;
     }
 
     /**
@@ -87,7 +94,9 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public Console format(Locale locale, String format, Object ... args) {
-        delegate.format(locale, format, args);
+        synchronized (writeLock) {
+            delegate.format(locale, format, args);
+        }
         return this;
     }
 
@@ -104,7 +113,9 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public Console printf(Locale locale, String format, Object ... args) {
-        delegate.format(locale, format, args);
+        synchronized (writeLock) {
+            delegate.format(locale, format, args);
+        }
         return this;
     }
 
@@ -121,7 +132,11 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public String readLine(Locale locale, String format, Object ... args) {
-        return delegate.readLine(locale, format, args);
+        synchronized (writeLock) {
+            synchronized (readLock) {
+                return delegate.readLine(locale, format, args);
+            }
+        }
     }
 
     /**
@@ -129,7 +144,9 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public String readLine() {
-        return delegate.readLine();
+        synchronized (readLock) {
+            return delegate.readLine();
+        }
     }
 
     /**
@@ -145,7 +162,11 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public char[] readPassword(Locale locale, String format, Object ... args) {
-        return delegate.readPassword(locale, format, args);
+        synchronized (writeLock) {
+            synchronized (readLock) {
+                return delegate.readPassword(locale, format, args);
+            }
+        }
     }
 
     /**
@@ -153,7 +174,9 @@ final class ProxyingConsole extends Console {
      */
     @Override
     public char[] readPassword() {
-        return delegate.readPassword();
+        synchronized (readLock) {
+            return delegate.readPassword();
+        }
     }
 
     /**
@@ -174,15 +197,19 @@ final class ProxyingConsole extends Console {
 
     private static final class WrappingReader extends Reader {
         private final Reader r;
+        private final Object lock;
 
-        WrappingReader(Reader r) {
-            super(r);
+        WrappingReader(Reader r, Object lock) {
+            super(lock);
             this.r = r;
+            this.lock = lock;
         }
 
         @Override
         public int read(char[] cbuf, int off, int len) throws IOException {
-            return r.read(cbuf, off, len);
+            synchronized (lock) {
+                return r.read(cbuf, off, len);
+            }
         }
 
         @Override
@@ -192,8 +219,25 @@ final class ProxyingConsole extends Console {
     }
 
     private static final class WrappingWriter extends PrintWriter {
-        public WrappingWriter(PrintWriter pw) {
-            super(pw);
+        private final PrintWriter pw;
+        private final Object lock;
+
+        public WrappingWriter(PrintWriter pw, Object lock) {
+            super(pw, lock);
+            this.pw = pw;
+            this.lock = lock;
+        }
+
+        @Override
+        public void write(char[] cbuf, int off, int len) {
+            synchronized (lock) {
+                pw.write(cbuf, off, len);
+            }
+        }
+
+        @Override
+        public void flush() {
+            pw.flush();
         }
 
         @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @summary Expect ConnectException for all non-security related connect errors
  * @bug 8204864
- * @run junit/othervm -Djdk.net.hosts.file=HostFileDoesNotExist ${test.main.class}
+ * @run testng/othervm -Djdk.net.hosts.file=HostFileDoesNotExist ConnectExceptionTest
  */
 
 import java.io.IOException;
@@ -42,12 +42,11 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class ConnectExceptionTest {
 
@@ -65,7 +64,8 @@ public class ConnectExceptionTest {
         @Override public String toString() { return "NO_PROXY"; }
     };
 
-    public static Object[][] uris() {
+    @DataProvider(name = "uris")
+    public Object[][] uris() {
         return new Object[][]{
             { "http://test.invalid/",  NO_PROXY       },
             { "https://test.invalid/", NO_PROXY       },
@@ -74,8 +74,7 @@ public class ConnectExceptionTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("uris")
+    @Test(dataProvider = "uris")
     void testSynchronousGET(String uriString, ProxySelector proxy) throws Exception {
         out.printf("%n---%ntestSynchronousGET starting uri:%s, proxy:%s%n", uriString, proxy);
         HttpClient client = HttpClient.newBuilder().proxy(proxy).build();
@@ -91,8 +90,7 @@ public class ConnectExceptionTest {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("uris")
+    @Test(dataProvider = "uris")
     void testSynchronousPOST(String uriString, ProxySelector proxy) throws Exception {
         out.printf("%n---%ntestSynchronousPOST starting uri:%s, proxy:%s%n", uriString, proxy);
         HttpClient client = HttpClient.newBuilder().proxy(proxy).build();
@@ -110,8 +108,7 @@ public class ConnectExceptionTest {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("uris")
+    @Test(dataProvider = "uris")
     void testAsynchronousGET(String uriString, ProxySelector proxy) throws Exception {
         out.printf("%n---%ntestAsynchronousGET starting uri:%s, proxy:%s%n", uriString, proxy);
         HttpClient client = HttpClient.newBuilder().proxy(proxy).build();
@@ -132,8 +129,7 @@ public class ConnectExceptionTest {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("uris")
+    @Test(dataProvider = "uris")
     void testAsynchronousPOST(String uriString, ProxySelector proxy) throws Exception {
         out.printf("%n---%ntestAsynchronousPOST starting uri:%s, proxy:%s%n", uriString, proxy);
         HttpClient client = HttpClient.newBuilder().proxy(proxy).build();

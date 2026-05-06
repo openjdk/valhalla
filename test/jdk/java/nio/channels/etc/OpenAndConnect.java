@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,30 +23,22 @@
 
 import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.net.IPSupport;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ProtocolFamily;
-import java.net.SocketAddress;
-import java.nio.channels.DatagramChannel;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.net.*;
+import java.nio.channels.*;
+import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedList;
 
+import static java.lang.System.getProperty;
 import static java.lang.System.out;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static jdk.test.lib.net.IPSupport.*;
-
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 /*
  * @test
@@ -56,8 +48,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  *          addresses (Inet4Address, Inet6Address).
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run junit/othervm OpenAndConnect
+ * @run testng/othervm OpenAndConnect
  */
+
 
 public class OpenAndConnect {
     static final Inet4Address IA4ANYLOCAL;
@@ -84,11 +77,11 @@ public class OpenAndConnect {
         }
     }
 
-    @BeforeAll()
-    public static void setup() {
+    @BeforeTest()
+    public void setup() {
         NetworkConfiguration.printSystemConfiguration(out);
         IPSupport.printPlatformSupport(out);
-        diagnoseConfigurationIssue().ifPresent(Assumptions::abort);
+        throwSkippedExceptionIfNonOperational();
 
         out.println("IA4LOCAL:    " + IA4LOCAL);
         out.println("IA6LOCAL:    " + IA6LOCAL);
@@ -98,8 +91,9 @@ public class OpenAndConnect {
         out.println("IA6LOOPBACK: " + IA6LOOPBACK);
     }
 
-    public static List<Arguments> openConnect() {
-        LinkedList<Arguments>  l = new LinkedList<>();
+    @DataProvider(name = "openConnect")
+    public Object[][] openConnect() {
+        LinkedList<Object[]>  l = new LinkedList<>();
         if (IPSupport.hasIPv4()) {
             l.addAll(openConnectV4Tests);
             if (IA4LOCAL != null) {
@@ -118,7 +112,7 @@ public class OpenAndConnect {
                 l.addAll(openConnectV4LocalAndV6Tests);
             }
         }
-        return l;
+        return l.toArray(new Object[][]{});
     }
 
     //            +----- sfam is server/first socket family
@@ -133,91 +127,92 @@ public class OpenAndConnect {
     //            |       |              |        |     this is address used for connect
     //            |       |              |        |     also.
     //            |       |              |        |
-    //            |       |              |        +---------------+
-    //            |       |              |                        |
-    //            |       |              +---------------+        |
-    //            |       |                              |        |
-    //            |       +---------------+              |        |
-    //            |                       |              |        |
-    //            +---------------+       |              |        |
-    //                            |       |              |        |
-    //                            +       +              +        +
-    //              Arguments.of( sfam,   saddr,         cfam,    caddr,      )
+    //            |       |              |        |
+    //            |       |              |        |
+    //            |       |              |        |
+    //            +       +              +        +
+    //      {   sfam,   saddr,         cfam,    caddr,      }
 
     // Basic tests for when an IPv4 is available
-    public static List<Arguments> openConnectV4Tests =
-            List.of(Arguments.of( INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK ),
-                    Arguments.of( INET,   IA4LOOPBACK,   null,    IA4LOOPBACK ),
-                    Arguments.of( INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK ),
-                    Arguments.of( INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK ),
-                    Arguments.of( null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL ),
-                    Arguments.of( null,   IA4LOOPBACK,   INET,    IA4LOOPBACK ),
-                    Arguments.of( null,   IA4LOOPBACK,   INET,    null        ),
-                    Arguments.of( null,   IA4LOOPBACK,   null,    null        )
-            );
+    public static List<Object[]> openConnectV4Tests =
+        Arrays.asList(new Object[][] {
+            {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
+            {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK },
+            {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK },
+            {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK },
+            {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL },
+            {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
+            {   null,   IA4LOOPBACK,   INET,    null        },
+            {   null,   IA4LOOPBACK,   null,    null        }
+        });
 
     // Additional tests for when an IPv4 local address is available
-    public static List<Arguments>  openConnectV4LocalTests =
-            List.of(Arguments.of( INET,   IA4LOCAL,      INET,    IA4LOCAL    ),
-                    Arguments.of( INET,   IA4LOCAL,      null,    IA4LOCAL    ),
-                    Arguments.of( INET,   IA4LOCAL,      null,    DONT_BIND   ),
-                    Arguments.of( INET,   IA4ANYLOCAL,   INET,    IA4LOCAL    ),
-                    Arguments.of( INET,   IA4ANYLOCAL,   null,    IA4LOCAL    ),
-                    Arguments.of( null,   IA4LOCAL,      INET,    IA4ANYLOCAL ),
-                    Arguments.of( null,   IA4LOCAL,      INET,    IA4LOCAL    ),
-                    Arguments.of( null,   IA4LOCAL,      INET,    null        ),
-                    Arguments.of( null,   IA4LOCAL,      null,    null        )
-            );
+    public List<Object[]>  openConnectV4LocalTests =
+        Arrays.asList(new Object[][] {
+            {   INET,   IA4LOCAL,      INET,    IA4LOCAL    },
+            {   INET,   IA4LOCAL,      null,    IA4LOCAL    },
+            {   INET,   IA4LOCAL,      null,    DONT_BIND   },
+            {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL    },
+            {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL    },
+            {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL },
+            {   null,   IA4LOCAL,      INET,    IA4LOCAL    },
+            {   null,   IA4LOCAL,      INET,    null        },
+            {   null,   IA4LOCAL,      null,    null        }
+        });
 
     // Basic tests for when an IPv6 is available
-    public static List<Arguments> openConnectV6Tests =
-            List.of(Arguments.of( INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK ),
-                    Arguments.of( INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK ),
-                    Arguments.of( INET6,  IA6LOOPBACK,   INET6,   IA6LOOPBACK ),
-                    Arguments.of( INET6,  IA6LOOPBACK,   INET6,   IA6LOOPBACK ),
-                    Arguments.of( null,   IA6ANYLOCAL,   null,    IA6LOOPBACK ),
-                    Arguments.of( null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK ),
-                    Arguments.of( null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK ),
-                    Arguments.of( null,   IA6LOOPBACK,   INET6,   DONT_BIND   ),
-                    Arguments.of( null,   IA6LOOPBACK,   INET6,   null        ),
-                    Arguments.of( null,   IA6LOOPBACK,   null,    IA6LOOPBACK ),
-                    Arguments.of( null,   IA6LOOPBACK,   null,    null        ),
-                    Arguments.of( null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL ),
-                    Arguments.of( null,   IA6LOOPBACK,   null,    IA6ANYLOCAL )
-            );
+    public List<Object[]> openConnectV6Tests =
+        Arrays.asList(new Object[][] {
+            {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK },
+            {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
+            {   INET6,  IA6LOOPBACK,   INET6,   IA6LOOPBACK },
+            {   INET6,  IA6LOOPBACK,   INET6,   IA6LOOPBACK },
+            {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK },
+            {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
+            {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK },
+            {   null,   IA6LOOPBACK,   INET6,   DONT_BIND   },
+            {   null,   IA6LOOPBACK,   INET6,   null        },
+            {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK },
+            {   null,   IA6LOOPBACK,   null,    null        },
+            {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL },
+            {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL }
+        });
 
     // Additional tests for when an IPv6 local address is available
-    public static List<Arguments> openConnectV6LocalTests =
-            List.of(Arguments.of( INET6,  IA6ANYLOCAL,   null,    IA6LOCAL    ),
-                    Arguments.of( INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL    ),
-                    Arguments.of( INET6,  IA6LOCAL,      INET6,   IA6LOCAL    ),
-                    Arguments.of( INET6,  IA6LOCAL,      null,    IA6LOCAL    ),
-                    Arguments.of( INET6,  IA6LOCAL,      null,    DONT_BIND   ),
-                    Arguments.of( INET6,  IA6LOCAL,      INET6,   IA6LOCAL    ),
-                    Arguments.of( null,   IA6ANYLOCAL,   null,    IA6LOCAL    ),
-                    Arguments.of( null,   IA6ANYLOCAL,   INET6,   IA6LOCAL    ),
-                    Arguments.of( null,   IA6LOCAL,      INET6,   IA6LOCAL    ),
-                    Arguments.of( null,   IA6LOCAL,      INET6,   IA6ANYLOCAL ),
-                    Arguments.of( null,   IA6LOCAL,      null,    IA6ANYLOCAL ),
-                    Arguments.of( null,   IA6LOCAL,      null,    IA6LOCAL    ),
-                    Arguments.of( null,   IA6LOCAL,      INET6,   null        ),
-                    Arguments.of( null,   IA6LOCAL,      null,    null        )
-            );
+    public List<Object[]> openConnectV6LocalTests =
+        Arrays.asList(new Object[][] {
+            {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL    },
+            {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL    },
+            {   INET6,  IA6LOCAL,      INET6,   IA6LOCAL    },
+            {   INET6,  IA6LOCAL,      null,    IA6LOCAL    },
+            {   INET6,  IA6LOCAL,      null,    DONT_BIND   },
+            {   INET6,  IA6LOCAL,      INET6,   IA6LOCAL    },
+            {   null,   IA6ANYLOCAL,   null,    IA6LOCAL    },
+            {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL    },
+            {   null,   IA6LOCAL,      INET6,   IA6LOCAL    },
+            {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL },
+            {   null,   IA6LOCAL,      null,    IA6ANYLOCAL },
+            {   null,   IA6LOCAL,      null,    IA6LOCAL    },
+            {   null,   IA6LOCAL,      INET6,   null        },
+            {   null,   IA6LOCAL,      null,    null        }
+        });
 
     // Additional tests for when IPv4 and IPv6 are available
-    public static List<Arguments> openConnectV4AndV6Tests =
-            List.of(Arguments.of( null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL ),
-                    Arguments.of( null,   IA4LOOPBACK,   null,    IA6ANYLOCAL ),
-                    Arguments.of( null,   IA4LOOPBACK,   INET6,   DONT_BIND   ),
-                    Arguments.of( null,   IA4LOOPBACK,   INET6,   null        )
-            );
+     public List<Object[]> openConnectV4AndV6Tests =
+        Arrays.asList(new Object[][] {
+            {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL },
+            {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL },
+            {   null,   IA4LOOPBACK,   INET6,   DONT_BIND   },
+            {   null,   IA4LOOPBACK,   INET6,   null        }
+        });
 
     // Additional tests for when IPv4 local address and IPv6 are available
-    public static List<Arguments> openConnectV4LocalAndV6Tests =
-            List.of(Arguments.of( null,   IA4LOCAL,      INET6,   IA6ANYLOCAL ),
-                    Arguments.of( null,   IA4LOCAL,      INET6,   null        ),
-                    Arguments.of( null,   IA4LOCAL,      null,    IA6ANYLOCAL )
-            );
+    public List<Object[]> openConnectV4LocalAndV6Tests =
+        Arrays.asList(new Object[][] {
+            {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL },
+            {   null,   IA4LOCAL,      INET6,   null        },
+            {   null,   IA4LOCAL,      null,    IA6ANYLOCAL }
+        });
 
     /**
      * If the destination address is the wildcard, it is replaced by the alternate
@@ -232,8 +227,7 @@ public class OpenAndConnect {
             return isa;
     }
 
-    @ParameterizedTest
-    @MethodSource("openConnect")
+    @Test(dataProvider = "openConnect")
     public void scOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
@@ -254,8 +248,7 @@ public class OpenAndConnect {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("openConnect")
+    @Test(dataProvider = "openConnect")
     public void dcOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,

@@ -75,8 +75,9 @@ class ReplParser extends JavacParser {
             com.sun.tools.javac.parser.Lexer S,
             boolean keepDocComments,
             boolean keepLineMap,
+            boolean keepEndPositions,
             boolean forceExpression) {
-        super(fac, S, keepDocComments, keepLineMap);
+        super(fac, S, keepDocComments, keepLineMap, keepEndPositions);
         this.forceExpression = forceExpression;
         this.source = fac.source;
     }
@@ -102,7 +103,7 @@ class ReplParser extends JavacParser {
 
         boolean firstTypeDecl = true;
         while (token.kind != EOF) {
-            if (token.pos > 0 && token.pos <= errorEndPos) {
+            if (token.pos > 0 && token.pos <= endPosTable.errorEndPos) {
                 // error recovery
                 skip(true, false, false, false);
                 if (token.kind == EOF) {
@@ -140,6 +141,7 @@ class ReplParser extends JavacParser {
             storeEnd(toplevel, S.prevToken().endPos);
         }
         toplevel.lineMap = S.getLineMap();
+        toplevel.endPositions = this.endPosTable;
         return toplevel;
     }
 

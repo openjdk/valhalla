@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@ import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.internal.net.http.common.OperationTrackers.Tracker;
 import jdk.test.lib.RandomFactory;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -53,20 +57,15 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.ALT_SVC;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /*
  * @test
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext
  * @compile ReferenceTracker.java
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true CancelledResponse2
  */
 // -Djdk.internal.httpclient.debug=true
 public class CancelledResponse2 implements HttpServerAdapters {
@@ -75,16 +74,17 @@ public class CancelledResponse2 implements HttpServerAdapters {
     private static final Random RANDOM = RandomFactory.getRandom();
     private static final int MAX_CLIENT_DELAY = 160;
 
-    private static HttpTestServer h2TestServer;
-    private static URI h2TestServerURI;
-    private static URI h2h3TestServerURI;
-    private static URI h2h3HeadTestServerURI;
-    private static URI h3TestServerURI;
-    private static HttpTestServer h2h3TestServer;
-    private static HttpTestServer h3TestServer;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    HttpTestServer h2TestServer;
+    URI h2TestServerURI;
+    URI h2h3TestServerURI;
+    URI h2h3HeadTestServerURI;
+    URI h3TestServerURI;
+    HttpTestServer h2h3TestServer;
+    HttpTestServer h3TestServer;
+    SSLContext sslContext;
 
-    public static Object[][] positive() {
+    @DataProvider(name = "versions")
+    public Object[][] positive() {
         return new Object[][]{
                 { HTTP_2, null, h2TestServerURI },
                 { HTTP_3, null, h2h3TestServerURI },
@@ -101,8 +101,7 @@ public class CancelledResponse2 implements HttpServerAdapters {
             out.println("Unexpected exception: " + x);
         }
     }
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "versions")
     public void test(Version version, Http3DiscoveryMode config, URI uri) throws Exception {
         for (int i = 0; i < 5; i++) {
             HttpClient httpClient = newClientBuilderForH3().sslContext(sslContext).version(version).build();
@@ -148,11 +147,13 @@ public class CancelledResponse2 implements HttpServerAdapters {
                 .HEAD()
                 .build();
         var resp = client.send(request, HttpResponse.BodyHandlers.discarding());
-        assertEquals(200, resp.statusCode());
+        assertEquals(resp.statusCode(), 200);
     }
 
-    @BeforeAll
-    public static void setup() throws IOException {
+    @BeforeTest
+    public void setup() throws IOException {
+        sslContext = new SimpleSSLContext().get();
+
         h2TestServer = HttpTestServer.create(HTTP_2, sslContext);
         h2TestServer.addHandler(new CancelledResponseHandler(), "/h2");
         h2TestServerURI = URI.create("https://" + h2TestServer.serverAuthority() + "/h2");
@@ -173,8 +174,8 @@ public class CancelledResponse2 implements HttpServerAdapters {
         h3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
         h2TestServer.stop();
         h2h3TestServer.stop();
         h3TestServer.stop();

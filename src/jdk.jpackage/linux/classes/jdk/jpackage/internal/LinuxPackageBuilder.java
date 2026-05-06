@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,7 +83,7 @@ final class LinuxPackageBuilder {
                 category(),
                 Optional.ofNullable(additionalDependencies),
                 release(),
-                arch.value()));
+                pkg.asStandardPackageType().map(LinuxPackageArch::getValue).orElseThrow()));
     }
 
     LinuxPackageBuilder literalName(String v) {
@@ -117,11 +117,6 @@ final class LinuxPackageBuilder {
 
     Optional<String> release() {
         return Optional.ofNullable(release);
-    }
-
-    LinuxPackageBuilder arch(LinuxPackageArch v) {
-        arch = v;
-        return this;
     }
 
     private static LinuxApplicationLayout usrTreePackageLayout(Path prefix, String packageName) {
@@ -189,7 +184,6 @@ final class LinuxPackageBuilder {
     private String category;
     private String additionalDependencies;
     private String release;
-    private LinuxPackageArch arch;
 
     private final PackageBuilder pkgBuilder;
 

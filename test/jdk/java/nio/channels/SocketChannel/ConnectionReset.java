@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,9 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @run junit ConnectionReset
+ * @run testng ConnectionReset
  * @summary Test behavior of SocketChannel.read and the Socket adaptor read
  *          and available methods when a connection is reset
  */
@@ -36,10 +36,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.lang.reflect.Method;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
+@Test
 public class ConnectionReset {
 
     static final int REPEAT_COUNT = 5;
@@ -48,7 +50,6 @@ public class ConnectionReset {
      * Tests SocketChannel.read when the connection is reset and there are no
      * bytes to read.
      */
-    @Test
     public void testSocketChannelReadNoData() throws IOException {
         System.out.println("testSocketChannelReadNoData");
         withResetConnection(null, sc -> {
@@ -68,7 +69,6 @@ public class ConnectionReset {
      * Tests SocketChannel.read when the connection is reset and there are bytes
      * to read.
      */
-    @Test
     public void testSocketChannelReadData() throws IOException {
         System.out.println("testSocketChannelReadData");
         byte[] data = { 1, 2, 3 };
@@ -99,7 +99,6 @@ public class ConnectionReset {
      * Tests available before Socket read when the connection is reset and there
      * are no bytes to read.
      */
-    @Test
     public void testAvailableBeforeSocketReadNoData() throws IOException {
         System.out.println("testAvailableBeforeSocketReadNoData");
         withResetConnection(null, sc -> {
@@ -108,7 +107,7 @@ public class ConnectionReset {
             for (int i=0; i<REPEAT_COUNT; i++) {
                 int bytesAvailable = in.available();
                 System.out.format("available => %d%n", bytesAvailable);
-                assertEquals(0, bytesAvailable);
+                assertTrue(bytesAvailable == 0);
                 try {
                     int bytesRead = in.read();
                     if (bytesRead == -1) {
@@ -128,7 +127,6 @@ public class ConnectionReset {
      * Tests available before Socket read when the connection is reset and there
      * are bytes to read.
      */
-    @Test
     public void testAvailableBeforeSocketReadData() throws IOException {
         System.out.println("testAvailableBeforeSocketReadData");
         byte[] data = { 1, 2, 3 };
@@ -162,7 +160,6 @@ public class ConnectionReset {
      * Tests Socket read before available when the connection is reset and there
      * are no bytes to read.
      */
-    @Test
     public void testSocketReadNoDataBeforeAvailable() throws IOException {
         System.out.println("testSocketReadNoDataBeforeAvailable");
         withResetConnection(null, sc -> {
@@ -182,7 +179,7 @@ public class ConnectionReset {
                 }
                 int bytesAvailable = in.available();
                 System.out.format("available => %d%n", bytesAvailable);
-                assertEquals(0, bytesAvailable);
+                assertTrue(bytesAvailable == 0);
             }
         });
     }
@@ -191,7 +188,6 @@ public class ConnectionReset {
      * Tests Socket read before available when the connection is reset and there
      * are bytes to read.
      */
-    @Test
     public void testSocketReadDataBeforeAvailable() throws IOException {
         System.out.println("testSocketReadDataBeforeAvailable");
         byte[] data = { 1, 2, 3 };

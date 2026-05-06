@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,8 +70,9 @@ class ResourceBundleGenerator implements BundleGenerator {
     private static final String META_VALUE_PREFIX = "metaValue_";
 
     @Override
-    public void generateBundle(String packageName, String baseName, String localeID,
+    public void generateBundle(String packageName, String baseName, String localeID, boolean useJava,
                                Map<String, ?> map, BundleType type) throws IOException {
+        String suffix = useJava ? ".java" : ".properties";
         String dirName = CLDRConverter.DESTINATION_DIR + File.separator + "sun" + File.separator
                 + packageName + File.separator + "resources" + File.separator + "cldr";
         packageName = packageName + ".resources.cldr";
@@ -90,11 +91,22 @@ class ResourceBundleGenerator implements BundleGenerator {
         if (!dir.exists()) {
             dir.mkdirs();
         }
-        File file = new File(dir, baseName + ("root".equals(localeID) ? "" : "_" + localeID) + ".java");
+        File file = new File(dir, baseName + ("root".equals(localeID) ? "" : "_" + localeID) + suffix);
         if (!file.exists()) {
             file.createNewFile();
         }
         CLDRConverter.info("\tWriting file " + file);
+
+        String encoding;
+        if (useJava) {
+            if (CLDRConverter.USE_UTF8) {
+                encoding = "utf-8";
+            } else {
+                encoding = "us-ascii";
+            }
+        } else {
+            encoding = "iso-8859-1";
+        }
 
         Formatter fmt = null;
         if (type == BundleType.TIMEZONE) {
@@ -107,7 +119,7 @@ class ResourceBundleGenerator implements BundleGenerator {
                     value = (String[]) map.get(key);
                     fmt.format("        final String[] %s = new String[] {\n", meta);
                     for (String s : value) {
-                        fmt.format("               \"%s\",\n", CLDRConverter.escape(s));
+                        fmt.format("               \"%s\",\n", CLDRConverter.saveConvert(s, useJava));
                     }
                     fmt.format("            };\n");
                     metaKeys.add(key);
@@ -147,11 +159,11 @@ class ResourceBundleGenerator implements BundleGenerator {
                         if (val instanceof String[] values) {
                             fmt.format("        final String[] %s = new String[] {\n", metaVal);
                             for (String s : values) {
-                                fmt.format("            \"%s\",\n", CLDRConverter.escape(s));
+                                fmt.format("            \"%s\",\n", CLDRConverter.saveConvert(s, useJava));
                             }
                             fmt.format("        };\n");
                         } else {
-                            fmt.format("        final String %s = \"%s\";\n", metaVal, CLDRConverter.escape((String)val));
+                            fmt.format("        final String %s = \"%s\";\n", metaVal, CLDRConverter.saveConvert((String)val, useJava));
                         }
                         newMap.put(oldEntry.key, oldEntry.metaKey());
                     }
@@ -161,47 +173,54 @@ class ResourceBundleGenerator implements BundleGenerator {
             map = newMap;
         }
 
-        try (PrintWriter out = new PrintWriter(file, "utf-8")) {
+        try (PrintWriter out = new PrintWriter(file, encoding)) {
             // Output copyright headers
             out.println(getOpenJDKCopyright());
             out.println(CopyrightHeaders.getUnicodeCopyright());
 
-            out.println("package sun." + packageName + ";\n");
-            out.printf("import %s;\n\n", type.getPathName());
-            out.printf("public class %s%s extends %s {\n", baseName, "root".equals(localeID) ? "" : "_" + localeID, type.getClassName());
+            if (useJava) {
+                out.println("package sun." + packageName + ";\n");
+                out.printf("import %s;\n\n", type.getPathName());
+                out.printf("public class %s%s extends %s {\n", baseName, "root".equals(localeID) ? "" : "_" + localeID, type.getClassName());
 
-            out.println("    @Override\n" +
-                        "    protected final Object[][] getContents() {");
-            if (fmt != null) {
-                out.print(fmt.toString());
+                out.println("    @Override\n" +
+                            "    protected final Object[][] getContents() {");
+                if (fmt != null) {
+                    out.print(fmt.toString());
+                }
+                out.println("        final Object[][] data = new Object[][] {");
             }
-            out.println("        final Object[][] data = new Object[][] {");
             for (String key : map.keySet()) {
-                Object value = map.get(key);
-                if (value == null) {
-                    CLDRConverter.warning("null value for " + key);
-                } else if (value instanceof String) {
-                    String valStr = (String)value;
-                    if (type == BundleType.TIMEZONE &&
-                        !(key.startsWith(CLDRConverter.EXEMPLAR_CITY_PREFIX) ||
-                          key.startsWith(CLDRConverter.METAZONE_DSTOFFSET_PREFIX)) ||
-                        valStr.startsWith(META_VALUE_PREFIX)) {
-                        out.printf("            { \"%s\", %s },\n", key, CLDRConverter.escape(valStr));
+                if (useJava) {
+                    Object value = map.get(key);
+                    if (value == null) {
+                        CLDRConverter.warning("null value for " + key);
+                    } else if (value instanceof String) {
+                        String valStr = (String)value;
+                        if (type == BundleType.TIMEZONE &&
+                            !key.startsWith(CLDRConverter.EXEMPLAR_CITY_PREFIX) ||
+                            valStr.startsWith(META_VALUE_PREFIX)) {
+                            out.printf("            { \"%s\", %s },\n", key, CLDRConverter.saveConvert(valStr, useJava));
+                        } else {
+                            out.printf("            { \"%s\", \"%s\" },\n", key, CLDRConverter.saveConvert(valStr, useJava));
+                        }
+                    } else if (value instanceof String[]) {
+                        String[] values = (String[]) value;
+                        out.println("            { \"" + key + "\",\n                new String[] {");
+                        for (String s : values) {
+                            out.println("                    \"" + CLDRConverter.saveConvert(s, useJava) + "\",");
+                        }
+                        out.println("                }\n            },");
                     } else {
-                        out.printf("            { \"%s\", \"%s\" },\n", key, CLDRConverter.escape(valStr));
+                        throw new RuntimeException("unknown value type: " + value.getClass().getName());
                     }
-                } else if (value instanceof String[]) {
-                    String[] values = (String[]) value;
-                    out.println("            { \"" + key + "\",\n                new String[] {");
-                    for (String s : values) {
-                        out.println("                    \"" + CLDRConverter.escape(s) + "\",");
-                    }
-                    out.println("                }\n            },");
                 } else {
-                    throw new RuntimeException("unknown value type: " + value.getClass().getName());
+                    out.println(key + "=" + CLDRConverter.saveConvert((String) map.get(key), useJava));
                 }
             }
-            out.println("        };\n        return data;\n    }\n}");
+            if (useJava) {
+                out.println("        };\n        return data;\n    }\n}");
+            }
         }
     }
 

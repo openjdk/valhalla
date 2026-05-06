@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,8 @@
  *          java.base/sun.security.tools.keytool.resources
  *          jdk.jartool/sun.security.tools.jarsigner.resources
  * @summary Check usages of security-related Resources files
- * @library /test/lib/
  * @run main/othervm Usages
  */
-
-import jtreg.SkippedException;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -152,7 +149,7 @@ public class Usages {
         if (Files.exists(SRC)) {
             MAP.forEach(Usages::check);
         } else {
-            throw new SkippedException("No src directory");
+            System.out.println("No src directory. Test skipped.");
         }
     }
 

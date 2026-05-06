@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,36 +22,31 @@
  */
 package catalog;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
+import java.net.URI;
+import java.nio.file.Paths;
 import javax.xml.catalog.CatalogFeatures;
 import javax.xml.catalog.CatalogManager;
 import javax.xml.catalog.CatalogResolver;
 import javax.xml.transform.Source;
-import java.net.URI;
-import java.nio.file.Paths;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8215330
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run junit catalog.GroupTest
+ * @run testng catalog.GroupTest
  * @summary Tests catalog with Group entries.
  */
-@TestInstance(Lifecycle.PER_CLASS)
 public class GroupTest extends CatalogSupportBase {
 
     String catalogGroup;
     /*
      * Initializing fields
      */
-    @BeforeAll
+    @BeforeClass
     public void setUpClass() throws Exception {
         super.setUp();
         catalogGroup = Paths.get(filepath + "GroupTest.xml").toUri().toASCIIString();
@@ -65,14 +60,13 @@ public class GroupTest extends CatalogSupportBase {
      * @param expected the expected result string
      * @throws Exception
      */
-    @ParameterizedTest
-    @MethodSource("getDataDOM")
+    @Test(dataProvider = "data_group")
     public void testGroup(String catalog, String uri, String expected) throws Exception {
         CatalogResolver resolver = CatalogManager.catalogResolver(
                 CatalogFeatures.defaults(), URI.create(catalog));
 
         Source src = resolver.resolve(uri, null);
-        assertTrue(src.getSystemId().endsWith(expected), "uriSuffix match");
+        Assert.assertTrue(src.getSystemId().endsWith(expected), "uriSuffix match");
     }
 
 
@@ -80,6 +74,7 @@ public class GroupTest extends CatalogSupportBase {
        DataProvider: for testing catalogs with group entries
        Data: catalog file, uri, expected result string
      */
+    @DataProvider(name = "data_group")
     public Object[][] getDataDOM() {
         return new Object[][]{
             {catalogGroup, "http://openjdk_java_net/xml/catalog/A/CommonFileA1.xml", "LocalFileA1.xml"},

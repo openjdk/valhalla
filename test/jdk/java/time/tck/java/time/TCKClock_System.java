@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,30 +59,29 @@
  */
 package tck.java.time;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test system clock.
  */
+@Test
 public class TCKClock_System extends AbstractTCKTest {
 
     private static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_instant() {
         Clock system = Clock.systemUTC();
-        assertEquals(ZoneOffset.UTC, system.getZone());
+        assertEquals(system.getZone(), ZoneOffset.UTC);
         for (int i = 0; i < 10000; i++) {
             // assume can eventually get these within 10 milliseconds
             Instant instant = system.instant();
@@ -94,10 +93,9 @@ public class TCKClock_System extends AbstractTCKTest {
         fail();
     }
 
-    @Test
     public void test_millis() {
         Clock system = Clock.systemUTC();
-        assertEquals(ZoneOffset.UTC, system.getZone());
+        assertEquals(system.getZone(), ZoneOffset.UTC);
         for (int i = 0; i < 10000; i++) {
             // assume can eventually get these within 10 milliseconds
             long instant = system.millis();
@@ -110,93 +108,85 @@ public class TCKClock_System extends AbstractTCKTest {
     }
 
     //-------------------------------------------------------------------------
-    @Test
     public void test_systemUTC() {
         Clock test = Clock.systemUTC();
-        assertEquals(ZoneOffset.UTC, test.getZone());
-        assertEquals(Clock.system(ZoneOffset.UTC), test);
+        assertEquals(test.getZone(), ZoneOffset.UTC);
+        assertEquals(test, Clock.system(ZoneOffset.UTC));
     }
 
-    @Test
     public void test_systemDefaultZone() {
         Clock test = Clock.systemDefaultZone();
-        assertEquals(ZoneId.systemDefault(), test.getZone());
-        assertEquals(Clock.system(ZoneId.systemDefault()), test);
+        assertEquals(test.getZone(), ZoneId.systemDefault());
+        assertEquals(test, Clock.system(ZoneId.systemDefault()));
     }
 
-    @Test
     public void test_system_ZoneId() {
         Clock test = Clock.system(PARIS);
-        assertEquals(PARIS, test.getZone());
+        assertEquals(test.getZone(), PARIS);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void test_zoneId_nullZoneId() {
-        Assertions.assertThrows(NullPointerException.class, () -> Clock.system(null));
+        Clock.system(null);
     }
 
     //-------------------------------------------------------------------------
-    @Test
     public void test_withZone() {
         Clock test = Clock.system(PARIS);
         Clock changed = test.withZone(MOSCOW);
-        assertEquals(PARIS, test.getZone());
-        assertEquals(MOSCOW, changed.getZone());
+        assertEquals(test.getZone(), PARIS);
+        assertEquals(changed.getZone(), MOSCOW);
     }
 
-    @Test
     public void test_withZone_equal() {
         Clock test = Clock.system(PARIS);
         Clock changed = test.withZone(PARIS);
-        assertEquals(PARIS, changed.getZone());
+        assertEquals(changed.getZone(), PARIS);
     }
 
-    @Test
     public void test_withZone_fromUTC() {
         Clock test = Clock.systemUTC();
         Clock changed = test.withZone(PARIS);
-        assertEquals(PARIS, changed.getZone());
+        assertEquals(changed.getZone(), PARIS);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void test_withZone_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> Clock.systemUTC().withZone(null));
+        Clock.systemUTC().withZone(null);
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_equals() {
         Clock a = Clock.systemUTC();
         Clock b = Clock.systemUTC();
-        assertEquals(true, a.equals(a));
-        assertEquals(true, a.equals(b));
-        assertEquals(true, b.equals(a));
-        assertEquals(true, b.equals(b));
+        assertEquals(a.equals(a), true);
+        assertEquals(a.equals(b), true);
+        assertEquals(b.equals(a), true);
+        assertEquals(b.equals(b), true);
 
         Clock c = Clock.system(PARIS);
         Clock d = Clock.system(PARIS);
-        assertEquals(true, c.equals(c));
-        assertEquals(true, c.equals(d));
-        assertEquals(true, d.equals(c));
-        assertEquals(true, d.equals(d));
+        assertEquals(c.equals(c), true);
+        assertEquals(c.equals(d), true);
+        assertEquals(d.equals(c), true);
+        assertEquals(d.equals(d), true);
 
-        assertEquals(false, a.equals(c));
-        assertEquals(false, c.equals(a));
+        assertEquals(a.equals(c), false);
+        assertEquals(c.equals(a), false);
 
-        assertEquals(false, a.equals(null));
-        assertEquals(false, a.equals("other type"));
-        assertEquals(false, a.equals(Clock.fixed(Instant.now(), ZoneOffset.UTC)));
+        assertEquals(a.equals(null), false);
+        assertEquals(a.equals("other type"), false);
+        assertEquals(a.equals(Clock.fixed(Instant.now(), ZoneOffset.UTC)), false);
     }
 
-    @Test
     public void test_hashCode() {
         Clock a = Clock.system(ZoneOffset.UTC);
         Clock b = Clock.system(ZoneOffset.UTC);
         assertEquals(a.hashCode(), a.hashCode());
-        assertEquals(b.hashCode(), a.hashCode());
+        assertEquals(a.hashCode(), b.hashCode());
 
         Clock c = Clock.system(PARIS);
-        assertEquals(false, a.hashCode() == c.hashCode());
+        assertEquals(a.hashCode() == c.hashCode(), false);
     }
 
 }

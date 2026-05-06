@@ -44,9 +44,9 @@ class RefArrayKlass : public ObjArrayKlass {
 
  private:
   // Constructor
-  RefArrayKlass(int n, Klass* element_klass, Symbol* name, ArrayProperties props);
+  RefArrayKlass(int n, Klass* element_klass, Symbol* name, ArrayKlass::ArrayProperties props);
   static RefArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name,
-                                       ArrayProperties props, TRAPS);
+                                       ArrayKlass::ArrayProperties props, TRAPS);
 
  public:
   // For dummy objects
@@ -54,16 +54,18 @@ class RefArrayKlass : public ObjArrayKlass {
 
   // Dispatched operation
   DEBUG_ONLY(bool is_refArray_klass_slow() const override { return true; })
-  size_t oop_size(oop obj) const override;
+  size_t oop_size(oop obj) const override;  // TODO FIXME make it virtual in objArrayKlass
 
   // Allocation
   static RefArrayKlass* allocate_refArray_klass(ClassLoaderData* loader_data,
                                                 int n, Klass* element_klass,
-                                                ArrayProperties props, TRAPS);
+                                                ArrayKlass::ArrayProperties props, TRAPS);
 
-  refArrayOop allocate_instance(int length, TRAPS);
+ private:
+  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS) override;
 
-  // Copying
+ public:
+  // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
   void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) override;
 
   void metaspace_pointers_do(MetaspaceClosure* iter) override;
@@ -109,16 +111,17 @@ class RefArrayKlass : public ObjArrayKlass {
   template <typename T, typename OopClosureType>
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
-  // Iterate over all oop elements, and no metadata.
+  // Iterate over oop elements within [start, end), and metadata.
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_range(refArrayOop a, OopClosureType* closure, int start, int end);
+
+ public:
+  // Iterate over all oop elements.
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements(refArrayOop a, OopClosureType* closure);
 
-  // Iterate over oop elements within index range [start, end), and no metadata.
-  template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_range(refArrayOop a, OopClosureType* closure, int start, int end);
-
  private:
-  // Iterate over all oop elements bounded by addresses [low, high), and no metadata.
+  // Iterate over all oop elements with indices within mr.
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements_bounded(refArrayOop a, OopClosureType* closure, void* low, void* high);
 

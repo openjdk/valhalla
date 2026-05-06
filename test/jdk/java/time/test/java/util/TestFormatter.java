@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 package test.java.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.Instant;
 import java.time.LocalTime;
@@ -42,15 +42,14 @@ import java.time.temporal.UnsupportedTemporalTypeException;
 
 import java.util.*;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /* @test
  * @summary Unit test for j.u.Formatter threeten date/time support
  * @bug 8003680 8043387 8012638
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestFormatter {
 
     // time
@@ -72,6 +71,7 @@ public class TestFormatter {
     private int failure = 0;
     private boolean verbose = false;
 
+    @DataProvider(name = "calendarsByLocale")
     Object[][] data_calendars() {
         return new Object[][] {
             {"en_US"},
@@ -80,8 +80,7 @@ public class TestFormatter {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_calendars")
+    @Test(dataProvider="calendarsByLocale")
     public void test (String calendarLocale) {
         failure = 0;
         int N = 12;
@@ -129,7 +128,7 @@ public class TestFormatter {
                 System.out.println("All tests (" + total + ") PASSED");
             }
         }
-        assertEquals(0, failure);
+        assertEquals(failure, 0);
     }
 
     private String getClassName(Object o) {

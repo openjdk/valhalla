@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -153,18 +153,7 @@ public class AbstractDebuggeeTest {
         ClassUnloader classUnloader = loadedClasses.get(className);
 
         if (classUnloader != null) {
-            boolean wasUnloaded;
-            if (expectedUnloadingResult) {
-                // We expect unloading to succeed. Retry multiple times because
-                // the debug agent creates global references (NewGlobalRef)
-                // when handling ClassPrepare events. These global references
-                // are released only by the agent thread, whose scheduling can
-                // be delayed, causing class unloading to occur later than
-                // expected.
-                wasUnloaded = classUnloader.unloadClassAndWait(10_000);
-            } else {
-                wasUnloaded = classUnloader.unloadClass();
-            }
+            boolean wasUnloaded = classUnloader.unloadClass();
 
             if (wasUnloaded)
                 loadedClasses.remove(className);

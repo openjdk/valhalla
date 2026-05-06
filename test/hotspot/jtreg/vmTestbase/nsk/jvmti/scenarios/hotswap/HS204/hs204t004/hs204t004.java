@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,8 +51,6 @@
 
 package nsk.jvmti.scenarios.hotswap.HS204.hs204t004;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import jdk.test.lib.thread.ThreadWrapper;
 import nsk.share.jvmti.RedefineAgent;
 
 public class hs204t004 extends RedefineAgent {
@@ -73,7 +71,7 @@ public class hs204t004 extends RedefineAgent {
                         mt.start();
                         while(!MyThread.resume.get()) ;
                         Thread.sleep(10000);
-                        popFrame(mt.getThread());
+                        popFrame(mt);
                         mt.join();
                 } catch(Exception exp) {
                         exp.printStackTrace();
@@ -90,7 +88,7 @@ public class hs204t004 extends RedefineAgent {
         public static native boolean popFrame(Thread thread);
 }
 
-class MyThread extends ThreadWrapper {
+class MyThread extends Thread {
         public static AtomicBoolean resume = new AtomicBoolean(false);
         public String name="MyThread";
 

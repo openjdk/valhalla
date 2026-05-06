@@ -402,8 +402,6 @@ public class SecurityTest {
         opts.add(JDKToolFinder.getJDKTool("java"));
         opts.addAll(Arrays.asList(jdk.test.lib.Utils.getTestJavaOpts()));
 
-        opts.add("-Djdk.rmi.ssl.client.enableEndpointIdentification=false");
-
         // We need to forward some properties to the client side
         opts.add("-Dtest.src=" + System.getProperty("test.src"));
 

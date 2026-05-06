@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -569,7 +569,7 @@ void JvmtiClassFileReconstituter::write_inner_classes_attribute(int length) {
     u2 flags = iter.inner_access_flags();
     // ClassFileParser may add identity to inner class attributes, so remove it.
     if (!ik()->supports_inline_types()) {
-      flags &= ~JVM_ACC_IDENTITY;
+      flags &= ~JVM_ACC_IDENTITY;;
     }
     write_u2(flags);
   }
@@ -987,7 +987,7 @@ address JvmtiClassFileReconstituter::writeable_address(size_t size) {
                                                          * initial_buffer_size;
 
     // VM goes belly-up if the memory isn't available, so cannot do OOM processing
-    _buffer = REALLOC_RESOURCE_ARRAY(_buffer, _buffer_size, new_buffer_size);
+    _buffer = REALLOC_RESOURCE_ARRAY(u1, _buffer, _buffer_size, new_buffer_size);
     _buffer_size = new_buffer_size;
     _buffer_ptr = _buffer + used_size;
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,8 +59,9 @@
  */
 package tck.java.time.serial;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertTrue;
 
+import org.testng.annotations.Test;
 import tck.java.time.AbstractTCKTest;
 
 import java.io.ByteArrayOutputStream;
@@ -68,11 +69,10 @@ import java.io.DataOutputStream;
 import java.io.Serializable;
 import java.time.Duration;
 
-import org.junit.jupiter.api.Test;
-
 /**
  * Test Duration serialization.
  */
+@Test
 public class TCKDurationSerialization extends AbstractTCKTest {
 
     //-----------------------------------------------------------------------

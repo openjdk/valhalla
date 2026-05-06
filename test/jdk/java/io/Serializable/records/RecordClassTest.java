@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
-import java.io.Serial;
 import java.io.Serializable;
 import static java.lang.System.out;
 
@@ -51,12 +50,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 /**
  * Serializes and deserializes record classes. Ensures that the SUID is 0.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class RecordClassTest {
 
     record Foo () implements Serializable { }
 
     record Bar (int x) implements Serializable {
-        @Serial
         private static final long serialVersionUID = 987654321L;
     }
 
@@ -72,7 +71,6 @@ public class RecordClassTest {
     }
 
     record Wibble () implements ThrowingExternalizable {
-        @Serial
         private static final long serialVersionUID = 12345678L;
     }
 
@@ -80,7 +78,7 @@ public class RecordClassTest {
 
     record Wubble (Wobble wobble, Wibble wibble, String s) implements ThrowingExternalizable { }
 
-    public static Object[][] recordClasses() {
+    public Object[][] recordClasses() {
         return new Object[][] {
             new Object[] { Foo.class    , 0L         },
             new Object[] { Bar.class    , 987654321L },
@@ -127,7 +125,7 @@ public class RecordClassTest {
 
     record NotSerializable3<T>(T t) { }
 
-    public static Object[][] notSerRecordClasses() {
+    public Object[][] notSerRecordClasses() {
         return new Object[][] {
             new Object[] { NotSerializable1.class },
             new Object[] { NotSerializable2.class },

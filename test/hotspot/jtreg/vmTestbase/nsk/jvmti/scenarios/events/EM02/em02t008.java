@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import java.io.PrintStream;
 
 import nsk.share.*;
 import nsk.share.jvmti.*;
-import jdk.test.lib.thread.ThreadWrapper;
 
 public class em02t008 extends DebugeeClass {
 
@@ -56,7 +55,7 @@ public class em02t008 extends DebugeeClass {
         int status = Consts.TEST_PASSED;
         long  timeout = argHandler.getWaitTime() * 60000; // milliseconds
 
-        ThreadWrapper thrd1, thrd2;
+        Thread thrd1, thrd2;
 
         for (int i = 0; i < STEP_NUMBER; i++) {
             thrd1 = new em02t008a();
@@ -80,7 +79,7 @@ public class em02t008 extends DebugeeClass {
         return status;
     }
 
-    class em02t008a extends ThreadWrapper {
+    class em02t008a extends Thread{
 
         em02t008a() {
             setName("em02t008a");
@@ -91,7 +90,7 @@ public class em02t008 extends DebugeeClass {
         }
     }
 
-    class em02t008b extends ThreadWrapper {
+    class em02t008b extends Thread{
 
         em02t008b() {
             setName("em02t008b");

@@ -1529,15 +1529,6 @@ public class Pretty extends JCTree.Visitor {
         }
     }
 
-    @Override
-    public void visitVarType(JCVarType that) {
-        try {
-            print("var");
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     public void visitTypeArray(JCArrayTypeTree tree) {
         try {
             printBaseElementType(tree);

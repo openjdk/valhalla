@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,11 +37,10 @@ import java.util.concurrent.SubmissionPublisher;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.charset.StandardCharsets.UTF_16;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
 
 /*
  * @test
@@ -49,7 +48,7 @@ import org.junit.jupiter.api.Test;
  *       In particular tests that surrogate characters are handled
  *       correctly.
  * @modules java.net.http java.logging
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm LineStreamsAndSurrogatesTest
  */
 
 public class LineStreamsAndSurrogatesTest {
@@ -57,7 +56,7 @@ public class LineStreamsAndSurrogatesTest {
 
     static final Class<NullPointerException> NPE = NullPointerException.class;
 
-    private static List<String> lines(String text) {
+    private static final List<String> lines(String text) {
         return new BufferedReader(new StringReader(text)).lines().collect(Collectors.toList());
     }
 
@@ -101,14 +100,14 @@ public class LineStreamsAndSurrogatesTest {
             String resp2 = reader.lines().collect(Collectors.joining(""));
             System.out.println("***** Got2: " + resp2);
 
-            assertEquals(resp2, resp);
-            assertEquals(List.of("Bient\u00f4t",
+            assertEquals(resp, resp2);
+            assertEquals(list, List.of("Bient\u00f4t",
                                        " nous plongerons",
                                        " dans",
                                        " les",
                                        "",
                                        " fr\u00f4\ud801\udc00des",
-                                       " t\u00e9n\u00e8bres\ufffd"), list);
+                                       " t\u00e9n\u00e8bres\ufffd"));
         } catch (ExecutionException x) {
             Throwable cause = x.getCause();
             if (cause instanceof MalformedInputException) {
@@ -152,18 +151,18 @@ public class LineStreamsAndSurrogatesTest {
         List<String> list = stream.collect(Collectors.toList());
         String resp = list.stream().collect(Collectors.joining("|"));
         System.out.println("***** Got: " + resp);
-        assertEquals(text.replace("\r\n", "|")
+        assertEquals(resp, text.replace("\r\n", "|")
                                .replace("\n","|")
-                               .replace("\r","|"), resp);
-        assertEquals(List.of("Bient\u00f4t",
+                               .replace("\r","|"));
+        assertEquals(list, List.of("Bient\u00f4t",
                 " nous plongerons",
                 " dans",
                 "",
                 " les",
                 "",
                 " fr\u00f4\ud801\udc00des",
-                " t\u00e9n\u00e8bres"), list);
-        assertEquals(lines(text), list);
+                " t\u00e9n\u00e8bres"));
+        assertEquals(list, lines(text));
         if (errorRef.get() != null) {
             throw new RuntimeException("Unexpected exception", errorRef.get());
         }
@@ -202,15 +201,15 @@ public class LineStreamsAndSurrogatesTest {
         System.out.println("***** Got: " + resp);
         String expected = Stream.of(text.split("\r\n|\r|\n"))
                 .collect(Collectors.joining(""));
-        assertEquals(expected, resp);
-        assertEquals(List.of("Bient\u00f4t",
+        assertEquals(resp, expected);
+        assertEquals(list, List.of("Bient\u00f4t",
                 " nous plongerons",
                 " dans",
                 "",
                 " les fr\u00f4\ud801\udc00des",
                 " t\u00e9n\u00e8bres",
-                ""), list);
-        assertEquals(lines(text), list);
+                ""));
+        assertEquals(list, lines(text));
         if (errorRef.get() != null) {
             throw new RuntimeException("Unexpected exception", errorRef.get());
         }
@@ -247,16 +246,16 @@ public class LineStreamsAndSurrogatesTest {
         List<String> list = stream.collect(Collectors.toList());
         String resp = list.stream().collect(Collectors.joining(""));
         System.out.println("***** Got: " + resp);
-        assertEquals(text.replace("\n","").replace("\r",""), resp);
-        assertEquals(List.of("Bient\u00f4t",
+        assertEquals(resp, text.replace("\n","").replace("\r",""));
+        assertEquals(list, List.of("Bient\u00f4t",
                 " nous plongerons",
                 " dans",
                 "",
                 " les",
                 "",
                 " fr\u00f4\ud801\udc00des",
-                " t\u00e9n\u00e8bres"), list);
-        assertEquals(lines(text), list);
+                " t\u00e9n\u00e8bres"));
+        assertEquals(list, lines(text));
         if (errorRef.get() != null) {
             throw new RuntimeException("Unexpected exception", errorRef.get());
         }
@@ -295,15 +294,15 @@ public class LineStreamsAndSurrogatesTest {
         System.out.println("***** Got: " + resp);
         String expected = Stream.of(text.split("\r\n|\r|\n"))
                 .collect(Collectors.joining(""));
-        assertEquals(expected, resp);
-        assertEquals(List.of("Bient\u00f4t",
+        assertEquals(resp, expected);
+        assertEquals(list, List.of("Bient\u00f4t",
                 " nous plongerons",
                 " dans",
                 "",
                 " les fr\u00f4\ud801\udc00des",
                 " t\u00e9n\u00e8bres",
-                ""), list);
-        assertEquals(lines(text), list);
+                ""));
+        assertEquals(list, lines(text));
         if (errorRef.get() != null) {
             throw new RuntimeException("Unexpected exception", errorRef.get());
         }

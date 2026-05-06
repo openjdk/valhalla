@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,6 @@ import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.quic.QuicClient;
 import jdk.internal.net.http.quic.QuicConnectionId;
 import jdk.internal.net.http.quic.QuicConnectionImpl;
-import jdk.internal.net.http.quic.QuicTransportParameters;
 import jdk.internal.net.http.quic.TerminationCause;
 import jdk.internal.net.quic.QuicTLSContext;
 import jdk.internal.net.quic.QuicVersion;
@@ -59,37 +58,35 @@ import static jdk.internal.net.http.quic.TerminationCause.forTransportError;
 import static jdk.internal.net.quic.QuicTransportErrors.NO_VIABLE_PATH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
- * @bug 8373877
  * @summary verify that when a QUIC (client) connection receives a stateless reset
  *          from the peer, then the connection is properly terminated
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.quic.QuicStandaloneServer
  *          jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run junit/othervm -Djdk.internal.httpclient.debug=true StatelessResetReceiptTest
  */
 public class StatelessResetReceiptTest {
 
     private static QuicStandaloneServer server;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    private static SSLContext sslContext;
     private static ExecutorService executor;
 
     @BeforeAll
     static void beforeAll() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         executor = Executors.newCachedThreadPool();
         server = QuicStandaloneServer.newBuilder()
                 .availableVersions(new QuicVersion[]{QuicVersion.QUIC_V1})
                 .sslContext(sslContext)
                 .build();
-        // Use a longer max ack delay to inflate the draining time (3xPTO)
-        final QuicTransportParameters transportParameters = new QuicTransportParameters();
-        transportParameters.setIntParameter(QuicTransportParameters.ParameterId.max_ack_delay,
-                (1 << 14) - 1); // 16 seconds, maximum allowed
         server.start();
         System.out.println("Server started at " + server.getAddress());
     }
@@ -128,7 +125,7 @@ public class StatelessResetReceiptTest {
     public void testActiveConnection() throws Exception {
         final CompletableFuture<QuicServerConnection> serverConnCF = new MinimalFuture<>();
         final NotifyingHandler handler = new NotifyingHandler(serverConnCF);
-        server.setHandler(handler);
+        server.addHandler(handler);
         try (final QuicClient client = createClient()) {
             // create a QUIC connection to the server
             final ClientConnection conn = ClientConnection.establishConnection(client,
@@ -162,7 +159,7 @@ public class StatelessResetReceiptTest {
     public void testClosingConnection() throws Exception {
         final CompletableFuture<QuicServerConnection> serverConnCF = new MinimalFuture<>();
         final NotifyingHandler handler = new NotifyingHandler(serverConnCF);
-        server.setHandler(handler);
+        server.addHandler(handler);
         try (final QuicClient client = createClient()) {
             // create a QUIC connection to the server
             final ClientConnection conn = ClientConnection.establishConnection(client,
@@ -182,9 +179,6 @@ public class StatelessResetReceiptTest {
             conn.close();
             // verify connection is no longer open
             assertFalse(conn.underlyingQuicConnection().isOpen(), "QUIC connection is still open");
-            // Check that the (closing) connection is still registered with the endpoint
-            assertNotEquals(0, conn.endpoint().connectionCount(),
-                    "Expected the QUIC connection to be registered");
             // now send a stateless reset from the server connection
             sendStatelessResetFrom(serverConn);
             // wait for the stateless reset to be processed
@@ -215,7 +209,7 @@ public class StatelessResetReceiptTest {
     public void testDrainingConnection() throws Exception {
         final CompletableFuture<QuicServerConnection> serverConnCF = new MinimalFuture<>();
         final NotifyingHandler handler = new NotifyingHandler(serverConnCF);
-        server.setHandler(handler);
+        server.addHandler(handler);
         try (final QuicClient client = createClient()) {
             // create a QUIC connection to the server
             final ClientConnection conn = ClientConnection.establishConnection(client,
@@ -237,19 +231,12 @@ public class StatelessResetReceiptTest {
                     .loggedAs("intentionally closed by server to initiate draining state" +
                             " on client connection");
             serverConn.connectionTerminator().terminate(tc);
-            // send ping in case the connection_close message gets lost
-            conn.underlyingQuicConnection().requestSendPing();
             // wait for client conn to terminate
             final TerminationCause clientTC = ((QuicConnectionImpl) conn.underlyingQuicConnection())
                     .futureTerminationCause().get();
             // verify connection closed for the right reason
             assertEquals(NO_VIABLE_PATH.code(), clientTC.getCloseCode(),
                     "unexpected termination cause");
-            // wait for a while to let the connection close completely
-            Thread.sleep(10);
-            // Check that the (draining) connection is still registered with the endpoint
-            assertNotEquals(0, conn.endpoint().connectionCount(),
-                    "Expected the QUIC connection to be registered");
             // now send a stateless reset from the server connection
             sendStatelessResetFrom(serverConn);
             // wait for the stateless reset to be processed

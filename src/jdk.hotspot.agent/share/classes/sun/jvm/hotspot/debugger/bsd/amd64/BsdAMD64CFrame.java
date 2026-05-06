@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,13 +29,10 @@ import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.bsd.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.cdbg.basic.*;
-import sun.jvm.hotspot.runtime.*;
-import sun.jvm.hotspot.runtime.amd64.*;
 
 public final class BsdAMD64CFrame extends BasicCFrame {
-   public BsdAMD64CFrame(BsdDebugger dbg, Address rsp, Address rbp, Address rip) {
+   public BsdAMD64CFrame(BsdDebugger dbg, Address rbp, Address rip) {
       super(dbg.getCDebugger());
-      this.rsp = rsp;
       this.rbp = rbp;
       this.rip = rip;
       this.dbg = dbg;
@@ -55,49 +52,32 @@ public final class BsdAMD64CFrame extends BasicCFrame {
       return rbp;
    }
 
-   @Override
    public CFrame sender(ThreadProxy thread) {
-      return sender(thread, null, null, null);
-   }
+      AMD64ThreadContext context = (AMD64ThreadContext) thread.getContext();
+      Address rsp = context.getRegisterAsAddress(AMD64ThreadContext.RSP);
 
-   @Override
-   public CFrame sender(ThreadProxy thread, Address sp, Address fp, Address pc) {
-      // Check fp
-      // Skip if both fp and pc are given - do not need to load from rbp.
-      if (fp == null && pc == null) {
-        if (rbp == null) {
-          return null;
-        }
-
-        // Check alignment of rbp
-        if (dbg.getAddressValue(rbp) % ADDRESS_SIZE != 0) {
-          return null;
-        }
-      }
-
-      Address nextRSP = sp != null ? sp : rbp.addOffsetTo(2 * ADDRESS_SIZE);
-      if (nextRSP == null) {
+      if ( (rbp == null) || rbp.lessThan(rsp) ) {
         return null;
       }
-      Address nextRBP = fp != null ? fp : rbp.getAddressAt(0);
-      if (nextRBP == null) {
+
+      // Check alignment of rbp
+      if (dbg.getAddressValue(rbp) % ADDRESS_SIZE != 0) {
         return null;
       }
-      Address nextPC  = pc != null ? pc : rbp.getAddressAt(ADDRESS_SIZE);
+
+      Address nextRBP = rbp.getAddressAt( 0 * ADDRESS_SIZE);
+      if (nextRBP == null || nextRBP.lessThanOrEqual(rbp)) {
+        return null;
+      }
+      Address nextPC  = rbp.getAddressAt( 1 * ADDRESS_SIZE);
       if (nextPC == null) {
         return null;
       }
-      return new BsdAMD64CFrame(dbg, nextRSP, nextRBP, nextPC);
-   }
-
-   @Override
-   public Frame toFrame() {
-      return new AMD64Frame(rsp, rbp, rip);
+      return new BsdAMD64CFrame(dbg, nextRBP, nextPC);
    }
 
    // package/class internals only
    private static final int ADDRESS_SIZE = 8;
-   private Address rsp;
    private Address rip;
    private Address rbp;
    private BsdDebugger dbg;

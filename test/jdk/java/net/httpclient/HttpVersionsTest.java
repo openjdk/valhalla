@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.http2.Http2TestServer jdk.test.lib.net.SimpleSSLContext
  *        jdk.test.lib.Platform
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm HttpVersionsTest
  */
 
 import java.io.IOException;
@@ -42,30 +42,30 @@ import java.net.http.HttpResponse;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.net.ssl.SSLContext;
+import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.http2.Http2TestServer;
 import jdk.httpclient.test.lib.http2.Http2TestExchange;
 import jdk.httpclient.test.lib.http2.Http2Handler;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.String.format;
 import static java.lang.System.out;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class HttpVersionsTest {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    static Http2TestServer http2TestServer;
-    static Http2TestServer https2TestServer;
-    static String http2URI;
-    static String https2URI;
+    SSLContext sslContext;
+    Http2TestServer http2TestServer;
+    Http2TestServer https2TestServer;
+    String http2URI;
+    String https2URI;
 
     static final int ITERATIONS = 3;
     static final String[] BODY = new String[] {
@@ -74,9 +74,10 @@ public class HttpVersionsTest {
             "I think I'll drink until I stink",
             "I'll drink until I cannot blink"
     };
-    static int nextBodyId;
+    int nextBodyId;
 
-    public static Object[][] scenarios() {
+    @DataProvider(name = "scenarios")
+    public Object[][] scenarios() {
         return new Object[][] {
                 { http2URI,  true  },
                 { https2URI, true  },
@@ -86,10 +87,9 @@ public class HttpVersionsTest {
     }
 
     /** Checks that an HTTP/2 request receives an HTTP/2 response. */
-    @ParameterizedTest
-    @MethodSource("scenarios")
+    @Test(dataProvider = "scenarios")
     void testHttp2Get(String uri, boolean sameClient) throws Exception {
-        out.printf("\n--- testHttp2Get uri:%s, sameClient:%s%n", uri, sameClient);
+        out.println(format("\n--- testHttp2Get uri:%s, sameClient:%s", uri, sameClient));
         HttpClient client = null;
         for (int i=0; i<ITERATIONS; i++) {
             if (!sameClient || client == null)
@@ -104,18 +104,17 @@ public class HttpVersionsTest {
             out.println("Got response: " + response);
             out.println("Got body: " + response.body());
 
-            assertEquals(200, response.statusCode());
-            assertEquals(HTTP_2, response.version());
-            assertEquals("", response.body());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), HTTP_2);
+            assertEquals(response.body(), "");
             if (uri.startsWith("https"))
                 assertTrue(response.sslSession().isPresent());
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("scenarios")
+    @Test(dataProvider = "scenarios")
     void testHttp2Post(String uri, boolean sameClient) throws Exception {
-        out.printf("\n--- testHttp2Post uri:%s, sameClient:%s%n", uri, sameClient);
+        out.println(format("\n--- testHttp2Post uri:%s, sameClient:%s", uri, sameClient));
         HttpClient client = null;
         for (int i=0; i<ITERATIONS; i++) {
             if (!sameClient || client == null)
@@ -132,19 +131,18 @@ public class HttpVersionsTest {
             out.println("Got response: " + response);
             out.println("Got body: " + response.body());
 
-            assertEquals(200, response.statusCode());
-            assertEquals(HTTP_2, response.version());
-            assertEquals(msg, response.body());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), HTTP_2);
+            assertEquals(response.body(), msg);
             if (uri.startsWith("https"))
                 assertTrue(response.sslSession().isPresent());
         }
     }
 
     /** Checks that an HTTP/1.1 request receives an HTTP/1.1 response, from the HTTP/2 server. */
-    @ParameterizedTest
-    @MethodSource("scenarios")
+    @Test(dataProvider = "scenarios")
     void testHttp1dot1Get(String uri, boolean sameClient) throws Exception {
-        out.printf("\n--- testHttp1dot1Get uri:%s, sameClient:%s%n", uri, sameClient);
+        out.println(format("\n--- testHttp1dot1Get uri:%s, sameClient:%s", uri, sameClient));
         HttpClient client = null;
         for (int i=0; i<ITERATIONS; i++) {
             if (!sameClient || client == null)
@@ -160,20 +158,20 @@ public class HttpVersionsTest {
             out.println("Got body: " + response.body());
             response.headers().firstValue("X-Received-Body").ifPresent(s -> out.println("X-Received-Body:" + s));
 
-            assertEquals(200, response.statusCode());
-            assertEquals(HTTP_1_1, response.version());
-            assertEquals("", response.body());
-            assertEquals("HTTP/1.1 request received by HTTP/2 server", response.headers().firstValue("X-Magic").get());
-            assertEquals("", response.headers().firstValue("X-Received-Body").get());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), HTTP_1_1);
+            assertEquals(response.body(), "");
+            assertEquals(response.headers().firstValue("X-Magic").get(),
+                         "HTTP/1.1 request received by HTTP/2 server");
+            assertEquals(response.headers().firstValue("X-Received-Body").get(), "");
             if (uri.startsWith("https"))
                 assertTrue(response.sslSession().isPresent());
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("scenarios")
+    @Test(dataProvider = "scenarios")
     void testHttp1dot1Post(String uri, boolean sameClient) throws Exception {
-        out.printf("\n--- testHttp1dot1Post uri:%s, sameClient:%s%n", uri, sameClient);
+        out.println(format("\n--- testHttp1dot1Post uri:%s, sameClient:%s", uri, sameClient));
         HttpClient client = null;
         for (int i=0; i<ITERATIONS; i++) {
             if (!sameClient || client == null)
@@ -190,11 +188,12 @@ public class HttpVersionsTest {
             out.println("Got body: " + response.body());
             response.headers().firstValue("X-Received-Body").ifPresent(s -> out.println("X-Received-Body:" + s));
 
-            assertEquals(200, response.statusCode());
-            assertEquals(HTTP_1_1, response.version());
-            assertEquals("", response.body());
-            assertEquals("HTTP/1.1 request received by HTTP/2 server", response.headers().firstValue("X-Magic").get());
-            assertEquals(msg, response.headers().firstValue("X-Received-Body").get());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), HTTP_1_1);
+            assertEquals(response.body(), "");
+            assertEquals(response.headers().firstValue("X-Magic").get(),
+                         "HTTP/1.1 request received by HTTP/2 server");
+            assertEquals(response.headers().firstValue("X-Received-Body").get(), msg);
             if (uri.startsWith("https"))
                 assertTrue(response.sslSession().isPresent());
         }
@@ -204,8 +203,12 @@ public class HttpVersionsTest {
 
     static final ExecutorService executor = Executors.newCachedThreadPool();
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         http2TestServer =  new Http2TestServer("localhost", false, 0, executor, 50, null, null, true);
         http2TestServer.addHandler(new Http2VerEchoHandler(), "/http2/vts");
         http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/vts";
@@ -218,8 +221,8 @@ public class HttpVersionsTest {
         https2TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         http2TestServer.stop();
         https2TestServer.stop();
         executor.shutdown();

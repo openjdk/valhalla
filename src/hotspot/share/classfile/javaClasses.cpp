@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/oopCast.inline.hpp"
 #include "oops/recordComponent.hpp"
-#include "oops/refArrayOop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -1104,11 +1103,17 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
 
   // It might also have a component mirror.  This mirror must already exist.
   if (k->is_array_klass()) {
-    assert(!k->is_refined_objArray_klass(), "Should not be called with the refined array klasses");
-
     // The Java code for array classes gets the access flags from the element type.
     set_raw_access_flags(mirror(), 0);
-    if (k->is_typeArray_klass()) {
+    if (k->is_flatArray_klass()) {
+      Klass* element_klass = (Klass*) FlatArrayKlass::cast(k)->element_klass();
+      assert(element_klass->is_inline_klass(), "Must be inline type component");
+      if (is_scratch) {
+        comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
+      } else {
+        comp_mirror = Handle(THREAD, element_klass->java_mirror());
+      }
+    } else if (k->is_typeArray_klass()) {
       BasicType type = TypeArrayKlass::cast(k)->element_type();
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(type));
@@ -1116,13 +1121,15 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
         comp_mirror = Handle(THREAD, Universe::java_mirror(type));
       }
     } else {
-      assert(k->is_unrefined_objArray_klass(), "Must be");
+      assert(k->is_objArray_klass(), "Must be");
+      assert(!k->is_refArray_klass() || !k->is_flatArray_klass(), "Must not have mirror");
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
+      oop comp_oop = element_klass->java_mirror();
       if (is_scratch) {
         comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
-        comp_mirror = Handle(THREAD, element_klass->java_mirror());
+        comp_mirror = Handle(THREAD, comp_oop);
       }
     }
     assert(comp_mirror() != nullptr, "must have a mirror");
@@ -1211,9 +1218,9 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 // latter may contain dumptime-specific information that cannot be archived
 // (e.g., ClassLoaderData*, or static fields that are modified by Java code execution).
 void java_lang_Class::create_scratch_mirror(Klass* k, TRAPS) {
-  if (k->class_loader() != nullptr &&
-      k->class_loader() != SystemDictionary::java_platform_loader() &&
-      k->class_loader() != SystemDictionary::java_system_loader()) {
+  if ((k->class_loader() != nullptr &&
+       k->class_loader() != SystemDictionary::java_platform_loader() &&
+       k->class_loader() != SystemDictionary::java_system_loader())) {
     // We only archive the mirrors of classes loaded by the built-in loaders
     return;
   }
@@ -1262,10 +1269,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     if (protection_domain.not_null()) {
       set_protection_domain(mirror(), protection_domain());
     }
-  } else if (k->is_objArray_klass()) {
+  } else {
     ObjArrayKlass* objarray_k = (ObjArrayKlass*)as_Klass(m);
     // Mirror should be restored for an ObjArrayKlass or one of its refined array klasses
-    assert(objarray_k == k || objarray_k->find_refined_array_klass((ObjArrayKlass*)k), "must be");
+    assert(objarray_k == k || objarray_k->next_refined_array_klass() == k, "must be");
   }
 
   assert(class_loader() == k->class_loader(), "should be same");
@@ -1281,10 +1288,6 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     ResourceMark rm(THREAD);
     log_trace(aot, heap, mirror)(
         "Restored %s archived mirror " PTR_FORMAT, k->external_name(), p2i(mirror()));
-  }
-
-  if (CDSConfig::is_dumping_heap() && (!k->is_refined_objArray_klass())) {
-    create_scratch_mirror(k, CHECK_(false));
   }
 
   return true;
@@ -1447,7 +1450,9 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     st->print("<null>");
     return;
   }
-  if (is_instance)  st->print("L");
+  if (is_instance)  {
+    st->print("L");
+  }
   st->write((char*) name->base(), (int) name->utf8_length());
   if (is_instance)  st->print(";");
 }
@@ -1934,16 +1939,16 @@ oop java_lang_Thread::park_blocker(oop java_thread) {
   return java_thread->obj_field_access<MO_RELAXED>(_park_blocker_offset);
 }
 
-// Obtain stack trace for a platform or virtual thread.
+// Obtain stack trace for platform or mounted virtual thread.
+// If jthread is a virtual thread and it has been unmounted (or remounted to different carrier) the method returns null.
+// The caller (java.lang.VirtualThread) handles returned nulls via retry.
 oop java_lang_Thread::async_get_stack_trace(jobject jthread, TRAPS) {
   ThreadsListHandle tlh(THREAD);
   JavaThread* java_thread = nullptr;
-  oop thread_oop = nullptr;
+  oop thread_oop;
 
   bool has_java_thread = tlh.cv_internal_thread_to_JavaThread(jthread, &java_thread, &thread_oop);
-  assert(thread_oop != nullptr, "Missing Thread oop");
-  bool is_virtual = java_lang_VirtualThread::is_instance(thread_oop);
-  if (!has_java_thread && !is_virtual) {
+  if (!has_java_thread) {
     return nullptr;
   }
 
@@ -1951,33 +1956,61 @@ oop java_lang_Thread::async_get_stack_trace(jobject jthread, TRAPS) {
   public:
     const Handle _thread_h;
     int _depth;
-    enum InitLength { len = 64 }; // Minimum length that covers most cases
-    GrowableArrayCHeap<Method*, mtInternal> _methods;
-    GrowableArrayCHeap<int, mtInternal>     _bcis;
+    bool _retry_handshake;
+    GrowableArray<Method*>* _methods;
+    GrowableArray<int>*     _bcis;
 
     GetStackTraceHandshakeClosure(Handle thread_h) :
-        HandshakeClosure("GetStackTraceHandshakeClosure"), _thread_h(thread_h), _depth(0),
-        _methods(InitLength::len), _bcis(InitLength::len) {
+        HandshakeClosure("GetStackTraceHandshakeClosure"), _thread_h(thread_h), _depth(0), _retry_handshake(false),
+        _methods(nullptr), _bcis(nullptr) {
+    }
+    ~GetStackTraceHandshakeClosure() {
+      delete _methods;
+      delete _bcis;
+    }
+
+    bool read_reset_retry() {
+      bool ret = _retry_handshake;
+      // If we re-execute the handshake this method need to return false
+      // when the handshake cannot be performed. (E.g. thread terminating)
+      _retry_handshake = false;
+      return ret;
     }
 
     void do_thread(Thread* th) {
-      JavaThread* java_thread = th != nullptr ? JavaThread::cast(th) : nullptr;
-      if (java_thread != nullptr && !java_thread->has_last_Java_frame()) {
-        // stack trace is empty
+      if (!Thread::current()->is_Java_thread()) {
+        _retry_handshake = true;
         return;
       }
 
-      bool is_virtual = java_lang_VirtualThread::is_instance(_thread_h());
-      bool vthread_carrier = !is_virtual && (java_thread->vthread_continuation() != nullptr);
+      JavaThread* java_thread = JavaThread::cast(th);
+
+      if (!java_thread->has_last_Java_frame()) {
+        return;
+      }
+
+      bool carrier = false;
+      if (java_lang_VirtualThread::is_instance(_thread_h())) {
+        // Ensure _thread_h is still mounted to java_thread.
+        const ContinuationEntry* ce = java_thread->vthread_continuation();
+        if (ce == nullptr || ce->cont_oop(java_thread) != java_lang_VirtualThread::continuation(_thread_h())) {
+          // Target thread has been unmounted.
+          return;
+        }
+      } else {
+        carrier = (java_thread->vthread_continuation() != nullptr);
+      }
 
       const int max_depth = MaxJavaStackTraceDepth;
       const bool skip_hidden = !ShowHiddenFrames;
 
+      // Pick minimum length that will cover most cases
+      int init_length = 64;
+      _methods = new (mtInternal) GrowableArray<Method*>(init_length, mtInternal);
+      _bcis = new (mtInternal) GrowableArray<int>(init_length, mtInternal);
+
       int total_count = 0;
-      vframeStream vfst(java_thread != nullptr
-        ? vframeStream(java_thread, false, false, vthread_carrier)  // we don't process frames as we don't care about oops
-        : vframeStream(java_lang_VirtualThread::continuation(_thread_h())));
-      for (;
+      for (vframeStream vfst(java_thread, false, false, carrier); // we don't process frames as we don't care about oops
            !vfst.at_end() && (max_depth == 0 || max_depth != total_count);
            vfst.next()) {
 
@@ -1986,8 +2019,8 @@ oop java_lang_Thread::async_get_stack_trace(jobject jthread, TRAPS) {
           continue;
         }
 
-        _methods.push(vfst.method());
-        _bcis.push(vfst.bci());
+        _methods->push(vfst.method());
+        _bcis->push(vfst.bci());
         total_count++;
       }
 
@@ -1999,11 +2032,9 @@ oop java_lang_Thread::async_get_stack_trace(jobject jthread, TRAPS) {
   ResourceMark rm(THREAD);
   HandleMark   hm(THREAD);
   GetStackTraceHandshakeClosure gsthc(Handle(THREAD, thread_oop));
-  if (is_virtual) {
-    Handshake::execute(&gsthc, thread_oop);
-  } else {
-    Handshake::execute(&gsthc, &tlh, java_thread);
-  }
+  do {
+   Handshake::execute(&gsthc, &tlh, java_thread);
+  } while (gsthc.read_reset_retry());
 
   // Stop if no stack trace is found.
   if (gsthc._depth == 0) {
@@ -2016,12 +2047,12 @@ oop java_lang_Thread::async_get_stack_trace(jobject jthread, TRAPS) {
   if (k->should_be_initialized()) {
     k->initialize(CHECK_NULL);
   }
-  refArrayHandle trace = oopFactory::new_refArray_handle(k, gsthc._depth, CHECK_NULL);
+  objArrayHandle trace = oopFactory::new_objArray_handle(k, gsthc._depth, CHECK_NULL);
 
   for (int i = 0; i < gsthc._depth; i++) {
-    methodHandle method(THREAD, gsthc._methods.at(i));
+    methodHandle method(THREAD, gsthc._methods->at(i));
     oop element = java_lang_StackTraceElement::create(method,
-                                                      gsthc._bcis.at(i),
+                                                      gsthc._bcis->at(i),
                                                       CHECK_NULL);
     trace->obj_at_put(i, element);
   }
@@ -2200,7 +2231,7 @@ void java_lang_VirtualThread::set_timeout(oop vthread, jlong value) {
 
 JavaThreadStatus java_lang_VirtualThread::map_state_to_thread_status(int state) {
   JavaThreadStatus status = JavaThreadStatus::NEW;
-  switch (state) {
+  switch (state & ~SUSPENDED) {
     case NEW:
       status = JavaThreadStatus::NEW;
       break;
@@ -2307,12 +2338,12 @@ oop java_lang_Throwable::unassigned_stacktrace() {
   return base->obj_field(_static_unassigned_stacktrace_offset);
 }
 
-refArrayOop java_lang_Throwable::backtrace(oop throwable) {
-  return (refArrayOop)throwable->obj_field_acquire(_backtrace_offset);
+oop java_lang_Throwable::backtrace(oop throwable) {
+  return throwable->obj_field_acquire(_backtrace_offset);
 }
 
 
-void java_lang_Throwable::set_backtrace(oop throwable, refArrayOop value) {
+void java_lang_Throwable::set_backtrace(oop throwable, oop value) {
   throwable->release_obj_field_put(_backtrace_offset, value);
 }
 
@@ -2382,11 +2413,11 @@ static inline bool version_matches(Method* method, int version) {
 class BacktraceBuilder: public StackObj {
  friend class BacktraceIterator;
  private:
-  refArrayHandle  _backtrace;
-  refArrayOop     _head;
+  Handle          _backtrace;
+  objArrayOop     _head;
   typeArrayOop    _methods;
   typeArrayOop    _bcis;
-  refArrayOop     _mirrors;
+  objArrayOop     _mirrors;
   typeArrayOop    _names; // Needed to insulate method name against redefinition.
   // True if the top frame of the backtrace is omitted because it shall be hidden.
   bool            _has_hidden_top_frame;
@@ -2406,27 +2437,27 @@ class BacktraceBuilder: public StackObj {
   };
 
   // get info out of chunks
-  static typeArrayOop get_methods(refArrayHandle chunk) {
+  static typeArrayOop get_methods(objArrayHandle chunk) {
     typeArrayOop methods = typeArrayOop(chunk->obj_at(trace_methods_offset));
     assert(methods != nullptr, "method array should be initialized in backtrace");
     return methods;
   }
-  static typeArrayOop get_bcis(refArrayHandle chunk) {
+  static typeArrayOop get_bcis(objArrayHandle chunk) {
     typeArrayOop bcis = typeArrayOop(chunk->obj_at(trace_bcis_offset));
     assert(bcis != nullptr, "bci array should be initialized in backtrace");
     return bcis;
   }
-  static refArrayOop get_mirrors(refArrayHandle chunk) {
-    refArrayOop mirrors = refArrayOop(chunk->obj_at(trace_mirrors_offset));
+  static objArrayOop get_mirrors(objArrayHandle chunk) {
+    objArrayOop mirrors = objArrayOop(chunk->obj_at(trace_mirrors_offset));
     assert(mirrors != nullptr, "mirror array should be initialized in backtrace");
     return mirrors;
   }
-  static typeArrayOop get_names(refArrayHandle chunk) {
+  static typeArrayOop get_names(objArrayHandle chunk) {
     typeArrayOop names = typeArrayOop(chunk->obj_at(trace_names_offset));
     assert(names != nullptr, "names array should be initialized in backtrace");
     return names;
   }
-  static bool has_hidden_top_frame(refArrayHandle chunk) {
+  static bool has_hidden_top_frame(objArrayHandle chunk) {
     oop hidden = chunk->obj_at(trace_hidden_offset);
     return hidden != nullptr;
   }
@@ -2436,11 +2467,11 @@ class BacktraceBuilder: public StackObj {
   // constructor for new backtrace
   BacktraceBuilder(TRAPS): _head(nullptr), _methods(nullptr), _bcis(nullptr), _mirrors(nullptr), _names(nullptr), _has_hidden_top_frame(false) {
     expand(CHECK);
-    _backtrace = refArrayHandle(THREAD, _head);
+    _backtrace = Handle(THREAD, _head);
     _index = 0;
   }
 
-  BacktraceBuilder(Thread* thread, refArrayHandle backtrace) {
+  BacktraceBuilder(Thread* thread, objArrayHandle backtrace) {
     _methods = get_methods(backtrace);
     _bcis = get_bcis(backtrace);
     _mirrors = get_mirrors(backtrace);
@@ -2453,16 +2484,16 @@ class BacktraceBuilder: public StackObj {
 
     // head is the preallocated backtrace
     _head = backtrace();
-    _backtrace = refArrayHandle(thread, _head);
+    _backtrace = Handle(thread, _head);
     _index = 0;
   }
 
   void expand(TRAPS) {
-    refArrayHandle old_head(THREAD, _head);
+    objArrayHandle old_head(THREAD, _head);
     PauseNoSafepointVerifier pnsv(&_nsv);
 
-    refArrayOop head = oopFactory::new_objectArray(trace_size, CHECK);
-    refArrayHandle new_head(THREAD, head);
+    objArrayOop head = oopFactory::new_objectArray(trace_size, CHECK);
+    objArrayHandle new_head(THREAD, head);
 
     typeArrayOop methods = oopFactory::new_shortArray(trace_chunk_size, CHECK);
     typeArrayHandle new_methods(THREAD, methods);
@@ -2470,8 +2501,8 @@ class BacktraceBuilder: public StackObj {
     typeArrayOop bcis = oopFactory::new_intArray(trace_chunk_size, CHECK);
     typeArrayHandle new_bcis(THREAD, bcis);
 
-    refArrayOop mirrors = oopFactory::new_objectArray(trace_chunk_size, CHECK);
-    refArrayHandle new_mirrors(THREAD, mirrors);
+    objArrayOop mirrors = oopFactory::new_objectArray(trace_chunk_size, CHECK);
+    objArrayHandle new_mirrors(THREAD, mirrors);
 
     typeArrayOop names = oopFactory::new_symbolArray(trace_chunk_size, CHECK);
     typeArrayHandle new_names(THREAD, names);
@@ -2493,7 +2524,7 @@ class BacktraceBuilder: public StackObj {
     _index = 0;
   }
 
-  refArrayOop backtrace() {
+  oop backtrace() {
     return _backtrace();
   }
 
@@ -2551,25 +2582,25 @@ struct BacktraceElement : public StackObj {
 
 class BacktraceIterator : public StackObj {
   int _index;
-  refArrayHandle  _result;
-  refArrayHandle  _mirrors;
+  objArrayHandle  _result;
+  objArrayHandle  _mirrors;
   typeArrayHandle _methods;
   typeArrayHandle _bcis;
   typeArrayHandle _names;
 
-  void init(refArrayHandle result, Thread* thread) {
+  void init(objArrayHandle result, Thread* thread) {
     // Get method id, bci, version and mirror from chunk
     _result = result;
     if (_result.not_null()) {
       _methods = typeArrayHandle(thread, BacktraceBuilder::get_methods(_result));
       _bcis = typeArrayHandle(thread, BacktraceBuilder::get_bcis(_result));
-      _mirrors = refArrayHandle(thread, BacktraceBuilder::get_mirrors(_result));
+      _mirrors = objArrayHandle(thread, BacktraceBuilder::get_mirrors(_result));
       _names = typeArrayHandle(thread, BacktraceBuilder::get_names(_result));
       _index = 0;
     }
   }
  public:
-  BacktraceIterator(refArrayHandle result, Thread* thread) {
+  BacktraceIterator(objArrayHandle result, Thread* thread) {
     init(result, thread);
     assert(_methods.is_null() || _methods->length() == java_lang_Throwable::trace_chunk_size, "lengths don't match");
   }
@@ -2585,7 +2616,7 @@ class BacktraceIterator : public StackObj {
     if (_index >= java_lang_Throwable::trace_chunk_size) {
       int next_offset = java_lang_Throwable::trace_next_offset;
       // Get next chunk
-      refArrayHandle result (thread, refArrayOop(_result->obj_at(next_offset)));
+      objArrayHandle result (thread, objArrayOop(_result->obj_at(next_offset)));
       init(result, thread);
     }
     return e;
@@ -2676,7 +2707,7 @@ void java_lang_Throwable::print_stack_trace(Handle throwable, outputStream* st) 
   // Now print the stack trace.
   JavaThread* THREAD = JavaThread::current(); // For exception macros.
   while (throwable.not_null()) {
-    refArrayHandle result (THREAD, backtrace(throwable()));
+    objArrayHandle result (THREAD, objArrayOop(backtrace(throwable())));
     if (result.is_null()) {
       st->print_raw_cr("\t<<no stack trace available>>");
       return;
@@ -2929,7 +2960,7 @@ void java_lang_Throwable::fill_in_stack_trace_of_preallocated_backtrace(Handle t
 
   JavaThread* THREAD = JavaThread::current(); // For exception macros.
 
-  refArrayHandle backtrace(THREAD, java_lang_Throwable::backtrace(throwable()));
+  objArrayHandle backtrace (THREAD, (objArrayOop)java_lang_Throwable::backtrace(throwable()));
   assert(backtrace.not_null(), "backtrace should have been preallocated");
 
   ResourceMark rm(THREAD);
@@ -2958,19 +2989,19 @@ void java_lang_Throwable::fill_in_stack_trace_of_preallocated_backtrace(Handle t
 }
 
 void java_lang_Throwable::get_stack_trace_elements(int depth, Handle backtrace,
-                                                   refArrayHandle stack_trace_array_h, TRAPS) {
+                                                   objArrayHandle stack_trace_array_h, TRAPS) {
 
   if (backtrace.is_null() || stack_trace_array_h.is_null()) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
 
-  assert(stack_trace_array_h->is_refArray(), "Stack trace array should be an array of StackTraceElement");
+  assert(stack_trace_array_h->is_objArray(), "Stack trace array should be an array of StackTraceElenent");
 
   if (stack_trace_array_h->length() != depth) {
     THROW(vmSymbols::java_lang_IndexOutOfBoundsException());
   }
 
-  refArrayHandle result(THREAD, refArrayOop(backtrace()));
+  objArrayHandle result(THREAD, objArrayOop(backtrace()));
   BacktraceIterator iter(result, THREAD);
 
   int index = 0;
@@ -3054,14 +3085,14 @@ Handle java_lang_Throwable::create_initialization_error(JavaThread* current, Han
 
 bool java_lang_Throwable::get_top_method_and_bci(oop throwable, Method** method, int* bci) {
   JavaThread* current = JavaThread::current();
-  refArrayHandle result(current, backtrace(throwable));
+  objArrayHandle result(current, objArrayOop(backtrace(throwable)));
   BacktraceIterator iter(result, current);
   // No backtrace available.
   if (!iter.repeat()) return false;
 
   // If the exception happened in a frame that has been hidden, i.e.,
   // omitted from the back trace, we can not compute the message.
-  oop hidden = backtrace(throwable)->obj_at(trace_hidden_offset);
+  oop hidden = ((objArrayOop)backtrace(throwable))->obj_at(trace_hidden_offset);
   if (hidden != nullptr) {
     return false;
   }
@@ -4310,6 +4341,10 @@ int jdk_internal_foreign_abi_NativeEntryPoint::_downcall_stub_address_offset;
   macro(_method_type_offset,           k, "methodType",          java_lang_invoke_MethodType_signature, false); \
   macro(_downcall_stub_address_offset, k, "downcallStubAddress", long_signature, false);
 
+bool jdk_internal_foreign_abi_NativeEntryPoint::is_instance(oop obj) {
+  return obj != nullptr && is_subclass(obj->klass());
+}
+
 void jdk_internal_foreign_abi_NativeEntryPoint::compute_offsets() {
   InstanceKlass* k = vmClasses::NativeEntryPoint_klass();
   NEP_FIELDS_DO(FIELD_COMPUTE_OFFSET);
@@ -4346,6 +4381,10 @@ int jdk_internal_foreign_abi_ABIDescriptor::_scratch2_offset;
   macro(_scratch1_offset,        k, "scratch1",        jdk_internal_foreign_abi_VMStorage_signature, false); \
   macro(_scratch2_offset,        k, "scratch2",        jdk_internal_foreign_abi_VMStorage_signature, false);
 
+bool jdk_internal_foreign_abi_ABIDescriptor::is_instance(oop obj) {
+  return obj != nullptr && is_subclass(obj->klass());
+}
+
 void jdk_internal_foreign_abi_ABIDescriptor::compute_offsets() {
   InstanceKlass* k = vmClasses::ABIDescriptor_klass();
   ABIDescriptor_FIELDS_DO(FIELD_COMPUTE_OFFSET);
@@ -4357,16 +4396,16 @@ void jdk_internal_foreign_abi_ABIDescriptor::serialize_offsets(SerializeClosure*
 }
 #endif
 
-refArrayOop jdk_internal_foreign_abi_ABIDescriptor::inputStorage(oop entry) {
-  return oop_cast<refArrayOop>(entry->obj_field(_inputStorage_offset));
+objArrayOop jdk_internal_foreign_abi_ABIDescriptor::inputStorage(oop entry) {
+  return oop_cast<objArrayOop>(entry->obj_field(_inputStorage_offset));
 }
 
-refArrayOop jdk_internal_foreign_abi_ABIDescriptor::outputStorage(oop entry) {
-  return oop_cast<refArrayOop>(entry->obj_field(_outputStorage_offset));
+objArrayOop jdk_internal_foreign_abi_ABIDescriptor::outputStorage(oop entry) {
+  return oop_cast<objArrayOop>(entry->obj_field(_outputStorage_offset));
 }
 
-refArrayOop jdk_internal_foreign_abi_ABIDescriptor::volatileStorage(oop entry) {
-  return oop_cast<refArrayOop>(entry->obj_field(_volatileStorage_offset));
+objArrayOop jdk_internal_foreign_abi_ABIDescriptor::volatileStorage(oop entry) {
+  return oop_cast<objArrayOop>(entry->obj_field(_volatileStorage_offset));
 }
 
 jint jdk_internal_foreign_abi_ABIDescriptor::stackAlignment(oop entry) {
@@ -4449,12 +4488,12 @@ void jdk_internal_foreign_abi_CallConv::serialize_offsets(SerializeClosure* f) {
 }
 #endif
 
-refArrayOop jdk_internal_foreign_abi_CallConv::argRegs(oop entry) {
-  return oop_cast<refArrayOop>(entry->obj_field(_argRegs_offset));
+objArrayOop jdk_internal_foreign_abi_CallConv::argRegs(oop entry) {
+  return oop_cast<objArrayOop>(entry->obj_field(_argRegs_offset));
 }
 
-refArrayOop jdk_internal_foreign_abi_CallConv::retRegs(oop entry) {
-  return oop_cast<refArrayOop>(entry->obj_field(_retRegs_offset));
+objArrayOop jdk_internal_foreign_abi_CallConv::retRegs(oop entry) {
+  return oop_cast<objArrayOop>(entry->obj_field(_retRegs_offset));
 }
 
 oop java_lang_invoke_MethodHandle::type(oop mh) {
@@ -4630,7 +4669,7 @@ void java_lang_invoke_MethodType::serialize_offsets(SerializeClosure* f) {
 
 void java_lang_invoke_MethodType::print_signature(oop mt, outputStream* st) {
   st->print("(");
-  refArrayOop pts = ptypes(mt);
+  objArrayOop pts = ptypes(mt);
   if (pts != nullptr) {
     for (int i = 0, limit = pts->length(); i < limit; i++) {
       java_lang_Class::print_signature(pts->obj_at(i), st);
@@ -4681,9 +4720,9 @@ oop java_lang_invoke_MethodType::rtype(oop mt) {
   return mt->obj_field(_rtype_offset);
 }
 
-refArrayOop java_lang_invoke_MethodType::ptypes(oop mt) {
+objArrayOop java_lang_invoke_MethodType::ptypes(oop mt) {
   assert(is_instance(mt), "must be a MethodType");
-  return (refArrayOop) mt->obj_field(_ptypes_offset);
+  return (objArrayOop) mt->obj_field(_ptypes_offset);
 }
 
 oop java_lang_invoke_MethodType::ptype(oop mt, int idx) {
@@ -4695,7 +4734,7 @@ int java_lang_invoke_MethodType::ptype_count(oop mt) {
 }
 
 int java_lang_invoke_MethodType::ptype_slot_count(oop mt) {
-  refArrayOop pts = ptypes(mt);
+  objArrayOop pts = ptypes(mt);
   int count = pts->length();
   int slots = 0;
   for (int i = 0; i < count; i++) {
@@ -5120,9 +5159,9 @@ void java_lang_Integer_IntegerCache::compute_offsets(InstanceKlass *k) {
   INTEGER_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-refArrayOop java_lang_Integer_IntegerCache::cache(InstanceKlass *ik) {
+objArrayOop java_lang_Integer_IntegerCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return refArrayOop(base->obj_field(_static_cache_offset));
+  return objArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Integer_IntegerCache::symbol() {
@@ -5150,9 +5189,9 @@ void java_lang_Long_LongCache::compute_offsets(InstanceKlass *k) {
   LONG_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-refArrayOop java_lang_Long_LongCache::cache(InstanceKlass *ik) {
+objArrayOop java_lang_Long_LongCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return refArrayOop(base->obj_field(_static_cache_offset));
+  return objArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Long_LongCache::symbol() {
@@ -5180,9 +5219,9 @@ void java_lang_Character_CharacterCache::compute_offsets(InstanceKlass *k) {
   CHARACTER_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-refArrayOop java_lang_Character_CharacterCache::cache(InstanceKlass *ik) {
+objArrayOop java_lang_Character_CharacterCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return refArrayOop(base->obj_field(_static_cache_offset));
+  return objArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Character_CharacterCache::symbol() {
@@ -5210,9 +5249,9 @@ void java_lang_Short_ShortCache::compute_offsets(InstanceKlass *k) {
   SHORT_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-refArrayOop java_lang_Short_ShortCache::cache(InstanceKlass *ik) {
+objArrayOop java_lang_Short_ShortCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return refArrayOop(base->obj_field(_static_cache_offset));
+  return objArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Short_ShortCache::symbol() {
@@ -5240,9 +5279,9 @@ void java_lang_Byte_ByteCache::compute_offsets(InstanceKlass *k) {
   BYTE_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
-refArrayOop java_lang_Byte_ByteCache::cache(InstanceKlass *ik) {
+objArrayOop java_lang_Byte_ByteCache::cache(InstanceKlass *ik) {
   oop base = ik->static_field_base_raw();
-  return refArrayOop(base->obj_field(_static_cache_offset));
+  return objArrayOop(base->obj_field(_static_cache_offset));
 }
 
 Symbol* java_lang_Byte_ByteCache::symbol() {

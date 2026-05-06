@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @summary Should HttpClient support SETTINGS_MAX_CONCURRENT_STREAMS from the server
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.http2.Http2TestServer jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm MaxStreams
  */
 
 import java.io.IOException;
@@ -53,24 +53,24 @@ import jdk.httpclient.test.lib.http2.Http2TestServer;
 import jdk.httpclient.test.lib.http2.Http2TestExchange;
 import jdk.httpclient.test.lib.http2.Http2Handler;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.fail;
 
 public class MaxStreams {
 
-    private static Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static Http2TestServer https2TestServer;   // HTTP/2 ( h2 )
-    private static final Http2FixedHandler handler = new Http2FixedHandler();
-    private static final SSLContext ctx = SimpleSSLContext.findSSLContext();
-    private static String http2FixedURI;
-    private static String https2FixedURI;
-    private static ExecutorService exec;
+    Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
+    Http2TestServer https2TestServer;   // HTTP/2 ( h2 )
+    final Http2FixedHandler handler = new Http2FixedHandler();
+    SSLContext ctx;
+    String http2FixedURI;
+    String https2FixedURI;
+    ExecutorService exec;
 
     // we send an initial warm up request, then MAX_STREAMS+1 requests
     // in parallel. The last of them should hit the limit.
@@ -81,7 +81,8 @@ public class MaxStreams {
     static final int MAX_STREAMS = 10;
     static final String RESPONSE = "Hello world";
 
-    public static Object[][] variants() {
+    @DataProvider(name = "uris")
+    public Object[][] variants() {
         return new Object[][]{
                 {http2FixedURI},
                 {https2FixedURI},
@@ -91,8 +92,7 @@ public class MaxStreams {
     }
 
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testAsString(String uri) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         handler.setLatch(latch);
@@ -161,8 +161,9 @@ public class MaxStreams {
         System.err.println("Test OK");
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        ctx = (new SimpleSSLContext()).get();
         exec = Executors.newCachedThreadPool();
 
         InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
@@ -180,13 +181,13 @@ public class MaxStreams {
         https2TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         System.err.println("Stopping test server now");
         http2TestServer.stop();
     }
 
-    static class Http2FixedHandler implements Http2Handler {
+    class Http2FixedHandler implements Http2Handler {
         final AtomicInteger counter = new AtomicInteger(0);
         volatile CountDownLatch latch;
 

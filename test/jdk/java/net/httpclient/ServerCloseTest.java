@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,16 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext
  *        jdk.httpclient.test.lib.common.HttpServerAdapters
- * @run junit/othervm -Djdk.tls.acknowledgeCloseNotify=true ${test.main.class}
+ * @run testng/othervm -Djdk.tls.acknowledgeCloseNotify=true ServerCloseTest
  */
 //*        -Djdk.internal.httpclient.debug=true
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
@@ -65,22 +70,18 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
+import jdk.httpclient.test.lib.http2.Http2TestServer;
 
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 public class ServerCloseTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static DummyServer    httpDummyServer;    // HTTP/1.1    [ 2 servers ]
-    private static DummyServer    httpsDummyServer;   // HTTPS/1.1
-    private static String httpDummy;
-    private static String httpsDummy;
+    SSLContext sslContext;
+    DummyServer    httpDummyServer;    // HTTP/1.1    [ 2 servers ]
+    DummyServer    httpsDummyServer;   // HTTPS/1.1
+    String httpDummy;
+    String httpsDummy;
 
     static final int ITERATION_COUNT = 3;
     // a shared executor helps reduce the amount of threads created by the test
@@ -98,7 +99,7 @@ public class ServerCloseTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    private static volatile HttpClient sharedClient;
+    private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -124,8 +125,8 @@ public class ServerCloseTest implements HttpServerAdapters {
         }
     }
 
-    @AfterAll
-    static void printFailedTests() {
+    @AfterClass
+    static final void printFailedTests() {
         out.println("\n=========================");
         try {
             out.printf("%n%sCreated %d servers and %d clients%n",
@@ -144,14 +145,15 @@ public class ServerCloseTest implements HttpServerAdapters {
         }
     }
 
-    private static String[] uris() {
+    private String[] uris() {
         return new String[] {
                 httpDummy,
                 httpsDummy,
         };
     }
 
-    public static Object[][] noThrows() {
+    @DataProvider(name = "servers")
+    public Object[][] noThrows() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         //Object[][] result = new Object[uris.length][];
@@ -190,8 +192,7 @@ public class ServerCloseTest implements HttpServerAdapters {
 
     final String ENCODED = "/01%252F03/";
 
-    @ParameterizedTest
-    @MethodSource("noThrows")
+    @Test(dataProvider = "servers")
     public void testServerClose(String uri, boolean sameClient) {
         HttpClient client = null;
         out.printf("%n%s testServerClose(%s, %b)%n", now(), uri, sameClient);
@@ -223,8 +224,12 @@ public class ServerCloseTest implements HttpServerAdapters {
         }
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 
         // DummyServer
@@ -239,8 +244,8 @@ public class ServerCloseTest implements HttpServerAdapters {
         httpsDummyServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         sharedClient = null;
         httpDummyServer.stopServer();
         httpsDummyServer.stopServer();
@@ -323,7 +328,7 @@ public class ServerCloseTest implements HttpServerAdapters {
                     // Read all headers until we find the empty line that
                     // signals the end of all headers.
                     String line = requestLine;
-                    while (!line.isEmpty()) {
+                    while (!line.equals("")) {
                         System.out.println(now() + getName() + ": Reading header: "
                                 + (line = readLine(ccis)));
                         headers.append(line).append("\r\n");
@@ -337,7 +342,7 @@ public class ServerCloseTest implements HttpServerAdapters {
                     byte[] b = uri.toString().getBytes(UTF_8);
                     if (index >= 0) {
                         index = index + "content-length: ".length();
-                        String cl = headers.substring(index);
+                        String cl = headers.toString().substring(index);
                         StringTokenizer tk = new StringTokenizer(cl);
                         int len = Integer.parseInt(tk.nextToken());
                         assert len < b.length * 2;

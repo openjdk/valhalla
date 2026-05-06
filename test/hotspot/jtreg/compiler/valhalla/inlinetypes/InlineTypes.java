@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,8 +38,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -55,8 +53,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -72,8 +68,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -89,8 +83,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:+AlwaysIncrementalInline",
@@ -105,8 +97,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:FlatArrayElementMaxOops=-1",
@@ -121,8 +111,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -138,8 +126,6 @@ public class InlineTypes {
                          "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                          "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                         "-XX:+UnlockDiagnosticVMOptions",
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -147,9 +133,9 @@ public class InlineTypes {
                          "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
-                         "-XX:+UseNullableAtomicValueFlattening",
-                         "-XX:+UseNullFreeAtomicValueFlattening",
-                         "-XX:+UseNullFreeNonAtomicValueFlattening",
+                         "-XX:+UseNullableValueFlattening",
+                         "-XX:+UseAtomicValueFlattening",
+                         "-XX:+UseNonAtomicValueFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
                          "-XX:+InlineTypeReturnedAsFields"
             ),

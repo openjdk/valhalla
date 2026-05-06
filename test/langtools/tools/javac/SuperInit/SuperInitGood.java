@@ -22,7 +22,7 @@
  */
 /*
  * @test
- * @bug 8194743 8345438 8356551 8349754 8379833
+ * @bug 8194743 8345438 8356551 8349754
  * @summary Test valid placements of super()/this() in constructors
  * @run main SuperInitGood
  * @build InitializationWarningTester
@@ -525,20 +525,6 @@ public class SuperInitGood {
         }
     }
 
-    public static class Test26 {
-        Test26(Test26 t) {}
-
-        Test26(String s) {
-            this(new Test26());
-        }
-
-        Test26() {}
-
-        public static void main(String[] args) {
-            new Test26("test");
-        }
-    }
-
     public static void main(String[] args) {
         new Test0();
         new Test1();
@@ -587,6 +573,5 @@ public class SuperInitGood {
         new Test23();
         new Test24();
         new Test25(null);
-        new Test26("");
     }
 }

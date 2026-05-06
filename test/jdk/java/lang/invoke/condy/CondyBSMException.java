@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,12 @@
  * @summary Test bootstrap methods throwing an exception
  * @library /java/lang/invoke/common
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run junit CondyBSMException
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyBSMException
+ * @run testng CondyBSMException
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyBSMException
  */
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
@@ -38,10 +40,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 
 import static java.lang.invoke.MethodType.methodType;
-
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class CondyBSMException {
 
@@ -72,17 +70,26 @@ public class CondyBSMException {
 
     static void test(String message, Class<? extends Throwable>... ts) {
         MethodHandle mh = thrower(message, ts[ts.length - 1]);
-        Throwable caught = assertThrows(Throwable.class, mh::invoke);
+        Throwable caught = null;
+        try {
+            mh.invoke();
+        } catch (Throwable t) {
+            caught = t;
+        }
+
+        if (caught == null) {
+            Assert.fail("Throwable expected");
+        }
 
         String actualMessage = null;
         for (int i = 0; i < ts.length; i++) {
-            int level = i;
-            assertInstanceOf(ts[i], caught, () -> "Level %d".formatted(level));
             actualMessage = caught.getMessage();
+            Assert.assertNotNull(caught);
+            Assert.assertTrue(ts[i].isAssignableFrom(caught.getClass()));
             caught = caught.getCause();
         }
 
-        assertEquals(message, actualMessage);
+        Assert.assertEquals(actualMessage, message);
     }
 
     static Throwable throwingBsm(MethodHandles.Lookup l, String name, Class<Throwable> type) throws Throwable {

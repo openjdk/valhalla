@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.util.*;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.plaf.UIResource;
+
+import sun.awt.AppContext;
 
 import sun.lwawt.macosx.CPlatformWindow;
 import sun.swing.SwingUtilities2;
@@ -148,34 +150,13 @@ final class AquaUtils {
         protected abstract T create();
     }
 
-    abstract static class LazySingleton<T> {
-        T instance;
-
-         final T get() {
-            if (instance == null) {
-                instance = getInstance();
-            }
-            return instance;
-         }
-
-        abstract T getInstance();
-    }
-
     abstract static class RecyclableSingleton<T> {
-
-        SoftReference<T> ref;
-
         final T get() {
-            T instance;
-            if (ref != null) {
-                instance = ref.get();
-                if (instance != null) {
-                    return instance;
-                }
-            }
-            instance = getInstance();
-            ref = new SoftReference<>(instance);
-            return instance;
+            return AppContext.getSoftReferenceValue(this, () -> getInstance());
+        }
+
+        void reset() {
+            AppContext.getAppContext().remove(this);
         }
 
         abstract T getInstance();
@@ -216,11 +197,11 @@ final class AquaUtils {
         protected abstract V getInstance(K key);
     }
 
-    private static final LazySingleton<Boolean> enableAnimations = new LazySingleton<Boolean>() {
+    private static final RecyclableSingleton<Boolean> enableAnimations = new RecyclableSingleton<Boolean>() {
         @Override
         protected Boolean getInstance() {
-            final String animationsProperty = System.getProperty(ANIMATIONS_PROPERTY);
-            return !"false".equals(animationsProperty); // should be true by default
+            final String sizeProperty = System.getProperty(ANIMATIONS_PROPERTY);
+            return !"false".equals(sizeProperty); // should be true by default
         }
     };
     private static boolean animationsEnabled() {

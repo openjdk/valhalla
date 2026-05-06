@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
-
-import jdk.internal.reflect.AccessFlagSet;
 import sun.reflect.annotation.AnnotationSupport;
 
 /**
@@ -128,9 +126,10 @@ public final class Parameter implements AnnotatedElement {
         final Type type = getParameterizedType();
         final String typename = type.getTypeName();
 
-        if (Modifier.isFinal(modifiers)) {
-            sb.append("final ");
-        }
+        sb.append(Modifier.toString(getModifiers() & Modifier.parameterModifiers() ));
+
+        if(0 != modifiers)
+            sb.append(' ');
 
         if(isVarArgs())
             sb.append(typename.replaceFirst("\\[\\]$", "..."));
@@ -173,7 +172,8 @@ public final class Parameter implements AnnotatedElement {
      * @since 20
      */
     public Set<AccessFlag> accessFlags() {
-        return AccessFlagSet.ofValidated(AccessFlagSet.METHOD_PARAMETER_FLAGS, modifiers);
+        return AccessibleObject.reflectionFactory.parseAccessFlags(getModifiers(),
+                AccessFlag.Location.METHOD_PARAMETER, getDeclaringExecutable().getDeclaringClass());
     }
 
     /**

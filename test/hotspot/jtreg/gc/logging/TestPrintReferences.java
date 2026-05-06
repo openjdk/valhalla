@@ -57,7 +57,8 @@ public class TestPrintReferences {
     static final String gcLogTimeRegex = ".* GC\\([0-9]+\\) ";
 
     public static void main(String[] args) throws Exception {
-        testPhases();
+        testPhases(true);
+        testPhases(false);
         testRefs();
     }
 
@@ -92,15 +93,16 @@ public class TestPrintReferences {
                            refRegex("PhantomReference"));
     }
 
-    public static void testPhases() throws Exception {
+    public static void testPhases(boolean parallelRefProcEnabled) throws Exception {
         OutputAnalyzer output = ProcessTools.executeLimitedTestJava("-Xlog:gc+phases+ref=debug",
                                                                     "-XX:+UseG1GC",
                                                                     "-Xmx32M",
+                                                                    "-XX:" + (parallelRefProcEnabled ? "+" : "-") + "ParallelRefProcEnabled",
                                                                     "-XX:-UseDynamicNumberOfGCThreads",
                                                                     "-XX:ParallelGCThreads=2",
                                                                     GCTest.class.getName());
 
-        checkLogFormat(output);
+        checkLogFormat(output, parallelRefProcEnabled);
         checkLogValue(output);
 
         output.shouldHaveExitValue(0);
@@ -111,31 +113,37 @@ public class TestPrintReferences {
         return indent(6) + phaseName + ": " + timeRegex + "\n";
     }
 
-    private static String subphaseRegex(String subphaseName) {
+    private static String subphaseRegex(String subphaseName, boolean parallelRefProcEnabled) {
         final String timeRegex = "\\s+" + doubleRegex;
-        final String timeInParRegex = timeRegex +",\\s";
-        return gcLogTimeRegex + indent(8) + subphaseName +
-               " \\(ms\\):\\s+(Min:" + timeInParRegex + "Avg:" + timeInParRegex + "Max:" + timeInParRegex + "Diff:" + timeInParRegex + "Sum:" + timeInParRegex +
-               "Workers: [0-9]+|skipped)" + "\n";
+        if (parallelRefProcEnabled) {
+            final String timeInParRegex = timeRegex +",\\s";
+            return gcLogTimeRegex + indent(8) + subphaseName +
+                   " \\(ms\\):\\s+(Min:" + timeInParRegex + "Avg:" + timeInParRegex + "Max:" + timeInParRegex + "Diff:" + timeInParRegex + "Sum:" + timeInParRegex +
+                   "Workers: [0-9]+|skipped)" + "\n";
+        } else {
+            return gcLogTimeRegex + indent(8) + subphaseName + ":(" + timeRegex + "ms|\\s+skipped)\n";
+        }
     }
 
     // Find the first Reference Processing log and check its format.
-    private static void checkLogFormat(OutputAnalyzer output) {
+    private static void checkLogFormat(OutputAnalyzer output, boolean parallelRefProcEnabled) {
         String timeRegex = doubleRegex + "ms";
 
         /* Total Reference processing time */
         String totalRegex = gcLogTimeRegex + indent(4) + referenceProcessing + ": " + timeRegex + "\n";
 
-        String balanceRegex = "(" + gcLogTimeRegex + indent(8) + "Balance queues: " + timeRegex + "\n)??";
+        String balanceRegex = parallelRefProcEnabled ? "(" + gcLogTimeRegex + indent(8) + "Balance queues: " + timeRegex + "\n)??" : "";
+
+        final boolean p = parallelRefProcEnabled;
 
         String phase2Regex = gcLogTimeRegex + phaseRegex(phaseNotifySoftWeakReferences) +
                              balanceRegex +
-                             subphaseRegex("SoftRef") +
-                             subphaseRegex("WeakRef") +
-                             subphaseRegex("FinalRef") +
-                             subphaseRegex("Total");
-        String phase3Regex = gcLogTimeRegex + phaseRegex(phaseNotifyKeepAliveFinalizer) + balanceRegex + subphaseRegex("FinalRef");
-        String phase4Regex = gcLogTimeRegex + phaseRegex(phaseNotifyPhantomReferences) + balanceRegex + subphaseRegex("PhantomRef");
+                             subphaseRegex("SoftRef", p) +
+                             subphaseRegex("WeakRef", p) +
+                             subphaseRegex("FinalRef", p) +
+                             subphaseRegex("Total", p);
+        String phase3Regex = gcLogTimeRegex + phaseRegex(phaseNotifyKeepAliveFinalizer) + balanceRegex + subphaseRegex("FinalRef", p);
+        String phase4Regex = gcLogTimeRegex + phaseRegex(phaseNotifyPhantomReferences) + balanceRegex + subphaseRegex("PhantomRef", p);
 
         output.shouldMatch(totalRegex +
                            phase2Regex +

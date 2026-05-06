@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,11 @@
  * questions.
  */
 
+
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputFilter.FilterInfo;
 import java.util.function.Predicate;
@@ -30,16 +35,12 @@ import static java.io.ObjectInputFilter.Status.ALLOWED;
 import static java.io.ObjectInputFilter.Status.REJECTED;
 import static java.io.ObjectInputFilter.Status.UNDECIDED;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 /* @test
- * @run junit/othervm -Djava.util.logging.config.file=${test.src}/logging.properties
+ * @run testng/othervm -Djava.util.logging.config.file=${test.src}/logging.properties
  *                      SerialFilterFunctionTest
  * @summary ObjectInputFilter.Config Function Tests
  */
+@Test
 public class SerialFilterFunctionTest {
 
     @Test
@@ -52,10 +53,10 @@ public class SerialFilterFunctionTest {
                 ObjectInputFilter filter2 = getFilter(st2);
                 ObjectInputFilter f = ObjectInputFilter.merge(filter1, filter2);
                 Status r = f.checkInput(info);
-                Assertions.assertEquals(r, merge(st1, st2), "merge");
+                Assert.assertEquals(merge(st1, st2), r, "merge");
             }
-            Assertions.assertSame(ObjectInputFilter.merge(filter1, null), filter1, "merge with null fail");
-            Assertions.assertThrows(NullPointerException.class, () -> ObjectInputFilter.merge(null, filter1));
+            Assert.assertSame(ObjectInputFilter.merge(filter1, null), filter1, "merge with null fail");
+            Assert.assertThrows(NullPointerException.class, () -> ObjectInputFilter.merge(null, filter1));
         }
     }
 
@@ -83,7 +84,7 @@ public class SerialFilterFunctionTest {
         return (cl) -> cl.equals(Integer.class);
     }
 
-    // Test cases of filter strings
+    @DataProvider(name = "AllowPredicateCases")
     static Object[][] allowPredicateCases() {
         return new Object[][]{
                 { Integer.class, isInteger(), REJECTED, ALLOWED},
@@ -94,17 +95,18 @@ public class SerialFilterFunctionTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("allowPredicateCases")
+    @Test(dataProvider = "AllowPredicateCases")
     void testAllowPredicates(Class<?> clazz, Predicate<Class<?>> predicate, Status otherStatus, Status expected) {
         ObjectInputFilter.FilterInfo info = new SerialInfo(clazz);
         if (predicate == null || expected == null) {
-            Assertions.assertThrows(NullPointerException.class, () -> ObjectInputFilter.allowFilter(predicate, expected));
+            Assert.assertThrows(NullPointerException.class, () -> ObjectInputFilter.allowFilter(predicate, expected));
         } else {
-            Assertions.assertEquals(                    expected, ObjectInputFilter.allowFilter(predicate, otherStatus).checkInput(info), "Predicate result");
+            Assert.assertEquals(ObjectInputFilter.allowFilter(predicate, otherStatus).checkInput(info),
+                    expected, "Predicate result");
         }
     }
 
+    @DataProvider(name = "RejectPredicateCases")
     static Object[][] rejectPredicateCases() {
         return new Object[][]{
                 { Integer.class, isInteger(), REJECTED, REJECTED},
@@ -115,15 +117,14 @@ public class SerialFilterFunctionTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("rejectPredicateCases")
+    @Test(dataProvider = "RejectPredicateCases")
     void testRejectPredicates(Class<?> clazz, Predicate<Class<?>> predicate, Status otherStatus, Status expected) {
         ObjectInputFilter.FilterInfo info = new SerialInfo(clazz);
         if (predicate == null || expected == null) {
-            Assertions.assertThrows(NullPointerException.class, () -> ObjectInputFilter.allowFilter(predicate, expected));
+            Assert.assertThrows(NullPointerException.class, () -> ObjectInputFilter.allowFilter(predicate, expected));
         } else {
-            Assertions.assertEquals(expected, ObjectInputFilter.rejectFilter(predicate, otherStatus)
-                    .checkInput(info), "Predicate result");
+            Assert.assertEquals(ObjectInputFilter.rejectFilter(predicate, otherStatus)
+                    .checkInput(info), expected, "Predicate result");
         }
     }
 
@@ -132,11 +133,11 @@ public class SerialFilterFunctionTest {
         FilterInfo info = new SerialInfo(Object.class); // an info structure, unused
 
         ObjectInputFilter undecided = getFilter(UNDECIDED);
-        Assertions.assertEquals(REJECTED, ObjectInputFilter.rejectUndecidedClass(undecided).checkInput(info), "undecided -> rejected");
+        Assert.assertEquals(ObjectInputFilter.rejectUndecidedClass(undecided).checkInput(info), REJECTED, "undecided -> rejected");
         ObjectInputFilter allowed = getFilter(ALLOWED);
-        Assertions.assertEquals(ALLOWED, ObjectInputFilter.rejectUndecidedClass(allowed).checkInput(info), "allowed -> rejected");
+        Assert.assertEquals(ObjectInputFilter.rejectUndecidedClass(allowed).checkInput(info), ALLOWED, "allowed -> rejected");
         ObjectInputFilter rejected = getFilter(REJECTED);
-        Assertions.assertEquals(REJECTED, ObjectInputFilter.rejectUndecidedClass(rejected).checkInput(info), "rejected -> rejected");
+        Assert.assertEquals(ObjectInputFilter.rejectUndecidedClass(rejected).checkInput(info), REJECTED, "rejected -> rejected");
 
         // Specific cases of Classes the result in allowed, rejected, and undecided status
         ObjectInputFilter numberFilter = ObjectInputFilter.Config.createFilter("java.lang.Integer;!java.lang.Double");
@@ -163,9 +164,9 @@ public class SerialFilterFunctionTest {
                 while (clazz.isArray())
                     clazz = clazz.getComponentType();
                 Status expected = (clazz.isPrimitive()) ? UNDECIDED : REJECTED;
-                Assertions.assertEquals(expected, st, "Wrong status for class: " + obj.getClass());
+                Assert.assertEquals(st, expected, "Wrong status for class: " + obj.getClass());
             } else {
-                Assertions.assertEquals(st, rawSt, "raw filter and rejectUndecided filter disagree");
+                Assert.assertEquals(rawSt, st, "raw filter and rejectUndecided filter disagree");
             }
         }
     }

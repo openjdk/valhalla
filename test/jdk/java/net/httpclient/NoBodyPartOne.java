@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,10 @@
  * @summary Test response body handlers/subscribers when there is no body
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=all
- *      ${test.main.class}
+ *      NoBodyPartOne
  */
 
 import java.nio.file.Files;
@@ -42,21 +42,16 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-// @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-// is inherited from the super class
 public class NoBodyPartOne extends AbstractNoBody {
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsString(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testAsString(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -75,13 +70,12 @@ public class NoBodyPartOne extends AbstractNoBody {
                         : BodyHandlers.ofString(UTF_8);
                 HttpResponse<String> response = client.send(req, handler);
                 String body = response.body();
-                assertEquals("", body);
+                assertEquals(body, "");
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsFile(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testAsFile(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -100,15 +94,14 @@ public class NoBodyPartOne extends AbstractNoBody {
                 Path p = Paths.get("NoBody_testAsFile.txt");
                 HttpResponse<Path> response = client.send(req, BodyHandlers.ofFile(p));
                 Path bodyPath = response.body();
-                assertEquals(200, response.statusCode());
+                assertEquals(response.statusCode(), 200);
                 assertTrue(Files.exists(bodyPath));
-                assertEquals(0, Files.size(bodyPath), Files.readString(bodyPath));
+                assertEquals(Files.size(bodyPath), 0, Files.readString(bodyPath));
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsByteArray(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testAsByteArray(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -126,7 +119,7 @@ public class NoBodyPartOne extends AbstractNoBody {
                         .build();
                 HttpResponse<byte[]> response = client.send(req, BodyHandlers.ofByteArray());
                 byte[] body = response.body();
-                assertEquals(0, body.length);
+                assertEquals(body.length, 0);
             }
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,21 +30,15 @@ import java.io.IOException;
  * Default PollerProvider for macOS.
  */
 class DefaultPollerProvider extends PollerProvider {
-    DefaultPollerProvider(Poller.Mode mode) {
-        super(mode);
-    }
-
-    DefaultPollerProvider() {
-        this(Poller.Mode.SYSTEM_THREADS);
-    }
+    DefaultPollerProvider() { }
 
     @Override
     Poller readPoller(boolean subPoller) throws IOException {
-        return new KQueuePoller(pollerMode(), subPoller, true);
+        return new KQueuePoller(subPoller, true);
     }
 
     @Override
     Poller writePoller(boolean subPoller) throws IOException {
-        return new KQueuePoller(pollerMode(), subPoller, false);
+        return new KQueuePoller(subPoller, false);
     }
 }

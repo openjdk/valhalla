@@ -185,10 +185,9 @@ public class FocusTransferDialogsTest {
             javax.imageio.ImageIO.write(img, "jpg", new java.io.File("NOK.jpg"));
 
             throw e;
-        } finally {
-
-            robot.waitForIdle(delay);
-            EventQueue.invokeAndWait(this::closeAll);
         }
+
+        robot.waitForIdle(delay);
+        EventQueue.invokeAndWait(this::closeAll);
     }
 }

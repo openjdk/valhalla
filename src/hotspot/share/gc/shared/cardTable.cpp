@@ -169,7 +169,9 @@ void CardTable::resize_covered_region(MemRegion new_region) {
     // Shrink.
     MemRegion delta = MemRegion(new_committed.end(),
                                 old_committed.word_size() - new_committed.word_size());
-    os::uncommit_memory((char*)delta.start(), delta.byte_size());
+    bool res = os::uncommit_memory((char*)delta.start(),
+                                   delta.byte_size());
+    assert(res, "uncommit should succeed");
   }
 
   log_trace(gc, barrier)("CardTable::resize_covered_region: ");

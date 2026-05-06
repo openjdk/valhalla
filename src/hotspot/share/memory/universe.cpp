@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,7 +65,6 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objLayout.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/oopCast.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
@@ -117,10 +116,12 @@ static LatestMethodCache _throw_no_such_method_error_cache; // Unsafe.throwNoSuc
 static LatestMethodCache _do_stack_walk_cache;              // AbstractStackWalker.doStackWalk()
 static LatestMethodCache _is_substitutable_cache;           // ValueObjectMethods.isSubstitutable()
 static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethods.valueObjectHashCode()
+static LatestMethodCache _is_substitutable_alt_cache;       // ValueObjectMethods.isSubstitutableAlt()
+static LatestMethodCache _value_object_hash_code_alt_cache; // ValueObjectMethods.valueObjectHashCodeAlt()
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
-RefArrayKlass* Universe::_objectArrayKlass            = nullptr;
+ObjArrayKlass* Universe::_objectArrayKlass            = nullptr;
 Klass* Universe::_fillerArrayKlass                    = nullptr;
 OopHandle Universe::_basic_type_mirrors[T_VOID+1];
 #if INCLUDE_CDS_JAVA_HEAP
@@ -395,7 +396,7 @@ static void initialize_basic_type_klass(Klass* k, TRAPS) {
     if (k->is_instance_klass()) {
       InstanceKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), nullptr, CHECK);
     } else {
-      TypeArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
+      ArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
     }
   } else
 #endif
@@ -517,8 +518,8 @@ void Universe::genesis(TRAPS) {
     oak->append_to_sibling_list();
 
     // Create a RefArrayKlass (which is the default) and initialize.
-    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayProperties::Default(), CHECK);
-    _objectArrayKlass = RefArrayKlass::cast(rak);
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    _objectArrayKlass = rak;
   }
 
   #ifdef ASSERT
@@ -680,11 +681,11 @@ bool Universe::on_page_boundary(void* addr) {
 }
 
 // the array of preallocated errors with backtraces
-refArrayOop Universe::preallocated_out_of_memory_errors() {
-  return oop_cast<refArrayOop>(_preallocated_out_of_memory_error_array.resolve());
+objArrayOop Universe::preallocated_out_of_memory_errors() {
+  return (objArrayOop)_preallocated_out_of_memory_error_array.resolve();
 }
 
-refArrayOop Universe::out_of_memory_errors() { return oop_cast<refArrayOop>(_out_of_memory_errors.resolve()); }
+objArrayOop Universe::out_of_memory_errors() { return (objArrayOop)_out_of_memory_errors.resolve(); }
 
 oop Universe::out_of_memory_error_java_heap() {
   return gen_out_of_memory_error(out_of_memory_errors()->obj_at(_oom_java_heap));
@@ -729,7 +730,7 @@ bool Universe::should_fill_in_stack_trace(Handle throwable) {
   // preallocated errors with backtrace have been consumed. Also need to avoid
   // a potential loop which could happen if an out of memory occurs when attempting
   // to allocate the backtrace.
-  refArrayOop preallocated_oom = out_of_memory_errors();
+  objArrayOop preallocated_oom = out_of_memory_errors();
   for (int i = 0; i < _oom_count; i++) {
     if (throwable() == preallocated_oom->obj_at(i)) {
       return false;
@@ -789,8 +790,8 @@ bool Universe::is_out_of_memory_error_class_metaspace(oop ex_obj) {
 // Setup preallocated OutOfMemoryError errors
 void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
   InstanceKlass* ik = vmClasses::OutOfMemoryError_klass();
-  refArrayOop ra = oopFactory::new_refArray(ik, _oom_count, CHECK);
-  refArrayHandle oom_array(THREAD, ra);
+  objArrayOop oa = oopFactory::new_objArray(ik, _oom_count, CHECK);
+  objArrayHandle oom_array(THREAD, oa);
 
   for (int i = 0; i < _oom_count; i++) {
     oop oom_obj = ik->allocate_instance(CHECK);
@@ -823,9 +824,9 @@ void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
 
   // Setup the array of errors that have preallocated backtrace
   int len = (StackTraceInThrowable) ? (int)PreallocatedOutOfMemoryErrorCount : 0;
-  refArrayOop instance = oopFactory::new_refArray(ik, len, CHECK);
+  objArrayOop instance = oopFactory::new_objArray(ik, len, CHECK);
   _preallocated_out_of_memory_error_array = OopHandle(vm_global(), instance);
-  refArrayHandle preallocated_oom_array(THREAD, instance);
+  objArrayHandle preallocated_oom_array(THREAD, instance);
 
   for (int i=0; i<len; i++) {
     oop err = ik->allocate_instance(CHECK);
@@ -1088,6 +1089,8 @@ Method* Universe::throw_no_such_method_error()       { return _throw_no_such_met
 Method* Universe::do_stack_walk_method()             { return _do_stack_walk_cache.get_method(); }
 Method* Universe::is_substitutable_method()          { return _is_substitutable_cache.get_method(); }
 Method* Universe::value_object_hash_code_method()    { return _value_object_hash_code_cache.get_method(); }
+Method* Universe::is_substitutableAlt_method()       { return _is_substitutable_alt_cache.get_method(); }
+Method* Universe::value_object_hash_codeAlt_method() { return _value_object_hash_code_alt_cache.get_method(); }
 
 void Universe::initialize_known_methods(JavaThread* current) {
   // Set up static method for registering finalizers
@@ -1127,6 +1130,14 @@ void Universe::initialize_known_methods(JavaThread* current) {
   _value_object_hash_code_cache.init(current,
                           vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::valueObjectHashCode_name()->as_C_string(),
+                          vmSymbols::object_int_signature(), true);
+  _is_substitutable_alt_cache.init(current,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::isSubstitutableAlt_name()->as_C_string(),
+                          vmSymbols::object_object_boolean_signature(), true);
+  _value_object_hash_code_alt_cache.init(current,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::valueObjectHashCodeAlt_name()->as_C_string(),
                           vmSymbols::object_int_signature(), true);
 }
 
@@ -1199,11 +1210,12 @@ bool universe_post_init() {
     Universe::heap()->update_capacity_and_used_at_gc();
   }
 
-  // Initialize serviceability
-  MemoryService::initialize(Universe::heap());
-
-  // Complete initialization
+  // ("weak") refs processing infrastructure initialization
   Universe::heap()->post_initialize();
+
+  MemoryService::add_metaspace_memory_pools();
+
+  MemoryService::set_universe_heap(Universe::heap());
 
 #if INCLUDE_CDS
   AOTMetaspace::post_initialize(CHECK_false);
@@ -1273,7 +1285,7 @@ void Universe::initialize_verify_flags() {
     }
     token = strtok_r(nullptr, delimiter, &save_ptr);
   }
-  FREE_C_HEAP_ARRAY(subset_list);
+  FREE_C_HEAP_ARRAY(char, subset_list);
 }
 
 bool Universe::should_verify_subset(uint subset) {

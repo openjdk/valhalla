@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package jdk.jpackage.test;
 
 import java.nio.file.Path;
 import java.util.spi.ToolProvider;
-import jdk.internal.util.OperatingSystem;
 
 public enum JavaTool {
     JAVA, JAVAC, JPACKAGE, JAR, JLINK, JMOD, JSHELL;
@@ -51,7 +50,7 @@ public enum JavaTool {
 
     private Path relativePathInJavaHome() {
         Path path = Path.of("bin", toolName());
-        if (OperatingSystem.isWindows()) {
+        if (TKit.isWindows()) {
             path = path.getParent().resolve(path.getFileName().toString() + ".exe");
         }
         return path;

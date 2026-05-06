@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,13 +21,13 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8014076 8025067
  * @summary unit test for Arrays.ParallelPrefix().
+ * @author Tristan Yan
  * @modules java.management jdk.management
- * @library /test/lib
- * @run junit/othervm -Xms256m -Xmx1024m ParallelPrefix
+ * @run testng/othervm -Xms256m -Xmx1024m ParallelPrefix
  */
 
 import java.lang.management.ManagementFactory;
@@ -40,18 +40,11 @@ import java.util.function.LongBinaryOperator;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import com.sun.management.OperatingSystemMXBean;
+import static org.testng.Assert.*;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import org.testng.annotations.BeforeSuite;
 
-import jdk.test.lib.valueclass.AsValueClass;
-
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ParallelPrefix {
     //Array size less than MIN_PARTITION
     private static final int SMALL_ARRAY_SIZE = 1 << 3;
@@ -67,10 +60,7 @@ public class ParallelPrefix {
 
     private static int[] arraySizeCollection;
 
-    @AsValueClass
-    record VInt(int value) {}
-
-    @BeforeAll
+    @BeforeSuite
     public static void setup() {
         java.lang.management.OperatingSystemMXBean bean =
                 ManagementFactory.getOperatingSystemMXBean();
@@ -100,6 +90,7 @@ public class ParallelPrefix {
         System.out.println("System memory is not large enough, remove large array size test");
     }
 
+    @DataProvider(name = "intSet")
     public static Object[][] intSet(){
         return genericData(size -> IntStream.range(0, size).toArray(),
                 new IntBinaryOperator[]{
@@ -107,6 +98,7 @@ public class ParallelPrefix {
                     Integer::min});
     }
 
+    @DataProvider(name = "longSet")
     public static Object[][] longSet(){
         return genericData(size -> LongStream.range(0, size).toArray(),
                 new LongBinaryOperator[]{
@@ -114,6 +106,7 @@ public class ParallelPrefix {
                     Long::min});
     }
 
+    @DataProvider(name = "doubleSet")
     public static Object[][] doubleSet(){
         return genericData(size -> IntStream.range(0, size).mapToDouble(i -> (double)i).toArray(),
                 new DoubleBinaryOperator[]{
@@ -121,6 +114,7 @@ public class ParallelPrefix {
                     Double::min});
     }
 
+    @DataProvider(name = "stringSet")
     public static Object[][] stringSet(){
         Function<Integer, String[]> stringsFunc = size ->
                 IntStream.range(0, size).mapToObj(Integer::toString).toArray(String[]::new);
@@ -148,17 +142,7 @@ public class ParallelPrefix {
         return data;
     }
 
-    public static Object[][] valueSet() {
-        Function<Integer, VInt[]> vIntFunc = size ->
-                IntStream.range(0, size).mapToObj(VInt::new).toArray(VInt[]::new);
-        BinaryOperator<VInt> sumOp = (a, b) -> new VInt(a.value() + b.value());
-        BinaryOperator<VInt> minOp = (a, b) -> a.value() <= b.value() ? a : b;
-        return genericData(vIntFunc,
-                (BinaryOperator<VInt>[]) new BinaryOperator[]{sumOp, minOp});
-    }
-
-    @ParameterizedTest
-    @MethodSource("intSet")
+    @Test(dataProvider="intSet")
     public void testParallelPrefixForInt(int[] data, int fromIndex, int toIndex, IntBinaryOperator op) {
         int[] sequentialResult = data.clone();
         for (int index = fromIndex + 1; index < toIndex; index++) {
@@ -167,15 +151,14 @@ public class ParallelPrefix {
 
         int[] parallelResult = data.clone();
         Arrays.parallelPrefix(parallelResult, fromIndex, toIndex, op);
-        assertArraysEqual(sequentialResult, parallelResult);
+        assertArraysEqual(parallelResult, sequentialResult);
 
         int[] parallelRangeResult = Arrays.copyOfRange(data, fromIndex, toIndex);
         Arrays.parallelPrefix(parallelRangeResult, op);
-        assertArraysEqual(Arrays.copyOfRange(sequentialResult, fromIndex, toIndex), parallelRangeResult);
+        assertArraysEqual(parallelRangeResult, Arrays.copyOfRange(sequentialResult, fromIndex, toIndex));
     }
 
-    @ParameterizedTest
-    @MethodSource("longSet")
+    @Test(dataProvider="longSet")
     public void testParallelPrefixForLong(long[] data, int fromIndex, int toIndex, LongBinaryOperator op) {
         long[] sequentialResult = data.clone();
         for (int index = fromIndex + 1; index < toIndex; index++) {
@@ -184,15 +167,14 @@ public class ParallelPrefix {
 
         long[] parallelResult = data.clone();
         Arrays.parallelPrefix(parallelResult, fromIndex, toIndex, op);
-        assertArraysEqual(sequentialResult, parallelResult);
+        assertArraysEqual(parallelResult, sequentialResult);
 
         long[] parallelRangeResult = Arrays.copyOfRange(data, fromIndex, toIndex);
         Arrays.parallelPrefix(parallelRangeResult, op);
-        assertArraysEqual(Arrays.copyOfRange(sequentialResult, fromIndex, toIndex), parallelRangeResult);
+        assertArraysEqual(parallelRangeResult, Arrays.copyOfRange(sequentialResult, fromIndex, toIndex));
     }
 
-    @ParameterizedTest
-    @MethodSource("doubleSet")
+    @Test(dataProvider="doubleSet")
     public void testParallelPrefixForDouble(double[] data, int fromIndex, int toIndex, DoubleBinaryOperator op) {
         double[] sequentialResult = data.clone();
         for (int index = fromIndex + 1; index < toIndex; index++) {
@@ -201,15 +183,14 @@ public class ParallelPrefix {
 
         double[] parallelResult = data.clone();
         Arrays.parallelPrefix(parallelResult, fromIndex, toIndex, op);
-        assertArraysEqual(sequentialResult, parallelResult);
+        assertArraysEqual(parallelResult, sequentialResult);
 
         double[] parallelRangeResult = Arrays.copyOfRange(data, fromIndex, toIndex);
         Arrays.parallelPrefix(parallelRangeResult, op);
-        assertArraysEqual(Arrays.copyOfRange(sequentialResult, fromIndex, toIndex), parallelRangeResult);
+        assertArraysEqual(parallelRangeResult, Arrays.copyOfRange(sequentialResult, fromIndex, toIndex));
     }
 
-    @ParameterizedTest
-    @MethodSource("stringSet")
+    @Test(dataProvider="stringSet")
     public void testParallelPrefixForStringr(String[] data , int fromIndex, int toIndex, BinaryOperator<String> op) {
         String[] sequentialResult = data.clone();
         for (int index = fromIndex + 1; index < toIndex; index++) {
@@ -218,26 +199,9 @@ public class ParallelPrefix {
 
         String[] parallelResult = data.clone();
         Arrays.parallelPrefix(parallelResult, fromIndex, toIndex, op);
-        assertArraysEqual(sequentialResult, parallelResult);
-
-        String[] parallelRangeResult = Arrays.copyOfRange(data, fromIndex, toIndex);
-        Arrays.parallelPrefix(parallelRangeResult, op);
-        assertArraysEqual(Arrays.copyOfRange(sequentialResult, fromIndex, toIndex), parallelRangeResult);
-    }
-
-    @ParameterizedTest
-    @MethodSource("valueSet")
-    public void testParallelPrefixForValue(VInt[] data, int fromIndex, int toIndex, BinaryOperator<VInt> op) {
-        VInt[] sequentialResult = data.clone();
-        for (int index = fromIndex + 1; index < toIndex; index++) {
-            sequentialResult[index] = op.apply(sequentialResult[index - 1], sequentialResult[index]);
-        }
-
-        VInt[] parallelResult = data.clone();
-        Arrays.parallelPrefix(parallelResult, fromIndex, toIndex, op);
         assertArraysEqual(parallelResult, sequentialResult);
 
-        VInt[] parallelRangeResult = Arrays.copyOfRange(data, fromIndex, toIndex);
+        String[] parallelRangeResult = Arrays.copyOfRange(data, fromIndex, toIndex);
         Arrays.parallelPrefix(parallelRangeResult, op);
         assertArraysEqual(parallelRangeResult, Arrays.copyOfRange(sequentialResult, fromIndex, toIndex));
     }
@@ -249,28 +213,24 @@ public class ParallelPrefix {
         assertThrowsNPE(() -> Arrays.parallelPrefix((long []) null, Long::max));
         assertThrowsNPE(() -> Arrays.parallelPrefix((double []) null, Double::max));
         assertThrowsNPE(() -> Arrays.parallelPrefix((String []) null, String::concat));
-        assertThrowsNPE(() -> Arrays.parallelPrefix((VInt[]) null, (a, b) -> new VInt(a.value() + b.value())));
 
         // null array w/ range
         assertThrowsNPE(() -> Arrays.parallelPrefix((int[]) null, 0, 0, Integer::max));
         assertThrowsNPE(() -> Arrays.parallelPrefix((long []) null, 0, 0, Long::max));
         assertThrowsNPE(() -> Arrays.parallelPrefix((double []) null, 0, 0, Double::max));
         assertThrowsNPE(() -> Arrays.parallelPrefix((String []) null, 0, 0, String::concat));
-        assertThrowsNPE(() -> Arrays.parallelPrefix((VInt[]) null, 0, 0, (a, b) -> new VInt(a.value() + b.value())));
 
         // null op
         assertThrowsNPE(() -> Arrays.parallelPrefix(new int[] {}, null));
         assertThrowsNPE(() -> Arrays.parallelPrefix(new long[] {}, null));
         assertThrowsNPE(() -> Arrays.parallelPrefix(new double[] {}, null));
         assertThrowsNPE(() -> Arrays.parallelPrefix(new String[] {}, null));
-        assertThrowsNPE(() -> Arrays.parallelPrefix(new VInt[] {}, (BinaryOperator<VInt>) null));
 
         // null op w/ range
         assertThrowsNPE(() -> Arrays.parallelPrefix(new int[] {}, 0, 0, null));
         assertThrowsNPE(() -> Arrays.parallelPrefix(new long[] {}, 0, 0, null));
         assertThrowsNPE(() -> Arrays.parallelPrefix(new double[] {}, 0, 0, null));
         assertThrowsNPE(() -> Arrays.parallelPrefix(new String[] {}, 0, 0, null));
-        assertThrowsNPE(() -> Arrays.parallelPrefix(new VInt[] {}, 0, 0, (BinaryOperator<VInt>) null));
     }
 
     @Test
@@ -279,7 +239,6 @@ public class ParallelPrefix {
         assertThrowsIAE(() -> Arrays.parallelPrefix(new long[] {}, 1, 0, Long::max));
         assertThrowsIAE(() -> Arrays.parallelPrefix(new double[] {}, 1, 0, Double::max));
         assertThrowsIAE(() -> Arrays.parallelPrefix(new String[] {}, 1, 0, String::concat));
-        assertThrowsIAE(() -> Arrays.parallelPrefix(new VInt[] {}, 1, 0, (a, b) -> new VInt(a.value() + b.value())));
     }
 
     @Test
@@ -289,69 +248,58 @@ public class ParallelPrefix {
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new long[] {}, -1, 0, Long::max));
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new double[] {}, -1, 0, Double::max));
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new String[] {}, -1, 0, String::concat));
-        assertThrowsAIOOB(() -> Arrays.parallelPrefix(new VInt[] {}, -1, 0, (a, b) -> new VInt(a.value() + b.value())));
 
         // bad "toIndex"
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new int[] {}, 0, 1, Integer::max));
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new long[] {}, 0, 1, Long::max));
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new double[] {}, 0, 1, Double::max));
         assertThrowsAIOOB(() -> Arrays.parallelPrefix(new String[] {}, 0, 1, String::concat));
-        assertThrowsAIOOB(() -> Arrays.parallelPrefix(new VInt[] {}, 0, 1, (a, b) -> new VInt(a.value() + b.value())));
     }
 
     // "library" code
 
-    private void assertThrowsNPE(Executable r) {
+    private void assertThrowsNPE(ThrowingRunnable r) {
         assertThrows(NullPointerException.class, r);
     }
 
-    private void assertThrowsIAE(Executable r) {
+    private void assertThrowsIAE(ThrowingRunnable r) {
         assertThrows(IllegalArgumentException.class, r);
     }
 
-    private void assertThrowsAIOOB(Executable r) {
+    private void assertThrowsAIOOB(ThrowingRunnable r) {
         assertThrows(ArrayIndexOutOfBoundsException.class, r);
     }
 
-    static void assertArraysEqual(int[] expected, int[] actual) {
+    static void assertArraysEqual(int[] actual, int[] expected) {
         try {
-            assertArrayEquals(expected, actual, "");
+            assertEquals(actual, expected, "");
         } catch (AssertionError x) {
             throw new AssertionError(String.format("Expected:%s, actual:%s",
                     Arrays.toString(expected), Arrays.toString(actual)), x);
         }
     }
 
-    static void assertArraysEqual(long[] expected, long[] actual) {
+    static void assertArraysEqual(long[] actual, long[] expected) {
         try {
-            assertArrayEquals(expected, actual, "");
+            assertEquals(actual, expected, "");
         } catch (AssertionError x) {
             throw new AssertionError(String.format("Expected:%s, actual:%s",
                     Arrays.toString(expected), Arrays.toString(actual)), x);
         }
     }
 
-    static void assertArraysEqual(double[] expected, double[] actual) {
+    static void assertArraysEqual(double[] actual, double[] expected) {
         try {
-            assertArrayEquals(expected, actual, "");
+            assertEquals(actual, expected, "");
         } catch (AssertionError x) {
             throw new AssertionError(String.format("Expected:%s, actual:%s",
                     Arrays.toString(expected), Arrays.toString(actual)), x);
         }
     }
 
-    static void assertArraysEqual(String[] expected, String[] actual) {
+    static void assertArraysEqual(String[] actual, String[] expected) {
         try {
-            assertArrayEquals(expected, actual, "");
-        } catch (AssertionError x) {
-            throw new AssertionError(String.format("Expected:%s, actual:%s",
-                    Arrays.toString(expected), Arrays.toString(actual)), x);
-        }
-    }
-
-    static void assertArraysEqual(VInt[] actual, VInt[] expected) {
-        try {
-            assertArrayEquals(actual, expected, "");
+            assertEquals(actual, expected, "");
         } catch (AssertionError x) {
             throw new AssertionError(String.format("Expected:%s, actual:%s",
                     Arrays.toString(expected), Arrays.toString(actual)), x);

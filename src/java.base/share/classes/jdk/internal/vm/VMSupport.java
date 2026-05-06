@@ -98,11 +98,6 @@ public class VMSupport {
         return serializePropertiesToByteArray(onlyStrings(System.getProperties()));
     }
 
-    public static byte[] serializeSecurityPropertiesToByteArray() throws IOException {
-        Properties p = SharedSecrets.getJavaSecurityPropertiesAccess().getCurrentProperties();
-        return serializePropertiesToByteArray(onlyStrings(p));
-    }
-
     public static byte[] serializeAgentPropertiesToByteArray() throws IOException {
         return serializePropertiesToByteArray(onlyStrings(getAgentProperties()));
     }

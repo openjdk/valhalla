@@ -31,7 +31,7 @@ import java.util.Set;
 
 public final class SetBuilder<T> {
 
-    public static <T> SetBuilder<T> build() {
+    public static <T> SetBuilder<T> build(Class<? extends T> type) {
         return new SetBuilder<>();
     }
 

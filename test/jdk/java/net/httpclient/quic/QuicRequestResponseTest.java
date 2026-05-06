@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,10 +43,9 @@ import jdk.internal.net.http.quic.QuicClient;
 import jdk.internal.net.quic.QuicTLSContext;
 import jdk.internal.net.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 /*
  * @test
@@ -55,31 +54,35 @@ import org.junit.jupiter.api.Test;
  *        jdk.httpclient.test.lib.quic.ClientConnection
  *        jdk.httpclient.test.lib.common.TestUtil
  *        jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true QuicRequestResponseTest
  */
 public class QuicRequestResponseTest {
 
-    private static QuicStandaloneServer server;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static ExecutorService executor;
+    private QuicStandaloneServer server;
+    private SSLContext sslContext;
+    private ExecutorService executor;
 
     private static final byte[] HELLO_MSG = "Hello Quic".getBytes(StandardCharsets.UTF_8);
 
-    @BeforeAll
-    public static void beforeClass() throws Exception {
+    @BeforeClass
+    public void beforeClass() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         executor = Executors.newCachedThreadPool();
         server = QuicStandaloneServer.newBuilder()
                 .availableVersions(new QuicVersion[]{QuicVersion.QUIC_V1})
                 .sslContext(sslContext)
                 .build();
         // add a handler which deals with incoming connections
-        server.setHandler(new EchoHandler(HELLO_MSG.length));
+        server.addHandler(new EchoHandler(HELLO_MSG.length));
         server.start();
         System.out.println("Server started at " + server.getAddress());
     }
 
-    @AfterAll
-    public static void afterClass() throws Exception {
+    @AfterClass
+    public void afterClass() throws Exception {
         if (server != null) {
             System.out.println("Stopping server " + server.getAddress());
             server.close();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,6 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
@@ -950,9 +949,7 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
                                                InstanceKlass* ik,
                                                PackageEntry* pkg_entry,
                                                Handle class_loader) {
-
-  assert(!ModuleEntryTable::javabase_moduleEntry()->is_patched(),
-         "Cannot use sharing if java.base is patched");
+  assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
 
   // (1) Check if we are loading into the same loader as in dump time.
 
@@ -1028,7 +1025,7 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
       // Is the module loaded from the same location as during dump time?
       visible = mod_entry->shared_path_index() == scp_index;
       if (visible) {
-        assert(!mod_entry->is_patched(), "cannot load archived classes for patched module");
+        assert(!CDSConfig::module_patching_disables_cds(), "Cannot use CDS");
       }
     } else {
       // During dump time, this class was in a named module, but at run time, this class should be
@@ -1127,9 +1124,10 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
   if (real_k != k) {
     // oops, the app has substituted a different version of k! Does not fail fatally
     log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                             "(cause: null-free non-static field) failed : "
-                             "app substituted a different version",
-                             name->as_C_string(), ik->name()->as_C_string());
+                                "(cause: null-free non-static field) failed : "
+                                "app substituted a different version of %s",
+                                name->as_C_string(), ik->name()->as_C_string(),
+                                name->as_C_string());
     return false;
   }
   log_info(class, preload)("Preloading of class %s during loading of shared class %s "
@@ -1160,9 +1158,10 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     if (real_k != k) {
       // oops, the app has substituted a different version of k!
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                               "(cause: field type in LoadableDescriptors attribute) failed : "
-                               "app substituted a different version",
-                               name->as_C_string(), ik->name()->as_C_string());
+                                  "(cause: field type in LoadableDescriptors attribute) failed : "
+                                  "app substituted a different version of %s",
+                                  name->as_C_string(), ik->name()->as_C_string(),
+                                  k->name()->as_C_string());
       return;
     } else if (real_k != nullptr) {
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
@@ -1196,7 +1195,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inlined_fields()) {
+  if (ik->has_inline_type_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) continue;
 
@@ -1211,8 +1210,8 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else if (Signature::has_envelope(sig)) {
-        // Pending exceptions are cleared so we can fail silently
-        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
+          // Pending exceptions are cleared so we can fail silently
+          try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
   }
@@ -1252,6 +1251,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   }
 
   load_shared_class_misc(ik, loader_data);
+
   return ik;
 }
 
@@ -2221,7 +2221,7 @@ void SystemDictionary::restore_archived_method_handle_intrinsics_impl(TRAPS) {
 // Helper for unpacking the return value from linkMethod and linkCallSite.
 static Method* unpack_method_and_appendix(Handle mname,
                                           Klass* accessing_klass,
-                                          refArrayHandle appendix_box,
+                                          objArrayHandle appendix_box,
                                           Handle* appendix_result,
                                           TRAPS) {
   if (mname.not_null()) {
@@ -2264,7 +2264,7 @@ Method* SystemDictionary::find_method_handle_invoker(Klass* klass,
   int ref_kind = JVM_REF_invokeVirtual;
   oop name_oop = StringTable::intern(name, CHECK_NULL);
   Handle name_str (THREAD, name_oop);
-  refArrayHandle appendix_box = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 1, CHECK_NULL);
+  objArrayHandle appendix_box = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 1, CHECK_NULL);
   assert(appendix_box->obj_at(0) == nullptr, "");
 
   // This should not happen.  JDK code should take care of that.
@@ -2375,7 +2375,7 @@ Handle SystemDictionary::find_method_handle_type(Symbol* signature,
   }
   bool can_be_cached = true;
   int npts = ArgumentCount(signature).size();
-  refArrayHandle pts = oopFactory::new_refArray_handle(vmClasses::Class_klass(), npts, CHECK_(empty));
+  objArrayHandle pts = oopFactory::new_objArray_handle(vmClasses::Class_klass(), npts, CHECK_(empty));
   int arg = 0;
   Handle rt; // the return type from the signature
   ResourceMark rm(THREAD);
@@ -2521,10 +2521,10 @@ void SystemDictionary::invoke_bootstrap_method(BootstrapInfo& bootstrap_specifie
   }
 
   bool is_indy = bootstrap_specifier.is_method_call();
-  refArrayHandle appendix_box;
+  objArrayHandle appendix_box;
   if (is_indy) {
     // Some method calls may require an appendix argument.  Arrange to receive it.
-    appendix_box = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 1, CHECK);
+    appendix_box = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 1, CHECK);
     assert(appendix_box->obj_at(0) == nullptr, "");
   }
 

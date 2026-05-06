@@ -184,8 +184,6 @@ public class AArch64 extends Architecture {
         SVEBITPERM,
         SVE2,
         A53MAC,
-        ECV,
-        WFXT,
         FPHP,
         ASIMDHP,
     }

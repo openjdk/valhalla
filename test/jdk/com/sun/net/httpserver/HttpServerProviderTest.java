@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,19 +25,19 @@
  * @test
  * @bug 8270286
  * @summary Test for HttpServerProvider::loadProviderFromProperty
- * @run junit/othervm
+ * @run testng/othervm
  *      -Dcom.sun.net.httpserver.HttpServerProvider=HttpServerProviderTest$ProviderP
  *      HttpServerProviderTest
- * @run junit/othervm
+ * @run testng/othervm
  *      -Dcom.sun.net.httpserver.HttpServerProvider=HttpServerProviderTest$ProviderPNPC
  *      HttpServerProviderTest
- * @run junit/othervm
+ * @run testng/othervm
  *      -Dcom.sun.net.httpserver.HttpServerProvider=HttpServerProviderTest$ProviderNP
  *      HttpServerProviderTest
- * @run junit/othervm
+ * @run testng/othervm
  *      -Dcom.sun.net.httpserver.HttpServerProvider=HttpServerProviderTest$ProviderT
  *      HttpServerProviderTest
- * @run junit/othervm
+ * @run testng/othervm
  *      -Dcom.sun.net.httpserver.HttpServerProvider=DoesNotExist
  *      HttpServerProviderTest
  */
@@ -48,11 +48,10 @@ import java.util.ServiceConfigurationError;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsServer;
 import com.sun.net.httpserver.spi.HttpServerProvider;
-
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.expectThrows;
 
 public class HttpServerProviderTest {
     public final static String PROPERTY_KEY = "com.sun.net.httpserver.HttpServerProvider";
@@ -71,7 +70,7 @@ public class HttpServerProviderTest {
 
     private void testPublic() throws Exception {
         var n = ProviderP.class.getName();
-        assertEquals(n, System.getProperty(PROPERTY_KEY));
+        assertEquals(System.getProperty(PROPERTY_KEY), n);
 
         var p = HttpServerProvider.provider();
         assertNull(p.createHttpServer(null, 0));
@@ -80,39 +79,39 @@ public class HttpServerProviderTest {
 
     private void testPublicNonPublicConstructor() {
         var n = ProviderPNPC.class.getName();
-        assertEquals(n, System.getProperty(PROPERTY_KEY));
+        assertEquals(System.getProperty(PROPERTY_KEY), n);
 
-        var e = Assertions.assertThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
-        assertEquals(ServiceConfigurationError.class, e.getClass());
-        assertEquals(IllegalAccessException.class, e.getCause().getClass());
+        var e = expectThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
+        assertEquals(e.getClass(), ServiceConfigurationError.class);
+        assertEquals(e.getCause().getClass(), IllegalAccessException.class);
     }
 
     private void testNonPublic() {
         var n = ProviderNP.class.getName();
-        assertEquals(n, System.getProperty(PROPERTY_KEY));
+        assertEquals(System.getProperty(PROPERTY_KEY), n);
 
-        var e = Assertions.assertThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
-        assertEquals(ServiceConfigurationError.class, e.getClass());
-        assertEquals(IllegalAccessException.class, e.getCause().getClass());
+        var e = expectThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
+        assertEquals(e.getClass(), ServiceConfigurationError.class);
+        assertEquals(e.getCause().getClass(), IllegalAccessException.class);
     }
 
     private void testThrowingConstructor() {
         var cn = ProviderT.class.getName();
-        assertEquals(cn, System.getProperty(PROPERTY_KEY));
+        assertEquals(System.getProperty(PROPERTY_KEY), cn);
 
-        var e = Assertions.assertThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
-        assertEquals(ServiceConfigurationError.class, e.getClass());
-        assertEquals(InvocationTargetException.class, e.getCause().getClass());
-        assertEquals("throwing constructor", e.getCause().getCause().getMessage());
+        var e = expectThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
+        assertEquals(e.getClass(), ServiceConfigurationError.class);
+        assertEquals(e.getCause().getClass(), InvocationTargetException.class);
+        assertEquals(e.getCause().getCause().getMessage(), "throwing constructor");
     }
 
     private void testBadData() {
         var cn = "DoesNotExist";
-        assertEquals(cn, System.getProperty(PROPERTY_KEY));
+        assertEquals(System.getProperty(PROPERTY_KEY), cn);
 
-        var e = Assertions.assertThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
-        assertEquals(ServiceConfigurationError.class, e.getClass());
-        assertEquals(ClassNotFoundException.class, e.getCause().getClass());
+        var e = expectThrows(ServiceConfigurationError.class, HttpServerProvider::provider);
+        assertEquals(e.getClass(), ServiceConfigurationError.class);
+        assertEquals(e.getCause().getClass(), ClassNotFoundException.class);
     }
 
     /**

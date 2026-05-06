@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,8 @@
 
 /*
  * @test
- * @summary Test Compressed Oops with different object alignments
+ * @bug 8000968
+ * @summary NPG: UseCompressedClassPointers asserts with ObjectAlignmentInBytes=32
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -50,6 +51,7 @@ public class CompressedKlassPointerAndOops {
         OutputAnalyzer output;
 
         pb = ProcessTools.createLimitedTestJavaProcessBuilder(
+            "-XX:+UseCompressedClassPointers",
             "-XX:+UseCompressedOops",
             "-XX:ObjectAlignmentInBytes=" + alignment,
             "-version");

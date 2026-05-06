@@ -2,5 +2,5 @@
     @Test(dataProvider = "$type$UnaryOpProvider")
     static void Zero$vectorteststype$(IntFunction<$type$[]> fa) {
 [[KERNEL]]
-        assertEquals(a, r);
+        Assert.assertEquals(a, r);
     }

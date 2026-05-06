@@ -41,10 +41,6 @@ public record BundlingOperationDescriptor(OperatingSystem os, String bundleType,
         Objects.requireNonNull(verb);
     }
 
-    public BundlingOperationDescriptor(OperatingSystem os, String bundleType) {
-        this(os, bundleType, VERB_CREATE_BUNDLE);
-    }
-
     @Override
     public String toString() {
         return os.name() + ":" + verb + ":" + bundleType;
@@ -54,6 +50,4 @@ public record BundlingOperationDescriptor(OperatingSystem os, String bundleType,
         final var components = str.split(":");
         return new BundlingOperationDescriptor(OperatingSystem.valueOf(components[0]), components[1], components[2]);
     }
-
-    public static final String VERB_CREATE_BUNDLE = "create";
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,19 +63,19 @@ import java.io.IOException;
 import java.time.temporal.JulianFields;
 import java.time.temporal.TemporalField;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import tck.java.time.AbstractTCKTest;
 
 /**
  * Test serialization of JulianFields
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKJulianFieldsSerialization extends AbstractTCKTest {
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="julian_fields")
     Object[][] julian_samples() {
         return new Object[][] {
             {JulianFields.JULIAN_DAY},
@@ -86,8 +86,7 @@ public class TCKJulianFieldsSerialization extends AbstractTCKTest {
 
 
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("julian_samples")
+    @Test(dataProvider="julian_fields")
     public void test_serializable(TemporalField field) throws IOException, ClassNotFoundException {
         assertSerializable(field);
     }

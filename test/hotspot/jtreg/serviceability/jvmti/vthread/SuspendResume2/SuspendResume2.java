@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @test id=default
  * @summary Test SuspendAllVirtualThreads/ResumeAllVirtualThreads
  * @requires vm.debug != true
- * @requires test.thread.factory == null
  * @library /test/lib
  * @compile SuspendResume2.java
  * @run driver jdk.test.lib.FileInstaller . .
@@ -38,7 +37,6 @@
 /*
  * @test id=debug
  * @requires vm.debug == true
- * @requires test.thread.factory == null
  * @library /test/lib
  * @compile SuspendResume2.java
  * @run driver jdk.test.lib.FileInstaller . .
@@ -52,7 +50,6 @@
 /*
  * @test id=no-vmcontinuations
  * @requires vm.continuations
- * @requires test.thread.factory == null
  * @library /test/lib
  * @compile SuspendResume2.java
  * @run driver jdk.test.lib.FileInstaller . .

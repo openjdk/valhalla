@@ -1,5 +1,5 @@
 /*
- o Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ o Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,17 +61,18 @@ import static java.time.temporal.ChronoField.ERA;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.YEAR;
 import static java.time.temporal.ChronoField.YEAR_OF_ERA;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.Period;
 import java.time.Year;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -85,6 +86,7 @@ import java.time.chrono.JapaneseDate;
 import java.time.chrono.JapaneseEra;
 import java.time.chrono.MinguoChronology;
 import java.time.chrono.MinguoDate;
+import java.time.chrono.ThaiBuddhistChronology;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
@@ -98,16 +100,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKJapaneseChronology {
 
     // Year differences from Gregorian years.
@@ -124,10 +124,10 @@ public class TCKJapaneseChronology {
     public void test_chrono_byName() {
         Chronology c = JapaneseChronology.INSTANCE;
         Chronology test = Chronology.of("Japanese");
-        Assertions.assertNotNull(test, "The Japanese calendar could not be found byName");
-        assertEquals("Japanese", test.getId(), "ID mismatch");
-        assertEquals("japanese", test.getCalendarType(), "Type mismatch");
-        assertEquals(c, test);
+        Assert.assertNotNull(test, "The Japanese calendar could not be found byName");
+        Assert.assertEquals(test.getId(), "Japanese", "ID mismatch");
+        Assert.assertEquals(test.getCalendarType(), "japanese", "Type mismatch");
+        Assert.assertEquals(test, c);
     }
 
     //-----------------------------------------------------------------------
@@ -136,41 +136,42 @@ public class TCKJapaneseChronology {
     @Test
     public void test_chrono_byLocale_fullTag_japaneseCalendarFromJapan() {
         Chronology test = Chronology.ofLocale(Locale.forLanguageTag("ja-JP-u-ca-japanese"));
-        assertEquals("Japanese", test.getId());
-        assertEquals(JapaneseChronology.INSTANCE, test);
+        Assert.assertEquals(test.getId(), "Japanese");
+        Assert.assertEquals(test, JapaneseChronology.INSTANCE);
     }
 
     @Test
     public void test_chrono_byLocale_fullTag_japaneseCalendarFromElsewhere() {
         Chronology test = Chronology.ofLocale(Locale.forLanguageTag("en-US-u-ca-japanese"));
-        assertEquals("Japanese", test.getId());
-        assertEquals(JapaneseChronology.INSTANCE, test);
+        Assert.assertEquals(test.getId(), "Japanese");
+        Assert.assertEquals(test, JapaneseChronology.INSTANCE);
     }
 
     @Test
     public void test_chrono_byLocale_oldJP_noVariant() {
         Chronology test = Chronology.ofLocale(Locale.JAPAN);
-        assertEquals("ISO", test.getId());
-        assertEquals(IsoChronology.INSTANCE, test);
+        Assert.assertEquals(test.getId(), "ISO");
+        Assert.assertEquals(test, IsoChronology.INSTANCE);
     }
 
     @Test
     public void test_chrono_byLocale_oldJP_variant() {
         Chronology test = Chronology.ofLocale(Locale.of("ja", "JP", "JP"));
-        assertEquals("Japanese", test.getId());
-        assertEquals(JapaneseChronology.INSTANCE, test);
+        Assert.assertEquals(test.getId(), "Japanese");
+        Assert.assertEquals(test, JapaneseChronology.INSTANCE);
     }
 
     @Test
     public void test_chrono_byLocale_iso() {
-        assertEquals("ISO", Chronology.ofLocale(Locale.JAPAN).getId());
-        assertEquals("ISO", Chronology.ofLocale(Locale.forLanguageTag("ja-JP")).getId());
-        assertEquals("ISO", Chronology.ofLocale(Locale.forLanguageTag("ja-JP-JP")).getId());
+        Assert.assertEquals(Chronology.ofLocale(Locale.JAPAN).getId(), "ISO");
+        Assert.assertEquals(Chronology.ofLocale(Locale.forLanguageTag("ja-JP")).getId(), "ISO");
+        Assert.assertEquals(Chronology.ofLocale(Locale.forLanguageTag("ja-JP-JP")).getId(), "ISO");
     }
 
     //-----------------------------------------------------------------------
     // creation and cross-checks
     //-----------------------------------------------------------------------
+    @DataProvider(name="createByEra")
     Object[][] data_createByEra() {
         return new Object[][] {
                 {JapaneseEra.REIWA, 2020 - YDIFF_REIWA, 2, 29, 60, LocalDate.of(2020, 2, 29)},
@@ -189,64 +190,58 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createEymd(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate dateByChronoFactory = JapaneseChronology.INSTANCE.date(era, yoe, moy, dom);
         JapaneseDate dateByDateFactory = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(dateByDateFactory, dateByChronoFactory);
-        assertEquals(dateByDateFactory.hashCode(), dateByChronoFactory.hashCode());
+        assertEquals(dateByChronoFactory, dateByDateFactory);
+        assertEquals(dateByChronoFactory.hashCode(), dateByDateFactory.hashCode());
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createEyd(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate dateByChronoFactory = JapaneseChronology.INSTANCE.dateYearDay(era, yoe, doy);
         JapaneseDate dateByDateFactory = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(dateByDateFactory, dateByChronoFactory);
-        assertEquals(dateByDateFactory.hashCode(), dateByChronoFactory.hashCode());
+        assertEquals(dateByChronoFactory, dateByDateFactory);
+        assertEquals(dateByChronoFactory.hashCode(), dateByDateFactory.hashCode());
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createByEra_isEqual(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(true, test.isEqual(iso));
-        assertEquals(true, iso.isEqual(test));
+        assertEquals(test.isEqual(iso), true);
+        assertEquals(iso.isEqual(test), true);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createByEra_chronologyTemporalFactory(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(iso, IsoChronology.INSTANCE.date(test));
-        assertEquals(test, JapaneseChronology.INSTANCE.date(iso));
+        assertEquals(IsoChronology.INSTANCE.date(test), iso);
+        assertEquals(JapaneseChronology.INSTANCE.date(iso), test);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createByEra_dateFrom(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(iso, LocalDate.from(test));
-        assertEquals(test, JapaneseDate.from(iso));
+        assertEquals(LocalDate.from(test), iso);
+        assertEquals(JapaneseDate.from(iso), test);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createByEra_query(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(iso, test.query(TemporalQueries.localDate()));
+        assertEquals(test.query(TemporalQueries.localDate()), iso);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByEra")
+    @Test(dataProvider="createByEra")
     public void test_createByEra_epochDay(JapaneseEra era, int yoe, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(era, yoe, moy, dom);
-        assertEquals(iso.getLong(EPOCH_DAY), test.getLong(EPOCH_DAY));
-        assertEquals(iso.toEpochDay(), test.toEpochDay());
+        assertEquals(test.getLong(EPOCH_DAY), iso.getLong(EPOCH_DAY));
+        assertEquals(test.toEpochDay(), iso.toEpochDay());
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="createByProleptic")
     Object[][] data_createByProleptic() {
         return new Object[][] {
                 {1928, 2, 28, 59, LocalDate.of(1928, 2, 28)},
@@ -263,85 +258,79 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createYmd(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate dateByChronoFactory = JapaneseChronology.INSTANCE.date(y, moy, dom);
         JapaneseDate dateByDateFactory = JapaneseDate.of(y, moy, dom);
-        assertEquals(dateByDateFactory, dateByChronoFactory);
-        assertEquals(dateByDateFactory.hashCode(), dateByChronoFactory.hashCode());
+        assertEquals(dateByChronoFactory, dateByDateFactory);
+        assertEquals(dateByChronoFactory.hashCode(), dateByDateFactory.hashCode());
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createYd(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate dateByChronoFactory = JapaneseChronology.INSTANCE.dateYearDay(y, doy);
         JapaneseDate dateByDateFactory = JapaneseDate.of(y, moy, dom);
-        assertEquals(dateByDateFactory, dateByChronoFactory);
-        assertEquals(dateByDateFactory.hashCode(), dateByChronoFactory.hashCode());
+        assertEquals(dateByChronoFactory, dateByDateFactory);
+        assertEquals(dateByChronoFactory.hashCode(), dateByDateFactory.hashCode());
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createByProleptic_isEqual(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(y, moy, dom);
-        assertEquals(true, test.isEqual(iso));
-        assertEquals(true, iso.isEqual(test));
+        assertEquals(test.isEqual(iso), true);
+        assertEquals(iso.isEqual(test), true);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createByProleptic_chronologyTemporalFactory(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(y, moy, dom);
-        assertEquals(iso, IsoChronology.INSTANCE.date(test));
-        assertEquals(test, JapaneseChronology.INSTANCE.date(iso));
+        assertEquals(IsoChronology.INSTANCE.date(test), iso);
+        assertEquals(JapaneseChronology.INSTANCE.date(iso), test);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createByProleptic_dateFrom(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(y, moy, dom);
-        assertEquals(iso, LocalDate.from(test));
-        assertEquals(test, JapaneseDate.from(iso));
+        assertEquals(LocalDate.from(test), iso);
+        assertEquals(JapaneseDate.from(iso), test);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createByProleptic_query(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(y, moy, dom);
-        assertEquals(iso, test.query(TemporalQueries.localDate()));
+        assertEquals(test.query(TemporalQueries.localDate()), iso);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_createByProleptic")
+    @Test(dataProvider="createByProleptic")
     public void test_createByProleptic_epochDay(int y, int moy, int dom, int doy, LocalDate iso) {
         JapaneseDate test = JapaneseDate.of(y, moy, dom);
-        assertEquals(iso.getLong(EPOCH_DAY), test.getLong(EPOCH_DAY));
-        assertEquals(iso.toEpochDay(), test.toEpochDay());
+        assertEquals(test.getLong(EPOCH_DAY), iso.getLong(EPOCH_DAY));
+        assertEquals(test.toEpochDay(), iso.toEpochDay());
     }
 
     //-----------------------------------------------------------------------
     @Test
     public void test_dateNow(){
-        assertEquals(JapaneseDate.now(), JapaneseChronology.INSTANCE.dateNow()) ;
-        assertEquals(JapaneseDate.now(ZoneId.systemDefault()), JapaneseChronology.INSTANCE.dateNow()) ;
-        assertEquals(JapaneseDate.now(Clock.systemDefaultZone()), JapaneseChronology.INSTANCE.dateNow()) ;
-        assertEquals(JapaneseDate.now(Clock.systemDefaultZone().getZone()), JapaneseChronology.INSTANCE.dateNow()) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseDate.now()) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseDate.now(ZoneId.systemDefault())) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseDate.now(Clock.systemDefaultZone())) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseDate.now(Clock.systemDefaultZone().getZone())) ;
 
-        assertEquals(JapaneseChronology.INSTANCE.dateNow(ZoneId.systemDefault()), JapaneseChronology.INSTANCE.dateNow()) ;
-        assertEquals(JapaneseChronology.INSTANCE.dateNow(Clock.systemDefaultZone()), JapaneseChronology.INSTANCE.dateNow()) ;
-        assertEquals(JapaneseChronology.INSTANCE.dateNow(Clock.systemDefaultZone().getZone()), JapaneseChronology.INSTANCE.dateNow()) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseChronology.INSTANCE.dateNow(ZoneId.systemDefault())) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseChronology.INSTANCE.dateNow(Clock.systemDefaultZone())) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(), JapaneseChronology.INSTANCE.dateNow(Clock.systemDefaultZone().getZone())) ;
 
         ZoneId zoneId = ZoneId.of("Europe/Paris");
-        assertEquals(JapaneseChronology.INSTANCE.dateNow(Clock.system(zoneId)), JapaneseChronology.INSTANCE.dateNow(zoneId)) ;
-        assertEquals(JapaneseChronology.INSTANCE.dateNow(Clock.system(zoneId).getZone()), JapaneseChronology.INSTANCE.dateNow(zoneId)) ;
-        assertEquals(JapaneseDate.now(Clock.system(zoneId)), JapaneseChronology.INSTANCE.dateNow(zoneId)) ;
-        assertEquals(JapaneseDate.now(Clock.system(zoneId).getZone()), JapaneseChronology.INSTANCE.dateNow(zoneId)) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(zoneId), JapaneseChronology.INSTANCE.dateNow(Clock.system(zoneId))) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(zoneId), JapaneseChronology.INSTANCE.dateNow(Clock.system(zoneId).getZone())) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(zoneId), JapaneseDate.now(Clock.system(zoneId))) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(zoneId), JapaneseDate.now(Clock.system(zoneId).getZone())) ;
 
-        assertEquals(JapaneseChronology.INSTANCE.dateNow(Clock.systemUTC()), JapaneseChronology.INSTANCE.dateNow(ZoneId.of(ZoneOffset.UTC.getId()))) ;
+        assertEquals(JapaneseChronology.INSTANCE.dateNow(ZoneId.of(ZoneOffset.UTC.getId())), JapaneseChronology.INSTANCE.dateNow(Clock.systemUTC())) ;
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="badDates")
     Object[][] data_badDates() {
         return new Object[][] {
             {1928, 0, 0},
@@ -367,15 +356,15 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_badDates")
+    @Test(dataProvider="badDates", expectedExceptions=DateTimeException.class)
     public void test_badDates(int year, int month, int dom) {
-        Assertions.assertThrows(DateTimeException.class, () -> JapaneseChronology.INSTANCE.date(year, month, dom));
+        JapaneseChronology.INSTANCE.date(year, month, dom);
     }
 
     //-----------------------------------------------------------------------
     // prolepticYear() and is LeapYear()
     //-----------------------------------------------------------------------
+    @DataProvider(name="prolepticYear")
     Object[][] data_prolepticYear() {
         return new Object[][] {
                 {3, JapaneseEra.REIWA, 1, 1 + YDIFF_REIWA, false},
@@ -395,30 +384,29 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_prolepticYear")
+    @Test(dataProvider="prolepticYear")
     public void test_prolepticYear(int eraValue, Era  era, int yearOfEra, int expectedProlepticYear, boolean isLeapYear) {
         Era eraObj = JapaneseChronology.INSTANCE.eraOf(eraValue);
         assertTrue(JapaneseChronology.INSTANCE.eras().contains(eraObj));
-        assertEquals(era, eraObj);
-        assertEquals(expectedProlepticYear, JapaneseChronology.INSTANCE.prolepticYear(era, yearOfEra));
+        assertEquals(eraObj, era);
+        assertEquals(JapaneseChronology.INSTANCE.prolepticYear(era, yearOfEra), expectedProlepticYear);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_prolepticYear")
+    @Test(dataProvider="prolepticYear")
     public void test_isLeapYear(int eraValue, Era  era, int yearOfEra, int expectedProlepticYear, boolean isLeapYear) {
-        assertEquals(isLeapYear, JapaneseChronology.INSTANCE.isLeapYear(expectedProlepticYear));
-        assertEquals(Year.of(expectedProlepticYear).isLeap(), JapaneseChronology.INSTANCE.isLeapYear(expectedProlepticYear));
+        assertEquals(JapaneseChronology.INSTANCE.isLeapYear(expectedProlepticYear), isLeapYear);
+        assertEquals(JapaneseChronology.INSTANCE.isLeapYear(expectedProlepticYear), Year.of(expectedProlepticYear).isLeap());
 
         JapaneseDate jdate = JapaneseDate.now();
         jdate = jdate.with(ChronoField.YEAR, expectedProlepticYear).with(ChronoField.MONTH_OF_YEAR, 2);
         if (isLeapYear) {
-            assertEquals(29, jdate.lengthOfMonth());
+            assertEquals(jdate.lengthOfMonth(), 29);
         } else {
-            assertEquals(28, jdate.lengthOfMonth());
+            assertEquals(jdate.lengthOfMonth(), 28);
         }
     }
 
+    @DataProvider(name="prolepticYearError")
     Object[][] data_prolepticYearError() {
         return new Object[][] {
                 {JapaneseEra.MEIJI, 100},
@@ -435,10 +423,9 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_prolepticYearError")
+    @Test(dataProvider="prolepticYearError", expectedExceptions=DateTimeException.class)
     public void test_prolepticYearError(Era era, int yearOfEra) {
-        Assertions.assertThrows(DateTimeException.class, () -> JapaneseChronology.INSTANCE.prolepticYear(era, yearOfEra));
+        JapaneseChronology.INSTANCE.prolepticYear(era, yearOfEra);
     }
 
     //-----------------------------------------------------------------------
@@ -477,11 +464,11 @@ public class TCKJapaneseChronology {
     @Test
     public void test_getLong() {
         JapaneseDate base = JapaneseChronology.INSTANCE.date(JapaneseEra.SHOWA, 63, 6, 30);
-        assertEquals(JapaneseEra.SHOWA.getValue(), base.getLong(ERA));
-        assertEquals(1988L, base.getLong(YEAR));
-        assertEquals(63L, base.getLong(YEAR_OF_ERA));
-        assertEquals(6L, base.getLong(MONTH_OF_YEAR));
-        assertEquals(30L, base.getLong(DAY_OF_MONTH));
+        assertEquals(base.getLong(ERA), JapaneseEra.SHOWA.getValue());
+        assertEquals(base.getLong(YEAR), 1988L);
+        assertEquals(base.getLong(YEAR_OF_ERA), 63L);
+        assertEquals(base.getLong(MONTH_OF_YEAR), 6L);
+        assertEquals(base.getLong(DAY_OF_MONTH), 30L);
     }
 
     //-----------------------------------------------------------------------
@@ -491,19 +478,19 @@ public class TCKJapaneseChronology {
     public void test_with_TemporalField_long() {
         JapaneseDate base = JapaneseChronology.INSTANCE.date(JapaneseEra.SHOWA, 63, 6, 30);
         JapaneseDate test = base.with(YEAR, 1987);
-        assertEquals(JapaneseChronology.INSTANCE.date(JapaneseEra.SHOWA, 62, 6, 30), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(JapaneseEra.SHOWA, 62, 6, 30));
 
         test = test.with(YEAR_OF_ERA, 2);
-        assertEquals(JapaneseChronology.INSTANCE.date(JapaneseEra.SHOWA, 2, 6, 30), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(JapaneseEra.SHOWA, 2, 6, 30));
 
         test = test.with(ERA, JapaneseEra.HEISEI.getValue());
-        assertEquals(JapaneseChronology.INSTANCE.date(JapaneseEra.HEISEI, 2, 6, 30), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(JapaneseEra.HEISEI, 2, 6, 30));
 
         test = test.with(MONTH_OF_YEAR, 3);
-        assertEquals(JapaneseChronology.INSTANCE.date(JapaneseEra.HEISEI, 2, 3, 30), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(JapaneseEra.HEISEI, 2, 3, 30));
 
         test = test.with(DAY_OF_MONTH, 4);
-        assertEquals(JapaneseChronology.INSTANCE.date(JapaneseEra.HEISEI, 2, 3, 4), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(JapaneseEra.HEISEI, 2, 3, 4));
     }
 
     //-----------------------------------------------------------------------
@@ -513,14 +500,14 @@ public class TCKJapaneseChronology {
     public void test_adjust1() {
         JapaneseDate base = JapaneseChronology.INSTANCE.date(1928, 10, 29);
         JapaneseDate test = base.with(TemporalAdjusters.lastDayOfMonth());
-        assertEquals(JapaneseChronology.INSTANCE.date(1928, 10, 31), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(1928, 10, 31));
     }
 
     @Test
     public void test_adjust2() {
         JapaneseDate base = JapaneseChronology.INSTANCE.date(1928, 12, 2);
         JapaneseDate test = base.with(TemporalAdjusters.lastDayOfMonth());
-        assertEquals(JapaneseChronology.INSTANCE.date(1928, 12, 31), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(1928, 12, 31));
     }
 
     //-----------------------------------------------------------------------
@@ -530,15 +517,13 @@ public class TCKJapaneseChronology {
     public void test_adjust_toLocalDate() {
         JapaneseDate jdate = JapaneseChronology.INSTANCE.date(1926, 1, 4);
         JapaneseDate test = jdate.with(LocalDate.of(2012, 7, 6));
-        assertEquals(JapaneseChronology.INSTANCE.date(2012, 7, 6), test);
+        assertEquals(test, JapaneseChronology.INSTANCE.date(2012, 7, 6));
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_adjust_toMonth() {
-        Assertions.assertThrows(DateTimeException.class, () -> {
-            JapaneseDate jdate = JapaneseChronology.INSTANCE.date(1926, 1, 4);
-            jdate.with(Month.APRIL);
-        });
+        JapaneseDate jdate = JapaneseChronology.INSTANCE.date(1926, 1, 4);
+        jdate.with(Month.APRIL);
     }
 
     //-----------------------------------------------------------------------
@@ -548,19 +533,20 @@ public class TCKJapaneseChronology {
     public void test_LocalDate_adjustToJapaneseDate() {
         JapaneseDate jdate = JapaneseChronology.INSTANCE.date(1928, 10, 29);
         LocalDate test = LocalDate.MIN.with(jdate);
-        assertEquals(LocalDate.of(1928, 10, 29), test);
+        assertEquals(test, LocalDate.of(1928, 10, 29));
     }
 
     @Test
     public void test_LocalDateTime_adjustToJapaneseDate() {
         JapaneseDate jdate = JapaneseChronology.INSTANCE.date(1928, 10, 29);
         LocalDateTime test = LocalDateTime.MIN.with(jdate);
-        assertEquals(LocalDateTime.of(1928, 10, 29, 0, 0), test);
+        assertEquals(test, LocalDateTime.of(1928, 10, 29, 0, 0));
     }
 
     //-----------------------------------------------------------------------
     // Check Japanese Eras
     //-----------------------------------------------------------------------
+    @DataProvider(name="japaneseEras")
     Object[][] data_japanseseEras() {
         return new Object[][] {
             { JapaneseEra.MEIJI, -1, "Meiji"},
@@ -571,12 +557,11 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_japanseseEras")
+    @Test(dataProvider="japaneseEras")
     public void test_Japanese_Eras(Era era, int eraValue, String name) {
-        assertEquals(eraValue, era.getValue(), "EraValue");
-        assertEquals(name, era.toString(), "Era Name");
-        assertEquals(JapaneseChronology.INSTANCE.eraOf(eraValue), era, "JapaneseChronology.eraOf()");
+        assertEquals(era.getValue(), eraValue, "EraValue");
+        assertEquals(era.toString(), name, "Era Name");
+        assertEquals(era, JapaneseChronology.INSTANCE.eraOf(eraValue), "JapaneseChronology.eraOf()");
         List<Era> eras = JapaneseChronology.INSTANCE.eras();
         assertTrue(eras.contains(era), "Era is not present in JapaneseChronology.INSTANCE.eras()");
     }
@@ -594,28 +579,27 @@ public class TCKJapaneseChronology {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_japanseseEras")
+    @Test(dataProvider="japaneseEras")
     public void test_JapaneseEra_singletons(Era expectedEra, int eraValue, String name) {
         JapaneseEra actualEra = JapaneseEra.valueOf(name);
-        assertEquals(expectedEra, actualEra, "JapaneseEra.valueOf(name)");
+        assertEquals(actualEra, expectedEra, "JapaneseEra.valueOf(name)");
 
         actualEra = JapaneseEra.of(eraValue);
-        assertEquals(expectedEra, actualEra, "JapaneseEra.of(value)");
+        assertEquals(actualEra, expectedEra, "JapaneseEra.of(value)");
 
         String string = actualEra.toString();
-        assertEquals(name, string, "JapaneseEra.toString()");
+        assertEquals(string, name, "JapaneseEra.toString()");
     }
 
     @Test
     public void test_JapaneseEra_values() {
         JapaneseEra[] actualEras = JapaneseEra.values();
         Object[][] erasInfo = data_japanseseEras();
-        assertEquals(erasInfo.length, actualEras.length, "Wrong number of Eras");
+        assertEquals(actualEras.length, erasInfo.length, "Wrong number of Eras");
 
         for (int i = 0; i < erasInfo.length; i++) {
             Object[] eraInfo = erasInfo[i];
-            assertEquals(eraInfo[0], actualEras[i], "Singleton mismatch");
+            assertEquals(actualEras[i], eraInfo[0], "Singleton mismatch");
         }
     }
 
@@ -623,11 +607,11 @@ public class TCKJapaneseChronology {
     public void test_JapaneseChronology_eras() {
         List<Era> actualEras = JapaneseChronology.INSTANCE.eras();
         Object[][] erasInfo = data_japanseseEras();
-        assertEquals(erasInfo.length, actualEras.size(), "Wrong number of Eras");
+        assertEquals(actualEras.size(), erasInfo.length, "Wrong number of Eras");
 
         for (int i = 0; i < erasInfo.length; i++) {
             Object[] eraInfo = erasInfo[i];
-            assertEquals(eraInfo[0], actualEras.get(i), "Singleton mismatch");
+            assertEquals(actualEras.get(i), eraInfo[0], "Singleton mismatch");
         }
     }
 
@@ -639,7 +623,7 @@ public class TCKJapaneseChronology {
         JapaneseDate mdate1 = JapaneseDate.of(1970, 1, 1);
         JapaneseDate mdate2 = JapaneseDate.of(1971, 2, 2);
         ChronoPeriod period = mdate1.until(mdate2);
-        assertEquals(JapaneseChronology.INSTANCE.period(1, 1, 1), period);
+        assertEquals(period, JapaneseChronology.INSTANCE.period(1, 1, 1));
     }
 
     @Test
@@ -647,7 +631,7 @@ public class TCKJapaneseChronology {
         JapaneseDate mdate1 = JapaneseDate.of(1970, 1, 1);
         JapaneseDate mdate2 = JapaneseDate.of(1971, 2, 2);
         long months = mdate1.until(mdate2, ChronoUnit.MONTHS);
-        assertEquals(13, months);
+        assertEquals(months, 13);
     }
 
     @Test
@@ -656,7 +640,7 @@ public class TCKJapaneseChronology {
         JapaneseDate mdate2 = JapaneseDate.of(1971, 2, 2);
         MinguoDate ldate2 = MinguoChronology.INSTANCE.date(mdate2);
         ChronoPeriod period = mdate1.until(ldate2);
-        assertEquals(JapaneseChronology.INSTANCE.period(1, 1, 1), period);
+        assertEquals(period, JapaneseChronology.INSTANCE.period(1, 1, 1));
     }
 
     //-----------------------------------------------------------------------
@@ -669,12 +653,12 @@ public class TCKJapaneseChronology {
             int firstYear = (era == JapaneseEra.MEIJI) ? 6 : 1;  // Until Era supports range(YEAR_OF_ERA)
             JapaneseDate hd1 = JapaneseChronology.INSTANCE.dateYearDay(era, firstYear, 1);
             ValueRange range = hd1.range(DAY_OF_YEAR);
-            assertEquals(hd1.lengthOfYear(), range.getMaximum(), "lengthOfYear should match range.getMaximum()");
+            assertEquals(range.getMaximum(), hd1.lengthOfYear(), "lengthOfYear should match range.getMaximum()");
 
             for (int i = 1; i <= hd1.lengthOfYear(); i++) {
                 JapaneseDate hd = JapaneseChronology.INSTANCE.dateYearDay(era, firstYear, i);
                 int doy = hd.get(DAY_OF_YEAR);
-                assertEquals(i, doy, "get(DAY_OF_YEAR) incorrect for " + i + ", of date: " + hd);
+                assertEquals(doy, i, "get(DAY_OF_YEAR) incorrect for " + i + ", of date: " + hd);
             }
         }
     }
@@ -685,13 +669,14 @@ public class TCKJapaneseChronology {
         for (int i = 1; i <= hd.lengthOfYear(); i++) {
             JapaneseDate hd2 = hd.with(DAY_OF_YEAR, i);
             int doy = hd2.get(DAY_OF_YEAR);
-            assertEquals(i, doy, "with(DAY_OF_YEAR) incorrect for " + i + " " + hd2);
+            assertEquals(doy, i, "with(DAY_OF_YEAR) incorrect for " + i + " " + hd2);
         }
     }
 
     //-----------------------------------------------------------------------
     // toString()
     //-----------------------------------------------------------------------
+    @DataProvider(name="toString")
     Object[][] data_toString() {
         return new Object[][] {
             {JapaneseChronology.INSTANCE.date(1873, 12,  5), "Japanese Meiji 6-12-05"},
@@ -708,10 +693,9 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_toString")
+    @Test(dataProvider="toString")
     public void test_toString(JapaneseDate jdate, String expected) {
-        assertEquals(expected, jdate.toString());
+        assertEquals(jdate.toString(), expected);
     }
 
     //-----------------------------------------------------------------------
@@ -729,6 +713,7 @@ public class TCKJapaneseChronology {
 
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
+    @DataProvider(name = "resolve_styleByEra")
     Object[][] data_resolve_styleByEra() {
         Object[][] result = new Object[ResolverStyle.values().length * JapaneseEra.values().length][];
         int i = 0;
@@ -740,43 +725,41 @@ public class TCKJapaneseChronology {
         return result;
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_styleByEra")
+    @Test(dataProvider = "resolve_styleByEra")
     public void test_resolve_yearOfEra_eraOnly_valid(ResolverStyle style, JapaneseEra era) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.ERA, (long) era.getValue());
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);
-        assertEquals(null, date);
-        assertEquals((Long) (long) era.getValue(), fieldValues.get(ChronoField.ERA));
-        assertEquals(1, fieldValues.size());
+        assertEquals(date, null);
+        assertEquals(fieldValues.get(ChronoField.ERA), (Long) (long) era.getValue());
+        assertEquals(fieldValues.size(), 1);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_styleByEra")
+    @Test(dataProvider = "resolve_styleByEra")
     public void test_resolve_yearOfEra_eraAndYearOfEraOnly_valid(ResolverStyle style, JapaneseEra era) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.ERA, (long) era.getValue());
         fieldValues.put(ChronoField.YEAR_OF_ERA, 1L);
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);
-        assertEquals(null, date);
-        assertEquals((Long) (long) era.getValue(), fieldValues.get(ChronoField.ERA));
-        assertEquals((Long) 1L, fieldValues.get(ChronoField.YEAR_OF_ERA));
-        assertEquals(2, fieldValues.size());
+        assertEquals(date, null);
+        assertEquals(fieldValues.get(ChronoField.ERA), (Long) (long) era.getValue());
+        assertEquals(fieldValues.get(ChronoField.YEAR_OF_ERA), (Long) 1L);
+        assertEquals(fieldValues.size(), 2);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_styleByEra")
+    @Test(dataProvider = "resolve_styleByEra")
     public void test_resolve_yearOfEra_eraAndYearOnly_valid(ResolverStyle style, JapaneseEra era) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.ERA, (long) era.getValue());
         fieldValues.put(ChronoField.YEAR, 1L);
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);
-        assertEquals(null, date);
-        assertEquals((Long) (long) era.getValue(), fieldValues.get(ChronoField.ERA));
-        assertEquals((Long) 1L, fieldValues.get(ChronoField.YEAR));
-        assertEquals(2, fieldValues.size());
+        assertEquals(date, null);
+        assertEquals(fieldValues.get(ChronoField.ERA), (Long) (long) era.getValue());
+        assertEquals(fieldValues.get(ChronoField.YEAR), (Long) 1L);
+        assertEquals(fieldValues.size(), 2);
     }
 
+    @DataProvider(name = "resolve_styles")
     Object[][] data_resolve_styles() {
         Object[][] result = new Object[ResolverStyle.values().length][];
         int i = 0;
@@ -786,31 +769,28 @@ public class TCKJapaneseChronology {
         return result;
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_styles")
+    @Test(dataProvider = "resolve_styles")
     public void test_resolve_yearOfEra_yearOfEraOnly_valid(ResolverStyle style) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR_OF_ERA, 1L);
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);
-        assertEquals(null, date);
-        assertEquals((Long) 1L, fieldValues.get(ChronoField.YEAR_OF_ERA));
-        assertEquals(1, fieldValues.size());
+        assertEquals(date, null);
+        assertEquals(fieldValues.get(ChronoField.YEAR_OF_ERA), (Long) 1L);
+        assertEquals(fieldValues.size(), 1);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_styles")
+    @Test(dataProvider = "resolve_styles")
     public void test_resolve_yearOfEra_yearOfEraAndYearOnly_valid(ResolverStyle style) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR_OF_ERA, 1L);
         fieldValues.put(ChronoField.YEAR, 2012L);
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);
-        assertEquals(null, date);
-        assertEquals((Long) 1L, fieldValues.get(ChronoField.YEAR_OF_ERA));
-        assertEquals((Long) 2012L, fieldValues.get(ChronoField.YEAR));
-        assertEquals(2, fieldValues.size());
+        assertEquals(date, null);
+        assertEquals(fieldValues.get(ChronoField.YEAR_OF_ERA), (Long) 1L);
+        assertEquals(fieldValues.get(ChronoField.YEAR), (Long) 2012L);
+        assertEquals(fieldValues.size(), 2);
     }
 
-    @Test
     public void test_resolve_yearOfEra_eraOnly_invalidTooSmall() {
         for (ResolverStyle style : ResolverStyle.values()) {
             Map<TemporalField, Long> fieldValues = new HashMap<>();
@@ -824,7 +804,6 @@ public class TCKJapaneseChronology {
         }
     }
 
-    @Test
     public void test_resolve_yearOfEra_eraOnly_invalidTooLarge() {
         for (ResolverStyle style : ResolverStyle.values()) {
             Map<TemporalField, Long> fieldValues = new HashMap<>();
@@ -840,6 +819,7 @@ public class TCKJapaneseChronology {
 
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
+    @DataProvider(name = "resolve_ymd")
     Object[][] data_resolve_ymd() {
         return new Object[][] {
                 {2012, 1, -365, date(2010, 12, 31), false, false},
@@ -893,20 +873,18 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_ymd")
+    @Test(dataProvider = "resolve_ymd")
     public void test_resolve_ymd_lenient(int y, int m, int d, JapaneseDate expected, Object smart, boolean strict) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR, (long) y);
         fieldValues.put(ChronoField.MONTH_OF_YEAR, (long) m);
         fieldValues.put(ChronoField.DAY_OF_MONTH, (long) d);
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.LENIENT);
-        assertEquals(expected, date);
-        assertEquals(0, fieldValues.size());
+        assertEquals(date, expected);
+        assertEquals(fieldValues.size(), 0);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_ymd")
+    @Test(dataProvider = "resolve_ymd")
     public void test_resolve_ymd_smart(int y, int m, int d, JapaneseDate expected, Object smart, boolean strict) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR, (long) y);
@@ -914,11 +892,11 @@ public class TCKJapaneseChronology {
         fieldValues.put(ChronoField.DAY_OF_MONTH, (long) d);
         if (Boolean.TRUE.equals(smart)) {
             JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.SMART);
-            assertEquals(expected, date);
-            assertEquals(0, fieldValues.size());
+            assertEquals(date, expected);
+            assertEquals(fieldValues.size(), 0);
         } else if (smart instanceof JapaneseDate) {
             JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.SMART);
-            assertEquals(smart, date);
+            assertEquals(date, smart);
         } else {
             try {
                 JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.SMART);
@@ -929,8 +907,7 @@ public class TCKJapaneseChronology {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_ymd")
+    @Test(dataProvider = "resolve_ymd")
     public void test_resolve_ymd_strict(int y, int m, int d, JapaneseDate expected, Object smart, boolean strict) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR, (long) y);
@@ -938,8 +915,8 @@ public class TCKJapaneseChronology {
         fieldValues.put(ChronoField.DAY_OF_MONTH, (long) d);
         if (strict) {
             JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.STRICT);
-            assertEquals(expected, date);
-            assertEquals(0, fieldValues.size());
+            assertEquals(date, expected);
+            assertEquals(fieldValues.size(), 0);
         } else {
             try {
                 JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.STRICT);
@@ -952,6 +929,7 @@ public class TCKJapaneseChronology {
 
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
+    @DataProvider(name = "resolve_yd")
     Object[][] data_resolve_yd() {
         return new Object[][] {
                 {2012, -365, date(2010, 12, 31), false, false},
@@ -979,27 +957,25 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_yd")
+    @Test(dataProvider = "resolve_yd")
     public void test_resolve_yd_lenient(int y, int d, JapaneseDate expected, boolean smart, boolean strict) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR, (long) y);
         fieldValues.put(ChronoField.DAY_OF_YEAR, (long) d);
         JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.LENIENT);
-        assertEquals(expected, date);
-        assertEquals(0, fieldValues.size());
+        assertEquals(date, expected);
+        assertEquals(fieldValues.size(), 0);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_yd")
+    @Test(dataProvider = "resolve_yd")
     public void test_resolve_yd_smart(int y, int d, JapaneseDate expected, boolean smart, boolean strict) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR, (long) y);
         fieldValues.put(ChronoField.DAY_OF_YEAR, (long) d);
         if (smart) {
             JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.SMART);
-            assertEquals(expected, date);
-            assertEquals(0, fieldValues.size());
+            assertEquals(date, expected);
+            assertEquals(fieldValues.size(), 0);
         } else {
             try {
                 JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.SMART);
@@ -1010,16 +986,15 @@ public class TCKJapaneseChronology {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_yd")
+    @Test(dataProvider = "resolve_yd")
     public void test_resolve_yd_strict(int y, int d, JapaneseDate expected, boolean smart, boolean strict) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.YEAR, (long) y);
         fieldValues.put(ChronoField.DAY_OF_YEAR, (long) d);
         if (strict) {
             JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.STRICT);
-            assertEquals(expected, date);
-            assertEquals(0, fieldValues.size());
+            assertEquals(date, expected);
+            assertEquals(fieldValues.size(), 0);
         } else {
             try {
                 JapaneseChronology.INSTANCE.resolveDate(fieldValues, ResolverStyle.STRICT);
@@ -1032,6 +1007,7 @@ public class TCKJapaneseChronology {
 
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
+    @DataProvider(name = "resolve_eymd")
     Object[][] data_resolve_eymd() {
         return new Object[][] {
                 // lenient
@@ -1181,8 +1157,7 @@ public class TCKJapaneseChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_resolve_eymd")
+    @Test(dataProvider = "resolve_eymd")
     public void test_resolve_eymd(ResolverStyle style, JapaneseEra era, int yoe, int m, int d, JapaneseDate expected) {
         Map<TemporalField, Long> fieldValues = new HashMap<>();
         fieldValues.put(ChronoField.ERA, (long) era.getValue());
@@ -1191,8 +1166,8 @@ public class TCKJapaneseChronology {
         fieldValues.put(ChronoField.DAY_OF_MONTH, (long) d);
         if (expected != null) {
             JapaneseDate date = JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);
-            assertEquals(expected, date);
-            assertEquals(0, fieldValues.size());
+            assertEquals(date, expected);
+            assertEquals(fieldValues.size(), 0);
         } else {
             try {
                 JapaneseChronology.INSTANCE.resolveDate(fieldValues, style);

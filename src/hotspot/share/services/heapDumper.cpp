@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2023, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -44,7 +44,6 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -1479,13 +1478,13 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
   // [id]* elements
   if (array->is_flatArray()) {
     flatArrayOop farray = flatArrayOop(array);
-    FlatArrayKlass* fak = farray->klass();
+    FlatArrayKlass* faklass = FlatArrayKlass::cast(farray->klass());
 
-    InlineKlass* vk = fak->element_klass();
-    bool need_null_check = LayoutKindHelper::is_nullable_flat(fak->layout_kind());
+    InlineKlass* vk = faklass->element_klass();
+    bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
 
     for (int index = 0; index < length; index++) {
-      address addr = (address)farray->value_at_addr(index, fak->layout_helper());
+      address addr = (address)farray->value_at_addr(index, faklass->layout_helper());
       // check for null
       if (need_null_check) {
         if (vk->is_payload_marked_as_null(addr)) {
@@ -1499,9 +1498,8 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
       writer->write_objectID(object_id);
     }
   } else {
-    refArrayOop rarray = oop_cast<refArrayOop>(array);
     for (int index = 0; index < length; index++) {
-      oop o = rarray->obj_at(index);
+      oop o = array->obj_at(index);
       o = mask_dormant_archived_object(o, array);
       writer->write_objectID(o);
     }
@@ -2168,9 +2166,10 @@ void FlatObjectDumper::dump_flat_objects(AbstractDumpWriter* writer, oop holder,
 // Callback to dump thread-related data for unmounted virtual threads;
 // implemented by VM_HeapDumper.
 class UnmountedVThreadDumper {
- public:
+public:
   virtual void dump_vthread(oop vt, AbstractDumpWriter* segment_writer) = 0;
 };
+
 
 // Support class used when iterating over the heap.
 class HeapObjectDumper : public ObjectClosure {
@@ -2542,7 +2541,7 @@ class VM_HeapDumper : public VM_GC_Operation, public WorkerTask, public Unmounte
       for (int i = 0; i < _thread_dumpers_count; i++) {
         delete _thread_dumpers[i];
       }
-      FREE_C_HEAP_ARRAY(_thread_dumpers);
+      FREE_C_HEAP_ARRAY(ThreadDumper*, _thread_dumpers);
     }
 
     if (_dumper_controller != nullptr) {

@@ -401,16 +401,10 @@ static void storeXmms(Register destination, int offset, const XMMRegister xmmReg
 //
 static address generate_dilithiumAlmostNtt_avx(StubGenerator *stubgen,
                                                int vector_len, MacroAssembler *_masm) {
-  StubId stub_id = StubId::stubgen_dilithiumAlmostNtt_id;
-  int entry_count = StubInfo::entry_count(stub_id);
-  assert(entry_count == 1, "sanity check");
-  address start = stubgen->load_archive_data(stub_id);
-  if (start != nullptr) {
-    return start;
-  }
   __ align(CodeEntryAlignment);
+  StubId stub_id = StubId::stubgen_dilithiumAlmostNtt_id;
   StubCodeMark mark(stubgen, stub_id);
-  start = __ pc();
+  address start = __ pc();
   __ enter();
 
   const Register coeffs = c_rarg0;
@@ -652,9 +646,6 @@ static address generate_dilithiumAlmostNtt_avx(StubGenerator *stubgen,
   __ mov64(rax, 0); // return 0
   __ ret(0);
 
-  // record the stub entry and end
-  stubgen->store_archive_data(stub_id, start, __ pc());
-
   return start;
 }
 
@@ -666,16 +657,10 @@ static address generate_dilithiumAlmostNtt_avx(StubGenerator *stubgen,
 // zetas (int[128*8]) = c_rarg1
 static address generate_dilithiumAlmostInverseNtt_avx(StubGenerator *stubgen,
                                         int vector_len, MacroAssembler *_masm) {
-  StubId stub_id = StubId::stubgen_dilithiumAlmostInverseNtt_id;
-  int entry_count = StubInfo::entry_count(stub_id);
-  assert(entry_count == 1, "sanity check");
-  address start = stubgen->load_archive_data(stub_id);
-  if (start != nullptr) {
-    return start;
-  }
   __ align(CodeEntryAlignment);
+  StubId stub_id = StubId::stubgen_dilithiumAlmostInverseNtt_id;
   StubCodeMark mark(stubgen, stub_id);
-  start = __ pc();
+  address start = __ pc();
   __ enter();
 
   const Register coeffs = c_rarg0;
@@ -901,9 +886,6 @@ static address generate_dilithiumAlmostInverseNtt_avx(StubGenerator *stubgen,
   __ mov64(rax, 0); // return 0
   __ ret(0);
 
-  // record the stub entry and end
-  stubgen->store_archive_data(stub_id, start, __ pc());
-
   return start;
 }
 
@@ -918,16 +900,10 @@ static address generate_dilithiumAlmostInverseNtt_avx(StubGenerator *stubgen,
 static address generate_dilithiumNttMult_avx(StubGenerator *stubgen,
                                      int vector_len, MacroAssembler *_masm) {
 
-  StubId stub_id = StubId::stubgen_dilithiumNttMult_id;
-  int entry_count = StubInfo::entry_count(stub_id);
-  assert(entry_count == 1, "sanity check");
-  address start = stubgen->load_archive_data(stub_id);
-  if (start != nullptr) {
-    return start;
-  }
   __ align(CodeEntryAlignment);
+  StubId stub_id = StubId::stubgen_dilithiumNttMult_id;
   StubCodeMark mark(stubgen, stub_id);
-  start = __ pc();
+  address start = __ pc();
   __ enter();
 
   Label L_loop;
@@ -996,9 +972,6 @@ static address generate_dilithiumNttMult_avx(StubGenerator *stubgen,
   __ mov64(rax, 0); // return 0
   __ ret(0);
 
-  // record the stub entry and end
-  stubgen->store_archive_data(stub_id, start, __ pc());
-
   return start;
 }
 
@@ -1011,16 +984,10 @@ static address generate_dilithiumNttMult_avx(StubGenerator *stubgen,
 static address generate_dilithiumMontMulByConstant_avx(StubGenerator *stubgen,
                                         int vector_len, MacroAssembler *_masm) {
 
-  StubId stub_id = StubId::stubgen_dilithiumMontMulByConstant_id;
-  int entry_count = StubInfo::entry_count(stub_id);
-  assert(entry_count == 1, "sanity check");
-  address start = stubgen->load_archive_data(stub_id);
-  if (start != nullptr) {
-    return start;
-  }
   __ align(CodeEntryAlignment);
+  StubId stub_id = StubId::stubgen_dilithiumMontMulByConstant_id;
   StubCodeMark mark(stubgen, stub_id);
-  start = __ pc();
+  address start = __ pc();
   __ enter();
 
   Label L_loop;
@@ -1092,9 +1059,6 @@ static address generate_dilithiumMontMulByConstant_avx(StubGenerator *stubgen,
   __ mov64(rax, 0); // return 0
   __ ret(0);
 
-  // record the stub entry and end
-  stubgen->store_archive_data(stub_id, start, __ pc());
-
   return start;
 }
 
@@ -1109,16 +1073,10 @@ static address generate_dilithiumMontMulByConstant_avx(StubGenerator *stubgen,
 // multiplier (int) = c_rarg4
 static address generate_dilithiumDecomposePoly_avx(StubGenerator *stubgen,
                                       int vector_len, MacroAssembler *_masm) {
-  StubId stub_id = StubId::stubgen_dilithiumDecomposePoly_id;
-  int entry_count = StubInfo::entry_count(stub_id);
-  assert(entry_count == 1, "sanity check");
-  address start = stubgen->load_archive_data(stub_id);
-  if (start != nullptr) {
-    return start;
-  }
   __ align(CodeEntryAlignment);
+  StubId stub_id = StubId::stubgen_dilithiumDecomposePoly_id;
   StubCodeMark mark(stubgen, stub_id);
-  start = __ pc();
+  address start = __ pc();
   __ enter();
 
   Label L_loop;
@@ -1360,9 +1318,6 @@ static address generate_dilithiumDecomposePoly_avx(StubGenerator *stubgen,
   __ mov64(rax, 0); // return 0
   __ ret(0);
 
-  // record the stub entry and end
-  stubgen->store_archive_data(stub_id, start, __ pc());
-
   return start;
 }
 
@@ -1385,21 +1340,3 @@ void StubGenerator::generate_dilithium_stubs() {
         generate_dilithiumDecomposePoly_avx(this, vector_len, _masm);
   }
 }
-
-#if INCLUDE_CDS
-void StubGenerator::init_AOTAddressTable_dilithium(GrowableArray<address>& external_addresses) {
-#define ADD(addr) external_addresses.append((address)(addr))
-  // use accessors to correctly identify the relevant addresses
-  ADD(unshufflePermsAddr(0));
-  ADD(unshufflePermsAddr(1));
-  ADD(unshufflePermsAddr(2));
-  ADD(unshufflePermsAddr(3));
-  ADD(unshufflePermsAddr(4));
-  ADD(unshufflePermsAddr(5));
-  ADD(dilithiumAvx512ConstsAddr(montQInvModRIdx));
-  ADD(dilithiumAvx512ConstsAddr(dilithium_qIdx));
-  ADD(dilithiumAvx512ConstsAddr(montRSquareModQIdx));
-  ADD(dilithiumAvx512ConstsAddr(barrettAddendIdx));
-#undef ADD
-}
-#endif // INCLUDE_CDS

@@ -30,17 +30,16 @@
  *          calling IIOReadProgressListener.readAborted() for all readers.
  * @run     main ReadAbortTest
  */
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.nio.file.Files;
 import java.util.Iterator;
-
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.event.IIOReadProgressListener;
 import javax.imageio.stream.ImageInputStream;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.nio.file.Files;
 
 public class ReadAbortTest implements IIOReadProgressListener {
 
@@ -104,9 +103,7 @@ public class ReadAbortTest implements IIOReadProgressListener {
         } catch (Exception e) {
             throw e;
         } finally {
-            if (file != null && file.exists()) {
-                Files.delete(file.toPath());
-            }
+            Files.delete(file.toPath());
         }
     }
 

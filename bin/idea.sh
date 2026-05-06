@@ -187,18 +187,14 @@ fi
 SOURCE_PREFIX="<sourceFolder url=\"file://"
 SOURCE_POSTFIX="\" isTestSource=\"false\" />"
 
-# SOURCES is a single string containing embeded newlines.
 for root in $MODULE_ROOTS; do
     if [ "x$CYGPATH" != "x" ]; then
       root=`$CYGPATH -am $root`
     elif [ "x$WSL_DISTRO_NAME" != "x" ]; then
       root=`wslpath -am $root`
     fi
-    # Add line termination/indentation for everything after the first entry.
-    if [ "x$SOURCES" != "x" ]; then
-      SOURCES="${SOURCES}\n      "
-    fi
-    SOURCES="${SOURCES}${SOURCE_PREFIX}${root}${SOURCE_POSTFIX}"
+
+    SOURCES=$SOURCES" $SOURCE_PREFIX""$root""$SOURCE_POSTFIX"
 done
 
 add_replacement "###SOURCE_ROOTS###" "$SOURCES"

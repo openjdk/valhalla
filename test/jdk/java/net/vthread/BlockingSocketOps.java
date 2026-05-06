@@ -35,7 +35,6 @@
  * @library /test/lib
  * @run junit/othervm -Djdk.pollerMode=1 BlockingSocketOps
  * @run junit/othervm -Djdk.pollerMode=2 BlockingSocketOps
- * @run junit/othervm -Djdk.pollerMode=3 BlockingSocketOps
  */
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,7 @@
  * questions.
  */
 
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,16 +33,15 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 /*
  * @test
  * @compile TestKit.java
- * @run junit ${test.main.class}
+ * @run testng TestKitTest
  */
 public final class TestKitTest {
 
@@ -50,14 +50,15 @@ public final class TestKitTest {
         Integer integer = TestKit.assertNotThrows(
                 () -> TestKit.assertNotThrows(() -> 1)
         );
-        assertEquals(Integer.valueOf(1), integer);
+        assertEquals(integer, Integer.valueOf(1));
 
         RuntimeException re = TestKit.assertThrows(
                 RuntimeException.class,
                 () -> TestKit.assertNotThrows(() -> { throw new IOException(); })
         );
-        assertEquals("Expected to run normally, but threw "
-                        + "java.io.IOException", re.getMessage());
+        assertEquals(re.getMessage(),
+                "Expected to run normally, but threw "
+                        + "java.io.IOException");
 
         TestKit.assertNotThrows(
                 () -> TestKit.assertNotThrows(() -> { })
@@ -67,8 +68,9 @@ public final class TestKitTest {
                 RuntimeException.class,
                 () ->  TestKit.assertNotThrows((TestKit.ThrowingProcedure) () -> { throw new IOException(); })
         );
-        assertEquals("Expected to run normally, but threw "
-                        + "java.io.IOException", re.getMessage());
+        assertEquals(re.getMessage(),
+                "Expected to run normally, but threw "
+                        + "java.io.IOException");
     }
 
     @Test
@@ -85,13 +87,13 @@ public final class TestKitTest {
                 () -> TestKit.assertThrows(IOException.class, null)
         );
         assertNotNull(npe);
-        assertEquals("code", npe.getMessage());
+        assertEquals(npe.getMessage(), "code");
 
         npe = TestKit.assertThrows(
                 NullPointerException.class,
                 () -> TestKit.assertThrows(null, () -> { })
         );
-        assertEquals("clazz", npe.getMessage());
+        assertEquals(npe.getMessage(), "clazz");
 
         npe = TestKit.assertThrows(
                 NullPointerException.class,
@@ -99,15 +101,16 @@ public final class TestKitTest {
         );
         assertNotNull(npe);
         assertNull(npe.getMessage());
-        assertEquals(NullPointerException.class, npe.getClass());
+        assertEquals(npe.getClass(), NullPointerException.class);
 
         RuntimeException re = TestKit.assertThrows(
                 RuntimeException.class,
                 () -> TestKit.assertThrows(NullPointerException.class, () -> { })
         );
-        assertEquals(RuntimeException.class, re.getClass());
-        assertEquals("Expected to catch an exception of type "
-                        + "java.lang.NullPointerException, but caught nothing", re.getMessage());
+        assertEquals(re.getClass(), RuntimeException.class);
+        assertEquals(re.getMessage(),
+                "Expected to catch an exception of type "
+                        + "java.lang.NullPointerException, but caught nothing");
 
         re = TestKit.assertThrows(
                 RuntimeException.class,
@@ -115,7 +118,7 @@ public final class TestKitTest {
         );
         assertNotNull(re);
         assertNull(re.getMessage());
-        assertEquals(NullPointerException.class, re.getClass());
+        assertEquals(re.getClass(), NullPointerException.class);
 
         re = TestKit.assertThrows(
                 RuntimeException.class,
@@ -124,9 +127,10 @@ public final class TestKitTest {
                         () -> { throw new IndexOutOfBoundsException(); }
                 ));
         assertNotNull(re);
-        assertEquals(RuntimeException.class, re.getClass());
-        assertEquals("Expected to catch an exception of type java.util.IllegalFormatException"
-                        + ", but caught java.lang.IndexOutOfBoundsException", re.getMessage());
+        assertEquals(re.getClass(), RuntimeException.class);
+        assertEquals(re.getMessage(),
+                "Expected to catch an exception of type java.util.IllegalFormatException"
+                        + ", but caught java.lang.IndexOutOfBoundsException");
     }
 
     @Test

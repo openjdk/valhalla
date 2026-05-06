@@ -4,7 +4,7 @@
  *
  *   FreeType API for possible FT_Parameter tags (specification only).
  *
- * Copyright (C) 2017-2025 by
+ * Copyright (C) 2017-2024 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -133,8 +133,11 @@ FT_BEGIN_HEADER
    *   FT_PARAM_TAG_LCD_FILTER_WEIGHTS
    *
    * @description:
-   *   Overriding global LCD filter weights with custom values for a given
-   *   face is no longer supported and ignored.
+   *   An @FT_Parameter tag to be used with @FT_Face_Properties.  The
+   *   corresponding argument specifies the five LCD filter weights for a
+   *   given face (if using @FT_LOAD_TARGET_LCD, for example), overriding the
+   *   global default values or the values set up with
+   *   @FT_Library_SetLcdFilterWeights.
    *
    * @since:
    *   2.8

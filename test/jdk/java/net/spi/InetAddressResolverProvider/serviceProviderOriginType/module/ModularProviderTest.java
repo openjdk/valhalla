@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,9 @@
  * questions.
  */
 
-import org.junit.jupiter.api.Test;
-
 import java.net.InetAddress;
 
+import org.testng.annotations.Test;
 
 /*
  * @test
@@ -32,7 +31,7 @@ import java.net.InetAddress;
  * @library ../../lib ../../providers/simple
  * @build test.library/testlib.ResolutionRegistry simple.provider/impl.SimpleResolverProviderImpl
  *        ModularProviderTest
- * @run junit/othervm ModularProviderTest
+ * @run testng/othervm ModularProviderTest
  */
 
 

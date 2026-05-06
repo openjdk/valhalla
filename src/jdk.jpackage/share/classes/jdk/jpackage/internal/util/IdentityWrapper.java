@@ -69,9 +69,5 @@ public final class IdentityWrapper<T> {
         return String.format("Identity[%s]", value);
     }
 
-    public static <T> IdentityWrapper<T> wrapIdentity(T v) {
-        return new IdentityWrapper<>(v);
-    }
-
     private final T value;
 }

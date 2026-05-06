@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  * questions.
  */
 package javax.swing.text.html.parser;
+
+import sun.awt.AppContext;
 
 import javax.swing.text.html.HTMLEditorKit;
 import java.io.BufferedInputStream;
@@ -50,8 +52,7 @@ import java.io.Serializable;
  */
 @SuppressWarnings("serial") // Same-version serialization only
 public class ParserDelegator extends HTMLEditorKit.Parser implements Serializable {
-
-    private static DTD dtd = null;
+    private static final Object DTD_KEY = new Object();
 
     /**
      * Sets the default DTD.
@@ -61,6 +62,10 @@ public class ParserDelegator extends HTMLEditorKit.Parser implements Serializabl
     }
 
     private static synchronized DTD getDefaultDTD() {
+        AppContext appContext = AppContext.getAppContext();
+
+        DTD dtd = (DTD) appContext.get(DTD_KEY);
+
         if (dtd == null) {
             DTD _dtd = null;
             // (PENDING) Hate having to hard code!
@@ -72,7 +77,10 @@ public class ParserDelegator extends HTMLEditorKit.Parser implements Serializabl
                 System.out.println("Throw an exception: could not get default dtd: " + nm);
             }
             dtd = createDTD(_dtd, nm);
+
+            appContext.put(DTD_KEY, dtd);
         }
+
         return dtd;
     }
 

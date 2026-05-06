@@ -245,12 +245,7 @@ public abstract class CallArranger {
         // Regular struct, no HFA.
         VMStorage[] structAlloc(MemoryLayout layout) {
             // Allocate enough gp slots (regs and stack) such that the struct fits in them.
-            final int numChunks;
-            try {
-                numChunks = Math.toIntExact(Utils.alignUp(layout.byteSize(), MAX_COPY_SIZE) / MAX_COPY_SIZE);
-            } catch (ArithmeticException ae) {
-                throw new IllegalArgumentException("Layout too large: " + layout, ae);
-            }
+            int numChunks = (int) Utils.alignUp(layout.byteSize(), MAX_COPY_SIZE) / MAX_COPY_SIZE;
             VMStorage[] result = new VMStorage[numChunks];
             for (int i = 0; i < numChunks; i++) {
                 result[i] = nextStorage(StorageType.INTEGER, false);

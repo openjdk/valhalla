@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,12 @@
  * @summary Test bootstrap arguments for condy
  * @library /java/lang/invoke/common
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run junit CondyStaticArgumentsTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyStaticArgumentsTest
+ * @run testng CondyStaticArgumentsTest
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyStaticArgumentsTest
  */
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.constant.*;
@@ -42,9 +44,6 @@ import java.util.StringJoiner;
 import java.util.stream.Stream;
 
 import static java.lang.invoke.MethodType.methodType;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CondyStaticArgumentsTest {
     static final MethodHandles.Lookup L = MethodHandles.lookup();
@@ -110,7 +109,7 @@ public class CondyStaticArgumentsTest {
                         mhi.getName(), MethodTypeDesc.ofDescriptor(mhi.getMethodType().descriptorString()))
         );
 
-        assertEquals("constant-name-String-1-2-3.0-4.0-Number-something-(int,long,float,double)void-11", mh.invoke());
+        Assert.assertEquals(mh.invoke(), "constant-name-String-1-2-3.0-4.0-Number-something-(int,long,float,double)void-11");
     }
 
     static MathContext mathContext(MethodHandles.Lookup l, String value, Class<?> type) {
@@ -162,7 +161,7 @@ public class CondyStaticArgumentsTest {
                         )
                 )
         );
-        assertEquals("big-decimal-math-context-String-3.141593-7", mh.invoke());
+        Assert.assertEquals(mh.invoke(), "big-decimal-math-context-String-3.141593-7");
     }
 
 
@@ -195,7 +194,7 @@ public class CondyStaticArgumentsTest {
                                 InstructionHelper.classDesc(MathContext.class)
                         )
                 ));
-        assertEquals("big-decimal-math-context-()Ljava/lang/String;-3.141593-7", mh.invoke());
+        Assert.assertEquals(mh.invoke(), "big-decimal-math-context-()Ljava/lang/String;-3.141593-7");
     }
 
     private static DirectMethodHandleDesc directMhDesc(String methodName) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,10 @@
  * @test
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm
+ * @run testng/othervm
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.HttpClient.log=errors,requests,responses
- *       ${test.main.class}
+ *       H3ServerPushWithDiffTypes
  * @summary This is a clone of http2/ServerPushWithDiffTypes but for HTTP/3
  */
 
@@ -65,12 +65,11 @@ import java.util.function.BiPredicate;
 
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpOption.Http3DiscoveryMode.ANY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
 
 public class H3ServerPushWithDiffTypes implements HttpServerAdapters {
 
@@ -90,13 +89,13 @@ public class H3ServerPushWithDiffTypes implements HttpServerAdapters {
         HttpRequest headRequest = HttpRequest.newBuilder(headURI)
                 .HEAD().version(Version.HTTP_2).build();
         var headResponse = client.send(headRequest, BodyHandlers.ofString());
-        assertEquals(200, headResponse.statusCode());
-        assertEquals(Version.HTTP_2, headResponse.version());
+        assertEquals(headResponse.statusCode(), 200);
+        assertEquals(headResponse.version(), Version.HTTP_2);
     }
 
     @Test
     public void test() throws Exception {
-        var sslContext = SimpleSSLContext.findSSLContext();
+        var sslContext = new SimpleSSLContext().get();
         try (HttpTestServer server = HttpTestServer.create(ANY, sslContext)) {
             HttpTestHandler pushHandler =
                     new ServerPushHandler("the main response body",
@@ -128,13 +127,13 @@ public class H3ServerPushWithDiffTypes implements HttpServerAdapters {
                 results.put(request, cf);
                 cf.join();
 
-                assertEquals(PUSH_PROMISES.size() + 1, results.size());
+                assertEquals(results.size(), PUSH_PROMISES.size() + 1);
 
                 for (HttpRequest r : results.keySet()) {
                     URI u = r.uri();
                     var resp = results.get(r).get();
-                    assertEquals(200, resp.statusCode());
-                    assertEquals(Version.HTTP_3, resp.version());
+                    assertEquals(resp.statusCode(), 200);
+                    assertEquals(resp.version(), Version.HTTP_3);
                     BodyAndType<?> body = resp.body();
                     String result;
                     // convert all body types to String for easier comparison
@@ -154,7 +153,7 @@ public class H3ServerPushWithDiffTypes implements HttpServerAdapters {
                     String expected = PUSH_PROMISES.get(r.uri().getPath());
                     if (expected == null)
                         expected = "the main response body";
-                    assertEquals(expected, result);
+                    assertEquals(result, expected);
                 }
             }
         }

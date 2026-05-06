@@ -1,5 +1,5 @@
 ---
-# Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -79,34 +79,34 @@ will compromise your password.
 You can specify one of the following commands. After the command, specify the
 options for it.
 
-[`-A`]{#option-A}
+`-A`
 :   Doesn't include addresses.
 
-[`-f`]{#option-f}
+`-f`
 :   Issues a forwardable ticket.
 
-[`-p`]{#option-p}
+`-p`
 :   Issues a proxiable ticket.
 
-[`-c`]{#option-c} *cache\_name*
+`-c` *cache\_name*
 :   The cache name (for example, `FILE:D:\temp\mykrb5cc`).
 
-[`-l`]{#option-l} *lifetime*
+`-l` *lifetime*
 :   Sets the lifetime of a ticket. The value can be one of "h:m[:s]",
     "NdNhNmNs", and "N". See the [MIT krb5 Time Duration definition](
     http://web.mit.edu/kerberos/krb5-1.17/doc/basic/date_format.html#duration)
     for more information.
 
-[`-r`]{#option-r} *renewable\_time*
+`-r` *renewable\_time*
 :   Sets the total lifetime that a ticket can be renewed.
 
-[`-R`]{#option-R}
+`-R`
 :   Renews a ticket.
 
-[`-k`]{#option-k}
+`-k`
 :   Uses keytab
 
-[`-t`]{#option-t} *keytab\_filename*
+`-t` *keytab\_filename*
 :   The keytab name (for example, `D:\winnt\profiles\duke\krb5.keytab`).
 
 *principal*

@@ -28,17 +28,17 @@
 #include "oops/refArrayOop.hpp"
 
 #include "oops/access.hpp"
-#include "oops/arrayOop.inline.hpp"
+#include "oops/arrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
-inline RefArrayKlass* refArrayOopDesc::klass() const {
-  Klass* k = oopDesc::klass();
-  return RefArrayKlass::cast(k);
-}
-
 inline HeapWord *refArrayOopDesc::base() const {
   return (HeapWord *)arrayOopDesc::base(T_OBJECT);
+}
+
+inline refArrayOop refArrayOopDesc::cast(oop o) {
+  assert(o->is_refArray(), "Must be a refArray");
+  return (refArrayOop)o;
 }
 
 template <class T> T *refArrayOopDesc::obj_at_addr(int index) const {
@@ -51,6 +51,10 @@ inline oop refArrayOopDesc::obj_at(int index) const {
   ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index)
                                        : obj_at_offset<oop>(index);
   return HeapAccess<IS_ARRAY>::oop_load_at(as_oop(), offset);
+}
+
+inline oop refArrayOopDesc::obj_at(int index, TRAPS) const {
+  return obj_at(index);
 }
 
 inline void refArrayOopDesc::obj_at_put(int index, oop value) {
@@ -66,15 +70,6 @@ inline void refArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
     THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
   obj_at_put(index, value);
-}
-
-template <typename OopClosureType>
-void refArrayOopDesc::oop_iterate_elements_range(OopClosureType* blk, int start, int end) {
-  if (UseCompressedOops) {
-    klass()->oop_oop_iterate_elements_range<narrowOop>(this, blk, start, end);
-  } else {
-    klass()->oop_oop_iterate_elements_range<oop>(this, blk, start, end);
-  }
 }
 
 #endif // SHARE_OOPS_REFARRAYOOP_INLINE_HPP

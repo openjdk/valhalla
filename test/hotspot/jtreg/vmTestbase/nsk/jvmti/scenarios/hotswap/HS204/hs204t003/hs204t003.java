@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,6 @@
 package nsk.jvmti.scenarios.hotswap.HS204.hs204t003;
 
 import nsk.share.jvmti.RedefineAgent;
-import jdk.test.lib.thread.ThreadWrapper;
 public class hs204t003 extends RedefineAgent {
     public native boolean popFrame(Thread thread) ;
 
@@ -83,7 +82,7 @@ public class hs204t003 extends RedefineAgent {
             TempThread temp = new TempThread();
             temp.start();
             Thread.sleep(10000);
-            popFrame(temp.getThread());
+            popFrame(temp);
             temp.join();
             mthread = temp.mthread;
             mthread.start();
@@ -105,7 +104,7 @@ public class hs204t003 extends RedefineAgent {
         return passed;
         }
 }
-class TempThread extends ThreadWrapper {
+class TempThread extends Thread {
     public MyThread mthread;
     public TempThread() {
         super("TempThread.");

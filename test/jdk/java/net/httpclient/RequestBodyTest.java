@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,33 +47,38 @@ import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.*;
 import static java.nio.file.StandardOpenOption.*;
 
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 /*
  * @test
  * @bug 8087112
+ * @modules java.net.http/jdk.internal.net.http.common
+ *          java.logging
+ *          jdk.httpserver
  * @library /test/lib /test/jdk/java/net/httpclient/lib
- * @build jdk.test.lib.net.SimpleSSLContext
- *        jdk.httpclient.test.lib.common.HttpServerAdapters
+ * @compile ../../../com/sun/net/httpserver/LogFilter.java
+ * @compile ../../../com/sun/net/httpserver/EchoHandler.java
+ * @compile ../../../com/sun/net/httpserver/FileServerHandler.java
+ * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestServerConfigurator
  * @build LightWeightHttpServer
  * @build jdk.test.lib.Platform
  * @build jdk.test.lib.util.FileUtils
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm RequestBodyTest
  */
 public class RequestBodyTest {
 
     static final String fileroot = System.getProperty("test.src", ".") + "/docs";
     static final String midSizedFilename = "/files/notsobigfile.txt";
     static final String smallFilename = "/files/smallfile.txt";
-    private static final ConcurrentHashMap<String,Throwable> failures = new ConcurrentHashMap<>();
+    final ConcurrentHashMap<String,Throwable> failures = new ConcurrentHashMap<>();
 
-    private static HttpClient client;
-    private static String httpURI;
-    private static String httpsURI;
+    HttpClient client;
+    String httpURI;
+    String httpsURI;
 
     enum RequestBody {
         BYTE_ARRAY,
@@ -95,8 +100,8 @@ public class RequestBodyTest {
         STRING_WITH_CHARSET,
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         LightWeightHttpServer.initServer();
         httpURI = LightWeightHttpServer.httproot + "echo/foo";
         httpsURI = LightWeightHttpServer.httpsroot + "echo/foo";
@@ -109,8 +114,8 @@ public class RequestBodyTest {
                            .build();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         try {
             LightWeightHttpServer.stop();
         } finally {
@@ -127,7 +132,8 @@ public class RequestBodyTest {
         }
     }
 
-    public static Object[][] exchanges() throws Exception {
+    @DataProvider
+    public Object[][] exchanges() throws Exception {
         List<Object[]> values = new ArrayList<>();
 
         for (boolean async : new boolean[] { false, true })
@@ -142,8 +148,7 @@ public class RequestBodyTest {
         return values.stream().toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("exchanges")
+    @Test(dataProvider = "exchanges")
     void exchange(String target,
                   RequestBody requestBodyType,
                   ResponseBody responseBodyType,
@@ -239,8 +244,8 @@ public class RequestBodyTest {
                 BodyHandler<byte[]> bh = BodyHandlers.ofByteArray();
                 if (bufferResponseBody) bh = BodyHandlers.buffering(bh, 50);
                 HttpResponse<byte[]> bar = getResponse(client, request, bh, async);
-                assertEquals(200, bar.statusCode());
-                assertArrayEquals(fileAsBytes, bar.body());
+                assertEquals(bar.statusCode(), 200);
+                assertEquals(bar.body(), fileAsBytes);
                 break;
             case BYTE_ARRAY_CONSUMER:
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -249,46 +254,46 @@ public class RequestBodyTest {
                 if (bufferResponseBody) bh1 = BodyHandlers.buffering(bh1, 49);
                 HttpResponse<Void> v = getResponse(client, request, bh1, async);
                 byte[] ba = baos.toByteArray();
-                assertEquals(200, v.statusCode());
-                assertArrayEquals(fileAsBytes, ba);
+                assertEquals(v.statusCode(), 200);
+                assertEquals(ba, fileAsBytes);
                 break;
             case DISCARD:
                 Object o = new Object();
                 BodyHandler<Object> bh2 = BodyHandlers.replacing(o);
                 if (bufferResponseBody) bh2 = BodyHandlers.buffering(bh2, 51);
                 HttpResponse<Object> or = getResponse(client, request, bh2, async);
-                assertEquals(200, or.statusCode());
+                assertEquals(or.statusCode(), 200);
                 assertSame(or.body(), o);
                 break;
             case FILE:
                 BodyHandler<Path> bh3 = BodyHandlers.ofFile(tempFile);
                 if (bufferResponseBody) bh3 = BodyHandlers.buffering(bh3, 48);
                 HttpResponse<Path> fr = getResponse(client, request, bh3, async);
-                assertEquals(200, fr.statusCode());
-                assertEquals(fileAsString.length(), Files.size(tempFile));
-                assertArrayEquals(fileAsBytes, Files.readAllBytes(tempFile));
+                assertEquals(fr.statusCode(), 200);
+                assertEquals(Files.size(tempFile), fileAsString.length());
+                assertEquals(Files.readAllBytes(tempFile), fileAsBytes);
                 break;
             case FILE_WITH_OPTION:
                 BodyHandler<Path> bh4 = BodyHandlers.ofFile(tempFile, CREATE_NEW, WRITE);
                 if (bufferResponseBody) bh4 = BodyHandlers.buffering(bh4, 52);
                 fr = getResponse(client, request, bh4, async);
-                assertEquals(200, fr.statusCode());
-                assertEquals(fileAsString.length(), Files.size(tempFile));
-                assertArrayEquals(fileAsBytes, Files.readAllBytes(tempFile));
+                assertEquals(fr.statusCode(), 200);
+                assertEquals(Files.size(tempFile), fileAsString.length());
+                assertEquals(Files.readAllBytes(tempFile), fileAsBytes);
                 break;
             case STRING:
                 BodyHandler<String> bh5 = BodyHandlers.ofString();
                 if(bufferResponseBody) bh5 = BodyHandlers.buffering(bh5, 47);
                 HttpResponse<String> sr = getResponse(client, request, bh5, async);
-                assertEquals(200, sr.statusCode());
-                assertEquals(fileAsString, sr.body());
+                assertEquals(sr.statusCode(), 200);
+                assertEquals(sr.body(), fileAsString);
                 break;
             case STRING_WITH_CHARSET:
                 BodyHandler<String> bh6 = BodyHandlers.ofString(StandardCharsets.UTF_8);
                 if (bufferResponseBody) bh6 = BodyHandlers.buffering(bh6, 53);
                 HttpResponse<String> r = getResponse(client, request, bh6, async);
-                assertEquals(200, r.statusCode());
-                assertEquals(fileAsString, r.body());
+                assertEquals(r.statusCode(), 200);
+                assertEquals(r.body(), fileAsString);
                 break;
             default:
                 throw new AssertionError("Unknown response body:" + responseBodyType);

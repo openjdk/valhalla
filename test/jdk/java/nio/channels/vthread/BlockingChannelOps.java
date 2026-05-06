@@ -35,7 +35,6 @@
  * @library /test/lib
  * @run junit/othervm/timeout=480 -Djdk.pollerMode=1 BlockingChannelOps
  * @run junit/othervm/timeout=480 -Djdk.pollerMode=2 BlockingChannelOps
- * @run junit/othervm/timeout=480 -Djdk.pollerMode=3 BlockingChannelOps
  */
 
 /*

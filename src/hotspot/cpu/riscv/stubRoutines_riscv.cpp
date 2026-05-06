@@ -42,12 +42,8 @@
 #define DEFINE_ARCH_ENTRY_INIT(arch, blob_name, stub_name, field_name, getter_name, init_function) \
   address StubRoutines:: arch :: STUB_FIELD_NAME(field_name)  = CAST_FROM_FN_PTR(address, init_function);
 
-#define DEFINE_ARCH_ENTRY_ARRAY(arch, blob_name, stub_name, field_name, getter_name, count) \
-  address StubRoutines:: arch :: STUB_FIELD_NAME(field_name)  [count] ;
+STUBGEN_ARCH_ENTRIES_DO(DEFINE_ARCH_ENTRY, DEFINE_ARCH_ENTRY_INIT)
 
-STUBGEN_ARCH_ENTRIES_DO(DEFINE_ARCH_ENTRY, DEFINE_ARCH_ENTRY_INIT, DEFINE_ARCH_ENTRY_ARRAY)
-
-#undef DEFINE_ARCH_ENTRY_ARRAY
 #undef DEFINE_ARCH_ENTRY_INIT
 #undef DEFINE_ARCH_ENTRY
 
@@ -505,9 +501,3 @@ ATTRIBUTE_ALIGNED(4096) juint StubRoutines::riscv::_crc_table[] =
     0x751997d0UL, 0x00000001UL,
     0xccaa009eUL, 0x00000000UL,
 };
-
-#if INCLUDE_CDS
-// nothing to do for riscv
-void StubRoutines::init_AOTAddressTable() {
-}
-#endif // INCLUDE_CDS

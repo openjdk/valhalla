@@ -355,8 +355,8 @@ bool JVMCIEnv::pending_exception_as_string(const char** to_string, const char** 
         had_nested_exception = true;
       } else {
         oop pair = result.get_oop();
-        guarantee(pair->is_refArray(), "must be");
-        refArrayOop pair_arr = refArrayOop(pair);
+        guarantee(pair->is_objArray(), "must be");
+        objArrayOop pair_arr = objArrayOop(pair);
         int len = pair_arr->length();
         guarantee(len == 2, "bad len is %d", len);
         if (to_string != nullptr) {
@@ -678,10 +678,9 @@ int JVMCIEnv::get_length(JVMCIArray array) {
   }
 }
 
-JVMCIObject JVMCIEnv::get_object_at(JVMCIObjectArray array, int index, JVMCI_TRAPS) {
+JVMCIObject JVMCIEnv::get_object_at(JVMCIObjectArray array, int index) {
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current(); // For exception macros.
-    oop result = HotSpotJVMCI::resolve(array)->obj_at(index, CHECK_({}));
+    oop result = HotSpotJVMCI::resolve(array)->obj_at(index);
     return wrap(result);
   } else {
     JNIAccessMark jni(this);
@@ -1153,9 +1152,9 @@ JVMCIObject JVMCIEnv::call_JavaConstant_forPrimitive(jchar type_char, jlong valu
   }
 }
 
-JVMCIObject JVMCIEnv::get_jvmci_primitive_type(BasicType type, JVMCI_TRAPS) {
+JVMCIObject JVMCIEnv::get_jvmci_primitive_type(BasicType type) {
   JVMCIObjectArray primitives = get_HotSpotResolvedPrimitiveType_primitives();
-  JVMCIObject result = get_object_at(primitives, type, JVMCI_CHECK_({}));
+  JVMCIObject result = get_object_at(primitives, type);
   return result;
 }
 

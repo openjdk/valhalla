@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,18 +59,19 @@
  */
 package test.java.time;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 
 import java.time.Clock;
 import java.time.LocalTime;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test LocalTime.
  */
+@Test
 public class TestLocalTime extends AbstractTest {
     static final long NANOS_PER_SECOND = 1_000_000_000L;
     static final long NANOS_PER_MINUTE = 60 * NANOS_PER_SECOND;
@@ -84,10 +85,10 @@ public class TestLocalTime extends AbstractTest {
 
     //-----------------------------------------------------------------------
     private void check(LocalTime time, int h, int m, int s, int n) {
-        assertEquals(h, time.getHour());
-        assertEquals(m, time.getMinute());
-        assertEquals(s, time.getSecond());
-        assertEquals(n, time.getNano());
+        assertEquals(time.getHour(), h);
+        assertEquals(time.getMinute(), m);
+        assertEquals(time.getSecond(), s);
+        assertEquals(time.getNano(), n);
     }
 
     //-----------------------------------------------------------------------
@@ -183,8 +184,8 @@ public class TestLocalTime extends AbstractTest {
     //-----------------------------------------------------------------------
     // now()
     //-----------------------------------------------------------------------
-    @SuppressWarnings("unused")
     @Test
+    @SuppressWarnings("unused")
     public void now() {
         // Warmup the TimeZone data so the following test does not include
         // one-time initialization

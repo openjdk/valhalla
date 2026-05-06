@@ -379,18 +379,15 @@ template <class T> void SerialFullGC::KeepAliveClosure::do_oop_work(T* p) {
   mark_and_push(p);
 }
 
-void SerialFullGC::push_objarray(objArrayOop obj, size_t index) {
-  assert(obj->is_array_with_oops(), "Must be");
+void SerialFullGC::push_objarray(oop obj, size_t index) {
+  assert(obj->is_refArray(), "Must be");
   ObjArrayTask task(obj, index);
   assert(task.is_valid(), "bad ObjArrayTask");
   _objarray_stack.push(task);
 }
 
 void SerialFullGC::follow_array(objArrayOop array) {
-  assert(array->is_array_with_oops(), "Must be");
-
   mark_and_push_closure.do_klass(array->klass());
-
   // Don't push empty arrays to avoid unnecessary work.
   if (array->length() > 0) {
     SerialFullGC::push_objarray(array, 0);
@@ -399,7 +396,7 @@ void SerialFullGC::follow_array(objArrayOop array) {
 
 void SerialFullGC::follow_object(oop obj) {
   assert(obj->is_gc_marked(), "should be marked");
-  if (obj->is_array_with_oops()) {
+  if (obj->is_refArray()) {
     // Handle object arrays explicitly to allow them to
     // be split into chunks if needed.
     SerialFullGC::follow_array((objArrayOop)obj);
@@ -409,7 +406,6 @@ void SerialFullGC::follow_object(oop obj) {
 }
 
 void SerialFullGC::follow_array_chunk(objArrayOop array, int index) {
-  assert(array->is_array_with_oops(), "Must be");
   const int len = array->length();
   const int beg_index = index;
   assert(beg_index < len || len == 0, "index too large");
@@ -417,7 +413,7 @@ void SerialFullGC::follow_array_chunk(objArrayOop array, int index) {
   const int stride = MIN2(len - beg_index, (int) ObjArrayMarkingStride);
   const int end_index = beg_index + stride;
 
-  array->oop_iterate_elements_range(&mark_and_push_closure, beg_index, end_index);
+  refArrayOop(array)->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
 
   if (end_index < len) {
     SerialFullGC::push_objarray(array, end_index); // Push the continuation.

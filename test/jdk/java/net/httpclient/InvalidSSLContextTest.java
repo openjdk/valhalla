@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,11 @@
 
 /*
  * @test
- * @bug 8381316
  * @summary Test to ensure the HTTP client throws an appropriate SSL exception
  *          when SSL context is not valid.
- * @library /test/lib /test/jdk/java/net/httpclient/lib
+ * @library /test/lib
  * @build jdk.test.lib.net.SimpleSSLContext
- *        jdk.httpclient.test.lib.common.HttpServerAdapters
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true InvalidSSLContextTest
  */
 
 import java.io.IOException;
@@ -42,80 +40,71 @@ import java.util.concurrent.CompletionException;
 import java.net.SocketException;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
-import java.net.http.HttpOption;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestServer;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Builder.NO_PROXY;
-import static java.net.http.HttpClient.Version.*;
-import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
-import static jdk.httpclient.test.lib.common.HttpServerAdapters.createClientBuilderForH3;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 public class InvalidSSLContextTest {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    static volatile SSLServerSocket sslServerSocket;
-    static volatile String uri;
-    private static HttpTestServer h3Server;
-    private static String h3Uri;
+    SSLContext sslContext;
+    volatile SSLServerSocket sslServerSocket;
+    volatile String uri;
 
-    public static Object[][] versions() {
+    @DataProvider(name = "versions")
+    public Object[][] versions() {
         return new Object[][]{
-                { HTTP_1_1, uri },
-                { HTTP_2  , uri },
-                { HTTP_3  , h3Uri }
+                { HTTP_1_1 },
+                { HTTP_2   }
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("versions")
-    public void testSync(Version version, String uri) throws Exception {
+    @Test(dataProvider = "versions")
+    public void testSync(Version version) throws Exception {
         // client-side uses a different context to that of the server-side
-        HttpClient client = createClientBuilderForH3()
+        HttpClient client = HttpClient.newBuilder()
                 .proxy(NO_PROXY)
                 .sslContext(SSLContext.getDefault())
                 .build();
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
                 .version(version)
-                .setOption(HttpOption.H3_DISCOVERY, HTTP_3_URI_ONLY)
                 .build();
 
         try {
             HttpResponse<?> response = client.send(request, BodyHandlers.discarding());
-            Assertions.fail("UNEXPECTED response" + response);
+            Assert.fail("UNEXPECTED response" + response);
         } catch (IOException ex) {
             System.out.println("Caught expected: " + ex);
-            assertException(SSLException.class, ex);
+            assertExceptionOrCause(SSLException.class, ex);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("versions")
-    public void testAsync(Version version, String uri) throws Exception {
+    @Test(dataProvider = "versions")
+    public void testAsync(Version version) throws Exception {
         // client-side uses a different context to that of the server-side
-        HttpClient client = createClientBuilderForH3()
+        HttpClient client = HttpClient.newBuilder()
                 .proxy(NO_PROXY)
                 .sslContext(SSLContext.getDefault())
                 .build();
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
                 .version(version)
-                .setOption(HttpOption.H3_DISCOVERY, HTTP_3_URI_ONLY)
                 .build();
 
         assertExceptionally(SSLException.class,
@@ -126,32 +115,42 @@ public class InvalidSSLContextTest {
                                     CompletableFuture<?> stage) {
         stage.handle((result, error) -> {
             if (result != null) {
-                Assertions.fail("UNEXPECTED result: " + result);
+                Assert.fail("UNEXPECTED result: " + result);
                 return null;
             }
             if (error instanceof CompletionException) {
                 Throwable cause = error.getCause();
                 if (cause == null) {
-                    Assertions.fail("Unexpected null cause: " + error);
+                    Assert.fail("Unexpected null cause: " + error);
                 }
-                System.out.println("Caught expected: " + cause);
-                assertException(clazz, cause);
+                assertExceptionOrCause(clazz, cause);
             } else {
-                System.out.println("Caught expected: " + error);
-                assertException(clazz, error);
+                assertExceptionOrCause(clazz, error);
             }
             return null;
         }).join();
     }
 
-    static void assertException(Class<? extends Throwable> clazz, Throwable t) {
-        Assertions.assertInstanceOf(clazz, t);
-        Assertions.assertTrue(t.getMessage().contains("unable to find valid certification path to requested target"),
-                "Unexpected exception message: " + t);
+    static void assertExceptionOrCause(Class<? extends Throwable> clazz, Throwable t) {
+        if (t == null) {
+            Assert.fail("Expected " + clazz + ", caught nothing");
+        }
+        final Throwable original = t;
+        do {
+            if (clazz.isInstance(t)) {
+                return; // found
+            }
+        } while ((t = t.getCause()) != null);
+        original.printStackTrace(System.out);
+        Assert.fail("Expected " + clazz + "in " + original);
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // server-side uses a different context to that of the client-side
         sslServerSocket = (SSLServerSocket)sslContext
                 .getServerSocketFactory()
@@ -164,7 +163,7 @@ public class InvalidSSLContextTest {
         Thread t = new Thread("SSL-Server-Side") {
             @Override
             public void run() {
-                while (!sslServerSocket.isClosed()) {
+                while (true) {
                     try {
                         SSLSocket s = (SSLSocket) sslServerSocket.accept();
                         System.out.println("SERVER: accepted: " + s);
@@ -174,7 +173,7 @@ public class InvalidSSLContextTest {
                         Thread.sleep(500);
                         s.startHandshake();
                         s.close();
-                        Assertions.fail("SERVER: UNEXPECTED ");
+                        Assert.fail("SERVER: UNEXPECTED ");
                     } catch (SSLException | SocketException se) {
                         System.out.println("SERVER: caught expected " + se);
                     } catch (IOException e) {
@@ -182,6 +181,7 @@ public class InvalidSSLContextTest {
                         if (!sslServerSocket.isClosed()) {
                             throw new UncheckedIOException(e);
                         }
+                        break;
                     } catch (InterruptedException ie) {
                         throw new RuntimeException(ie);
                     }
@@ -189,16 +189,10 @@ public class InvalidSSLContextTest {
             }
         };
         t.start();
-
-        h3Server = HttpTestServer.create(HTTP_3_URI_ONLY, sslContext);
-        h3Server.addHandler((exchange) -> exchange.sendResponseHeaders(200, 0), "/hello");
-        h3Server.start();
-        h3Uri = "https://" + h3Server.serverAuthority() + "/hello";
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
-        h3Server.stop();
+    @AfterTest
+    public void teardown() throws Exception {
         sslServerSocket.close();
     }
 }

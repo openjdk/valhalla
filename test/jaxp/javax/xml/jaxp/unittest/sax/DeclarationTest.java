@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,25 @@
 
 package sax;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import java.io.File;
+import java.io.StringReader;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Listeners;
+import org.testng.annotations.Test;
+import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
-import java.io.File;
-import java.io.StringReader;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
  * @bug 8230814
- * @run junit sax.DeclarationTest
+ * @run testng sax.DeclarationTest
  * @summary Test SAX Parser's handling of XML Declarations.
  */
 public class DeclarationTest {
@@ -56,8 +56,12 @@ public class DeclarationTest {
      *
      * Fields:
      * XML string, expected version, encoding and standalone strings
+     *
+     * @return data array for the test
+     * @throws Exception
      */
-    public static Object[][] defaultHandlerData() throws Exception {
+    @DataProvider(name = "default")
+    public Object[][] forDefaultHandler() throws Exception {
         return new Object[][] {
             { XML_NO_DECLARATION, null, null, null},
             { XML_NO_STANDALONE, null, null, null},
@@ -71,8 +75,12 @@ public class DeclarationTest {
      *
      * Fields:
      * XML string, expected version, encoding and standalone strings
+     *
+     * @return data array for the test
+     * @throws Exception
      */
-    public static Object[][] xmlSAXData() throws Exception {
+    @DataProvider(name = "sax-data")
+    public Object[][] xmlSAXData() throws Exception {
         return new Object[][] {
             { XML_NO_DECLARATION, null, null, null},
             { XML_NO_STANDALONE, "1.0", "ISO-8859-1", null},
@@ -87,8 +95,12 @@ public class DeclarationTest {
      *
      * Fields:
      * Source files, expected version, encoding and standalone strings
+     *
+     * @return data array for the test
+     * @throws Exception
      */
-    public static Object[][] xmlSAXDataFiles() throws Exception {
+    @DataProvider(name = "sax-data-files")
+    public Object[][] xmlSAXDataFiles() throws Exception {
         return new Object[][] {
             //the source contains no declaration
             { new File(SRC_DIR + "/../transform/SourceTest.xml"), null, null, null},
@@ -117,8 +129,7 @@ public class DeclarationTest {
      * @param standalone expected standalone string
      * @throws Exception if the test fails
      */
-    @ParameterizedTest
-    @MethodSource("defaultHandlerData")
+    @Test(dataProvider = "default")
     public void testDefault(String xml, String version, String encoding, String standalone)
             throws Exception {
         DefaultImpl h = new DefaultImpl();
@@ -134,8 +145,7 @@ public class DeclarationTest {
      * @param standalone expected standalone string
      * @throws Exception if the test fails
      */
-    @ParameterizedTest
-    @MethodSource("xmlSAXData")
+    @Test(dataProvider = "sax-data")
     public void test(String xml, String version, String encoding, String standalone)
             throws Exception {
         NewMethodImpl h = new NewMethodImpl();
@@ -151,16 +161,15 @@ public class DeclarationTest {
      * @param standalone expected standalone string
      * @throws Exception if the test fails
      */
-    @ParameterizedTest
-    @MethodSource("xmlSAXDataFiles")
+    @Test(dataProvider = "sax-data-files")
     public void testFiles(File xml, String version, String encoding, String standalone)
             throws Exception {
         SAXParser parser = SAXParserFactory.newDefaultInstance().newSAXParser();
         NewMethodImpl h = new NewMethodImpl();
         parser.parse(xml, h);
-        assertEquals(version, h.version);
-        assertEquals(encoding, h.encoding);
-        assertEquals(standalone, h.standalone);
+        Assert.assertEquals(h.version, version);
+        Assert.assertEquals(h.encoding, encoding);
+        Assert.assertEquals(h.standalone, standalone);
     }
 
     /**
@@ -178,12 +187,12 @@ public class DeclarationTest {
         XMLReader r = SAXParserFactory.newDefaultInstance().newSAXParser().getXMLReader();
         r.setContentHandler(h);
         r.parse(new InputSource(new StringReader(xml)));
-        assertEquals(version, h.version);
-        assertEquals(encoding, h.encoding);
-        assertEquals(standalone, h.standalone);
+        Assert.assertEquals(h.version, version);
+        Assert.assertEquals(h.encoding, encoding);
+        Assert.assertEquals(h.standalone, standalone);
     }
 
-    static class DefaultImpl extends DefaultHandler {
+    class DefaultImpl extends DefaultHandler{
         boolean startDocumentInvoked = false;
         String version, encoding, standalone;
 
@@ -193,7 +202,7 @@ public class DeclarationTest {
         }
     }
 
-    static class NewMethodImpl extends DefaultImpl {
+    class NewMethodImpl extends DefaultImpl {
 
         public void startDocument() throws SAXException {
             super.startDocument();
@@ -204,7 +213,7 @@ public class DeclarationTest {
                 throws SAXException
         {
             super.declaration(version, encoding, standalone);
-            assertTrue(startDocumentInvoked, "declaration follows startDocument");
+            Assert.assertTrue(startDocumentInvoked, "declaration follows startDocument");
             this.version = version;
             this.encoding = encoding;
             this.standalone = standalone;

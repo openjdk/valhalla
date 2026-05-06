@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,12 @@
 
 package java.net;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.*;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 
 public class MaxAgeExpires {
 
@@ -58,7 +54,8 @@ public class MaxAgeExpires {
         return zdt.toInstant().getEpochSecond() * 1000; // always exact seconds
     }
 
-    public static Object[][] testData() {
+    @DataProvider(name = "testData")
+    public Object[][] testData() {
         return new Object[][] {
             // Date string in past. But checking based on current time.
             {-1L, -1L, -1L, DT1, 0, true},
@@ -82,11 +79,10 @@ public class MaxAgeExpires {
             {zdtToMillis(zdt1), zdtToMillis(zdt2), -1L, DT3,120, false}
 
         };
-    }
+    };
 
 
-    @ParameterizedTest
-    @MethodSource("testData")
+    @Test(dataProvider = "testData")
     public void test1(long creationInstant, // if -1, then current time is used
                     long expiryCheckInstant,  // if -1 then current time is used
                     long maxAge, // if -1, then not included in String
@@ -103,7 +99,7 @@ public class MaxAgeExpires {
             sb.append("; max-age=" + Long.toString(maxAge));
 
         String s = sb.toString();
-        System.err.println(s);
+        System.out.println(s);
         HttpCookie cookie;
         if (creationInstant == -1)
             cookie = HttpCookie.parse(s).get(0);
@@ -111,8 +107,8 @@ public class MaxAgeExpires {
             cookie = HttpCookie.parse(s, false, creationInstant).get(0);
 
         if (expectedAge != -1 && cookie.getMaxAge() != expectedAge) {
-            System.err.println("getMaxAge returned " + cookie.getMaxAge());
-            System.err.println("expectedAge was " + expectedAge);
+            System.out.println("getMaxAge returned " + cookie.getMaxAge());
+            System.out.println("expectedAge was " + expectedAge);
             throw new RuntimeException("Test failed: wrong age");
         }
 
@@ -121,9 +117,9 @@ public class MaxAgeExpires {
             : cookie.hasExpired(expiryCheckInstant);
 
         if (expired != hasExpired) {
-            System.err.println("cookie.hasExpired() returned " + expired);
-            System.err.println("hasExpired was " + hasExpired);
-            System.err.println("getMaxAge() returned " + cookie.getMaxAge());
+            System.out.println("cookie.hasExpired() returned " + expired);
+            System.out.println("hasExpired was " + hasExpired);
+            System.out.println("getMaxAge() returned " + cookie.getMaxAge());
             throw new RuntimeException("Test failed: wrong hasExpired");
         }
     }
@@ -132,10 +128,10 @@ public class MaxAgeExpires {
     public void test2() {
         // Miscellaneous tests that setMaxAge() overrides whatever was set already
         HttpCookie cookie = HttpCookie.parse("Set-Cookie: name=value; max-age=100").get(0);
-        assertEquals(100, cookie.getMaxAge());
+        Assert.assertEquals(cookie.getMaxAge(), 100);
         cookie.setMaxAge(200);
-        assertEquals(200, cookie.getMaxAge());
+        Assert.assertEquals(cookie.getMaxAge(), 200);
         cookie.setMaxAge(-2);
-        assertEquals(-2, cookie.getMaxAge());
+        Assert.assertEquals(cookie.getMaxAge(), -2);
     }
 }

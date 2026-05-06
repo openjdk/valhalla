@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
 #include "code/codeCache.hpp"
 #include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/workerThread.hpp"
-#include "runtime/atomic.hpp"
 
 class CodeCacheUnloadingTask {
 
@@ -37,7 +36,7 @@ class CodeCacheUnloadingTask {
 
   // Variables used to claim nmethods.
   nmethod* _first_nmethod;
-  Atomic<nmethod*> _claimed_nmethod;
+  nmethod* volatile _claimed_nmethod;
 
 public:
   CodeCacheUnloadingTask(bool unloading_occurred);

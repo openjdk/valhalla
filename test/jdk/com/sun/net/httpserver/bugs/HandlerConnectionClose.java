@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,15 @@
  * questions.
  */
 
+/**
+ * @test
+ * @bug 8218554
+ * @summary  test that the handler can request a connection close.
+ * @library /test/lib
+ * @build jdk.test.lib.net.SimpleSSLContext
+ * @run main/othervm HandlerConnectionClose
+ */
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -40,30 +49,22 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
 import jdk.test.lib.net.SimpleSSLContext;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 
-/*
- * @test
- * @bug 8218554
- * @summary  test that the handler can request a connection close.
- * @library /test/lib
- * @build jdk.test.lib.net.SimpleSSLContext
- * @comment We use othervm because this test configures logging handlers
- *          for the system wide "com.sun.net.httpserver" logger
- * @run main/othervm ${test.main.class}
- */
-public class HandlerConnectionClose {
+public class HandlerConnectionClose
+{
     static final int ONEK = 1024;
     static final long POST_SIZE = ONEK * 1L;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static final Logger logger = Logger.getLogger("com.sun.net.httpserver");
+    SSLContext sslContext;
+    Logger logger;
 
     void test(String[] args) throws Exception {
 
@@ -76,6 +77,7 @@ public class HandlerConnectionClose {
         } finally {
             httpServer.stop(0);
         }
+        sslContext = new SimpleSSLContext().get();
         HttpServer httpsServer = startHttpServer("https");
         try {
             testHttpURLConnection(httpsServer, "https","/close/legacy/https/chunked");
@@ -340,20 +342,17 @@ public class HandlerConnectionClose {
         }
     }
 
-    private static void setupLogging() {
-        final Handler handler = new ConsoleHandler();
-        handler.setLevel(Level.FINEST);
-        logger.setLevel(Level.FINEST);
-        logger.addHandler(handler);
-
-    }
-
     /**
      * Http Server
      */
     HttpServer startHttpServer(String protocol) throws IOException {
         if (debug) {
-            setupLogging(); // merely for debugging
+            logger = Logger.getLogger("com.sun.net.httpserver");
+            Handler outHandler = new StreamHandler(System.out,
+                                     new SimpleFormatter());
+            outHandler.setLevel(Level.FINEST);
+            logger.setLevel(Level.FINEST);
+            logger.addHandler(outHandler);
         }
 
         InetSocketAddress serverAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);

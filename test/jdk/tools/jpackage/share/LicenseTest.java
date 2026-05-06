@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,23 +21,21 @@
  * questions.
  */
 
-import static jdk.internal.util.OperatingSystem.LINUX;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import jdk.jpackage.internal.util.Slot;
+import static jdk.internal.util.OperatingSystem.LINUX;
 import jdk.jpackage.test.Annotations.Test;
-import jdk.jpackage.test.Executor;
 import jdk.jpackage.test.JPackageCommand;
-import jdk.jpackage.test.LinuxHelper;
-import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.LinuxHelper;
+import jdk.jpackage.test.Executor;
 import jdk.jpackage.test.TKit;
 
 /**
@@ -57,9 +55,6 @@ import jdk.jpackage.test.TKit;
  * %{_defaultlicensedir}/licensetest-1.0/license.txt file.
  *
  * Mac:
- *
- * For DMG license should be displayed on command line when "hdiutil attach"
- * is called.
  *
  * Windows
  *
@@ -95,9 +90,12 @@ public class LicenseTest {
 
     @Test
     public static void testCommon() {
-        PackageTest test = new PackageTest().configureHelloApp().mutate(LicenseTest::setLicenseFile);
+        PackageTest test = new PackageTest().configureHelloApp()
+        .addInitializer(cmd -> {
+            cmd.addArguments("--license-file", TKit.createRelativePathCopy(
+                    LICENSE_FILE));
+        });
 
-        initMacDmgLicenseVerifier(test.forTypes(PackageType.MAC_DMG));
         initLinuxLicenseVerifier(test.forTypes(PackageType.LINUX));
 
         test.run();
@@ -125,36 +123,12 @@ public class LicenseTest {
 
     @Test(ifOS = LINUX)
     public static void testCustomDebianCopyright() {
-        new CustomDebianCopyrightTest(false).run();
+        new CustomDebianCopyrightTest().run();
     }
 
     @Test(ifOS = LINUX)
     public static void testCustomDebianCopyrightSubst() {
-        new CustomDebianCopyrightTest(true).run();
-    }
-
-    private static PackageTest initMacDmgLicenseVerifier(PackageTest test) {
-        return test.addBundleVerifier(LicenseTest::verifyLicenseFileInDMGPackage);
-    }
-
-    private static void verifyLicenseFileInDMGPackage(JPackageCommand cmd)
-            throws IOException {
-        // DMG should have license, so attach with "no", since we only need license.
-        // With "no" attach will be canceled.
-        final var attachExec = Executor.of("sh", "-c", String.join(" ",
-                "no",
-                "|",
-                "/usr/bin/hdiutil",
-                "attach",
-                JPackageCommand.escapeAndJoin(cmd.outputBundle().toString())
-        )).saveOutput().storeOutputInFiles();
-
-        // Expected exit code is 1, since we canceling license.
-        final var attachResult = attachExec.executeAndRepeatUntilExitCode(1, 10, 6);
-        TKit.assertStringListEquals(Files.readAllLines(LICENSE_FILE),
-                attachResult.stdout(), String.format(
-                "Check output of \"hdiutil attach\" has the same license as contents of source license file [%s]",
-                LICENSE_FILE));
+        new CustomDebianCopyrightTest().withSubstitution(true).run();
     }
 
     private static PackageTest initLinuxLicenseVerifier(PackageTest test) {
@@ -174,27 +148,16 @@ public class LicenseTest {
         PackageTest test = new PackageTest()
         .forTypes(PackageType.LINUX)
         .configureHelloApp()
-        .addInitializer(JPackageCommand::setFakeRuntime)
-        .mutate(LicenseTest::setLicenseFile)
         .addInitializer(cmd -> {
+            cmd.setFakeRuntime();
+            cmd.addArguments("--license-file", TKit.createRelativePathCopy(
+                    LICENSE_FILE));
             cmd.addArguments("--install-dir", installDir);
         });
 
         initLinuxLicenseVerifier(test);
 
         test.run();
-    }
-
-    private static void setLicenseFile(PackageTest test) {
-        var inputLicenseFile = Slot.<Path>createEmpty();
-
-        test.addRunOnceInitializer(() -> {
-            var dir = TKit.createTempDirectory("license-dir");
-            inputLicenseFile.set(dir.resolve(LICENSE_FILE.getFileName()));
-            Files.copy(LICENSE_FILE, inputLicenseFile.get());
-        }).addInitializer(cmd -> {
-            cmd.setArgumentValue("--license-file", inputLicenseFile.get());
-        });
     }
 
     private static Path rpmLicenseFile(JPackageCommand cmd) {
@@ -302,36 +265,12 @@ public class LicenseTest {
         TKit.assertPathExists(licenseFile.getParent(), false);
     }
 
-    private record CustomDebianCopyrightTest(boolean withSubstitution) {
-
-        private String copyright() {
-            // Different values just to make easy to figure out from the test log which test was executed.
-            if (withSubstitution) {
-                return "Duke (C)";
-            } else {
-                return "Java (C)";
-            }
+    private static class CustomDebianCopyrightTest {
+        CustomDebianCopyrightTest() {
+            withSubstitution(false);
         }
 
-        private String licenseText() {
-            // Different values just to make easy to figure out from the test log which test was executed.
-            if (withSubstitution) {
-                return "The quick brown fox\n jumps over the lazy dog";
-            } else {
-                return "How vexingly quick daft zebras jump!";
-            }
-        }
-
-        private String name() {
-            // Different values just to make easy to figure out from the test log which test was executed.
-            if (withSubstitution) {
-                return "CustomDebianCopyrightWithSubst";
-            } else {
-                return "CustomDebianCopyright";
-            }
-        }
-
-        static private List<String> licenseFileText(String copyright, String licenseText) {
+        private List<String> licenseFileText(String copyright, String licenseText) {
             List<String> lines = new ArrayList<>(List.of(
                     String.format("Copyright=%s", copyright),
                     "Foo",
@@ -343,14 +282,28 @@ public class LicenseTest {
 
         private List<String> licenseFileText() {
             if (withSubstitution) {
-                return licenseFileText("APPLICATION_COPYRIGHT", "APPLICATION_LICENSE_TEXT");
+                return licenseFileText("APPLICATION_COPYRIGHT",
+                        "APPLICATION_LICENSE_TEXT");
             } else {
                 return expectedLicenseFileText();
             }
         }
 
         private List<String> expectedLicenseFileText() {
-            return licenseFileText(copyright(), licenseText());
+            return licenseFileText(copyright, licenseText);
+        }
+
+        CustomDebianCopyrightTest withSubstitution(boolean v) {
+            withSubstitution = v;
+            // Different values just to make easy to figure out from the test log which test was executed.
+            if (v) {
+                copyright = "Duke (C)";
+                licenseText = "The quick brown fox\n jumps over the lazy dog";
+            } else {
+                copyright = "Java (C)";
+                licenseText = "How vexingly quick daft zebras jump!";
+            }
+            return this;
         }
 
         void run() {
@@ -359,19 +312,20 @@ public class LicenseTest {
             .addInitializer(cmd -> {
                 // Create source license file.
                 Files.write(srcLicenseFile, List.of(
-                        licenseText().split("\\R", -1)));
+                        licenseText.split("\\R", -1)));
 
                 cmd.setFakeRuntime();
-                cmd.setArgumentValue("--name", String.format("%s%s", name(), cmd.name()));
+                cmd.setArgumentValue("--name", String.format("%s%s",
+                        withSubstitution ? "CustomDebianCopyrightWithSubst" : "CustomDebianCopyright",
+                        cmd.name()));
                 cmd.addArguments("--license-file", srcLicenseFile);
-                cmd.addArguments("--copyright", copyright());
-
-                var resourceDir = TKit.createTempDirectory("resources");
-
-                cmd.addArguments("--resource-dir", resourceDir);
+                cmd.addArguments("--copyright", copyright);
+                cmd.addArguments("--resource-dir", RESOURCE_DIR);
 
                 // Create copyright template file in a resource dir.
-                Files.write(resourceDir.resolve("copyright"), licenseFileText());
+                Files.createDirectories(RESOURCE_DIR);
+                Files.write(RESOURCE_DIR.resolve("copyright"),
+                        licenseFileText());
             })
             .addInstallVerifier(cmd -> {
                 Path installedLicenseFile = linuxLicenseFile(cmd);
@@ -383,6 +337,12 @@ public class LicenseTest {
             })
             .run();
         }
+
+        private boolean withSubstitution;
+        private String copyright;
+        private String licenseText;
+
+        private final Path RESOURCE_DIR = TKit.workDir().resolve("resources");
     }
 
     private static final Path LICENSE_FILE = TKit.TEST_SRC_ROOT.resolve(

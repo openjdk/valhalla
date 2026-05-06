@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,7 +99,9 @@ static char* reserve_memory_inner(char* requested_address,
   }
 
   // Base not aligned, retry.
-  os::release_memory(base, size);
+  if (!os::release_memory(base, size)) {
+    fatal("os::release_memory failed");
+  }
 
   // Map using the requested alignment.
   return os::reserve_memory_aligned(size, alignment, mem_tag, exec);
@@ -229,9 +231,14 @@ ReservedSpace MemoryReserver::reserve(size_t size,
                  mem_tag);
 }
 
-void MemoryReserver::release(const ReservedSpace& reserved) {
+bool MemoryReserver::release(const ReservedSpace& reserved) {
   assert(reserved.is_reserved(), "Precondition");
-  os::release_memory(reserved.base(), reserved.size());
+
+  if (reserved.special()) {
+    return os::release_memory_special(reserved.base(), reserved.size());
+  } else {
+    return os::release_memory(reserved.base(), reserved.size());
+  }
 }
 
 static char* map_memory_to_file(char* requested_address,
@@ -259,7 +266,9 @@ static char* map_memory_to_file(char* requested_address,
 
 
   // Base not aligned, retry.
-  os::unmap_memory(base, size);
+  if (!os::unmap_memory(base, size)) {
+    fatal("os::unmap_memory failed");
+  }
 
   // Map using the requested alignment.
   return os::map_memory_to_file_aligned(size, alignment, fd, mem_tag);
@@ -367,7 +376,11 @@ ReservedSpace HeapReserver::Instance::reserve_memory(size_t size,
 void HeapReserver::Instance::release(const ReservedSpace& reserved) {
   if (reserved.is_reserved()) {
     if (_fd == -1) {
-      os::release_memory(reserved.base(), reserved.size());
+      if (reserved.special()) {
+        os::release_memory_special(reserved.base(), reserved.size());
+      } else{
+        os::release_memory(reserved.base(), reserved.size());
+      }
     } else {
       os::unmap_memory(reserved.base(), reserved.size());
     }
@@ -656,12 +669,11 @@ ReservedHeapSpace HeapReserver::Instance::reserve_compressed_oops_heap(const siz
 #endif // _LP64
 
 ReservedHeapSpace HeapReserver::Instance::reserve_heap(size_t size, size_t alignment, size_t page_size) {
-#ifdef _LP64
   if (UseCompressedOops) {
+#ifdef _LP64
     return reserve_compressed_oops_heap(size, alignment, page_size);
-  } else
 #endif
-  {
+  } else {
     return reserve_uncompressed_oops_heap(size, alignment, page_size);
   }
 }

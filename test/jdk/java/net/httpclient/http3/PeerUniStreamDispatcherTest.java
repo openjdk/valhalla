@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,9 @@
 
 /*
  * @test
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=out
- *      ${test.main.class}
+ *      PeerUniStreamDispatcherTest
  * @summary Unit test for the PeerUniStreamDispatcher
  */
 
@@ -45,8 +45,8 @@ import jdk.internal.net.http.quic.streams.QuicReceiverStream;
 import jdk.internal.net.http.quic.streams.QuicStreamReader;
 import jdk.internal.net.http.quic.streams.QuicStreams;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class PeerUniStreamDispatcherTest {
 
@@ -301,7 +301,7 @@ public class PeerUniStreamDispatcherTest {
         assertTrue(reader.connected());
         int size = VariableLengthEncoder.getEncodedSize(code);
         ByteBuffer buffer = ByteBuffer.allocate(size);
-        assertEquals(size, buffer.remaining());
+        assertEquals(buffer.remaining(), size);
         VariableLengthEncoder.encode(buffer, code);
         buffer.flip();
         stream.buffers.add(buffer);
@@ -313,7 +313,7 @@ public class PeerUniStreamDispatcherTest {
             // will loop correctly.
             size = VariableLengthEncoder.getEncodedSize(1L << 62 - 5);
             ByteBuffer buffer2 = ByteBuffer.allocate(size);
-            assertEquals(size, buffer2.remaining());
+            assertEquals(buffer2.remaining(), size);
             VariableLengthEncoder.encode(buffer2, 1L << 62 - 5);
             buffer2.flip();
             stream.buffers.add(ByteBuffer.wrap(new byte[] {buffer2.get()}));
@@ -328,7 +328,7 @@ public class PeerUniStreamDispatcherTest {
         assertFalse(reader.connected());
         assertFalse(dispatcher.dispatched.isEmpty());
         assertTrue(stream.buffers.isEmpty());
-        assertEquals(1, dispatcher.dispatched.size());
+        assertEquals(dispatcher.dispatched.size(), 1);
         var dispatched = dispatcher.dispatched.get(0);
         checkDispatched(type, code, stream, dispatched);
     }
@@ -343,30 +343,30 @@ public class PeerUniStreamDispatcherTest {
             case RESERVED -> DispatchedStream.ReservedStream.class;
             case UNKNOWN -> DispatchedStream.UnknownStream.class;
         };
-        assertEquals(streamClass, dispatched.getClass(),
+        assertEquals(dispatched.getClass(), streamClass,
                 "unexpected dispatched class " + dispatched + " for " + type);
         if (dispatched instanceof DispatchedStream.StandardStream st) {
             System.out.println("Got expected stream: " + st);
-            assertEquals(type, st.type());
-            assertEquals(stream, st.stream);
+            assertEquals(st.type(), type);
+            assertEquals(st.stream, stream);
         } else if (dispatched instanceof  DispatchedStream.ReservedStream res) {
             System.out.println("Got expected stream: " + res);
-            assertEquals(type, res.type());
-            assertEquals(stream, res.stream);
-            assertEquals(code, res.code());
+            assertEquals(res.type(), type);
+            assertEquals(res.stream, stream);
+            assertEquals(res.code(), code);
             assertTrue(Http3Streams.isReserved(res.code()));
         } else if (dispatched instanceof  DispatchedStream.UnknownStream unk) {
             System.out.println("Got expected stream: " + unk);
-            assertEquals(type, unk.type());
-            assertEquals(stream, unk.stream);
-            assertEquals(code, unk.code());
+            assertEquals(unk.type(), type);
+            assertEquals(unk.stream, stream);
+            assertEquals(unk.code(), code);
             assertFalse(Http3Streams.isReserved(unk.code()));
         } else if (dispatched instanceof DispatchedStream.PushStream push) {
             System.out.println("Got expected stream: " + push);
-            assertEquals(type, push.type());
-            assertEquals(stream, push.stream);
-            assertEquals(1L << 62 - 5, push.pushId);
-            assertEquals(DISPATCHED_STREAM.PUSH, push.type());
+            assertEquals(push.type(), type);
+            assertEquals(push.stream, stream);
+            assertEquals(push.pushId, 1L << 62 - 5);
+            assertEquals(push.type(), DISPATCHED_STREAM.PUSH);
         }
 
     }
@@ -406,9 +406,9 @@ public class PeerUniStreamDispatcherTest {
         SequentialScheduler scheduler = stream.scheduler;
         assertTrue(reader.connected());
         int size = VariableLengthEncoder.getEncodedSize(code);
-        assertEquals(8, size);
+        assertEquals(size, 8);
         ByteBuffer buffer = ByteBuffer.allocate(size);
-        assertEquals(size, buffer.remaining());
+        assertEquals(buffer.remaining(), size);
         VariableLengthEncoder.encode(buffer, code);
         buffer.flip();
         dispatcher.start();
@@ -428,7 +428,7 @@ public class PeerUniStreamDispatcherTest {
         assertFalse(reader.connected());
         assertFalse(dispatcher.dispatched.isEmpty());
         assertTrue(stream.buffers.isEmpty());
-        assertEquals(1, dispatcher.dispatched.size());
+        assertEquals(dispatcher.dispatched.size(), 1);
         var dispatched = dispatcher.dispatched.get(0);
         checkDispatched(type, code, stream, dispatched);
     }

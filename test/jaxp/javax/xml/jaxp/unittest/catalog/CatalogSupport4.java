@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,11 @@
 
 package catalog;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.w3c.dom.ls.LSResourceResolver;
-import org.xml.sax.InputSource;
+import static jaxp.library.JAXPTestUtilities.clearSystemProperty;
+import static jaxp.library.JAXPTestUtilities.setSystemProperty;
 
+import java.io.File;
+import java.io.StringReader;
 import javax.xml.stream.XMLResolver;
 import javax.xml.transform.Source;
 import javax.xml.transform.URIResolver;
@@ -39,14 +35,19 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
-import java.io.File;
-import java.io.StringReader;
 
-/*
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import org.w3c.dom.ls.LSResourceResolver;
+import org.xml.sax.InputSource;
+
+/**
  * @test
  * @bug 8158084 8162438 8162442 8166220
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run junit/othervm catalog.CatalogSupport4
+ * @run testng/othervm catalog.CatalogSupport4
  * @summary verifies the overriding over of the USE_CATALOG feature. Extending
  * CatalogSupport tests, the USE_CATALOG is turned off system-wide, however,
  * a JAXP processor may decide to use Catalog by enabling it through the factory
@@ -61,28 +62,26 @@ import java.io.StringReader;
  *
  * @author huizhe.wang@oracle.com
  */
-@TestInstance(Lifecycle.PER_CLASS)
 public class CatalogSupport4 extends CatalogSupportBase {
     /*
      * Initializing fields
      */
-    @BeforeAll
+    @BeforeClass
     public void setUpClass() throws Exception {
         setUp();
         //turn off USE_CATALOG system-wide
-        System.setProperty(SP_USE_CATALOG, "false");
+        setSystemProperty(SP_USE_CATALOG, "false");
     }
 
-    @AfterAll
+    @AfterClass
     public void tearDownClass() throws Exception {
-        System.clearProperty(SP_USE_CATALOG);
+        clearSystemProperty(SP_USE_CATALOG);
     }
 
     /*
        Verifies the Catalog support on SAXParser.
     */
-    @ParameterizedTest
-    @MethodSource("getDataSAX")
+    @Test(dataProvider = "data_SAXA")
     public void testSAXA(boolean setUseCatalog, boolean useCatalog, String catalog,
             String xml, MyHandler handler, String expected) throws Exception {
         testSAX(setUseCatalog, useCatalog, catalog, xml, handler, expected);
@@ -91,8 +90,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
     /*
        Verifies the Catalog support on XMLReader.
     */
-    @ParameterizedTest
-    @MethodSource("getDataSAX")
+    @Test(dataProvider = "data_SAXA")
     public void testXMLReaderA(boolean setUseCatalog, boolean useCatalog, String catalog,
             String xml, MyHandler handler, String expected) throws Exception {
         testXMLReader(setUseCatalog, useCatalog, catalog, xml, handler, expected);
@@ -101,8 +99,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
     /*
        Verifies the Catalog support on XInclude.
     */
-    @ParameterizedTest
-    @MethodSource("getDataXI")
+    @Test(dataProvider = "data_XIA")
     public void testXIncludeA(boolean setUseCatalog, boolean useCatalog, String catalog,
             String xml, MyHandler handler, String expected) throws Exception {
         testXInclude(setUseCatalog, useCatalog, catalog, xml, handler, expected);
@@ -111,8 +108,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
     /*
        Verifies the Catalog support on DOM parser.
     */
-    @ParameterizedTest
-    @MethodSource("getDataDOM")
+    @Test(dataProvider = "data_DOMA")
     public void testDOMA(boolean setUseCatalog, boolean useCatalog, String catalog,
             String xml, MyHandler handler, String expected) throws Exception {
         testDOM(setUseCatalog, useCatalog, catalog, xml, handler, expected);
@@ -121,8 +117,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
     /*
        Verifies the Catalog support on XMLStreamReader.
     */
-    @ParameterizedTest
-    @MethodSource("getDataStAX")
+    @Test(dataProvider = "data_StAXA")
     public void testStAXA(boolean setUseCatalog, boolean useCatalog, String catalog,
             String xml, XMLResolver resolver, String expected) throws Exception {
         testStAX(setUseCatalog, useCatalog, catalog, xml, resolver, expected);
@@ -132,8 +127,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        Verifies the Catalog support on resolving DTD, xsd import and include in
     Schema files.
     */
-    @ParameterizedTest
-    @MethodSource("getDataSchema")
+    @Test(dataProvider = "data_SchemaA")
     public void testValidationA(boolean setUseCatalog, boolean useCatalog,
             String catalog, String xsd, LSResourceResolver resolver)
             throws Exception {
@@ -145,8 +139,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        @bug 8158084 8162438 these tests also verifies the fix for 8162438
        Verifies the Catalog support on the Schema Validator.
     */
-    @ParameterizedTest
-    @MethodSource("getDataValidator")
+    @Test(dataProvider = "data_ValidatorA")
     public void testValidatorA(boolean setUseCatalog1, boolean setUseCatalog2, boolean useCatalog,
             Source source, LSResourceResolver resolver1, LSResourceResolver resolver2,
             String catalog1, String catalog2)
@@ -159,8 +152,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        Verifies the Catalog support on resolving DTD, xsl import and include in
     XSL files.
     */
-    @ParameterizedTest
-    @MethodSource("getDataXSL")
+    @Test(dataProvider = "data_XSLA")
     public void testXSLImportA(boolean setUseCatalog, boolean useCatalog, String catalog,
             SAXSource xsl, StreamSource xml, URIResolver resolver, String expected)
             throws Exception {
@@ -173,8 +165,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        Verifies the Catalog support on resolving DTD, xsl import and include in
     XSL files.
     */
-    @ParameterizedTest
-    @MethodSource("getDataXSL")
+    @Test(dataProvider = "data_XSLA")
     public void testXSLImportWTemplatesA(boolean setUseCatalog, boolean useCatalog,
             String catalog, SAXSource xsl, StreamSource xml, URIResolver resolver, String expected)
             throws Exception {
@@ -185,6 +176,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        DataProvider: for testing the SAX parser
        Data: set use_catalog, use_catalog, catalog file, xml file, handler, expected result string
      */
+    @DataProvider(name = "data_SAXA")
     public Object[][] getDataSAX() {
         return new Object[][]{
             {true, true, xml_catalog, xml_system, new MyHandler(elementInSystem), expectedWCatalog},
@@ -195,6 +187,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        DataProvider: for testing XInclude
        Data: set use_catalog, use_catalog, catalog file, xml file, handler, expected result string
      */
+    @DataProvider(name = "data_XIA")
     public Object[][] getDataXI() {
         return new Object[][]{
             {true, true, xml_catalog, xml_xInclude, new MyHandler(elementInXISimple), contentInUIutf8Catalog},
@@ -205,6 +198,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        DataProvider: for testing DOM parser
        Data: set use_catalog, use_catalog, catalog file, xml file, handler, expected result string
      */
+    @DataProvider(name = "data_DOMA")
     public Object[][] getDataDOM() {
         return new Object[][]{
             {true, true, xml_catalog, xml_system, new MyHandler(elementInSystem), expectedWCatalog},
@@ -215,6 +209,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        DataProvider: for testing the StAX parser
        Data: set use_catalog, use_catalog, catalog file, xml file, handler, expected result string
      */
+    @DataProvider(name = "data_StAXA")
     public Object[][] getDataStAX() {
 
         return new Object[][]{
@@ -222,10 +217,15 @@ public class CatalogSupport4 extends CatalogSupportBase {
         };
     }
 
+    MyEntityHandler getMyEntityHandler(String elementName, String[] systemIds, InputSource... returnValues) {
+       return new MyEntityHandler(systemIds, returnValues, elementName);
+    }
+
     /*
        DataProvider: for testing Schema validation
        Data: set use_catalog, use_catalog, catalog file, xsd file, a LSResourceResolver
      */
+    @DataProvider(name = "data_SchemaA")
     public Object[][] getDataSchema() {
         return new Object[][]{
             // for resolving DTD in xsd
@@ -241,6 +241,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        DataProvider: for testing Schema Validator
        Data: source, resolver1, resolver2, catalog1, a catalog2
      */
+    @DataProvider(name = "data_ValidatorA")
     public Object[][] getDataValidator() {
         DOMSource ds = getDOMSource(xml_val_test, xml_val_test_id, true, true, xml_catalog);
 
@@ -269,6 +270,7 @@ public class CatalogSupport4 extends CatalogSupportBase {
        DataProvider: for testing XSL import and include
        Data: set use_catalog, use_catalog, catalog file, xsl file, xml file, a URIResolver, expected result
      */
+    @DataProvider(name = "data_XSLA")
     public Object[][] getDataXSL() {
         // XSLInclude.xsl has one import XSLImport_html.xsl and two includes,
         // XSLInclude_header.xsl and XSLInclude_footer.xsl;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,10 @@ import javax.net.ssl.SSLContext;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
@@ -50,44 +54,39 @@ import static java.net.http.HttpClient.Version.valueOf;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-/*
+/**
  * @test
  * @bug 8292044
  * @summary Tests behaviour of HttpClient when server responds with 102 or 103 status codes
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.HttpServerAdapters
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm -Djdk.internal.httpclient.debug=true
- *                    -Djdk.httpclient.HttpClient.log=headers,requests,responses,errors ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
+ *                    -Djdk.httpclient.HttpClient.log=headers,requests,responses,errors Response1xxTest
  */
 public class Response1xxTest implements HttpServerAdapters {
     private static final String EXPECTED_RSP_BODY = "Hello World";
 
-    private static ServerSocket serverSocket;
-    private static Http11Server server;
-    private static String http1RequestURIBase;
+    private ServerSocket serverSocket;
+    private Http11Server server;
+    private String http1RequestURIBase;
 
 
-    private static HttpTestServer http2Server; // h2c
-    private static String http2RequestURIBase;
+    private HttpTestServer http2Server; // h2c
+    private String http2RequestURIBase;
 
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer https2Server;  // h2
-    private static String https2RequestURIBase;
+    private SSLContext sslContext;
+    private HttpTestServer https2Server;  // h2
+    private String https2RequestURIBase;
 
-    private static HttpTestServer http3Server;  // h3
-    private static String http3RequestURIBase;
+    private HttpTestServer http3Server;  // h3
+    private String http3RequestURIBase;
 
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeClass
+    public void setup() throws Exception {
         serverSocket = new ServerSocket(0, 0, InetAddress.getLoopbackAddress());
         server = new Http11Server(serverSocket);
         new Thread(server).start();
@@ -108,6 +107,10 @@ public class Response1xxTest implements HttpServerAdapters {
         http2Server.start();
         System.out.println("Started HTTP2 server at " + http2Server.getAddress());
 
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         https2Server = HttpTestServer.create(HTTP_2, sslContext);
         https2Server.addHandler(new Http2Handler(), "/http2/101");
         https2RequestURIBase = URIBuilder.newBuilder().scheme("https").loopback()
@@ -131,8 +134,8 @@ public class Response1xxTest implements HttpServerAdapters {
 
     }
 
-    @AfterAll
-    public static void teardown() throws Throwable {
+    @AfterClass
+    public void teardown() throws Throwable {
         try {
             assertNoOutstandingClientOps();
         } finally {
@@ -270,7 +273,7 @@ public class Response1xxTest implements HttpServerAdapters {
 
         static String readRequestLine(final Socket sock) throws IOException {
             final InputStream is = sock.getInputStream();
-            final StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder("");
             byte[] buf = new byte[1024];
             while (!sb.toString().endsWith("\r\n\r\n")) {
                 final int numRead = is.read(buf);
@@ -425,10 +428,10 @@ public class Response1xxTest implements HttpServerAdapters {
             System.out.println("Issuing request to " + requestURI);
             final HttpResponse<String> response = client.send(request,
                     BodyHandlers.ofString(StandardCharsets.UTF_8));
-            Assertions.assertEquals(version, response.version(),
+            Assert.assertEquals(response.version(), version,
                     "Unexpected HTTP version in response");
-            Assertions.assertEquals(200, response.statusCode(), "Unexpected response code");
-            Assertions.assertEquals(EXPECTED_RSP_BODY, response.body(), "Unexpected response body");
+            Assert.assertEquals(response.statusCode(), 200, "Unexpected response code");
+            Assert.assertEquals(response.body(), EXPECTED_RSP_BODY, "Unexpected response body");
         }
     }
 
@@ -485,7 +488,7 @@ public class Response1xxTest implements HttpServerAdapters {
                 .build();
         System.out.println("Issuing request to " + requestURI);
         // we expect the request to timeout
-        Assertions.assertThrows(HttpTimeoutException.class, () -> {
+        Assert.assertThrows(HttpTimeoutException.class, () -> {
             client.send(request, BodyHandlers.ofString(StandardCharsets.UTF_8));
         });
     }
@@ -562,7 +565,7 @@ public class Response1xxTest implements HttpServerAdapters {
         final HttpRequest request = requestBuilder.build();
         System.out.println("Issuing request to " + requestURI);
         // we expect the request to fail because the server sent an unexpected 101
-        Assertions.assertThrows(ProtocolException.class,
+        Assert.assertThrows(ProtocolException.class,
                 () -> client.send(request, BodyHandlers.ofString(StandardCharsets.UTF_8)));
     }
 
@@ -572,11 +575,11 @@ public class Response1xxTest implements HttpServerAdapters {
         final HttpRequest request = HttpRequest.newBuilder(requestURI).build();
         System.out.println("Issuing (warmup) request to " + requestURI);
         final HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
-        Assertions.assertEquals(200, response.statusCode(), "Unexpected response code");
+        Assert.assertEquals(response.statusCode(), 200, "Unexpected response code");
     }
 
     // verifies that the HttpClient being tracked has no outstanding operations
-    private static void assertNoOutstandingClientOps() throws AssertionError {
+    private void assertNoOutstandingClientOps() throws AssertionError {
         System.gc();
         final AssertionError refCheckFailure = TRACKER.check(1000);
         if (refCheckFailure != null) {

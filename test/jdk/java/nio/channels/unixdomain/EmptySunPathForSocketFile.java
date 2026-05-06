@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,11 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8256461
  * @modules java.base/sun.nio.fs
- * @run junit EmptySunPathForSocketFile
+ * @run testng EmptySunPathForSocketFile
  */
 
 import java.nio.file.FileSystems;
@@ -33,8 +33,7 @@ import java.nio.file.Path;
 import java.nio.file.spi.FileSystemProvider;
 import sun.nio.fs.AbstractFileSystemProvider;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.testng.Assert.assertEquals;
 
 /**
  * Check that AbstractFileSystemProvider.getSunPathForSocketFile with
@@ -42,14 +41,9 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
  */
 public class EmptySunPathForSocketFile {
     public static void main(String[] args) throws Exception {
-        new EmptySunPathForSocketFile().test();
-    }
-
-    @Test
-    public void test() {
         Path path = Path.of("");
         FileSystemProvider provider = FileSystems.getDefault().provider();
         byte[] bb = ((AbstractFileSystemProvider) provider).getSunPathForSocketFile(path);
-        assertArrayEquals(new byte[0], bb);
+        assertEquals(bb, new byte[0]);
     }
 }

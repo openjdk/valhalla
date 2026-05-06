@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/arguments.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
@@ -99,7 +98,7 @@ oop fieldDescriptor::string_initial_value(TRAPS) const {
   return constants()->uncached_string_at(initial_value_index(), THREAD);
 }
 
-void fieldDescriptor::reinitialize(const InstanceKlass* ik, const FieldInfo& fieldinfo) {
+void fieldDescriptor::reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo) {
   if (_cp.is_null() || field_holder() != ik) {
     _cp = constantPoolHandle(Thread::current(), ik->constants());
     // _cp should now reference ik's constant pool; i.e., ik is now field_holder.
@@ -111,30 +110,11 @@ void fieldDescriptor::reinitialize(const InstanceKlass* ik, const FieldInfo& fie
   guarantee(_fieldinfo.name_index() != 0 && _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
 }
 
-void fieldDescriptor::print_access_flags(outputStream* st) const {
-  AccessFlags flags = access_flags();
-  if (flags.is_public   ()) st->print("public ");
-  if (flags.is_private  ()) st->print("private ");
-  if (flags.is_protected()) st->print("protected ");
-  if (flags.is_static   ()) st->print("static ");
-  if (flags.is_final    ()) st->print("final ");
-  if (flags.is_volatile ()) st->print("volatile ");
-  if (flags.is_transient()) st->print("transient ");
-  if (flags.is_enum     ()) st->print("enum ");
-  if (flags.is_synthetic()) st->print("synthetic ");
-  if (Arguments::is_valhalla_enabled()) {
-    if (flags.is_identity_class()) st->print("identity ");
-    if (!flags.is_identity_class()) st->print("value "  );
-  }
-}
-
 void fieldDescriptor::print_on(outputStream* st, int base_offset) const {
-  print_access_flags(st);
+  access_flags().print_on(st);
   if (field_flags().is_injected()) st->print("injected ");
-  bool flat = field_flags().is_flat();
-  if (flat) st->print("flat ");
   name()->print_value_on(st);
-  st->print(" (fields 0x%08x) ", field_flags().as_uint());
+  st->print(" ");
   signature()->print_value_on(st);
   st->print(" @%d ", offset() + base_offset);
   if (WizardMode && has_initial_value()) {
@@ -149,9 +129,7 @@ void fieldDescriptor::print_on(outputStream* st, int base_offset) const {
     } else if (t.is_double()){
       st->print("double %lf)", double_initial_value());
     }
-    st->print(" ");
   }
-  if (flat) LayoutKindHelper::print_on(layout_kind(), st);
 }
 
 void fieldDescriptor::print() const { print_on(tty); }
@@ -199,7 +177,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
           InlineLayoutInfo* li = field_holder()->inline_layout_info_adr(index());
           int nm_offset = li->null_marker_offset();
           if (obj->byte_field_acquire(nm_offset) == 0) {
-            st->print_cr(" null");
+            st->print(" null");
             return;
           }
         }

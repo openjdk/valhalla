@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@
 // Signature  = "(" {Parameter} ")" ReturnType.
 // Parameter  = FieldType.
 // ReturnType = FieldType | "V".
-// FieldType  = "B" | "C" | "D" | "F" | "I" | "J" | "S" | "Z" | "L" ClassName ";" | "[" FieldType.
+// FieldType  = "B" | "C" | "D" | "F" | "I" | "J" | "S" | "Z" | "L" ClassName ";" | "Q" ValueClassName ";" | "[" FieldType.
 // ClassName  = string.
 
 // The ClassName string can be any JVM-style UTF8 string except:
@@ -502,7 +502,6 @@ Symbol* SignatureStream::find_symbol() {
 }
 
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
-  assert(InlineTypePassFieldsAsArgs || InlineTypeReturnedAsFields, "Not needed");
   ThreadInVMfromUnknown tiv;
   JavaThread* THREAD = JavaThread::current();
   HandleMark hm(THREAD);
@@ -590,7 +589,6 @@ void ResolvingSignatureStream::cache_handles() {
 }
 
 #ifdef ASSERT
-
 extern bool signature_constants_sane(); // called from basic_types_init()
 
 bool signature_constants_sane() {
@@ -681,14 +679,14 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset, bool null_marker, bool vt_oop) {
-  sig->append(SigEntry(bt, offset, name, null_marker, vt_oop));
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset) {
+  sig->append(SigEntry(bt, offset, name, false));
   if (bt == T_LONG || bt == T_DOUBLE) {
-    sig->append(SigEntry(T_VOID, offset, name, false, false)); // Longs and doubles take two stack slots
+    sig->append(SigEntry(T_VOID, offset, name, false)); // Longs and doubles take two stack slots
   }
 }
 void SigEntry::add_null_marker(GrowableArray<SigEntry>* sig, Symbol* name, int offset) {
-  sig->append(SigEntry(T_BOOLEAN, offset, name, true, false));
+  sig->append(SigEntry(T_BOOLEAN, offset, name, true));
 }
 
 // Returns true if the argument at index 'i' is not an inline type delimiter
@@ -734,13 +732,4 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = 'V';
   sig_str[idx++] = '\0';
   return SymbolTable::new_symbol(sig_str);
-}
-
-void SigEntry::print_on(outputStream* st) const {
-  st->print("SigEntry: type=%d offset=%d null_marker=%d ", _bt, _offset, _null_marker);
-  if (_name != nullptr) {
-    _name->print_on(st);
-  } else {
-    st->print("name=nullptr");
-  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import javax.xml.parsers.ParserConfigurationException;
 import jdk.jpackage.internal.resources.ResourceLocator;
 import jdk.jpackage.internal.util.PListReader;
 import jdk.jpackage.internal.util.function.ThrowingBiConsumer;
@@ -366,27 +367,20 @@ public final class LauncherVerifier {
         }
     }
 
-    private void verifyMacEntitlements(JPackageCommand cmd) throws SAXException, IOException {
+    private void verifyMacEntitlements(JPackageCommand cmd) throws ParserConfigurationException, SAXException, IOException {
         Path launcherPath = cmd.appLauncherPath(name);
         var entitlements = MacSignVerify.findEntitlements(launcherPath);
 
         TKit.assertTrue(entitlements.isPresent(), String.format("Check [%s] launcher is signed with entitlements", name));
 
-        String expectedEntitlementsOrigin;
-
         var customFile = Optional.ofNullable(cmd.getArgumentValue("--mac-entitlements")).map(Path::of);
-        if (customFile.isPresent()) {
-            expectedEntitlementsOrigin = String.format("custom entitlements from [%s] file", customFile.get());
-        } else {
+        if (customFile.isEmpty()) {
             // Try from the resource dir.
             var resourceDirFile = Optional.ofNullable(cmd.getArgumentValue("--resource-dir")).map(Path::of).map(resourceDir -> {
                 return resourceDir.resolve(cmd.name() + ".entitlements");
             }).filter(Files::exists);
             if (resourceDirFile.isPresent()) {
                 customFile = resourceDirFile;
-                expectedEntitlementsOrigin = "custom entitlements from the resource directory";
-            } else {
-                expectedEntitlementsOrigin = null;
             }
         }
 
@@ -395,14 +389,11 @@ public final class LauncherVerifier {
             expected = new PListReader(Files.readAllBytes(customFile.orElseThrow())).toMap(true);
         } else if (cmd.hasArgument("--mac-app-store")) {
             expected = DefaultEntitlements.APP_STORE;
-            expectedEntitlementsOrigin = "App Store entitlements";
         } else {
-            expectedEntitlementsOrigin = "default entitlements";
             expected = DefaultEntitlements.STANDARD;
         }
 
-        TKit.assertEquals(expected, entitlements.orElseThrow().toMap(true),
-                String.format("Check [%s] launcher is signed with %s", name, expectedEntitlementsOrigin));
+        TKit.assertEquals(expected, entitlements.orElseThrow().toMap(true), String.format("Check [%s] launcher is signed with expected entitlements", name));
     }
 
     private void executeLauncher(JPackageCommand cmd) throws IOException {
@@ -466,10 +457,8 @@ public final class LauncherVerifier {
     private static final class DefaultEntitlements {
         private static Map<String, Object> loadFromResources(String resourceName) {
             return ThrowingSupplier.toSupplier(() -> {
-                try (var in = ResourceLocator.class.getResourceAsStream(resourceName)) {
-                    var bytes = in.readAllBytes();
-                    return new PListReader(bytes).toMap(true);
-                }
+                var bytes = ResourceLocator.class.getResourceAsStream(resourceName).readAllBytes();
+                return new PListReader(bytes).toMap(true);
             }).get();
         }
 

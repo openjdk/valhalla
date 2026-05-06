@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,7 +21,8 @@
  * questions.
  */
 
-import org.junit.jupiter.api.Test;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,10 +33,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-
 /**
  * @test
  * @bug 8260366
@@ -43,11 +40,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * jdk.net.ExtendedSocketOptions doesn't lead to a deadlock
  * @modules java.base/sun.net.ext:open
  *          jdk.net
- * @run junit/othervm ${test.main.class}
- * @run junit/othervm ${test.main.class}
- * @run junit/othervm ${test.main.class}
- * @run junit/othervm ${test.main.class}
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm ExtendedSocketOptionsTest
+ * @run testng/othervm ExtendedSocketOptionsTest
+ * @run testng/othervm ExtendedSocketOptionsTest
+ * @run testng/othervm ExtendedSocketOptionsTest
+ * @run testng/othervm ExtendedSocketOptionsTest
  */
 public class ExtendedSocketOptionsTest {
 
@@ -86,13 +83,13 @@ public class ExtendedSocketOptionsTest {
         // check that the sun.net.ext.ExtendedSocketOptions#getInstance() does indeed return
         // the registered instance
         final Object extSocketOptions = callSunNetExtSocketOptionsGetInstance();
-        assertNotNull(extSocketOptions, "sun.net.ext.ExtendedSocketOptions#getInstance()" +
+        Assert.assertNotNull(extSocketOptions, "sun.net.ext.ExtendedSocketOptions#getInstance()" +
                 " unexpectedly returned null");
         // now verify that each call to getInstance(), either in the tasks or here, returned the exact
         // same instance of ExtendedSocketOptions
-        assertEquals(2, GetInstanceTask.extendedSocketOptionsInstances.size());
+        Assert.assertEquals(2, GetInstanceTask.extendedSocketOptionsInstances.size());
         for (final Object inst : GetInstanceTask.extendedSocketOptionsInstances) {
-            assertSame(extSocketOptions, inst, "sun.net.ext.ExtendedSocketOptions#getInstance()" +
+            Assert.assertSame(inst, extSocketOptions, "sun.net.ext.ExtendedSocketOptions#getInstance()" +
                     " returned different instances");
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,16 +64,15 @@ import java.time.format.FormatStyle;
 import java.time.temporal.Temporal;
 import java.util.Locale;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKFormatStyle {
 
     private static final ZoneId ZONEID_PARIS = ZoneId.of("Europe/Paris");
@@ -85,10 +84,11 @@ public class TCKFormatStyle {
     @Test
     public void test_valueOf() {
         for (FormatStyle style : FormatStyle.values()) {
-            assertEquals(style, FormatStyle.valueOf(style.name()));
+            assertEquals(FormatStyle.valueOf(style.name()), style);
         }
     }
 
+    @DataProvider(name="formatStyle")
     Object[][] data_formatStyle() {
         return new Object[][] {
                 {ZonedDateTime.of(LocalDateTime.of(2001, 10, 2, 1, 2, 3), ZONEID_PARIS), FormatStyle.FULL, "Tuesday, October 2, 2001, 1:02:03\u202fAM Central European Summer Time Europe/Paris"},
@@ -103,12 +103,11 @@ public class TCKFormatStyle {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_formatStyle")
+    @Test(dataProvider = "formatStyle")
     public void test_formatStyle(Temporal temporal, FormatStyle style, String formattedStr) {
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
         DateTimeFormatter formatter = builder.appendLocalized(style, style).appendLiteral(" ").appendZoneOrOffsetId().toFormatter();
         formatter = formatter.withLocale(Locale.US);
-        assertEquals(formattedStr, formatter.format(temporal));
+        assertEquals(formatter.format(temporal), formattedStr);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -176,10 +176,7 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  *   SUBTAG (('_'|'-') SUBTAG)*} where {@code SUBTAG =
  *   [0-9][0-9a-zA-Z]{3} | [0-9a-zA-Z]{5,8}}.</dd>
  *   <dd> <em>BCP 47 deviation:</em> BCP 47 only
- *   uses hyphen ('-') as a delimiter and APIs provided by {@code Locale} which accept
- *   BCP 47 language tags expect as such. However, for backwards compatibility,
- *   {@link Locale.Builder#setVariant(String)} also accepts underscore ('_').
- *   {@link Locale#of(String, String, String)} accepts only underscore ('_').</dd>
+ *   uses hyphen ('-') as a delimiter, {@code Locale} is more lenient.</dd>
  *
  *   <dd> <em>Example:</em> "polyton" (Polytonic Greek), "POSIX"</dd>
  *
@@ -1932,7 +1929,7 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a name for {@code this} locale's language that is appropriate for display to the
+     * Returns a name for the locale's language that is appropriate for display to the
      * user.
      * If possible, the name returned will be localized for the default
      * {@link Locale.Category#DISPLAY DISPLAY} locale.
@@ -1946,15 +1943,14 @@ public final class Locale implements Cloneable, Serializable {
      * this function falls back on the English name, and uses the ISO code as a last-resort
      * value.  If the locale doesn't specify a language, this function returns the empty string.
      *
-     * @return The name of the display language appropriate to the default
-     *      {@link Locale.Category#DISPLAY DISPLAY} locale.
+     * @return The name of the display language.
      */
-    public String getDisplayLanguage() {
+    public final String getDisplayLanguage() {
         return getDisplayLanguage(getDefault(Category.DISPLAY));
     }
 
     /**
-     * Returns a name for {@code this} locale's language that is appropriate for display to the
+     * Returns a name for the locale's language that is appropriate for display to the
      * user.
      * If possible, the name returned will be localized according to inLocale.
      * For example, if the locale is fr_FR and inLocale
@@ -1965,7 +1961,7 @@ public final class Locale implements Cloneable, Serializable {
      * on the ISO code as a last-resort value.  If the locale doesn't specify a language,
      * this function returns the empty string.
      *
-     * @param inLocale The locale in which to localize the display language.
+     * @param inLocale The locale for which to retrieve the display language.
      * @return The name of the display language appropriate to the given locale.
      * @throws    NullPointerException if {@code inLocale} is {@code null}
      */
@@ -1974,13 +1970,13 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a name for {@code this} locale's script that is appropriate for display to
+     * Returns a name for the locale's script that is appropriate for display to
      * the user. If possible, the name will be localized for the default
      * {@link Locale.Category#DISPLAY DISPLAY} locale.  Returns
      * the empty string if this locale doesn't specify a script code.
      *
-     * @return The display name of the script code appropriate to the default
-     *     {@link Locale.Category#DISPLAY DISPLAY} locale.
+     * @return the display name of the script code for the current default
+     *     {@link Locale.Category#DISPLAY DISPLAY} locale
      * @since 1.7
      */
     public String getDisplayScript() {
@@ -1988,13 +1984,14 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a name for {@code this} locale's script that is appropriate
+     * Returns a name for the locale's script that is appropriate
      * for display to the user. If possible, the name will be
      * localized for the given locale. Returns the empty string if
      * this locale doesn't specify a script code.
      *
-     * @param inLocale The locale in which to localize the display script.
-     * @return The display name of the script code appropriate to the given locale.
+     * @param inLocale The locale for which to retrieve the display script.
+     * @return the display name of the script code for the current default
+     * {@link Locale.Category#DISPLAY DISPLAY} locale
      * @throws NullPointerException if {@code inLocale} is {@code null}
      * @since 1.7
      */
@@ -2003,7 +2000,7 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a name for {@code this} locale's country that is appropriate for display to the
+     * Returns a name for the locale's country that is appropriate for display to the
      * user.
      * If possible, the name returned will be localized for the default
      * {@link Locale.Category#DISPLAY DISPLAY} locale.
@@ -2017,15 +2014,14 @@ public final class Locale implements Cloneable, Serializable {
      * this function falls back on the English name, and uses the ISO code as a last-resort
      * value.  If the locale doesn't specify a country, this function returns the empty string.
      *
-     * @return The name of the country appropriate to the default
-     *      {@link Locale.Category#DISPLAY DISPLAY} locale.
+     * @return The name of the country appropriate to the locale.
      */
-    public String getDisplayCountry() {
+    public final String getDisplayCountry() {
         return getDisplayCountry(getDefault(Category.DISPLAY));
     }
 
     /**
-     * Returns a name for {@code this} locale's country that is appropriate for display to the
+     * Returns a name for the locale's country that is appropriate for display to the
      * user.
      * If possible, the name returned will be localized according to inLocale.
      * For example, if the locale is fr_FR and inLocale
@@ -2036,7 +2032,7 @@ public final class Locale implements Cloneable, Serializable {
      * on the ISO code as a last-resort value.  If the locale doesn't specify a country,
      * this function returns the empty string.
      *
-     * @param inLocale The locale in which to localize the display country.
+     * @param inLocale The locale for which to retrieve the display country.
      * @return The name of the country appropriate to the given locale.
      * @throws    NullPointerException if {@code inLocale} is {@code null}
      */
@@ -2062,24 +2058,23 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a name for {@code this} locale's variant code that is appropriate for display to the
+     * Returns a name for the locale's variant code that is appropriate for display to the
      * user.  If possible, the name will be localized for the default
      * {@link Locale.Category#DISPLAY DISPLAY} locale.  If the locale
      * doesn't specify a variant code, this function returns the empty string.
      *
-     * @return The name of the display variant code appropriate to the default
-     *      {@link Locale.Category#DISPLAY DISPLAY} locale.
+     * @return The name of the display variant code appropriate to the locale.
      */
-    public String getDisplayVariant() {
+    public final String getDisplayVariant() {
         return getDisplayVariant(getDefault(Category.DISPLAY));
     }
 
     /**
-     * Returns a name for {@code this} locale's variant code that is appropriate for display to the
+     * Returns a name for the locale's variant code that is appropriate for display to the
      * user.  If possible, the name will be localized for inLocale.  If the locale
      * doesn't specify a variant code, this function returns the empty string.
      *
-     * @param inLocale The locale in which to localize the display variant code.
+     * @param inLocale The locale for which to retrieve the display variant code.
      * @return The name of the display variant code appropriate to the given locale.
      * @throws    NullPointerException if {@code inLocale} is {@code null}
      */
@@ -2100,7 +2095,7 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Returns a name for {@code this} locale that is appropriate for display to the
+     * Returns a name for the locale that is appropriate for display to the
      * user. This will be the values returned by getDisplayLanguage(),
      * getDisplayScript(), getDisplayCountry(), getDisplayVariant() and
      * optional {@linkplain ##def_locale_extension Unicode extensions}
@@ -2118,15 +2113,14 @@ public final class Locale implements Cloneable, Serializable {
      * be localized depending on the locale. If the language, script, country,
      * and variant fields are all empty, this function returns the empty string.
      *
-     * @return The display name appropriate to the default
-     *      {@link Locale.Category#DISPLAY DISPLAY} locale.
+     * @return The name of the locale appropriate to display.
      */
-    public String getDisplayName() {
+    public final String getDisplayName() {
         return getDisplayName(getDefault(Category.DISPLAY));
     }
 
     /**
-     * Returns a name for {@code this} locale that is appropriate for display
+     * Returns a name for the locale that is appropriate for display
      * to the user.  This will be the values returned by
      * getDisplayLanguage(), getDisplayScript(), getDisplayCountry(),
      * getDisplayVariant(), and optional {@linkplain ##def_locale_extension
@@ -2145,8 +2139,8 @@ public final class Locale implements Cloneable, Serializable {
      * be localized depending on the locale. If the language, script, country,
      * and variant fields are all empty, this function returns the empty string.
      *
-     * @param inLocale The locale in which to localize the display name.
-     * @return The display name appropriate to the given locale.
+     * @param inLocale The locale for which to retrieve the display name.
+     * @return The name of the locale appropriate to display.
      * @throws NullPointerException if {@code inLocale} is {@code null}
      */
     public String getDisplayName(Locale inLocale) {

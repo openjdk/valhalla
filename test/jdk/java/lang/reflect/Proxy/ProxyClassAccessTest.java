@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,17 +32,17 @@ import java.util.List;
 import jdk.test.lib.compiler.CompilerUtils;
 import static jdk.test.lib.process.ProcessTools.executeTestJava;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
-/*
+/**
  * @test
  * @library /test/lib
  * @modules jdk.compiler
  * @build ProxyClassAccessTest q.NP
  *        jdk.test.lib.compiler.CompilerUtils
- * @run junit ProxyClassAccessTest
+ * @run testng ProxyClassAccessTest
  * @summary Driver for testing proxy class doesn't have access to
  *          types referenced by proxy interfaces
  */
@@ -61,8 +61,8 @@ public class ProxyClassAccessTest {
     /**
      * Compiles all modules used by the test
      */
-    @BeforeAll
-    public static void compileAll() throws Exception {
+    @BeforeTest
+    public void compileAll() throws Exception {
         for (String mn : modules) {
             Path msrc = SRC_DIR.resolve(mn);
             assertTrue(CompilerUtils.compile(msrc, MODS_DIR, "--module-source-path", SRC_DIR.toString()));
@@ -80,7 +80,7 @@ public class ProxyClassAccessTest {
                             .errorTo(System.out)
                             .getExitValue();
 
-        assertEquals(0, exitValue);
+        assertTrue(exitValue == 0);
     }
 
     /**
@@ -105,10 +105,16 @@ public class ProxyClassAccessTest {
     }
 
     private void checkIAE(ClassLoader loader, Class<?>[] interfaces)  throws Throwable {
-        assertThrows(IllegalArgumentException.class, () -> Proxy.getProxyClass(loader, interfaces));
+        try {
+            Proxy.getProxyClass(loader, interfaces);
+            throw new RuntimeException("Expected IllegalArgumentException thrown");
+        } catch (IllegalArgumentException e) {}
 
-        assertThrows(IllegalArgumentException.class, () -> Proxy.newProxyInstance(loader, interfaces,
-                (proxy, m, params) -> { throw new RuntimeException(m.toString()); }));
+        try {
+            Proxy.newProxyInstance(loader, interfaces,
+                (proxy, m, params) -> { throw new RuntimeException(m.toString()); });
+            throw new RuntimeException("Expected IllegalArgumentException thrown");
+        } catch (IllegalArgumentException e) {}
     }
 
 }

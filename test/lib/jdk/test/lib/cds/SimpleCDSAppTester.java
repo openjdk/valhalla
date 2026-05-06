@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,12 +58,9 @@ public class SimpleCDSAppTester {
     private String modulepath;
     private String[] appCommandLine;
     private String[] vmArgs = new String[] {};
-    private Tester tester;
 
     private SimpleCDSAppTester(String name) {
-        super();
         this.name = name;
-        this.tester = new Tester(name);
     }
 
     public static SimpleCDSAppTester of(String name) {
@@ -101,16 +98,6 @@ public class SimpleCDSAppTester {
 
     public SimpleCDSAppTester appCommandLine(String... args) {
         this.appCommandLine = args;
-        return this;
-    }
-
-    public SimpleCDSAppTester setGenerateBaseArchive(boolean b) {
-        tester.setGenerateBaseArchive(b);
-        return this;
-    }
-
-    public SimpleCDSAppTester setBaseArchiveOptions(String... opts) {
-        tester.setBaseArchiveOptions(opts);
         return this;
     }
 
@@ -194,40 +181,17 @@ public class SimpleCDSAppTester {
     }
 
     public SimpleCDSAppTester runStaticWorkflow() throws Exception {
-        tester.runStaticWorkflow();
-        return this;
-    }
-
-    public SimpleCDSAppTester runDynamicWorkflow() throws Exception {
-        tester.runDynamicWorkflow();
+        (new Tester(name)).runStaticWorkflow();
         return this;
     }
 
     public SimpleCDSAppTester runAOTWorkflow() throws Exception {
-        tester.runAOTWorkflow();
+        (new Tester(name)).runAOTWorkflow();
         return this;
     }
 
     public SimpleCDSAppTester run(String args[])  throws Exception {
-        tester.run(args);
+        (new Tester(name)).run(args);
         return this;
-    }
-
-    public SimpleCDSAppTester rerunProduction(String... extraVmArgs) throws Exception {
-        tester.productionRun(extraVmArgs);
-        return this;
-    }
-
-    public SimpleCDSAppTester rerunProduction(String[] extraVmArgs, String... extraAppArgs) throws Exception {
-        tester.productionRun(extraVmArgs, extraAppArgs);
-        return this;
-    }
-
-    public String aotCacheFile() {
-        return tester.aotCacheFile();
-    }
-
-    public void setCheckExitValue(boolean b) {
-        tester.setCheckExitValue(b);
     }
 }

@@ -361,9 +361,6 @@ public class TreeScanner extends Visitor {
     public void visitTypeIdent(JCPrimitiveTypeTree tree) {
     }
 
-    public void visitVarType(JCVarType tree) {
-    }
-
     public void visitTypeArray(JCArrayTypeTree tree) {
         scan(tree.elemtype);
     }

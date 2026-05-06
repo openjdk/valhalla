@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,26 +59,24 @@
  */
 package test.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.DateTimeException;
 import java.time.ZoneOffset;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test ZoneOffsetPrinterParser.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestZoneOffsetPrinter extends AbstractTestPrinterParser {
 
     private static final ZoneOffset OFFSET_0130 = ZoneOffset.of("+01:30");
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="offsets")
     Object[][] provider_offsets() {
         return new Object[][] {
             {"+HH", "NO-OFFSET", ZoneOffset.UTC},
@@ -149,30 +147,27 @@ public class TestZoneOffsetPrinter extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_format(String pattern, String expected, ZoneOffset offset) throws Exception {
         buf.append("EXISTING");
         getFormatter(pattern, "NO-OFFSET").formatTo(offset, buf);
-        assertEquals("EXISTING" + expected, buf.toString());
+        assertEquals(buf.toString(), "EXISTING" + expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_toString(String pattern, String expected, ZoneOffset offset) throws Exception {
-        assertEquals("Offset(" + pattern + ",'NO-OFFSET')", getFormatter(pattern, "NO-OFFSET").toString());
+        assertEquals(getFormatter(pattern, "NO-OFFSET").toString(), "Offset(" + pattern + ",'NO-OFFSET')");
     }
 
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_print_emptyCalendrical() throws Exception {
-        Assertions.assertThrows(DateTimeException.class, () -> getFormatter("+HH:MM:ss", "Z").formatTo(EMPTY_DTA, buf));
+        getFormatter("+HH:MM:ss", "Z").formatTo(EMPTY_DTA, buf);
     }
 
-    @Test
     public void test_print_emptyAppendable() throws Exception {
         getFormatter("+HH:MM:ss", "Z").formatTo(OFFSET_0130, buf);
-        assertEquals("+01:30", buf.toString());
+        assertEquals(buf.toString(), "+01:30");
     }
 
 }

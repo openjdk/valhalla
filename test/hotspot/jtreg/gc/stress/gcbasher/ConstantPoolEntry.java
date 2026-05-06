@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,41 +24,38 @@
 
 package gc.stress.gcbasher;
 
-import java.util.Optional;
-
-@jdk.test.lib.valueclass.AsValueClass
 class ConstantPoolEntry {
-    private Optional<Integer> index;
-    private Optional<String> value;
+    private int index;
+    private String value;
 
-    public ConstantPoolEntry(Integer index) {
-        this.index = Optional.of(index);
-        value = Optional.empty();
+    public ConstantPoolEntry(int index) {
+        this.index = index;
+        value = null;
     }
 
     public ConstantPoolEntry(String value) {
-        this.index = Optional.empty();
-        this.value = Optional.of(value);
+        this.index = -1;
+        this.value = value;
     }
 
     public String getValue() throws IllegalStateException {
-        if (index.isPresent()) {
+        if (index != -1) {
             throw new IllegalStateException();
         }
-        return value.get();
+        return value;
     }
 
-    public Integer getNameIndex() throws IllegalStateException {
-        if (value.isPresent()) {
+    public int getNameIndex() throws IllegalStateException {
+        if (value != null) {
             throw new IllegalStateException();
         }
-        return index.get();
+        return index;
     }
 
-    public Integer getClassIndex() throws IllegalStateException {
-        if (value.isPresent()) {
+    public int getClassIndex() throws IllegalStateException {
+        if (value != null) {
             throw new IllegalStateException();
         }
-        return index.get();
+        return index;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
 abstract class VarHandleBaseTest {
     static final int ITERS = Integer.getInteger("iters", 1);
@@ -136,7 +136,18 @@ abstract class VarHandleBaseTest {
     static void checkWithThrowable(Class<? extends Throwable> re,
                                    Object message,
                                    ThrowingRunnable r) {
-        assertThrows(re, r::run, message == null ? null : message.toString());
+        Throwable _e = null;
+        try {
+            r.run();
+        }
+        catch (Throwable e) {
+            _e = e;
+        }
+        message = message == null ? "" : message + ". ";
+        assertNotNull(_e, String.format("%sNo throwable thrown. Expected %s", message, re));
+        if (!re.isInstance(_e)) {
+            fail(String.format("%sIncorrect throwable thrown, %s. Expected %s", message, _e, re), _e);
+        }
     }
 
 
@@ -266,11 +277,11 @@ abstract class VarHandleBaseTest {
     }
 
     private static MethodHandle bind(VarHandle vh, MethodHandle mh, MethodType emt) {
-        assertEquals(emt.insertParameterTypes(0, VarHandle.class), mh.type(),
+        assertEquals(mh.type(), emt.insertParameterTypes(0, VarHandle.class),
                      "MethodHandle type differs from access mode type");
 
         MethodHandleInfo info = MethodHandles.lookup().revealDirect(mh);
-        assertEquals(emt, info.getMethodType(),
+        assertEquals(info.getMethodType(), emt,
                      "MethodHandleInfo method type differs from access mode type");
 
         return mh.bindTo(vh);
@@ -469,39 +480,39 @@ abstract class VarHandleBaseTest {
         for (TestAccessMode accessMode : testAccessModes()) {
             MethodType amt = vh.accessModeType(accessMode.toAccessMode());
 
-            assertEquals(pts, amt.parameterList().subList(0, pts.size()));
+            assertEquals(amt.parameterList().subList(0, pts.size()), pts);
         }
 
         for (TestAccessMode testAccessMode : testAccessModesOfType(TestAccessType.GET)) {
             MethodType mt = vh.accessModeType(testAccessMode.toAccessMode());
-            assertEquals(vh.varType(), mt.returnType());
-            assertEquals(pts, mt.parameterList());
+            assertEquals(mt.returnType(), vh.varType());
+            assertEquals(mt.parameterList(), pts);
         }
 
         for (TestAccessMode testAccessMode : testAccessModesOfType(TestAccessType.SET)) {
             MethodType mt = vh.accessModeType(testAccessMode.toAccessMode());
-            assertEquals(void.class, mt.returnType());
-            assertEquals(vh.varType(), mt.parameterType(mt.parameterCount() - 1));
+            assertEquals(mt.returnType(), void.class);
+            assertEquals(mt.parameterType(mt.parameterCount() - 1), vh.varType());
         }
 
         for (TestAccessMode testAccessMode : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             MethodType mt = vh.accessModeType(testAccessMode.toAccessMode());
-            assertEquals(boolean.class, mt.returnType());
-            assertEquals(vh.varType(), mt.parameterType(mt.parameterCount() - 1));
-            assertEquals(vh.varType(), mt.parameterType(mt.parameterCount() - 2));
+            assertEquals(mt.returnType(), boolean.class);
+            assertEquals(mt.parameterType(mt.parameterCount() - 1), vh.varType());
+            assertEquals(mt.parameterType(mt.parameterCount() - 2), vh.varType());
         }
 
         for (TestAccessMode testAccessMode : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             MethodType mt = vh.accessModeType(testAccessMode.toAccessMode());
-            assertEquals(vh.varType(), mt.returnType());
-            assertEquals(vh.varType(), mt.parameterType(mt.parameterCount() - 1));
-            assertEquals(vh.varType(), mt.parameterType(mt.parameterCount() - 2));
+            assertEquals(mt.returnType(), vh.varType());
+            assertEquals(mt.parameterType(mt.parameterCount() - 1), vh.varType());
+            assertEquals(mt.parameterType(mt.parameterCount() - 2), vh.varType());
         }
 
         for (TestAccessMode testAccessMode : testAccessModesOfType(TestAccessType.GET_AND_SET, TestAccessType.GET_AND_ADD)) {
             MethodType mt = vh.accessModeType(testAccessMode.toAccessMode());
-            assertEquals(vh.varType(), mt.returnType());
-            assertEquals(vh.varType(), mt.parameterType(mt.parameterCount() - 1));
+            assertEquals(mt.returnType(), vh.varType());
+            assertEquals(mt.parameterType(mt.parameterCount() - 1), vh.varType());
         }
     }
 

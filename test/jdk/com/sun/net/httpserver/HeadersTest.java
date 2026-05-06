@@ -29,7 +29,7 @@
  *          jdk.httpserver/sun.net.httpserver:+open
  * @library /test/lib
  * @build jdk.test.lib.net.URIBuilder
- * @run junit/othervm HeadersTest
+ * @run testng/othervm HeadersTest
  */
 
 import java.io.IOException;
@@ -57,20 +57,18 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import jdk.test.lib.net.URIBuilder;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import sun.net.httpserver.UnmodifiableHeaders;
 
 import static java.net.http.HttpClient.Builder.NO_PROXY;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 
 public class HeadersTest {
 
@@ -79,13 +77,13 @@ public class HeadersTest {
     static final Class<NullPointerException> NPE = NullPointerException.class;
 
     @Test
-    public void testDefaultConstructor() {
+    public static void testDefaultConstructor() {
         var headers = new Headers();
         assertTrue(headers.isEmpty());
     }
 
     @Test
-    public void testNull() {
+    public static void testNull() {
         final Headers h = new Headers();
         h.put("Foo", List.of("Bar"));
 
@@ -159,7 +157,8 @@ public class HeadersTest {
         assertThrows(NPE, () -> h.set("Foo", null));
     }
 
-    public static Object[][] responseHeaders() {
+    @DataProvider
+    public Object[][] responseHeaders() {
         final var listWithNull = new LinkedList<String>();
         listWithNull.add(null);
         return new Object[][] {
@@ -173,8 +172,7 @@ public class HeadersTest {
      * Confirms HttpExchange::sendResponseHeaders throws NPE if response headers
      * contain a null key or value.
      */
-    @ParameterizedTest
-    @MethodSource("responseHeaders")
+    @Test(dataProvider = "responseHeaders")
     public void testNullResponseHeaders(String headerKey, List<String> headerVal)
             throws Exception {
         var handler = new Handler(headerKey, headerVal);
@@ -185,7 +183,7 @@ public class HeadersTest {
             var client = HttpClient.newBuilder().proxy(NO_PROXY).build();
             var request = HttpRequest.newBuilder(uri(server, "")).build();
             assertThrows(IOE, () -> client.send(request, HttpResponse.BodyHandlers.ofString()));
-            assertEquals(NPE, throwable.get().getClass());
+            assertEquals(throwable.get().getClass(), NPE);
             assertTrue(Arrays.stream(throwable.get().getStackTrace())
                     .anyMatch(e -> e.getClassName().equals("sun.net.httpserver.HttpExchangeImpl")
                             || e.getMethodName().equals("sendResponseHeaders")));
@@ -242,6 +240,7 @@ public class HeadersTest {
         }
     }
 
+    @DataProvider
     public static Object[][] headerPairs() {
         final var h1 = new Headers();
         final var h2 = new Headers();
@@ -260,16 +259,16 @@ public class HeadersTest {
                 .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("headerPairs")
-    public void testEqualsAndHashCode(Headers h1, Headers h2) {
+    @Test(dataProvider = "headerPairs")
+    public static void testEqualsAndHashCode(Headers h1, Headers h2) {
+        // avoid testng's asserts(Map, Map) as they don't call Headers::equals
         assertTrue(h1.equals(h2), "Headers differ");
-        assertEquals(h2.hashCode(), h1.hashCode(), "hashCode differ for "
+        assertEquals(h1.hashCode(), h2.hashCode(), "hashCode differ for "
                 + List.of(h1, h2));
     }
 
     @Test
-    public void testEqualsMap() {
+    public static void testEqualsMap() {
         final var h = new Headers();
         final var m = new HashMap<String, List<String>>();
         assertTrue(h.equals(m));
@@ -278,14 +277,14 @@ public class HeadersTest {
     }
 
     @Test
-    public void testToString() {
+    public static void testToString() {
         final var h = new Headers();
         h.put("Accept-Encoding", List.of("gzip, deflate"));
         assertTrue(h.toString().equals("Headers { {Accept-encoding=[gzip, deflate]} }"));
     }
 
     @Test
-    public void testPutAll() {
+    public static void testPutAll() {
         final var h0 = new Headers();
         final var map = new HashMap<String, List<String>>();
         map.put("a", null);
@@ -312,7 +311,7 @@ public class HeadersTest {
     }
 
     @Test
-    public void testReplaceAll() {
+    public static void testReplaceAll() {
         final var h1 = new Headers();
         h1.put("a", List.of("1"));
         h1.put("b", List.of("2"));
@@ -332,7 +331,7 @@ public class HeadersTest {
     }
 
     @Test
-    public void test1ArgConstructorNull() {
+    public static void test1ArgConstructorNull() {
         assertThrows(NPE, () -> new Headers(null));
         {
             final var m = new HashMap<String, List<String>>();
@@ -354,35 +353,35 @@ public class HeadersTest {
     }
 
     @Test
-    public void test1ArgConstructor() {
+    public static void test1ArgConstructor() {
         {
             var h = new Headers(new Headers());
             assertTrue(h.isEmpty());
         }
         {
             var h = new Headers(Map.of("Foo", List.of("Bar")));
-            assertEquals(List.of("Bar"), h.get("Foo"));
-            assertEquals(1, h.size());
+            assertEquals(h.get("Foo"), List.of("Bar"));
+            assertEquals(h.size(), 1);
         }
         {
             var h1 = new Headers(new UnmodifiableHeaders(new Headers()));
             assertTrue(h1.isEmpty());
             h1.put("Foo", List.of("Bar"));  // modifiable
-            assertEquals(List.of("Bar"), h1.get("Foo"));
-            assertEquals(1, h1.size());
+            assertEquals(h1.get("Foo"), List.of("Bar"));
+            assertEquals(h1.size(), 1);
 
             var h2 = new Headers(h1);
-            assertEquals(List.of("Bar"), h2.get("Foo"));
-            assertEquals(1, h2.size());
+            assertEquals(h2.get("Foo"), List.of("Bar"));
+            assertEquals(h2.size(), 1);
 
-            assertEquals(h2, h1);
+            assertEquals(h1, h2);
             h1.set("Foo", "Barbar");
-            assertNotEquals(h2, h1);
+            assertNotEquals(h1, h2);
         }
     }
 
     @Test
-    public void testMutableHeaders() {
+    public static void testMutableHeaders() {
         {
             var h = new Headers();
             h.add("Foo", "Bar");
@@ -401,7 +400,7 @@ public class HeadersTest {
     }
 
     @Test
-    public void testOfNull() {
+    public static void testOfNull() {
         assertThrows(NPE, () -> Headers.of((String[])null));
         assertThrows(NPE, () -> Headers.of(null, "Bar"));
         assertThrows(NPE, () -> Headers.of("Foo", null));
@@ -427,40 +426,41 @@ public class HeadersTest {
     }
 
     @Test
-    public void testOf() {
+    public static void testOf() {
         final var h = Headers.of("a", "1", "b", "2");
-        assertEquals(2, h.size());
+        assertEquals(h.size(), 2);
         List.of("a", "b").forEach(n -> assertTrue(h.containsKey(n)));
         List.of("1", "2").forEach(v -> assertTrue(h.containsValue(List.of(v))));
     }
 
     @Test
-    public void testOfEmpty() {
+    public static void testOfEmpty() {
         for (var h : List.of(Headers.of(), Headers.of(new String[] { }))) {
-            assertEquals(0, h.size());
+            assertEquals(h.size(), 0);
             assertTrue(h.isEmpty());
         }
     }
 
     @Test
-    public void testOfNumberOfElements() {
+    public static void testOfNumberOfElements() {
         assertThrows(IAE, () -> Headers.of("a"));
         assertThrows(IAE, () -> Headers.of("a", "1", "b"));
     }
 
     @Test
-    public void testOfMultipleValues() {
+    public static void testOfMultipleValues() {
         final var h = Headers.of("a", "1", "b", "1", "b", "2", "b", "3");
-        assertEquals(2, h.size());
+        assertEquals(h.size(), 2);
         List.of("a", "b").forEach(n -> assertTrue(h.containsKey(n)));
         List.of(List.of("1"), List.of("1", "2", "3")).forEach(v -> assertTrue(h.containsValue(v)));
     }
 
     @Test
-    public void testNormalizeOnNull() {
+    public static void testNormalizeOnNull() {
         assertThrows(NullPointerException.class, () -> normalize(null));
     }
 
+    @DataProvider
     public static Object[][] illegalKeys() {
         var illegalChars = List.of('\r', '\n');
         var illegalStrings = Stream
@@ -478,12 +478,12 @@ public class HeadersTest {
                 .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("illegalKeys")
-    public void testNormalizeOnIllegalKeys(String illegalKey) {
+    @Test(dataProvider = "illegalKeys")
+    public static void testNormalizeOnIllegalKeys(String illegalKey) {
         assertThrows(IllegalArgumentException.class, () -> normalize(illegalKey));
     }
 
+    @DataProvider
     public static Object[][] normalizedKeys() {
         return new Object[][]{
                 // Empty string
@@ -501,13 +501,13 @@ public class HeadersTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("normalizedKeys")
-    public void testNormalizeOnNormalizedKeys(String normalizedKey) {
+    @Test(dataProvider = "normalizedKeys")
+    public static void testNormalizeOnNormalizedKeys(String normalizedKey) {
         // Verify that the fast-path is taken
         assertSame(normalize(normalizedKey), normalizedKey);
     }
 
+    @DataProvider
     public static Object[][] notNormalizedKeys() {
         return new Object[][]{
                 {"a"},
@@ -517,15 +517,14 @@ public class HeadersTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("notNormalizedKeys")
-    public void testNormalizeOnNotNormalizedKeys(String notNormalizedKey) {
+    @Test(dataProvider = "notNormalizedKeys")
+    public static void testNormalizeOnNotNormalizedKeys(String notNormalizedKey) {
         var normalizedKey = normalize(notNormalizedKey);
         // Verify that the fast-path is *not* taken
         assertNotSame(normalizedKey, notNormalizedKey);
         // Verify the result
         var expectedNormalizedKey = normalizedKey.substring(0, 1).toUpperCase() + normalizedKey.substring(1);
-        assertEquals(expectedNormalizedKey, normalizedKey);
+        assertEquals(normalizedKey, expectedNormalizedKey);
     }
 
     private static String normalize(String key) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,9 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @run junit DropLookupModeTest
+ * @run testng DropLookupModeTest
  * @summary Basic unit tests Lookup::dropLookupMode
  */
 
@@ -31,85 +31,83 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import static java.lang.invoke.MethodHandles.Lookup.*;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
+@Test
 public class DropLookupModeTest {
 
     /**
      * Basic test of dropLookupMode
      */
-    @Test
     public void testBasic() {
         final Lookup fullPowerLookup = MethodHandles.lookup();
         final Class<?> lc = fullPowerLookup.lookupClass();
-        assertEquals(PUBLIC | MODULE | PACKAGE | PROTECTED | PRIVATE | ORIGINAL, fullPowerLookup.lookupModes());
+        assertTrue(fullPowerLookup.lookupModes() == (PUBLIC|MODULE|PACKAGE|PROTECTED|PRIVATE|ORIGINAL));
 
         Lookup lookup = fullPowerLookup.dropLookupMode(PRIVATE);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE | PACKAGE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE|PACKAGE));
 
         lookup = fullPowerLookup.dropLookupMode(PROTECTED);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE | PACKAGE | PRIVATE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE|PACKAGE|PRIVATE));
 
         lookup = fullPowerLookup.dropLookupMode(PACKAGE);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE));
 
         lookup = fullPowerLookup.dropLookupMode(MODULE);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC));
 
         lookup = fullPowerLookup.dropLookupMode(PUBLIC);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(0, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == 0);
 
         lookup = fullPowerLookup.dropLookupMode(UNCONDITIONAL);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE | PACKAGE | PRIVATE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE|PACKAGE|PRIVATE));
     }
 
     /**
      * Starting with a full power Lookup, use dropLookupMode to create new Lookups
      * with reduced access.
      */
-    @Test
     public void testReducingAccess() {
         Lookup lookup = MethodHandles.lookup();
         final Class<?> lc = lookup.lookupClass();
-        assertEquals(PUBLIC | MODULE | PACKAGE | PROTECTED | PRIVATE | ORIGINAL, lookup.lookupModes());
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE|PACKAGE|PROTECTED|PRIVATE|ORIGINAL));
 
         lookup = lookup.dropLookupMode(PROTECTED);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE | PACKAGE | PRIVATE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE|PACKAGE|PRIVATE));
 
         lookup = lookup.dropLookupMode(PRIVATE);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE | PACKAGE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE|PACKAGE));
 
         lookup = lookup.dropLookupMode(PACKAGE);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC | MODULE, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == (PUBLIC|MODULE));
 
         lookup = lookup.dropLookupMode(MODULE);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(PUBLIC, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == PUBLIC);
 
         lookup = lookup.dropLookupMode(PUBLIC);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(0, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == 0);
 
         // repeat with lookup has no access
         lookup = lookup.dropLookupMode(PUBLIC);
-        assertSame(lc, lookup.lookupClass());
-        assertEquals(0, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == lc);
+        assertTrue(lookup.lookupModes() == 0);
     }
 
-    public static Object[][] unconditionals() {
+    @DataProvider(name = "unconditionals")
+    public Object[][] unconditionals() {
         Lookup publicLookup = MethodHandles.publicLookup();
         return new Object[][] {
             { publicLookup, Object.class },
@@ -122,10 +120,9 @@ public class DropLookupModeTest {
      * Test dropLookupMode on the lookup with public lookup
      * and UNCONDITIONAL
      */
-    @ParameterizedTest
-    @MethodSource("unconditionals")
+    @Test(dataProvider = "unconditionals")
     public void testUnconditionalLookup(Lookup unconditionalLookup, Class<?> expected) {
-        assertEquals(UNCONDITIONAL, unconditionalLookup.lookupModes());
+        assertTrue(unconditionalLookup.lookupModes() == UNCONDITIONAL);
 
         assertPublicLookup(unconditionalLookup.dropLookupMode(PRIVATE), expected);
         assertPublicLookup(unconditionalLookup.dropLookupMode(PROTECTED), expected);
@@ -135,27 +132,31 @@ public class DropLookupModeTest {
 
         // drop all access
         Lookup lookup = unconditionalLookup.dropLookupMode(UNCONDITIONAL);
-        assertSame(expected, lookup.lookupClass());
-        assertEquals(0, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == expected);
+        assertTrue(lookup.lookupModes() == 0);
     }
 
     private void assertPublicLookup(Lookup lookup, Class<?> expected) {
-        assertSame(expected, lookup.lookupClass());
-        assertEquals(UNCONDITIONAL, lookup.lookupModes());
+        assertTrue(lookup.lookupClass() == expected);
+        assertTrue(lookup.lookupModes() == UNCONDITIONAL);
+    }
+
+    @DataProvider(name = "badInput")
+    public Object[][] badInput() {
+        return new Object[][] {
+                { 0,                        null },
+                { (PACKAGE|PRIVATE),        null },    // two modes
+                { Integer.MAX_VALUE,        null },
+                { Integer.MIN_VALUE,        null },
+        };
     }
 
     /**
      * Check that IllegalArgumentException is thrown for bad input
      */
-    @ParameterizedTest
-    @ValueSource(ints = {
-            0,
-            (PACKAGE|PRIVATE),    // two modes
-            Integer.MAX_VALUE,
-            Integer.MIN_VALUE,
-    })
-    public void testBadInput(int modeToDrop) {
-        assertThrows(IllegalArgumentException.class, () -> MethodHandles.lookup().dropLookupMode(modeToDrop));
+    @Test(dataProvider = "badInput", expectedExceptions = {IllegalArgumentException.class})
+    public void testBadInput(Integer modeToDrop, Object ignore) {
+        MethodHandles.lookup().dropLookupMode(modeToDrop);
     }
 
 }

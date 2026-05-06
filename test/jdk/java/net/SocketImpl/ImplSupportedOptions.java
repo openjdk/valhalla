@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 8213418
  * @summary Ensure correct impl supported socket options
- * @run junit ${test.main.class}
+ * @run testng ImplSupportedOptions
  */
 
 import java.io.IOException;
@@ -40,10 +40,9 @@ import java.net.SocketImpl;
 import java.net.SocketOption;
 import java.net.StandardSocketOptions;
 import java.util.Set;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class ImplSupportedOptions {
 
@@ -53,29 +52,29 @@ public class ImplSupportedOptions {
         Set<?> standardOptions = s.supportedOptions();
         assertTrue(standardOptions.contains(StandardSocketOptions.SO_LINGER),
                    "Expected SO_LINGER, in:" + standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
+        assertEquals(standardOptions, s.supportedOptions());
+        assertEquals(standardOptions, s.supportedOptions());
 
         s = new DummySocket();
         Set<?> dummyOptions = s.supportedOptions();
-        assertEquals(1, dummyOptions.size());
+        assertEquals(dummyOptions.size(), 1);
         assertTrue(dummyOptions.contains(DummySocketImpl.SOCKET_OPT));
-        assertEquals(s.supportedOptions(), dummyOptions);
-        assertEquals(s.supportedOptions(), dummyOptions);
+        assertEquals(dummyOptions, s.supportedOptions());
+        assertEquals(dummyOptions, s.supportedOptions());
 
         s = new Socket();
         standardOptions = s.supportedOptions();
         assertTrue(standardOptions.contains(StandardSocketOptions.SO_LINGER),
                    "Expected SO_LINGER, in:" + standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
+        assertEquals(standardOptions, s.supportedOptions());
+        assertEquals(standardOptions, s.supportedOptions());
 
         s = new DummySocket();
         dummyOptions = s.supportedOptions();
-        assertEquals(1, dummyOptions.size());
+        assertEquals(dummyOptions.size(), 1);
         assertTrue(dummyOptions.contains(DummySocketImpl.SOCKET_OPT));
-        assertEquals(s.supportedOptions(), dummyOptions);
-        assertEquals(s.supportedOptions(), dummyOptions);
+        assertEquals(dummyOptions, s.supportedOptions());
+        assertEquals(dummyOptions, s.supportedOptions());
     }
 
     @Test
@@ -84,29 +83,29 @@ public class ImplSupportedOptions {
         Set<?> standardOptions = s.supportedOptions();
         assertTrue(standardOptions.contains(StandardSocketOptions.SO_REUSEADDR),
                    "Expected SO_REUSEADDR, in:" + standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
+        assertEquals(standardOptions, s.supportedOptions());
+        assertEquals(standardOptions, s.supportedOptions());
 
         s = new DummyServerSocket();
         Set<?> dummyOptions = s.supportedOptions();
-        assertEquals(1, dummyOptions.size());
+        assertEquals(dummyOptions.size(), 1);
         assertTrue(dummyOptions.contains(DummySocketImpl.SOCKET_OPT));
-        assertEquals(s.supportedOptions(), dummyOptions);
-        assertEquals(s.supportedOptions(), dummyOptions);
+        assertEquals(dummyOptions, s.supportedOptions());
+        assertEquals(dummyOptions, s.supportedOptions());
 
         s = new ServerSocket();
         standardOptions = s.supportedOptions();
         assertTrue(standardOptions.contains(StandardSocketOptions.SO_REUSEADDR),
                    "Expected SO_REUSEADDR, in:" + standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
-        assertEquals(s.supportedOptions(), standardOptions);
+        assertEquals(standardOptions, s.supportedOptions());
+        assertEquals(standardOptions, s.supportedOptions());
 
         s = new DummyServerSocket();
         dummyOptions = s.supportedOptions();
-        assertEquals(1, dummyOptions.size());
+        assertEquals(dummyOptions.size(), 1);
         assertTrue(dummyOptions.contains(DummySocketImpl.SOCKET_OPT));
-        assertEquals(s.supportedOptions(), dummyOptions);
-        assertEquals(s.supportedOptions(), dummyOptions);
+        assertEquals(dummyOptions, s.supportedOptions());
+        assertEquals(dummyOptions, s.supportedOptions());
     }
 
     static class DummySocket extends Socket {

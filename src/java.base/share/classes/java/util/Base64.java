@@ -32,8 +32,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 import sun.nio.cs.ISO_8859_1;
-import jdk.internal.access.JavaLangAccess;
-import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
@@ -203,7 +201,6 @@ public final class Base64 {
      * @since   1.8
      */
     public static class Encoder {
-        private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
         private final byte[] newline;
         private final int linemax;
@@ -347,9 +344,10 @@ public final class Base64 {
          *          the byte array to encode
          * @return  A String containing the resulting Base64 encoded characters
          */
+        @SuppressWarnings("deprecation")
         public String encodeToString(byte[] src) {
             byte[] encoded = encode(src);
-            return JLA.uncheckedNewStringWithLatin1Bytes(encoded);
+            return new String(encoded, 0, 0, encoded.length);
         }
 
         /**

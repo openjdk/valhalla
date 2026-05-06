@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,10 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8242013
- * @run junit/othervm test.TypeDescriptorTest
+ * @run testng/othervm test.TypeDescriptorTest
  * @summary Test TypeDescriptor::descriptorString for hidden classes which
  *          cannot be used to produce ConstantDesc via ClassDesc or
  *          MethodTypeDesc factory methods
@@ -42,10 +42,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import static java.lang.invoke.MethodType.*;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
+import static org.testng.Assert.*;
 
 public class TypeDescriptorTest {
     private static final Lookup HC_LOOKUP = defineHiddenClass();
@@ -62,7 +61,8 @@ public class TypeDescriptorTest {
         }
     }
 
-    private static Object[][] constables() throws Exception {
+    @DataProvider(name = "constables")
+    private Object[][] constables() throws Exception {
         Class<?> hcArray = Array.newInstance(HC, 1).getClass();
         return new Object[][] {
                 new Object[] { HC },
@@ -79,8 +79,7 @@ public class TypeDescriptorTest {
      * Hidden classes have no nominal descriptor.
      * Constable::describeConstable returns empty optional.
      */
-    @ParameterizedTest
-    @MethodSource("constables")
+    @Test(dataProvider = "constables")
     public void noNominalDescriptor(Constable constable) {
         assertTrue(constable.describeConstable().isEmpty());
     }
@@ -91,13 +90,27 @@ public class TypeDescriptorTest {
      */
     @Test
     public void testClassDesc() {
-        assertThrows(IllegalArgumentException.class, () -> ClassDesc.ofDescriptor(HC.descriptorString()));
-        assertThrows(IllegalArgumentException.class, () -> ClassDesc.ofDescriptor(HC.getName()));
-        assertThrows(IllegalArgumentException.class, () -> ClassDesc.of(HC.getPackageName(), HC.getSimpleName()));
-        assertThrows(IllegalArgumentException.class, () -> ClassDesc.of(HC.getName()));
+        try {
+            ClassDesc.ofDescriptor(HC.descriptorString());
+            assertFalse(true);
+        } catch (IllegalArgumentException e) {}
+
+        try {
+            ClassDesc.ofDescriptor(HC.getName());
+            assertFalse(true);
+        } catch (IllegalArgumentException e) {}
+        try {
+            ClassDesc.of(HC.getPackageName(), HC.getSimpleName());
+            assertFalse(true);
+        } catch (IllegalArgumentException e) {}
+        try {
+            ClassDesc.of(HC.getName());
+            assertFalse(true);
+        } catch (IllegalArgumentException e) {}
     }
 
-    private static Object[][] typeDescriptors() throws Exception {
+    @DataProvider(name = "typeDescriptors")
+    private Object[][] typeDescriptors() throws Exception {
         Class<?> hcArray = Array.newInstance(HC, 1, 1).getClass();
         return new Object[][] {
                 new Object[] { HC, "Ltest/HiddenClass.0x[0-9a-f]+;"},
@@ -111,20 +124,26 @@ public class TypeDescriptorTest {
     /*
      * Hidden classes have no nominal type descriptor
      */
-    @ParameterizedTest
-    @MethodSource("typeDescriptors")
+    @Test(dataProvider = "typeDescriptors")
     public void testTypeDescriptor(TypeDescriptor td, String regex) throws Exception {
         String desc = td.descriptorString();
         assertTrue(desc.matches(regex));
 
         if (td instanceof Class) {
-            assertThrows(IllegalArgumentException.class, () -> ClassDesc.ofDescriptor(desc));
+            try {
+                ClassDesc.ofDescriptor(desc);
+                assertFalse(true);
+            } catch (IllegalArgumentException e) {}
         } else if (td instanceof MethodType) {
-            assertThrows(IllegalArgumentException.class, () -> MethodTypeDesc.ofDescriptor(desc));
+            try {
+                MethodTypeDesc.ofDescriptor(desc);
+                assertFalse(true);
+            } catch (IllegalArgumentException e) {}
         }
     }
 
-    private static Object[][] methodTypes() throws Exception {
+    @DataProvider(name = "methodTypes")
+    private Object[][] methodTypes() throws Exception {
         Class<?> hcArray = Array.newInstance(HC, 1, 1).getClass();
         return new Object[][] {
                 new Object[] { methodType(HC), "\\(\\)Ltest/HiddenClass.0x[0-9a-f]+;" },
@@ -136,13 +155,15 @@ public class TypeDescriptorTest {
     /*
      * Test MethodType::toMethodDescriptorString with MethodType referencing to hidden class
      */
-    @ParameterizedTest
-    @MethodSource("methodTypes")
+    @Test(dataProvider = "methodTypes")
     public void testToMethodDescriptorString(MethodType mtype, String regex) throws Exception {
         String desc = mtype.toMethodDescriptorString();
         assertTrue(desc.matches(regex));
 
-        assertThrows(IllegalArgumentException.class, () -> MethodType.fromMethodDescriptorString(desc, TypeDescriptorTest.class.getClassLoader()));
+        try {
+            MethodType.fromMethodDescriptorString(desc, TypeDescriptorTest.class.getClassLoader());
+            assertFalse(true);
+        } catch (IllegalArgumentException e) {}
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package javax.swing.text;
 
-import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.HeadlessException;
 import java.awt.Point;
@@ -691,25 +690,7 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
                     // semantics of damage we can't really get around this.
                     damage(r);
                 }
-                if (component.isEditable()) {
-                    g.setColor(component.getCaretColor());
-                } else {
-                    Color caretColor = component.getCaretColor();
-                    if (caretColor == null) {
-                        caretColor = g.getColor();
-                    }
-                    Color bg = component.getBackground();
-                    if (bg == null) {
-                        g.setColor(caretColor);
-                    } else {
-                        int red = (caretColor.getRed() + bg.getRed()) / 2;
-                        int green = (caretColor.getGreen() + bg.getGreen()) / 2;
-                        int blue = (caretColor.getBlue() + bg.getBlue()) / 2;
-                        int alpha = 127;
-                        Color newCaretColor = new Color(red, green, blue, alpha);
-                        g.setColor(newCaretColor);
-                    }
-                }
+                g.setColor(component.getCaretColor());
                 int paintWidth = getCaretWidth(r.height);
                 r.x -= paintWidth  >> 1;
                 g.fillRect(r.x, r.y, paintWidth, r.height);

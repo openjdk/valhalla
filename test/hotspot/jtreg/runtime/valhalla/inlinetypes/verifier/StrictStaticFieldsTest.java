@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,27 +25,20 @@
  * @test
  * @bug 8349945
  * @summary Tracking of strict static fields
- * @library /test/lib
  * @enablePreview
- * @modules java.base/jdk.internal.vm.annotation
  * @compile Bnoinit_BAD.jasm
  *          Brbefore_BAD.jasm
  *          Cwreflective_OK.jasm
  *          Creflbefore_BAD.jasm
  *          WriteAfterReadRefl.jasm
- * @compile StrictStaticFieldsTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             StrictStaticFieldsTest
- *             Aregular_OK
- *             Anulls_OK
- *             Arepeat_OK
- *             Aupdate_OK
- * @run main/othervm StrictStaticFieldsTest
+ * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED StrictStaticFieldsTest.java
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions runtime.valhalla.inlinetypes.verifier.StrictStaticFieldsTest
  */
 
+package runtime.valhalla.inlinetypes.verifier;
 
-import java.lang.reflect.Field;
-import jdk.test.lib.helpers.StrictInit;
+import java.lang.reflect.*;
+import jdk.internal.vm.annotation.Strict;
 
 public class StrictStaticFieldsTest {
     public static void main(String[] args) throws Exception {
@@ -168,18 +161,18 @@ public class StrictStaticFieldsTest {
 }
 
 class Aregular_OK {
-        @StrictInit static final String F1__STRICT = "hello";
-        @StrictInit static final int    F2__STRICT = 42;
+        @Strict static final String F1__STRICT = "hello";
+        @Strict static final int    F2__STRICT = 42;
     }
 
 class Anulls_OK {
-    @StrictInit static String F1__STRICT = null;
-    @StrictInit static int    F2__STRICT = 0;
+    @Strict static String F1__STRICT = null;
+    @Strict static int    F2__STRICT = 0;
 }
 
 class Arepeat_OK {
-    @StrictInit static String F1__STRICT = "hello";
-    @StrictInit static int    F2__STRICT = 42;
+    @Strict static String F1__STRICT = "hello";
+    @Strict static int    F2__STRICT = 42;
     static {
         System.out.print("(making second putstatic)");
         F2__STRICT = 43;
@@ -187,8 +180,8 @@ class Arepeat_OK {
 }
 
 class Aupdate_OK {
-    @StrictInit static String F1__STRICT = "hello";
-    @StrictInit static int    F2__STRICT = 42;
+    @Strict static String F1__STRICT = "hello";
+    @Strict static int    F2__STRICT = 42;
     static {
         System.out.println("(making getstatic and second putstatic)");
         F2__STRICT++;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,20 +24,20 @@
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
 import java.util.HexFormat;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
 
 /*
  * @test
  * @library /test/lib
  * @summary Tests to check QUIC frame decoding errors are handled correctly
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm QuicFramesDecoderTest
  */
 public class QuicFramesDecoderTest {
 
@@ -181,6 +181,7 @@ public class QuicFramesDecoderTest {
     private static final byte[] NEW_CONNECTION_ID_ZERO = HexFormat.of().parseHex("181716"+
             "00"+"0f0e0d0c0b0a09080706050403020100");
 
+    @DataProvider
     public static Object[][] goodFrames() {
         return new Object[][]{
                 new Object[]{"ack without ecn", ACK_BASE, false},
@@ -225,6 +226,7 @@ public class QuicFramesDecoderTest {
         };
     }
 
+    @DataProvider
     public static Object[][] badFrames() {
         return new Object[][]{
                 new Object[]{"ack without ecn, negative pn", ACK_NEG_BASE},
@@ -240,8 +242,7 @@ public class QuicFramesDecoderTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("goodFrames")
+    @Test(dataProvider = "goodFrames")
     public void testReencode(String desc, byte[] frame, boolean bloated) throws Exception {
         // check if the goodFrames provider indeed contains good frames
         ByteBuffer buf = ByteBuffer.wrap(frame);
@@ -249,17 +250,16 @@ public class QuicFramesDecoderTest {
         assertFalse(buf.hasRemaining(), buf.remaining() + " bytes left in buffer after parsing");
         // some frames deliberately use suboptimal encoding, skip them
         if (bloated) return;
-        assertEquals(frame.length, qf.size(), "Frame size mismatch");
+        assertEquals(qf.size(), frame.length, "Frame size mismatch");
         buf.clear();
         ByteBuffer encoded = ByteBuffer.allocate(frame.length);
         qf.encode(encoded);
         assertFalse(encoded.hasRemaining(), "Actual frame length mismatch");
         encoded.flip();
-        assertEquals(encoded, buf, "Encoded buffer is different from the original one");
+        assertEquals(buf, encoded, "Encoded buffer is different from the original one");
     }
 
-    @ParameterizedTest
-    @MethodSource("goodFrames")
+    @Test(dataProvider = "goodFrames")
     public void testToString(String desc, byte[] frame, boolean bloated) throws Exception {
         // check if the goodFrames provider indeed contains good frames
         ByteBuffer buf = ByteBuffer.wrap(frame);
@@ -268,8 +268,7 @@ public class QuicFramesDecoderTest {
         System.out.println(qf); // should not throw
     }
 
-    @ParameterizedTest
-    @MethodSource("goodFrames")
+    @Test(dataProvider = "goodFrames")
     public void testTruncatedFrame(String desc, byte[] frame, boolean bloated) throws Exception {
         // check if parsing a truncated frame throws the right error
         ByteBuffer buf = ByteBuffer.wrap(frame);
@@ -280,13 +279,12 @@ public class QuicFramesDecoderTest {
                 var qf = QuicFrame.decode(buf);
                 fail("Expected the decoder to throw on length " + i + ", got: " + qf);
             } catch (QuicTransportException e) {
-                assertEquals(QuicTransportErrors.FRAME_ENCODING_ERROR.code(), e.getErrorCode());
+                assertEquals(e.getErrorCode(), QuicTransportErrors.FRAME_ENCODING_ERROR.code());
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("badFrames")
+    @Test(dataProvider = "badFrames")
     public void testBadFrame(String desc, byte[] frame) throws Exception {
         // check if parsing a bad frame throws the right error
         ByteBuffer buf = ByteBuffer.wrap(frame);
@@ -294,7 +292,7 @@ public class QuicFramesDecoderTest {
             var qf = QuicFrame.decode(buf);
             fail("Expected the decoder to throw, got: "+qf);
         } catch (QuicTransportException e) {
-            assertEquals(QuicTransportErrors.FRAME_ENCODING_ERROR.code(), e.getErrorCode());
+            assertEquals(e.getErrorCode(), QuicTransportErrors.FRAME_ENCODING_ERROR.code());
         }
     }
 }

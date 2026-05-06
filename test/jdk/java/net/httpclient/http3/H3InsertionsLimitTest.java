@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,13 @@ import jdk.httpclient.test.lib.quic.QuicServer;
 import jdk.internal.net.http.http3.ConnectionSettings;
 import jdk.internal.net.http.qpack.Encoder;
 import jdk.internal.net.http.qpack.TableEntry;
+import jdk.test.lib.Utils;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -39,15 +44,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
 /*
  * @test
@@ -58,7 +59,7 @@ import org.junit.jupiter.api.Test;
  * @build jdk.test.lib.net.SimpleSSLContext
  *        jdk.httpclient.test.lib.common.HttpServerAdapters
  * @build java.net.http/jdk.internal.net.http.Http3ConnectionAccess
- * @run junit/othervm -Djdk.httpclient.qpack.encoderTableCapacityLimit=4096
+ * @run testng/othervm -Djdk.httpclient.qpack.encoderTableCapacityLimit=4096
  *                     -Djdk.internal.httpclient.qpack.allowBlockingEncoding=true
  *                     -Djdk.httpclient.qpack.decoderMaxTableCapacity=4096
  *                     -Djdk.httpclient.qpack.decoderBlockedStreams=1024
@@ -67,15 +68,15 @@ import org.junit.jupiter.api.Test;
  *                     -Dhttp3.test.server.encoderTableCapacityLimit=4096
  *                     -Djdk.httpclient.maxLiteralWithIndexing=32
  *                     -Djdk.internal.httpclient.qpack.log.level=EXTRA
- *                     ${test.main.class}
+ *                     H3InsertionsLimitTest
  */
 public class H3InsertionsLimitTest implements HttpServerAdapters {
 
     private static final long HEADER_SIZE_LIMIT_BYTES = 8192;
     private static final long MAX_SERVER_DT_CAPACITY = 4096;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer h3Server;
-    private static String requestURIBase;
+    private SSLContext sslContext;
+    private HttpTestServer h3Server;
+    private String requestURIBase;
     public static final long MAX_LITERALS_WITH_INDEXING = 32L;
     private static final CountDownLatch WAIT_FOR_FAILURE = new CountDownLatch(1);
 
@@ -119,8 +120,12 @@ public class H3InsertionsLimitTest implements HttpServerAdapters {
         exchange.sendResponseHeaders(200, 0);
     }
 
-    @BeforeAll
-    public static void beforeClass() throws Exception {
+    @BeforeClass
+    public void beforeClass() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         final QuicServer quicServer = Http3TestServer.quicServerBuilder()
                 .bindAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
                 .sslContext(sslContext)
@@ -137,8 +142,8 @@ public class H3InsertionsLimitTest implements HttpServerAdapters {
                 .port(h3Server.getAddress().getPort()).build().toString();
     }
 
-    @AfterAll
-    public static void afterClass() throws Exception {
+    @AfterClass
+    public void afterClass() throws Exception {
         if (h3Server != null) {
             System.out.println("Stopping server " + h3Server.getAddress());
             h3Server.stop();
@@ -160,10 +165,10 @@ public class H3InsertionsLimitTest implements HttpServerAdapters {
         System.out.println("Issuing request to " + reqURI);
         try {
             client.send(request, BodyHandlers.discarding());
-            Assertions.fail("IOException expected");
+            Assert.fail("IOException expected");
         } catch (IOException ioe) {
             System.out.println("Got IOException: " + ioe);
-            Assertions.assertTrue(ioe.getMessage()
+            Assert.assertTrue(ioe.getMessage()
                                  .contains("Too many literal with indexing"));
         } finally {
             WAIT_FOR_FAILURE.countDown();

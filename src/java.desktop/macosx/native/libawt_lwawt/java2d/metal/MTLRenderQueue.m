@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,19 +47,6 @@ jint mtlPreviousOp = MTL_OP_INIT;
 
 
 extern void MTLGC_DestroyMTLGraphicsConfig(jlong pConfigInfo);
-
-/**
- * Triggers the display link for the current destination surface.
- */
-static void MTLSD_Flush() {
-    if (dstOps != NULL) {
-        MTLSDOps *dstMTLOps = (MTLSDOps *)dstOps->privOps;
-        MTLLayer *layer = (MTLLayer*)dstMTLOps->layer;
-        if (layer != NULL) {
-            [layer startDisplayLink];
-        }
-    }
-}
 
 void MTLRenderQueue_CheckPreviousOp(jint op) {
 
@@ -602,7 +589,6 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                             [cbwrapper release];
                         }];
                         [commandbuf commit];
-                        MTLSD_Flush();
                     }
                     mtlc = [MTLContext setSurfacesEnv:env src:pSrc dst:pDst];
                     dstOps = (BMTLSDOps *)jlong_to_ptr(pDst);
@@ -630,7 +616,6 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                                     [cbwrapper release];
                                 }];
                                 [commandbuf commit];
-                                MTLSD_Flush();
                             }
                             mtlc = newMtlc;
                             dstOps = NULL;
@@ -901,7 +886,14 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 [cbwrapper release];
             }];
             [commandbuf commit];
-            MTLSD_Flush();
+            BMTLSDOps *dstOps = MTLRenderQueue_GetCurrentDestination();
+            if (dstOps != NULL) {
+                MTLSDOps *dstMTLOps = (MTLSDOps *)dstOps->privOps;
+                MTLLayer *layer = (MTLLayer*)dstMTLOps->layer;
+                if (layer != NULL) {
+                    [layer startDisplayLink];
+                }
+            }
         }
         RESET_PREVIOUS_OP();
     }

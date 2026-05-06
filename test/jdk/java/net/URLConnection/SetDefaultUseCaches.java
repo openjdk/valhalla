@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,18 +24,15 @@
 /* @test
  * @bug 8163449 8175261
  * @summary Allow per protocol setting for URLConnection defaultUseCaches
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm SetDefaultUseCaches
  */
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URL;
 import java.net.URLConnection;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class SetDefaultUseCaches {
 
@@ -88,28 +85,28 @@ public class SetDefaultUseCaches {
 
     void checkJAR(boolean defaultValue) throws IOException {
         URLConnection.setDefaultUseCaches("JAR", defaultValue);
-        assertEquals(defaultValue, URLConnection.getDefaultUseCaches("JAr"));
+        assertEquals(URLConnection.getDefaultUseCaches("JAr"), defaultValue);
 
         URLConnection jarFileURLConn = jarFileURL.openConnection();
         URLConnection jarHttpURLConn = jarHttpURL.openConnection();
-        assertEquals(defaultValue, jarFileURLConn.getUseCaches());
-        assertEquals(defaultValue, jarHttpURLConn.getUseCaches());
+        assertEquals(jarFileURLConn.getUseCaches(), defaultValue);
+        assertEquals(jarHttpURLConn.getUseCaches(), defaultValue);
         jarFileURLConn.setUseCaches(!defaultValue);
         jarHttpURLConn.setUseCaches(!defaultValue);
-        assertEquals(!defaultValue, jarFileURLConn.getUseCaches());
-        assertEquals(!defaultValue, jarHttpURLConn.getUseCaches());
+        assertEquals(jarFileURLConn.getUseCaches(), !defaultValue);
+        assertEquals(jarHttpURLConn.getUseCaches(), !defaultValue);
 
         URLConnection.setDefaultUseCaches("JaR", !defaultValue); // case-insensitive
-        assertEquals(!defaultValue, URLConnection.getDefaultUseCaches("jAR"));
+        assertEquals(URLConnection.getDefaultUseCaches("jAR"), !defaultValue);
 
         jarFileURLConn = jarFileURL.openConnection();
         jarHttpURLConn = jarHttpURL.openConnection();
-        assertEquals(!defaultValue, jarFileURLConn.getUseCaches());
-        assertEquals(!defaultValue, jarHttpURLConn.getUseCaches());
+        assertEquals(jarFileURLConn.getUseCaches(), !defaultValue);
+        assertEquals(jarHttpURLConn.getUseCaches(), !defaultValue);
         jarFileURLConn.setUseCaches(defaultValue);
         jarHttpURLConn.setUseCaches(defaultValue);
-        assertEquals(defaultValue, jarFileURLConn.getUseCaches());
-        assertEquals(defaultValue, jarHttpURLConn.getUseCaches());
+        assertEquals(jarFileURLConn.getUseCaches(), defaultValue);
+        assertEquals(jarHttpURLConn.getUseCaches(), defaultValue);
     }
 
     static URL uncheckURL(String url) {

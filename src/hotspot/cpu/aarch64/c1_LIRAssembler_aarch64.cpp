@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
- * Copyright 2026 Arm Limited and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +35,6 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArrayKlass.hpp"
-#include "code/aotCodeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gc_globals.hpp"
@@ -46,7 +44,6 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/threadIdentifier.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
@@ -62,6 +59,22 @@ const Register SYNC_header = r0;   // synchronization header
 const Register SHIFT_count = r0;   // where count for shift operations must be
 
 #define __ _masm->
+
+
+static void select_different_registers(Register preserve,
+                                       Register extra,
+                                       Register &tmp1,
+                                       Register &tmp2) {
+  if (tmp1 == preserve) {
+    assert_different_registers(tmp1, tmp2, extra);
+    tmp1 = extra;
+  } else if (tmp2 == preserve) {
+    assert_different_registers(tmp1, tmp2, extra);
+    tmp2 = extra;
+  }
+  assert_different_registers(preserve, tmp1, tmp2);
+}
+
 
 
 static void select_different_registers(Register preserve,
@@ -568,19 +581,6 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 
     case T_LONG: {
       assert(patch_code == lir_patch_none, "no patching handled here");
-#if INCLUDE_CDS
-      if (AOTCodeCache::is_on_for_dump()) {
-        address b = c->as_pointer();
-        if (b == (address)ThreadIdentifier::unsafe_offset()) {
-          __ lea(dest->as_register_lo(), ExternalAddress(b));
-          break;
-        }
-        if (AOTRuntimeConstants::contains(b)) {
-          __ load_aotrc_address(dest->as_register_lo(), b);
-          break;
-        }
-      }
-#endif
       __ mov(dest->as_register_lo(), (intptr_t)c->as_jlong());
       break;
     }
@@ -699,6 +699,8 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     break;
   case T_OBJECT:
   case T_ARRAY:
+    // Non-null case is not handled on aarch64 but handled on x86
+    // FIXME: do we need to add it here?
     assert(c->as_jobject() == nullptr, "should be");
     if (UseCompressedOops && !wide) {
       insn = &Assembler::strw;
@@ -961,15 +963,8 @@ void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
   reg2stack(temp, dest, dest->type());
 }
 
-void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type,
-                            LIR_PatchCode patch_code, CodeEmitInfo* info,
-                            bool wide) {
-  mem2reg(src, dest, type, patch_code, info, wide, false);
-}
 
-void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type,
-                            LIR_PatchCode patch_code, CodeEmitInfo* info,
-                            bool wide, bool is_volatile) {
+void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool wide) {
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
@@ -982,27 +977,10 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type,
     return;
   }
 
-  if (is_volatile) {
-    load_volatile(from_addr, dest, type, info);
-  } else {
-    load_unordered(from_addr, dest, type, wide, info);
-  }
-
-  if (is_reference_type(type)) {
-    if (UseCompressedOops && !wide) {
-      __ decode_heap_oop(dest->as_register());
-    }
-
-    __ verify_oop(dest->as_register());
-  }
-}
-
-void LIR_Assembler::load_unordered(LIR_Address *from_addr, LIR_Opr dest,
-                                   BasicType type, bool wide, CodeEmitInfo* info) {
   if (info != nullptr) {
     add_debug_info_for_null_check_here(info);
   }
-
+  int null_check_here = code_offset();
   switch (type) {
     case T_FLOAT: {
       __ ldrs(dest->as_float_reg(), as_Address(from_addr));
@@ -1060,6 +1038,14 @@ void LIR_Assembler::load_unordered(LIR_Address *from_addr, LIR_Opr dest,
     default:
       ShouldNotReachHere();
   }
+
+  if (is_reference_type(type)) {
+    if (UseCompressedOops && !wide) {
+      __ decode_heap_oop(dest->as_register());
+    }
+
+    __ verify_oop(dest->as_register());
+  }
 }
 
 void LIR_Assembler::move(LIR_Opr src, LIR_Opr dst) {
@@ -1074,43 +1060,6 @@ void LIR_Assembler::move(LIR_Opr src, LIR_Opr dst) {
     const2reg(src, dst, lir_patch_none, nullptr);
   } else {
     ShouldNotReachHere();
-  }
-}
-
-void LIR_Assembler::load_volatile(LIR_Address *from_addr, LIR_Opr dest,
-                                  BasicType type, CodeEmitInfo* info) {
-  __ lea(rscratch1, as_Address(from_addr));
-
-  Register dest_reg = rscratch2;
-  if (!is_floating_point_type(type)) {
-    dest_reg = (dest->is_single_cpu()
-                ? dest->as_register() : dest->as_register_lo());
-  }
-
-  if (info != nullptr) {
-    add_debug_info_for_null_check_here(info);
-  }
-
-  // Uses LDAR to ensure memory ordering.
-  __ load_store_volatile(dest_reg, type, rscratch1, /*is_load*/true);
-
-  switch (type) {
-    // LDAR is unsigned so need to sign-extend for byte and short
-    case T_BYTE:
-      __ sxtb(dest_reg, dest_reg);
-      break;
-    case T_SHORT:
-      __ sxth(dest_reg, dest_reg);
-      break;
-    // need to move from GPR to FPR after LDAR with FMOV for floating types
-    case T_FLOAT:
-      __ fmovs(dest->as_float_reg(), dest_reg);
-      break;
-    case T_DOUBLE:
-      __ fmovd(dest->as_double_reg(), dest_reg);
-      break;
-    default:
-      break;
   }
 }
 
@@ -1334,11 +1283,43 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   __ bind(*op->stub()->continuation());
 }
 
-void LIR_Assembler::type_profile_helper(Register mdo, ciMethodData *md,
-                                        ciProfileData *data, Register recv) {
+void LIR_Assembler::type_profile_helper(Register mdo,
+                                        ciMethodData *md, ciProfileData *data,
+                                        Register recv, Label* update_done) {
 
-  int mdp_offset = md->byte_offset_of_slot(data, in_ByteSize(0));
-  __ profile_receiver_type(recv, mdo, mdp_offset);
+  // Given a profile data offset, generate an Address which points to
+  // the corresponding slot in mdo->data().
+  // Clobbers rscratch2.
+  auto slot_at = [=](ByteSize offset) -> Address {
+    return __ form_address(rscratch2, mdo,
+                           md->byte_offset_of_slot(data, offset),
+                           LogBytesPerWord);
+  };
+
+  for (uint i = 0; i < ReceiverTypeData::row_limit(); i++) {
+    Label next_test;
+    // See if the receiver is receiver[n].
+    __ ldr(rscratch1, slot_at(ReceiverTypeData::receiver_offset(i)));
+    __ cmp(recv, rscratch1);
+    __ br(Assembler::NE, next_test);
+    __ addptr(slot_at(ReceiverTypeData::receiver_count_offset(i)),
+              DataLayout::counter_increment);
+    __ b(*update_done);
+    __ bind(next_test);
+  }
+
+  // Didn't find receiver; find next empty slot and fill it in
+  for (uint i = 0; i < ReceiverTypeData::row_limit(); i++) {
+    Label next_test;
+    Address recv_addr(slot_at(ReceiverTypeData::receiver_offset(i)));
+    __ ldr(rscratch1, recv_addr);
+    __ cbnz(rscratch1, next_test);
+    __ str(recv, recv_addr);
+    __ mov(rscratch1, DataLayout::counter_increment);
+    __ str(rscratch1, slot_at(ReceiverTypeData::receiver_count_offset(i)));
+    __ b(*update_done);
+    __ bind(next_test);
+  }
 }
 
 void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, Label* failure, Label* obj_is_null) {
@@ -1375,9 +1356,12 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   } else if (obj == klass_RInfo) {
     klass_RInfo = dst;
   }
-
-  Rtmp1 = op->tmp3()->as_register();
-  select_different_registers(obj, dst, k_RInfo, klass_RInfo, Rtmp1);
+  if (k->is_loaded() && !UseCompressedClassPointers) {
+    select_different_registers(obj, dst, k_RInfo, klass_RInfo);
+  } else {
+    Rtmp1 = op->tmp3()->as_register();
+    select_different_registers(obj, dst, k_RInfo, klass_RInfo, Rtmp1);
+  }
 
   assert_different_registers(obj, k_RInfo, klass_RInfo);
 
@@ -1398,9 +1382,14 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       __ b(*obj_is_null);
       __ bind(not_null);
 
+      Label update_done;
       Register recv = k_RInfo;
       __ load_klass(recv, obj);
-      type_profile_helper(mdo, md, data, recv);
+      type_profile_helper(mdo, md, data, recv, &update_done);
+      Address counter_addr(mdo, md->byte_offset_of_slot(data, CounterData::count_offset()));
+      __ addptr(counter_addr, DataLayout::counter_increment);
+
+      __ bind(update_done);
     } else {
       __ cbz(obj, *obj_is_null);
     }
@@ -1516,9 +1505,13 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ b(done);
       __ bind(not_null);
 
+      Label update_done;
       Register recv = k_RInfo;
       __ load_klass(recv, value);
-      type_profile_helper(mdo, md, data, recv);
+      type_profile_helper(mdo, md, data, recv, &update_done);
+      Address counter_addr(mdo, md->byte_offset_of_slot(data, CounterData::count_offset()));
+      __ addptr(counter_addr, DataLayout::counter_increment);
+      __ bind(update_done);
     } else {
       __ cbz(value, done);
     }
@@ -1570,6 +1563,14 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is a flat array, take the slow path.
   __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
+  if (!op->value()->is_illegal()) {
+    // The array is not a flat array, but it might be null-free. If we are storing
+    // a null into a null-free array, take the slow path (which will throw NPE).
+    Label skip;
+    __ cbnz(op->value()->as_register(), skip);
+    __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
+    __ bind(skip);
+  }
 }
 
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
@@ -1598,8 +1599,11 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
-  __ cbz(left, L_oops_not_equal);
-  __ cbz(right, L_oops_not_equal);
+  //     FIXME: do null check only if the operand is nullable
+  {
+    __ cbz(left, L_oops_not_equal);
+    __ cbz(right, L_oops_not_equal);
+  }
 
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
@@ -1609,13 +1613,12 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
-    Register tmp1 = op->tmp1()->as_register();
-    Register tmp2 = op->tmp2()->as_register();
+    Register tmp1  = op->tmp1()->as_register();
     __ mov(tmp1, markWord::inline_type_pattern);
-    __ ldr(tmp2, Address(left, oopDesc::mark_offset_in_bytes()));
-    __ andr(tmp1, tmp1, tmp2);
-    __ ldr(tmp2, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ andr(tmp1, tmp1, tmp2);
+    __ ldr(rscratch1, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andr(tmp1, tmp1, rscratch1);
+    __ ldr(rscratch1, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ andr(tmp1, tmp1, rscratch1);
     __ cmp(tmp1, (u1)markWord::inline_type_pattern);
     __ br(Assembler::NE, L_oops_not_equal);
   }
@@ -1625,9 +1628,19 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     // No need to load klass -- the operands are statically known to be the same inline klass.
     __ b(*op->stub()->entry());
   } else {
-    Register tmp1 = op->tmp1()->as_register();
-    Register tmp2 = op->tmp2()->as_register();
-    __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
+    Register left_klass_op = op->left_klass_op()->as_register();
+    Register right_klass_op = op->right_klass_op()->as_register();
+
+    if (UseCompressedClassPointers) {
+      __ ldrw(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+      __ ldrw(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+      __ cmpw(left_klass_op, right_klass_op);
+    } else {
+      __ ldr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+      __ ldr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+      __ cmp(left_klass_op, right_klass_op);
+    }
+
     __ br(Assembler::EQ, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal
   }
@@ -2344,6 +2357,7 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
   }
   if (is_dest) {
     __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
+    // TODO 8350865 Flat no longer implies null-free, so we need to check for flat dest. Can we do better here?
     __ test_flat_array_oop(obj, tmp, *slow_path->entry());
   } else {
     __ test_flat_array_oop(obj, tmp, *slow_path->entry());
@@ -2733,9 +2747,13 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
     if (C1OptimizeVirtualCallProfiling && known_klass != nullptr) {
       // We know the type that will be seen at this call site; we can
       // statically update the MethodData* rather than needing to do
-      // dynamic tests on the receiver type.
+      // dynamic tests on the receiver type
+
+      // NOTE: we should probably put a lock around this search to
+      // avoid collisions by concurrent compilations
       ciVirtualCallData* vc_data = (ciVirtualCallData*) data;
-      for (uint i = 0; i < VirtualCallData::row_limit(); i++) {
+      uint i;
+      for (i = 0; i < VirtualCallData::row_limit(); i++) {
         ciKlass* receiver = vc_data->receiver(i);
         if (known_klass->equals(receiver)) {
           Address data_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_count_offset(i)));
@@ -2743,13 +2761,36 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
           return;
         }
       }
-      // Receiver type is not found in profile data.
-      // Fall back to runtime helper to handle the rest at runtime.
-      __ mov_metadata(recv, known_klass->constant_encoding());
+
+      // Receiver type not found in profile data; select an empty slot
+
+      // Note that this is less efficient than it should be because it
+      // always does a write to the receiver part of the
+      // VirtualCallData rather than just the first time
+      for (i = 0; i < VirtualCallData::row_limit(); i++) {
+        ciKlass* receiver = vc_data->receiver(i);
+        if (receiver == nullptr) {
+          __ mov_metadata(rscratch1, known_klass->constant_encoding());
+          Address recv_addr =
+            __ form_address(rscratch2, mdo,
+                            md->byte_offset_of_slot(data, VirtualCallData::receiver_offset(i)),
+                            LogBytesPerWord);
+          __ str(rscratch1, recv_addr);
+          Address data_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_count_offset(i)));
+          __ addptr(data_addr, DataLayout::counter_increment);
+          return;
+        }
+      }
     } else {
       __ load_klass(recv, recv);
+      Label update_done;
+      type_profile_helper(mdo, md, data, recv, &update_done);
+      // Receiver did not match any saved receiver and there is no empty row for it.
+      // Increment total counter to indicate polymorphic case.
+      __ addptr(counter_addr, DataLayout::counter_increment);
+
+      __ bind(update_done);
     }
-    type_profile_helper(mdo, md, data, recv);
   } else {
     // Static call
     __ addptr(counter_addr, DataLayout::counter_increment);
@@ -3022,9 +3063,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
 }
 
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
-  if (src->is_address()) {
-    mem2reg(src, dest, type, lir_patch_none, info, /*wide*/false, /*is_volatile*/true);
-  } else if (dest->is_address()) {
+  if (dest->is_address() || src->is_address()) {
     move_op(src, dest, type, lir_patch_none, info, /*wide*/false);
   } else {
     ShouldNotReachHere();

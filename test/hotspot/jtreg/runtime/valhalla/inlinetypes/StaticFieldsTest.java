@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 
 /*
@@ -45,6 +46,7 @@ public class StaticFieldsTest {
     // static fields after their initialization should return the default value.
     @LooselyConsistentValue
     static value class ClassA {
+        @Strict
         @NullRestricted
         static ClassB b = new ClassB();
         public int i;
@@ -56,6 +58,7 @@ public class StaticFieldsTest {
 
     @LooselyConsistentValue
     static value class ClassB {
+        @Strict
         @NullRestricted
         static ClassA a = new ClassA();
         public int i;
@@ -70,6 +73,7 @@ public class StaticFieldsTest {
     // should return the default value.
     @LooselyConsistentValue
     static value class ClassC {
+        @Strict
         @NullRestricted
         static ClassC c = new ClassC();
         int i;
@@ -86,6 +90,7 @@ public class StaticFieldsTest {
     // successfully.
     @LooselyConsistentValue
     static value class ClassD {
+        @Strict
         @NullRestricted
         static ClassE e = new ClassE();
         int i;
@@ -101,6 +106,7 @@ public class StaticFieldsTest {
 
     @LooselyConsistentValue
     static value class ClassE {
+        @Strict
         @NullRestricted
         static ClassD d = new ClassD();
         int i;
@@ -119,6 +125,7 @@ public class StaticFieldsTest {
     // during their initialization. Both classes should initialize successfully.
     @LooselyConsistentValue
     static value class ClassF {
+        @Strict
         @NullRestricted
         static ClassG g = new ClassG();
         int i;
@@ -135,6 +142,7 @@ public class StaticFieldsTest {
 
     @LooselyConsistentValue
     static value class ClassG {
+        @Strict
         @NullRestricted
         static ClassF f = new ClassF();
         int i;

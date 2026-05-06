@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,14 @@ package jdk.jpackage.internal;
 
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.internal.model.DottedVersion;
 
-record WixToolset(Map<WixTool, WixTool.ToolInfo> tools) {
+final class WixToolset {
 
-    WixToolset {
-        tools = Map.copyOf(tools);
-    }
-
-    enum WixToolsetType {
+    static enum WixToolsetType {
         // Wix v4+
         Wix4(WixTool.Wix4),
         // Wix v3+
@@ -54,6 +48,10 @@ record WixToolset(Map<WixTool, WixTool.ToolInfo> tools) {
         }
 
         private final Set<WixTool> tools;
+    }
+
+    private WixToolset(Map<WixTool, WixTool.ToolInfo> tools) {
+        this.tools = tools;
     }
 
     WixToolsetType getType() {
@@ -77,19 +75,16 @@ record WixToolset(Map<WixTool, WixTool.ToolInfo> tools) {
                 .anyMatch(WixTool.CandleInfo::fips);
     }
 
-    static Optional<WixToolset> create(WixToolsetType type, Map<WixTool, WixTool.ToolInfo> allTools) {
-        Objects.requireNonNull(type);
-        Objects.requireNonNull(allTools);
-
-        var requiredTools = type.getTools();
-
+    static WixToolset create(Set<WixTool> requiredTools, Map<WixTool, WixTool.ToolInfo> allTools) {
         var filteredTools = allTools.entrySet().stream().filter(e -> {
             return requiredTools.contains(e.getKey());
         }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         if (filteredTools.keySet().equals(requiredTools)) {
-            return Optional.of(new WixToolset(filteredTools));
+            return new WixToolset(filteredTools);
         } else {
-            return Optional.empty();
+            return null;
         }
     }
+
+    private final Map<WixTool, WixTool.ToolInfo> tools;
 }

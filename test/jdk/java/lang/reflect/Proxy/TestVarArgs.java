@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,10 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8022795
- * @run junit TestVarArgs
+ * @run testng TestVarArgs
  * @summary Verify if a method defined in a proxy interface has ACC_VARARGS set
  */
 
@@ -34,10 +34,11 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class TestVarArgs {
     interface I {
@@ -47,7 +48,8 @@ public class TestVarArgs {
         Object call(Object[] values);
     }
 
-    public static Object[][] proxyInterfaces() {
+    @DataProvider(name = "proxyInterfaces")
+    public Object[][] proxyInterfaces() {
         return new Object[][] {
              { new Class<?>[] { I.class }, true},
              { new Class<?>[] { J.class }, false},
@@ -56,12 +58,11 @@ public class TestVarArgs {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("proxyInterfaces")
+    @Test(dataProvider = "proxyInterfaces")
     public void testMethod(Class<?>[] proxyInterfaces, boolean isVarArgs) throws Throwable {
         // check if the first proxy interface with the method named "call" declares var result
         Method m = proxyInterfaces[0].getMethod("call", Object[].class);
-        assertEquals(isVarArgs, m.isVarArgs());
+        assertTrue(m.isVarArgs() == isVarArgs);
 
         // the method in the generated proxy class should match the method
         // declared in the proxy interface
@@ -70,19 +71,19 @@ public class TestVarArgs {
         Class<?> proxyClass = proxy.getClass();
         assertTrue(Proxy.isProxyClass(proxyClass));
         Method method = proxyClass.getMethod("call", Object[].class);
-        assertEquals(isVarArgs, method.isVarArgs());
+        assertTrue(method.isVarArgs() == isVarArgs);
 
-        Object[] params = new Object[] { "foo", "bar", "goo" };
-        Object[] result;
+        Object params = new Object[] { "foo", "bar", "goo" };
+        Object result;
 
         // test reflection
-        result = (Object[]) method.invoke(proxy, new Object[] {params});
-        assertEquals(params, result);
+        result = method.invoke(proxy, params);
+        assertEquals(result, params);
 
         // test method handle
         MethodHandle mh = MethodHandles.lookup().findVirtual(proxyClass, "call",
                       MethodType.methodType(Object.class, Object[].class));
-        assertEquals(isVarArgs, mh.isVarargsCollector());
+        assertTrue(mh.isVarargsCollector() == isVarArgs);
         MethodHandle mhVarArity = mh;
         MethodHandle mhFixedArity = mh;
         if (isVarArgs) {
@@ -90,18 +91,18 @@ public class TestVarArgs {
         } else {
             mhVarArity = mh.asVarargsCollector(Object[].class);
         }
-        result = (Object[]) mhVarArity.invoke(proxy, "foo", "bar", "goo");
-        assertArrayEquals(params, result);
+        result = mhVarArity.invoke(proxy, "foo", "bar", "goo");
+        assertEquals(result, params);
 
-        result = (Object[]) mhFixedArity.invoke(proxy, params);
-        assertArrayEquals(params, result);
+        result = mhFixedArity.invoke(proxy, params);
+        assertEquals(result, params);
 
         if (!isVarArgs) {
             MethodType mt = MethodType.methodType(Object.class, Object.class, String.class, String.class, String.class);
             mh = mh.asVarargsCollector(Object[].class).asType(mt);
         }
-        result = (Object[]) mh.invoke(proxy, "foo", "bar", "goo");
-        assertArrayEquals(params, result);
+        result = mh.invoke(proxy, "foo", "bar", "goo");
+        assertEquals(result, params);
     }
 
     private static final InvocationHandler IH = new InvocationHandler() {

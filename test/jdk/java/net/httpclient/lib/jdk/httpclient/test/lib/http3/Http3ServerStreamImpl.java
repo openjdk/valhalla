@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -265,7 +264,7 @@ final class Http3ServerStreamImpl {
             // nothing to do - let the response be sent to the client, but throw an
             // exception if `is` is used again.
             exchangeCF.thenApply(en -> {
-                en.is.resetStream(new IOException("stopSendingRequested"));
+                en.is.close(new IOException("stopSendingRequested"));
                 return en;
             });
             return;
@@ -293,37 +292,38 @@ final class Http3ServerStreamImpl {
     }
 
     class RequestBodyInputStream extends InputStream {
-        // Non-null if the stream is terminated.
-        // Points to an IOException on error, or Boolean.TRUE on EOF.
-        private final AtomicReference<Object> closeReason = new AtomicReference<>();
+        volatile IOException error;
+        volatile boolean closed;
         // uses an unbounded blocking queue in which the readrLoop
         // publishes the DataFrames payload...
         ByteBuffer current;
+        // Use lock to avoid pinned threads on the blocking queue
+        final ReentrantLock lock = new ReentrantLock();
 
         ByteBuffer current() throws IOException {
-            while (true) {
-                Object reason = closeReason.get();
-                if (reason != null) {
-                    if (reason == Boolean.TRUE) {
-                        throw new IOException("Stream is closed");
-                    } else {
-                        throw new IOException((IOException)reason);
+            lock.lock();
+            try {
+                while (true) {
+                    if (current != null && current.hasRemaining()) {
+                        return current;
+                    }
+                    if (current == QuicStreamReader.EOF) return current;
+                    try {
+                        if (debug.on())
+                            debug.log("Taking buffer from queue");
+                        // Blocking call
+                        current = requestBodyQueue.take();
+                    } catch (InterruptedException e) {
+                        var io = new InterruptedIOException();
+                        Thread.currentThread().interrupt();
+                        io.initCause(e);
+                        close(io);
+                        var error = this.error;
+                        if (error != null) throw error;
                     }
                 }
-                if (current != null && (current.hasRemaining() || current == QuicStreamReader.EOF)) {
-                    return current;
-                }
-                try {
-                    if (debug.on())
-                        debug.log("Taking buffer from queue");
-                    // Blocking call
-                    current = requestBodyQueue.take();
-                } catch (InterruptedException e) {
-                    var io = new InterruptedIOException();
-                    Thread.currentThread().interrupt();
-                    io.initCause(e);
-                    throw io;
-                }
+            } finally {
+                lock.unlock();
             }
         }
 
@@ -331,7 +331,9 @@ final class Http3ServerStreamImpl {
         public int read() throws IOException {
             ByteBuffer buffer = current();
             if (buffer == QuicStreamReader.EOF) {
-                return -1;
+                var error = this.error;
+                if (error == null) return -1;
+                throw error;
             }
             return buffer.get() & 0xFF;
         }
@@ -343,7 +345,11 @@ final class Http3ServerStreamImpl {
             while (remaining > 0) {
                 ByteBuffer buffer = current();
                 if (buffer == QuicStreamReader.EOF) {
-                    return len == remaining ? -1 : len - remaining;
+                    if (len == remaining) {
+                        var error = this.error;
+                        if (error == null) return -1;
+                        throw error;
+                    } else return len - remaining;
                 }
                 int count = Math.min(buffer.remaining(), remaining);
                 buffer.get(b, off + (len - remaining), count);
@@ -354,20 +360,33 @@ final class Http3ServerStreamImpl {
 
         @Override
         public void close() throws IOException {
-            if (closeReason.getAndSet(Boolean.TRUE) == Boolean.TRUE) return;
+            lock.lock();
+            try {
+                if (closed) return;
+                closed = true;
+
+            } finally {
+                lock.unlock();
+            }
             if (debug.on())
                 debug.log("Closing request body input stream");
             requestBodyQueue.add(QuicStreamReader.EOF);
-            stream.requestStopSending(Http3Error.H3_NO_ERROR.code());
         }
 
-        void resetStream(IOException io) {
-            if (!closeReason.compareAndSet(null, io)) return;
+        void close(IOException io) {
+            lock.lock();
+            try {
+                if (closed) return;
+                closed = true;
+                error = io;
+            } finally {
+                lock.unlock();
+            }
             if (debug.on()) {
                 debug.log("Closing request body input stream: " + io);
             }
+            requestBodyQueue.clear();
             requestBodyQueue.add(QuicStreamReader.EOF);
-            stream.requestStopSending(Http3Error.H3_NO_ERROR.code());
         }
     }
 

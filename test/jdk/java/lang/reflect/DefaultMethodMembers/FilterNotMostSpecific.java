@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 8029674
  * @summary Verify that the right interface methods are returned by
  *          Class.getMethod() and Class.getMethods()
- * @run junit FilterNotMostSpecific
+ * @run testng FilterNotMostSpecific
  */
 
 import java.lang.reflect.*;
@@ -39,14 +39,14 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.*;
 
 public class FilterNotMostSpecific {
 
-    @ParameterizedTest
-    @MethodSource("getCases")
+    @Test(dataProvider="getCases")
     public void testGetMethod(Class<?> iface) {
         boolean match = false;
         MethodDesc[] expectedMethods = iface.getAnnotationsByType(MethodDesc.class);
@@ -67,8 +67,7 @@ public class FilterNotMostSpecific {
         assert(match);
     }
 
-    @ParameterizedTest
-    @MethodSource("getCases")
+    @Test(dataProvider="getCases")
     public void testGetMethods(Class<?> iface) {
         List<Method> foundMethods = filterObjectMethods(iface.getMethods());
         MethodDesc[] expectedMethods = iface.getAnnotationsByType(MethodDesc.class);
@@ -85,7 +84,7 @@ public class FilterNotMostSpecific {
                 fail("On: "+ iface +"\nDid not find " + toMethodString(expected) +
                      " among " + foundMethods);
         }
-        assertEquals(expectedMethods.length, foundMethods.size(),
+        assertEquals(foundMethods.size(), expectedMethods.length,
                 "\non: " + iface +
                 "\nexpected: " + toMethodStrings(expectedMethods) +
                 "\nfound: " + foundMethods + "\n");
@@ -566,7 +565,8 @@ public class FilterNotMostSpecific {
     @MethodDesc(name="m", declaringClass=F.class, isGetMethodReturn=true)
     abstract class H extends G implements F {}
 
-    public static Object[][] getCases() { return CASES; }
+    @DataProvider
+    public Object[][] getCases() { return CASES; }
     public static final Class<?>[][] CASES =  {
         { K1.class },
         { K1M.class },

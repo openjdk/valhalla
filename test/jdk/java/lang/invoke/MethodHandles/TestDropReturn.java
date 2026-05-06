@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,33 +24,33 @@
 /*
  * @test
  * @bug 8255398
- * @run junit TestDropReturn
+ * @run testng TestDropReturn
  */
 
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 
 import static java.lang.invoke.MethodType.methodType;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 public class TestDropReturn {
 
-    @ParameterizedTest
-    @MethodSource("dropReturnCases")
+    @Test(dataProvider = "dropReturnCases")
     public void testDropReturn(Class<?> cls, Object testValue) throws Throwable {
         MethodHandle mh = MethodHandles.identity(cls);
-        assertEquals(methodType(cls, cls), mh.type());
+        assertEquals(mh.type(), methodType(cls, cls));
         Object x = mh.invoke(testValue);
-        assertEquals(testValue, x);
+        assertEquals(x, testValue);
 
         mh = MethodHandles.dropReturn(mh);
-        assertEquals(methodType(void.class, cls), mh.type());
+        assertEquals(mh.type(), methodType(void.class, cls));
         mh.invoke(testValue); // should at least work
     }
 
+    @DataProvider
     public static Object[][] dropReturnCases() {
         return new Object[][]{
             { boolean.class, true         },

@@ -832,8 +832,10 @@ public abstract sealed class AbstractInstruction
         final int slot;
         final int constant;
 
-        public UnboundIncrementInstruction(Opcode op, int slot, int constant) {
-            super(op);
+        public UnboundIncrementInstruction(int slot, int constant) {
+            super(BytecodeHelpers.validateAndIsWideIinc(slot, constant)
+                  ? Opcode.IINC_W
+                  : Opcode.IINC);
             this.slot = slot;
             this.constant = constant;
         }

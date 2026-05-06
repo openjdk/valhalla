@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8194554
- * @run junit/othervm test.java.lang.invoke.FilterArgumentsTest
+ * @run testng/othervm test.java.lang.invoke.FilterArgumentsTest
  */
 
 package test.java.lang.invoke;
@@ -37,40 +37,40 @@ import java.util.List;
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.methodType;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.*;
+import static org.testng.Assert.*;
 
 public class FilterArgumentsTest {
 
     @Test
-    public void testFilterA_B_C() throws Throwable {
+    public static void testFilterA_B_C() throws Throwable {
         FilterTest test = new FilterTest(
             filterArguments(MH_TEST, 0, MH_FILTER_A, MH_FILTER_B, MH_FILTER_C));
         test.run(List.of("A", "B", "C"));
     }
 
     @Test
-    public void testFilterA_B() throws Throwable {
+    public static void testFilterA_B() throws Throwable {
         FilterTest test = new FilterTest(
             filterArguments(MH_TEST, 0, MH_FILTER_A, MH_FILTER_B));
         test.run(List.of("A", "B"));
     }
 
     @Test
-    public void testFilterB_C() throws Throwable {
+    public static void testFilterB_C() throws Throwable {
         FilterTest test = new FilterTest(
             filterArguments(MH_TEST, 1, MH_FILTER_B, MH_FILTER_C));
         test.run(List.of("B", "C"));
     }
 
     @Test
-    public void testFilterB() throws Throwable {
+    public static void testFilterB() throws Throwable {
         FilterTest test = new FilterTest(filterArguments(MH_TEST, 1, MH_FILTER_B));
         test.run(List.of("B"));
     }
 
     @Test
-    public void testFilterC() throws Throwable {
+    public static void testFilterC() throws Throwable {
         FilterTest test = new FilterTest(filterArguments(MH_TEST, 2, MH_FILTER_C));
         test.run(List.of("C"));
     }
@@ -85,8 +85,8 @@ public class FilterArgumentsTest {
 
         void run(List<String> expected) throws Throwable {
             filters.clear();
-            assertEquals("x-0-z", (String)mh.invokeExact("x", 0, 'z'));
-            assertEquals(expected, filters);
+            assertEquals((String)mh.invokeExact("x", 0, 'z'), "x-0-z");
+            assertEquals(filters, expected);
         }
 
         static String filterA(String s) {

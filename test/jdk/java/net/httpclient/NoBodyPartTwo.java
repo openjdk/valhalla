@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,10 @@
  * @summary Test response body handlers/subscribers when there is no body
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=all
- *      ${test.main.class}
+ *      NoBodyPartTwo
  */
 
 import java.io.InputStream;
@@ -44,22 +44,17 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 
 import jdk.internal.net.http.common.Utils;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_3;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-// @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-// is inherited from the super class
 public class NoBodyPartTwo extends AbstractNoBody {
 
     volatile boolean consumerHasBeenCalled;
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsByteArrayConsumer(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testAsByteArrayConsumer(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -86,8 +81,7 @@ public class NoBodyPartTwo extends AbstractNoBody {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsInputStream(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testAsInputStream(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -104,13 +98,12 @@ public class NoBodyPartTwo extends AbstractNoBody {
                         .build();
                 HttpResponse<InputStream> response = client.send(req, BodyHandlers.ofInputStream());
                 byte[] body = response.body().readAllBytes();
-                assertEquals(0, body.length);
+                assertEquals(body.length, 0);
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testBuffering(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testBuffering(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -128,13 +121,12 @@ public class NoBodyPartTwo extends AbstractNoBody {
                 HttpResponse<byte[]> response = client.send(req,
                         BodyHandlers.buffering(BodyHandlers.ofByteArray(), 1024));
                 byte[] body = response.body();
-                assertEquals(0, body.length);
+                assertEquals(body.length, 0);
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testDiscard(String uri, boolean sameClient) throws Exception {
         printStamp(START, "testDiscard(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
@@ -151,7 +143,7 @@ public class NoBodyPartTwo extends AbstractNoBody {
                         .build();
                 Object obj = new Object();
                 HttpResponse<Object> response = client.send(req, BodyHandlers.replacing(obj));
-                assertEquals(obj, response.body());
+                assertEquals(response.body(), obj);
             }
         }
     }

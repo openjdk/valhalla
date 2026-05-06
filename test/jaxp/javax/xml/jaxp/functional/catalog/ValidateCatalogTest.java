@@ -23,23 +23,22 @@
 
 package catalog;
 
-import org.junit.jupiter.api.Test;
-
-import javax.xml.catalog.CatalogException;
-
 import static catalog.CatalogTestUtils.CATALOG_SYSTEM;
 import static catalog.CatalogTestUtils.CATALOG_URI;
 import static catalog.CatalogTestUtils.catalogResolver;
 import static catalog.CatalogTestUtils.catalogUriResolver;
 import static catalog.ResolutionChecker.checkSysIdResolution;
 import static catalog.ResolutionChecker.checkUriResolution;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import javax.xml.catalog.CatalogException;
+
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.ValidateCatalogTest
+ * @run testng/othervm catalog.ValidateCatalogTest
  * @summary A legal catalog file must be well-formed XML, the root element
  *          must be catalog, and the naming space of the root element must be
  *          urn:oasis:names:tc:entity:xmlns:xml:catalog.
@@ -53,36 +52,36 @@ public class ValidateCatalogTest {
      * EntityResolver tries to load catalog with wrong root,
      * it should throw CatalogException.
      */
-    @Test
+    @Test(expectedExceptions = CatalogException.class)
     public void validateWrongRootCatalogOnEntityResolver() {
-        assertThrows(CatalogException.class, () -> catalogResolver(CATALOG_WRONGROOT));
+        catalogResolver(CATALOG_WRONGROOT);
     }
 
     /*
      * URIResolver tries to load catalog with wrong root,
      * it should throw CatalogException.
      */
-    @Test
+    @Test(expectedExceptions = CatalogException.class)
     public void validateWrongRootCatalogOnUriResolver() {
-        assertThrows(CatalogException.class, () -> catalogUriResolver(CATALOG_WRONGROOT));
+        catalogUriResolver(CATALOG_WRONGROOT);
     }
 
     /*
      * EntityResolver tries to load malformed catalog,
      * it should throw RuntimeException.
      */
-    @Test
+    @Test(expectedExceptions = RuntimeException.class)
     public void validateMalformedCatalogOnEntityResolver() {
-        assertThrows(RuntimeException.class, () -> catalogResolver(CATALOG_MALFORMED));
+        catalogResolver(CATALOG_MALFORMED);
     }
 
     /*
      * UriResolver tries to load malformed catalog,
      * it should throw RuntimeException.
      */
-    @Test
+    @Test(expectedExceptions = RuntimeException.class)
     public void validateMalformedCatalogOnUriResolver() {
-        assertThrows(RuntimeException.class, () -> catalogUriResolver(CATALOG_MALFORMED));
+        catalogUriResolver(CATALOG_MALFORMED);
     }
 
     /*

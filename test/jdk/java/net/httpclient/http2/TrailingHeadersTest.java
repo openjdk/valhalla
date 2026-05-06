@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @bug 8296410
  * @library /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm -Djdk.httpclient.HttpClient.log=all ${test.main.class}
+ * @run testng/othervm -Djdk.httpclient.HttpClient.log=all TrailingHeadersTest
  */
 
 import jdk.httpclient.test.lib.http2.OutgoingPushPromise;
@@ -36,6 +36,11 @@ import jdk.internal.net.http.common.HttpHeadersBuilder;
 import jdk.internal.net.http.frame.DataFrame;
 import jdk.internal.net.http.frame.HeaderFrame;
 import jdk.internal.net.http.frame.HeadersFrame;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
@@ -69,30 +74,24 @@ import jdk.httpclient.test.lib.http2.BodyOutputStream;
 
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 public class TrailingHeadersTest {
 
-    private static Http2TestServer http2TestServer;
-    private static URI trailingURI, trailng1xxURI, trailingPushPromiseURI, warmupURI;
+    Http2TestServer http2TestServer;
+    URI trailingURI, trailng1xxURI, trailingPushPromiseURI, warmupURI;
     static PrintStream testLog = System.err;
 
     // Set up simple client-side push promise handler
-    private static ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<String>>> pushPromiseMap = new ConcurrentHashMap<>();
+    ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<String>>> pushPromiseMap = new ConcurrentHashMap<>();
 
-    @BeforeEach
+    @BeforeMethod
     public void beforeMethod() {
         pushPromiseMap = new ConcurrentHashMap<>();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         Properties props = new Properties();
         // For triggering trailing headers to send after Push Promise Response headers are sent
         props.setProperty("sendTrailingHeadersAfterPushPromise", "1");
@@ -120,13 +119,12 @@ public class TrailingHeadersTest {
         warmupURI = URI.create("http://" + http2TestServer.serverAuthority() + "/WarmupHandler");
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
         http2TestServer.stop();
     }
 
-    @ParameterizedTest
-    @MethodSource("uris")
+    @Test(dataProvider = "httpRequests")
     public void testTrailingHeaders(String description, HttpRequest hRequest, HttpResponse.PushPromiseHandler<String> pph) {
         testLog.println("testTrailingHeaders(): " + description);
         HttpClient httpClient = HttpClient.newBuilder().build();
@@ -136,7 +134,7 @@ public class TrailingHeadersTest {
         testLog.println("testTrailingHeaders(): Performing request: " + hRequest);
         HttpResponse<String> resp = cf.join();
 
-        assertEquals(200, resp.statusCode(), "Status code of response should be 200");
+        assertEquals(resp.statusCode(), 200, "Status code of response should be 200");
 
         // Verify Push Promise was successful if necessary
         if (pph != null)
@@ -146,14 +144,14 @@ public class TrailingHeadersTest {
     }
 
     private void verifyPushPromise()  {
-        assertEquals(1, pushPromiseMap.size(), "Push Promise should not be greater than 1");
+        assertEquals(pushPromiseMap.size(), 1, "Push Promise should not be greater than 1");
         // This will only iterate once
         for (HttpRequest r : pushPromiseMap.keySet()) {
             CompletableFuture<HttpResponse<String>> serverPushResp = pushPromiseMap.get(r);
             // Get the push promise HttpResponse result if present
             HttpResponse<String> resp = serverPushResp.join();
-            assertEquals("Sample_Push_Data", resp.body(), "Unexpected Push Promise response body");
-            assertEquals(200, resp.statusCode(), "Status code of Push Promise response should be 200");
+            assertEquals(resp.body(), "Sample_Push_Data", "Unexpected Push Promise response body");
+            assertEquals(resp.statusCode(), 200, "Status code of Push Promise response should be 200");
         }
     }
 
@@ -164,10 +162,11 @@ public class TrailingHeadersTest {
         httpClient.sendAsync(warmupReq, BodyHandlers.discarding()).join();
     }
 
-    public static Object[][] uris() {
+    @DataProvider(name = "httpRequests")
+    public Object[][] uris() {
         HttpResponse.PushPromiseHandler<String> pph = (initial, pushRequest, acceptor) -> {
             HttpResponse.BodyHandler<String> s = HttpResponse.BodyHandlers.ofString(UTF_8);
-            TrailingHeadersTest.pushPromiseMap.put(pushRequest, acceptor.apply(s));
+            pushPromiseMap.put(pushRequest, acceptor.apply(s));
         };
 
         HttpRequest httpGetTrailing = HttpRequest.newBuilder(trailingURI).version(HTTP_2)

@@ -137,7 +137,6 @@ void ReplacedNodes::apply(Compile* C, Node* ctl) {
     stack.push(initial, 1);
     Node* use = initial->raw_out(0);
     stack.push(use, 0);
-
     while (!stack.is_empty()) {
       assert(stack.size() > 1, "at least initial + one use");
       Node* n = stack.node();

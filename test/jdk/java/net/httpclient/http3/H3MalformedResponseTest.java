@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /*
@@ -132,7 +133,7 @@ class H3MalformedResponseTest {
 
     private static final Logger LOGGER = Utils.getDebugLogger(CLASS_NAME::toString, Utils.DEBUG);
 
-    private static final SSLContext SSL_CONTEXT = SimpleSSLContext.findSSLContext();
+    private static SSLContext SSL_CONTEXT;
 
     private static QuicStandaloneServer SERVER;
 
@@ -140,6 +141,10 @@ class H3MalformedResponseTest {
 
     @BeforeAll
     static void setUp() throws Exception {
+
+        // Obtain an `SSLContext`
+        SSL_CONTEXT = new SimpleSSLContext().get();
+        assertNotNull(SSL_CONTEXT);
 
         // Create and start the server
         SERVER = QuicStandaloneServer.newBuilder()
@@ -458,7 +463,7 @@ class H3MalformedResponseTest {
 
     private static BooleanSupplier configureServerResponse(byte[] serverResponseBytes) {
         var connectionTerminated = new AtomicBoolean();
-        SERVER.setHandler((c, s)-> {
+        SERVER.addHandler((c, s)-> {
             try (OutputStream outputStream = s.outputStream()) {
                 outputStream.write(serverResponseBytes);
             }

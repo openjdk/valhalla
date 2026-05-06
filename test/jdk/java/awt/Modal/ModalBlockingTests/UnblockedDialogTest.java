@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,22 +21,19 @@
  * questions.
  */
 
+import java.awt.*;
+import static jdk.test.lib.Asserts.*;
 
-import java.awt.Dialog;
-import java.awt.EventQueue;
-import java.awt.Frame;
-import static jdk.test.lib.Asserts.assertFalse;
-import static jdk.test.lib.Asserts.assertTrue;
 
 public class UnblockedDialogTest {
 
-    private volatile TestDialog dialog;
+    private TestDialog dialog;
 
     private static final int delay = 500;
     private final ExtendedRobot robot;
 
-    private volatile Dialog parentDialog;
-    private volatile Frame parentFrame;
+    private Dialog parentDialog;
+    private Frame  parentFrame;
 
     private enum DialogOwner {HIDDEN_DIALOG, HIDDEN_FRAME, NULL_DIALOG, NULL_FRAME};
 
@@ -111,7 +108,6 @@ public class UnblockedDialogTest {
 
                 dialog.checkUnblockedDialog(robot, "");
                 robot.waitForIdle(delay);
-                EventQueue.invokeAndWait(this::closeAll);
             }
 
         } finally {
@@ -120,17 +116,8 @@ public class UnblockedDialogTest {
     }
 
     private void closeAll() {
-        if (dialog != null) {
-            dialog.dispose();
-            dialog = null;
-        }
-        if (parentDialog != null) {
-            parentDialog.dispose();
-            parentDialog = null;
-        }
-        if (parentFrame  != null) {
-            parentFrame.dispose();
-            parentFrame = null;
-        }
+        if (dialog != null) { dialog.dispose(); }
+        if (parentDialog != null) { parentDialog.dispose(); }
+        if (parentFrame  != null) {  parentFrame.dispose(); }
     }
 }

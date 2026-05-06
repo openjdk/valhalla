@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@ package nsk.jvmti.scenarios.hotswap.HS101;
 
 import java.io.PrintStream;
 
-import jdk.test.lib.thread.ThreadWrapper;
 import nsk.share.*;
 import nsk.share.jvmti.*;
 
@@ -116,7 +115,7 @@ public class hs101t002 extends DebugeeClass {
 
 /* =================================================================== */
 
-class hs101t002Thread extends ThreadWrapper {
+class hs101t002Thread extends Thread {
     public Wicket startingBarrier = new Wicket();
     private volatile boolean flag = true;
     public int i;

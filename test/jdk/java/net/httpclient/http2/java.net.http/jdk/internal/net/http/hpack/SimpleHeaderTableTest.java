@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 package jdk.internal.net.http.hpack;
 
 import jdk.internal.net.http.hpack.SimpleHeaderTable.HeaderField;
+import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -38,8 +39,7 @@ import static jdk.internal.net.http.hpack.TestHelper.assertThrows;
 import static jdk.internal.net.http.hpack.TestHelper.assertVoidThrows;
 import static jdk.internal.net.http.hpack.TestHelper.newRandom;
 import static java.lang.String.format;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
 
 public class SimpleHeaderTableTest {
 
@@ -125,8 +125,8 @@ public class SimpleHeaderTableTest {
         Map<Integer, HeaderField> staticHeaderFields = createStaticEntries();
         staticHeaderFields.forEach((index, expectedHeaderField) -> {
             SimpleHeaderTable.HeaderField actualHeaderField = table.get(index);
-            assertEquals(expectedHeaderField.name, actualHeaderField.name);
-            assertEquals(expectedHeaderField.value, actualHeaderField.value);
+            assertEquals(actualHeaderField.name, expectedHeaderField.name);
+            assertEquals(actualHeaderField.value, expectedHeaderField.value);
         });
     }
 
@@ -134,8 +134,8 @@ public class SimpleHeaderTableTest {
     public void constructorSetsMaxSize() {
         int size = rnd.nextInt(64);
         SimpleHeaderTable table = createHeaderTable(size);
-        assertEquals(0, table.size());
-        assertEquals(size, table.maxSize());
+        assertEquals(table.size(), 0);
+        assertEquals(table.maxSize(), size);
     }
 
     @Test
@@ -152,7 +152,7 @@ public class SimpleHeaderTableTest {
     public void zeroMaximumSize() {
         SimpleHeaderTable table = createHeaderTable(0);
         table.setMaxSize(0);
-        assertEquals(0, table.maxSize());
+        assertEquals(table.maxSize(), 0);
     }
 
     @Test
@@ -177,7 +177,7 @@ public class SimpleHeaderTableTest {
     @Test
     public void length() {
         SimpleHeaderTable table = createHeaderTable(0);
-        assertEquals(STATIC_TABLE_LENGTH, table.length());
+        assertEquals(table.length(), STATIC_TABLE_LENGTH);
     }
 
     @Test
@@ -203,14 +203,14 @@ public class SimpleHeaderTableTest {
 
         table.put(name, value);
         SimpleHeaderTable.HeaderField f = table.get(idx);
-        assertEquals(name, f.name);
-        assertEquals(value, f.value);
+        assertEquals(f.name, name);
+        assertEquals(f.value, value);
     }
 
     @Test
     public void staticTableHasZeroSize() {
         SimpleHeaderTable table = createHeaderTable(0);
-        assertEquals(0, table.size());
+        assertEquals(table.size(), 0);
     }
 
     // TODO: negative indexes check
@@ -236,13 +236,13 @@ public class SimpleHeaderTableTest {
             SimpleHeaderTable.HeaderField f = table.get(STATIC_TABLE_LENGTH + j);
             int actualName = Integer.parseInt(f.name);
             int expectedName = NUM_HEADERS - j + 1;
-            assertEquals(expectedName, actualName);
+            assertEquals(actualName, expectedName);
         }
         // Entries MUST be evicted in the order they were added:
         //   the newer the entry the later it is evicted
         for (int k = 1; k <= NUM_HEADERS; k++) {
             SimpleHeaderTable.HeaderField f = table.evictEntry();
-            assertEquals(String.valueOf(k), f.name);
+            assertEquals(f.name, String.valueOf(k));
         }
     }
 
@@ -257,7 +257,7 @@ public class SimpleHeaderTableTest {
         Locale.setDefault(Locale.FRENCH);
         try {
             String s = format("%.1f", 3.1);
-            assertEquals("3,1", s); // assumption of the test, otherwise the test is useless
+            assertEquals(s, "3,1"); // assumption of the test, otherwise the test is useless
             testToString0();
         } finally {
             Locale.setDefault(locale);
@@ -272,7 +272,7 @@ public class SimpleHeaderTableTest {
             String expected = format(
                     "dynamic length: %s, full length: %s, used space: %s/%s (%.1f%%)",
                     0, STATIC_TABLE_LENGTH, 0, maxSize, 0.0);
-            assertEquals(expected, table.toString());
+            assertEquals(table.toString(), expected);
         }
 
         {
@@ -290,7 +290,7 @@ public class SimpleHeaderTableTest {
             String expected = format(
                     "dynamic length: %s, full length: %s, used space: %s/%s (%.1f%%)",
                     1, STATIC_TABLE_LENGTH + 1, used, size, ratio);
-            assertEquals(expected, s);
+            assertEquals(s, expected);
         }
 
         {
@@ -301,7 +301,7 @@ public class SimpleHeaderTableTest {
             String expected =
                     format("dynamic length: %s, full length: %s, used space: %s/%s (%.1f%%)",
                            2, STATIC_TABLE_LENGTH + 2, 78, 78, 100.0);
-            assertEquals(expected, s);
+            assertEquals(s, expected);
         }
     }
 
@@ -310,8 +310,9 @@ public class SimpleHeaderTableTest {
         SimpleHeaderTable table = createHeaderTable(256);
         table.put("custom-key", "custom-header");
         // @formatter:off
-        assertEquals("[  1] (s =  55) custom-key: custom-header\n" +
-                     "      Table size:  55", table.getStateString());
+        assertEquals(table.getStateString(),
+                     "[  1] (s =  55) custom-key: custom-header\n" +
+                     "      Table size:  55");
         // @formatter:on
     }
 

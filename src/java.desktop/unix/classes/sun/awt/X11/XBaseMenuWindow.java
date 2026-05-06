@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,6 +114,8 @@ public abstract class XBaseMenuWindow extends XWindow {
     protected Point grabInputPoint = null;
     protected boolean hasPointerMoved = false;
 
+    private AppContext disposeAppContext;
+
     /************************************************
      *
      * Mapping data
@@ -173,6 +175,8 @@ public abstract class XBaseMenuWindow extends XWindow {
     XBaseMenuWindow() {
         super(new XCreateWindowParams(new Object[] {
             DELAYED, Boolean.TRUE}));
+
+        disposeAppContext = AppContext.getAppContext();
     }
 
     /************************************************
@@ -916,7 +920,7 @@ public abstract class XBaseMenuWindow extends XWindow {
     public void dispose() {
         setDisposed(true);
 
-        SunToolkit.invokeLater(new Runnable()  {
+        SunToolkit.invokeLaterOnAppContext(disposeAppContext, new Runnable()  {
             public void run() {
                 doDispose();
             }

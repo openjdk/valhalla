@@ -34,6 +34,7 @@ import java.util.Arrays;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
 import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
@@ -158,11 +159,6 @@ public class TestIntrinsics {
     private static final boolean UseFieldFlattening = WHITEBOX.getBooleanVMFlag("UseFieldFlattening");
     private static final boolean PreloadClasses = WHITEBOX.getBooleanVMFlag("PreloadClasses");
 
-    public TestIntrinsics() {
-        test24_vt = MyValue1.createWithFieldsInline(rI, rL);
-        super();
-    }
-
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
@@ -174,7 +170,8 @@ public class TestIntrinsics {
                    .addFlags("-Xbootclasspath/a:.", "-XX:+UnlockDiagnosticVMOptions", "-XX:+WhiteBoxAPI",
                              "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                             "-XX:+UseAltSubstitutabilityMethod")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
@@ -329,7 +326,7 @@ public class TestIntrinsics {
     public void test10_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test10(MyValue1.class, vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
     }
 
     @Test
@@ -356,7 +353,7 @@ public class TestIntrinsics {
     public void test12_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test12(vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
     }
 
     @Test
@@ -505,6 +502,24 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
+    MyValue1 test22_vt;
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public void test22(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        test22_vt = v;
+    }
+
+    @Run(test = "test22")
+    public void test22_verifier() {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        test22(v.setX(v, 0));
+        Asserts.assertEQ(test22_vt.hash(), v.hash());
+    }
+
     @Test
     @IR(failOn = {CALL_UNSAFE})
     public int test23(MyValue1 v, long offset) {
@@ -518,8 +533,9 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
+    @Strict
     @NullRestricted
-    MyValue1 test24_vt;
+    MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
     @Test
     @IR(failOn = {CALL_UNSAFE})
@@ -597,10 +613,10 @@ public class TestIntrinsics {
     public void test27_verifier() {
         test27_vt = null;
         MyValue1 res = test27();
-        Asserts.assertEQ(null, res);
+        Asserts.assertEQ(res, null);
         test27_vt = MyValue1.createWithFieldsInline(rI, rL);
         res = test27();
-        Asserts.assertEQ(test27_vt, res);
+        Asserts.assertEQ(res.hash(), test24_vt.hash());
     }
 
     // Mismatched type
@@ -666,7 +682,7 @@ public class TestIntrinsics {
     public void test30_verifier(RunInfo info) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2 res = test30(v);
-        Asserts.assertEQ(v.v1, res);
+        Asserts.assertEQ(res.hash(), v.v1.hash());
     }
 
     MyValue1 test31_vt;
@@ -698,7 +714,7 @@ public class TestIntrinsics {
     public void test31_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test31();
-        Asserts.assertEQ(test31_vt, res);
+        Asserts.assertEQ(res.hash(), test31_vt.hash());
     }
 
     // putValue to set flattened field in object
@@ -717,7 +733,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test32(vt);
-        Asserts.assertEQ(vt, test31_vt);
+        Asserts.assertEQ(vt.hash(), test31_vt.hash());
     }
 
     private static final long TEST33_BASE_OFFSET;
@@ -751,7 +767,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         TEST33_ARRAY[1] = vt;
         MyValue1 res = test33();
-        Asserts.assertEQ(vt, res);
+        Asserts.assertEQ(res.hash(), vt.hash());
     }
 
     // putValue to set flattened field in array
@@ -769,7 +785,7 @@ public class TestIntrinsics {
     public void test34_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test34(vt);
-        Asserts.assertEQ(vt, TEST33_ARRAY[1]);
+        Asserts.assertEQ(TEST33_ARRAY[1].hash(), vt.hash());
     }
 
     // getValue to retrieve flattened field from object with unknown
@@ -787,7 +803,7 @@ public class TestIntrinsics {
     public void test35_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test35(this);
-        Asserts.assertEQ(test31_vt, res);
+        Asserts.assertEQ(res.hash(), test31_vt.hash());
     }
 
     // getValue to retrieve flattened field from object at unknown
@@ -805,7 +821,7 @@ public class TestIntrinsics {
     public void test36_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test36(TEST31_VT_OFFSET);
-        Asserts.assertEQ(test31_vt, res);
+        Asserts.assertEQ(res.hash(), test31_vt.hash());
     }
 
     // putValue to set flattened field in object with unknown
@@ -825,7 +841,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test37(this, vt);
-        Asserts.assertEQ(vt, test31_vt);
+        Asserts.assertEQ(vt.hash(), test31_vt.hash());
     }
 
     // putValue to set flattened field in object, non inline argument
@@ -845,7 +861,23 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test38(vt);
-        Asserts.assertEQ(vt, test31_vt);
+        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public MyValue1 test39(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        return v;
+    }
+
+    @Run(test = "test39")
+    public void test39_verifier() {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 res = test39(v.setX(v, 0));
+        Asserts.assertEQ(res.hash(), v.hash());
     }
 
     // Test value class array creation via reflection
@@ -951,9 +983,9 @@ public class TestIntrinsics {
     public void test45_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test45(vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test45(null);
-        Asserts.assertEQ(null, result);
+        Asserts.assertEQ(result, null);
     }
 
     @Test
@@ -982,9 +1014,9 @@ public class TestIntrinsics {
     public void test47_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test47(vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test47(null);
-        Asserts.assertEQ(null, result);
+        Asserts.assertEQ(result, null);
     }
 
     @Test
@@ -996,9 +1028,9 @@ public class TestIntrinsics {
     public void test48_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test48(MyValue1.class, vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test48(MyValue1.class, null);
-        Asserts.assertEQ(null, result);
+        Asserts.assertEQ(result, null);
     }
 
     @Test
@@ -1010,7 +1042,7 @@ public class TestIntrinsics {
     public void test49_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test49(vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
     }
 
     @Test
@@ -1024,19 +1056,19 @@ public class TestIntrinsics {
         MyValue1[] va  = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         MyValue1[] vba = new MyValue1[42];
         Object result = test50(MyValue1.class, vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test50(MyValue1.class, vt);
-        Asserts.assertEQ(vt, result);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test50(MyValue1[].class, va);
-        Asserts.assertEQ(va, result);
+        Asserts.assertEQ(result, va);
         result = test50(MyValue1[].class, vba);
-        Asserts.assertEQ(vba, result);
+        Asserts.assertEQ(result, vba);
         result = test50(MyValue1[].class, va);
-        Asserts.assertEQ(va, result);
+        Asserts.assertEQ(result, va);
         result = test50(MyValue1.class, null);
-        Asserts.assertEQ(null, result);
+        Asserts.assertEQ(result, null);
         result = test50(va.getClass(), vba);
-        Asserts.assertEQ(vba, result);
+        Asserts.assertEQ(result, vba);
     }
 
     // Value class array creation via reflection
@@ -1129,6 +1161,7 @@ public class TestIntrinsics {
         test53(MyValue1[].class, MyValue1[].class, len, 4);
     }
 
+    @Strict
     @NullRestricted
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1145,7 +1178,7 @@ public class TestIntrinsics {
     @Run(test = "test55")
     public void test55_verifier() {
         MyValue2 res = test55();
-        Asserts.assertEQ(test55_vt.v1, res);
+        Asserts.assertEQ(res.hash(), test55_vt.v1.hash());
     }
 
     // Test OptimizePtrCompare part of Escape Analysis
@@ -1592,6 +1625,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
     }
 
+    @Strict
     @NullRestricted
     static final MyValue1 test73_value1 = MyValue1.createWithFieldsInline(rI, rL);
     static final MyValue1 test73_value2 = MyValue1.createWithFieldsInline(rI+1, rL+1);
@@ -1722,6 +1756,7 @@ public class TestIntrinsics {
 
     @LooselyConsistentValue
     public static value class Test80Value1 {
+        @Strict
         @NullRestricted
         Test80Value2 v = new Test80Value2();
     }
@@ -1777,7 +1812,7 @@ public class TestIntrinsics {
     // Test correctness of the ValueClass::isFlatArray intrinsic
     @Test
     @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
-    public boolean test81(Object[] array) {
+    public boolean test81(Object array) {
         return ValueClass.isFlatArray(array);
     }
 
@@ -1788,9 +1823,12 @@ public class TestIntrinsics {
         Asserts.assertEQ(test81(TEST_ARRAY3), TEST_ARRAY3_IS_FLAT, "test81_3 failed");
         Asserts.assertEQ(test81(TEST_ARRAY4), TEST_ARRAY4_IS_FLAT, "test81_4 failed");
         Asserts.assertFalse(test81(new String[0]), "test81_5 failed");
+        Asserts.assertFalse(test81("test"), "test81_6 failed");
+        Asserts.assertFalse(test81(new int[0]), "test81_7 failed");
     }
 
     // Verify that ValueClass::isFlatArray checks with statically known classes are folded
+  /* FIX: JDK-8374116
     @Test
     @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
     public boolean test82() {
@@ -1811,14 +1849,16 @@ public class TestIntrinsics {
             check4 = !check4;
         }
         boolean check5 = !ValueClass.isFlatArray(new String[0]);
-        return check1 && check2 && check3 && check4 && check5;
+        boolean check6 = !ValueClass.isFlatArray("test");
+        boolean check7 = !ValueClass.isFlatArray(new int[0]);
+        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
     }
 
     @Run(test = "test82")
     public void test82_verifier() {
         Asserts.assertTrue(test82(), "test82 failed");
     }
-
+  */
     // Test that LibraryCallKit::arraycopy_move_allocation_here works as expected
     @Test
     public MyValue1 test83(Object[] src) {
@@ -1842,6 +1882,27 @@ public class TestIntrinsics {
             }
         }
     }
+
+    /* TODO: 8322547: Unsafe::putInt checks the larval bit which leads to a VM crash
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public MyValue1 test84(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        for (int i = 0; i < 10; i++) {
+            U.putInt(v, X_OFFSET, i);
+        }
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        return v;
+    }
+
+    @Run(test = "test84")
+    public void test84_verifier() {
+        MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 v2 = test84(MyValue1.setX(v1, 0));
+        Asserts.assertEQ(v1.hash(), v2.hash());
+    }
+    */
 
     static value class MyValueClonable implements Cloneable {
         int x;
@@ -1875,7 +1936,7 @@ public class TestIntrinsics {
     // Test correctness of the ValueClass::isNullRestrictedArray intrinsic
     @Test
     @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray"})
-    public boolean test85(Object[] array) {
+    public boolean test85(Object array) {
         return ValueClass.isNullRestrictedArray(array);
     }
 
@@ -1886,6 +1947,8 @@ public class TestIntrinsics {
         Asserts.assertEQ(test85(TEST_ARRAY3), TEST_ARRAY3_IS_NULL_RESTRICTED, "test85_3 failed");
         Asserts.assertEQ(test85(TEST_ARRAY4), TEST_ARRAY4_IS_NULL_RESTRICTED, "test85_4 failed");
         Asserts.assertFalse(test85(new String[0]), "test85_5 failed");
+        Asserts.assertFalse(test85("test"), "test85_6 failed");
+        Asserts.assertFalse(test85(new int[0]), "test85_7 failed");
     }
 
     // Verify that ValueClass::isNullRestrictedArray checks with statically known classes are folded
@@ -1909,7 +1972,9 @@ public class TestIntrinsics {
             check4 = !check4;
         }
         boolean check5 = !ValueClass.isNullRestrictedArray(new String[0]);
-        return check1 && check2 && check3 && check4 && check5;
+        boolean check6 = !ValueClass.isNullRestrictedArray("test");
+        boolean check7 = !ValueClass.isNullRestrictedArray(new int[0]);
+        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
     }
 
     @Run(test = "test86")
@@ -1921,7 +1986,7 @@ public class TestIntrinsics {
     @Test
     // TODO 8350865 Implemented intrinsic
     // @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray"})
-    public boolean test87(Object[] array) {
+    public boolean test87(Object array) {
         return ValueClass.isAtomicArray(array);
     }
 
@@ -1932,6 +1997,8 @@ public class TestIntrinsics {
         Asserts.assertEQ(test87(TEST_ARRAY3), TEST_ARRAY3_IS_ATOMIC, "test87_3 failed");
         Asserts.assertEQ(test87(TEST_ARRAY4), TEST_ARRAY4_IS_ATOMIC, "test87_4 failed");
         Asserts.assertTrue(test87(new String[0]), "test87_5 failed");
+        Asserts.assertFalse(test87("test"), "test87_6 failed");
+        Asserts.assertFalse(test87(new int[0]), "test87_7 failed");
     }
 
     // Verify that ValueClass::isAtomicArray checks with statically known classes are folded
@@ -1956,7 +2023,9 @@ public class TestIntrinsics {
             check4 = !check4;
         }
         boolean check5 = ValueClass.isAtomicArray(new String[0]);
-        return check1 && check2 && check3 && check4 && check5;
+        boolean check6 = !ValueClass.isAtomicArray("test");
+        boolean check7 = !ValueClass.isAtomicArray(new int[0]);
+        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
     }
 
     @Run(test = "test88")
@@ -2101,29 +2170,5 @@ public class TestIntrinsics {
             test96ExpectedResult = test96(v);
         }
         Asserts.assertEQ(test96(v), test96ExpectedResult);
-    }
-
-    static class Empty {
-    }
-
-    static Object[] oEmptyArr = new Empty[100];
-    static Empty emptyFld = new Empty();
-    static int iFld;
-
-    @Test
-    static Object testClassCast() {
-        Object[] o = oEmptyArr;
-        Object o2 = emptyFld.getClass().cast(o[2]);
-        iFld = o.length;
-
-        // Will assert earlier when building the loop tree. Otherwise, we will only fail in matching without this line.
-        for (int i = 0; i < 100; i++) {}
-
-        return o;
-    }
-
-    @Run(test = "testClassCast")
-    static void testClassCast_verifier() {
-        testClassCast();
     }
 }

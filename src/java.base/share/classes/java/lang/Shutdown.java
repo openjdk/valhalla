@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,10 +55,11 @@ class Shutdown {
     private static int currentRunningHook = -1;
 
     /* The preceding static fields are protected by this lock */
-    private static final Object lock = new Object();
+    private static class Lock { };
+    private static Object lock = new Lock();
 
     /* Lock object for the native halt method */
-    private static final Object haltLock = new Object();
+    private static Object haltLock = new Lock();
 
     /**
      * Add a new system shutdown hook.  Checks the shutdown state and

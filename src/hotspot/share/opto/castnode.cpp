@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Push cast through InlineTypeNode
   InlineTypeNode* vt = in(1)->isa_InlineType();
-  if (vt != nullptr && vt->is_allocated(phase)) {
+  if (vt != nullptr && phase->type(vt)->filter_speculative(_type) != Type::TOP) {
     Node* cast = clone();
     cast->set_req(1, vt->get_oop());
     vt = vt->clone()->as_InlineType();
@@ -225,11 +225,6 @@ bool ConstraintCastNode::higher_equal_types(PhaseGVN* phase, const Node* other) 
   return true;
 }
 
-Node* ConstraintCastNode::pin_node_under_control_impl() const {
-  assert(_dependency.is_floating(), "already pinned");
-  return make_cast_for_type(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _extra_types);
-}
-
 #ifndef PRODUCT
 void ConstraintCastNode::dump_spec(outputStream *st) const {
   TypeNode::dump_spec(st);
@@ -300,9 +295,12 @@ void CastIINode::dump_spec(outputStream* st) const {
 }
 #endif
 
-CastIINode* CastIINode::pin_node_under_control_impl() const {
+CastIINode* CastIINode::pin_array_access_node() const {
   assert(_dependency.is_floating(), "already pinned");
-  return new CastIINode(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _range_check_dependency, _extra_types);
+  if (has_range_check()) {
+    return new CastIINode(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), has_range_check());
+  }
+  return nullptr;
 }
 
 void CastIINode::remove_range_check_cast(Compile* C) {
@@ -412,8 +410,8 @@ Node* CastLLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     if (t != Type::TOP && t_in != Type::TOP) {
       const TypeLong* tl = t->is_long();
       const TypeLong* t_in_l = t_in->is_long();
-      assert(t_in_l->contains(tl), "CastLL type should be narrower than or equal to the type of its input");
-      assert((tl != t_in_l) == t_in_l->strictly_contains(tl), "if type differs then this nodes's type must be narrower");
+      assert(tl->_lo >= t_in_l->_lo && tl->_hi <= t_in_l->_hi, "CastLL type should be narrower than or equal to the type of its input");
+      assert((tl != t_in_l) == (tl->_lo > t_in_l->_lo || tl->_hi < t_in_l->_hi), "if type differs then this nodes's type must be narrower");
       if (tl != t_in_l) {
         const TypeInt* ti = TypeInt::make(checked_cast<jint>(tl->_lo), checked_cast<jint>(tl->_hi), tl->_widen);
         Node* castii = phase->transform(new CastIINode(in(0), in1->in(1), ti));
@@ -439,43 +437,6 @@ Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
     return in(1);
   }
   return ConstraintCastNode::Identity(phase);
-}
-
-// CastPPNodes are removed before matching, while alias classes are needed in global code motion.
-// As a result, it is not valid for a CastPPNode to change the oop such that the derived pointers
-// lie in different alias classes with and without the node. For example, a CastPPNode c may not
-// cast an Object to a Bottom[], because later removal of c would affect the alias class of c's
-// array length field (c + arrayOopDesc::length_offset_in_bytes()).
-//
-// This function verifies that a CastPPNode on an oop does not violate the aforementioned property.
-//
-// TODO 8382147: Currently, this verification only applies during the construction of a CastPPNode,
-// we may want to apply the same verification during IGVN transformations, as well as final graph
-// reshaping.
-void CastPPNode::verify_type(const Type* in_type, const Type* out_type) {
-#ifdef ASSERT
-  out_type = out_type->join(in_type);
-  if (in_type->empty() || out_type->empty()) {
-    return;
-  }
-  if (in_type == TypePtr::NULL_PTR || out_type == TypePtr::NULL_PTR) {
-    return;
-  }
-  if (!in_type->isa_oopptr() && !out_type->isa_oopptr()) {
-    return;
-  }
-
-  assert(in_type->isa_oopptr() && out_type->isa_oopptr(), "must be both oops or both non-oops");
-  if (in_type->isa_aryptr() && out_type->isa_aryptr()) {
-    const Type* e1 = in_type->is_aryptr()->elem();
-    const Type* e2 = out_type->is_aryptr()->elem();
-    assert(e1->basic_type() == e2->basic_type(), "must both be arrays of the same primitive type or both be oops arrays");
-    return;
-  }
-
-  assert(in_type->isa_instptr() && out_type->isa_instptr(), "must be both array oops or both non-array oops");
-  assert(in_type->is_instptr()->instance_klass() == out_type->is_instptr()->instance_klass(), "must not cast to a different type");
-#endif // ASSERT
 }
 
 //------------------------------Value------------------------------------------
@@ -515,11 +476,6 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
   return result;
 }
 
-Node* CheckCastPPNode::pin_node_under_control_impl() const {
-  assert(_dependency.is_floating(), "already pinned");
-  return new CheckCastPPNode(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _extra_types);
-}
-
 //=============================================================================
 //------------------------------Value------------------------------------------
 const Type* CastX2PNode::Value(PhaseGVN* phase) const {
@@ -550,7 +506,9 @@ static inline Node* addP_of_X2P(PhaseGVN *phase,
   if (negate) {
     dispX = phase->transform(new SubXNode(phase->MakeConX(0), dispX));
   }
-  return AddPNode::make_off_heap(phase->transform(new CastX2PNode(base)), dispX);
+  return new AddPNode(phase->C->top(),
+                      phase->transform(new CastX2PNode(base)),
+                      dispX);
 }
 
 Node *CastX2PNode::Ideal(PhaseGVN *phase, bool can_reshape) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,34 +31,34 @@ import jdk.internal.vm.ContinuationSupport;
  * Default PollerProvider for Linux.
  */
 class DefaultPollerProvider extends PollerProvider {
-    DefaultPollerProvider(Poller.Mode mode) {
-        super(mode);
-    }
+    DefaultPollerProvider() { }
 
-    DefaultPollerProvider() {
-        var mode = ContinuationSupport.isSupported()
-                ? Poller.Mode.VTHREAD_POLLERS
-                : Poller.Mode.SYSTEM_THREADS;
-        this(mode);
+    @Override
+    Poller.Mode defaultPollerMode() {
+        if (ContinuationSupport.isSupported()) {
+            return Poller.Mode.VTHREAD_POLLERS;
+        } else {
+            return Poller.Mode.SYSTEM_THREADS;
+        }
     }
 
     @Override
-    int defaultReadPollers() {
+    int defaultReadPollers(Poller.Mode mode) {
         int ncpus = Runtime.getRuntime().availableProcessors();
-        return switch (pollerMode()) {
-            case SYSTEM_THREADS  -> Math.max(Integer.highestOneBit(ncpus / 4), 1);
-            case VTHREAD_POLLERS -> Math.min(Integer.highestOneBit(ncpus), 32);
-            default              -> super.defaultReadPollers();
-        };
+        if (mode == Poller.Mode.VTHREAD_POLLERS) {
+            return Math.min(Integer.highestOneBit(ncpus), 32);
+        } else {
+            return Math.max(Integer.highestOneBit(ncpus / 4), 1);
+        }
     }
 
     @Override
     Poller readPoller(boolean subPoller) throws IOException {
-        return new EPollPoller(pollerMode(), subPoller, true);
+        return new EPollPoller(subPoller, true);
     }
 
     @Override
     Poller writePoller(boolean subPoller) throws IOException {
-        return new EPollPoller(pollerMode(), subPoller, false);
+        return new EPollPoller(subPoller, false);
     }
 }

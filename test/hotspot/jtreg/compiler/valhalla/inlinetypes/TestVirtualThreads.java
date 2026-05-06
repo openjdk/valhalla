@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
  * @summary Test that Virtual Threads work well with Value Objects.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -43,8 +42,8 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                               -Xbatch -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                   -Xbatch -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
+ *                   compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -57,7 +56,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ *                                compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -115,7 +114,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -128,7 +127,7 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -143,7 +142,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::test*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                                compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -158,7 +157,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=dontinline,*::*Helper
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -173,7 +172,7 @@
  *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::test*
  *                               -XX:CompileCommand=exclude,*::*Helper
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
  */
 
 /*
@@ -187,7 +186,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                                compiler.valhalla.inlinetypes.TestVirtualThreads 250000
  */
 
 /*
@@ -201,7 +200,7 @@
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xcomp -XX:CompileCommand=dontinline,*::*
  *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestVirtualThreads*::*
- *                               compiler.valhalla.inlinetypes.TestVirtualThreads 50000
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
  */
 
 package compiler.valhalla.inlinetypes;
@@ -225,7 +224,6 @@ public class TestVirtualThreads {
     static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
     static final Random RAND = Utils.getRandomInstance();
     static final int PARK_DURATION = 10;
-    static final boolean EXCLUDE_RANDOM = false; // Randomly exclude methods from compilation (very slow!)
 
     static value class SmallValue {
         int x1;
@@ -776,8 +774,13 @@ public class TestVirtualThreads {
     }
 
     public static void main(String[] args) throws Exception {
+        // TODO 8367258
+        if (WHITE_BOX.getBooleanVMFlag("SafepointALot") || WHITE_BOX.getBooleanVMFlag("DeoptimizeALot") || WHITE_BOX.getBooleanVMFlag("DeoptimizeNMethodBarriersALot")) {
+            return;
+        }
+
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
-        if (EXCLUDE_RANDOM && Utils.getRandomInstance().nextBoolean()) {
+        if (Utils.getRandomInstance().nextBoolean()) {
             ArrayList<Method> methods = new ArrayList<Method>();
             Collections.addAll(methods, SmallValue.class.getDeclaredMethods());
             Collections.addAll(methods, LargeValue.class.getDeclaredMethods());
@@ -814,9 +817,10 @@ public class TestVirtualThreads {
         CountDownLatch cdlPlatform = new CountDownLatch(1);
         CountDownLatch cdlVirtual = new CountDownLatch(1);
         startTest(cdlPlatform, Thread.ofPlatform(), iterations);
-        startTest(cdlVirtual, Thread.ofVirtual(), iterations);
+        // TODO: Disabling virtual threads until JDK-8370177 is fixed.
+//        startTest(cdlVirtual, Thread.ofVirtual(), iterations);
         cdlPlatform.await();
-        cdlVirtual.await();
+//        cdlVirtual.await();
     }
 }
 

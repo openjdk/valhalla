@@ -27,10 +27,8 @@ package nsk.share.gc;
  *  An object that occupies approximately given number of bytes in memory.
  */
 public class MemoryObject {
-        private final static int diff = Memory.getObjectExtraSize() + Memory.getIntSize();
-        private final int size;
-        private final Object storage;
-
+        private static int diff = (int) Memory.getObjectExtraSize();
+        private byte storage[];
 
         /**
          *  Create an object that occupies given number of bytes.
@@ -38,20 +36,15 @@ public class MemoryObject {
          *  @param size size
          */
         public MemoryObject(int size) {
-            if (size > diff) {
-                int memory = (size - diff);
-                if (Memory.isValhallaEnabled()) {
-                    storage = new Integer[Memory.getArrayLength(memory, Memory.getIntegerArrayElementSize())];
-                } else {
-                    storage = new int[Memory.getArrayLength(memory, Memory.getIntSize())];
-                }
-           } else {
-                storage = new int[0];
-           }
-           this.size = size;
+                if (size > diff)
+                        storage = new byte[size - diff];
+        }
+
+        public final byte[] getStorage() {
+                return storage;
         }
 
         public final int getSize() {
-                return size;
+                return storage.length;
         }
 }

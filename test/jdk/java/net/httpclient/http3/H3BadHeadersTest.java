@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,17 @@
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters
  *        jdk.test.lib.net.SimpleSSLContext
  * @compile ../ReferenceTracker.java
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true H3BadHeadersTest
  * @summary this test verifies the behaviour of the HttpClient when presented
  *          with bad headers
  */
 
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,17 +57,10 @@ import java.util.concurrent.ExecutionException;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.util.List.of;
 import static java.util.Map.entry;
-
-import org.junit.jupiter.api.AfterAll;
-
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 
 public class H3BadHeadersTest implements HttpServerAdapters  {
 
@@ -78,14 +75,15 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
 
     static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3 only )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2 + h3 )
-    private static String http3URI;
-    private static String https2URI;
+    SSLContext sslContext;
+    HttpTestServer http3TestServer;   // HTTP/3 ( h3 only )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2 + h3 )
+    String http3URI;
+    String https2URI;
 
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         return new Object[][] {
                 { http3URI,  false},
                 { https2URI, false},
@@ -95,8 +93,7 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
     }
 
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void test(String uri,
               boolean sameClient)
         throws Exception
@@ -129,8 +126,8 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
                         .HEAD().setOption(H3_DISCOVERY, config).build();
                 System.out.println("\nSending HEAD request: " + head);
                 var headResponse = client.send(head, BodyHandlers.ofString());
-                assertEquals(200, headResponse.statusCode());
-                assertEquals(Version.HTTP_2, headResponse.version());
+                assertEquals(headResponse.statusCode(), 200);
+                assertEquals(headResponse.version(), Version.HTTP_2);
             }
 
             URI uriWithQuery = URI.create(uri +  "?BAD_HEADERS=" + i);
@@ -166,8 +163,7 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
         System.err.printf("%ntest %s, %s, DONE%n%n", uri, sameClient);
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void testAsync(String uri,
                    boolean sameClient) throws Exception
     {
@@ -203,8 +199,8 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
                 System.out.println("\nSending HEAD request: " + head);
 
                 var headResponse = client.send(head, BodyHandlers.ofString());
-                assertEquals(200, headResponse.statusCode());
-                assertEquals(Version.HTTP_2, headResponse.version());
+                assertEquals(headResponse.statusCode(), 200);
+                assertEquals(headResponse.version(), Version.HTTP_2);
             }
 
             URI uriWithQuery = URI.create(uri +  "?BAD_HEADERS=" + i);
@@ -250,7 +246,8 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
     // sync with implementation.
     static void assertDetailMessage(Throwable throwable, int iterationIndex) {
         try {
-            assertInstanceOf(IOException.class, throwable, "Expected IOException, got, " + throwable);
+            assertTrue(throwable instanceof IOException,
+                    "Expected IOException, got, " + throwable);
             assertNotNull(throwable.getMessage(), "No message for " + throwable);
             assertTrue(throwable.getMessage().contains("malformed response"),
                     "Expected \"malformed response\" in: " + throwable.getMessage());
@@ -272,9 +269,13 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
         }
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         System.out.println("creating servers");
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         http3TestServer =  HttpTestServer.create(Http3DiscoveryMode.HTTP_3_URI_ONLY, sslContext);
         http3TestServer.addHandler(new BadHeadersHandler(), "/http3/echo");
         http3URI = "https://" + http3TestServer.serverAuthority() + "/http3/echo";
@@ -288,8 +289,8 @@ public class H3BadHeadersTest implements HttpServerAdapters  {
         System.out.println("server started");
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         System.err.println("\n\n**** stopping servers\n");
         System.out.println("stopping servers");
         http3TestServer.stop();

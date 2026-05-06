@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8300857 8379156
+ * @bug 8300857
  * @summary Test Types.asElement in cases specified to return null
  * @library /tools/javac/lib
  * @build   JavacTestingAbstractProcessor TestAsElement
@@ -55,23 +55,18 @@ public class TestAsElement extends JavacTestingAbstractProcessor {
     }
 
     private void testNullCases() {
-        // Test all primitive types and arrays of primitive types
+        // Test all primitive types
         for (TypeKind typeKind : TypeKind.values()) {
             if (typeKind.isPrimitive() ) {
-                var primType = typeUtils.getPrimitiveType(typeKind);
-                expectNullAsElement(primType);
-                expectNullAsElement(typeUtils.getArrayType(primType));
+                expectNullAsElement(typeUtils.getPrimitiveType(typeKind));
             }
         }
         expectNullAsElement(typeUtils.getNoType(TypeKind.VOID));
         expectNullAsElement(typeUtils.getNoType(TypeKind.NONE));
         expectNullAsElement(typeUtils.getNullType());
 
-        Element    objectElement = eltUtils.getTypeElement("java.lang.Object");
-        TypeMirror objectType    = objectElement.asType();
-        expectNullAsElement(typeUtils.getWildcardType(objectType, null));
-        // check Object[]
-        expectNullAsElement(typeUtils.getArrayType(objectType));
+        Element objectElement = eltUtils.getTypeElement("java.lang.Object");
+        expectNullAsElement(typeUtils.getWildcardType(objectElement.asType(), null));
 
         // Loop over the ExecutableTypes for Object's methods
         for(var methodElt : ElementFilter.methodsIn(objectElement.getEnclosedElements())) {

@@ -23,32 +23,32 @@
 
 package catalog;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static catalog.CatalogTestUtils.catalogResolver;
+import static catalog.ResolutionChecker.checkPubIdResolution;
+import static catalog.ResolutionChecker.expectExceptionOnPubId;
 
 import javax.xml.catalog.CatalogException;
 import javax.xml.catalog.CatalogResolver;
 
-import static catalog.CatalogTestUtils.catalogResolver;
-import static catalog.ResolutionChecker.checkPubIdResolution;
-import static catalog.ResolutionChecker.expectExceptionOnPubId;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.DelegatePublicTest
+ * @run testng/othervm catalog.DelegatePublicTest
  * @summary Get matched URIs from DelegatePublic entries.
  */
 public class DelegatePublicTest {
 
-    @ParameterizedTest
-    @MethodSource("dataOnMatch")
+    @Test(dataProvider = "publicId-matchedUri")
     public void testMatch(String publicId, String matchedUri) {
         checkPubIdResolution(createResolver(), publicId, matchedUri);
     }
 
-    public static Object[][] dataOnMatch() {
+    @DataProvider(name = "publicId-matchedUri")
+    public Object[][] dataOnMatch() {
         return new Object[][] {
                 // The matched URI of the specified public id is defined in
                 // a delegate catalog file of the current catalog file.
@@ -71,15 +71,15 @@ public class DelegatePublicTest {
                         "http://local/base/dtd/carl/docCarlPub.dtd" } };
     }
 
-    @ParameterizedTest
-    @MethodSource("dataOnException")
+    @Test(dataProvider = "publicId-expectedExceptionClass")
     public void testException(String publicId,
             Class<? extends Throwable> expectedExceptionClass) {
         expectExceptionOnPubId(createResolver(), publicId,
                 expectedExceptionClass);
     }
 
-    public static Object[][] dataOnException() {
+    @DataProvider(name = "publicId-expectedExceptionClass")
+    public Object[][] dataOnException() {
         return new Object[][] {
                 // The matched delegatePublic entry of the specified public id
                 // defines a non-existing delegate catalog file. That should
@@ -93,7 +93,7 @@ public class DelegatePublicTest {
                         CatalogException.class } };
     }
 
-    private static CatalogResolver createResolver() {
+    private CatalogResolver createResolver() {
         return catalogResolver("delegatePublic.xml");
     }
 }

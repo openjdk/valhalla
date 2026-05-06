@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -394,9 +394,9 @@ public class TestNullableArrays {
             for (int j = 0; j < 3; j++) {
                 for (int k = 0; k < 4; k++) {
                     if (k == 0) {
-                        Asserts.assertEQ(null, arr[i][j][k]);
+                        Asserts.assertEQ(arr[i][j][k], null);
                     } else {
-                        Asserts.assertEQ(MyValue1.createWithFieldsDontInline(rI + i , rL + j + k), arr[i][j][k]);
+                        Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i , rL + j + k).hash());
                     }
                     arr[i][j][k] = null;
                 }
@@ -607,7 +607,7 @@ public class TestNullableArrays {
             Asserts.assertEQ(result1[0], null);
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(va1[i], result1[i]);
+            Asserts.assertEQ(result1[i].hash(), va1[i].hash());
         }
         // make sure we do deopt: GraphKit::new_array assumes an
         // array of references
@@ -615,13 +615,13 @@ public class TestNullableArrays {
             MyValue1[] result2 = test18(va2);
 
             for (int i = 0; i < len; ++i) {
-                Asserts.assertEQ(va2[i], result2[i]);
+                Asserts.assertEQ(result2[i].hash(), va2[i].hash());
             }
         }
         if (compile_and_run_again_if_deoptimized(info)) {
             MyValue1[] result2 = test18(va2);
             for (int i = 0; i < len; ++i) {
-                Asserts.assertEQ(va2[i], result2[i]);
+                Asserts.assertEQ(result2[i].hash(), va2[i].hash());
             }
         }
     }
@@ -645,7 +645,7 @@ public class TestNullableArrays {
         MyValue1[] result = test19();
         Asserts.assertEQ(result[0], null);
         for (int i = 1; i < test19_orig.length; ++i) {
-            Asserts.assertEQ(test19_orig[i], result[i]);
+            Asserts.assertEQ(result[i].hash(), test19_orig[i].hash());
         }
     }
 
@@ -680,16 +680,16 @@ public class TestNullableArrays {
         test20(src3, dst3);
         test20(src4, dst4);
         if (len > 0) {
-            Asserts.assertEQ(null, dst1[0]);
-            Asserts.assertEQ(src2[0], dst2[0]);
-            Asserts.assertEQ(src3[0], dst3[0]);
-            Asserts.assertEQ(src4[0], dst4[0]);
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+            Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+            Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
-            Asserts.assertEQ(src3[i], dst3[i]);
-            Asserts.assertEQ(src4[i], dst4[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -724,16 +724,16 @@ public class TestNullableArrays {
         test21(src3, dst3);
         test21(src4, dst4);
         if (len > 0) {
-            Asserts.assertEQ(null, dst1[0]);
-            Asserts.assertEQ(src2[0], dst2[0]);
-            Asserts.assertEQ(src3[0], dst3[0]);
-            Asserts.assertEQ(src4[0], dst4[0]);
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+            Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+            Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
-            Asserts.assertEQ(src3[i], dst3[i]);
-            Asserts.assertEQ(src4[i], dst4[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -758,12 +758,12 @@ public class TestNullableArrays {
         MyValue1[] dst1 = test22(src1);
         MyValue1[] dst2 = test22(src2);
         if (len > 0) {
-            Asserts.assertEQ(null, dst1[0]);
-            Asserts.assertEQ(MyValue1.createDefaultInline(), dst2[0]);
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
         }
     }
 
@@ -788,12 +788,12 @@ public class TestNullableArrays {
         MyValue1[] dst1 = test23(src1);
         MyValue1[] dst2 = test23(src2);
         for (int i = 0; i < 5; ++i) {
-            Asserts.assertEQ(null, dst1[i]);
-            Asserts.assertEQ(null, dst2[i]);
+            Asserts.assertEQ(dst1[i], null);
+            Asserts.assertEQ(dst2[i], null);
         }
         for (int i = 5; i < len; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
         }
     }
 
@@ -828,16 +828,16 @@ public class TestNullableArrays {
         test24(src3, dst3);
         test24(src4, dst4);
         if (len > 0) {
-            Asserts.assertEQ(null, dst1[0]);
-            Asserts.assertEQ(src2[0], dst2[0]);
-            Asserts.assertEQ(src3[0], dst3[0]);
-            Asserts.assertEQ(src4[0], dst4[0]);
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+            Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+            Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
-            Asserts.assertEQ(src3[i], dst3[i]);
-            Asserts.assertEQ(src4[i], dst4[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -868,15 +868,15 @@ public class TestNullableArrays {
         test25(src2, dst2);
         test25(src3, dst3);
         test25(src4, dst4);
-        Asserts.assertEQ(null, dst1[0]);
-        Asserts.assertEQ(src2[0], dst2[0]);
-        Asserts.assertEQ(src3[0], dst3[0]);
-        Asserts.assertEQ(src4[0], dst4[0]);
+        Asserts.assertEQ(dst1[0], null);
+        Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+        Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+        Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         for (int i = 1; i < 8; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
-            Asserts.assertEQ(src3[i], dst3[i]);
-            Asserts.assertEQ(src4[i], dst4[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -907,15 +907,15 @@ public class TestNullableArrays {
         test26(src2, dst2);
         test26(src3, dst3);
         test26(src4, dst4);
-        Asserts.assertEQ(null, dst1[0]);
-        Asserts.assertEQ(src2[0], dst2[0]);
-        Asserts.assertEQ(src3[0], dst3[0]);
-        Asserts.assertEQ(src4[0], dst4[0]);
+        Asserts.assertEQ(dst1[0], null);
+        Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+        Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+        Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         for (int i = 1; i < 8; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
-            Asserts.assertEQ(src3[i], dst3[i]);
-            Asserts.assertEQ(src4[i], dst4[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -946,16 +946,16 @@ public class TestNullableArrays {
         test27(src3, dst3);
         test27(src4, dst4);
         for (int i = 0; i < 2; ++i) {
-            Asserts.assertEQ(null, dst1[i]);
-            Asserts.assertEQ(MyValue1.createDefaultInline(), dst2[i]);
-            Asserts.assertEQ(null, dst3[i]);
-            Asserts.assertEQ(MyValue1.createDefaultInline(), dst4[i]);
+            Asserts.assertEQ(dst1[i], null);
+            Asserts.assertEQ(dst2[i].hash(), MyValue1.createDefaultInline().hash());
+            Asserts.assertEQ(dst3[i], null);
+            Asserts.assertEQ(dst4[i].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 2; i < 8; ++i) {
-            Asserts.assertEQ(src1[i], dst1[i]);
-            Asserts.assertEQ(src2[i], dst2[i]);
-            Asserts.assertEQ(src3[i], dst3[i]);
-            Asserts.assertEQ(src4[i], dst4[i]);
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -978,10 +978,10 @@ public class TestNullableArrays {
         Asserts.assertEQ(result, null);
     }
 
+    // non escaping allocations
     @Test
+    // TODO 8372332: Add LOAD_OF_ANY_KLASS when return values are not scalarized
     @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(failOn = LOAD_OF_ANY_KLASS, applyIf = {"InlineTypeReturnedAsFields", "false"})
-    @IR(counts = {LOAD_OF_ANY_KLASS, "4"}, applyIf = {"InlineTypeReturnedAsFields", "true"})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -997,10 +997,10 @@ public class TestNullableArrays {
             src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2 v = test29(src1);
-        Asserts.assertEQ(src1[0], v);
+        Asserts.assertEQ(src1[0].hash(), v.hash());
         if (!info.isWarmUp()) {
             v = test29(src2);
-            Asserts.assertEQ(src2[0], v);
+            Asserts.assertEQ(src2[0].hash(), v.hash());
         }
     }
 
@@ -1024,10 +1024,10 @@ public class TestNullableArrays {
             src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2 v = test30(src1, !info.isWarmUp());
-        Asserts.assertEQ(src1[0], v);
+        Asserts.assertEQ(src1[0].hash(), v.hash());
         if (!info.isWarmUp()) {
             v = test30(src2, true);
-            Asserts.assertEQ(src2[0], v);
+            Asserts.assertEQ(src2[0].hash(), v.hash());
         }
     }
 
@@ -1077,12 +1077,12 @@ public class TestNullableArrays {
         MyValue1[] result1 = (MyValue1[])test32(va1);
         MyValue1[] result2 = (MyValue1[])test32(va2);
         if (len > 0) {
-            Asserts.assertEQ(null, result1[0]);
-            Asserts.assertEQ(MyValue1.createDefaultInline(), result2[0]);
+            Asserts.assertEQ(result1[0], null);
+            Asserts.assertEQ(result2[0].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(va1[i], result1[i]);
-            Asserts.assertEQ(va2[i], result2[i]);
+            Asserts.assertEQ(((MyValue1)result1[i]).hash(), ((MyValue1)va1[i]).hash());
+            Asserts.assertEQ(((MyValue1)result2[i]).hash(), ((MyValue1)va2[i]).hash());
         }
     }
 
@@ -1100,7 +1100,7 @@ public class TestNullableArrays {
         }
         Object[] result = test33(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(va[i], result[i]);
+            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
         }
     }
 
@@ -1143,31 +1143,51 @@ public class TestNullableArrays {
 
     static void verify(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i], dst[i]);
+            if (src[i] != null) {
+                Asserts.assertEQ(((MyInterface)src[i]).hash(), ((MyInterface)dst[i]).hash());
+            } else {
+                Asserts.assertEQ(dst[i], null);
+            }
         }
     }
 
     static void verify(MyValue1[] src, MyValue1[] dst) {
         for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i], dst[i]);
+            if (src[i] != null) {
+                Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            } else {
+                Asserts.assertEQ(dst[i], null);
+            }
         }
     }
 
     static void verify(MyValue1[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i], dst[i]);
+            if (src[i] != null) {
+                Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
+            } else {
+                Asserts.assertEQ(dst[i], null);
+            }
         }
     }
 
     static void verify(MyValue2[] src, MyValue2[] dst) {
         for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i], dst[i]);
+            if (src[i] != null) {
+                Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            } else {
+                Asserts.assertEQ(dst[i], null);
+            }
         }
     }
 
     static void verify(MyValue2[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i], dst[i]);
+            if (src[i] != null) {
+                Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
+            } else {
+                Asserts.assertEQ(dst[i], null);
+            }
         }
     }
 
@@ -1832,7 +1852,7 @@ public class TestNullableArrays {
     public void test66_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1[] va = test66(vt);
-        Asserts.assertEQ(vt, va[0]);
+        Asserts.assertEQ(va[0].hashPrimitive(), vt.hashPrimitive());
     }
 
     // Zeroing elimination and arraycopy
@@ -1919,7 +1939,11 @@ public class TestNullableArrays {
         }
         System.arraycopy(src, 0, dst, 0, src.length);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i], dst[i]);
+            if (src[i] == null) {
+                Asserts.assertEQ(dst[i], null);
+            } else {
+                Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            }
         }
     }
 
@@ -1970,9 +1994,9 @@ public class TestNullableArrays {
         } catch (ArrayStoreException t) {
             // expected
         }
-        Asserts.assertEQ(v0, arr[0]);
-        Asserts.assertEQ(v1, arr[1]);
-        Asserts.assertEQ(v1, arr[2]);
+        Asserts.assertEQ(arr[0].hash(), v0.hash());
+        Asserts.assertEQ(arr[1].hash(), v1.hash());
+        Asserts.assertEQ(arr[2].hash(), v1.hash());
     }
 
     // Some more array clone tests
@@ -2194,7 +2218,7 @@ public class TestNullableArrays {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = testValue1;
         MyValue1[] res = test79(va);
-        Asserts.assertEquals(testValue1, res[0]);
+        Asserts.assertEquals(res[0].hash(), testValue1.hash());
         try {
             res[0] = null;
             throw new RuntimeException("NullPointerException expected");
@@ -2217,7 +2241,7 @@ public class TestNullableArrays {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = testValue1;
         Object[] res = test80(va);
-        Asserts.assertEquals(testValue1, res[0]);
+        Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
         try {
             res[0] = null;
             throw new RuntimeException("NullPointerException expected");
@@ -2247,13 +2271,13 @@ public class TestNullableArrays {
         va[1] = testValue1;
         vaB[1] = testValue1;
         long res = test81(va, vaB, testValue1, true, true);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
         res = test81(va, vaB, testValue1, false, false);
-        Asserts.assertEquals(testValue1, vaB[0]);
+        Asserts.assertEquals(vaB[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
         res = test81(va, va, testValue1, false, true);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
     }
 
@@ -2291,19 +2315,19 @@ public class TestNullableArrays {
         va[1] = testValue1;
         vaB[1] = testValue1;
         long res = test82(va, vaB, testValue1, testValue1, 0, true);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
         res = test82(va, vaB, testValue1, testValue1, 1, false);
-        Asserts.assertEquals(testValue1, vaB[0]);
+        Asserts.assertEquals(vaB[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
         res = test82(va, va, testValue1, testValue1, 1, true);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
         res = test82(va, va, testValue1, null, 2, false);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
         res = test82(va, va, testValue1, null, 3, true);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, testValue1.hash());
     }
 
@@ -2336,8 +2360,8 @@ public class TestNullableArrays {
     @Run(test = "test84")
     public void test84_verifier() {
         MyValue1[] res = test84(testValue1, testValue1);
-        Asserts.assertEquals(testValue1, res[0]);
-        Asserts.assertEquals(testValue1, res[1]);
+        Asserts.assertEquals(res[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res[1].hash(), testValue1.hash());
         try {
             test84(testValue1, null);
             throw new RuntimeException("NullPointerException expected");
@@ -2360,10 +2384,10 @@ public class TestNullableArrays {
         vab[1] = testValue1;
         long res = test85(va, testValue1);
         Asserts.assertEquals(res, testValue1.hash());
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         res = test85(vab, testValue1);
         Asserts.assertEquals(res, testValue1.hash());
-        Asserts.assertEquals(testValue1, vab[0]);
+        Asserts.assertEquals(vab[0].hash(), testValue1.hash());
     }
 
     // Same as test85 but with ref value
@@ -2381,7 +2405,7 @@ public class TestNullableArrays {
         vab[1] = testValue1;
         long res = test86(va, testValue1);
         Asserts.assertEquals(res, testValue1.hash());
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         try {
             test86(va, null);
             throw new RuntimeException("NullPointerException expected");
@@ -2390,10 +2414,10 @@ public class TestNullableArrays {
         }
         res = test86(vab, testValue1);
         Asserts.assertEquals(res, testValue1.hash());
-        Asserts.assertEquals(testValue1, vab[0]);
+        Asserts.assertEquals(vab[0].hash(), testValue1.hash());
         res = test86(vab, null);
         Asserts.assertEquals(res, testValue1.hash());
-        Asserts.assertEquals(null, vab[0]);
+        Asserts.assertEquals(vab[0], null);
     }
 
     // Test initialization of nullable array with constant
@@ -2424,7 +2448,7 @@ public class TestNullableArrays {
         Class c = va.getClass();
         va[0] = testValue1;
         MyValue1[] res = test88(c, va);
-        Asserts.assertEquals(testValue1, res[0]);
+        Asserts.assertEquals(res[0].hash(), testValue1.hash());
         Asserts.assertEquals(res, va);
         res[0] = testValue1;
         test88(c, null); // Should not throw NPE
@@ -2446,7 +2470,7 @@ public class TestNullableArrays {
         Class c = va.getClass();
         va[0] = testValue1;
         MyValue1[] res = test89(c, va);
-        Asserts.assertEquals(testValue1, res[0]);
+        Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
         res[0] = testValue1;
         test89(c, null); // Should not throw NPE
         va = new MyValue1[1];
@@ -2666,9 +2690,9 @@ public class TestNullableArrays {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             MyValue1[] vab = new MyValue1[1];
             result = test98((Object[])va);
-            Asserts.assertEquals(MyValue1.createDefaultInline(), result);
+            Asserts.assertEquals(((MyValue1)result).hash(), MyValue1.createDefaultInline().hash());
             result = test98((Object[])vab);
-            Asserts.assertEquals(null, result);
+            Asserts.assertEquals(result, null);
         }
     }
 
@@ -2760,11 +2784,11 @@ public class TestNullableArrays {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             MyValue1[] vab = new MyValue1[1];
             test102(testValue1, (Object[])va);
-            Asserts.assertEquals(testValue1, va[0]);
+            Asserts.assertEquals(va[0].hash(), testValue1.hash());
             test102(testValue1, (Object[])vab);
-            Asserts.assertEquals(testValue1, vab[0]);
+            Asserts.assertEquals(vab[0].hash(), testValue1.hash());
             test102(null, (Object[])vab);
-            Asserts.assertEquals(null, vab[0]);
+            Asserts.assertEquals(vab[0], null);
         }
     }
 
@@ -2874,12 +2898,14 @@ public class TestNullableArrays {
             MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             MyValue1[] vab = new MyValue1[1];
             result = test106(va, (Object[])va);
-            Asserts.assertEquals(MyValue1.createDefaultInline(), result[0]);
+            Asserts.assertEquals(((MyValue1)result[0]).hash(), MyValue1.createDefaultInline().hash());
             result = test106(vab, (Object[])vab);
-            Asserts.assertEquals(testValue1, result[0]);
+            Asserts.assertEquals(((MyValue1)result[0]).hash(), testValue1.hash());
         }
     }
 
+    // TODO 8325632 Fails with "matching stack sizes" in Scenario 5 with -XX:TypeProfileLevel=222
+    /*
     // Test that allocation is not replaced by non-dominating allocation
     @ForceInline
     public long test107_helper(MyValue1[] va, MyValue1 vt) {
@@ -2895,7 +2921,7 @@ public class TestNullableArrays {
         MyValue1[] tmp = new MyValue1[2];
         long res1 = test107_helper(va, testValue1);
         long res2 = test107_helper(va, testValue1);
-        Asserts.assertEquals(testValue1, va[0]);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
         Asserts.assertEquals(res1, MyValue1.createDefaultInline().hash());
         Asserts.assertEquals(res2, MyValue1.createDefaultInline().hash());
     }
@@ -2904,6 +2930,7 @@ public class TestNullableArrays {
     public void test107_verifier() {
         test107();
     }
+    */
 
     @Test
     public Object test108(MyValue1[] src, boolean flag) {
@@ -3035,8 +3062,8 @@ public class TestNullableArrays {
     @Run(test = "test114")
     public void test114_verifier(RunInfo info) {
         refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(refArray[0], test114(true));
-        Asserts.assertEquals(testValue1, test114(false));
+        Asserts.assertEquals(test114(true).hash(), refArray[0].hash());
+        Asserts.assertEquals(test114(false).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refArray[0] = null;
             Asserts.assertEquals(test114(true), null);
@@ -3094,14 +3121,14 @@ public class TestNullableArrays {
     @Run(test = "test116")
     public void test116_verifier(RunInfo info) {
         refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(refArray[0], test116(true, false, info.getTest()));
-        Asserts.assertEquals(testValue1, test116(false, false, info.getTest()));
+        Asserts.assertEquals(test116(true, false, info.getTest()).hash(), refArray[0].hash());
+        Asserts.assertEquals(test116(false, false, info.getTest()).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refArray[0] = null;
             Asserts.assertEquals(test116(true, false, info.getTest()), null);
             refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(refArray[0], test116(true, true, info.getTest()));
-            Asserts.assertEquals(testValue1, test116(false, true, info.getTest()));
+            Asserts.assertEquals(test116(true, true, info.getTest()).hash(), refArray[0].hash());
+            Asserts.assertEquals(test116(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
 
@@ -3139,8 +3166,8 @@ public class TestNullableArrays {
     @Run(test = "test118")
     public void test118_verifier() {
         refArray[0] = testValue1;
-        Asserts.assertEquals(testValue1, test118(true));
-        Asserts.assertEquals(null, test118(false));
+        Asserts.assertEquals(test118(true).hash(), testValue1.hash());
+        Asserts.assertEquals(test118(false), null);
     }
 
     @Test
@@ -3177,8 +3204,8 @@ public class TestNullableArrays {
     @Run(test = "test120")
     public void test120_verifier() {
         refArray[0] = testValue1;
-        Asserts.assertEquals(testValue1, test120(false));
-        Asserts.assertEquals(null, test120(true));
+        Asserts.assertEquals(test120(false).hash(), testValue1.hash());
+        Asserts.assertEquals(test120(true), null);
     }
 
     @ForceInline
@@ -3209,9 +3236,9 @@ public class TestNullableArrays {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
         flatArray[0] = vt;
         test121(false);
-        Asserts.assertEquals(vt, flatArray[0]);
+        Asserts.assertEquals(flatArray[0].hash(), vt.hash());
         test121(true);
-        Asserts.assertEquals(testValue1, flatArray[0]);
+        Asserts.assertEquals(flatArray[0].hash(), testValue1.hash());
     }
 
     @ForceInline
@@ -3240,11 +3267,11 @@ public class TestNullableArrays {
     public void test122_verifier() {
         refArray[0] = testValue1;
         test122(false);
-        Asserts.assertEquals(testValue1, flatArray[0]);
+        Asserts.assertEquals(flatArray[0].hash(), testValue1.hash());
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
         flatArray[0] = vt;
         test122(true);
-        Asserts.assertEquals(vt, flatArray[0]);
+        Asserts.assertEquals(flatArray[0].hash(), vt.hash());
     }
 
     @ForceInline

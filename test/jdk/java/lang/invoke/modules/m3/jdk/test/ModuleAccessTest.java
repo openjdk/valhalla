@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,15 @@
 
 package jdk.test;
 
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 
 import java.lang.invoke.MethodType;
-import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,11 +42,7 @@ import java.util.stream.Stream;
 import e1.CrackM5Access;
 
 import static java.lang.invoke.MethodHandles.Lookup.*;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
 public class ModuleAccessTest {
     static ModuleLookup m3;
@@ -56,8 +55,8 @@ public class ModuleAccessTest {
     static Class<?> unnamed;
     static Class<?> unnamed1;
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         m3 = new ModuleLookup("m3", 'C');
         m4 = new ModuleLookup("m4", 'D');
         m5 = new ModuleLookup("m5", 'E');
@@ -77,7 +76,8 @@ public class ModuleAccessTest {
         CrackM5Access.addReads(unnamed.getModule());
     }
 
-    public static Object[][] samePackage() throws Exception {
+    @DataProvider(name = "samePackage")
+    public Object[][] samePackage() throws Exception {
         return new Object[][] {
             { m3.lookup,     m3.type2 },
             { privLookupIn,  m3.type1 },
@@ -93,8 +93,7 @@ public class ModuleAccessTest {
      * [A1] no change in previous lookup class
      * [A2] PROTECTED, PRIVATE and ORIGINAL are dropped
      */
-    @ParameterizedTest
-    @MethodSource("samePackage")
+    @Test(dataProvider = "samePackage")
     public void testLookupInSamePackage(Lookup lookup, Class<?> targetClass) throws Exception {
         Class<?> lookupClass = lookup.lookupClass();
         Lookup lookup2 = lookup.in(targetClass);
@@ -106,7 +105,8 @@ public class ModuleAccessTest {
         assertTrue(lookup2.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE|ORIGINAL)));  // [A2]
     }
 
-    public static Object[][] sameModule() throws Exception {
+    @DataProvider(name = "sameModule")
+    public Object[][] sameModule() throws Exception {
         return new Object[][] {
             { m3.lookup,     m3.type3},
             { privLookupIn,  m3.type3},
@@ -121,20 +121,20 @@ public class ModuleAccessTest {
      * [A1] no change in previous lookup class
      * [A2] PROTECTED, PRIVATE, PACKAGE and ORIGINAL are dropped
      */
-    @ParameterizedTest
-    @MethodSource("sameModule")
+    @Test(dataProvider = "sameModule")
     public void testLookupInSameModule(Lookup lookup, Class<?> targetClass) throws Exception {
         Class<?> lookupClass = lookup.lookupClass();
         Lookup lookup2 = lookup.in(targetClass);
 
-        assertNotSame(targetClass.getPackage(), lookupClass.getPackage());
-        assertSame(targetClass.getModule(), lookupClass.getModule());
-        assertSame(targetClass, lookup2.lookupClass());   // [A0]
-        assertSame(lookup.previousLookupClass(), lookup2.previousLookupClass());  // [A1]
-        assertEquals(lookup.lookupModes() & ~(PROTECTED | PRIVATE | PACKAGE | ORIGINAL), lookup2.lookupModes()); // [A2]
+        assertTrue(lookupClass.getPackage() != targetClass.getPackage());
+        assertTrue(lookupClass.getModule() == targetClass.getModule());
+        assertTrue(lookup2.lookupClass() == targetClass);   // [A0]
+        assertTrue(lookup2.previousLookupClass() == lookup.previousLookupClass());  // [A1]
+        assertTrue(lookup2.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE|PACKAGE|ORIGINAL))); // [A2]
     }
 
-    public static Object[][] anotherModule() throws Exception {
+    @DataProvider(name = "anotherModule")
+    public Object[][] anotherModule() throws Exception {
         return new Object[][] {
             { m3.lookup, m4.type1, m5, m5.accessibleTypesTo(m3.module, m4.module) },
             { m4.lookup, m5.type2, m3, m3.accessibleTypesTo(m4.module, m5.module) },
@@ -154,22 +154,21 @@ public class ModuleAccessTest {
      * [A5] can access public types in m1 exported to m0
      * [A6] can access public types in m2 exported to m0 and m1
      */
-    @ParameterizedTest
-    @MethodSource("anotherModule")
+    @Test(dataProvider = "anotherModule")
     public void testLookupInAnotherModule(Lookup lookup, Class<?> targetClass,
                                           ModuleLookup m2, Set<Class<?>> otherTypes) throws Exception {
         Class<?> lookupClass = lookup.lookupClass();
         Module m0 = lookupClass.getModule();
         Module m1 = targetClass.getModule();
 
-        assertNotSame(m1, m0);
+        assertTrue(m0 != m1);
         assertTrue(m0.canRead(m1));
         assertTrue(m1.isExported(targetClass.getPackageName(), m0));
 
         Lookup lookup2 = lookup.in(targetClass);
-        assertSame(targetClass, lookup2.lookupClass());   // [A0]
-        assertSame(lookup.lookupClass(), lookup2.previousLookupClass());  // [A1]
-        assertEquals(lookup.lookupModes() & ~(PROTECTED | PRIVATE | PACKAGE | MODULE | ORIGINAL), lookup2.lookupModes());  // [A2]
+        assertTrue(lookup2.lookupClass() == targetClass);   // [A0]
+        assertTrue(lookup2.previousLookupClass() == lookup.lookupClass());  // [A1]
+        assertTrue(lookup2.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE|PACKAGE|MODULE|ORIGINAL)));  // [A2]
 
         // [A3] no access to module internal type in m0
         // [A4] if m1 reads m0,
@@ -208,7 +207,7 @@ public class ModuleAccessTest {
         // [A5] can access public types exported from m2 unconditionally
         // [A5] can access public types exported from m2 to m0 and m1
         for (Class<?> type : otherTypes) {
-            assertSame(m2.module, type.getModule());
+            assertTrue(type.getModule() == m2.module);
             testAccess(lookup2, type);
         }
 
@@ -216,7 +215,10 @@ public class ModuleAccessTest {
         for (Class<?> type : Set.of(m2.type1, m2.type2, m2.type3)) {
             if (!otherTypes.contains(type)) {
                 // type is accessible to this lookup
-                assertThrows(IllegalAccessException.class, () -> lookup2.accessClass(type));
+                try {
+                    lookup2.accessClass(type);
+                    assertTrue(false);
+                } catch (IllegalAccessException e) {}
 
                 findConstructorExpectingIAE(lookup2, type, void.class);
             }
@@ -225,7 +227,7 @@ public class ModuleAccessTest {
 
     public void testAccess(Lookup lookup, Class<?> type) throws Exception {
         // type is accessible to this lookup
-        assertSame(type, lookup.accessClass(type));
+        assertTrue(lookup.accessClass(type) == type);
 
         // can find constructor
         findConstructor(lookup, type, void.class);
@@ -235,27 +237,28 @@ public class ModuleAccessTest {
         Module m2 = type.getModule();
 
         assertTrue(m0 != m1 && m0 != null);
-        assertEquals(0, lookup.lookupModes() & MODULE);
+        assertTrue((lookup.lookupModes() & MODULE) == 0);
         assertTrue(m0 != m2 || m1 != m2);
 
         MethodHandles.Lookup lookup2 = lookup.in(type);
         if (m2 == m1) {
             // the same module of the lookup class
-            assertSame(type, lookup2.lookupClass());
-            assertSame(lookup.previousLookupClass(), lookup2.previousLookupClass());
+            assertTrue(lookup2.lookupClass() == type);
+            assertTrue(lookup2.previousLookupClass() == lookup.previousLookupClass());
         } else if (m2 == m0) {
             // hop back to the module of the previous lookup class
-            assertSame(type, lookup2.lookupClass());
-            assertSame(lookup.lookupClass(), lookup2.previousLookupClass());
+            assertTrue(lookup2.lookupClass() == type);
+            assertTrue(lookup2.previousLookupClass() == lookup.lookupClass());
         } else {
             // hop to a third module
-            assertSame(type, lookup2.lookupClass());
-            assertSame(lookup.lookupClass(), lookup2.previousLookupClass());
-            assertEquals(0, lookup2.lookupModes());
+            assertTrue(lookup2.lookupClass() == type);
+            assertTrue(lookup2.previousLookupClass() == lookup.lookupClass());
+            assertTrue(lookup2.lookupModes() == 0);
         }
     }
 
-    public static Object[][] thirdModule() throws Exception {
+    @DataProvider(name = "thirdModule")
+    public Object[][] thirdModule() throws Exception {
         return new Object[][] {
             { m3.lookup, m4.type1, m5.type1},
             { m3.lookup, m4.type2, m5.type1},
@@ -270,8 +273,7 @@ public class ModuleAccessTest {
      * [A1] c1 becomes previous lookup class
      * [A2] all access bits are dropped
      */
-    @ParameterizedTest
-    @MethodSource("thirdModule")
+    @Test(dataProvider = "thirdModule")
     public void testLookupInThirdModule(Lookup lookup, Class<?> c1, Class<?> c2) throws Exception {
         Class<?> c0 = lookup.lookupClass();
         Module m0 = c0.getModule();
@@ -285,17 +287,18 @@ public class ModuleAccessTest {
         assertTrue(m2.isExported(c2.getPackageName(), m0) && m2.isExported(c2.getPackageName(), m1));
 
         Lookup lookup1 = lookup.in(c1);
-        assertSame(c1, lookup1.lookupClass());
-        assertSame(c0, lookup1.previousLookupClass());
-        assertEquals(lookup.lookupModes() & ~(PROTECTED | PRIVATE | PACKAGE | MODULE | ORIGINAL), lookup1.lookupModes());
+        assertTrue(lookup1.lookupClass() == c1);
+        assertTrue(lookup1.previousLookupClass() == c0);
+        assertTrue(lookup1.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE|PACKAGE|MODULE|ORIGINAL)));
 
         Lookup lookup2 = lookup1.in(c2);
-        assertSame(c2, lookup2.lookupClass());                    // [A0]
-        assertSame(c1, lookup2.previousLookupClass());            // [A1]
-        assertEquals(0, lookup2.lookupModes(), lookup2.toString()); // [A2]
+        assertTrue(lookup2.lookupClass() == c2);                    // [A0]
+        assertTrue(lookup2.previousLookupClass() == c1);            // [A1]
+        assertTrue(lookup2.lookupModes() == 0, lookup2.toString()); // [A2]
     }
 
-    public static Object[][] privLookupIn() throws Exception {
+    @DataProvider(name = "privLookupIn")
+    public Object[][] privLookupIn() throws Exception {
         return new Object[][] {
             { m3.lookup,  m4.type1 },
             { m3.lookup,  m5.type1 },
@@ -313,22 +316,24 @@ public class ModuleAccessTest {
      * [A2] the lookup class becomes previous lookup class
      * [A3] IAE thrown if lookup has no MODULE access
      */
-    @ParameterizedTest
-    @MethodSource("privLookupIn")
+    @Test(dataProvider = "privLookupIn")
     public void testPrivateLookupIn(Lookup lookup, Class<?> targetClass) throws Exception {
         Module m0 = lookup.lookupClass().getModule();
         Module m1 = targetClass.getModule();
 
         // privateLookupIn from m0 to m1
-        assertNotSame(m1, m0);
+        assertTrue(m0 != m1);
         assertTrue(m1.isOpen(targetClass.getPackageName(), m0));
         Lookup privLookup1 = MethodHandles.privateLookupIn(targetClass, lookup);
-        assertEquals(PROTECTED | PRIVATE | PACKAGE | PUBLIC, privLookup1.lookupModes());  // [A0]
-        assertSame(targetClass, privLookup1.lookupClass());                    // [A1]
-        assertSame(lookup.lookupClass(), privLookup1.previousLookupClass());   // [A2]
+        assertTrue(privLookup1.lookupModes() == (PROTECTED|PRIVATE|PACKAGE|PUBLIC));  // [A0]
+        assertTrue(privLookup1.lookupClass() == targetClass);                    // [A1]
+        assertTrue(privLookup1.previousLookupClass() == lookup.lookupClass());   // [A2]
 
         // privLookup1 has no MODULE access; can't do privateLookupIn
-        assertThrows(IllegalAccessException.class, () -> MethodHandles.privateLookupIn(targetClass, privLookup1)); // [A3]
+        try {
+            Lookup privLookup2 = MethodHandles.privateLookupIn(targetClass, privLookup1); // [A3]
+            assertFalse(privLookup2 != null);
+        } catch (IllegalAccessException e) {}
     }
 
     /**
@@ -338,9 +343,9 @@ public class ModuleAccessTest {
     public void testPrivateLookupAccess() throws Exception {
         Class<?> staticsClass = e1.Statics.class;
         Lookup privLookup1 = MethodHandles.privateLookupIn(staticsClass, m4.lookup);
-        assertEquals(0, (privLookup1.lookupModes() & MODULE));
-        assertSame(staticsClass, privLookup1.lookupClass());
-        assertSame(m4.lookup.lookupClass(), privLookup1.previousLookupClass());
+        assertTrue((privLookup1.lookupModes() & MODULE) == 0);
+        assertTrue(privLookup1.lookupClass() == staticsClass);
+        assertTrue(privLookup1.previousLookupClass() == m4.lookup.lookupClass());
 
         // access private member and default package member in m5
         MethodType mtype = MethodType.methodType(void.class);
@@ -360,9 +365,12 @@ public class ModuleAccessTest {
         // lose private access
         Lookup privLookup2 = MethodHandles.privateLookupIn(m5.type1, m4.lookup);
         Lookup lookup = privLookup2.in(staticsClass);
-        assertEquals(0, lookup.lookupModes() & PRIVATE);
+        assertTrue((lookup.lookupModes() & PRIVATE) == 0);
         MethodHandle mh3 = lookup.findStatic(staticsClass, "packageMethod", mtype);
-        assertThrows(IllegalAccessException.class, () -> lookup.findStatic(staticsClass, "privateMethod", mtype));
+        try {
+            lookup.findStatic(staticsClass, "privateMethod", mtype);
+            assertTrue(false);
+        } catch (IllegalAccessException e) {}
     }
 
     /**
@@ -372,16 +380,16 @@ public class ModuleAccessTest {
     @Test
     public void testDropLookupMode() throws Exception {
         Lookup lookup = MethodHandles.privateLookupIn(m5.type1, m4.lookup);
-        assertEquals(0, lookup.lookupModes() & MODULE);
+        assertTrue((lookup.lookupModes() & MODULE) == 0);
 
         Lookup lookup1 = lookup.dropLookupMode(PRIVATE);
-        assertEquals(lookup1.lookupModes(), lookup.lookupModes() & ~(PROTECTED | PRIVATE));
+        assertTrue(lookup1.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE)));
         Lookup lookup2 = lookup.dropLookupMode(PACKAGE);
-        assertEquals(lookup2.lookupModes(), lookup.lookupModes() & ~(PROTECTED | PRIVATE | PACKAGE));
+        assertTrue(lookup2.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE|PACKAGE)));
         Lookup lookup3 = lookup.dropLookupMode(MODULE);
-        assertEquals(lookup3.lookupModes(), lookup.lookupModes() & ~(PROTECTED | PRIVATE | PACKAGE));
+        assertTrue(lookup3.lookupModes() == (lookup.lookupModes() & ~(PROTECTED|PRIVATE|PACKAGE)));
         Lookup lookup4 = lookup.dropLookupMode(PUBLIC);
-        assertEquals(0, lookup4.lookupModes());
+        assertTrue(lookup4.lookupModes() == 0);
 
     }
 
@@ -398,8 +406,11 @@ public class ModuleAccessTest {
 
         // drop MODULE access i.e. only PUBLIC access
         Lookup lookup = privLookup.dropLookupMode(MODULE);
-        assertEquals(PUBLIC, lookup.lookupModes());
-        assertThrows(IllegalAccessException.class, () -> lookup.findStatic(nonPUblicType, "publicStatic", mtype));
+        assertTrue(lookup.lookupModes() == PUBLIC);
+        try {
+            MethodHandle mh2 = lookup.findStatic(nonPUblicType, "publicStatic", mtype);
+            assertFalse(mh2 != null);
+        } catch (IllegalAccessException e) {}
     }
 
     @Test
@@ -410,18 +421,21 @@ public class ModuleAccessTest {
         Lookup pub3 = pub2.in(java.lang.management.ThreadMXBean.class);
         Lookup pub4 = pub3.dropLookupMode(UNCONDITIONAL);
 
-        assertSame(Object.class, publicLookup.lookupClass());
-        assertEquals(UNCONDITIONAL, publicLookup.lookupModes());
-        assertSame(m3.type1, pub1.lookupClass());
-        assertEquals(UNCONDITIONAL, pub1.lookupModes());
-        assertSame(String.class, pub2.lookupClass());
-        assertEquals(UNCONDITIONAL, pub2.lookupModes());
-        assertSame(ThreadMXBean.class, pub3.lookupClass());
-        assertEquals(UNCONDITIONAL, pub3.lookupModes());
-        assertEquals(0, pub4.lookupModes());
+        assertTrue(publicLookup.lookupClass() == Object.class);
+        assertTrue(publicLookup.lookupModes() == UNCONDITIONAL);
+        assertTrue(pub1.lookupClass() == m3.type1);
+        assertTrue(pub1.lookupModes() == UNCONDITIONAL);
+        assertTrue(pub2.lookupClass() == String.class);
+        assertTrue(pub2.lookupModes() == UNCONDITIONAL);
+        assertTrue(pub3.lookupClass() == java.lang.management.ThreadMXBean.class);
+        assertTrue(pub3.lookupModes() == UNCONDITIONAL);
+        assertTrue(pub4.lookupModes() == 0);
 
         // publicLookup has no MODULE access; can't do privateLookupIn
-        assertThrows(IllegalAccessException.class, () -> MethodHandles.privateLookupIn(m4.type1, pub1));
+        try {
+            Lookup pub5 = MethodHandles.privateLookupIn(m4.type1, pub1);
+            assertFalse(pub5 != null);
+        } catch (IllegalAccessException e) {}
     }
 
     static class ModuleLookup {
@@ -534,7 +548,10 @@ public class ModuleAccessTest {
                                             Class<?> clazz,
                                             Class<?> rtype,
                                             Class<?>... ptypes) throws Exception {
-        assertThrows(IllegalAccessException.class, () -> findConstructor(lookup, clazz, rtype, ptypes));
+        try {
+            MethodHandle mh = findConstructor(lookup, clazz, rtype, ptypes);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
     }
 
     /**

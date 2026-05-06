@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,23 +31,24 @@
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zMark.hpp"
 #include "gc/z/zUtils.inline.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/debug.hpp"
 
 inline void ZLiveMap::reset() {
-  _seqnum.store_relaxed(0u);
+  _seqnum = 0;
 }
 
 inline bool ZLiveMap::is_marked(ZGenerationId id) const {
-  return _seqnum.load_acquire() == ZGeneration::generation(id)->seqnum();
+  return AtomicAccess::load_acquire(&_seqnum) == ZGeneration::generation(id)->seqnum();
 }
 
 inline uint32_t ZLiveMap::live_objects() const {
-  return _live_objects.load_relaxed();
+  return _live_objects;
 }
 
 inline size_t ZLiveMap::live_bytes() const {
-  return _live_bytes.load_relaxed();
+  return _live_bytes;
 }
 
 inline const BitMapView ZLiveMap::segment_live_bits() const {
@@ -115,8 +116,8 @@ inline bool ZLiveMap::set(ZGenerationId id, BitMap::idx_t index, bool finalizabl
 }
 
 inline void ZLiveMap::inc_live(uint32_t objects, size_t bytes) {
-  _live_objects.add_then_fetch(objects);
-  _live_bytes.add_then_fetch(bytes);
+  AtomicAccess::add(&_live_objects, objects);
+  AtomicAccess::add(&_live_bytes, bytes);
 }
 
 inline BitMap::idx_t ZLiveMap::segment_start(BitMap::idx_t segment) const {

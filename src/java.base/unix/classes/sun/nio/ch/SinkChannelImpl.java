@@ -63,8 +63,8 @@ class SinkChannelImpl
     private static final int ST_CLOSED = 2;
     private int state;
 
-    // Thread doing write, for signalling
-    private Thread writerThread;
+    // ID of native thread doing write, for signalling
+    private long thread;
 
     // True if the channel's socket has been forced into non-blocking mode
     // by a virtual thread. It cannot be reset. When the channel is in
@@ -120,7 +120,7 @@ class SinkChannelImpl
      */
     private boolean tryClose() throws IOException {
         assert Thread.holdsLock(stateLock) && state == ST_CLOSING;
-        if (writerThread == null && !isRegistered()) {
+        if (thread == 0 && !isRegistered()) {
             state = ST_CLOSED;
             nd.close(fd);
             return true;
@@ -152,7 +152,7 @@ class SinkChannelImpl
             assert state < ST_CLOSING;
             state = ST_CLOSING;
             if (!tryClose()) {
-                nd.preClose(fd, null, writerThread);
+                nd.preClose(fd, thread, 0);
             }
         }
     }
@@ -270,7 +270,7 @@ class SinkChannelImpl
         synchronized (stateLock) {
             ensureOpen();
             if (blocking)
-                writerThread = NativeThread.threadToSignal();
+                thread = NativeThread.current();
         }
     }
 
@@ -285,7 +285,7 @@ class SinkChannelImpl
     {
         if (blocking) {
             synchronized (stateLock) {
-                writerThread = null;
+                thread = 0;
                 if (state == ST_CLOSING) {
                     tryFinishClose();
                 }

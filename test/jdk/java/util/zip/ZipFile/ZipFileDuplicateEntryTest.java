@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,10 @@
  *
  */
 
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
@@ -47,24 +45,19 @@ import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.*;
 
 /**
  * @test
  * @bug 8276123
  * @summary ZipFile::getEntry will not return a file entry when there is a
  * directory entry of the same name within a Zip File
- * @run junit/othervm ZipFileDuplicateEntryTest
+ * @run testng/othervm ZipFileDuplicateEntryTest
  */
 public class ZipFileDuplicateEntryTest {
 
@@ -165,7 +158,7 @@ public class ZipFileDuplicateEntryTest {
      *
      * @throws IOException If an error occurs
      */
-    @BeforeAll
+    @BeforeTest
     public static void setup() throws IOException {
 
         /**
@@ -216,7 +209,7 @@ public class ZipFileDuplicateEntryTest {
      *
      * @throws IOException If an error occurs
      */
-    @AfterAll
+    @AfterTest
     public static void cleanup() throws IOException {
         Files.deleteIfExists(ZIP_FILE);
         Files.deleteIfExists(ZIP_FILE2);
@@ -225,12 +218,16 @@ public class ZipFileDuplicateEntryTest {
     }
 
     /**
-     * MethodSource used to specify the Zip entries to use
+     * DataProvider used to specify the Zip entries to use
      *
-     * @return Stream that indicates which Entry to use within the test
+     * @return The Entry to use within the test
      */
-    public static Stream<Entry> entries() {
-        return Stream.of(FILE_ENTRY, DIR_ENTRY);
+    @DataProvider
+    public Object[][] entries() {
+        return new Object[][]{
+                {FILE_ENTRY},
+                {DIR_ENTRY}
+        };
     }
 
     /**
@@ -255,7 +252,7 @@ public class ZipFileDuplicateEntryTest {
                     System.out.printf("name: %s, isDirectory: %s, payload= %s%n",
                             ze.getName(), ze.isDirectory(), new String(bytes));
                 }
-                assertArrayEquals(DIR_ENTRY.bytes, bytes,
+                assertEquals(bytes, DIR_ENTRY.bytes,
                         String.format("Expected payload: %s",
                                 new String(DIR_ENTRY.bytes)));
             }
@@ -269,8 +266,7 @@ public class ZipFileDuplicateEntryTest {
      * @param entry The entry to search for
      * @throws IOException If an error occurs
      */
-    @ParameterizedTest
-    @MethodSource("entries")
+    @Test(dataProvider = "entries")
     public void testSameFileDirEntryName(Entry entry) throws IOException {
         System.out.printf("%n%n**** testSameFileDirEntryName ***%n");
 
@@ -286,7 +282,7 @@ public class ZipFileDuplicateEntryTest {
                     System.out.printf("name: %s, isDirectory: %s, payload= %s%n",
                             ze.getName(), ze.isDirectory(), new String(bytes));
                 }
-                assertArrayEquals(entry.bytes, bytes,
+                assertEquals(entry.bytes, bytes,
                         String.format("Expected payload: %s", new String(entry.bytes)));
             }
         }
@@ -314,7 +310,7 @@ public class ZipFileDuplicateEntryTest {
                     System.out.printf("name: %s, isDirectory: %s, payload= %s%n",
                             ze.getName(), ze.isDirectory(), new String(bytes));
                 }
-                assertArrayEquals(DUPLICATE_FILE_ENTRY.bytes, bytes,
+                assertEquals(bytes, DUPLICATE_FILE_ENTRY.bytes,
                         String.format("Expected payload: %s", new String(DUPLICATE_FILE_ENTRY.bytes)));
             }
         }
@@ -343,8 +339,8 @@ public class ZipFileDuplicateEntryTest {
                     throw new RuntimeException(
                             String.format("Invalid Zip entry: %s", zipEntry.getName()));
                 }
-                assertEquals(e.method, zipEntry.getMethod());
-                assertArrayEquals(e.bytes, zis.readAllBytes(),
+                assertEquals(zipEntry.getMethod(), e.method);
+                assertEquals(zis.readAllBytes(), e.bytes,
                         String.format("Expected payload: %s", new String(e.bytes)));
                 zipEntry = zis.getNextEntry();
             }
@@ -376,9 +372,8 @@ public class ZipFileDuplicateEntryTest {
      * @param entry The entry to validate
      * @throws IOException If an error occurs
      */
-    @ParameterizedTest
-    @MethodSource("entries")
-    public void JarFileInputStreamTest(Entry entry) throws IOException {
+    @Test(dataProvider = "entries")
+    public static void JarFileInputStreamTest(Entry entry) throws IOException {
         System.out.printf("%n%n**** JarFileInputStreamTest ***%n");
         try (JarFile jarFile = new JarFile(TEST_JAR.toFile())) {
             JarEntry je = jarFile.getJarEntry(entry.name);
@@ -394,7 +389,7 @@ public class ZipFileDuplicateEntryTest {
                     System.out.printf("bytes= %s, expected=%s%n",
                             new String(bytes), new String(entry.bytes));
                 }
-                assertArrayEquals(entry.bytes, bytes,
+                assertEquals(bytes, entry.bytes,
                         String.format("Expected payload: %s", new String(entry.bytes)));
             }
         }
@@ -423,8 +418,8 @@ public class ZipFileDuplicateEntryTest {
                     throw new RuntimeException(
                             String.format("Invalid Jar entry: %s", jarEntry.getName()));
                 }
-                assertEquals(e.method, jarEntry.getMethod());
-                assertArrayEquals(e.bytes, jis.readAllBytes(),
+                assertEquals(jarEntry.getMethod(), e.method);
+                assertEquals(jis.readAllBytes(), e.bytes,
                         String.format("Expected payload: %s", new String(e.bytes)));
                 jarEntry = jis.getNextJarEntry();
             }
@@ -438,8 +433,7 @@ public class ZipFileDuplicateEntryTest {
      * @param entry The entry to validate
      * @throws IOException If an error occurs
      */
-    @ParameterizedTest
-    @MethodSource("entries")
+    @Test(dataProvider = "entries")
     public void JarURLConnectionTest(Entry entry) throws Exception {
         System.out.printf("%n%n**** JarURLConnectionTest ***%n");
         URL url = new URL("jar:" + TEST_JAR.toUri().toURL() + "!/" + entry.name);
@@ -455,10 +449,10 @@ public class ZipFileDuplicateEntryTest {
             assertNull(con.getAttributes());
             assertNull(con.getMainAttributes());
             assertNull(con.getManifest());
-            assertEquals(entry.name, je.getName());
-            assertEquals(entry.name, con.getEntryName());
-            assertEquals(entry.method, je.getMethod());
-            assertEquals(TEST_JAR.toUri().toURL(), con.getJarFileURL());
+            assertEquals(je.getName(), entry.name);
+            assertEquals(con.getEntryName(), entry.name);
+            assertEquals(je.getMethod(), entry.method);
+            assertEquals(con.getJarFileURL(), TEST_JAR.toUri().toURL());
             if (DEBUG) {
                 System.out.printf("   getEntryName: %s,  getJarFileURL:%s%n",
                         con.getEntryName(), con.getJarFileURL());
@@ -470,7 +464,7 @@ public class ZipFileDuplicateEntryTest {
                 if (DEBUG) {
                     System.out.printf("   Bytes read:%s%n", new String(bytes));
                 }
-                assertArrayEquals(entry.bytes, bytes,
+                assertEquals(bytes, entry.bytes,
                         String.format("Expected payload: %s", new String(entry.bytes)));
             }
         }

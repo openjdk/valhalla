@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,13 @@
  * @summary Test invalid name in name and type
  * @library /java/lang/invoke/common
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run junit CondyNameValidationTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyNameValidationTest
+ * @run testng CondyNameValidationTest
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyNameValidationTest
  */
 
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
@@ -40,17 +43,12 @@ import java.util.stream.Stream;
 
 import static java.lang.invoke.MethodType.methodType;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 public class CondyNameValidationTest {
     static final MethodHandles.Lookup L = MethodHandles.lookup();
     static final MethodType BSM_TYPE = methodType(Object.class, MethodHandles.Lookup.class, String.class, Object.class);
 
-    public static Object[][] invalidNamesProvider() {
+    @DataProvider
+    public Object[][] invalidNamesProvider() {
         return Stream.of(
                         new Object[]{"", "zero-length member name"},
                         new Object[]{".", "Invalid member name"},
@@ -61,24 +59,26 @@ public class CondyNameValidationTest {
                 .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("invalidNamesProvider")
+    @Test(dataProvider = "invalidNamesProvider")
     public void testInvalidNames(String name, String errMessContent) throws Exception {
-        var e = assertThrows(IllegalArgumentException.class, () -> InstructionHelper.ldcDynamicConstant(
-                L, name, Object.class,
-                "bsm", BSM_TYPE
-        ));
-        assertTrue(e.getMessage().contains(errMessContent));
+        try {
+            MethodHandle mh = InstructionHelper.ldcDynamicConstant(
+                    L, name, Object.class,
+                    "bsm", BSM_TYPE
+            );
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains(errMessContent));
+        }
     }
 
-    public static Object[][] validNamesProvider() throws Exception {
+    @DataProvider
+    public Object[][] validNamesProvider() throws Exception {
         return Stream.of("<clinit>",
                         "<init>")
                 .map(e -> new Object[]{e}).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("validNamesProvider")
+    @Test(dataProvider = "validNamesProvider")
     public void testValidNames(String name) throws Exception {
         MethodHandle mh = InstructionHelper.ldcDynamicConstant(
                 L, name, Object.class,

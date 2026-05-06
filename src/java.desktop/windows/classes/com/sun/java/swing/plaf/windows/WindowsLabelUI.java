@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,21 +34,29 @@ import javax.swing.UIManager;
 import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.basic.BasicLabelUI;
 
+import sun.awt.AppContext;
 import sun.swing.MnemonicHandler;
 import sun.swing.SwingUtilities2;
 
 /**
  * Windows rendition of the component.
  */
-public class WindowsLabelUI extends BasicLabelUI {
+public final class WindowsLabelUI extends BasicLabelUI {
 
-    private static final ComponentUI UI = new WindowsLabelUI();
+    private static final Object WINDOWS_LABEL_UI_KEY = new Object();
 
     // ********************************
     //          Create PLAF
     // ********************************
     public static ComponentUI createUI(JComponent c) {
-        return UI;
+        AppContext appContext = AppContext.getAppContext();
+        WindowsLabelUI windowsLabelUI =
+                (WindowsLabelUI) appContext.get(WINDOWS_LABEL_UI_KEY);
+        if (windowsLabelUI == null) {
+            windowsLabelUI = new WindowsLabelUI();
+            appContext.put(WINDOWS_LABEL_UI_KEY, windowsLabelUI);
+        }
+        return windowsLabelUI;
     }
 
     @Override

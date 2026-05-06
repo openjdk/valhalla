@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,6 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/array.hpp"
-#include "oops/bsmAttribute.inline.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -58,7 +57,6 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/oopCast.inline.hpp"
 #include "oops/refArrayOop.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -170,13 +168,13 @@ void ConstantPool::metaspace_pointers_do(MetaspaceClosure* it) {
   }
 }
 
-refArrayOop ConstantPool::resolved_references() const {
+objArrayOop ConstantPool::resolved_references() const {
   return _cache->resolved_references();
 }
 
 // Called from outside constant pool resolution where a resolved_reference array
 // may not be present.
-refArrayOop ConstantPool::resolved_references_or_null() const {
+objArrayOop ConstantPool::resolved_references_or_null() const {
   if (_cache == nullptr) {
     return nullptr;
   } else {
@@ -193,7 +191,7 @@ oop ConstantPool::resolved_reference_at(int index) const {
 // Use a CAS for multithreaded access
 oop ConstantPool::set_resolved_reference_at(int index, oop new_result) {
   assert(oopDesc::is_oop_or_null(new_result), "Must be oop");
-  return oop_cast<refArrayOop>(resolved_references())->replace_if_null(index, new_result);
+  return refArrayOopDesc::cast(resolved_references())->replace_if_null(index, new_result);
 }
 
 // Create resolved_references array and mapping array for original cp indexes
@@ -224,14 +222,14 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
 
     // Create Java array for holding resolved strings, methodHandles,
     // methodTypes, invokedynamic and invokehandle appendix objects, etc.
-    refArrayOop stom = oopFactory::new_refArray(vmClasses::Object_klass(), map_length, CHECK);
+    objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
     HandleMark hm(THREAD);
     Handle refs_handle (THREAD, stom);  // must handleize.
     set_resolved_references(loader_data->add_handle(refs_handle));
 
     // Create a "scratch" copy of the resolved references array to archive
     if (CDSConfig::is_dumping_heap()) {
-      refArrayOop scratch_references = oopFactory::new_refArray(vmClasses::Object_klass(), map_length, CHECK);
+      objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
       HeapShared::add_scratch_resolved_references(this, scratch_references);
     }
   }
@@ -314,9 +312,8 @@ void ConstantPool::iterate_archivable_resolved_references(Function function) {
     if (method_entries != nullptr) {
       for (int i = 0; i < method_entries->length(); i++) {
         ResolvedMethodEntry* rme = method_entries->adr_at(i);
-        const char* rejection_reason = nullptr;
         if (rme->is_resolved(Bytecodes::_invokehandle) && rme->has_appendix() &&
-                               cache()->can_archive_resolved_method(this, rme, rejection_reason)) {
+            cache()->can_archive_resolved_method(this, rme)) {
           int rr_index = rme->resolved_references_index();
           assert(resolved_reference_at(rr_index) != nullptr, "must exist");
           function(rr_index);
@@ -328,7 +325,7 @@ void ConstantPool::iterate_archivable_resolved_references(Function function) {
 
 // Returns the _resolved_reference array after removing unarchivable items from it.
 // Returns null if this class is not supported, or _resolved_reference doesn't exist.
-refArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
+objArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
   if (_cache == nullptr) {
     return nullptr; // nothing to do
   }
@@ -340,7 +337,7 @@ refArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
     return nullptr;
   }
 
-  refArrayOop rr = resolved_references();
+  objArrayOop rr = resolved_references();
   if (rr != nullptr) {
     ResourceMark rm;
     int rr_len = rr->length();
@@ -350,7 +347,7 @@ refArrayOop ConstantPool::prepare_resolved_references_for_archiving() {
       keep_resolved_refs.at_put(rr_index, true);
     });
 
-    refArrayOop scratch_rr = HeapShared::scratch_resolved_references(this);
+    objArrayOop scratch_rr = HeapShared::scratch_resolved_references(this);
     Array<u2>* ref_map = reference_map();
     int ref_map_len = ref_map == nullptr ? 0 : ref_map->length();
     for (int i = 0; i < rr_len; i++) {
@@ -1356,7 +1353,7 @@ oop ConstantPool::uncached_string_at(int cp_index, TRAPS) {
 
 void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& this_cp, int cp_index,
                                                     int start_arg, int end_arg,
-                                                    refArrayHandle info, int pos,
+                                                    objArrayHandle info, int pos,
                                                     bool must_resolve, Handle if_not_available,
                                                     TRAPS) {
   int limit = pos + end_arg - start_arg;

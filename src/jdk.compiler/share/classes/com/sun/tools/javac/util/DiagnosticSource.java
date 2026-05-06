@@ -31,6 +31,7 @@ import java.nio.CharBuffer;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.tree.EndPosTable;
 
 import static com.sun.tools.javac.util.LayoutCharacters.*;
 
@@ -126,6 +127,16 @@ public class DiagnosticSource {
         }
     }
 
+    public EndPosTable getEndPosTable() {
+        return endPosTable;
+    }
+
+    public void setEndPosTable(EndPosTable t) {
+        if (endPosTable != null && endPosTable != t)
+            throw new IllegalStateException("endPosTable already set");
+        endPosTable = t;
+    }
+
     /** Find the line in the buffer that contains the current position
      * @param pos      Character offset into the buffer
      */
@@ -185,6 +196,8 @@ public class DiagnosticSource {
 
     /** The underlying file object. */
     protected JavaFileObject fileObject;
+
+    protected EndPosTable endPosTable;
 
     /** A soft reference to the content of the file object. */
     protected SoftReference<char[]> refBuf;

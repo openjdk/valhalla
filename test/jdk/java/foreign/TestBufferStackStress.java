@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,11 @@
 /*
  * @test
  * @modules java.base/jdk.internal.foreign
- * @library /test/lib
+ * @build NativeTestHelper TestBufferStackStress
  * @run junit TestBufferStackStress
  */
 
 import jdk.internal.foreign.BufferStack;
-import jdk.test.lib.Platform;
 import org.junit.jupiter.api.Test;
 
 import java.lang.foreign.Arena;
@@ -41,23 +40,17 @@ import java.util.stream.IntStream;
 import static java.lang.foreign.ValueLayout.*;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.*;
 
-final class TestBufferStackStress {
+public class TestBufferStackStress {
 
     @Test
-    void stress() throws InterruptedException {
-        if (Platform.isOSX()) {
-            // 8350455 was only fixed in macOS versions 26 or higher
-            assumeFalse(Platform.getOsVersionMajor() < 26, "Unsupported OS version: " + Platform.getOsVersionMajor());
-        }
-
+    public void stress() throws InterruptedException {
         BufferStack stack = BufferStack.of(256, 1);
-        Thread[] vThreads = IntStream.range(0, 512).mapToObj(_ ->
+        Thread[] vThreads = IntStream.range(0, 1024).mapToObj(_ ->
                 Thread.ofVirtual().start(() -> {
                     long threadId = Thread.currentThread().threadId();
                     while (!Thread.interrupted()) {
-                        for (int i = 0; i < 500_000; i++) {
+                        for (int i = 0; i < 1_000_000; i++) {
                             try (Arena arena = stack.pushFrame(JAVA_LONG.byteSize(), JAVA_LONG.byteAlignment())) {
                                 // Try to assert no two vThreads get allocated the same stack space.
                                 MemorySegment segment = arena.allocate(JAVA_LONG);

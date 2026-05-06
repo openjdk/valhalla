@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8250219
- * @run junit HiddenProxyInterface
+ * @run testng HiddenProxyInterface
  */
 
 import java.lang.invoke.MethodHandles;
@@ -35,8 +35,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class HiddenProxyInterface {
     private static final Path CLASSES_DIR = Paths.get(System.getProperty("test.classes"));
@@ -45,19 +45,18 @@ public class HiddenProxyInterface {
         void m();
     }
 
-    @Test
+    @Test(expectedExceptions = { IllegalArgumentException.class })
     public void testHiddenInterface() throws Exception {
         Path classFile = CLASSES_DIR.resolve("HiddenProxyInterface$Intf.class");
         byte[] bytes = Files.readAllBytes(classFile);
         Class<?> hiddenIntf = MethodHandles.lookup().defineHiddenClass(bytes, false).lookupClass();
-        assertThrows(IllegalArgumentException.class, () -> Proxy.newProxyInstance(
-                HiddenProxyInterface.class.getClassLoader(),
+        Proxy.newProxyInstance(HiddenProxyInterface.class.getClassLoader(),
                 new Class<?>[]{ hiddenIntf },
                 new InvocationHandler() {
                     @Override
                     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                         return null;
                     }
-                }));
+                });
     }
 }

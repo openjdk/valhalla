@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,44 +25,44 @@
  * @test
  * @bug 8173975
  * @summary Lookup::in throws IAE if the target class is a primitive class or array class
- * @run junit/othervm LookupClassTest
+ * @run testng/othervm LookupClassTest
  */
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class LookupClassTest {
     private static final LookupClassTest[] ARRAY = new LookupClassTest[0];
-    @BeforeAll
-    public static void test() {
+    @BeforeTest
+    public void test() {
         assertTrue(ARRAY.getClass().isArray());
         assertSamePackage(MethodHandles.lookup(), ARRAY.getClass());
         assertSamePackage(MethodHandles.publicLookup(), int.class);
     }
 
-    private static void assertSamePackage(Lookup lookup, Class<?> targetClass) {
-        assertEquals(targetClass.getPackageName(), lookup.lookupClass().getPackageName());
+    private void assertSamePackage(Lookup lookup, Class<?> targetClass) {
+        assertEquals(lookup.lookupClass().getPackageName(), targetClass.getPackageName());
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void arrayLookupClass() {
         Lookup lookup = MethodHandles.lookup();
-        assertThrows(IllegalArgumentException.class, () -> lookup.in(ARRAY.getClass()));
+        lookup.in(ARRAY.getClass());
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void primitiveLookupClass() {
         Lookup lookup = MethodHandles.publicLookup();
-        assertThrows(IllegalArgumentException.class, () -> lookup.in(int.class));
+        lookup.in(int.class);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void voidLookupClass() {
         Lookup lookup = MethodHandles.publicLookup();
-        assertThrows(IllegalArgumentException.class, () -> lookup.in(void.class));
+        lookup.in(void.class);
     }
 }

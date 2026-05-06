@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,6 +59,8 @@
  */
 package tck.java.time.zone.serial;
 
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -67,15 +69,12 @@ import java.io.ObjectOutputStream;
 import java.time.ZoneOffset;
 import java.time.zone.ZoneRules;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 /**
  * Test serialization of ZoneRules for fixed offset time-zones.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKFixedZoneRulesSerialization {
 
     private static final ZoneOffset OFFSET_PONE = ZoneOffset.ofHours(1);
@@ -86,6 +85,7 @@ public class TCKFixedZoneRulesSerialization {
         return offset.getRules();
     }
 
+    @DataProvider(name="rules")
     Object[][] data_rules() {
         return new Object[][] {
             {make(OFFSET_PONE), OFFSET_PONE},
@@ -97,8 +97,7 @@ public class TCKFixedZoneRulesSerialization {
     //-----------------------------------------------------------------------
     // Basics
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_rules")
+    @Test(dataProvider="rules")
     public void test_serialization(ZoneRules test, ZoneOffset expectedOffset) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream out = new ObjectOutputStream(baos);
@@ -110,8 +109,8 @@ public class TCKFixedZoneRulesSerialization {
         ObjectInputStream in = new ObjectInputStream(bais);
         ZoneRules result = (ZoneRules) in.readObject();
 
-        assertEquals(test, result);
-        assertEquals(test.getClass(), result.getClass());
+        assertEquals(result, test);
+        assertEquals(result.getClass(), test.getClass());
     }
 
 

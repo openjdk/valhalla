@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@
  */
 package tck.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -71,17 +71,14 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.TextStyle;
 import java.util.Locale;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test DateTimeFormatterBuilder.appendOffset().
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKOffsetPrinterParser {
 
     private static final ZoneOffset OFFSET_UTC = ZoneOffset.UTC;
@@ -107,12 +104,13 @@ public class TCKOffsetPrinterParser {
     private static final ZoneOffset OFFSET_M112345 = ZoneOffset.ofHoursMinutesSeconds(-11, -23, -45);
     private DateTimeFormatterBuilder builder;
 
-    @BeforeEach
+    @BeforeMethod
     public void setUp() {
         builder = new DateTimeFormatterBuilder();
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="print")
     Object[][] data_print() {
         return new Object[][] {
                 {"+HH", "Z", DT_2012_06_30_12_30_40, OFFSET_UTC, "Z"},
@@ -443,6 +441,7 @@ public class TCKOffsetPrinterParser {
         };
     }
 
+    @DataProvider(name="print_localized")
     Object[][] data_print_localized() {
         return new Object[][] {
                 {TextStyle.FULL, DT_2012_06_30_12_30_40, OFFSET_UTC, "GMT"},
@@ -470,18 +469,16 @@ public class TCKOffsetPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_print")
+    @Test(dataProvider="print")
     public void test_print(String offsetPattern, String noOffset, LocalDateTime ldt, ZoneId zone, String expected) {
         ZonedDateTime zdt = ldt.atZone(zone);
         builder.appendOffset(offsetPattern, noOffset);
         String output = builder.toFormatter().format(zdt);
-        assertEquals(expected, output);
+        assertEquals(output, expected);
     }
 
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_print")
+    @Test(dataProvider="print")
     public void test_print_pattern_X(String offsetPattern, String noOffset, LocalDateTime ldt, ZoneId zone, String expected) {
         String pattern = null;
         if (offsetPattern.equals("+HHmm") && noOffset.equals("Z")) {
@@ -499,12 +496,11 @@ public class TCKOffsetPrinterParser {
             ZonedDateTime zdt = ldt.atZone(zone);
             builder.appendPattern(pattern);
             String output = builder.toFormatter().format(zdt);
-            assertEquals(expected, output);
+            assertEquals(output, expected);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_print")
+    @Test(dataProvider="print")
     public void test_print_pattern_x(String offsetPattern, String noOffset, LocalDateTime ldt, ZoneId zone, String expected) {
         String pattern = null;
         String zero = null;
@@ -528,119 +524,117 @@ public class TCKOffsetPrinterParser {
             ZonedDateTime zdt = ldt.atZone(zone);
             builder.appendPattern(pattern);
             String output = builder.toFormatter().format(zdt);
-            assertEquals((expected.equals("Z") ? zero : expected), output);
+            assertEquals(output, (expected.equals("Z") ? zero : expected));
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_print")
+    @Test(dataProvider="print")
     public void test_print_pattern_Z(String offsetPattern, String noOffset, LocalDateTime ldt, ZoneId zone, String expected) {
         String pattern = null;
         if (offsetPattern.equals("+HHMM") && noOffset.equals("Z")) {
             ZonedDateTime zdt = ldt.atZone(zone);
             DateTimeFormatter f1 = new DateTimeFormatterBuilder().appendPattern("Z").toFormatter();
             String output1 = f1.format(zdt);
-            assertEquals((expected.equals("Z") ? "+0000" : expected), output1);
+            assertEquals(output1, (expected.equals("Z") ? "+0000" : expected));
 
             DateTimeFormatter f2 = new DateTimeFormatterBuilder().appendPattern("ZZ").toFormatter();
             String output2 = f2.format(zdt);
-            assertEquals((expected.equals("Z") ? "+0000" : expected), output2);
+            assertEquals(output2, (expected.equals("Z") ? "+0000" : expected));
 
             DateTimeFormatter f3 = new DateTimeFormatterBuilder().appendPattern("ZZZ").toFormatter();
             String output3 = f3.format(zdt);
-            assertEquals((expected.equals("Z") ? "+0000" : expected), output3);
+            assertEquals(output3, (expected.equals("Z") ? "+0000" : expected));
         } else if (offsetPattern.equals("+HH:MM:ss") && noOffset.equals("Z")) {
             ZonedDateTime zdt = ldt.atZone(zone);
             DateTimeFormatter f = new DateTimeFormatterBuilder().appendPattern("ZZZZZ").toFormatter();
             String output = f.format(zdt);
-            assertEquals(expected, output);
+            assertEquals(output, expected);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_print_localized")
+    @Test(dataProvider="print_localized")
     public void test_print_localized(TextStyle style, LocalDateTime ldt, ZoneOffset offset, String expected) {
         OffsetDateTime odt = OffsetDateTime.of(ldt, offset);
         ZonedDateTime zdt = ldt.atZone(offset);
 
         DateTimeFormatter f = new DateTimeFormatterBuilder().appendLocalizedOffset(style)
                                                             .toFormatter(Locale.US);
-        assertEquals(expected, f.format(odt));
-        assertEquals(expected, f.format(zdt));
-        assertEquals(offset, f.parse(expected, ZoneOffset::from));
+        assertEquals(f.format(odt), expected);
+        assertEquals(f.format(zdt), expected);
+        assertEquals(f.parse(expected, ZoneOffset::from), offset);
 
         if (style == TextStyle.FULL) {
             f = new DateTimeFormatterBuilder().appendPattern("ZZZZ")
                                               .toFormatter(Locale.US);
-            assertEquals(expected, f.format(odt));
-            assertEquals(expected, f.format(zdt));
-            assertEquals(offset, f.parse(expected, ZoneOffset::from));
+            assertEquals(f.format(odt), expected);
+            assertEquals(f.format(zdt), expected);
+            assertEquals(f.parse(expected, ZoneOffset::from), offset);
 
             f = new DateTimeFormatterBuilder().appendPattern("OOOO")
                                               .toFormatter(Locale.US);
-            assertEquals(expected, f.format(odt));
-            assertEquals(expected, f.format(zdt));
-            assertEquals(offset, f.parse(expected, ZoneOffset::from));
+            assertEquals(f.format(odt), expected);
+            assertEquals(f.format(zdt), expected);
+            assertEquals(f.parse(expected, ZoneOffset::from), offset);
         }
 
         if (style == TextStyle.SHORT) {
             f = new DateTimeFormatterBuilder().appendPattern("O")
                                               .toFormatter(Locale.US);
-            assertEquals(expected, f.format(odt));
-            assertEquals(expected, f.format(zdt));
-            assertEquals(offset, f.parse(expected, ZoneOffset::from));
+            assertEquals(f.format(odt), expected);
+            assertEquals(f.format(zdt), expected);
+            assertEquals(f.parse(expected, ZoneOffset::from), offset);
         }
     }
 
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_X6rejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendPattern("XXXXXX"));
+        builder.appendPattern("XXXXXX");
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_x6rejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendPattern("xxxxxx"));
+        builder.appendPattern("xxxxxx");
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_Z6rejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendPattern("ZZZZZZ"));
+        builder.appendPattern("ZZZZZZ");
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_O2rejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendPattern("OO"));
+        builder.appendPattern("OO");
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_O3rejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendPattern("OOO"));
+        builder.appendPattern("OOO");
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_O5rejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendPattern("OOOOO"));
+        builder.appendPattern("OOOOO");
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_localzed_full_standline() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendLocalizedOffset(TextStyle.FULL_STANDALONE));
+        builder.appendLocalizedOffset(TextStyle.FULL_STANDALONE);
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_localzed_short_standalone() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendLocalizedOffset(TextStyle.SHORT_STANDALONE));
+        builder.appendLocalizedOffset(TextStyle.SHORT_STANDALONE);
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_localzed_narrow() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendLocalizedOffset(TextStyle.NARROW));
+        builder.appendLocalizedOffset(TextStyle.NARROW);
     }
 
-    @Test
+    @Test(expectedExceptions=IllegalArgumentException.class)
     public void test_print_pattern_localzed_narrow_standalone() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> builder.appendLocalizedOffset(TextStyle.NARROW_STANDALONE));
+        builder.appendLocalizedOffset(TextStyle.NARROW_STANDALONE);
     }
 
 }

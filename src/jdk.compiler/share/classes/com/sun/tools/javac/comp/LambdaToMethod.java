@@ -142,9 +142,6 @@ public class LambdaToMethod extends TreeTranslator {
     /** dump statistics about lambda code generation */
     private final boolean dumpLambdaToMethodStats;
 
-    /** dump statistics about lambda deserialization code generation */
-    private final boolean dumpLambdaDeserializationStats;
-
     /** force serializable representation, for stress testing **/
     private final boolean forceSerializable;
 
@@ -190,7 +187,6 @@ public class LambdaToMethod extends TreeTranslator {
         transTypes = TransTypes.instance(context);
         Options options = Options.instance(context);
         dumpLambdaToMethodStats = options.isSet("debug.dumpLambdaToMethodStats");
-        dumpLambdaDeserializationStats = options.isSet("debug.dumpLambdaDeserializationStats");
         attr = Attr.instance(context);
         forceSerializable = options.isSet("forceSerializable");
         boolean lineDebugInfo =
@@ -701,28 +697,25 @@ public class LambdaToMethod extends TreeTranslator {
                 rs.resolveConstructor(null, attrEnv, ctype, TreeInfo.types(args), List.nil()));
     }
 
-    private void addDeserializationCase(MethodHandleSymbol refSym, Type targetType, MethodSymbol samSym, Type samType,
+    private void addDeserializationCase(MethodHandleSymbol refSym, Type targetType, MethodSymbol samSym,
                                         DiagnosticPosition pos, List<LoadableConstant> staticArgs, MethodType indyType) {
         String functionalInterfaceClass = classSig(targetType);
         String functionalInterfaceMethodName = samSym.getSimpleName().toString();
         String functionalInterfaceMethodSignature = typeSig(types.erasure(samSym.type));
-        if (refSym.enclClass().isInterface()) {
-            Symbol baseMethod = types.overriddenObjectMethod(refSym.enclClass(), refSym);
-            if (baseMethod != null) {
-                // The implementation method is a java.lang.Object method, runtime will resolve this method to
-                // a java.lang.Object method, so do the same.
-                // This case can be removed if JDK-8172817 is fixed.
-                refSym = ((MethodSymbol) baseMethod).asHandle();
-            }
+        Symbol baseMethod = refSym.baseSymbol();
+        Symbol origMethod = baseMethod.baseSymbol();
+        if (baseMethod != origMethod && origMethod.owner == syms.objectType.tsym) {
+            //the implementation method is a java.lang.Object method transferred to an
+            //interface that does not declare it. Runtime will refer to this method as to
+            //a java.lang.Object method, so do the same:
+            refSym = ((MethodSymbol) origMethod).asHandle();
         }
         String implClass = classSig(types.erasure(refSym.owner.type));
         String implMethodName = refSym.getQualifiedName().toString();
         String implMethodSignature = typeSig(types.erasure(refSym.type));
-        String instantiatedMethodType = typeSig(types.erasure(samType));
 
-        int implMethodKind = refSym.referenceKind();
         JCExpression kindTest = eqTest(syms.intType, deserGetter("getImplMethodKind", syms.intType),
-                make.Literal(implMethodKind));
+                make.Literal(refSym.referenceKind()));
         ListBuffer<JCExpression> serArgs = new ListBuffer<>();
         int i = 0;
         for (Type t : indyType.getParameterTypes()) {
@@ -732,14 +725,13 @@ public class LambdaToMethod extends TreeTranslator {
             ++i;
         }
         JCStatement stmt = make.If(
-                deserTest(deserTest(deserTest(deserTest(deserTest(deserTest(
-                                                                kindTest,
-                                                                "getFunctionalInterfaceClass", functionalInterfaceClass),
-                                                        "getFunctionalInterfaceMethodName", functionalInterfaceMethodName),
-                                                "getFunctionalInterfaceMethodSignature", functionalInterfaceMethodSignature),
-                                        "getImplClass", implClass),
-                                "getImplMethodSignature", implMethodSignature),
-                        "getInstantiatedMethodType", instantiatedMethodType),
+                deserTest(deserTest(deserTest(deserTest(deserTest(
+                                                        kindTest,
+                                                        "getFunctionalInterfaceClass", functionalInterfaceClass),
+                                                "getFunctionalInterfaceMethodName", functionalInterfaceMethodName),
+                                        "getFunctionalInterfaceMethodSignature", functionalInterfaceMethodSignature),
+                                "getImplClass", implClass),
+                        "getImplMethodSignature", implMethodSignature),
                 make.Return(makeIndyCall(
                         pos,
                         syms.lambdaMetafactory,
@@ -751,17 +743,16 @@ public class LambdaToMethod extends TreeTranslator {
             stmts = new ListBuffer<>();
             kInfo.deserializeCases.put(implMethodName, stmts);
         }
-        if (dumpLambdaDeserializationStats) {
-            log.note(pos, Notes.LambdaDeserializationStat(
-                    functionalInterfaceClass,
-                    functionalInterfaceMethodName,
-                    functionalInterfaceMethodSignature,
-                    implMethodKind,
-                    implClass,
-                    implMethodName,
-                    implMethodSignature,
-                    instantiatedMethodType));
-        }
+        /* **
+        System.err.printf("+++++++++++++++++\n");
+        System.err.printf("*functionalInterfaceClass: '%s'\n", functionalInterfaceClass);
+        System.err.printf("*functionalInterfaceMethodName: '%s'\n", functionalInterfaceMethodName);
+        System.err.printf("*functionalInterfaceMethodSignature: '%s'\n", functionalInterfaceMethodSignature);
+        System.err.printf("*implMethodKind: %d\n", implMethodKind);
+        System.err.printf("*implClass: '%s'\n", implClass);
+        System.err.printf("*implMethodName: '%s'\n", implMethodName);
+        System.err.printf("*implMethodSignature: '%s'\n", implMethodSignature);
+        ****/
         stmts.append(stmt);
     }
 
@@ -822,11 +813,10 @@ public class LambdaToMethod extends TreeTranslator {
                                                  List<JCExpression> indy_args) {
         //determine the static bsm args
         MethodSymbol samSym = (MethodSymbol) types.findDescriptorSymbol(tree.target.tsym);
-        MethodType samType = typeToMethodType(tree.getDescriptorType(types));
         List<LoadableConstant> staticArgs = List.of(
                 typeToMethodType(samSym.type),
                 refSym.asHandle(),
-                samType);
+                typeToMethodType(tree.getDescriptorType(types)));
 
         //computed indy arg types
         ListBuffer<Type> indy_args_types = new ListBuffer<>();
@@ -890,7 +880,7 @@ public class LambdaToMethod extends TreeTranslator {
                 int prevPos = make.pos;
                 try {
                     make.at(kInfo.clazz);
-                    addDeserializationCase(refSym, tree.type, samSym, samType,
+                    addDeserializationCase(refSym, tree.type, samSym,
                             tree, staticArgs, indyType);
                 } finally {
                     make.at(prevPos);

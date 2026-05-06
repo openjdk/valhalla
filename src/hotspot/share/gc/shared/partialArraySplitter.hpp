@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,8 @@ class PartialArraySplitter {
 
 public:
   PartialArraySplitter(PartialArrayStateManager* manager,
-                       uint num_workers);
+                       uint num_workers,
+                       size_t chunk_size);
   ~PartialArraySplitter() = default;
 
   NONCOPYABLE(PartialArraySplitter);
@@ -58,8 +59,6 @@ public:
   // if a copy of from_array is not required.
   //
   // length is their length in elements.
-  //
-  // chunk_size the size of a single chunk.
   //
   // If t is a ScannerTask, queue->push(t) must be a valid expression.  The
   // result of that expression is ignored.
@@ -77,8 +76,7 @@ public:
   size_t start(Queue* queue,
                objArrayOop from_array,
                objArrayOop to_array,
-               size_t length,
-               size_t chunk_size);
+               size_t length);
 
   // Result type for claim(), carrying multiple values.  Provides the claimed
   // chunk's start and end array indices.

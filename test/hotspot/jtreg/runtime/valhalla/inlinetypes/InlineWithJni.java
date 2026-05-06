@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,12 +29,13 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm/native --enable-native-access=ALL-UNNAMED -XX:+UnlockDiagnosticVMOptions -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.InlineWithJni
+ * @run main/othervm/native --enable-native-access=ALL-UNNAMED -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.InlineWithJni
  */
 
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -156,22 +157,18 @@ public value class InlineWithJni {
 
     // Container with null-restricted fields (potentially flattened)
     static class Container1 {
+        @Strict
         @NullRestricted
-        SmallValue sv;
+        SmallValue sv = new SmallValue();
+        @Strict
         @NullRestricted
-        MediumValue mv;
+        MediumValue mv = new MediumValue();
+        @Strict
         @NullRestricted
-        BigValue bv;
+        BigValue bv = new BigValue();
+        @Strict
         @NullRestricted
-        ValueWithOop vwo;
-
-        Container1() {
-            sv = new SmallValue();
-            mv = new MediumValue();
-            bv = new BigValue();
-            vwo = new ValueWithOop();
-            super();
-        }
+        ValueWithOop vwo = new ValueWithOop();
     }
 
     static String getFieldSignature(Class c, String name) {

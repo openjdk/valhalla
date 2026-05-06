@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
  *        jdk.httpclient.test.lib.common.TestServerConfigurator
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm CustomResponseSubscriber
  */
 
 import java.io.IOException;
@@ -59,37 +59,37 @@ import jdk.httpclient.test.lib.http2.Http2Handler;
 import javax.net.ssl.SSLContext;
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class CustomResponseSubscriber {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
-    private static HttpsServer httpsTestServer;       // HTTPS/1.1
-    private static Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static Http2TestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static String httpURI_fixed;
-    private static String httpURI_chunk;
-    private static String httpsURI_fixed;
-    private static String httpsURI_chunk;
-    private static String http2URI_fixed;
-    private static String http2URI_chunk;
-    private static String https2URI_fixed;
-    private static String https2URI_chunk;
+    SSLContext sslContext;
+    HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
+    HttpsServer httpsTestServer;       // HTTPS/1.1
+    Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
+    Http2TestServer https2TestServer;  // HTTP/2 ( h2  )
+    String httpURI_fixed;
+    String httpURI_chunk;
+    String httpsURI_fixed;
+    String httpsURI_chunk;
+    String http2URI_fixed;
+    String http2URI_chunk;
+    String https2URI_fixed;
+    String https2URI_chunk;
 
     static final int ITERATION_COUNT = 10;
     // a shared executor helps reduce the amount of threads created by the test
     static final Executor executor = Executors.newCachedThreadPool();
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         return new Object[][]{
                 { httpURI_fixed,    false },
                 { httpURI_chunk,    false },
@@ -118,8 +118,7 @@ public class CustomResponseSubscriber {
                          .build();
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsString(String uri, boolean sameClient) throws Exception {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
@@ -131,14 +130,14 @@ public class CustomResponseSubscriber {
             BodyHandler<String> handler = new CRSBodyHandler();
             HttpResponse<String> response = client.send(req, handler);
             String body = response.body();
-            assertEquals("", body);
+            assertEquals(body, "");
         }
     }
 
     static class CRSBodyHandler implements BodyHandler<String> {
         @Override
         public BodySubscriber<String> apply(HttpResponse.ResponseInfo rinfo) {
-            assertEquals(200, rinfo.statusCode());
+            assertEquals(rinfo.statusCode(), 200);
             return new CRSBodySubscriber();
         }
     }
@@ -186,8 +185,12 @@ public class CustomResponseSubscriber {
                 + server.getAddress().getPort();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // HTTP/1.1
         HttpHandler h1_fixedLengthHandler = new HTTP1_FixedLengthHandler();
         HttpHandler h1_chunkHandler = new HTTP1_ChunkedHandler();
@@ -227,8 +230,8 @@ public class CustomResponseSubscriber {
         https2TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         httpTestServer.stop(0);
         httpsTestServer.stop(0);
         http2TestServer.stop();

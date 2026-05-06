@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @bug 8366028
  * @summary unit tests for java.lang.invoke.MethodType
  * @compile MethodTypeTest.java
- * @run junit/othervm test.java.lang.invoke.MethodTypeTest
+ * @run testng/othervm test.java.lang.invoke.MethodTypeTest
  */
 
 package test.java.lang.invoke;
@@ -35,13 +35,11 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
 import java.util.*;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.assertThrows;
+import static org.testng.AssertJUnit.*;
+import org.testng.annotations.*;
 
 /**
  *
@@ -59,7 +57,7 @@ public class MethodTypeTest {
     private MethodType[] GALLERY;
     private Method compareTo;
 
-    @BeforeEach
+    @BeforeMethod
     public void setUp() throws Exception {
         rtype = void.class;
         ptypes = new Class<?>[] { int.class, String.class };
@@ -100,7 +98,7 @@ public class MethodTypeTest {
         };
     }
 
-    @AfterEach
+    @AfterMethod
     public void tearDown() throws Exception {
     }
 
@@ -109,7 +107,7 @@ public class MethodTypeTest {
     public void testDistinct() {
         List<MethodType> gallery2 = new ArrayList<>();
         for (MethodType mt : GALLERY) {
-            assertFalse(gallery2.contains(mt), mt.toString());
+            assertFalse(mt.toString(), gallery2.contains(mt));
             gallery2.add(mt);
         }
         // check self-equality also:
@@ -200,9 +198,9 @@ public class MethodTypeTest {
         for (int i = 0; i < instances.length; i++) {
             MethodType instance = instances[i];
             String result = instance.toMethodDescriptorString();
-            assertEquals(expResults[i], result, "#"+i);
+            assertEquals("#"+i, expResults[i], result);
             MethodType parsed = MethodType.fromMethodDescriptorString(result, loader);
-            assertSame(instance, parsed, "--#"+i);
+            assertSame("--#"+i, instance, parsed);
         }
     }
     private static String concat(Object... parts) {
@@ -223,7 +221,8 @@ public class MethodTypeTest {
         return sb.toString().replace('.', '/');
     }
 
-    public static String[] badMethodDescriptorStrings() {
+    @DataProvider(name = "badMethodDescriptorStrings")
+    public String[] badMethodDescriptorStrings() {
         return new String[] {
                 "(I)",
                 "(V)V",
@@ -240,12 +239,9 @@ public class MethodTypeTest {
     }
 
     // JDK-8366028
-    @ParameterizedTest
-    @MethodSource("badMethodDescriptorStrings")
+    @Test(dataProvider = "badMethodDescriptorStrings", expectedExceptions = IllegalArgumentException.class)
     public void testFromMethodDescriptorStringNegatives(String desc) {
-        assertThrows(IllegalArgumentException.class, () -> {
-            MethodType.fromMethodDescriptorString(desc, null);
-        });
+        MethodType.fromMethodDescriptorString(desc, null);
     }
 
     @Test
@@ -255,7 +251,7 @@ public class MethodTypeTest {
         boolean[] expResults =   {true,   false,  true,  false, true,   true,   false,  true};
         for (int i = 0; i < instances.length; i++) {
             boolean result = instances[i].hasPrimitives();
-            assertEquals(expResults[i], result, "#"+i);
+            assertEquals("#"+i, expResults[i], result);
         }
     }
 
@@ -267,7 +263,7 @@ public class MethodTypeTest {
         for (int i = 0; i < instances.length; i++) {
             System.out.println("  hasWrappers "+instances[i]);
             boolean result = instances[i].hasWrappers();
-            assertEquals(expResults[i], result, "#"+i);
+            assertEquals("#"+i, expResults[i], result);
         }
     }
 
@@ -278,7 +274,7 @@ public class MethodTypeTest {
         MethodType[] expResults = {mt_viO, mt_OO2, mt_vv, mt_Ov, mt_iO2, mt_OOi, mt_OO2, mt_iOi};
         for (int i = 0; i < instances.length; i++) {
             MethodType result = instances[i].erase();
-            assertSame(expResults[i], result, "#"+i);
+            assertSame("#"+i, expResults[i], result);
         }
     }
 
@@ -289,7 +285,7 @@ public class MethodTypeTest {
         MethodType[] expResults = {mt_OO2, mt_OO2, mt_Ov, mt_Ov, mt_OO2, mt_OO2, mt_OO2, mt_OO2};
         for (int i = 0; i < instances.length; i++) {
             MethodType result = instances[i].generic();
-            assertSame(expResults[i], result, "#"+i);
+            assertSame("#"+i, expResults[i], result);
         }
     }
 
@@ -300,7 +296,7 @@ public class MethodTypeTest {
         MethodType[] expResults = {mt_VIS, mt_OO2, mt_Vv, mt_Ov, mt_ISI, mt_ISI, mt_ISI, mt_ISI};
         for (int i = 0; i < instances.length; i++) {
             MethodType result = instances[i].wrap();
-            assertSame(expResults[i], result, "#"+i);
+            assertSame("#"+i, expResults[i], result);
         }
     }
 
@@ -311,7 +307,7 @@ public class MethodTypeTest {
         MethodType[] expResults = {mt_viS, mt_OO2, mt_vv, mt_Ov, mt_iSi, mt_iSi, mt_iSi, mt_iSi};
         for (int i = 0; i < instances.length; i++) {
             MethodType result = instances[i].unwrap();
-            assertSame(expResults[i], result, "#"+i);
+            assertSame("#"+i, expResults[i], result);
         }
     }
 
@@ -440,7 +436,7 @@ public class MethodTypeTest {
             MethodType instance = instances[i];
             String result = instance.toString();
             System.out.println("#"+i+":"+result);
-            assertEquals(expResults[i], result, "#"+i);
+            assertEquals("#"+i, expResults[i], result);
         }
     }
 

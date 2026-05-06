@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  *          BadClassFileVersion.jcod
  * @build jdk.test.lib.Utils
  *        jdk.test.lib.compiler.CompilerUtils
- * @run junit/othervm BasicTest
+ * @run testng/othervm BasicTest
  */
 
 import java.io.File;
@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.lang.classfile.ClassFile;
 import java.lang.constant.ClassDesc;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -52,16 +53,16 @@ import java.util.stream.Stream;
 import jdk.test.lib.compiler.CompilerUtils;
 import jdk.test.lib.Utils;
 
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.CD_Enum;
 import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
 interface HiddenTest {
     void test();
@@ -75,7 +76,7 @@ public class BasicTest {
 
     private static byte[] hiddenClassBytes;
 
-    @BeforeAll
+    @BeforeTest
     static void setup() throws IOException {
         compileSources(SRC_DIR, CLASSES_DIR);
         hiddenClassBytes = Files.readAllBytes(CLASSES_DIR.resolve("HiddenClass.class"));
@@ -114,9 +115,9 @@ public class BasicTest {
         Class<?>[] intfs = c.getInterfaces();
         assertTrue(c.isHidden());
         assertFalse(c.isPrimitive());
-        assertEquals(1, intfs.length);
-        assertSame(HiddenTest.class, intfs[0]);
-        assertNull(c.getCanonicalName());
+        assertTrue(intfs.length == 1 || intfs.length == 2);
+        assertTrue(intfs[0] == HiddenTest.class || (intfs.length == 2 && intfs[1] == HiddenTest.class));
+        assertTrue(c.getCanonicalName() == null);
 
         String hcName = "HiddenClass";
         String hcSuffix = "0x[0-9a-f]+";
@@ -143,7 +144,7 @@ public class BasicTest {
         Object array = Array.newInstance(type, 2);
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.isArray());
-        assertEquals(2, Array.getLength(array));
+        assertTrue(Array.getLength(array) == 2);
         assertFalse(arrayType.isHidden());
 
         String hcName = "HiddenClass";
@@ -152,11 +153,11 @@ public class BasicTest {
         assertTrue(arrayType.descriptorString().matches("\\[" + "L" + hcName + "." + hcSuffix + ";"));
 
         assertTrue(arrayType.getComponentType().isHidden());
-        assertSame(type, arrayType.getComponentType());
+        assertTrue(arrayType.getComponentType() == type);
         Object t = type.newInstance();
         Array.set(array, 0, t);
         Object o = Array.get(array, 0);
-        assertSame(t, o);
+        assertTrue(o == t);
     }
 
     private void checkSetAccessible(Class<?> c, String name, Class<?>... ptypes) throws Exception {
@@ -170,8 +171,13 @@ public class BasicTest {
     @Test
     public void testLambda() throws Throwable {
         HiddenTest t = (HiddenTest)defineHiddenClass("Lambda").newInstance();
-        var e = assertThrows(Error.class, t::test);
-        assertEquals("thrown by " + t.getClass().getName(), e.getMessage());
+        try {
+            t.test();
+        } catch (Error e) {
+            if (!e.getMessage().equals("thrown by " + t.getClass().getName())) {
+                throw e;
+            }
+        }
     }
 
     // Define a hidden class that uses lambda and contains its implementation
@@ -179,8 +185,13 @@ public class BasicTest {
     @Test
     public void testHiddenLambda() throws Throwable {
         HiddenTest t = (HiddenTest)defineHiddenClass("HiddenLambda").newInstance();
-        var e = assertThrows(Error.class, t::test);
-        assertEquals("thrown by " + t.getClass().getName(), e.getMessage());
+        try {
+            t.test();
+        } catch (Error e) {
+            if (!e.getMessage().equals("thrown by " + t.getClass().getName())) {
+                throw e;
+            }
+        }
     }
 
     // Verify the nest host and nest members of a hidden class and hidden nestmate class
@@ -196,18 +207,19 @@ public class BasicTest {
 
         // test nest membership and reflection API
         assertTrue(host.isNestmateOf(member));
-        assertSame(host, host.getNestHost());
+        assertTrue(host.getNestHost() == host);
         // getNestHost and getNestMembers return the same value when calling
         // on a nest member and the nest host
-        assertSame(host.getNestHost(), member.getNestHost());
-        assertArrayEquals(member.getNestMembers(), host.getNestMembers());
+        assertTrue(member.getNestHost() == host.getNestHost());
+        assertTrue(Arrays.equals(member.getNestMembers(), host.getNestMembers()));
         // getNestMembers includes the nest host that can be a hidden class but
         // only includes static nest members
-        assertEquals(1, host.getNestMembers().length);
-        assertSame(host, host.getNestMembers()[0]);
+        assertTrue(host.getNestMembers().length == 1);
+        assertTrue(host.getNestMembers()[0] == host);
     }
 
-    private static Object[][] hiddenClasses() {
+    @DataProvider(name = "hiddenClasses")
+    private Object[][] hiddenClasses() {
         return new Object[][] {
                 new Object[] { "HiddenInterface", false },
                 new Object[] { "AbstractClass", false },
@@ -229,8 +241,7 @@ public class BasicTest {
      * is not useful as it cannot be referenced and an outer/inner class
      * when defined as a hidden effectively becomes a final top-level class.
      */
-    @ParameterizedTest
-    @MethodSource("hiddenClasses")
+    @Test(dataProvider = "hiddenClasses")
     public void defineHiddenClass(String name, boolean nestmate) throws Exception {
         byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve(name + ".class"));
         Class<?> hc;
@@ -242,16 +253,17 @@ public class BasicTest {
             hc = lookup().defineHiddenClass(bytes, false).lookupClass();
             host = hc;
         }
-        assertSame(host, hc.getNestHost());
-        assertEquals(1, hc.getNestMembers().length);
-        assertSame(host, hc.getNestMembers()[0]);
+        assertTrue(hc.getNestHost() == host);
+        assertTrue(hc.getNestMembers().length == 1);
+        assertTrue(hc.getNestMembers()[0] == host);
     }
 
-    private static Object[][] emptyClasses() {
+    @DataProvider(name = "emptyClasses")
+    private Object[][] emptyClasses() {
         return new Object[][] {
-                new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC },
-                new Object[] { "EmptyHiddenEnum", ACC_ENUM },
-                new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT },
+                new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC | ACC_IDENTITY },
+                new Object[] { "EmptyHiddenEnum", ACC_ENUM | ACC_IDENTITY },
+                new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT | ACC_IDENTITY },
                 new Object[] { "EmptyHiddenInterface", ACC_ABSTRACT|ACC_INTERFACE },
                 new Object[] { "EmptyHiddenAnnotation", ACC_ANNOTATION|ACC_ABSTRACT|ACC_INTERFACE },
         };
@@ -265,26 +277,25 @@ public class BasicTest {
      * enum class containing constants of its type should not be a hidden
      * class.
      */
-    @ParameterizedTest
-    @MethodSource("emptyClasses")
+    @Test(dataProvider = "emptyClasses")
     public void emptyHiddenClass(String name, int accessFlags) throws Exception {
-        byte[] bytes = (accessFlags == ACC_ENUM) ? classBytes(name, CD_Enum, accessFlags)
+        byte[] bytes = (accessFlags == (ACC_ENUM | ACC_IDENTITY)) ? classBytes(name, CD_Enum, accessFlags)
                 : classBytes(name, accessFlags);
         Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
         switch (accessFlags) {
-            case ACC_SYNTHETIC:
+            case (ACC_SYNTHETIC | ACC_IDENTITY):
                 assertTrue(hc.isSynthetic());
                 assertFalse(hc.isEnum());
                 assertFalse(hc.isAnnotation());
                 assertFalse(hc.isInterface());
                 break;
-            case ACC_ENUM:
+            case (ACC_ENUM | ACC_IDENTITY):
                 assertFalse(hc.isSynthetic());
                 assertTrue(hc.isEnum());
                 assertFalse(hc.isAnnotation());
                 assertFalse(hc.isInterface());
                 break;
-            case ACC_ABSTRACT:
+            case ACC_ABSTRACT | ACC_IDENTITY:
                 assertFalse(hc.isSynthetic());
                 assertFalse(hc.isEnum());
                 assertFalse(hc.isAnnotation());
@@ -306,8 +317,7 @@ public class BasicTest {
                 throw new IllegalArgumentException("unexpected access flag: " + accessFlags);
         }
         assertTrue(hc.isHidden());
-        // ACC_SUPER bit may appear spuriously if preview is enabled
-        assertEquals(hc.getModifiers() & (~ACC_SUPER), (ACC_PUBLIC | accessFlags));
+        assertEquals(hc.getModifiers(), (ACC_PUBLIC|accessFlags));
         assertFalse(hc.isLocalClass());
         assertFalse(hc.isMemberClass());
         assertFalse(hc.isAnonymousClass());
@@ -315,7 +325,8 @@ public class BasicTest {
     }
 
     // These class files can't be defined as hidden classes
-    private static Object[][] cantBeHiddenClasses() {
+    @DataProvider(name = "cantBeHiddenClasses")
+    private Object[][] cantBeHiddenClasses() {
         return new Object[][] {
                 // a hidden class can't be a field's declaring type
                 // enum class with static final HiddenEnum[] $VALUES:
@@ -332,11 +343,10 @@ public class BasicTest {
     /*
      * These class files
      */
-    @ParameterizedTest
-    @MethodSource("cantBeHiddenClasses")
+    @Test(dataProvider = "cantBeHiddenClasses", expectedExceptions = NoClassDefFoundError.class)
     public void failToDeriveAsHiddenClass(String name) throws Exception {
         byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve(name + ".class"));
-        assertThrows(NoClassDefFoundError.class, () -> lookup().defineHiddenClass(bytes, false).lookupClass());
+        Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
     }
 
     /*
@@ -352,17 +362,22 @@ public class BasicTest {
 
         Class<?> c = t.getClass();
         Class<?>[] intfs = c.getInterfaces();
-        assertEquals(1, intfs.length);
-        assertSame(HiddenTest.class, intfs[0]);
+        assertTrue(intfs.length == 1);
+        assertTrue(intfs[0] == HiddenTest.class);
 
-        var e = assertThrows(NoClassDefFoundError.class, c::getDeclaredMethods);
-        Throwable x = e.getCause();
-        if (x == null || !(x instanceof ClassNotFoundException && x.getMessage().contains("HiddenCantReflect"))) {
-            throw e;
+        try {
+            // this would cause loading of class HiddenCantReflect and NCDFE due
+            // to error during verification
+            c.getDeclaredMethods();
+        } catch (NoClassDefFoundError e) {
+            Throwable x = e.getCause();
+            if (x == null || !(x instanceof ClassNotFoundException && x.getMessage().contains("HiddenCantReflect"))) {
+                throw e;
+            }
         }
     }
 
-    @Test
+    @Test(expectedExceptions = { IllegalArgumentException.class })
     public void cantDefineModule() throws Throwable {
         Path src = Paths.get("module-info.java");
         Path dir = CLASSES_DIR.resolve("m");
@@ -370,34 +385,35 @@ public class BasicTest {
         compileSources(src, dir);
 
         byte[] bytes = Files.readAllBytes(dir.resolve("module-info.class"));
-        assertThrows(IllegalArgumentException.class, () -> lookup().defineHiddenClass(bytes, false));
+        lookup().defineHiddenClass(bytes, false);
     }
 
-    @Test
+    @Test(expectedExceptions = { IllegalArgumentException.class })
     public void cantDefineClassInAnotherPackage() throws Throwable {
         Path src = Paths.get("ClassInAnotherPackage.java");
         Files.write(src, List.of("package p;", "public class ClassInAnotherPackage {}"), StandardCharsets.UTF_8);
         compileSources(src, CLASSES_DIR);
 
         byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("p").resolve("ClassInAnotherPackage.class"));
-        assertThrows(IllegalArgumentException.class, () -> lookup().defineHiddenClass(bytes, false));
+        lookup().defineHiddenClass(bytes, false);
     }
 
-    @Test
+    @Test(expectedExceptions = { IllegalAccessException.class })
     public void lessPrivilegedLookup() throws Throwable {
         Lookup lookup = lookup().dropLookupMode(Lookup.PRIVATE);
-        assertThrows(IllegalAccessException.class, () -> lookup.defineHiddenClass(hiddenClassBytes, false));
+        lookup.defineHiddenClass(hiddenClassBytes, false);
     }
 
-    @Test
+    @Test(expectedExceptions = { UnsupportedClassVersionError.class })
     public void badClassFileVersion() throws Throwable {
         Path dir = Paths.get(System.getProperty("test.classes", "."));
         byte[] bytes = Files.readAllBytes(dir.resolve("BadClassFileVersion.class"));
-        assertThrows(UnsupportedClassVersionError.class, () -> lookup().defineHiddenClass(bytes, false));
+        lookup().defineHiddenClass(bytes, false);
     }
 
     // malformed class files
-    private static Object[][] malformedClassFiles() throws IOException {
+    @DataProvider(name = "malformedClassFiles")
+    private Object[][] malformedClassFiles() throws IOException {
         Path dir = Paths.get(System.getProperty("test.classes", "."));
         return new Object[][] {
                 // `this_class` has invalid CP entry
@@ -409,13 +425,13 @@ public class BasicTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("malformedClassFiles")
+    @Test(dataProvider = "malformedClassFiles", expectedExceptions = ClassFormatError.class)
     public void badClassFile(byte[] bytes) throws Throwable {
-        assertThrows(ClassFormatError.class, () -> lookup().defineHiddenClass(bytes, false));
+        lookup().defineHiddenClass(bytes, false);
     }
 
-    private static Object[][] nestedTypesOrAnonymousClass() {
+    @DataProvider(name = "nestedTypesOrAnonymousClass")
+    private Object[][] nestedTypesOrAnonymousClass() {
         return new Object[][] {
                 // class file with bad InnerClasses or EnclosingMethod attribute
                 new Object[] { "Outer", null },
@@ -425,8 +441,7 @@ public class BasicTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("nestedTypesOrAnonymousClass")
+    @Test(dataProvider = "nestedTypesOrAnonymousClass")
     public void hasInnerClassesOrEnclosingMethodAttribute(String className, String badDeclaringClassName) throws Throwable {
         byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve(className + ".class"));
         Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
@@ -446,22 +461,21 @@ public class BasicTest {
         byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("Outer.class"));
         Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
         assertHiddenClass(hc);
-        assertSame(hc, hc.getNestHost());
+        assertTrue(hc.getNestHost() == hc);
         Class<?>[] members = hc.getNestMembers();
-        assertEquals(1, members.length);
-        assertSame(hc, members[0]);
+        assertTrue(members.length == 1 && members[0] == hc);
     }
 
     // a hidden class with bad InnerClasses or EnclosingMethod attribute
     private void hiddenClassWithBadAttribute(Class<?> hc, String badDeclaringClassName) {
         assertTrue(hc.isHidden());
-        assertNull(hc.getCanonicalName());
+        assertTrue(hc.getCanonicalName() == null);
         assertTrue(hc.getName().contains("/"));
 
         if (badDeclaringClassName == null) {
             // the following reflection API assumes a good name in InnerClasses
             // or EnclosingMethod attribute can successfully be resolved.
-            assertFalse(hc.getSimpleName().isEmpty());
+            assertTrue(hc.getSimpleName().length() > 0);
             assertFalse(hc.isAnonymousClass());
             assertFalse(hc.isLocalClass());
             assertFalse(hc.isMemberClass());
@@ -470,34 +484,43 @@ public class BasicTest {
         }
 
         // validation of nest membership
-        assertSame(hc, hc.getNestHost());
+        assertTrue(hc.getNestHost() == hc);
         // validate the static nest membership
         Class<?>[] members = hc.getNestMembers();
-        assertEquals(1, members.length);
-        assertSame(hc, members[0]);
+        assertTrue(members.length == 1 && members[0] == hc);
     }
 
     // Class::getSimpleName, Class::isMemberClass
     private void declaringClassNotFound(Class<?> c, String cn) {
-        var e = assertThrows(NoClassDefFoundError.class, c::isMemberClass);
-        if (!e.getMessage().equals(cn)) {
-            throw e;
+        try {
+            // fail to find declaring/enclosing class
+            c.isMemberClass();
+            assertTrue(false);
+        } catch (NoClassDefFoundError e) {
+            if (!e.getMessage().equals(cn)) {
+                throw e;
+            }
         }
-        e = assertThrows(NoClassDefFoundError.class, c::getSimpleName);
-        if (!e.getMessage().equals(cn)) {
-            throw e;
+        try {
+            // fail to find declaring/enclosing class
+            c.getSimpleName();
+            assertTrue(false);
+        } catch (NoClassDefFoundError e) {
+            if (!e.getMessage().equals(cn)) {
+                throw e;
+            }
         }
     }
 
     private static void singletonNest(Class<?> hc) {
-        assertSame(hc, hc.getNestHost());
-        assertEquals(1, hc.getNestMembers().length);
-        assertSame(hc, hc.getNestMembers()[0]);
+        assertTrue(hc.getNestHost() == hc);
+        assertTrue(hc.getNestMembers().length == 1);
+        assertTrue(hc.getNestMembers()[0] == hc);
     }
 
     private static void assertHiddenClass(Class<?> hc) {
         assertTrue(hc.isHidden());
-        assertNull(hc.getCanonicalName());
+        assertTrue(hc.getCanonicalName() == null);
         assertTrue(hc.getName().contains("/"));
         assertFalse(hc.isAnonymousClass());
         assertFalse(hc.isLocalClass());

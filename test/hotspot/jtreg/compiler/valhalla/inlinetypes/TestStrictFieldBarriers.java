@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,15 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8367785
  * @summary Verify that compilers adhere to the new memory model rules for strict fields.
  * @library /test/lib
  * @enablePreview
- * @compile TestStrictFieldBarriers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$A1
- *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$B1
- *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$C1
- *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$A2
- *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$B2
- *             compiler.valhalla.inlinetypes.TestStrictFieldBarriers$C2
+ * @modules java.base/jdk.internal.vm.annotation
  * @run main/othervm compiler.valhalla.inlinetypes.TestStrictFieldBarriers
  * @run main/othervm -Xbatch
- *                   compiler.valhalla.inlinetypes.TestStrictFieldBarriers
- * @run main/othervm -Xbatch -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestStrictFieldBarriers
  * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,java.lang.Object::*init*
  *                   compiler.valhalla.inlinetypes.TestStrictFieldBarriers
@@ -54,7 +45,9 @@
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.test.lib.helpers.StrictInit;
+import jdk.internal.vm.annotation.Strict;
+
+import jdk.test.lib.Asserts;
 
 public class TestStrictFieldBarriers {
 
@@ -73,7 +66,7 @@ public class TestStrictFieldBarriers {
     static E2 sharedD2_2 = new D2();
 
     static class A1 {
-        @StrictInit
+        @Strict
         final int x;
 
         A1() {
@@ -84,7 +77,7 @@ public class TestStrictFieldBarriers {
     }
 
     static class B1 {
-        @StrictInit
+        @Strict
         final int x;
 
         B1() {
@@ -101,7 +94,7 @@ public class TestStrictFieldBarriers {
     }
 
     static class C1 extends B1 {
-        @StrictInit
+        @Strict
         final int y;
 
         C1() {
@@ -136,7 +129,7 @@ public class TestStrictFieldBarriers {
     // Non final versions
 
     static class A2 {
-        @StrictInit
+        @Strict
         int x;
 
         A2() {
@@ -147,7 +140,7 @@ public class TestStrictFieldBarriers {
     }
 
     static class B2 {
-        @StrictInit
+        @Strict
         int x;
 
         B2() {
@@ -164,7 +157,7 @@ public class TestStrictFieldBarriers {
     }
 
     static class C2 extends B2 {
-        @StrictInit
+        @Strict
         int y;
 
         C2() {

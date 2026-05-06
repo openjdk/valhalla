@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,10 @@ import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.DAY_OF_YEAR;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
@@ -65,18 +64,15 @@ import java.time.temporal.ValueRange;
 import java.time.temporal.WeekFields;
 import java.util.Locale;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Tests for the Umm alQura chronology and data.
  * Note: The dates used for testing are just a sample of calendar data.
  * @bug 8067800
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestUmmAlQuraChronology {
 
     private static final ZoneOffset OFFSET_PTWO = ZoneOffset.ofHours(2);
@@ -86,22 +82,21 @@ public class TestUmmAlQuraChronology {
     @Test
     public void test_aliases() {
         HijrahChronology hc = (HijrahChronology) Chronology.of("Hijrah");
-        assertEquals(HijrahChronology.INSTANCE, hc, "Alias for Hijrah-umalqura");
+        assertEquals(hc, HijrahChronology.INSTANCE, "Alias for Hijrah-umalqura");
         hc = (HijrahChronology) Chronology.of("islamic");
-        assertEquals(HijrahChronology.INSTANCE, hc, "Alias for Hijrah-umalqura");
+        assertEquals(hc, HijrahChronology.INSTANCE, "Alias for Hijrah-umalqura");
     }
 
     // Test to check if the exception is thrown for an incorrect chronology id
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_badChronology() {
-        Assertions.assertThrows(DateTimeException.class, () -> {
-            Chronology test = Chronology.of("Hijrah-ummalqura");
-        });
+        Chronology test = Chronology.of("Hijrah-ummalqura");
     }
 
     //--------------------------------------------------------------------------
     // regular data factory for Umm alQura dates and the corresponding ISO dates
     //--------------------------------------------------------------------------
+    @DataProvider(name = "UmmAlQuraVsISODates")
     Object[][] data_UmmAlQuraVsISODates() {
         return new Object[][] {
             {HijrahDate.of(1318, 1, 1), LocalDate.of(1900, 04, 30)},
@@ -115,10 +110,9 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the epoch days for given Hijrah & ISO date instances
-    @ParameterizedTest
-    @MethodSource("data_UmmAlQuraVsISODates")
+    @Test(dataProvider="UmmAlQuraVsISODates")
         public void Test_UmmAlQuraVsISODates(HijrahDate hd, LocalDate ld) {
-        assertEquals(ld.toEpochDay(), hd.toEpochDay(), "Umm alQura date and ISO date should have same epochDay");
+        assertEquals(hd.toEpochDay(), ld.toEpochDay(), "Umm alQura date and ISO date should have same epochDay");
     }
 
     // UmmAlQura chronology ranges for year, month and days for the HijrahChronology
@@ -126,27 +120,28 @@ public class TestUmmAlQuraChronology {
     public void Test_UmmAlQuraChronoRange() {
         HijrahChronology chrono = HijrahChronology.INSTANCE;
         ValueRange year = chrono.range(YEAR);
-        assertEquals(1300, year.getMinimum(), "Minimum year");
-        assertEquals(1300, year.getLargestMinimum(), "Largest minimum year");
-        assertEquals(1600, year.getMaximum(), "Largest year");
-        assertEquals(1600, year.getSmallestMaximum(), "Smallest Maximum year");
+        assertEquals(year.getMinimum(), 1300, "Minimum year");
+        assertEquals(year.getLargestMinimum(), 1300, "Largest minimum year");
+        assertEquals(year.getMaximum(), 1600, "Largest year");
+        assertEquals(year.getSmallestMaximum(), 1600, "Smallest Maximum year");
 
         ValueRange month = chrono.range(MONTH_OF_YEAR);
-        assertEquals(1, month.getMinimum(), "Minimum month");
-        assertEquals(1, month.getLargestMinimum(), "Largest minimum month");
-        assertEquals(12, month.getMaximum(), "Largest month");
-        assertEquals(12, month.getSmallestMaximum(), "Smallest Maximum month");
+        assertEquals(month.getMinimum(), 1, "Minimum month");
+        assertEquals(month.getLargestMinimum(), 1, "Largest minimum month");
+        assertEquals(month.getMaximum(), 12, "Largest month");
+        assertEquals(month.getSmallestMaximum(), 12, "Smallest Maximum month");
 
         ValueRange day = chrono.range(DAY_OF_MONTH);
-        assertEquals(1, day.getMinimum(), "Minimum day");
-        assertEquals(1, day.getLargestMinimum(), "Largest minimum day");
-        assertEquals(30, day.getMaximum(), "Largest day");
-        assertEquals(29, day.getSmallestMaximum(), "Smallest Maximum day");
+        assertEquals(day.getMinimum(), 1, "Minimum day");
+        assertEquals(day.getLargestMinimum(), 1, "Largest minimum day");
+        assertEquals(day.getMaximum(), 30, "Largest day");
+        assertEquals(day.getSmallestMaximum(), 29, "Smallest Maximum day");
     }
 
     //-----------------------------------------------------------------------
     // regular data factory for dates and the corresponding range values
     //-----------------------------------------------------------------------
+    @DataProvider(name = "dates")
     Object[][] data_dates() {
         return new Object[][]{
             {HijrahDate.of(1300, 5, 1), 1300, 1600, 1, 12, 1, 30, 30},
@@ -158,8 +153,7 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the min/max field ranges for given dates
-    @ParameterizedTest
-    @MethodSource("data_dates")
+    @Test(dataProvider="dates")
     public void Test_UmmAlQuraRanges(HijrahDate date,
                         int minYear, int maxYear,
                         int minMonth, int maxMonth,
@@ -167,33 +161,33 @@ public class TestUmmAlQuraChronology {
         // Check the chronology ranges
         HijrahChronology chrono = date.getChronology();
         ValueRange yearRange = chrono.range(YEAR);
-        assertEquals(minYear, yearRange.getMinimum(), "Minimum year for Hijrah chronology");
-        assertEquals(minYear, yearRange.getLargestMinimum(), "Largest minimum year for Hijrah chronology");
-        assertEquals(maxYear, yearRange.getMaximum(), "Maximum year for Hijrah chronology");
-        assertEquals(maxYear, yearRange.getSmallestMaximum(), "Smallest Maximum year for Hijrah chronology");
+        assertEquals(yearRange.getMinimum(), minYear, "Minimum year for Hijrah chronology");
+        assertEquals(yearRange.getLargestMinimum(), minYear, "Largest minimum year for Hijrah chronology");
+        assertEquals(yearRange.getMaximum(), maxYear, "Maximum year for Hijrah chronology");
+        assertEquals(yearRange.getSmallestMaximum(), maxYear, "Smallest Maximum year for Hijrah chronology");
 
         ValueRange monthRange = chrono.range(MONTH_OF_YEAR);
-        assertEquals(minMonth, monthRange.getMinimum(), "Minimum month for Hijrah chronology");
-        assertEquals(maxMonth, monthRange.getMaximum(), "Maximum month for Hijrah chronology");
+        assertEquals(monthRange.getMinimum(), minMonth, "Minimum month for Hijrah chronology");
+        assertEquals(monthRange.getMaximum(), maxMonth, "Maximum month for Hijrah chronology");
 
         ValueRange daysRange = chrono.range(DAY_OF_MONTH);
-        assertEquals(minDay, daysRange.getMinimum(), "Minimum day for chronology");
-        assertEquals(maxChronoDay, daysRange.getMaximum(), "Maximum day for Hijrah chronology");
+        assertEquals(daysRange.getMinimum(), minDay, "Minimum day for chronology");
+        assertEquals(daysRange.getMaximum(), maxChronoDay, "Maximum day for Hijrah chronology");
 
         // Check the date ranges
         yearRange = date.range(YEAR);
-        assertEquals(minYear, yearRange.getMinimum(), "Minimum year for Hijrah date");
-        assertEquals(minYear, yearRange.getLargestMinimum(), "Largest minimum  year for Hijrah date");
-        assertEquals(maxYear, yearRange.getMaximum(), "Maximum year for Hijrah date");
-        assertEquals(maxYear, yearRange.getSmallestMaximum(), "Smallest maximum year for Hijrah date");
+        assertEquals(yearRange.getMinimum(), minYear, "Minimum year for Hijrah date");
+        assertEquals(yearRange.getLargestMinimum(), minYear, "Largest minimum  year for Hijrah date");
+        assertEquals(yearRange.getMaximum(), maxYear, "Maximum year for Hijrah date");
+        assertEquals(yearRange.getSmallestMaximum(), maxYear, "Smallest maximum year for Hijrah date");
 
         monthRange = date.range(MONTH_OF_YEAR);
-        assertEquals(minMonth, monthRange.getMinimum(), "Minimum month for HijrahDate");
-        assertEquals(maxMonth, monthRange.getMaximum(), "Maximum month for HijrahDate");
+        assertEquals(monthRange.getMinimum(), minMonth, "Minimum month for HijrahDate");
+        assertEquals(monthRange.getMaximum(), maxMonth, "Maximum month for HijrahDate");
 
         daysRange = date.range(DAY_OF_MONTH);
-        assertEquals(minDay, daysRange.getMinimum(), "Minimum day for HijrahDate");
-        assertEquals(maxDay, daysRange.getMaximum(), "Maximum day for HijrahDate");
+        assertEquals(daysRange.getMinimum(), minDay, "Minimum day for HijrahDate");
+        assertEquals(daysRange.getMaximum(), maxDay, "Maximum day for HijrahDate");
 
     }
 
@@ -229,6 +223,7 @@ public class TestUmmAlQuraChronology {
     }
 
     // Data provider to verify the dateYearDay() method
+    @DataProvider(name="dateYearDay")
     Object[][] data_dateYearDay() {
         return new Object[][] {
             {HijrahChronology.INSTANCE.dateYearDay(1434, 42), HijrahChronology.INSTANCE.date(1434, 02, 13)},
@@ -241,10 +236,9 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the dateYearDay() method
-    @ParameterizedTest
-    @MethodSource("data_dateYearDay")
+    @Test(dataProvider="dateYearDay")
     public void test_DateYearDay(ChronoLocalDate date1,   ChronoLocalDate date2) {
-       assertEquals(date2, date1);
+       assertEquals(date1, date2);
     }
 
     //-----------------------------------------------------------------------
@@ -256,7 +250,7 @@ public class TestUmmAlQuraChronology {
         for (int i = 1; i <= hd1.lengthOfYear(); i++) {
             HijrahDate hd = HijrahChronology.INSTANCE.dateYearDay(1434, i);
             int doy = hd.get(DAY_OF_YEAR);
-            assertEquals(i, doy, "get(DAY_OF_YEAR) incorrect for " + i);
+            assertEquals(doy, i, "get(DAY_OF_YEAR) incorrect for " + i);
         }
     }
 
@@ -266,57 +260,54 @@ public class TestUmmAlQuraChronology {
         for (int i = 1; i <= hd.lengthOfYear(); i++) {
             HijrahDate hd2 = hd.with(DAY_OF_YEAR, i);
             int doy = hd2.get(DAY_OF_YEAR);
-            assertEquals(i, doy, "with(DAY_OF_YEAR) incorrect for " + i + " " + hd2);
+            assertEquals(doy, i, "with(DAY_OF_YEAR) incorrect for " + i + " " + hd2);
         }
     }
 
-    @Test
+    @Test(expectedExceptions=java.time.DateTimeException.class)
     public void test_withDayOfYearTooSmall() {
-        Assertions.assertThrows(DateTimeException.class, () -> {
-            HijrahDate hd = HijrahChronology.INSTANCE.dateYearDay(1435, 1);
-            HijrahDate hd2 = hd.with(DAY_OF_YEAR, 0);
-        });
+        HijrahDate hd = HijrahChronology.INSTANCE.dateYearDay(1435, 1);
+        HijrahDate hd2 = hd.with(DAY_OF_YEAR, 0);
     }
 
-    @Test
+    @Test(expectedExceptions=java.time.DateTimeException.class)
     public void test_withDayOfYearTooLarge() {
-        Assertions.assertThrows(DateTimeException.class, () -> {
-            HijrahDate hd = HijrahChronology.INSTANCE.dateYearDay(1435, 1);
-            HijrahDate hd2 = hd.with(DAY_OF_YEAR, hd.lengthOfYear() + 1);
-        });
+        HijrahDate hd = HijrahChronology.INSTANCE.dateYearDay(1435, 1);
+        HijrahDate hd2 = hd.with(DAY_OF_YEAR, hd.lengthOfYear() + 1);
     }
 
     // Test to verify the with() method with ChronoField is set to DAY_OF_WEEK
     @Test
     public void test_adjustWithDayOfWeek() {
-        assertEquals(HijrahDate.of(1320, 1, 15), HijrahChronology.INSTANCE.date(1320, 1, 15).with(ChronoField.DAY_OF_WEEK, 4));
-        assertEquals(HijrahDate.of(1421, 11, 11), HijrahChronology.INSTANCE.date(1421, 11, 15).with(ChronoField.DAY_OF_WEEK, 1));
-        assertEquals(HijrahDate.of(1529, 7, 20), HijrahChronology.INSTANCE.date(1529, 7, 18).with(ChronoField.DAY_OF_WEEK, 6));
-        assertEquals(HijrahDate.of(1534, 2, 12), HijrahChronology.INSTANCE.date(1534, 2, 10).with(ChronoField.DAY_OF_WEEK, 5));
-        assertEquals(HijrahDate.of(1552, 3, 26), HijrahChronology.INSTANCE.date(1552, 4, 1).with(ChronoField.DAY_OF_WEEK, 2));
+        assertEquals(HijrahChronology.INSTANCE.date(1320, 1, 15).with(ChronoField.DAY_OF_WEEK, 4), HijrahDate.of(1320, 1, 15));
+        assertEquals(HijrahChronology.INSTANCE.date(1421, 11, 15).with(ChronoField.DAY_OF_WEEK, 1), HijrahDate.of(1421, 11, 11));
+        assertEquals(HijrahChronology.INSTANCE.date(1529, 7, 18).with(ChronoField.DAY_OF_WEEK, 6), HijrahDate.of(1529, 7, 20));
+        assertEquals(HijrahChronology.INSTANCE.date(1534, 2, 10).with(ChronoField.DAY_OF_WEEK, 5), HijrahDate.of(1534, 2, 12));
+        assertEquals(HijrahChronology.INSTANCE.date(1552, 4, 1).with(ChronoField.DAY_OF_WEEK, 2), HijrahDate.of(1552, 3, 26));
     }
 
     // Test to verify the with() method with ChronoField is set to DAY_OF_MONTH
     @Test
     public void test_adjustWithDayOfMonth() {
-        assertEquals(HijrahDate.of(1320, 1, 2), HijrahChronology.INSTANCE.date(1320, 1, 15).with(ChronoField.DAY_OF_MONTH, 2));
-        assertEquals(HijrahDate.of(1421, 11, 9), HijrahChronology.INSTANCE.date(1421, 11, 15).with(ChronoField.DAY_OF_MONTH, 9));
-        assertEquals(HijrahDate.of(1529, 7, 13), HijrahChronology.INSTANCE.date(1529, 7, 18).with(ChronoField.DAY_OF_MONTH, 13));
-        assertEquals(HijrahDate.of(1534, 12, 29), HijrahChronology.INSTANCE.date(1534, 12, 10).with(ChronoField.DAY_OF_MONTH, 29));
-        assertEquals(HijrahDate.of(1552, 4, 6), HijrahChronology.INSTANCE.date(1552, 4, 1).with(ChronoField.DAY_OF_MONTH, 6));
+        assertEquals(HijrahChronology.INSTANCE.date(1320, 1, 15).with(ChronoField.DAY_OF_MONTH, 2), HijrahDate.of(1320, 1, 2));
+        assertEquals(HijrahChronology.INSTANCE.date(1421, 11, 15).with(ChronoField.DAY_OF_MONTH, 9), HijrahDate.of(1421, 11, 9));
+        assertEquals(HijrahChronology.INSTANCE.date(1529, 7, 18).with(ChronoField.DAY_OF_MONTH, 13), HijrahDate.of(1529, 7, 13));
+        assertEquals(HijrahChronology.INSTANCE.date(1534, 12, 10).with(ChronoField.DAY_OF_MONTH, 29), HijrahDate.of(1534, 12, 29));
+        assertEquals(HijrahChronology.INSTANCE.date(1552, 4, 1).with(ChronoField.DAY_OF_MONTH, 6), HijrahDate.of(1552, 4, 6));
     }
 
     // Test to verify the with() method with ChronoField is set to DAY_OF_YEAR
     @Test
     public void test_adjustWithDayOfYear() {
-        assertEquals(HijrahDate.of(1320, 1, 24), HijrahChronology.INSTANCE.date(1320, 1, 15).with(ChronoField.DAY_OF_YEAR, 24));
-        assertEquals(HijrahDate.of(1421, 5, 18), HijrahChronology.INSTANCE.date(1421, 11, 15).with(ChronoField.DAY_OF_YEAR, 135));
-        assertEquals(HijrahDate.of(1529, 3, 5), HijrahChronology.INSTANCE.date(1529, 7, 18).with(ChronoField.DAY_OF_YEAR, 64));
-        assertEquals(HijrahDate.of(1534, 12, 29), HijrahChronology.INSTANCE.date(1534, 2, 10).with(ChronoField.DAY_OF_YEAR, 354));
-        assertEquals(HijrahDate.of(1552, 10, 26), HijrahChronology.INSTANCE.date(1552, 4, 1).with(ChronoField.DAY_OF_YEAR, 291));
+        assertEquals(HijrahChronology.INSTANCE.date(1320, 1, 15).with(ChronoField.DAY_OF_YEAR, 24), HijrahDate.of(1320, 1, 24));
+        assertEquals(HijrahChronology.INSTANCE.date(1421, 11, 15).with(ChronoField.DAY_OF_YEAR, 135), HijrahDate.of(1421, 5, 18));
+        assertEquals(HijrahChronology.INSTANCE.date(1529, 7, 18).with(ChronoField.DAY_OF_YEAR, 64), HijrahDate.of(1529, 3, 5));
+        assertEquals(HijrahChronology.INSTANCE.date(1534, 2, 10).with(ChronoField.DAY_OF_YEAR, 354), HijrahDate.of(1534, 12, 29));
+        assertEquals(HijrahChronology.INSTANCE.date(1552, 4, 1).with(ChronoField.DAY_OF_YEAR, 291), HijrahDate.of(1552, 10, 26));
     }
 
     // Data provider to get the difference between two dates in terms of days, months and years
+    @DataProvider(name="datesForDiff")
     Object[][] data_datesForDiffs() {
         return new Object[][] {
             {HijrahDate.of(1350, 5, 15), HijrahDate.of(1351, 12, 29), 574, 19, 1},
@@ -328,15 +319,15 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the difference between two given dates in terms of days, months and years
-    @ParameterizedTest
-    @MethodSource("data_datesForDiffs")
+    @Test(dataProvider="datesForDiff")
     public void test_diffBetweenDates(ChronoLocalDate from, ChronoLocalDate to, long days, long months, long years) {
-          assertEquals(days, from.until(to, ChronoUnit.DAYS));
-          assertEquals(months, from.until(to, ChronoUnit.MONTHS));
-          assertEquals(years, from.until(to, ChronoUnit.YEARS));
+          assertEquals(from.until(to, ChronoUnit.DAYS), days);
+          assertEquals(from.until(to, ChronoUnit.MONTHS), months);
+          assertEquals(from.until(to, ChronoUnit.YEARS), years);
     }
 
     // Data provider to get the difference between two dates as a period
+    @DataProvider(name="datesForPeriod")
     Object[][] data_Period() {
         return new Object[][] {
             {HijrahDate.of(1350, 5, 15), HijrahDate.of(1434, 7, 20), HijrahChronology.INSTANCE.period(84, 2, 5)},
@@ -348,35 +339,34 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to get the Period between two given dates
-    @ParameterizedTest
-    @MethodSource("data_Period")
+    @Test(dataProvider="datesForPeriod")
     public void test_until(HijrahDate h1, HijrahDate h2, ChronoPeriod p) {
         ChronoPeriod period = h1.until(h2);
-        assertEquals(p, period);
+        assertEquals(period, p);
     }
 
     // Test to get the Period between dates in different chronologies
-    @ParameterizedTest
-    @MethodSource("data_Period")
+    @Test(dataProvider="datesForPeriod")
     public void test_periodUntilDiffChrono(HijrahDate h1, HijrahDate h2, ChronoPeriod p) {
         MinguoDate m = MinguoChronology.INSTANCE.date(h2);
         ChronoPeriod period = h1.until(m);
-        assertEquals(p, period);
+        assertEquals(period, p);
     }
 
     // Test to get the adjusted date from a given date using TemporalAdjuster methods
     @Test
     public void test_temporalDayAdjustments() {
         HijrahDate date = HijrahDate.of(1554, 7, 21);
-        assertEquals(HijrahDate.of(1554, 7, 1), date.with(TemporalAdjusters.firstDayOfMonth()));
-        assertEquals(HijrahDate.of(1554, 7, 29), date.with(TemporalAdjusters.lastDayOfMonth()));
-        assertEquals(HijrahDate.of(1554, 8, 1), date.with(TemporalAdjusters.firstDayOfNextMonth()));
-        assertEquals(HijrahDate.of(1555, 1, 1), date.with(TemporalAdjusters.firstDayOfNextYear()));
-        assertEquals(HijrahDate.of(1554, 1, 1), date.with(TemporalAdjusters.firstDayOfYear()));
-        assertEquals(HijrahDate.of(1554, 12, 30), date.with(TemporalAdjusters.lastDayOfYear()));
+        assertEquals(date.with(TemporalAdjusters.firstDayOfMonth()), HijrahDate.of(1554, 7, 1));
+        assertEquals(date.with(TemporalAdjusters.lastDayOfMonth()), HijrahDate.of(1554, 7, 29));
+        assertEquals(date.with(TemporalAdjusters.firstDayOfNextMonth()), HijrahDate.of(1554, 8, 1));
+        assertEquals(date.with(TemporalAdjusters.firstDayOfNextYear()), HijrahDate.of(1555, 1, 1));
+        assertEquals(date.with(TemporalAdjusters.firstDayOfYear()), HijrahDate.of(1554, 1, 1));
+        assertEquals(date.with(TemporalAdjusters.lastDayOfYear()), HijrahDate.of(1554, 12, 30));
     }
 
     // Data provider for string representation of the date instances
+    @DataProvider(name="toString")
     Object[][] data_toString() {
         return new Object[][] {
             {HijrahChronology.INSTANCE.date(1320, 1, 1), "Hijrah-umalqura AH 1320-01-01"},
@@ -388,13 +378,13 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the returned string value of a given date instance
-    @ParameterizedTest
-    @MethodSource("data_toString")
+    @Test(dataProvider="toString")
     public void test_toString(ChronoLocalDate hijrahDate, String expected) {
-        assertEquals(expected, hijrahDate.toString());
+        assertEquals(hijrahDate.toString(), expected);
     }
 
     // Data provider for maximum number of days
+    @DataProvider(name="monthDays")
     Object[][] data_monthDays() {
         return new Object[][] {
             {1432, 1, 29},
@@ -407,28 +397,27 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the maximum number of days by adding one month to a given date
-    @ParameterizedTest
-    @MethodSource("data_monthDays")
+    @Test (dataProvider="monthDays")
     public void test_valueRange_monthDays(int year, int month, int maxlength) {
         ChronoLocalDate date = HijrahChronology.INSTANCE.date(year, month, 1);
         ValueRange range = null;
         for (int i=1; i<=12; i++) {
             range = date.range(ChronoField.DAY_OF_MONTH);
             date = date.plus(1, ChronoUnit.MONTHS);
-            assertEquals(month, range.getMaximum(), maxlength);
+            assertEquals(range.getMaximum(), month, maxlength);
         }
     }
 
     // Test to get the last day of the month by adjusting the date with lastDayOfMonth() method
-    @ParameterizedTest
-    @MethodSource("data_monthDays")
+    @Test(dataProvider="monthDays")
     public void test_lastDayOfMonth(int year, int month, int numDays) {
         HijrahDate hDate = HijrahChronology.INSTANCE.date(year, month, 1);
         hDate = hDate.with(TemporalAdjusters.lastDayOfMonth());
-        assertEquals(numDays, hDate.get(ChronoField.DAY_OF_MONTH));
+        assertEquals(hDate.get(ChronoField.DAY_OF_MONTH), numDays);
     }
 
     // Data provider for the 12 islamic month names in a formatted date
+    @DataProvider(name="patternMonthNames")
     Object[][] data_patternMonthNames() {
         return new Object[][] {
             {1434, 1, 1, "01 AH Thu Muharram 1434"},
@@ -447,15 +436,15 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the formatted dates
-    @ParameterizedTest
-    @MethodSource("data_patternMonthNames")
+    @Test(dataProvider="patternMonthNames")
     public void test_ofPattern(int year, int month, int day, String expected) {
         DateTimeFormatter test = DateTimeFormatter.ofPattern("dd G E MMMM yyyy", Locale.US);
-        assertEquals(expected, test.format(HijrahDate.of(year, month, day)));
+        assertEquals(test.format(HijrahDate.of(year, month, day)), expected);
     }
 
     // Data provider for localized dates
-    Object[][] data_chronodatetimes() {
+    @DataProvider(name="chronoDateTimes")
+   Object[][] data_chronodatetimes() {
         return new Object[][] {
             {1432, 12, 29, "Safar 1, 1434 AH"},
             {1433, 1, 30, "Safar 30, 1434 AH"},
@@ -464,8 +453,7 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the localized dates using ofLocalizedDate() method
-    @ParameterizedTest
-    @MethodSource("data_chronodatetimes")
+    @Test(dataProvider="chronoDateTimes")
     public void test_formatterOfLocalizedDate(int year, int month, int day, String expected) {
         HijrahDate hd = HijrahChronology.INSTANCE.date(year, month, day);
         ChronoLocalDateTime<HijrahDate> hdt = hd.atTime(LocalTime.NOON);
@@ -476,11 +464,12 @@ public class TestUmmAlQuraChronology {
         hdt = hdt.plus(1, ChronoUnit.MINUTES);
         hdt = hdt.plus(1, ChronoUnit.SECONDS);
         DateTimeFormatter df = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withChronology(Chronology.of("Hijrah-umalqura")).withLocale(Locale.US);
-        assertEquals(expected, df.format(hdt));
+        assertEquals(df.format(hdt), expected);
     }
 
     // Data provider to get the day of the week in a given date
     // The day of the week varies if the week starts with a saturday or sunday
+    @DataProvider(name="dayOfWeek")
     Object[][] data_dayOfweek() {
         return new Object[][] {
             {HijrahDate.of(1434, 6, 24), 1, 7},
@@ -492,14 +481,14 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to get the day of the week based on a Saturday/Sunday as the first day of the week
-    @ParameterizedTest
-    @MethodSource("data_dayOfweek")
+    @Test(dataProvider="dayOfWeek")
     public void test_dayOfWeek(HijrahDate date, int satStart, int sunStart) {
-        assertEquals(satStart, date.get(WeekFields.of(DayOfWeek.SATURDAY, 7).dayOfWeek()));
-        assertEquals(sunStart, date.get(WeekFields.of(DayOfWeek.SUNDAY, 7).dayOfWeek()));
+        assertEquals(date.get(WeekFields.of(DayOfWeek.SATURDAY, 7).dayOfWeek()), satStart);
+        assertEquals(date.get(WeekFields.of(DayOfWeek.SUNDAY, 7).dayOfWeek()), sunStart);
     }
 
     // Data sample to get the epoch days of a date instance
+    @DataProvider(name="epochDays")
     Object[][] data_epochdays() {
         return new Object[][] {
             {1332, -20486},
@@ -513,14 +502,14 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the number of epoch days of a date instance
-    @ParameterizedTest
-    @MethodSource("data_epochdays")
+    @Test(dataProvider="epochDays")
     public void test_epochDays(int y, long epoch) {
         HijrahDate date = HijrahDate.of(y, 1, 1);
-        assertEquals(epoch, date.toEpochDay());
+        assertEquals(date.toEpochDay(), epoch);
     }
 
     // Data provider to verify whether a given hijrah year is a leap year or not
+    @DataProvider(name="leapYears")
     Object[][] data_leapyears() {
         return new Object[][] {
             {1302, true},
@@ -535,15 +524,15 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify whether a given hijrah year is a leap year or not
-    @ParameterizedTest
-    @MethodSource("data_leapyears")
+    @Test(dataProvider="leapYears")
     public void test_leapYears(int y, boolean leapyear) {
         HijrahDate date = HijrahDate.of(y, 1, 1);
-        assertEquals(leapyear, date.isLeapYear());
+        assertEquals(date.isLeapYear(), leapyear);
     }
 
     // Data provider to verify that a given hijrah year is outside the range of supported years
     // The values are dependent on the currently configured UmmAlQura calendar data
+    @DataProvider(name="OutOfRangeLeapYears")
     Object[][] data_invalid_leapyears() {
         return new Object[][] {
                 {1299},
@@ -553,14 +542,14 @@ public class TestUmmAlQuraChronology {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_invalid_leapyears")
+    @Test(dataProvider="OutOfRangeLeapYears")
     public void test_notLeapYears(int y) {
         assertFalse(HijrahChronology.INSTANCE.isLeapYear(y), "Out of range leap year");
     }
 
 
     // Date samples to convert HijrahDate to LocalDate and vice versa
+    @DataProvider(name="samples")
     Object[][] data_samples() {
         return new Object[][] {
             {HijrahChronology.INSTANCE.date(1319, 12, 30), LocalDate.of(1902, 4, 9)},
@@ -573,50 +562,45 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to get LocalDate instance from a given HijrahDate
-    @ParameterizedTest
-    @MethodSource("data_samples")
+    @Test(dataProvider="samples")
     public void test_toLocalDate(ChronoLocalDate hijrahDate, LocalDate iso) {
-        assertEquals(iso, LocalDate.from(hijrahDate));
+        assertEquals(LocalDate.from(hijrahDate), iso);
     }
 
     // Test to adjust HijrahDate with a given LocalDate
-    @ParameterizedTest
-    @MethodSource("data_samples")
+    @Test(dataProvider="samples")
     public void test_adjust_toLocalDate(ChronoLocalDate hijrahDate, LocalDate iso) {
-        assertEquals(hijrahDate, hijrahDate.with(iso));
+        assertEquals(hijrahDate.with(iso), hijrahDate);
     }
 
     // Test to get a HijrahDate from a calendrical
-    @ParameterizedTest
-    @MethodSource("data_samples")
+    @Test(dataProvider="samples")
     public void test_fromCalendrical(ChronoLocalDate hijrahDate, LocalDate iso) {
-        assertEquals(hijrahDate, HijrahChronology.INSTANCE.date(iso));
+        assertEquals(HijrahChronology.INSTANCE.date(iso), hijrahDate);
     }
 
     // Test to verify the day of week of a given HijrahDate and LocalDate
-    @ParameterizedTest
-    @MethodSource("data_samples")
+    @Test(dataProvider="samples")
     public void test_dayOfWeekEqualIsoDayOfWeek(ChronoLocalDate hijrahDate, LocalDate iso) {
-        assertEquals(iso.get(ChronoField.DAY_OF_WEEK), hijrahDate.get(ChronoField.DAY_OF_WEEK), "Hijrah day of week should be same as ISO day of week");
+        assertEquals(hijrahDate.get(ChronoField.DAY_OF_WEEK), iso.get(ChronoField.DAY_OF_WEEK), "Hijrah day of week should be same as ISO day of week");
     }
 
     // Test to get the local date by applying the MIN adjustment with hijrah date
-    @ParameterizedTest
-    @MethodSource("data_samples")
+    @Test(dataProvider="samples")
     public void test_LocalDate_adjustToHijrahDate(ChronoLocalDate hijrahDate, LocalDate localDate) {
         LocalDate test = LocalDate.MIN.with(hijrahDate);
-        assertEquals(localDate, test);
+        assertEquals(test, localDate);
     }
 
     // Test to get the local date time by applying the MIN adjustment with hijrah date
-    @ParameterizedTest
-    @MethodSource("data_samples")
+    @Test(dataProvider="samples")
     public void test_LocalDateTime_adjustToHijrahDate(ChronoLocalDate hijrahDate, LocalDate localDate) {
         LocalDateTime test = LocalDateTime.MIN.with(hijrahDate);
-        assertEquals(LocalDateTime.of(localDate, LocalTime.MIDNIGHT), test);
+        assertEquals(test, LocalDateTime.of(localDate, LocalTime.MIDNIGHT));
     }
 
     // Sample dates for comparison
+    @DataProvider(name="datesForComparison")
     Object[][] data_datesForComparison() {
         return new Object[][] {
             {HijrahChronology.INSTANCE.date(1434, 6, 26), LocalDate.of(2013, 5, 5), -1, 1},
@@ -628,42 +612,42 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to compare dates in both forward and reverse order
-    @ParameterizedTest
-    @MethodSource("data_datesForComparison")
+    @Test(dataProvider="datesForComparison")
     public void test_compareDates(HijrahDate hdate, LocalDate ldate, int result1, int result2) {
-        assertEquals(result1, ldate.compareTo(hdate));
-        assertEquals(result2, hdate.compareTo(ldate));
+        assertEquals(ldate.compareTo(hdate), result1);
+        assertEquals(hdate.compareTo(ldate), result2);
     }
 
     // Test to verify the values of various chrono fields for a given hijrah date instance
     @Test
     public void test_chronoFields() {
         ChronoLocalDate hdate = HijrahChronology.INSTANCE.date(1434, 6, 28);
-        assertEquals(7, hdate.get(ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH));
-        assertEquals(7, hdate.get(ChronoField.ALIGNED_DAY_OF_WEEK_IN_YEAR));
-        assertEquals(4, hdate.get(ChronoField.ALIGNED_WEEK_OF_MONTH));
-        assertEquals(25, hdate.get(ChronoField.ALIGNED_WEEK_OF_YEAR));
-        assertEquals(1, hdate.get(ChronoField.ERA));
-        assertEquals(1434, hdate.get(ChronoField.YEAR_OF_ERA));
-        assertEquals(6, hdate.get(ChronoField.MONTH_OF_YEAR));
-        assertEquals(28, hdate.get(ChronoField.DAY_OF_MONTH));
-        assertEquals(3, hdate.get(ChronoField.DAY_OF_WEEK));
-        assertEquals(175, hdate.get(ChronoField.DAY_OF_YEAR));
+        assertEquals(hdate.get(ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH), 7);
+        assertEquals(hdate.get(ChronoField.ALIGNED_DAY_OF_WEEK_IN_YEAR), 7);
+        assertEquals(hdate.get(ChronoField.ALIGNED_WEEK_OF_MONTH), 4);
+        assertEquals(hdate.get(ChronoField.ALIGNED_WEEK_OF_YEAR), 25);
+        assertEquals(hdate.get(ChronoField.ERA), 1);
+        assertEquals(hdate.get(ChronoField.YEAR_OF_ERA), 1434);
+        assertEquals(hdate.get(ChronoField.MONTH_OF_YEAR), 6);
+        assertEquals(hdate.get(ChronoField.DAY_OF_MONTH), 28);
+        assertEquals(hdate.get(ChronoField.DAY_OF_WEEK), 3);
+        assertEquals(hdate.get(ChronoField.DAY_OF_YEAR), 175);
     }
 
     // Test to verify the returned hijrah date after adjusting the day of week as Saturday
     @Test
     public void test_adjustInto() {
-        assertEquals(HijrahDate.of(1434, 7, 1), DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1434, 6, 28)));
-        assertEquals(HijrahDate.of(1432, 4, 14), DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1432, 4, 13)));
-        assertEquals(HijrahDate.of(1433, 12, 4), DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1433, 11, 29)));
-        assertEquals(HijrahDate.of(1434, 5, 11), DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1434, 5, 10)));
-        assertEquals(HijrahDate.of(1434, 9, 12), DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1434, 9, 11)));
+        assertEquals(DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1434, 6, 28)), HijrahDate.of(1434, 7, 1));
+        assertEquals(DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1432, 4, 13)), HijrahDate.of(1432, 4, 14));
+        assertEquals(DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1433, 11, 29)), HijrahDate.of(1433, 12, 4));
+        assertEquals(DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1434, 5, 10)), HijrahDate.of(1434, 5, 11));
+        assertEquals(DayOfWeek.SATURDAY.adjustInto(HijrahDate.of(1434, 9, 11)), HijrahDate.of(1434, 9, 12));
     }
 
     //-----------------------------------------------------------------------
     // zonedDateTime(TemporalAccessor)
     //-----------------------------------------------------------------------
+    @DataProvider(name="zonedDateTime")
     Object[][] data_zonedDateTime() {
         return new Object[][] {
             {ZonedDateTime.of(2012, 2, 29, 2, 7, 1, 1, ZONE_RIYADH), HijrahChronology.INSTANCE.date(1433, 4, 7), LocalTime.of(2, 7, 1, 1), null},
@@ -677,14 +661,13 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to check the zoned date times
-    @ParameterizedTest
-    @MethodSource("data_zonedDateTime")
+    @Test(dataProvider="zonedDateTime")
     public void test_zonedDateTime(TemporalAccessor accessor,  HijrahDate expectedDate, LocalTime expectedTime, Class<?> expectedEx) {
         if (expectedEx == null) {
             ChronoZonedDateTime<HijrahDate> result = HijrahChronology.INSTANCE.zonedDateTime(accessor);
-            assertEquals(expectedDate, result.toLocalDate());
-            assertEquals(expectedDate, HijrahDate.from(accessor));
-            assertEquals(expectedTime, result.toLocalTime());
+            assertEquals(result.toLocalDate(), expectedDate);
+            assertEquals(HijrahDate.from(accessor), expectedDate);
+            assertEquals(result.toLocalTime(), expectedTime);
 
         } else {
             try {
@@ -705,17 +688,18 @@ public class TestUmmAlQuraChronology {
         ZonedDateTime zonedDateTime = ZonedDateTime.of(2012, 2, 29, 2, 7, 1, 1, ZONE_RIYADH);
 
         ChronoZonedDateTime<HijrahDate> result = HijrahChronology.INSTANCE.zonedDateTime(offsetDateTime.toInstant(), offsetDateTime.getOffset());
-        assertEquals(HijrahChronology.INSTANCE.date(1433, 4, 7), result.toLocalDate());
-        assertEquals(LocalTime.of(2, 7, 1, 1), result.toLocalTime());
+        assertEquals(result.toLocalDate(), HijrahChronology.INSTANCE.date(1433, 4, 7));
+        assertEquals(result.toLocalTime(), LocalTime.of(2, 7, 1, 1));
 
         result = HijrahChronology.INSTANCE.zonedDateTime(zonedDateTime.toInstant(), zonedDateTime.getOffset());
-        assertEquals(HijrahChronology.INSTANCE.date(1433, 4, 7), result.toLocalDate());
-        assertEquals(LocalTime.of(2, 7, 1, 1), result.toLocalTime());
+        assertEquals(result.toLocalDate(), HijrahChronology.INSTANCE.date(1433, 4, 7));
+        assertEquals(result.toLocalTime(), LocalTime.of(2, 7, 1, 1));
     }
 
     //-----------------------------------------------------------------------
     // localDateTime()
     //-----------------------------------------------------------------------
+    @DataProvider(name="localDateTime")
     Object[][] data_localDateTime() {
         return new Object[][] {
             {LocalDateTime.of(2012, 2, 29, 2, 7), HijrahChronology.INSTANCE.date(1433, 4, 7), LocalTime.of(2, 7), null},
@@ -729,14 +713,13 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify local date time values from various date instances defined in the localDateTime data provider
-    @ParameterizedTest
-    @MethodSource("data_localDateTime")
+    @Test(dataProvider="localDateTime")
     public void test_localDateTime(TemporalAccessor accessor,  HijrahDate expectedDate, LocalTime expectedTime, Class<?> expectedEx) {
         if (expectedEx == null) {
             ChronoLocalDateTime<HijrahDate> result = HijrahChronology.INSTANCE.localDateTime(accessor);
-            assertEquals(expectedDate, result.toLocalDate());
-            assertEquals(expectedDate, HijrahDate.from(accessor));
-            assertEquals(expectedTime, result.toLocalTime());
+            assertEquals(result.toLocalDate(), expectedDate);
+            assertEquals(HijrahDate.from(accessor), expectedDate);
+            assertEquals(result.toLocalTime(), expectedTime);
         } else {
             try {
                 ChronoLocalDateTime<HijrahDate> result = HijrahChronology.INSTANCE.localDateTime(accessor);
@@ -748,6 +731,7 @@ public class TestUmmAlQuraChronology {
     }
 
     // Sample Hijrah & Minguo Dates
+    @DataProvider(name="hijrahToMinguo")
     Object[][] data_hijrahToMinguo() {
         return new Object[][] {
             {HijrahDate.of(1350,5,15), MinguoDate.of(20,9,28)},
@@ -759,13 +743,13 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the date conversion from Hijrah to Minguo chronology
-    @ParameterizedTest
-    @MethodSource("data_hijrahToMinguo")
+    @Test(dataProvider="hijrahToMinguo")
     public void test_hijrahToMinguo(HijrahDate hijrah, MinguoDate minguo) {
-        assertEquals(minguo, MinguoChronology.INSTANCE.date(hijrah));
+        assertEquals(MinguoChronology.INSTANCE.date(hijrah), minguo);
     }
 
     // Sample Hijrah & Thai Dates
+    @DataProvider(name="hijrahToThai")
     Object[][] data_hijrahToThai() {
         return new Object[][] {
             {HijrahDate.of(1350,5,15), ThaiBuddhistDate.of(2474,9,28)},
@@ -777,13 +761,13 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the date conversion from Hijrah to Thai chronology
-    @ParameterizedTest
-    @MethodSource("data_hijrahToThai")
+    @Test(dataProvider="hijrahToThai")
     public void test_hijrahToThai(HijrahDate hijrah, ThaiBuddhistDate thai) {
-        assertEquals(thai, ThaiBuddhistChronology.INSTANCE.date(hijrah));
+        assertEquals(ThaiBuddhistChronology.INSTANCE.date(hijrah), thai);
     }
 
     // Sample Hijrah & Japanese Dates
+    @DataProvider(name="hijrahToJapanese")
     Object[][] data_hijrahToJapanese() {
         return new Object[][] {
             {HijrahDate.of(1350,5,15), "Japanese Showa 6-09-28"},
@@ -797,12 +781,12 @@ public class TestUmmAlQuraChronology {
     }
 
     // Test to verify the date conversion from Hijrah to Japanese chronology
-    @ParameterizedTest
-    @MethodSource("data_hijrahToJapanese")
+    @Test(dataProvider="hijrahToJapanese")
       public void test_hijrahToJapanese(HijrahDate hijrah, String japanese) {
-          assertEquals(japanese, JapaneseChronology.INSTANCE.date(hijrah).toString());
+          assertEquals(JapaneseChronology.INSTANCE.date(hijrah).toString(), japanese);
     }
 
+    @DataProvider(name="alignedDayOfWeekInMonthTestDates")
     Object[][] data_alignedDayOfWeekInMonth() {
         return new Object[][] {
             {1437, 9, 1, 1, 1},
@@ -815,20 +799,18 @@ public class TestUmmAlQuraChronology {
     //-----------------------------------------------------------------------
     // Test for aligned-week-of-month calculation based on the day-of-month
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_alignedDayOfWeekInMonth")
+    @Test(dataProvider="alignedDayOfWeekInMonthTestDates")
     public void test_alignedWeekOfMonth(int year, int month, int dom, int wom, int dowm) {
         HijrahDate date = HijrahChronology.INSTANCE.date(year, month, dom);
-        assertEquals(wom, date.getLong(ChronoField.ALIGNED_WEEK_OF_MONTH));
+        assertEquals(date.getLong(ChronoField.ALIGNED_WEEK_OF_MONTH), wom);
     }
 
     //-----------------------------------------------------------------------
     // Test for aligned-day-of-week calculation based on the day-of-month
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_alignedDayOfWeekInMonth")
+    @Test(dataProvider="alignedDayOfWeekInMonthTestDates")
     public void test_alignedDayOfWeekInMonth(int year, int month, int dom, int wom, int dowm) {
         HijrahDate date = HijrahChronology.INSTANCE.date(year, month, dom);
-        assertEquals(dowm, date.getLong(ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH));
+        assertEquals(date.getLong(ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH), dowm);
     }
 }

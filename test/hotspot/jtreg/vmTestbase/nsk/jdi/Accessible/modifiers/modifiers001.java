@@ -188,9 +188,6 @@ public class modifiers001 extends Log {
             String s_type = classes_for_check[i][2];
             String s_modifiers = classes_for_check[i][1];
             int got_modifiers = refType.modifiers();
-            // Class.getModifiers() will never return ACC_SUPER
-            // but Accessible.modifers() can, so ignore this bit
-            got_modifiers &= ~0x20; // 0x20 == ACC_SUPER
             logHandler.display("");
             if ( got_modifiers != expected_modifiers ) {
                 logHandler.complain("##> modifiers001: UNEXPECTED modifiers() method result ("

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jdk.test.lib.Utils;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.testng.Assert;
+import org.testng.TestNG;
+import org.testng.annotations.Test;
 
 /*
  * @test
- * @summary Test counting and JavaChild.spawning and counting of Processes.
  * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -54,15 +54,25 @@ import org.junit.jupiter.api.Test;
  *        jdk.test.lib.JDKToolLauncher
  *        jdk.test.lib.Platform
  *        jdk.test.lib.process.*
- * @run junit/othervm TreeTest
+ * @run testng/othervm TreeTest
+ * @summary Test counting and JavaChild.spawning and counting of Processes.
  * @author Roger Riggs
  */
 public class TreeTest extends ProcessUtil {
+    // Main can be used to run the tests from the command line with only testng.jar.
+    @SuppressWarnings("raw_types")
+    public static void main(String[] args) {
+        Class<?>[] testclass = {TreeTest.class};
+        TestNG testng = new TestNG();
+        testng.setTestClasses(testclass);
+        testng.run();
+    }
+
     /**
      * Test counting and spawning and counting of Processes.
      */
     @Test
-    public void test1() {
+    public static void test1() {
         final int MAXCHILDREN = 2;
         List<JavaChild> spawned = new ArrayList<>();
 
@@ -82,14 +92,14 @@ public class TreeTest extends ProcessUtil {
             spawned.stream()
                     .map(Process::toHandle)
                     .filter(p -> !initialChildren.contains(p))
-                    .forEach(p -> Assertions.fail("Spawned process missing from children: " + p));
+                    .forEach(p -> Assert.fail("Spawned process missing from children: " + p));
 
             // Send exit command to each spawned Process
             spawned.forEach(p -> {
                     try {
                         p.sendAction("exit", "");
                     } catch (IOException ex) {
-                        Assertions.fail("IOException in sendAction", ex);
+                        Assert.fail("IOException in sendAction", ex);
                     }
                 });
 
@@ -97,7 +107,7 @@ public class TreeTest extends ProcessUtil {
             spawned.forEach(p -> {
                     do {
                         try {
-                            Assertions.assertEquals(0, p.waitFor(), "exit status incorrect");
+                            Assert.assertEquals(p.waitFor(), 0, "exit status incorrect");
                             break;
                         } catch (InterruptedException  ex) {
                             continue; // Retry
@@ -108,7 +118,7 @@ public class TreeTest extends ProcessUtil {
             // Verify that ProcessHandle.isAlive sees each of them as not alive
             for (Process p : spawned) {
                 ProcessHandle ph = p.toHandle();
-                Assertions.assertFalse(ph.isAlive(),
+                Assert.assertFalse(ph.isAlive(),
                         "ProcessHandle.isAlive for exited process: " + ph);
             }
 
@@ -116,13 +126,13 @@ public class TreeTest extends ProcessUtil {
             final List<ProcessHandle> afterChildren = getChildren(self);
             spawned.stream()
                     .map(Process::toHandle)
-                    .filter(afterChildren::contains)
-                    .forEach(p -> Assertions.fail("Spawned process missing from children: " + p));
+                    .filter(p -> afterChildren.contains(p))
+                    .forEach(p -> Assert.fail("Spawned process missing from children: " + p));
 
         } catch (IOException ioe) {
-            Assertions.fail("unable to spawn process", ioe);
+            Assert.fail("unable to spawn process", ioe);
         } finally {
-            // Cleanup any leftover processes
+            // Cleanup any left over processes
             spawned.stream()
                     .map(Process::toHandle)
                     .filter(ProcessHandle::isAlive)
@@ -137,7 +147,7 @@ public class TreeTest extends ProcessUtil {
      * Test counting and spawning and counting of Processes.
      */
     @Test
-    public void test2() {
+    public static void test2() {
         try {
             ConcurrentHashMap<ProcessHandle, ProcessHandle> processes = new ConcurrentHashMap<>();
 
@@ -152,12 +162,12 @@ public class TreeTest extends ProcessUtil {
             ProcessHandle p1Handle = p1.toHandle();
             printf("  p1 pid: %d%n", p1.pid());
 
-            // Gather the PIDs from the output of the spawning process
+            // Gather the PIDs from the output of the spawing process
             p1.forEachOutputLine((s) -> {
                 String[] split = s.trim().split(" ");
                 if (split.length == 3 && split[1].equals("spawn")) {
-                    long child = Long.parseLong(split[2]);
-                    long parent = Long.parseLong(split[0].split(":")[0]);
+                    Long child = Long.valueOf(split[2]);
+                    Long parent = Long.valueOf(split[0].split(":")[0]);
                     processes.put(ProcessHandle.of(child).get(), ProcessHandle.of(parent).get());
                 }
             });
@@ -169,11 +179,11 @@ public class TreeTest extends ProcessUtil {
             List<ProcessHandle> subprocesses = waitForAllChildren(p1Handle, spawnNew);
             Optional<Instant> p1Start = p1Handle.info().startInstant();
             for (ProcessHandle ph : subprocesses) {
-                Assertions.assertTrue(ph.isAlive(), "Child should be alive: " + ph);
+                Assert.assertTrue(ph.isAlive(), "Child should be alive: " + ph);
                 // Verify each child was started after the parent
                 ph.info().startInstant()
                         .ifPresent(childStart -> p1Start.ifPresent(parentStart -> {
-                            Assertions.assertFalse(childStart.isBefore(parentStart),
+                            Assert.assertFalse(childStart.isBefore(parentStart),
                                     String.format("Child process started before parent: child: %s, parent: %s",
                                             childStart, parentStart));
                         }));
@@ -207,8 +217,8 @@ public class TreeTest extends ProcessUtil {
 
             // Verify that all spawned children show up in the descendants  List
             processes.forEach((p, parent) -> {
-                Assertions.assertTrue(p.isAlive(), "Child should be alive: " + p);
-                Assertions.assertTrue(descendants.contains(p), "Spawned child should be listed in descendants: " + p);
+                Assert.assertEquals(p.isAlive(), true, "Child should be alive: " + p);
+                Assert.assertTrue(descendants.contains(p), "Spawned child should be listed in descendants: " + p);
             });
 
             // Closing JavaChild's InputStream will cause all children to exit
@@ -218,13 +228,13 @@ public class TreeTest extends ProcessUtil {
                 try {
                     p.onExit().get();       // wait for the child to exit
                 } catch (ExecutionException e) {
-                    Assertions.fail("waiting for process to exit", e);
+                    Assert.fail("waiting for process to exit", e);
                 }
             }
             p1.waitFor();           // wait for spawned process to exit
 
             // Verify spawned processes are no longer alive
-            processes.forEach((ph, parent) -> Assertions.assertFalse(ph.isAlive(),
+            processes.forEach((ph, parent) -> Assert.assertFalse(ph.isAlive(),
                             "process should not be alive: " + ph));
         } catch (IOException | InterruptedException t) {
             t.printStackTrace();
@@ -240,7 +250,7 @@ public class TreeTest extends ProcessUtil {
      * After they exit they should no longer be listed by descendants.
      */
     @Test
-    public void test3() {
+    public static void test3() {
         ConcurrentHashMap<ProcessHandle, ProcessHandle> processes = new ConcurrentHashMap<>();
 
         try {
@@ -259,15 +269,15 @@ public class TreeTest extends ProcessUtil {
             p1.forEachOutputLine((s) -> {
                 String[] split = s.trim().split(" ");
                 if (split.length == 3 && split[1].equals("spawn")) {
-                    long child = Long.parseLong(split[2]);
-                    long parent = Long.parseLong(split[0].split(":")[0]);
+                    Long child = Long.valueOf(split[2]);
+                    Long parent = Long.valueOf(split[0].split(":")[0]);
                     processes.put(ProcessHandle.of(child).get(), ProcessHandle.of(parent).get());
                     spawnCount.countDown();
                 }
             });
 
             // Wait for all the subprocesses to be listed as started
-            Assertions.assertTrue(spawnCount.await(Utils.adjustTimeout(30L), TimeUnit.SECONDS),
+            Assert.assertTrue(spawnCount.await(Utils.adjustTimeout(30L), TimeUnit.SECONDS),
                     "Timeout waiting for processes to start");
 
             // Debugging; list descendants that are not expected in processes
@@ -280,17 +290,17 @@ public class TreeTest extends ProcessUtil {
                     .filter(ph -> !processes.containsKey(ph))
                     .forEach(ph1 -> ProcessUtil.printProcess(ph1, "Extra process: "));
                 ProcessUtil.logTaskList();
-                Assertions.assertEquals(0, count, "Extra processes in descendants");
+                Assert.assertEquals(0, count, "Extra processes in descendants");
             }
 
             // Verify that all spawned children are alive, show up in the descendants list
             // then destroy them
             processes.forEach((p, parent) -> {
-                Assertions.assertTrue(p.isAlive(), "Child should be alive: " + p);
-                Assertions.assertTrue(descendants.contains(p), "Spawned child should be listed in descendants: " + p);
+                Assert.assertEquals(p.isAlive(), true, "Child should be alive: " + p);
+                Assert.assertTrue(descendants.contains(p), "Spawned child should be listed in descendants: " + p);
                 p.destroyForcibly();
             });
-            Assertions.assertEquals(newChildren, processes.size(), "Wrong number of children");
+            Assert.assertEquals(processes.size(), newChildren, "Wrong number of children");
 
             // Wait for each of the processes to exit
             processes.forEach((p, parent) ->  {
@@ -307,21 +317,21 @@ public class TreeTest extends ProcessUtil {
                 }
                 printf("Timeout waiting for exit of pid %s, parent: %s, info: %s%n",
                         p, parent, p.info());
-                Assertions.fail("Process still alive: " + p);
+                Assert.fail("Process still alive: " + p);
             });
             p1.destroyForcibly();
             p1.waitFor();
 
             // Verify that none of the spawned children are still listed by descendants
             List<ProcessHandle> remaining = getDescendants(self);
-            Assertions.assertFalse(remaining.remove(p1Handle), "Child p1 should have exited");
+            Assert.assertFalse(remaining.remove(p1Handle), "Child p1 should have exited");
             remaining = remaining.stream().filter(processes::containsKey).collect(Collectors.toList());
-            Assertions.assertEquals(0, remaining.size(), "Subprocess(es) should have exited: " + remaining);
+            Assert.assertEquals(remaining.size(), 0, "Subprocess(es) should have exited: " + remaining);
 
         } catch (IOException ioe) {
-            Assertions.fail("Spawn of subprocess failed", ioe);
+            Assert.fail("Spawn of subprocess failed", ioe);
         } catch (InterruptedException inte) {
-            Assertions.fail("InterruptedException", inte);
+            Assert.fail("InterruptedException", inte);
         } finally {
             processes.forEach((p, parent) -> {
                 if (p.isAlive()) {
@@ -336,7 +346,7 @@ public class TreeTest extends ProcessUtil {
      * Test (Not really a test) that dumps the list of all Processes.
      */
     @Test
-    public void test4() {
+    public static void test4() {
         printf("    Parent     Child  Info%n");
         Stream<ProcessHandle> s = ProcessHandle.allProcesses();
         ProcessHandle[] processes = s.toArray(ProcessHandle[]::new);
@@ -374,7 +384,7 @@ public class TreeTest extends ProcessUtil {
             }
             printf("%s %7s, %7s, %s%n", indent, p_parent, p, info);
         }
-        Assertions.assertFalse(fail, "Parents missing from all Processes");
+        Assert.assertFalse(fail, "Parents missing from all Processes");
 
     }
 
@@ -382,7 +392,7 @@ public class TreeTest extends ProcessUtil {
      * A test for scale; launch a large number (14) of subprocesses.
      */
     @Test
-    public void test5() {
+    public static void test5() {
         ConcurrentHashMap<ProcessHandle, ProcessHandle> processes = new ConcurrentHashMap<>();
 
         int factor = 2;
@@ -411,15 +421,15 @@ public class TreeTest extends ProcessUtil {
             p1.forEachOutputLine((s) -> {
                 String[] split = s.trim().split(" ");
                 if (split.length == 3 && split[1].equals("spawn")) {
-                    long child = Long.parseLong(split[2]);
-                    long parent = Long.parseLong(split[0].split(":")[0]);
+                    Long child = Long.valueOf(split[2]);
+                    Long parent = Long.valueOf(split[0].split(":")[0]);
                     processes.put(ProcessHandle.of(child).get(), ProcessHandle.of(parent).get());
                     spawnCount.countDown();
                 }
             });
 
             // Wait for all the subprocesses to be listed as started
-            Assertions.assertTrue(spawnCount.await(Utils.adjustTimeout(30L), TimeUnit.SECONDS),
+            Assert.assertTrue(spawnCount.await(Utils.adjustTimeout(30L), TimeUnit.SECONDS),
                     "Timeout waiting for processes to start");
 
             // Debugging; list descendants that are not expected in processes
@@ -432,29 +442,30 @@ public class TreeTest extends ProcessUtil {
                     .filter(ph -> !processes.containsKey(ph))
                     .forEach(ph1 -> ProcessUtil.printProcess(ph1, "Extra process: "));
                 ProcessUtil.logTaskList();
-                Assertions.assertEquals(0, count, "Extra processes in descendants");
+                Assert.assertEquals(0, count, "Extra processes in descendants");
             }
 
             List<ProcessHandle> subprocesses = getChildren(p1Handle);
             printf(" children:  %s%n",
-                    subprocesses.stream().map(ProcessHandle::pid)
+                    subprocesses.stream().map(p -> p.pid())
                     .collect(Collectors.toList()));
 
-            Assertions.assertEquals(factor, getChildren(p1Handle).size(), "expected direct children");
+            Assert.assertEquals(getChildren(p1Handle).size(),
+                    factor, "expected direct children");
             count = getDescendants(p1Handle).size();
             long totalChildren = factor * factor * factor + factor * factor + factor;
-            Assertions.assertTrue(count >= totalChildren,
+            Assert.assertTrue(count >= totalChildren,
                     "expected at least " + totalChildren + ", actual: " + count);
 
             List<ProcessHandle> descSubprocesses = getDescendants(p1Handle);
             printf(" descendants:  %s%n",
-                    descSubprocesses.stream().map(ProcessHandle::pid)
+                    descSubprocesses.stream().map(p -> p.pid())
                     .collect(Collectors.toList()));
 
             p1.getOutputStream().close();  // Close stdin for the controlling p1
             p1.waitFor();
         } catch (InterruptedException | IOException ex) {
-            Assertions.fail("Unexpected Exception", ex);
+            Assert.fail("Unexpected Exception", ex);
         } finally {
             printf("Duration: %s%n", Duration.between(start, Instant.now()));
             if (p1 != null) {

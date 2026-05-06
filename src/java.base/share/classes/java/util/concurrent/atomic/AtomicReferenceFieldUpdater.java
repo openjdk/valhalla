@@ -42,8 +42,6 @@ import java.util.function.UnaryOperator;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
-import jdk.internal.vm.annotation.TrustFinalFields;
-
 import java.lang.invoke.VarHandle;
 
 /**
@@ -314,7 +312,6 @@ public abstract class AtomicReferenceFieldUpdater<T,V> {
         return next;
     }
 
-    @TrustFinalFields
     private static final class AtomicReferenceFieldUpdaterImpl<T,V>
         extends AtomicReferenceFieldUpdater<T,V> {
         private static final Unsafe U = Unsafe.getUnsafe();

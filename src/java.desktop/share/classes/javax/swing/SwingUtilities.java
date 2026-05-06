@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import javax.swing.event.MenuDragMouseEvent;
 import javax.swing.plaf.UIResource;
 import javax.swing.text.View;
 
+import sun.awt.AppContext;
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAccessor.MouseEventAccessor;
 
@@ -505,7 +506,7 @@ public class SwingUtilities implements SwingConstants
     public static boolean isDescendingFrom(Component a,Component b) {
         if(a == b)
             return true;
-        for(Container p = a.getParent(); p != null; p = p.getParent())
+        for(Container p = a.getParent();p!=null;p=p.getParent())
             if(p == b)
                 return true;
         return false;
@@ -1898,6 +1899,11 @@ public class SwingUtilities implements SwingConstants
         return null;
     }
 
+
+    // Don't use String, as it's not guaranteed to be unique in a Hashtable.
+    private static final Object sharedOwnerFrameKey =
+       new StringBuffer("SwingUtilities.sharedOwnerFrame");
+
     @SuppressWarnings("serial") // JDK-implementation class
     static class SharedOwnerFrame extends Frame implements WindowListener {
         public void addNotify() {
@@ -1955,7 +1961,6 @@ public class SwingUtilities implements SwingConstants
         }
     }
 
-    private static Frame sharedOwnerFrame;
     /**
      * Returns a toolkit-private, shared, invisible Frame
      * to be the owner for JDialogs and JWindows created with
@@ -1965,12 +1970,14 @@ public class SwingUtilities implements SwingConstants
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     static Frame getSharedOwnerFrame() throws HeadlessException {
-        synchronized (SharedOwnerFrame.class) {
-            if (sharedOwnerFrame == null) {
-                sharedOwnerFrame = new SharedOwnerFrame();
-            }
-            return sharedOwnerFrame;
+        Frame sharedOwnerFrame =
+            (Frame)SwingUtilities.appContextGet(sharedOwnerFrameKey);
+        if (sharedOwnerFrame == null) {
+            sharedOwnerFrame = new SharedOwnerFrame();
+            SwingUtilities.appContextPut(sharedOwnerFrameKey,
+                                         sharedOwnerFrame);
         }
+        return sharedOwnerFrame;
     }
 
     /**
@@ -1984,6 +1991,26 @@ public class SwingUtilities implements SwingConstants
         Frame sharedOwnerFrame = getSharedOwnerFrame();
         return (WindowListener)sharedOwnerFrame;
     }
+
+    /* Don't make these AppContext accessors public or protected --
+     * since AppContext is in sun.awt in 1.2, we shouldn't expose it
+     * even indirectly with a public API.
+     */
+    // REMIND(aim): phase out use of 4 methods below since they
+    // are just private covers for AWT methods (?)
+
+    static Object appContextGet(Object key) {
+        return AppContext.getAppContext().get(key);
+    }
+
+    static void appContextPut(Object key, Object value) {
+        AppContext.getAppContext().put(key, value);
+    }
+
+    static void appContextRemove(Object key) {
+        AppContext.getAppContext().remove(key);
+    }
+
 
     static Class<?> loadSystemClass(String className) throws ClassNotFoundException {
         return Class.forName(className, true, Thread.currentThread().

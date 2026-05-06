@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /* @test
  * @bug 8202252
- * @run junit CompletionHandlerRelease
+ * @run testng CompletionHandlerRelease
  * @summary Verify that reference to CompletionHandler is cleared after use
  */
 
@@ -44,12 +44,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class CompletionHandlerRelease {
     @Test
@@ -134,16 +132,16 @@ public class CompletionHandlerRelease {
         }
     }
 
-    private static AsynchronousChannelGroup GROUP;
+    private AsynchronousChannelGroup GROUP;
 
-    @BeforeAll
-    static void setup() throws IOException {
+    @BeforeTest
+    void setup() throws IOException {
         GROUP = AsynchronousChannelGroup.withFixedThreadPool(2,
             Executors.defaultThreadFactory());
     }
 
-    @AfterAll
-    static void cleanup() throws IOException {
+    @AfterTest
+    void cleanup() throws IOException {
         GROUP.shutdownNow();
     }
 
@@ -201,13 +199,13 @@ public class CompletionHandlerRelease {
         }
     }
 
-    private static void waitForRefToClear(Reference ref, ReferenceQueue queue)
+    private void waitForRefToClear(Reference ref, ReferenceQueue queue)
         throws InterruptedException {
         Reference r;
         while ((r = queue.remove(20)) == null) {
             System.gc();
         }
-        assertSame(ref, r);
+        assertEquals(r, ref);
         assertNull(r.get());
     }
 }

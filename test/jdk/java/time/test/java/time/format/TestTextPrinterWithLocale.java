@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,8 +70,7 @@ import static java.time.temporal.ChronoField.DAY_OF_WEEK;
 import static java.time.temporal.ChronoField.ERA;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.IsoFields.QUARTER_OF_YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
@@ -82,22 +81,20 @@ import java.time.format.TextStyle;
 import java.time.temporal.TemporalField;
 import java.util.Locale;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import test.java.time.temporal.MockFieldValue;
 
 /**
  * Test TextPrinterParserWithLocale.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestTextPrinterWithLocale extends AbstractTestPrinterParser {
     static final Locale RUSSIAN = Locale.of("ru");
     static final Locale FINNISH = Locale.of("fi");
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="print_DayOfWeekData")
     Object[][] providerDayOfWeekData() {
         return new Object[][] {
             // Locale, pattern, expected text, input DayOfWeek
@@ -112,6 +109,7 @@ public class TestTextPrinterWithLocale extends AbstractTestPrinterParser {
     }
 
     // Test data is dependent on localized resources.
+    @DataProvider(name="print_standalone")
     Object[][] provider_StandaloneNames() {
         return new Object[][] {
             // standalone names for 2013-01-01 (Tue)
@@ -123,34 +121,31 @@ public class TestTextPrinterWithLocale extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("providerDayOfWeekData")
+    @Test(dataProvider="print_DayOfWeekData")
     public void test_formatDayOfWeek(Locale locale, String pattern, String expected, DayOfWeek dayOfWeek) {
         DateTimeFormatter formatter = getPatternFormatter(pattern).withLocale(locale);
         String text = formatter.format(dayOfWeek);
-        assertEquals(expected, text);
+        assertEquals(text, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_StandaloneNames")
+    @Test(dataProvider="print_standalone")
     public void test_standaloneNames(Locale locale, TemporalField field, TextStyle style, String expected) {
         getFormatter(field, style).withLocale(locale).formatTo(LocalDate.of(2013, 1, 1), buf);
-        assertEquals(expected, buf.toString());
+        assertEquals(buf.toString(), expected);
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_print_french_long() throws Exception {
         getFormatter(MONTH_OF_YEAR, TextStyle.FULL).withLocale(Locale.FRENCH).formatTo(LocalDate.of(2012, 1, 1), buf);
-        assertEquals("janvier", buf.toString());
+        assertEquals(buf.toString(), "janvier");
     }
 
-    @Test
     public void test_print_french_short() throws Exception {
         getFormatter(MONTH_OF_YEAR, TextStyle.SHORT).withLocale(Locale.FRENCH).formatTo(LocalDate.of(2012, 1, 1), buf);
-        assertEquals("janv.", buf.toString());
+        assertEquals(buf.toString(), "janv.");
     }
 
+    @DataProvider(name="print_JapaneseChronology")
     Object[][] provider_japaneseEra() {
        return new Object[][] {
             {ERA,           TextStyle.FULL, 2, "Heisei"}, // Note: CLDR doesn't define "wide" Japanese era names.
@@ -159,11 +154,10 @@ public class TestTextPrinterWithLocale extends AbstractTestPrinterParser {
        };
     };
 
-    @ParameterizedTest
-    @MethodSource("provider_japaneseEra")
+    @Test(dataProvider="print_JapaneseChronology")
     public void test_formatJapaneseEra(TemporalField field, TextStyle style, int value, String expected) throws Exception {
         LocalDate ld = LocalDate.of(2013, 1, 31);
         getFormatter(field, style).withChronology(JapaneseChronology.INSTANCE).formatTo(ld, buf);
-        assertEquals(expected, buf.toString());
+        assertEquals(buf.toString(), expected);
     }
 }

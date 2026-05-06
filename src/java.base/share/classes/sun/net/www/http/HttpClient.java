@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -438,17 +438,8 @@ public class HttpClient extends NetworkClient {
         }
     }
 
-    /**
-     * {@return {@code true}, if the connection to the server is still
-     * established and there is no stale data to be read; {@code false},
-     * otherwise}
-     * <p>
-     * A {@code true} return value indicates that the connection is reusable for
-     * an HTTP request. A {@code false} return value indicates that the
-     * connection is either lost or dirty, and it should be closed.
-     */
     protected boolean available() {
-        boolean available = false;
+        boolean available = true;
         int old = -1;
 
         lock();
@@ -456,24 +447,24 @@ public class HttpClient extends NetworkClient {
             try {
                 old = serverSocket.getSoTimeout();
                 serverSocket.setSoTimeout(1);
-                int r = serverSocket.getInputStream().read();
+                BufferedInputStream tmpbuf =
+                        new BufferedInputStream(serverSocket.getInputStream());
+                int r = tmpbuf.read();
                 if (r == -1) {
                     logFinest("HttpClient.available(): " +
                             "read returned -1: not available");
+                    available = false;
                 }
             } catch (SocketTimeoutException e) {
                 logFinest("HttpClient.available(): " +
                         "SocketTimeout: its available");
-                available = true;
             } finally {
                 if (old != -1)
                     serverSocket.setSoTimeout(old);
             }
         } catch (IOException e) {
-            logFinest("HttpClient.available(): IOException: not available");
-            // `SocketTimeoutException` might have set the return value to
-            // `true`, but consequently `serverSocket::setSoTimeout` might have
-            // failed. Hence, reset the return value, always.
+            logFinest("HttpClient.available(): " +
+                        "SocketException: not available");
             available = false;
         } finally {
             unlock();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 package java.awt;
 
 import java.awt.event.*;
+
+import sun.awt.AppContext;
 
 abstract class ModalEventFilter implements EventFilter {
 
@@ -127,13 +129,19 @@ abstract class ModalEventFilter implements EventFilter {
 
     private static class ToolkitModalEventFilter extends ModalEventFilter {
 
+        private AppContext appContext;
+
         ToolkitModalEventFilter(Dialog modalDialog) {
             super(modalDialog);
+            appContext = modalDialog.appContext;
         }
 
         protected FilterAction acceptWindow(Window w) {
             if (w.isModalExcluded(Dialog.ModalExclusionType.TOOLKIT_EXCLUDE)) {
                 return FilterAction.ACCEPT;
+            }
+            if (w.appContext != appContext) {
+                return FilterAction.REJECT;
             }
             while (w != null) {
                 if (w == modalDialog) {
@@ -147,21 +155,27 @@ abstract class ModalEventFilter implements EventFilter {
 
     private static class ApplicationModalEventFilter extends ModalEventFilter {
 
+        private AppContext appContext;
+
         ApplicationModalEventFilter(Dialog modalDialog) {
             super(modalDialog);
+            appContext = modalDialog.appContext;
         }
 
         protected FilterAction acceptWindow(Window w) {
             if (w.isModalExcluded(Dialog.ModalExclusionType.APPLICATION_EXCLUDE)) {
                 return FilterAction.ACCEPT;
             }
-            while (w != null) {
-                if (w == modalDialog) {
-                    return FilterAction.ACCEPT_IMMEDIATELY;
+            if (w.appContext == appContext) {
+                while (w != null) {
+                    if (w == modalDialog) {
+                        return FilterAction.ACCEPT_IMMEDIATELY;
+                    }
+                    w = w.getOwner();
                 }
-                w = w.getOwner();
+                return FilterAction.REJECT;
             }
-            return FilterAction.REJECT;
+            return FilterAction.ACCEPT;
         }
     }
 

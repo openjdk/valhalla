@@ -69,6 +69,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.tools.javac.api.JavacTaskPool;
 import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
 import com.sun.tools.javac.tree.JCTree.JCCase;
@@ -346,6 +347,7 @@ public class TreePosTest {
         private boolean compactSourceFile;
         void test(JCCompilationUnit tree) {
             sourcefile = tree.sourcefile;
+            endPosTable = tree.endPositions;
             encl = new Info();
             List<JCTree> nonImports = tree.defs
                                           .stream()
@@ -353,7 +355,7 @@ public class TreePosTest {
                                           .toList();
             compactSourceFile = nonImports.size() == 1 &&
                                 nonImports.get(0) instanceof JCClassDecl classDecl &&
-                                classDecl.endpos == NOPOS;
+                                tree.endPositions.getEndPos(classDecl) == NOPOS;
             tree.accept(this);
         }
 
@@ -362,7 +364,7 @@ public class TreePosTest {
             if (tree == null)
                 return;
 
-            Info self = new Info(tree);
+            Info self = new Info(tree, endPosTable);
             if (check(encl, self)) {
                 // Modifiers nodes are present throughout the tree even where
                 // there is no corresponding source text.
@@ -502,6 +504,7 @@ public class TreePosTest {
         }
 
         JavaFileObject sourcefile;
+        EndPosTable endPosTable;
         Info encl;
 
     }
@@ -518,12 +521,12 @@ public class TreePosTest {
             end = Integer.MAX_VALUE;
         }
 
-        Info(JCTree tree) {
+        Info(JCTree tree, EndPosTable endPosTable) {
             this.tree = tree;
             tag = tree.getTag();
             start = TreeInfo.getStartPos(tree);
             pos = tree.pos;
-            end = TreeInfo.getEndPos(tree);
+            end = TreeInfo.getEndPos(tree, endPosTable);
         }
 
         @Override

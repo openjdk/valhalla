@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,40 +27,38 @@
 
 #include "utilities/globalCounter.hpp"
 
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/javaThread.hpp"
-#include "runtime/safepointVerifiers.hpp"
 
 inline GlobalCounter::CSContext
 GlobalCounter::critical_section_begin(Thread *thread) {
   assert(thread == Thread::current(), "must be current thread");
-  uintx old_cnt = thread->get_rcu_counter()->load_relaxed();
+  uintx old_cnt = AtomicAccess::load(thread->get_rcu_counter());
   // Retain the old counter value if already active, e.g. nested.
   // Otherwise, set the counter to the current version + active bit.
   uintx new_cnt = old_cnt;
   if ((new_cnt & COUNTER_ACTIVE) == 0) {
-    new_cnt = _global_counter._counter.load_relaxed() | COUNTER_ACTIVE;
+    new_cnt = AtomicAccess::load(&_global_counter._counter) | COUNTER_ACTIVE;
   }
-  thread->get_rcu_counter()->release_store_fence(new_cnt);
+  AtomicAccess::release_store_fence(thread->get_rcu_counter(), new_cnt);
   return static_cast<CSContext>(old_cnt);
 }
 
 inline void
 GlobalCounter::critical_section_end(Thread *thread, CSContext context) {
   assert(thread == Thread::current(), "must be current thread");
-  assert((thread->get_rcu_counter()->load_relaxed() & COUNTER_ACTIVE) == COUNTER_ACTIVE, "must be in critical section");
+  assert((*thread->get_rcu_counter() & COUNTER_ACTIVE) == COUNTER_ACTIVE, "must be in critical section");
   // Restore the counter value from before the associated begin.
-  thread->get_rcu_counter()->release_store(static_cast<uintx>(context));
+  AtomicAccess::release_store(thread->get_rcu_counter(),
+                              static_cast<uintx>(context));
 }
 
 class GlobalCounter::CriticalSection {
-  NoSafepointVerifier _nsv;
+ private:
   Thread* _thread;
   CSContext _context;
-
-public:
+ public:
   inline CriticalSection(Thread* thread) :
-    _nsv(),
     _thread(thread),
     _context(GlobalCounter::critical_section_begin(_thread))
   {}

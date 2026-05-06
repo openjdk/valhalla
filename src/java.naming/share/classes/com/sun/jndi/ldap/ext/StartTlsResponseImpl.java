@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
 
+import java.security.Principal;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 
@@ -62,6 +63,11 @@ import com.sun.jndi.ldap.Connection;
 public final class StartTlsResponseImpl extends StartTlsResponse {
 
     private static final boolean debug = false;
+
+    /*
+     * The dNSName type in a subjectAltName extension of an X.509 certificate
+     */
+    private static final int DNSNAME_TYPE = 2;
 
     /*
      * The server's hostname.
@@ -105,9 +111,9 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
     private transient HostnameVerifier verifier = null;
 
     /*
-     * The flag to indicate that close() was invoked
+     * The flag to indicate that the TLS connection is closed.
      */
-    private transient boolean closed;
+    private transient boolean isClosed = true;
 
     private static final long serialVersionUID = -1126624615143411328L;
 
@@ -127,7 +133,6 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
      * enable.
      * @see #negotiate
      */
-    @Override
     public void setEnabledCipherSuites(String[] suites) {
         // The impl does accept null suites, although the spec requires
         // a non-null list.
@@ -145,7 +150,6 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
      * @param verifier The non-null hostname verifier callback.
      * @see #negotiate
      */
-    @Override
     public void setHostnameVerifier(HostnameVerifier verifier) {
         this.verifier = verifier;
     }
@@ -161,7 +165,6 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
      * @see #setEnabledCipherSuites
      * @see #setHostnameVerifier
      */
-    @Override
     public SSLSession negotiate() throws IOException {
 
         return negotiate(null);
@@ -197,10 +200,9 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
      * @see #setEnabledCipherSuites
      * @see #setHostnameVerifier
      */
-    @Override
     public SSLSession negotiate(SSLSocketFactory factory) throws IOException {
 
-        if (closed) {
+        if (isClosed && sslSocket != null) {
             throw new IOException("TLS connection is closed.");
         }
 
@@ -221,6 +223,7 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
         SSLPeerUnverifiedException verifExcep = null;
         try {
             if (verify(hostname, sslSession)) {
+                isClosed = false;
                 return sslSession;
             }
         } catch (SSLPeerUnverifiedException e) {
@@ -229,18 +232,18 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
         }
         if ((verifier != null) &&
                 verifier.verify(hostname, sslSession)) {
+            isClosed = false;
             return sslSession;
         }
+
         // Verification failed
-        if (verifExcep == null) {
-            verifExcep = new SSLPeerUnverifiedException("hostname of the server '"
-                    + hostname + "' does not match the hostname in the server's certificate.");
-        }
+        close();
         sslSession.invalidate();
-        try {
-            close();
-        } catch (IOException ioe) {
-            verifExcep.addSuppressed(ioe);
+        if (verifExcep == null) {
+            verifExcep = new SSLPeerUnverifiedException(
+                        "hostname of the server '" + hostname +
+                        "' does not match the hostname in the " +
+                        "server's certificate.");
         }
         throw verifExcep;
     }
@@ -252,13 +255,15 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
      * @throws IOException If an IO error was encountered while closing the
      * TLS connection
      */
-    @Override
     public void close() throws IOException {
-        if (closed) {
+
+        if (isClosed) {
             return;
         }
+
         if (debug) {
-            System.out.println("StartTLS: closing");
+            System.out.println("StartTLS: replacing SSL " +
+                                "streams with originals");
         }
 
         // Replace SSL streams with the original streams
@@ -268,13 +273,9 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
         if (debug) {
             System.out.println("StartTLS: closing SSL Socket");
         }
-        try {
-            if (sslSocket != null) {
-                sslSocket.close();
-            }
-        } finally {
-            closed = true;
-        }
+        sslSocket.close();
+
+        isClosed = true;
     }
 
     /**
@@ -297,8 +298,9 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
      * Returns the default SSL socket factory.
      *
      * @return The default SSL socket factory.
+     * @throws IOException If TLS is not supported.
      */
-    private SSLSocketFactory getDefaultFactory() {
+    private SSLSocketFactory getDefaultFactory() throws IOException {
 
         if (defaultFactory != null) {
             return defaultFactory;
@@ -368,13 +370,9 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
                 System.out.println("StartTLS: Got IO error during handshake");
                 e.printStackTrace();
             }
-            try {
-                close();
-            } catch (IOException ioe) {
-                if (e != ioe) {
-                    e.addSuppressed(ioe);
-                }
-            }
+
+            sslSocket.close();
+            isClosed = true;
             throw e;   // pass up exception
         }
 
@@ -442,5 +440,21 @@ public final class StartTlsResponseImpl extends StartTlsResponse {
                                 "' does not match the hostname in the " +
                                 "server's certificate.", e);
         }
+    }
+
+    /*
+     * Get the peer principal from the session
+     */
+    private static Principal getPeerPrincipal(SSLSession session)
+            throws SSLPeerUnverifiedException {
+        Principal principal;
+        try {
+            principal = session.getPeerPrincipal();
+        } catch (AbstractMethodError e) {
+            // if the JSSE provider does not support it, return null, since
+            // we need it only for Kerberos.
+            principal = null;
+        }
+        return principal;
     }
 }

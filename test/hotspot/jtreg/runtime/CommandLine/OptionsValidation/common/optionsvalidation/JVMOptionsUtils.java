@@ -218,6 +218,9 @@ public class JVMOptionsUtils {
                 option.addPrepend("-XX:+VerifyBeforeGC");
                 option.addPrepend("-XX:+VerifyAfterGC");
                 break;
+            case "NewSizeThreadIncrease":
+                option.addPrepend("-XX:+UseSerialGC");
+                break;
             case "SharedBaseAddress":
             case "SharedSymbolTableBucketSize":
                 option.addPrepend("-XX:+UnlockDiagnosticVMOptions");

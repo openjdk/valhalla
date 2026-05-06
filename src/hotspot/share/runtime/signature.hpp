@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -563,6 +563,7 @@ class SignatureStream : public StackObj {
 
   // free-standing lookups (bring your own CL/PD pair)
   enum FailureMode { ReturnNull, NCDFError, CachedOrNull };
+
   Klass* as_klass(Handle class_loader, FailureMode failure_mode, TRAPS);
   InlineKlass* as_inline_klass(InstanceKlass* holder);
   oop as_java_mirror(Handle class_loader, FailureMode failure_mode, TRAPS);
@@ -581,21 +582,18 @@ class SigEntry {
   int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
   Symbol* _name;      // Symbol for printing
   bool _null_marker;  // Is it a null marker? For printing
-  bool _vt_oop;       // Is it a possibly null buffer
 
   SigEntry()
-    : _bt(T_ILLEGAL), _offset(-1), _name(nullptr), _null_marker(false), _vt_oop(false) {}
+    : _bt(T_ILLEGAL), _offset(-1), _name(nullptr) {}
 
-  SigEntry(BasicType bt, int offset, Symbol* name, bool null_marker, bool vt_oop)
-    : _bt(bt), _offset(offset), _name(name), _null_marker(null_marker), _vt_oop(vt_oop) {}
+  SigEntry(BasicType bt, int offset, Symbol* name, bool null_marker)
+    : _bt(bt), _offset(offset), _name(name), _null_marker(null_marker) {}
 
-  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name = nullptr, int offset = -1, bool null_marker = false, bool vt_oop = false);
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name = nullptr, int offset = -1);
   static void add_null_marker(GrowableArray<SigEntry>* sig, Symbol* name, int offset);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);
-
-  void print_on(outputStream* st) const;
 };
 
 class SigEntryFilter {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,20 @@
  * @modules java.base/jdk.internal.access.foreign
  * @modules java.base/jdk.internal.foreign.layout
  *
- * @run junit/othervm -Xverify:all
+ * @run testng/othervm -Xverify:all
  *   -Djdk.internal.foreign.SHOULD_ADAPT_HANDLES=false
  *   VarHandleTestExact
- * @run junit/othervm -Xverify:all
+ * @run testng/othervm -Xverify:all
  *   -Djdk.internal.foreign.SHOULD_ADAPT_HANDLES=false
  *   -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true
  *   -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true
  *   VarHandleTestExact
- * @run junit/othervm -Xverify:all
+ * @run testng/othervm -Xverify:all
  *   -Djdk.internal.foreign.SHOULD_ADAPT_HANDLES=false
  *   -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false
  *   -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false
  *   VarHandleTestExact
- * @run junit/othervm -Xverify:all
+ * @run testng/othervm -Xverify:all
  *   -Djdk.internal.foreign.SHOULD_ADAPT_HANDLES=false
  *   -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false
  *   -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true
@@ -50,6 +50,9 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 
 import jdk.internal.foreign.layout.ValueLayouts;
+import org.testng.SkipException;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -61,13 +64,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class VarHandleTestExact {
 
     private static class Widget {
@@ -92,13 +90,12 @@ public class VarHandleTestExact {
         final Long aLongField_RO = 1234L;
     }
 
-    @ParameterizedTest
-    @MethodSource("dataObjectAccess")
+    @Test(dataProvider = "dataObjectAccess")
     public void testExactSet(String fieldBaseName, Class<?> fieldType, boolean ro, Object testValue,
                              SetX setter, GetX getter,
                              SetStaticX staticSetter, GetStaticX staticGetter)
             throws NoSuchFieldException, IllegalAccessException {
-        Assumptions.assumeFalse(ro, "Can not test setter with read only field");
+        if (ro) throw new SkipException("Can not test setter with read only field");
         VarHandle vh = MethodHandles.lookup().findVarHandle(Widget.class, fieldBaseName + "_RW", fieldType);
         Widget w = new Widget();
 
@@ -108,8 +105,7 @@ public class VarHandleTestExact {
             ".*\\Qhandle's method type (Widget," + fieldType.getSimpleName() + ")void \\E.*");
     }
 
-    @ParameterizedTest
-    @MethodSource("dataObjectAccess")
+    @Test(dataProvider = "dataObjectAccess")
     public void testExactGet(String fieldBaseName, Class<?> fieldType, boolean ro, Object testValue,
                              SetX setter, GetX getter,
                              SetStaticX staticSetter, GetStaticX staticGetter)
@@ -123,13 +119,12 @@ public class VarHandleTestExact {
             ".*\\Qhandle's method type (Widget)" + fieldType.getSimpleName() + " \\E.*");
     }
 
-    @ParameterizedTest
-    @MethodSource("dataObjectAccess")
+    @Test(dataProvider = "dataObjectAccess")
     public void testExactSetStatic(String fieldBaseName, Class<?> fieldType, boolean ro, Object testValue,
                                    SetX setter, GetX getter,
                                    SetStaticX staticSetter, GetStaticX staticGetter)
             throws NoSuchFieldException, IllegalAccessException {
-        Assumptions.assumeFalse(ro, "Can not test setter with read only field");
+        if (ro) throw new SkipException("Can not test setter with read only field");
         VarHandle vh = MethodHandles.lookup().findStaticVarHandle(Widget.class, fieldBaseName + "_SRW", fieldType);
 
         doTest(vh,
@@ -138,8 +133,7 @@ public class VarHandleTestExact {
             ".*\\Qhandle's method type (" + fieldType.getSimpleName() + ")void \\E.*");
     }
 
-    @ParameterizedTest
-    @MethodSource("dataObjectAccess")
+    @Test(dataProvider = "dataObjectAccess")
     public void testExactGetStatic(String fieldBaseName, Class<?> fieldType, boolean ro, Object testValue,
                                    SetX setter, GetX getter,
                                    SetStaticX staticSetter, GetStaticX staticGetter)
@@ -152,8 +146,7 @@ public class VarHandleTestExact {
             ".*\\Qhandle's method type ()" + fieldType.getSimpleName() + " \\E.*");
     }
 
-    @ParameterizedTest
-    @MethodSource("dataSetArray")
+    @Test(dataProvider = "dataSetArray")
     public void testExactArraySet(Class<?> arrayClass, Object testValue, SetArrayX setter) {
         VarHandle vh = MethodHandles.arrayElementVarHandle(arrayClass);
         Object arr = Array.newInstance(arrayClass.componentType(), 1);
@@ -164,8 +157,7 @@ public class VarHandleTestExact {
             ".*\\Qhandle's method type (" + arrayClass.getSimpleName() + ",int," + arrayClass.componentType().getSimpleName() + ")void \\E.*");
     }
 
-    @ParameterizedTest
-    @MethodSource("dataSetBuffer")
+    @Test(dataProvider = "dataSetBuffer")
     public void testExactBufferSet(Class<?> arrayClass, Object testValue, SetBufferX setter) {
         VarHandle vh = MethodHandles.byteBufferViewVarHandle(arrayClass, ByteOrder.nativeOrder());
         ByteBuffer buff = ByteBuffer.allocateDirect(8);
@@ -176,8 +168,7 @@ public class VarHandleTestExact {
             ".*\\Qhandle's method type (ByteBuffer,int," + arrayClass.componentType().getSimpleName() + ")void \\E.*");
     }
 
-    @ParameterizedTest
-    @MethodSource("dataSetMemorySegment")
+    @Test(dataProvider = "dataSetMemorySegment")
     public void testExactSegmentSet(Class<?> carrier, Object testValue, SetSegmentX setter) {
         VarHandle vh = ValueLayouts.valueLayout(carrier, ByteOrder.nativeOrder()).varHandle();
         try (Arena arena = Arena.ofConfined()) {
@@ -274,6 +265,7 @@ public class VarHandleTestExact {
         cases.add(new Object[] { carrier, testValue, setter });
     }
 
+    @DataProvider
     public static Object[][] dataObjectAccess() {
         List<Object[]> cases = new ArrayList<>();
 
@@ -342,6 +334,7 @@ public class VarHandleTestExact {
         return cases.toArray(Object[][]::new);
     }
 
+    @DataProvider
     public static Object[][] dataSetArray() {
         List<Object[]> cases = new ArrayList<>();
 
@@ -362,6 +355,7 @@ public class VarHandleTestExact {
         return cases.toArray(Object[][]::new);
     }
 
+    @DataProvider
     public static Object[][] dataSetBuffer() {
         List<Object[]> cases = new ArrayList<>();
 
@@ -379,6 +373,7 @@ public class VarHandleTestExact {
         return cases.toArray(Object[][]::new);
     }
 
+    @DataProvider
     public static Object[][] dataSetMemorySegment() {
         List<Object[]> cases = new ArrayList<>();
 

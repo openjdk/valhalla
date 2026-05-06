@@ -38,17 +38,21 @@ void ObjLayout::initialize() {
     _klass_mode = Compact;
     _oop_base_offset_in_bytes = sizeof(markWord);
     _oop_has_klass_gap = false;
-  } else {
+  } else if (UseCompressedClassPointers) {
     _klass_mode = Compressed;
     _oop_base_offset_in_bytes = sizeof(markWord) + sizeof(narrowKlass);
     _oop_has_klass_gap = true;
+  } else {
+    _klass_mode = Uncompressed;
+    _oop_base_offset_in_bytes = sizeof(markWord) + sizeof(Klass*);
+    _oop_has_klass_gap = false;
   }
 #else
   assert(_klass_mode == Undefined, "ObjLayout initialized twice");
   assert(!UseCompactObjectHeaders, "COH unsupported on 32-bit");
-  // We support narrow Klass pointers on 32-bit, but the layout
+  // We support +-UseCompressedClassPointers on 32-bit, but the layout
   // is exactly the same as it was with uncompressed klass pointers
-  _klass_mode = Compressed;
+  _klass_mode = UseCompressedClassPointers ? Compressed : Uncompressed;
   _oop_base_offset_in_bytes = sizeof(markWord) + sizeof(Klass*);
   _oop_has_klass_gap = false;
 #endif

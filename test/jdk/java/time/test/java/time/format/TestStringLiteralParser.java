@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,25 +60,24 @@
 package test.java.time.format;
 
 import static java.time.temporal.ChronoField.YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.text.ParsePosition;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test StringLiteralPrinterParser.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestStringLiteralParser extends AbstractTestPrinterParser {
 
+    @DataProvider(name="success")
     Object[][] data_success() {
         return new Object[][] {
             // match
@@ -105,23 +104,23 @@ public class TestStringLiteralParser extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_success")
+    @Test(dataProvider="success")
     public void test_parse_success(String s, boolean caseSensitive, String text, int pos, int expectedPos) {
         setCaseSensitive(caseSensitive);
         ParsePosition ppos = new ParsePosition(pos);
         TemporalAccessor parsed = getFormatter(s).parseUnresolved(text, ppos);
         if (ppos.getErrorIndex() != -1) {
-            assertEquals(expectedPos, ppos.getIndex());
+            assertEquals(ppos.getIndex(), expectedPos);
         } else {
-            assertEquals(expectedPos, ppos.getIndex());
-            assertEquals(false, parsed.isSupported(YEAR));
-            assertEquals(null, parsed.query(TemporalQueries.chronology()));
-            assertEquals(null, parsed.query(TemporalQueries.zoneId()));
+            assertEquals(ppos.getIndex(), expectedPos);
+            assertEquals(parsed.isSupported(YEAR), false);
+            assertEquals(parsed.query(TemporalQueries.chronology()), null);
+            assertEquals(parsed.query(TemporalQueries.zoneId()), null);
         }
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="error")
     Object[][] data_error() {
         return new Object[][] {
             {"hello", "hello", -1, IndexOutOfBoundsException.class},
@@ -129,8 +128,7 @@ public class TestStringLiteralParser extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_error")
+    @Test(dataProvider="error")
     public void test_parse_error(String s, String text, int pos, Class<?> expected) {
         try {
             ParsePosition ppos = new ParsePosition(pos);

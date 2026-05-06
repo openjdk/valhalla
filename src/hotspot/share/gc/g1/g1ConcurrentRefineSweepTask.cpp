@@ -24,7 +24,6 @@
 
 #include "gc/g1/g1CardTableClaimTable.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1ConcurrentRefineStats.inline.hpp"
 #include "gc/g1/g1ConcurrentRefineSweepTask.hpp"
 
 class G1RefineRegionClosure : public G1HeapRegionClosure {
@@ -34,6 +33,8 @@ class G1RefineRegionClosure : public G1HeapRegionClosure {
   G1CardTableClaimTable* _scan_state;
 
   uint _worker_id;
+
+  size_t _num_collections_at_start;
 
   bool has_work(G1HeapRegion* r) {
     return _scan_state->has_unclaimed_cards(r->hrm_index());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -213,14 +213,17 @@ public final class WinShortcutVerifier {
         final var installDir = Path.of(installRoot.getMsiPropertyName()).resolve(getInstallationSubDirectory(cmd));
 
         final Function<StartupDirectory, Path> workDir = startupDirectory -> {
-            return switch (startupDirectory) {
+            switch (startupDirectory) {
                 case DEFAULT -> {
-                    yield installDir;
+                    return installDir;
                 }
                 case APP_DIR -> {
-                    yield ApplicationLayout.windowsAppImage().resolveAt(installDir).appDirectory();
+                    return ApplicationLayout.windowsAppImage().resolveAt(installDir).appDirectory();
                 }
-            };
+                default -> {
+                    throw new IllegalArgumentException();
+                }
+            }
         };
 
         if (winMenu.isPresent()) {

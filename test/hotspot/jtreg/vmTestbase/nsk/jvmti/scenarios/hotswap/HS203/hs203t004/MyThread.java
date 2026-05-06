@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,7 @@
  */
 package nsk.jvmti.scenarios.hotswap.HS203.hs203t004;
 
-import jdk.test.lib.thread.ThreadWrapper;
-
-public class MyThread extends ThreadWrapper {
+public class MyThread extends Thread {
 
     public static volatile boolean stop = true;
 

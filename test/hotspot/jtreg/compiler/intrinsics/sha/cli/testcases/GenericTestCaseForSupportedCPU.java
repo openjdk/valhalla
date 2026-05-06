@@ -80,8 +80,7 @@ public class GenericTestCaseForSupportedCPU extends
                 // Verify that if -XX:-UseSHA is passed to the JVM, it is not possible
                 // to enable the tested option and a warning is printed.
                 CommandLineOptionTest.verifySameJVMStartup(
-                        new String[] { "warning: " }, // Accept any warning message, e.g. "requires that UseSHA is enabled"
-                                                      // or the common "not available on this CPU" message.
+                        new String[] { DigestOptionsBase.getWarningForUnsupportedCPU(optionName) },
                         null,
                         shouldPassMessage,
                         String.format("Enabling option '%s' should not be possible and should result in a warning if %s was passed to JVM",

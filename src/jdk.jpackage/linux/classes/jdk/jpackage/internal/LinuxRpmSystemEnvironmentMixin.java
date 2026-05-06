@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import java.util.stream.Stream;
 import jdk.jpackage.internal.model.DottedVersion;
 import jdk.jpackage.internal.util.Result;
 
-interface LinuxRpmSystemEnvironmentMixin {
+public interface LinuxRpmSystemEnvironmentMixin {
     Path rpm();
     Path rpmbuild();
 
@@ -44,9 +44,7 @@ interface LinuxRpmSystemEnvironmentMixin {
         final var errors = Stream.of(
                 Internal.createRpmbuildToolValidator(),
                 new ToolValidator(Internal.TOOL_RPM)
-        ).map(v -> {
-            return v.setCommandLine("--version");
-        }).map(ToolValidator::validate).filter(Objects::nonNull).toList();
+        ).map(ToolValidator::validate).filter(Objects::nonNull).toList();
 
         if (errors.isEmpty()) {
             return Result.ofValue(new Stub(Internal.TOOL_RPM, Internal.TOOL_RPMBUILD));

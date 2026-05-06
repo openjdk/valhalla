@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,11 @@
  * questions.
  */
 
+/**
+ * @test
+ * @bug 8169358
+ * @summary  HttpServer does not close client connection when RejectedExecutionException occurs.
+ */
 
 import com.sun.net.httpserver.HttpServer;
 
@@ -41,14 +46,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import static com.sun.net.httpserver.HttpExchange.RSPBODY_EMPTY;
 
-/*
- * @test
- * @bug 8169358
- * @summary  HttpServer does not close client connection when RejectedExecutionException occurs.
- * @comment We use othervm because this test configures logging handlers
- *          for the system wide "com.sun.net.httpserver" logger
- * @run main/othervm ${test.main.class}
- */
 public class TaskRejectedTest {
 
     private static final int BACKLOG = 0;
@@ -56,15 +53,6 @@ public class TaskRejectedTest {
     private static final String REQUEST_PATH = "/";
 
     private static final int TIMEOUT = 10000; // 10 sec
-
-    private static final Logger logger = Logger.getLogger("com.sun.net.httpserver");
-
-    private static void setupLogging() {
-        final Handler consoleHandler = new ConsoleHandler();
-        consoleHandler.setLevel(Level.FINEST);
-        logger.setLevel(Level.FINEST);
-        logger.addHandler(consoleHandler);
-    }
 
     private static void runClient(InetSocketAddress listenAddr)
                                      throws MalformedURLException, IOException {
@@ -87,7 +75,13 @@ public class TaskRejectedTest {
     }
 
     public static void main(String[] args) throws Exception {
-        setupLogging(); // merely for debugging
+        Logger logger = Logger.getLogger(
+                            HttpServer.class.getPackage().getName());
+        Handler consoleHandler = new ConsoleHandler();
+        consoleHandler.setLevel(Level.FINEST);
+        logger.setLevel(Level.FINEST);
+        logger.addHandler(consoleHandler);
+
         Executor executor = Executors.newSingleThreadExecutor(r -> {
             throw new RejectedExecutionException("test");
         });

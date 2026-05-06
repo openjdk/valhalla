@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,19 +53,17 @@ import java.net.http.HttpResponse.BodySubscribers;
 
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 
 /*
  * @test
@@ -74,22 +72,22 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters
  *        jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true FlowAdapterSubscriberTest
  */
 
 public class FlowAdapterSubscriberTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;     // HTTP/1.1    [ 5 servers ]
-    private static HttpTestServer httpsTestServer;    // HTTPS/1.1
-    private static HttpTestServer http2TestServer;    // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;   // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;    // HTTP/3 ( h3  )
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
-    private static String http3URI;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;     // HTTP/1.1    [ 5 servers ]
+    HttpTestServer httpsTestServer;    // HTTPS/1.1
+    HttpTestServer http2TestServer;    // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;   // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;    // HTTP/3 ( h3  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
+    String http3URI;
 
     static final StackWalker WALKER =
             StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
@@ -103,7 +101,8 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    public static Object[][] variants() {
+    @DataProvider(name = "uris")
+    public Object[][] variants() {
         return new Object[][]{
                 { httpURI   },
                 { httpsURI  },
@@ -155,7 +154,7 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
         assertThrows(NPE, () -> BodySubscribers.fromSubscriber(new ListSubscriber(), null));
         assertThrows(NPE, () -> BodySubscribers.fromSubscriber(null, null));
 
-        Subscriber<?> subscriber = BodySubscribers.fromSubscriber(new ListSubscriber());
+        Subscriber subscriber = BodySubscribers.fromSubscriber(new ListSubscriber());
         assertThrows(NPE, () -> subscriber.onSubscribe(null));
         assertThrows(NPE, () -> subscriber.onNext(null));
         assertThrows(NPE, () -> subscriber.onError(null));
@@ -163,8 +162,7 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
 
     // List<ByteBuffer>
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testListWithFinisher(String uri) {
         System.out.printf(now() + "testListWithFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -176,14 +174,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, Supplier::get)).join();
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("May the luck of the Irish be with you!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "May the luck of the Irish be with you!");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testListWithoutFinisher(String uri) {
         System.out.printf(now() + "testListWithoutFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -195,14 +192,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber)).join();
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("May the luck of the Irish be with you!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "May the luck of the Irish be with you!");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testListWithFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testListWithFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -214,14 +210,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, Supplier::get));
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("May the luck of the Irish be with you!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "May the luck of the Irish be with you!");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testListWithoutFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testListWithoutFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -233,16 +228,15 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber));
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("May the luck of the Irish be with you!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "May the luck of the Irish be with you!");
         }
     }
 
     // Collection<ByteBuffer>
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testCollectionWithFinisher(String uri) {
         System.out.printf(now() + "testCollectionWithFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -254,14 +248,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, CollectionSubscriber::get)).join();
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("What's the craic?", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "What's the craic?");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testCollectionWithoutFinisher(String uri) {
         System.out.printf(now() + "testCollectionWithoutFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -273,14 +266,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber)).join();
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("What's the craic?", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "What's the craic?");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testCollectionWithFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testCollectionWithFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -292,14 +284,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, CollectionSubscriber::get));
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("What's the craic?", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "What's the craic?");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testCollectionWithoutFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testCollectionWithoutFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -311,16 +302,15 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber));
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("What's the craic?", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "What's the craic?");
         }
     }
 
     // Iterable<ByteBuffer>
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testIterableWithFinisher(String uri) {
         System.out.printf(now() + "testIterableWithFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -332,14 +322,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, Supplier::get)).join();
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("We're sucking diesel now!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "We're sucking diesel now!");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testIterableWithoutFinisher(String uri) {
         System.out.printf(now() + "testIterableWithoutFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -351,14 +340,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber)).join();
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("We're sucking diesel now!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "We're sucking diesel now!");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testIterableWithFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testIterableWithFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -370,14 +358,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, Supplier::get));
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("We're sucking diesel now!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "We're sucking diesel now!");
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testIterableWithoutFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testIterableWithoutFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -389,16 +376,15 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber));
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
-            assertEquals("We're sucking diesel now!", text);
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
+            assertEquals(text, "We're sucking diesel now!");
         }
     }
 
     // Subscriber<Object>
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testObjectWithFinisher(String uri) {
         System.out.printf(now() + "testObjectWithFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -410,14 +396,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, ObjectSubscriber::get)).join();
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
             assertTrue(text.length() != 0);  // what else can be asserted!
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testObjectWithoutFinisher(String uri) {
         System.out.printf(now() + "testObjectWithoutFinisher(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -429,14 +414,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber)).join();
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
             assertTrue(text.length() != 0);  // what else can be asserted!
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testObjectWithFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testObjectWithFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -448,14 +432,13 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber, ObjectSubscriber::get));
             String text = response.body();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
             assertTrue(text.length() != 0);  // what else can be asserted!
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testObjectWithoutFinisherBlocking(String uri) throws Exception {
         System.out.printf(now() + "testObjectWithoutFinisherBlocking(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -467,8 +450,8 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                     BodyHandlers.fromSubscriber(subscriber));
             String text = subscriber.get();
             System.out.println(text);
-            assertEquals(200, response.statusCode());
-            assertEquals(version(uri), response.version());
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.version(), version(uri));
             assertTrue(text.length() != 0);  // what else can be asserted!
         }
     }
@@ -476,8 +459,7 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
 
     // -- mapping using convenience handlers
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void mappingFromByteArray(String uri) throws Exception {
         System.out.printf(now() + "mappingFromByteArray(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -488,13 +470,12 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                             bas -> new String(bas.getBody().toCompletableFuture().join(), UTF_8)))
                     .thenApply(FlowAdapterSubscriberTest::assert200ResponseCode)
                     .thenApply(HttpResponse::body)
-                    .thenAccept(body -> assertEquals("We're sucking diesel now!", body))
+                    .thenAccept(body -> assertEquals(body, "We're sucking diesel now!"))
                     .join();
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void mappingFromInputStream(String uri) throws Exception {
         System.out.printf(now() + "mappingFromInputStream(%s) starting%n", uri);
         try (HttpClient client = newHttpClient(uri)) {
@@ -531,7 +512,7 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
                                 finisher))
                         .thenApply(FlowAdapterSubscriberTest::assert200ResponseCode)
                         .thenApply(HttpResponse::body)
-                        .thenAccept(body -> assertEquals("May the wind always be at your back.", body))
+                        .thenAccept(body -> assertEquals(body, "May the wind always be at your back."))
                         .join();
                 var error = failed.get();
                 if (error != null) throw error;
@@ -645,13 +626,17 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
     }
 
     static final <T> HttpResponse<T> assert200ResponseCode(HttpResponse<T> response) {
-        assertEquals(200, response.statusCode());
-        assertEquals(version(response.request().uri().toString()), response.version());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.version(), version(response.request().uri().toString()));
         return response;
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         httpTestServer = HttpTestServer.create(Version.HTTP_1_1);
         httpTestServer.addHandler(new HttpEchoHandler(), "/http1/echo");
         httpURI = "http://" + httpTestServer.serverAuthority() + "/http1/echo";
@@ -679,8 +664,8 @@ public class FlowAdapterSubscriberTest implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         httpTestServer.stop();
         httpsTestServer.stop();
         http2TestServer.stop();

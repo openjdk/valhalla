@@ -35,17 +35,17 @@ class ShenandoahAggressiveHeuristics : public ShenandoahHeuristics {
 public:
   ShenandoahAggressiveHeuristics(ShenandoahSpaceInfo* space_info);
 
-  void choose_collection_set_from_regiondata(ShenandoahCollectionSet* cset,
-                                             RegionData* data, size_t size,
-                                             size_t free) override;
+  virtual void choose_collection_set_from_regiondata(ShenandoahCollectionSet* cset,
+                                                     RegionData* data, size_t size,
+                                                     size_t free);
 
-  bool should_start_gc() override;
+  virtual bool should_start_gc();
 
-  bool should_unload_classes() override;
+  virtual bool should_unload_classes();
 
-  const char* name()     override { return "Aggressive"; }
-  bool is_diagnostic()   override { return true; }
-  bool is_experimental() override { return false; }
+  virtual const char* name()     { return "Aggressive"; }
+  virtual bool is_diagnostic()   { return true; }
+  virtual bool is_experimental() { return false; }
 };
 
 #endif // SHARE_GC_SHENANDOAH_HEURISTICS_SHENANDOAHAGGRESSIVEHEURISTICS_HPP

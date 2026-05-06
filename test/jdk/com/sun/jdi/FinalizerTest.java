@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,17 +30,15 @@
  * @run build TestScaffold VMConnection TargetListener TargetAdapter
  * @run compile -g FinalizerTest.java
  *
- * @run driver FinalizerTest -Xmx256M
+ * @run driver FinalizerTest
  */
+import com.sun.jdi.*;
+import com.sun.jdi.event.*;
+import com.sun.jdi.request.*;
+
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import com.sun.jdi.StackFrame;
-import com.sun.jdi.event.BreakpointEvent;
-import com.sun.jdi.event.StepEvent;
 
 
 /*
@@ -50,7 +48,8 @@ import com.sun.jdi.event.StepEvent;
  * @author Gordon Hirsch  (modified for HotSpot by tbell & rfield)
  */
 class FinalizerTarg {
-    static final CountDownLatch finalizerDone = new CountDownLatch(1);
+    static String lockit = "lock";
+    static boolean finalizerRun = false;
     static class BigObject {
         String name;
         byte[] foo = new byte[300000];
@@ -68,7 +67,7 @@ class FinalizerTarg {
              */
             super.finalize();
             //Thread.dumpStack();
-            finalizerDone.countDown();
+            finalizerRun = true;
         }
     }
 
@@ -78,36 +77,29 @@ class FinalizerTarg {
         b = null; // Drop the object, creating garbage...
         System.gc();
         System.runFinalization();
-        try {
-            // finalize() is run in another lower priority Finalizer thread.
-            // Wait for it to finish.
-            finalizerDone.await(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
 
-        // If System.gc() and System.runFinalization() did not trigger the
-        // finalizer, then finalizerDone.await() will time out and the code
-        // below will be needed as a second attempt to trigger finalization.
+        // Now, we have to make sure the finalizer
+        // gets run.  We will keep allocating more
+        // and more memory with the idea that eventually,
+        // the memory occupied by the BigObject will get reclaimed
+        // and the finalizer will be run.
         List holdAlot = new ArrayList();
         for (int chunk=10000000; chunk > 10000; chunk = chunk / 2) {
-            if (finalizerDone.getCount() == 0) {
+            if (finalizerRun) {
                 return;
             }
             try {
-                while (finalizerDone.getCount() > 0) {
+                while(true) {
                     holdAlot.add(new byte[chunk]);
                     System.err.println("Allocated " + chunk);
                 }
-            } catch ( Throwable thrown ) {  // OutOfMemoryError
-            } finally {
-                holdAlot.clear();
+            }
+            catch ( Throwable thrown ) {  // OutOfMemoryError
                 System.gc();
             }
             System.runFinalization();
         }
-        System.out.println("The Debuggee should not reach here in theory!");
-        return;
+        return;  // not reached
     }
 
     public static void main(String[] args) throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,14 +48,12 @@ import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicTLSContext;
 import jdk.internal.net.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
-
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 import sun.security.ssl.QuicTLSEngineImpl;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /*
  * @test
@@ -80,35 +78,39 @@ import org.junit.jupiter.api.Test;
  *        jdk.test.lib.net.SimpleSSLContext
  * @comment the test is run with -Djava.security.properties=<URL> to augment
  *          the master java.security file
- * @run junit/othervm -Djava.security.properties=${test.src}/quic-tls-keylimits-java.security
+ * @run testng/othervm -Djava.security.properties=${test.src}/quic-tls-keylimits-java.security
  *                     -Djdk.internal.httpclient.debug=true
  *                     -Djavax.net.debug=all
- *                     ${test.main.class}
+ *                     KeyUpdateTest
  */
 public class KeyUpdateTest {
 
-    private static QuicStandaloneServer server;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static ExecutorService executor;
+    private QuicStandaloneServer server;
+    private SSLContext sslContext;
+    private ExecutorService executor;
 
     private static final byte[] HELLO_MSG = "Hello Quic".getBytes(StandardCharsets.UTF_8);
     private static final EchoHandler handler = new EchoHandler(HELLO_MSG.length);
 
-    @BeforeAll
-    public static void beforeClass() throws Exception {
+    @BeforeClass
+    public void beforeClass() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         executor = Executors.newCachedThreadPool();
         server = QuicStandaloneServer.newBuilder()
                 .availableVersions(new QuicVersion[]{QuicVersion.QUIC_V1})
                 .sslContext(sslContext)
                 .build();
         // add a handler which deals with incoming connections
-        server.setHandler(handler);
+        server.addHandler(handler);
         server.start();
         System.out.println("Server started at " + server.getAddress());
     }
 
-    @AfterAll
-    public static void afterClass() throws Exception {
+    @AfterClass
+    public void afterClass() throws Exception {
         if (server != null) {
             System.out.println("Stopping server " + server.getAddress());
             server.close();
@@ -165,7 +167,7 @@ public class KeyUpdateTest {
                 // keep track of the 1-RTT key phase that was used by the client connection
                 final int invocation = i;
                 getKeyPhase(conn.underlyingQuicConnection()).ifPresent((keyPhase) -> {
-                    if (clientConnKeyPhases.empty() || !keyPhase.equals(clientConnKeyPhases.peek())) {
+                    if (clientConnKeyPhases.empty() || clientConnKeyPhases.peek() != keyPhase) {
                         // new key phase detected, add it
                         clientConnKeyPhases.push(keyPhase);
                         System.out.println("Detected client 1-RTT key phase " + keyPhase
@@ -225,7 +227,7 @@ public class KeyUpdateTest {
             // keep track of the 1-RTT key phase that was used by the server connection
             getKeyPhase(conn).ifPresent((keyPhase) -> {
                 if (this.serverConnKeyPhases.empty()
-                        || !keyPhase.equals(this.serverConnKeyPhases.peek())) {
+                        || this.serverConnKeyPhases.peek() != keyPhase) {
                     // new key phase detected, add it
                     this.serverConnKeyPhases.push(keyPhase);
                     System.out.println("Detected server 1-RTT key phase " + keyPhase

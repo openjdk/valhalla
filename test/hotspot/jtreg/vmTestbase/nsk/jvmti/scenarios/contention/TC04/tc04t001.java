@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ import java.util.concurrent.*;
 
 import nsk.share.*;
 import nsk.share.jvmti.*;
-import jdk.test.lib.thread.ThreadWrapper;
 
 public class tc04t001 extends DebugeeClass {
 
@@ -93,7 +92,7 @@ public class tc04t001 extends DebugeeClass {
 
 /* =================================================================== */
 
-class tc04t001Thread extends ThreadWrapper {
+class tc04t001Thread extends Thread {
 
     final static int INCREMENT_LIMIT = 100;
     final static int DELAY = 1000;

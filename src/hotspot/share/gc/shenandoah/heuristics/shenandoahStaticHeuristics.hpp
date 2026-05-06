@@ -34,17 +34,19 @@
  */
 class ShenandoahStaticHeuristics : public ShenandoahHeuristics {
 public:
-  explicit ShenandoahStaticHeuristics(ShenandoahSpaceInfo* space_info);
+  ShenandoahStaticHeuristics(ShenandoahSpaceInfo* space_info);
 
-  bool should_start_gc() override;
+  virtual ~ShenandoahStaticHeuristics();
 
-  void choose_collection_set_from_regiondata(ShenandoahCollectionSet* cset,
-                                             RegionData* data, size_t size,
-                                             size_t free) override;
+  virtual bool should_start_gc();
 
-  const char* name() override     { return "Static"; }
-  bool is_diagnostic() override   { return false; }
-  bool is_experimental() override { return false; }
+  virtual void choose_collection_set_from_regiondata(ShenandoahCollectionSet* cset,
+                                                     RegionData* data, size_t size,
+                                                     size_t free);
+
+  virtual const char* name()     { return "Static"; }
+  virtual bool is_diagnostic()   { return false; }
+  virtual bool is_experimental() { return false; }
 };
 
 #endif // SHARE_GC_SHENANDOAH_HEURISTICS_SHENANDOAHSTATICHEURISTICS_HPP

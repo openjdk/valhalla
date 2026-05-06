@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -136,9 +136,9 @@ sealed class DirectMethodHandle extends MethodHandle {
         return make(member.getDeclaringClass(), member);
     }
     static DirectMethodHandle makeAllocator(Class<?> instanceClass, MemberName ctor) {
-        assert(ctor.isConstructor() && ctor.getName().equals("<init>"));
+        assert(ctor.isConstructor()) : ctor;
         ctor = ctor.asConstructor();
-        assert(ctor.isConstructor() && ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
+        assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
         LambdaForm lform = preparedLambdaForm(ctor);
         MemberName init = ctor.asSpecial();
@@ -388,7 +388,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         // the barrier must remain. We can detect this simply by checking if initialization
         // is still needed.
         boolean initializingStill = UNSAFE.shouldBeInitialized(defc);
-        if (initializingStill && member.isStrictInit()) {
+        if (initializingStill && member.isStrict()) {
             // while <clinit> is running, we track access to strict static fields
             UNSAFE.notifyStrictStaticAccess(defc, staticOffset(this), member.isSetter());
         }
@@ -504,15 +504,6 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     /*non-public*/
-
-    /**
-     * This method returns an uninitialized instance. In general, this is undefined behavior, this
-     * method is treated specially by the JVM to allow this behavior. The returned value must be
-     * passed into a constructor using {@link MethodHandle#linkToSpecial} before any other
-     * operation can be performed on it. Otherwise, the program is ill-formed.
-     *
-     * @see Unsafe
-     */
     static Object allocateInstance(Object mh) throws InstantiationException {
         Constructor dmh = (Constructor)mh;
         return UNSAFE.allocateInstance(dmh.instanceClass);

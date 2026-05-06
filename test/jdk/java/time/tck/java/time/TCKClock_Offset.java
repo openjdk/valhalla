@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,8 +59,8 @@
  */
 package tck.java.time;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -69,12 +69,12 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test offset clock.
  */
+@Test
 public class TCKClock_Offset extends AbstractTCKTest {
 
     private static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
@@ -83,86 +83,80 @@ public class TCKClock_Offset extends AbstractTCKTest {
     private static final Duration OFFSET = Duration.ofSeconds(2);
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_offset_ClockDuration() {
         Clock test = Clock.offset(Clock.fixed(INSTANT, PARIS), OFFSET);
         //System.out.println(test.instant());
         //System.out.println(INSTANT.plus(OFFSET));
-        assertEquals(INSTANT.plus(OFFSET), test.instant());
-        assertEquals(PARIS, test.getZone());
+        assertEquals(test.instant(), INSTANT.plus(OFFSET));
+        assertEquals(test.getZone(), PARIS);
     }
 
-    @Test
     public void test_offset_ClockDuration_zeroDuration() {
         Clock underlying = Clock.system(PARIS);
         Clock test = Clock.offset(underlying, Duration.ZERO);
         assertSame(test, underlying);  // spec says same
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void test_offset_ClockDuration_nullClock() {
-        Assertions.assertThrows(NullPointerException.class, () -> Clock.offset(null, Duration.ZERO));
+        Clock.offset(null, Duration.ZERO);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void test_offset_ClockDuration_nullDuration() {
-        Assertions.assertThrows(NullPointerException.class, () -> Clock.offset(Clock.systemUTC(), null));
+        Clock.offset(Clock.systemUTC(), null);
     }
 
     //-------------------------------------------------------------------------
-    @Test
     public void test_withZone() {
         Clock test = Clock.offset(Clock.system(PARIS), OFFSET);
         Clock changed = test.withZone(MOSCOW);
-        assertEquals(PARIS, test.getZone());
-        assertEquals(MOSCOW, changed.getZone());
+        assertEquals(test.getZone(), PARIS);
+        assertEquals(changed.getZone(), MOSCOW);
     }
 
-    @Test
     public void test_withZone_equal() {
         Clock test = Clock.offset(Clock.system(PARIS), OFFSET);
         Clock changed = test.withZone(PARIS);
-        assertEquals(changed, test);
+        assertEquals(test, changed);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void test_withZone_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> Clock.offset(Clock.system(PARIS), OFFSET).withZone(null));
+        Clock.offset(Clock.system(PARIS), OFFSET).withZone(null);
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_equals() {
         Clock a = Clock.offset(Clock.system(PARIS), OFFSET);
         Clock b = Clock.offset(Clock.system(PARIS), OFFSET);
-        assertEquals(true, a.equals(a));
-        assertEquals(true, a.equals(b));
-        assertEquals(true, b.equals(a));
-        assertEquals(true, b.equals(b));
+        assertEquals(a.equals(a), true);
+        assertEquals(a.equals(b), true);
+        assertEquals(b.equals(a), true);
+        assertEquals(b.equals(b), true);
 
         Clock c = Clock.offset(Clock.system(MOSCOW), OFFSET);
-        assertEquals(false, a.equals(c));
+        assertEquals(a.equals(c), false);
 
         Clock d = Clock.offset(Clock.system(PARIS), OFFSET.minusNanos(1));
-        assertEquals(false, a.equals(d));
+        assertEquals(a.equals(d), false);
 
-        assertEquals(false, a.equals(null));
-        assertEquals(false, a.equals("other type"));
-        assertEquals(false, a.equals(Clock.systemUTC()));
+        assertEquals(a.equals(null), false);
+        assertEquals(a.equals("other type"), false);
+        assertEquals(a.equals(Clock.systemUTC()), false);
     }
 
-    @Test
     public void test_hashCode() {
         Clock a = Clock.offset(Clock.system(PARIS), OFFSET);
         Clock b = Clock.offset(Clock.system(PARIS), OFFSET);
         assertEquals(a.hashCode(), a.hashCode());
-        assertEquals(b.hashCode(), a.hashCode());
+        assertEquals(a.hashCode(), b.hashCode());
 
         Clock c = Clock.offset(Clock.system(MOSCOW), OFFSET);
-        assertEquals(false, a.hashCode() == c.hashCode());
+        assertEquals(a.hashCode() == c.hashCode(), false);
 
         Clock d = Clock.offset(Clock.system(PARIS), OFFSET.minusNanos(1));
-        assertEquals(false, a.hashCode() == d.hashCode());
+        assertEquals(a.hashCode() == d.hashCode(), false);
     }
 
 }

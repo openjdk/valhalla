@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,40 +21,39 @@
  * questions.
  */
 
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.nio.channels.DatagramChannel;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.assertThrows;
 
 /*
  * @test
  * @bug 8236105 8240533
  * @summary Check that DatagramSocket throws expected
  *          Exception when sending a DatagramPacket with port 0
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm SendPortZero
  */
 
 public class SendPortZero {
-    private static InetAddress loopbackAddr, wildcardAddr;
-    private static DatagramSocket datagramSocket, datagramSocketAdaptor;
-    private static DatagramPacket loopbackZeroPkt, wildcardZeroPkt, wildcardValidPkt;
+    private InetAddress loopbackAddr, wildcardAddr;
+    private DatagramSocket datagramSocket, datagramSocketAdaptor;
+    private DatagramPacket loopbackZeroPkt, wildcardZeroPkt, wildcardValidPkt;
 
     private static final Class<SocketException> SE = SocketException.class;
 
-    @BeforeAll
-    public static void setUp() throws IOException {
+    @BeforeTest
+    public void setUp() throws IOException {
         datagramSocket = new DatagramSocket();
         datagramSocketAdaptor = DatagramChannel.open().socket();
 
@@ -82,13 +81,8 @@ public class SendPortZero {
         wildcardValidPkt.setPort(datagramSocket.getLocalPort());
     }
 
-    @AfterAll
-    public static void tearDown() {
-        datagramSocket.close();
-        datagramSocketAdaptor.close();
-    }
-
-    public static Object[][] testCases() {
+    @DataProvider(name = "data")
+    public Object[][] variants() {
         return new Object[][]{
                 { datagramSocket,        loopbackZeroPkt },
                 { datagramSocket,        wildcardZeroPkt },
@@ -102,10 +96,14 @@ public class SendPortZero {
         };
     }
 
-    @ParameterizedTest(autoCloseArguments = false) // closed in tearDown
-    @MethodSource("testCases")
+    @Test(dataProvider = "data")
     public void testSend(DatagramSocket ds, DatagramPacket pkt) {
-        assertFalse(ds.isClosed());
         assertThrows(SE, () -> ds.send(pkt));
+    }
+
+    @AfterTest
+    public void tearDown() {
+        datagramSocket.close();
+        datagramSocketAdaptor.close();
     }
 }

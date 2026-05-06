@@ -23,11 +23,14 @@
  */
 
 #include "ci/ciArrayKlass.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //
@@ -117,17 +120,17 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 }
 
 bool ciArrayKlass::is_elem_null_free() const {
-  ArrayProperties props = properties();
-  assert(props.is_valid(), "meaningless");
-  return props.is_null_restricted();
+  ArrayKlass::ArrayProperties props = properties();
+  assert(props != ArrayKlass::INVALID, "meaningless");
+  return ArrayKlass::is_null_restricted(props);
 }
 
 bool ciArrayKlass::is_elem_atomic() const {
-  ArrayProperties props = properties();
-  assert(props.is_valid(), "meaningless");
-  return !props.is_non_atomic();
+  ArrayKlass::ArrayProperties props = properties();
+  assert(props != ArrayKlass::INVALID, "meaningless");
+  return !ArrayKlass::is_non_atomic(props);
 }
 
-ArrayProperties ciArrayKlass::properties() const {
+ArrayKlass::ArrayProperties ciArrayKlass::properties() const {
   GUARDED_VM_ENTRY(return ArrayKlass::cast(get_Klass())->properties();)
 }

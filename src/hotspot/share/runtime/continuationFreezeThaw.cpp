@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -193,7 +193,6 @@ static void verify_continuation(oop continuation) { Continuation::debug_verify_c
 
 static void do_deopt_after_thaw(JavaThread* thread);
 static bool do_verify_after_thaw(JavaThread* thread, stackChunkOop chunk, outputStream* st);
-static bool verify_deopt_state(const frame& f);
 static void log_frames(JavaThread* thread);
 static void log_frames_after_thaw(JavaThread* thread, ContinuationWrapper& cont, intptr_t* sp);
 static void print_frame_layout(const frame& f, bool callee_complete, outputStream* st = tty);
@@ -1760,8 +1759,8 @@ static void verify_frame_kind(frame& top, Continuation::preempt_kind preempt_kin
       m = top.interpreter_frame_method();
       assert(!m->is_native() || m->is_synchronized(), "invalid method %s", m->external_name());
       address bcp = top.interpreter_frame_bcp();
-      assert(bcp != nullptr || m->is_native(), "");
-      at_sync_method = m->is_synchronized() && (bcp == nullptr || bcp == m->code_base());
+      assert(bcp != 0 || m->is_native(), "");
+      at_sync_method = m->is_synchronized() && (bcp == 0 || bcp == m->code_base());
       // bcp is advanced on monitorenter before making the VM call, adjust for that.
       bool at_sync_bytecode = bcp > m->code_base() && Bytecode(m, bcp - 1).code() == Bytecodes::Code::_monitorenter;
       assert(at_sync_method || at_sync_bytecode, "");
@@ -2078,12 +2077,10 @@ protected:
   intptr_t* _fastpath;
   bool _barriers;
   bool _preempted_case;
-  bool _should_patch_caller_pc;
   bool _process_args_at_top;
   intptr_t* _top_unextended_sp_before_thaw;
   int _align_size;
-  DEBUG_ONLY(intptr_t* _top_stack_address;)
-  DEBUG_ONLY(address _caller_raw_pc;)
+  DEBUG_ONLY(intptr_t* _top_stack_address);
 
   // Only used for preemption on ObjectLocker
   ObjectMonitor* _init_lock;
@@ -2130,7 +2127,7 @@ private:
 
   inline void before_thaw_java_frame(const frame& hf, const frame& caller, bool bottom, int num_frame);
   inline void after_thaw_java_frame(const frame& f, bool bottom);
-  inline void patch(frame& f, const frame& caller, bool bottom);
+  inline void patch(frame& f, const frame& caller, bool bottom, bool augmented = false);
   void clear_bitmap_bits(address start, address end);
 
   NOINLINE void recurse_thaw_interpreted_frame(const frame& hf, frame& caller, int num_frames, bool is_top);
@@ -2252,7 +2249,6 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
 
     f.get_cb();
     assert(f.is_compiled(), "");
-
     if (f.cb()->as_nmethod()->is_marked_for_deoptimization()) {
       // The caller of the runtime stub when the continuation is preempted is not at a
       // Java call instruction, and so cannot rely on nmethod patching for deopt.
@@ -2527,7 +2523,6 @@ NOINLINE intptr_t* Thaw<ConfigT>::thaw_slow(stackChunkOop chunk, Continuation::t
   }
 
   frame caller; // the thawed caller on the stack
-  _should_patch_caller_pc = false;
   recurse_thaw(heap_frame, caller, num_frames, _preempted_case);
   finish_thaw(caller); // caller is now the topmost thawed frame
   _cont.write();
@@ -2616,8 +2611,6 @@ void ThawBase::finalize_thaw(frame& entry, int argsize) {
   assert(entry.sp() == _cont.entrySP(), "");
   assert(Continuation::is_continuation_enterSpecial(entry), "");
   assert(_cont.is_entry_frame(entry), "");
-  assert(entry.pc() == entry.raw_pc(), "");
-  DEBUG_ONLY(_caller_raw_pc = entry.pc();)
 }
 
 inline void ThawBase::before_thaw_java_frame(const frame& hf, const frame& caller, bool bottom, int num_frame) {
@@ -2642,17 +2635,15 @@ inline void ThawBase::after_thaw_java_frame(const frame& f, bool bottom) {
 #endif
 }
 
-inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
+inline void ThawBase::patch(frame& f, const frame& caller, bool bottom, bool augmented) {
   assert(!bottom || caller.fp() == _cont.entryFP(), "");
   if (bottom) {
     ContinuationHelper::Frame::patch_pc(caller, _cont.is_empty() ? caller.pc()
                                                                  : StubRoutines::cont_returnBarrier());
-  } else if (_should_patch_caller_pc || caller.is_compiled_frame()) {
-    // Caller was deoptimized during thaw but we've overwritten the return address when copying f from the heap.
-    // Also, on some platforms, if the caller is interpreted but the callee not we also need to patch.
-    assert(!_should_patch_caller_pc || caller.is_deoptimized_frame() PPC64_ONLY(|| caller.is_interpreted_frame()), "");
-    ContinuationHelper::Frame::patch_pc(caller, caller.raw_pc());
-    _should_patch_caller_pc = false;
+  } else if (caller.is_compiled_frame()){
+    // caller might have been deoptimized during thaw but we've overwritten the return address when copying f from the heap.
+    // If the caller is not deoptimized, pc is unchanged.
+    ContinuationHelper::Frame::patch_pc(caller, caller.raw_pc(), augmented /*callee_augmented*/);
   }
 
   patch_pd(f, caller);
@@ -2663,7 +2654,6 @@ inline void ThawBase::patch(frame& f, const frame& caller, bool bottom) {
 
   assert(!bottom || !_cont.is_empty() || Continuation::is_continuation_entry_frame(f, nullptr), "");
   assert(!bottom || (_cont.is_empty() != Continuation::is_cont_barrier_frame(f)), "");
-  assert(!caller.is_compiled_frame() || verify_deopt_state(caller), "");
 }
 
 void ThawBase::clear_bitmap_bits(address start, address end) {
@@ -2865,10 +2855,6 @@ NOINLINE void ThawBase::recurse_thaw_interpreted_frame(const frame& hf, frame& c
   }
 
   DEBUG_ONLY(after_thaw_java_frame(f, is_bottom_frame);)
-  DEBUG_ONLY(address return_pc = ContinuationHelper::InterpretedFrame::return_pc(f);)
-  assert(return_pc == _caller_raw_pc || (is_bottom_frame && return_pc == StubRoutines::cont_returnBarrier()), "wrong return pc");
-  assert(f.pc() == f.raw_pc(), "");
-  DEBUG_ONLY(_caller_raw_pc = f.pc();)
   caller = f;
 }
 
@@ -2899,11 +2885,12 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   }
   assert(!is_bottom_frame || !augmented, "");
 
+
   // new_stack_frame must construct the resulting frame using hf.pc() rather than hf.raw_pc() because the frame is not
   // yet laid out in the stack, and so the original_pc is not stored in it.
   // As a result, f.is_deoptimized_frame() is always false and we must test hf to know if the frame is deoptimized.
   frame f = new_stack_frame<ContinuationHelper::CompiledFrame>(hf, caller, is_bottom_frame, augmented ? fsize - hf.cb()->frame_size() : 0);
-  assert((int)(caller.sp() - f.sp()) == (augmented ? fsize : f.cb()->frame_size()), "");
+  assert(f.cb()->frame_size() == (int)(caller.sp() - f.sp()), "");
 
   intptr_t* const stack_frame_top = f.sp();
   intptr_t* const heap_frame_top = hf.unextended_sp();
@@ -2919,13 +2906,12 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
 
   copy_from_chunk(from, to, sz); // copying good oops because we invoked barriers above
 
-  patch(f, caller, is_bottom_frame);
+  patch(f, caller, is_bottom_frame, augmented);
 
   // f.is_deoptimized_frame() is always false and we must test hf.is_deoptimized_frame() (see comment above)
   assert(!f.is_deoptimized_frame(), "");
   if (hf.is_deoptimized_frame()) {
     maybe_set_fastpath(f.sp());
-    f.set_deoptimized();
   } else if (_thread->is_interp_only_mode()
               || (stub_caller && f.cb()->as_nmethod()->is_marked_for_deoptimization())) {
     // The caller of the safepoint stub when the continuation is preempted is not at a call instruction, and so
@@ -2939,8 +2925,6 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
     assert(f.is_deoptimized_frame(), "");
     assert(ContinuationHelper::Frame::is_deopt_return(f.raw_pc(), f), "");
     maybe_set_fastpath(f.sp());
-    assert(!_should_patch_caller_pc, "");
-    _should_patch_caller_pc = true;
   }
 
   if (!is_bottom_frame) {
@@ -2954,9 +2938,6 @@ void ThawBase::recurse_thaw_compiled_frame(const frame& hf, frame& caller, int n
   }
 
   DEBUG_ONLY(after_thaw_java_frame(f, is_bottom_frame);)
-  DEBUG_ONLY(address return_pc = ContinuationHelper::CompiledFrame::return_pc(f);)
-  assert(return_pc == _caller_raw_pc || (is_bottom_frame && return_pc == StubRoutines::cont_returnBarrier()), "wrong return pc");
-  DEBUG_ONLY(_caller_raw_pc = f.raw_pc();)
   caller = f;
 }
 
@@ -3006,7 +2987,6 @@ void ThawBase::recurse_thaw_stub_frame(const frame& hf, frame& caller, int num_f
   _cont.tail()->fix_thawed_frame(caller, &map);
 
   DEBUG_ONLY(after_thaw_java_frame(f, false /*is_bottom_frame*/);)
-  assert(ContinuationHelper::StubFrame::return_pc(f) == _caller_raw_pc, "wrong return pc");
   caller = f;
 }
 
@@ -3056,7 +3036,6 @@ void ThawBase::recurse_thaw_native_frame(const frame& hf, frame& caller, int num
   _cont.tail()->fix_thawed_frame(caller, SmallRegisterMap::instance_no_args());
 
   DEBUG_ONLY(after_thaw_java_frame(f, false /* bottom */);)
-  assert(ContinuationHelper::NativeFrame::return_pc(f) == _caller_raw_pc, "wrong return pc");
   caller = f;
 }
 
@@ -3101,7 +3080,8 @@ void ThawBase::finish_thaw(frame& f) {
 }
 
 void ThawBase::push_return_frame(const frame& f) { // see generate_cont_thaw
-  assert(!f.is_compiled_frame() || verify_deopt_state(f), "");
+  assert(!f.is_compiled_frame() || f.is_deoptimized_frame() == f.cb()->as_nmethod()->is_deopt_pc(f.raw_pc()), "");
+  assert(!f.is_compiled_frame() || f.is_deoptimized_frame() == (f.pc() != f.raw_pc()), "");
 
   LogTarget(Trace, continuations) lt;
   if (lt.develop_is_enabled()) {
@@ -3244,14 +3224,6 @@ static bool do_verify_after_thaw(JavaThread* thread, stackChunkOop chunk, output
       return false;
     }
   }
-  return true;
-}
-
-static bool verify_deopt_state(const frame& f) {
-  nmethod* nm = f.cb()->as_nmethod();
-  assert(f.is_deoptimized_frame() == nm->is_deopt_pc(f.raw_pc()), "");
-  assert(f.is_deoptimized_frame() == (f.pc() != f.raw_pc()), "");
-  assert(f.is_deoptimized_frame() == nm->is_deopt_pc(ContinuationHelper::Frame::real_pc(f)), "");
   return true;
 }
 

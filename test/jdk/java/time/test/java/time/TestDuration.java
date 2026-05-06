@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,16 +59,18 @@
  */
 package test.java.time;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 
 import java.time.Duration;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test Duration.
  */
+@Test
 public class TestDuration extends AbstractTest {
 
     //-----------------------------------------------------------------------
@@ -185,14 +187,14 @@ public class TestDuration extends AbstractTest {
             for (int j = 0; j < durations.length; j++) {
                 Duration b = durations[j];
                 if (i < j) {
-                    assertEquals(true, a.compareTo(b)< 0, a + " <=> " + b);
-                    assertEquals(false, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.compareTo(b)< 0, true, a + " <=> " + b);
+                    assertEquals(a.equals(b), false, a + " <=> " + b);
                 } else if (i > j) {
-                    assertEquals(true, a.compareTo(b) > 0, a + " <=> " + b);
-                    assertEquals(false, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.compareTo(b) > 0, true, a + " <=> " + b);
+                    assertEquals(a.equals(b), false, a + " <=> " + b);
                 } else {
-                    assertEquals(0, a.compareTo(b), a + " <=> " + b);
-                    assertEquals(true, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.compareTo(b), 0, a + " <=> " + b);
+                    assertEquals(a.equals(b), true, a + " <=> " + b);
                 }
             }
         }

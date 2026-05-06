@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@
 #include "gc/shared/ageTable.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "gc/shared/verifyOption.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/mutex.hpp"
 #include "utilities/macros.hpp"
 
@@ -74,7 +73,7 @@ class G1HeapRegion : public CHeapObj<mtGC> {
   HeapWord* const _bottom;
   HeapWord* const _end;
 
-  Atomic<HeapWord*> _top;
+  HeapWord* volatile _top;
 
   G1BlockOffsetTable* _bot;
 
@@ -90,8 +89,8 @@ public:
   HeapWord* bottom() const         { return _bottom; }
   HeapWord* end() const            { return _end;    }
 
-  void set_top(HeapWord* value) { _top.store_relaxed(value); }
-  HeapWord* top() const { return _top.load_relaxed(); }
+  void set_top(HeapWord* value) { _top = value; }
+  HeapWord* top() const { return _top; }
 
   // See the comment above in the declaration of _pre_dummy_top for an
   // explanation of what it is.
@@ -232,10 +231,10 @@ private:
   //
   // Below this limit the marking bitmap must be used to determine size and
   // liveness.
-  Atomic<HeapWord*> _parsable_bottom;
+  HeapWord* volatile _parsable_bottom;
 
   // Amount of dead data in the region.
-  Atomic<size_t> _garbage_bytes;
+  size_t _garbage_bytes;
 
   // Approximate number of references to this regions at the end of concurrent
   // marking. We we do not mark through all objects, so this is an estimate.
@@ -250,7 +249,7 @@ private:
   uint _node_index;
 
   // Number of objects in this region that are currently pinned.
-  Atomic<size_t> _pinned_object_count;
+  volatile size_t _pinned_object_count;
 
   void report_region_type_change(G1HeapRegionTraceType::Type to);
 
@@ -332,7 +331,7 @@ public:
   }
 
   // A lower bound on the amount of garbage bytes in the region.
-  size_t garbage_bytes() const { return _garbage_bytes.load_relaxed(); }
+  size_t garbage_bytes() const { return _garbage_bytes; }
 
   // Return the amount of bytes we'll reclaim if we collect this
   // region. This includes not only the known garbage bytes in the
@@ -394,8 +393,8 @@ public:
 
   bool is_old_or_humongous() const { return _type.is_old_or_humongous(); }
 
-  inline size_t pinned_count() const;
-  inline bool has_pinned_objects() const;
+  size_t pinned_count() const { return AtomicAccess::load(&_pinned_object_count); }
+  bool has_pinned_objects() const { return pinned_count() > 0; }
 
   void set_free();
 
@@ -567,15 +566,41 @@ public:
 // G1HeapRegionClosure is used for iterating over regions.
 // Terminates the iteration when the "do_heap_region" method returns "true".
 class G1HeapRegionClosure : public StackObj {
+  friend class G1HeapRegionManager;
+  friend class G1CollectionSet;
+  friend class G1CollectionSetCandidates;
+
+  bool _is_complete;
+  void set_incomplete() { _is_complete = false; }
+
 public:
+  G1HeapRegionClosure(): _is_complete(true) {}
+
   // Typically called on each region until it returns true.
   virtual bool do_heap_region(G1HeapRegion* r) = 0;
+
+  // True after iteration if the closure was applied to all heap regions
+  // and returned "false" in all cases.
+  bool is_complete() { return _is_complete; }
 };
 
 class G1HeapRegionIndexClosure : public StackObj {
+  friend class G1HeapRegionManager;
+  friend class G1CollectionSet;
+  friend class G1CollectionSetCandidates;
+
+  bool _is_complete;
+  void set_incomplete() { _is_complete = false; }
+
 public:
+  G1HeapRegionIndexClosure(): _is_complete(true) {}
+
   // Typically called on each region until it returns true.
   virtual bool do_heap_region_index(uint region_index) = 0;
+
+  // True after iteration if the closure was applied to all heap regions
+  // and returned "false" in all cases.
+  bool is_complete() { return _is_complete; }
 };
 
 #endif // SHARE_GC_G1_G1HEAPREGION_HPP

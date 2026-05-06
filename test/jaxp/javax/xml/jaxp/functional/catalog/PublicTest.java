@@ -23,35 +23,33 @@
 
 package catalog;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.xml.catalog.CatalogException;
-import javax.xml.catalog.CatalogResolver;
-
 import static catalog.CatalogTestUtils.CATALOG_PUBLIC;
 import static catalog.CatalogTestUtils.catalogResolver;
 import static catalog.ResolutionChecker.checkNoMatch;
 import static catalog.ResolutionChecker.checkPubIdResolution;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import javax.xml.catalog.CatalogException;
+import javax.xml.catalog.CatalogResolver;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.PublicTest
+ * @run testng/othervm catalog.PublicTest
  * @summary Get matched URIs from public entries.
  */
 public class PublicTest {
 
-    @ParameterizedTest
-    @MethodSource("data")
+    @Test(dataProvider = "publicId-matchedUri")
     public void testPublic(String publicId, String matchedUri) {
         checkPubIdResolution(createResolver(), publicId, matchedUri);
     }
 
-    public static Object[][] data() {
+    @DataProvider(name = "publicId-matchedUri")
+    public Object[][] data() {
         return new Object[][] {
                 // The matched URI of the specified public id is defined in a
                 // public entry. The match is an absolute path.
@@ -82,12 +80,12 @@ public class PublicTest {
     /*
      * If no match is found, a CatalogException should be thrown.
      */
-    @Test
+    @Test(expectedExceptions = CatalogException.class)
     public void testNoMatch() {
-        assertThrows(CatalogException.class, () -> checkNoMatch(createResolver()));
+        checkNoMatch(createResolver());
     }
 
-    private static CatalogResolver createResolver() {
+    private CatalogResolver createResolver() {
         return catalogResolver(CATALOG_PUBLIC);
     }
 }

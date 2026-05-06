@@ -58,6 +58,9 @@ bool CDSConfig::_new_aot_flags_used = false;
 bool CDSConfig::_disable_heap_dumping = false;
 bool CDSConfig::_is_at_aot_safepoint = false;
 
+bool CDSConfig::_module_patching_disables_cds = false;
+bool CDSConfig::_java_base_module_patching_disables_cds = false;
+
 const char* CDSConfig::_default_archive_path = nullptr;
 const char* CDSConfig::_input_static_archive_path = nullptr;
 const char* CDSConfig::_input_dynamic_archive_path = nullptr;
@@ -109,8 +112,6 @@ void CDSConfig::ergo_initialize() {
   }
 
   AOTMapLogger::ergo_initialize();
-
-  setup_compiler_args();
 }
 
 const char* CDSConfig::default_archive_path() {
@@ -337,13 +338,11 @@ static const char* find_any_unsupported_module_option() {
   // directly specified in the command-line.
   static const char* unsupported_module_properties[] = {
     "jdk.module.limitmods",
-    "jdk.module.upgrade.path",
-    "jdk.module.patch.0"
+    "jdk.module.upgrade.path"
   };
   static const char* unsupported_module_options[] = {
     "--limit-modules",
-    "--upgrade-module-path",
-    "--patch-module"
+    "--upgrade-module-path"
   };
 
   assert(ARRAY_SIZE(unsupported_module_properties) == ARRAY_SIZE(unsupported_module_options), "must be");
@@ -366,6 +365,12 @@ void CDSConfig::check_unsupported_dumping_module_options() {
   if (option != nullptr) {
     vm_exit_during_initialization("Cannot use the following option when dumping the shared archive", option);
   }
+
+  if (module_patching_disables_cds()) {
+    vm_exit_during_initialization(
+            "Cannot use the following option when dumping the shared archive", "--patch-module");
+  }
+
   // Check for an exploded module build in use with -Xshare:dump.
   if (!Arguments::has_jimage()) {
     vm_exit_during_initialization("Dumping the shared archive is not supported with an exploded module build");
@@ -394,6 +399,16 @@ bool CDSConfig::has_unsupported_runtime_module_options() {
     }
     return true;
   }
+
+  if (module_patching_disables_cds()) {
+    if (RequireSharedSpaces) {
+      warning("CDS is disabled when the %s option is specified.", "--patch-module");
+    } else {
+      log_info(cds)("CDS is disabled when the %s option is specified.", "--patch-module");
+    }
+    return true;
+  }
+
   return false;
 }
 
@@ -524,7 +539,7 @@ static void substitute_aot_filename(JVMFlagsEnum flag_enum) {
     JVMFlag::Error err = JVMFlagAccess::set_ccstr(flag, &new_filename, JVMFlagOrigin::ERGONOMIC);
     assert(err == JVMFlag::SUCCESS, "must never fail");
   }
-  FREE_C_HEAP_ARRAY(new_filename);
+  FREE_C_HEAP_ARRAY(char, new_filename);
 }
 
 void CDSConfig::check_aotmode_record() {
@@ -562,9 +577,7 @@ void CDSConfig::check_aotmode_record() {
 
   // At VM exit, the module graph may be contaminated with program states.
   // We will rebuild the module graph when dumping the CDS final image.
-  _is_using_optimized_module_handling = false;
-  _is_using_full_module_graph = false;
-  _is_dumping_full_module_graph = false;
+  disable_heap_dumping();
 }
 
 void CDSConfig::check_aotmode_create() {
@@ -590,7 +603,6 @@ void CDSConfig::check_aotmode_create() {
   substitute_aot_filename(FLAG_MEMBER_ENUM(AOTCache));
 
   _is_dumping_final_static_archive = true;
-  _is_using_full_module_graph = false;
   UseSharedSpaces = true;
   RequireSharedSpaces = true;
 
@@ -631,7 +643,7 @@ void CDSConfig::ergo_init_aot_paths() {
   }
 }
 
-bool CDSConfig::check_vm_args_consistency(bool patch_mod_javabase, bool mode_flag_cmd_line) {
+bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
   assert(!_cds_ergo_initialize_started, "This is called earlier than CDSConfig::ergo_initialize()");
 
   check_aot_flags();
@@ -640,6 +652,8 @@ bool CDSConfig::check_vm_args_consistency(bool patch_mod_javabase, bool mode_fla
     // Using any form of the new AOTMode switch enables enhanced optimizations.
     FLAG_SET_ERGO_IF_DEFAULT(AOTClassLinking, true);
   }
+
+  setup_compiler_args();
 
   if (AOTClassLinking) {
     // If AOTClassLinking is specified, enable all AOT optimizations by default.
@@ -704,7 +718,7 @@ bool CDSConfig::check_vm_args_consistency(bool patch_mod_javabase, bool mode_fla
     }
   }
 
-  if (is_using_archive() && patch_mod_javabase) {
+  if (is_using_archive() && java_base_module_patching_disables_cds() && module_patching_disables_cds()) {
     Arguments::no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
   }
   if (is_using_archive() && has_unsupported_runtime_module_options()) {
@@ -895,6 +909,10 @@ const char* CDSConfig::type_of_archive_being_written() {
 // If an incompatible VM options is found, return a text message that explains why
 static const char* check_options_incompatible_with_dumping_heap() {
 #if INCLUDE_CDS_JAVA_HEAP
+  if (!UseCompressedClassPointers) {
+    return "UseCompressedClassPointers must be true";
+  }
+
   return nullptr;
 #else
   return "JVM not configured for writing Java heap objects";
@@ -957,9 +975,7 @@ bool CDSConfig::are_vm_options_incompatible_with_dumping_heap() {
 }
 
 bool CDSConfig::is_dumping_heap() {
-  // Note: when dumping preimage static archive, only a very limited set of oops
-  // are dumped.
-  if (!is_dumping_static_archive()
+  if (!(is_dumping_classic_static_archive() || is_dumping_final_static_archive())
       || are_vm_options_incompatible_with_dumping_heap()
       || _disable_heap_dumping) {
     return false;
@@ -969,36 +985,6 @@ bool CDSConfig::is_dumping_heap() {
 
 bool CDSConfig::is_loading_heap() {
   return HeapShared::is_archived_heap_in_use();
-}
-
-bool CDSConfig::is_dumping_klass_subgraphs() {
-  if (is_dumping_aot_linked_classes()) {
-    // KlassSubGraphs (see heapShared.cpp) is a legacy mechanism for archiving oops. It
-    // has been superceded by AOT class linking. This feature is used only when
-    // AOT class linking is disabled.
-    return false;
-  }
-
-  if (is_dumping_preimage_static_archive()) {
-    // KlassSubGraphs are disabled in the preimage static archive, which contains a very
-    // limited set of oops.
-    return false;
-  }
-
-  if (!is_dumping_full_module_graph()) {
-    // KlassSubGraphs cannot be partially disabled. Since some of the KlassSubGraphs
-    // are used for (legacy support) of the archived full module graph, if
-    // is_dumping_full_module_graph() is calse, we must disable all KlassSubGraphs.
-    return false;
-  }
-
-  return is_dumping_heap();
-}
-
-bool CDSConfig::is_using_klass_subgraphs() {
-  return (is_loading_heap() &&
-          !CDSConfig::is_using_aot_linked_classes() &&
-          !CDSConfig::is_dumping_final_static_archive());
 }
 
 bool CDSConfig::is_using_full_module_graph() {

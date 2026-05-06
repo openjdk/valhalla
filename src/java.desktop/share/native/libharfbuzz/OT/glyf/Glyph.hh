@@ -102,15 +102,17 @@ struct Glyph
     if (unlikely (!points.resize (points.length + PHANTOM_COUNT))) return false;
     hb_array_t<contour_point_t> phantoms = points.as_array ().sub_array (points.length - PHANTOM_COUNT, PHANTOM_COUNT);
     {
-      // Duplicated code.
       int lsb = 0;
-      face->table.hmtx->get_leading_bearing_without_var_unscaled (gid, &lsb);
-      int h_delta = (int) header->xMin - lsb;
+      int h_delta = face->table.hmtx->get_leading_bearing_without_var_unscaled (gid, &lsb) ?
+                    (int) header->xMin - lsb : 0;
       HB_UNUSED int tsb = 0;
+      int v_orig  = (int) header->yMax +
 #ifndef HB_NO_VERTICAL
-      face->table.vmtx->get_leading_bearing_without_var_unscaled (gid, &tsb);
+                    ((void) face->table.vmtx->get_leading_bearing_without_var_unscaled (gid, &tsb), tsb)
+#else
+                    0
 #endif
-      int v_orig  = (int) header->yMax + tsb;
+                    ;
       unsigned h_adv = face->table.hmtx->get_advance_without_var_unscaled (gid);
       unsigned v_adv =
 #ifndef HB_NO_VERTICAL
@@ -312,7 +314,6 @@ struct Glyph
                    bool use_my_metrics = true,
                    bool phantom_only = false,
                    hb_array_t<const int> coords = hb_array_t<const int> (),
-                   hb_scalar_cache_t *gvar_cache = nullptr,
                    unsigned int depth = 0,
                    unsigned *edge_count = nullptr) const
   {
@@ -327,7 +328,7 @@ struct Glyph
       head_maxp_info->maxComponentDepth = hb_max (head_maxp_info->maxComponentDepth, depth);
     }
 
-    if (!coords && font->has_nonzero_coords)
+    if (!coords)
       coords = hb_array (font->coords, font->num_coords);
 
     contour_point_vector_t &points = type == SIMPLE ? all_points : scratch.comp_points;
@@ -356,15 +357,17 @@ struct Glyph
     if (unlikely (!points.resize (points.length + PHANTOM_COUNT))) return false;
     hb_array_t<contour_point_t> phantoms = points.as_array ().sub_array (points.length - PHANTOM_COUNT, PHANTOM_COUNT);
     {
-      // Duplicated code.
       int lsb = 0;
-      glyf_accelerator.hmtx->get_leading_bearing_without_var_unscaled (gid, &lsb);
-      int h_delta = (int) header->xMin - lsb;
+      int h_delta = glyf_accelerator.hmtx->get_leading_bearing_without_var_unscaled (gid, &lsb) ?
+                    (int) header->xMin - lsb : 0;
       HB_UNUSED int tsb = 0;
+      int v_orig  = (int) header->yMax +
 #ifndef HB_NO_VERTICAL
-      glyf_accelerator.vmtx->get_leading_bearing_without_var_unscaled (gid, &tsb);
+                    ((void) glyf_accelerator.vmtx->get_leading_bearing_without_var_unscaled (gid, &tsb), tsb)
+#else
+                    0
 #endif
-      int v_orig  = (int) header->yMax + tsb;
+                    ;
       unsigned h_adv = glyf_accelerator.hmtx->get_advance_without_var_unscaled (gid);
       unsigned v_adv =
 #ifndef HB_NO_VERTICAL
@@ -380,7 +383,7 @@ struct Glyph
     }
 
 #ifndef HB_NO_VAR
-    if (hb_any (coords))
+    if (coords)
     {
 #ifndef HB_NO_BEYOND_64K
       if (glyf_accelerator.GVAR->has_data ())
@@ -388,7 +391,6 @@ struct Glyph
                                                        coords,
                                                        points.as_array ().sub_array (old_length),
                                                        scratch,
-                                                       gvar_cache,
                                                        phantom_only && type == SIMPLE);
       else
 #endif
@@ -396,7 +398,6 @@ struct Glyph
                                                        coords,
                                                        points.as_array ().sub_array (old_length),
                                                        scratch,
-                                                       gvar_cache,
                                                        phantom_only && type == SIMPLE);
     }
 #endif
@@ -446,7 +447,6 @@ struct Glyph
                                                     use_my_metrics,
                                                     phantom_only,
                                                     coords,
-                                                    gvar_cache,
                                                     depth + 1,
                                                     edge_count)))
         {
@@ -533,11 +533,7 @@ struct Glyph
   bool get_extents_without_var_scaled (hb_font_t *font, const glyf_accelerator_t &glyf_accelerator,
                                        hb_glyph_extents_t *extents) const
   {
-    if (type == EMPTY)
-    {
-      *extents = {0, 0, 0, 0};
-      return true; /* Empty glyph; zero extents. */
-    }
+    if (type == EMPTY) return true; /* Empty glyph; zero extents. */
     return header->get_extents_without_var_scaled (font, glyf_accelerator, gid, extents);
   }
 

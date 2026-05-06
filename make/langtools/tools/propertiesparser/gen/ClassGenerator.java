@@ -286,7 +286,7 @@ public class ClassGenerator {
                         diagnosticFlags.isEmpty() ?
                           StubKind.DIAGNOSTIC_FLAGS_EMPTY.format() :
                           StubKind.DIAGNOSTIC_FLAGS_NON_EMPTY.format(diagnosticFlags),
-                        StubKind.LINT_CATEGORY.format(toLintFieldName(lintCategory)),
+                        StubKind.LINT_CATEGORY.format("\"" + lintCategory + "\""),
                         "\"" + keyParts[0] + "\"",
                         "\"" + Stream.of(keyParts).skip(2).collect(Collectors.joining(".")) + "\"",
                         javadoc);
@@ -314,7 +314,7 @@ public class ClassGenerator {
                             diagnosticFlags.isEmpty() ?
                               StubKind.DIAGNOSTIC_FLAGS_EMPTY.format() :
                               StubKind.DIAGNOSTIC_FLAGS_NON_EMPTY.format(diagnosticFlags),
-                            StubKind.LINT_CATEGORY.format(toLintFieldName(lintCategory)),
+                            StubKind.LINT_CATEGORY.format("\"" + lintCategory + "\""),
                             "\"" + keyParts[0] + "\"",
                             "\"" + Stream.of(keyParts).skip(2).collect(Collectors.joining(".")) + "\"",
                             argNames.stream().collect(Collectors.joining(", ")));
@@ -327,11 +327,6 @@ public class ClassGenerator {
             }
             return factoryMethods;
         }
-    }
-
-    String toLintFieldName(String lintCategory) {
-        return lintCategory.toUpperCase()
-                .replaceAll("-", "_");
     }
 
     /**

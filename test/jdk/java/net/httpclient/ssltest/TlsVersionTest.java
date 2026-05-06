@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,12 +47,12 @@ import static java.net.http.HttpClient.Builder.NO_PROXY;
  * @modules java.net.http/jdk.internal.net.http.common
  * @run main/othervm
  *      -Djdk.internal.httpclient.disableHostnameVerification
- *       ${test.main.class} false
+ *       TlsVersionTest false
  *
  * @run main/othervm
  *      -Djdk.internal.httpclient.disableHostnameVerification
  *      -Djdk.tls.client.protocols="TLSv1.2"
- *       ${test.main.class} true
+ *       TlsVersionTest true
  */
 
 /**

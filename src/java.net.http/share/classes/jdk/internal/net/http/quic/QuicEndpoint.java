@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1509,8 +1509,7 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
     /**
      * Called to schedule sending of a datagram that contains a single {@code ConnectionCloseFrame}
      * sent in response to a {@code ConnectionClose} frame.
-     * This will replace the {@link QuicConnectionImpl} with a {@link DrainingConnection} that
-     * will discard all incoming packets.
+     * This will completely remove the connection from the connection map.
      * @param connection   the connection being closed
      * @param destination  the peer address
      * @param datagram     the datagram
@@ -1519,7 +1518,7 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
                                    InetSocketAddress destination,
                                    ByteBuffer datagram) {
         if (debug.on()) debug.log("Pushing closed datagram for " + connection.logTag());
-        draining(connection);
+        removeConnection(connection);
         pushDatagram(connection, destination, datagram);
     }
 
@@ -1532,16 +1531,12 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
      */
     void removeConnection(final QuicPacketReceiver connection) {
         if (debug.on()) debug.log("removing connection " + connection);
-        // remove references to this connection from the map which holds the peer issued
-        // reset tokens
-        dropPeerIssuedResetTokensFor(connection);
         // remove the connection completely
         connection.connectionIds().forEach(connections::remove);
         assert !connections.containsValue(connection) : connection;
-        // Check that if there are no connections, there are no reset tokens either.
-        // This is safe because connections are added before reset tokens and removed after,
-        // except when we're closing the endpoint and don't bother with removing tokens.
-        assert peerIssuedResetTokens.isEmpty() || !connections.isEmpty() || closed : peerIssuedResetTokens;
+        // remove references to this connection from the map which holds the peer issued
+        // reset tokens
+        dropPeerIssuedResetTokensFor(connection);
     }
 
     /**
@@ -1576,14 +1571,14 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
     private void dropPeerIssuedResetTokensFor(QuicPacketReceiver connection) {
         // remove references to this connection from the map which holds the peer issued
         // reset tokens
-        connection.activeResetTokens().forEach(this::forgetStatelessResetToken);
+        peerIssuedResetTokens.values().removeIf(conn -> connection == conn);
     }
 
-    // remap peer issued stateless tokens to connection `newReceiver`
-    private void remapPeerIssuedResetToken(QuicPacketReceiver newReceiver) {
-        assert newReceiver != null;
-        newReceiver.activeResetTokens().forEach(resetToken ->
-                associateStatelessResetToken(resetToken, newReceiver));
+    // remap peer issued stateless token from connection `from` to connection `to`
+    private void remapPeerIssuedResetToken(QuicPacketReceiver from, QuicPacketReceiver to) {
+        assert from != null;
+        assert to != null;
+        peerIssuedResetTokens.replaceAll((tok, c) -> c == from ? to : c);
     }
 
     public void draining(final QuicConnectionImpl connection) {
@@ -1591,10 +1586,10 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
         if (closed) return;
 
         final long idleTimeout = connection.peerPtoMs() * 3; // 3 PTO
-        DrainingConnection draining = new DrainingConnection(connection.connectionIds(),
-                connection.activeResetTokens(), idleTimeout);
+        connection.localConnectionIdManager().close();
+        DrainingConnection draining = new DrainingConnection(connection.connectionIds(), idleTimeout);
         // we can ignore stateless reset in the draining state.
-        remapPeerIssuedResetToken(draining);
+        remapPeerIssuedResetToken(connection, draining);
 
         connection.connectionIds().forEach((id) ->
                 connections.compute(id, (i, r) -> remapDraining(i, r, draining)));
@@ -1629,9 +1624,9 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
         closingDatagram.flip();
 
         final long idleTimeout = connection.peerPtoMs() * 3; // 3 PTO
-        var closingConnection = new ClosingConnection(connection.connectionIds(),
-                connection.activeResetTokens(), idleTimeout, datagram);
-        remapPeerIssuedResetToken(closingConnection);
+        connection.localConnectionIdManager().close();
+        var closingConnection = new ClosingConnection(connection.connectionIds(), idleTimeout, datagram);
+        remapPeerIssuedResetToken(connection, closingConnection);
 
         connection.connectionIds().forEach((id) ->
                 connections.compute(id, (i, r) -> remapClosing(i, r, closingConnection)));
@@ -1749,7 +1744,6 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
         // an instance of this class)
         final static long NO_IDLE_TIMEOUT = 2000;
         final List<QuicConnectionId> localConnectionIds;
-        private final List<byte[]> activeResetTokens;
         final long maxIdleTimeMs;
         final long id;
         int more = 1;
@@ -1757,8 +1751,7 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
         volatile Deadline deadline;
         volatile Deadline updatedDeadline;
 
-        ClosedConnection(List<QuicConnectionId> localConnectionIds, List<byte[]> activeResetTokens, long maxIdleTimeMs) {
-            this.activeResetTokens = activeResetTokens;
+        ClosedConnection(List<QuicConnectionId> localConnectionIds, long maxIdleTimeMs) {
             this.id = QuicTimerQueue.newEventId();
             this.maxIdleTimeMs = maxIdleTimeMs == 0 ? NO_IDLE_TIMEOUT : maxIdleTimeMs;
             this.deadline = Deadline.MAX;
@@ -1769,11 +1762,6 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
         @Override
         public List<QuicConnectionId> connectionIds() {
             return localConnectionIds;
-        }
-
-        @Override
-        public List<byte[]> activeResetTokens() {
-            return activeResetTokens;
         }
 
         @Override
@@ -1879,9 +1867,9 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
 
         final ByteBuffer closePacket;
 
-        ClosingConnection(List<QuicConnectionId> localConnectionIds, List<byte[]> activeResetTokens, long maxIdleTimeMs,
+        ClosingConnection(List<QuicConnectionId> localConnIdManager, long maxIdleTimeMs,
                           ByteBuffer closePacket) {
-            super(localConnectionIds, activeResetTokens, maxIdleTimeMs);
+            super(localConnIdManager, maxIdleTimeMs);
             this.closePacket = Objects.requireNonNull(closePacket);
         }
 
@@ -1914,8 +1902,8 @@ public abstract sealed class QuicEndpoint implements AutoCloseable
      */
     final class DrainingConnection extends ClosedConnection {
 
-        DrainingConnection(List<QuicConnectionId> localConnectionIds, List<byte[]> activeResetTokens, long maxIdleTimeMs) {
-            super(localConnectionIds, activeResetTokens, maxIdleTimeMs);
+        DrainingConnection(List<QuicConnectionId> localConnIdManager, long maxIdleTimeMs) {
+            super(localConnIdManager, maxIdleTimeMs);
         }
 
         @Override

@@ -23,22 +23,22 @@
 
 package catalog;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.xml.catalog.CatalogResolver;
-
 import static catalog.CatalogTestUtils.catalogResolver;
 import static catalog.CatalogTestUtils.catalogUriResolver;
 import static catalog.ResolutionChecker.checkPubIdResolution;
 import static catalog.ResolutionChecker.checkSysIdResolution;
 import static catalog.ResolutionChecker.checkUriResolution;
 
+import javax.xml.catalog.CatalogResolver;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.NormalizationTest
+ * @run testng/othervm catalog.NormalizationTest
  * @summary Before matching identifiers and URI references, it has to normalize
  *          the passed identifiers and URI references. And then the catalog
  *          resolver uses the normalized stuff to search the counterparts in
@@ -48,25 +48,23 @@ public class NormalizationTest {
 
     private static final String CATALOG_NORMALIZATION = "normalization.xml";
 
-    @ParameterizedTest
-    @MethodSource("dataOnSysIdAndUri")
+    @Test(dataProvider = "systemId_uri-matchedUri")
     public void testNormalizationOnSysId(String sytemId, String matchedUri) {
         checkSysIdResolution(createEntityResolver(), sytemId, matchedUri);
     }
 
-    @ParameterizedTest
-    @MethodSource("dataOnPubId")
+    @Test(dataProvider = "publicId-matchedUri")
     public void testNormalizationOnPubId(String publicId, String matchedUri) {
         checkPubIdResolution(createEntityResolver(), publicId, matchedUri);
     }
 
-    @ParameterizedTest
-    @MethodSource("dataOnSysIdAndUri")
+    @Test(dataProvider = "systemId_uri-matchedUri")
     public void testNormalizationOnUri(String uri, String matchedUri) {
         checkUriResolution(createUriResolver(), uri, matchedUri);
     }
 
-    public static Object[][] dataOnSysIdAndUri() {
+    @DataProvider(name = "systemId_uri-matchedUri")
+    public Object[][] dataOnSysIdAndUri() {
         return new Object[][] {
                 // The specified system id/URI reference contains spaces. And
                 // the counterparts in system/uri entries also contain spaces.
@@ -87,7 +85,8 @@ public class NormalizationTest {
                         "http://local/base/dtd/docBobSys.dtd" } };
     }
 
-    public static Object[][] dataOnPubId() {
+    @DataProvider(name = "publicId-matchedUri")
+    public Object[][] dataOnPubId() {
         return new Object[][] {
                 // The specified public id contains spaces. And the counterparts
                 // in public entry also contains spaces.
@@ -104,11 +103,11 @@ public class NormalizationTest {
                         "http://local/base/dtd/docBobPub.dtd" } };
     }
 
-    private static CatalogResolver createEntityResolver() {
+    private CatalogResolver createEntityResolver() {
         return catalogResolver(CATALOG_NORMALIZATION);
     }
 
-    private static CatalogResolver createUriResolver() {
+    private CatalogResolver createUriResolver() {
         return catalogUriResolver(CATALOG_NORMALIZATION);
     }
 }

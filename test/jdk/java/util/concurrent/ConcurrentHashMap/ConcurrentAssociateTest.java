@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -171,9 +171,13 @@ public class ConcurrentAssociateTest {
             String lockName;
             if ("Signal Dispatcher".equals(name))
                 continue;
-            if ("Reference Handler".equals(name))
+            if ("Reference Handler".equals(name)
+                && (lockName = info.getLockName()) != null
+                && lockName.startsWith("java.lang.ref.Reference$Lock"))
                 continue;
-            if ("Finalizer".equals(name))
+            if ("Finalizer".equals(name)
+                && (lockName = info.getLockName()) != null
+                && lockName.startsWith("java.lang.ref.ReferenceQueue$Lock"))
                 continue;
             System.err.print(info);
         }

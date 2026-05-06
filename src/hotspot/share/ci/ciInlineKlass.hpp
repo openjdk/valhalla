@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,11 @@
 #ifndef SHARE_VM_CI_CIINLINEKLASS_HPP
 #define SHARE_VM_CI_CIINLINEKLASS_HPP
 
+#include "ci/ciConstantPoolCache.hpp"
+#include "ci/ciEnv.hpp"
+#include "ci/ciFlags.hpp"
 #include "ci/ciInstanceKlass.hpp"
+#include "ci/ciSymbol.hpp"
 #include "oops/inlineKlass.hpp"
 
 // ciInlineKlass
@@ -48,41 +52,36 @@ protected:
   ciInlineKlass(ciSymbol* name, jobject loader) :
     ciInstanceKlass(name, loader, T_OBJECT) {}
 
-  const char* type_string() override { return "ciInlineKlass"; }
+  const char* type_string() { return "ciInlineKlass"; }
 
 public:
-  bool is_inlinetype() const override { return true; }
+  bool is_inlinetype() const { return true; }
 
   // Inline type fields
   int payload_offset() const;
 
-  bool maybe_flat_in_array() const override;
+  bool maybe_flat_in_array() const;
   bool is_always_flat_in_array() const;
-
-  // Scalarized calling convention support: pass/return this inline type as its
-  // field components in the calling convention (registers/stack), not as a single oop.
-  // See InlineKlass::initialize_calling_convention for details.
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
-
   bool is_empty();
-  int inline_arg_length() const;
-  int inline_arg_slots() const;
+  int inline_arg_slots();
   bool contains_oops() const;
   int oop_count() const;
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
-  bool has_null_free_non_atomic_layout() const;
-  bool has_null_free_atomic_layout() const;
+  int nullable_size_in_bytes() const;
+  bool has_non_atomic_layout() const;
+  bool has_atomic_layout() const;
   bool has_nullable_atomic_layout() const;
   int null_marker_offset_in_payload() const;
   BasicType atomic_size_to_basic_type(bool null_free) const;
 
+  bool must_be_atomic() const;
   bool is_naturally_atomic(bool null_free);
   int field_map_offset() const;
   ciConstant get_field_map() const;
-  ciConstant get_null_reset_value();
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

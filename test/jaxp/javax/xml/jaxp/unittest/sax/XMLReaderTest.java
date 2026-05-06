@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,26 +23,36 @@
 
 package sax;
 
-import org.junit.jupiter.api.Test;
+import static jaxp.library.JAXPTestUtilities.clearSystemProperty;
+import static jaxp.library.JAXPTestUtilities.setSystemProperty;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.Test;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLReaderAdapter;
 import org.xml.sax.helpers.XMLReaderFactory;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParserFactory;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 /*
  * @test
  * @bug 8158246 8316383
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run junit/othervm sax.XMLReaderTest
+ * @run testng/othervm sax.XMLReaderTest
  * @summary This class contains tests that cover the creation of XMLReader.
  */
 public class XMLReaderTest {
-    private static final String SAX_PROPNAME = "org.xml.sax.driver";
+    private final String SAX_PROPNAME = "org.xml.sax.driver";
+
+    /*
+     * Clean up after test
+     */
+    @AfterClass
+    public void cleanUp() throws Exception {
+        clearSystemProperty(SAX_PROPNAME);
+    }
 
     /*
      * @bug 8158246
@@ -51,16 +61,12 @@ public class XMLReaderTest {
      *
      * Except test format, this test is the same as JCK's test Ctor003.
      */
-    @Test
+    @Test(expectedExceptions = SAXException.class)
     public void testcreateXMLReader() throws SAXException, ParserConfigurationException {
         String className = SAXParserFactory.newInstance().newSAXParser()
-                .getXMLReader().getClass().getName();
-        System.setProperty(SAX_PROPNAME, className + "nosuch");
-        try {
-            assertThrows(SAXException.class, XMLReaderAdapter::new);
-        } finally {
-            System.clearProperty(SAX_PROPNAME);
-        }
+                            .getXMLReader().getClass().getName();
+        setSystemProperty(SAX_PROPNAME, className + "nosuch");
+        XMLReaderAdapter adapter = new XMLReaderAdapter();
     }
 
     /*

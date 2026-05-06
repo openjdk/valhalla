@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,24 +65,23 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.MONTHS;
 import static java.time.temporal.ChronoUnit.WEEKS;
 import static java.time.temporal.ChronoUnit.YEARS;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.ZoneOffset;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestChronoUnit {
 
     //-----------------------------------------------------------------------
+    @DataProvider(name = "yearsBetween")
     Object[][] data_yearsBetween() {
         return new Object[][] {
             {date(1939, SEPTEMBER, 2), date(1939, SEPTEMBER, 1), 0},
@@ -103,52 +102,47 @@ public class TestChronoUnit {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_yearsBetween")
+    @Test(dataProvider = "yearsBetween")
     public void test_yearsBetween(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, YEARS.between(start, end));
+        assertEquals(YEARS.between(start, end), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_yearsBetween")
+    @Test(dataProvider = "yearsBetween")
     public void test_yearsBetweenReversed(LocalDate start, LocalDate end, long expected) {
-        assertEquals(-expected, YEARS.between(end, start));
+        assertEquals(YEARS.between(end, start), -expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_yearsBetween")
+    @Test(dataProvider = "yearsBetween")
     public void test_yearsBetween_LocalDateTimeSameTime(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, YEARS.between(start.atTime(12, 30), end.atTime(12, 30)));
+        assertEquals(YEARS.between(start.atTime(12, 30), end.atTime(12, 30)), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_yearsBetween")
+    @Test(dataProvider = "yearsBetween")
     public void test_yearsBetween_LocalDateTimeLaterTime(LocalDate start, LocalDate end, long expected) {
         if (expected >= 0) {
-            assertEquals(expected, YEARS.between(start.atTime(12, 30), end.atTime(12, 31)));
+            assertEquals(YEARS.between(start.atTime(12, 30), end.atTime(12, 31)), expected);
         } else {
-            assertEquals(expected, YEARS.between(start.atTime(12, 30), end.atTime(12, 29)));
+            assertEquals(YEARS.between(start.atTime(12, 30), end.atTime(12, 29)), expected);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_yearsBetween")
+    @Test(dataProvider = "yearsBetween")
     public void test_yearsBetween_ZonedDateSameOffset(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, YEARS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(2))));
+        assertEquals(YEARS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(2))), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_yearsBetween")
+    @Test(dataProvider = "yearsBetween")
     public void test_yearsBetween_ZonedDateLaterOffset(LocalDate start, LocalDate end, long expected) {
         // +01:00 is later than +02:00
         if (expected >= 0) {
-            assertEquals(expected, YEARS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(1))));
+            assertEquals(YEARS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(1))), expected);
         } else {
-            assertEquals(expected, YEARS.between(start.atStartOfDay(ZoneOffset.ofHours(1)), end.atStartOfDay(ZoneOffset.ofHours(2))));
+            assertEquals(YEARS.between(start.atStartOfDay(ZoneOffset.ofHours(1)), end.atStartOfDay(ZoneOffset.ofHours(2))), expected);
         }
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name = "monthsBetween")
     Object[][] data_monthsBetween() {
         return new Object[][] {
             {date(2012, JULY, 2), date(2012, JULY, 1), 0},
@@ -181,52 +175,47 @@ public class TestChronoUnit {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_monthsBetween")
+    @Test(dataProvider = "monthsBetween")
     public void test_monthsBetween(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, MONTHS.between(start, end));
+        assertEquals(MONTHS.between(start, end), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_monthsBetween")
+    @Test(dataProvider = "monthsBetween")
     public void test_monthsBetweenReversed(LocalDate start, LocalDate end, long expected) {
-        assertEquals(-expected, MONTHS.between(end, start));
+        assertEquals(MONTHS.between(end, start), -expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_monthsBetween")
+    @Test(dataProvider = "monthsBetween")
     public void test_monthsBetween_LocalDateTimeSameTime(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, MONTHS.between(start.atTime(12, 30), end.atTime(12, 30)));
+        assertEquals(MONTHS.between(start.atTime(12, 30), end.atTime(12, 30)), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_monthsBetween")
+    @Test(dataProvider = "monthsBetween")
     public void test_monthsBetween_LocalDateTimeLaterTime(LocalDate start, LocalDate end, long expected) {
         if (expected >= 0) {
-            assertEquals(expected, MONTHS.between(start.atTime(12, 30), end.atTime(12, 31)));
+            assertEquals(MONTHS.between(start.atTime(12, 30), end.atTime(12, 31)), expected);
         } else {
-            assertEquals(expected, MONTHS.between(start.atTime(12, 30), end.atTime(12, 29)));
+            assertEquals(MONTHS.between(start.atTime(12, 30), end.atTime(12, 29)), expected);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_monthsBetween")
+    @Test(dataProvider = "monthsBetween")
     public void test_monthsBetween_ZonedDateSameOffset(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, MONTHS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(2))));
+        assertEquals(MONTHS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(2))), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_monthsBetween")
+    @Test(dataProvider = "monthsBetween")
     public void test_monthsBetween_ZonedDateLaterOffset(LocalDate start, LocalDate end, long expected) {
         // +01:00 is later than +02:00
         if (expected >= 0) {
-            assertEquals(expected, MONTHS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(1))));
+            assertEquals(MONTHS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(1))), expected);
         } else {
-            assertEquals(expected, MONTHS.between(start.atStartOfDay(ZoneOffset.ofHours(1)), end.atStartOfDay(ZoneOffset.ofHours(2))));
+            assertEquals(MONTHS.between(start.atStartOfDay(ZoneOffset.ofHours(1)), end.atStartOfDay(ZoneOffset.ofHours(2))), expected);
         }
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name = "weeksBetween")
     Object[][] data_weeksBetween() {
         return new Object[][] {
             {date(2012, JULY, 2), date(2012, JUNE, 25), -1},
@@ -253,19 +242,18 @@ public class TestChronoUnit {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_weeksBetween")
+    @Test(dataProvider = "weeksBetween")
     public void test_weeksBetween(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, WEEKS.between(start, end));
+        assertEquals(WEEKS.between(start, end), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_weeksBetween")
+    @Test(dataProvider = "weeksBetween")
     public void test_weeksBetweenReversed(LocalDate start, LocalDate end, long expected) {
-        assertEquals(-expected, WEEKS.between(end, start));
+        assertEquals(WEEKS.between(end, start), -expected);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name = "daysBetween")
     Object[][] data_daysBetween() {
         return new Object[][] {
             {date(2012, JULY, 2), date(2012, JULY, 1), -1},
@@ -297,48 +285,42 @@ public class TestChronoUnit {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_daysBetween")
+    @Test(dataProvider = "daysBetween")
     public void test_daysBetween(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, DAYS.between(start, end));
+        assertEquals(DAYS.between(start, end), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_daysBetween")
+    @Test(dataProvider = "daysBetween")
     public void test_daysBetweenReversed(LocalDate start, LocalDate end, long expected) {
-        assertEquals(-expected, DAYS.between(end, start));
+        assertEquals(DAYS.between(end, start), -expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_daysBetween")
+    @Test(dataProvider = "daysBetween")
     public void test_daysBetween_LocalDateTimeSameTime(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, DAYS.between(start.atTime(12, 30), end.atTime(12, 30)));
+        assertEquals(DAYS.between(start.atTime(12, 30), end.atTime(12, 30)), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_daysBetween")
+    @Test(dataProvider = "daysBetween")
     public void test_daysBetween_LocalDateTimeLaterTime(LocalDate start, LocalDate end, long expected) {
         if (expected >= 0) {
-            assertEquals(expected, DAYS.between(start.atTime(12, 30), end.atTime(12, 31)));
+            assertEquals(DAYS.between(start.atTime(12, 30), end.atTime(12, 31)), expected);
         } else {
-            assertEquals(expected, DAYS.between(start.atTime(12, 30), end.atTime(12, 29)));
+            assertEquals(DAYS.between(start.atTime(12, 30), end.atTime(12, 29)), expected);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_daysBetween")
+    @Test(dataProvider = "daysBetween")
     public void test_daysBetween_ZonedDateSameOffset(LocalDate start, LocalDate end, long expected) {
-        assertEquals(expected, DAYS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(2))));
+        assertEquals(DAYS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(2))), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_daysBetween")
+    @Test(dataProvider = "daysBetween")
     public void test_daysBetween_ZonedDateLaterOffset(LocalDate start, LocalDate end, long expected) {
         // +01:00 is later than +02:00
         if (expected >= 0) {
-            assertEquals(expected, DAYS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(1))));
+            assertEquals(DAYS.between(start.atStartOfDay(ZoneOffset.ofHours(2)), end.atStartOfDay(ZoneOffset.ofHours(1))), expected);
         } else {
-            assertEquals(expected, DAYS.between(start.atStartOfDay(ZoneOffset.ofHours(1)), end.atStartOfDay(ZoneOffset.ofHours(2))));
+            assertEquals(DAYS.between(start.atStartOfDay(ZoneOffset.ofHours(1)), end.atStartOfDay(ZoneOffset.ofHours(2))), expected);
         }
     }
 

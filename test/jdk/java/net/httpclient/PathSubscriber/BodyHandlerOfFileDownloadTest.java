@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,11 +37,15 @@
  *        jdk.test.lib.net.SimpleSSLContext
  *        jdk.test.lib.Platform
  *        jdk.test.lib.util.FileUtils
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm BodyHandlerOfFileDownloadTest
  */
 
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.util.FileUtils;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -69,35 +73,28 @@ import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class BodyHandlerOfFileDownloadTest implements HttpServerAdapters {
     static final String MSG = "msg";
     static final String contentDispositionValue = "attachment; filename=example.html";
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;    // HTTP/1.1      [ 5 servers ]
-    private static HttpTestServer httpsTestServer;   // HTTPS/1.1
-    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
-    private static String http3URI;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;    // HTTP/1.1      [ 5 servers ]
+    HttpTestServer httpsTestServer;   // HTTPS/1.1
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
+    String http3URI;
 
-    private static FileSystem zipFs;
-    private static Path defaultFsPath;
-    private static Path zipFsPath;
+    FileSystem zipFs;
+    Path defaultFsPath;
+    Path zipFsPath;
 
     // Default file system
 
@@ -109,10 +106,12 @@ public class BodyHandlerOfFileDownloadTest implements HttpServerAdapters {
         return dir;
     }
 
-    public static Object[][] defaultFsData() {
+    @DataProvider(name = "defaultFsData")
+    public Object[][] defaultFsData() {
         return new Object[][]{
                 {  http3URI,   defaultFsPath,  MSG,  true   },
                 {  http3URI,   defaultFsPath,  MSG,  false  },
+
                 {  httpURI,    defaultFsPath,  MSG,  true   },
                 {  httpsURI,   defaultFsPath,  MSG,  true   },
                 {  http2URI,   defaultFsPath,  MSG,  true   },
@@ -124,8 +123,7 @@ public class BodyHandlerOfFileDownloadTest implements HttpServerAdapters {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("defaultFsData")
+    @Test(dataProvider = "defaultFsData")
     public void testDefaultFs(String uriString,
                               Path path,
                               String expectedMsg,
@@ -173,10 +171,10 @@ public class BodyHandlerOfFileDownloadTest implements HttpServerAdapters {
             out.printf("Resp code: %s\n", resp.statusCode());
             out.println("Resp body Path: " + resp.body());
             out.printf("Resp body written to file: %s\n", msg);
-            assertEquals(200, resp.statusCode());
-            assertEquals(expectedMsg, msg);
+            assertEquals(resp.statusCode(), 200);
+            assertEquals(msg, expectedMsg);
             assertTrue(resp.headers().firstValue("Content-Disposition").isPresent());
-            assertEquals(contentDispositionValue, resp.headers().firstValue("Content-Disposition").get());
+            assertEquals(resp.headers().firstValue("Content-Disposition").get(), contentDispositionValue);
             if (!sameClient) {
                 client.close();
             }
@@ -201,17 +199,19 @@ public class BodyHandlerOfFileDownloadTest implements HttpServerAdapters {
         return dir;
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testZipFs() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            out.printf("\n\n--- testZipFs(): starting\n");
-            BodyHandlers.ofFileDownload(zipFsPath, CREATE, TRUNCATE_EXISTING, WRITE);
-        });
+        out.printf("\n\n--- testZipFs(): starting\n");
+        BodyHandlers.ofFileDownload(zipFsPath, CREATE, TRUNCATE_EXISTING, WRITE);
     }
 
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         defaultFsPath = defaultFsDir();
         zipFs = newZipFs();
         zipFsPath = zipFsDir(zipFs);
@@ -243,8 +243,8 @@ public class BodyHandlerOfFileDownloadTest implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         if (Files.exists(zipFsPath))
             FileUtils.deleteFileTreeWithRetry(zipFsPath);
         if (Files.exists(defaultFsPath))

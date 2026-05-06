@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,7 @@
  * questions.
  */
 package nsk.jvmti.scenarios.hotswap.HS202.hs202t002;
-
-import jdk.test.lib.thread.ThreadWrapper;
-
-public class MyThread extends ThreadWrapper {
+public class MyThread extends Thread {
     private int val = 100;
 
     public void run() {

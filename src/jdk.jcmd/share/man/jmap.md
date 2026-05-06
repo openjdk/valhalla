@@ -62,20 +62,20 @@ was produced.
 
 ## Options for the jmap Command
 
-[`-clstats`]{#option-clstats} *pid*
+`-clstats` *pid*
 :   Connects to a running process and prints class loader statistics of Java
     heap.
 
-[`-finalizerinfo`]{#option-finalizerinfo} *pid*
+`-finalizerinfo` *pid*
 :   Connects to a running process and prints information on objects awaiting
     finalization.
 
-[`-histo`]{#option-histo}\[`:live`\] *pid*
+`-histo`\[`:live`\] *pid*
 :   Connects to a running process and prints a histogram of the Java object
     heap. If the `live` suboption is specified, it then counts only live
     objects.
 
-[`-dump:`]{#option-dump_}*dump\_options* *pid*
+`-dump:`*dump\_options* *pid*
 :   Connects to a running process and dumps the Java heap. The *dump\_options*
     include:
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -344,7 +344,6 @@ public class Finishings extends EnumSyntax
     /**
      * Returns the string table for class {@code Finishings}.
      */
-    @Override
     protected String[] getStringTable() {
         return myStringTable.clone();
     }
@@ -352,7 +351,6 @@ public class Finishings extends EnumSyntax
     /**
      * Returns the enumeration value table for class {@code Finishings}.
      */
-    @Override
     protected EnumSyntax[] getEnumValueTable() {
         return (EnumSyntax[])myEnumValueTable.clone();
     }
@@ -360,7 +358,6 @@ public class Finishings extends EnumSyntax
     /**
      * Returns the lowest integer value used by class {@code Finishings}.
      */
-    @Override
     protected int getOffset() {
         return 3;
     }
@@ -375,7 +372,6 @@ public class Finishings extends EnumSyntax
      * @return printing attribute class (category), an instance of class
      *         {@link Class java.lang.Class}
      */
-    @Override
     public final Class<? extends Attribute> getCategory() {
         return Finishings.class;
     }
@@ -389,7 +385,6 @@ public class Finishings extends EnumSyntax
      *
      * @return attribute category name
      */
-    @Override
     public final String getName() {
         return "finishings";
     }

@@ -913,12 +913,7 @@ public final class Integer extends Number
         static Integer[] archivedCache;
 
         static {
-            if (!PreviewFeatures.isEnabled()) {
-                runtimeSetup();
-            } else {
-                cache = null;
-                assert archivedCache == null;
-            }
+            runtimeSetup();
         }
 
         @AOTRuntimeSetup
@@ -1479,7 +1474,6 @@ public final class Integer extends Number
      * @param divisor the value doing the dividing
      * @return the unsigned quotient of the first argument divided by
      * the second argument
-     * @throws ArithmeticException if the divisor is zero
      * @see #remainderUnsigned
      * @since 1.8
      */
@@ -1498,7 +1492,6 @@ public final class Integer extends Number
      * @param divisor the value doing the dividing
      * @return the unsigned remainder of the first argument divided by
      * the second argument
-     * @throws ArithmeticException if the divisor is zero
      * @see #divideUnsigned
      * @since 1.8
      */

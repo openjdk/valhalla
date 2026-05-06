@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 
@@ -57,24 +56,23 @@ import jdk.test.lib.Utils;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.http2.Http2TestServer;
+import org.testng.ITestContext;
+import org.testng.SkipException;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.ALT_SVC;
 import static java.net.http.HttpOption.Http3DiscoveryMode.ANY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
-import static org.junit.jupiter.api.Assertions.*;
-import static java.lang.System.out;
+import static org.testng.Assert.*;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.extension.BeforeEachCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.extension.TestWatcher;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static java.lang.System.out;
 
 /*
  * @test
@@ -83,9 +81,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  *        jdk.httpclient.test.lib.common.HttpServerAdapters
  *        jdk.test.lib.Utils
  * @compile  ../ReferenceTracker.java
- * @run junit/othervm -Djdk.internal.httpclient.debug=true
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
  *                     -Djdk.httpclient.HttpClient.log=requests,responses,errors
- *                     ${test.main.class}
+ *                     PostHTTP3Test
  * @summary Basic HTTP/3 POST test
  */
 //                    -Djdk.httpclient.http3.maxDirectConnectionTimeout=2500
@@ -98,9 +96,9 @@ public class PostHTTP3Test implements HttpServerAdapters {
             May the sun shine warm upon your face;
             """;
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    static HttpTestServer h3TestServer;  // HTTP/2 ( h2 + h3)
-    static String h3URI;
+    SSLContext sslContext;
+    HttpTestServer h3TestServer;  // HTTP/2 ( h2 + h3)
+    String h3URI;
 
     static final int ITERATION_COUNT = 4;
     // a shared executor helps reduce the amount of threads created by the test
@@ -118,10 +116,10 @@ public class PostHTTP3Test implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private static final Set<String> sharedClientHasH3 = ConcurrentHashMap.newKeySet();
-    private static volatile HttpClient sharedClient;
-    private static boolean directQuicConnectionSupported;
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    final Set<String> sharedClientHasH3 = ConcurrentHashMap.newKeySet();
+    private volatile HttpClient sharedClient;
+    private boolean directQuicConnectionSupported;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -147,37 +145,20 @@ public class PostHTTP3Test implements HttpServerAdapters {
         }
     }
 
-    private static boolean stopAfterFirstFailure() {
+    protected boolean stopAfterFirstFailure() {
         return Boolean.getBoolean("jdk.internal.httpclient.debug");
     }
 
-    static final class TestStopper implements TestWatcher, BeforeEachCallback {
-        final AtomicReference<String> failed = new AtomicReference<>();
-        TestStopper() { }
-        @Override
-        public void testFailed(ExtensionContext context, Throwable cause) {
-            if (stopAfterFirstFailure()) {
-                String msg = "Aborting due to: " + cause;
-                failed.compareAndSet(null, msg);
-                FAILURES.putIfAbsent(context.getDisplayName(), cause);
-                System.out.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
-                        now(), context.getDisplayName(), cause);
-                System.err.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
-                        now(), context.getDisplayName(), cause);
-            }
-        }
-
-        @Override
-        public void beforeEach(ExtensionContext context) {
-            String msg = failed.get();
-            Assumptions.assumeTrue(msg == null, msg);
+    @BeforeMethod
+    void beforeMethod(ITestContext context) {
+        if (stopAfterFirstFailure() && context.getFailedTests().size() > 0) {
+            var x = new SkipException("Skipping: some test failed");
+            x.setStackTrace(new StackTraceElement[0]);
+            throw x;
         }
     }
 
-    @RegisterExtension
-    static final TestStopper stopper = new TestStopper();
-
-    @AfterAll
+    @AfterClass
     static void printFailedTests() {
         out.println("\n=========================");
         try {
@@ -198,26 +179,39 @@ public class PostHTTP3Test implements HttpServerAdapters {
         }
     }
 
-    private static String[] uris() {
+    private String[] uris() {
         return new String[] {
                 h3URI,
         };
     }
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants(ITestContext context) {
+        if (stopAfterFirstFailure() && context.getFailedTests().size() > 0) {
+            return new Object[0][];
+        }
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2 * 2 * 2][];
         int i = 0;
         for (var version : List.of(Optional.empty(), Optional.of(HTTP_3))) {
             for (Version firstRequestVersion : List.of(HTTP_2, HTTP_3)) {
                 for (boolean sameClient : List.of(false, true)) {
-                    for (String uri : uris) {
+                    for (String uri : uris()) {
                         result[i++] = new Object[]{uri, firstRequestVersion, sameClient, version};
                     }
                 }
             }
         }
         assert i == result.length;
+        return result;
+    }
+
+    @DataProvider(name = "uris")
+    public Object[][] uris(ITestContext context) {
+        if (stopAfterFirstFailure() && context.getFailedTests().size() > 0) {
+            return new Object[0][];
+        }
+        Object[][] result = {{h3URI}};
         return result;
     }
 
@@ -265,8 +259,7 @@ public class PostHTTP3Test implements HttpServerAdapters {
     }
 
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsync(String uri, Version firstRequestVersion, boolean sameClient, Optional<Version> version) throws Exception {
         System.out.println("Request to " + uri +"/Async/*" +
                 ", firstRequestVersion=" + firstRequestVersion +
@@ -294,17 +287,17 @@ public class PostHTTP3Test implements HttpServerAdapters {
         }
 
         HttpResponse<String> response1 = client.send(headBuilder.build(), BodyHandlers.ofString());
-        assertEquals(200, response1.statusCode(), "Unexpected first response code");
-        assertEquals("", response1.body(), "Unexpected first response body");
+        assertEquals(response1.statusCode(), 200, "Unexpected first response code");
+        assertEquals(response1.body(), "", "Unexpected first response body");
         boolean expectH3 = sameClient && sharedClientHasH3.contains(headURI.getRawAuthority());
         if (firstRequestVersion == HTTP_3) {
             if (expectH3) {
                 out.println("Expecting HEAD response over HTTP_3");
-                assertEquals(HTTP_3, response1.version(), "Unexpected first response version");
+                assertEquals(response1.version(), HTTP_3, "Unexpected first response version");
             }
         } else {
             out.println("Expecting HEAD response over HTTP_2");
-            assertEquals(HTTP_2, response1.version(), "Unexpected first response version");
+            assertEquals(response1.version(), HTTP_2, "Unexpected first response version");
         }
         out.println("HEAD response version: " + response1.version());
         if (response1.version() == HTTP_2) {
@@ -363,10 +356,10 @@ public class PostHTTP3Test implements HttpServerAdapters {
                 out.println("Checking response: " + u);
                 var response = e.getValue().get();
                 out.println("Response is: " + response + ", [version: " + response.version() + "]");
-                assertEquals(200, response.statusCode(), "status for " + u);
-                assertEquals(BODY, response.body(), "body for " + u);
+                assertEquals(response.statusCode(), 200,"status for " + u);
+                assertEquals(response.body(), BODY,"body for " + u);
                 if (expectH3) {
-                    assertEquals(HTTP_3, response.version(), "version for " + u);
+                    assertEquals(response.version(), HTTP_3, "version for " + u);
                 }
                 if (response.version() == HTTP_3) {
                     h3Count++;
@@ -388,8 +381,7 @@ public class PostHTTP3Test implements HttpServerAdapters {
         System.out.println("test: DONE");
     }
 
-    @ParameterizedTest
-    @MethodSource("uris")
+    @Test(dataProvider = "uris")
     public void testSync(String h3URI) throws Exception {
         HttpClient client = makeNewClient();
         Builder builder = HttpRequest.newBuilder(URI.create(h3URI + "/Sync/1"))
@@ -411,14 +403,14 @@ public class PostHTTP3Test implements HttpServerAdapters {
         out.println("Response #1: " + response);
         out.println("Version  #1: " + response.version());
         out.println("Body     #1:\n" + response.body().indent(4));
-        assertEquals(200, response.statusCode(), "first response status");
+        assertEquals(response.statusCode(), 200, "first response status");
         if (directQuicConnectionSupported) {
             // TODO unreliable assertion
             //assertEquals(response.version(), HTTP_3, "Unexpected first response version");
         } else {
-            assertEquals(HTTP_2, response.version(), "Unexpected first response version");
+            assertEquals(response.version(), HTTP_2, "Unexpected first response version");
         }
-        assertEquals(BODY, response.body(), "first response body");
+        assertEquals(response.body(), BODY, "first response body");
 
         request = builder.uri(URI.create(h3URI + "/Sync/2"))
                 .POST(oflines(true, BODY.split("\n")))
@@ -427,9 +419,9 @@ public class PostHTTP3Test implements HttpServerAdapters {
         out.println("Response #2: " + response);
         out.println("Version  #2: " + response.version());
         out.println("Body     #2:\n" + response.body().indent(4));
-        assertEquals(200, response.statusCode(), "second response status");
-        assertEquals(HTTP_3, response.version(), "second response version");
-        assertEquals(BODY, response.body(), "second response body");
+        assertEquals(response.statusCode(), 200, "second response status");
+        assertEquals(response.version(), HTTP_3, "second response version");
+        assertEquals(response.body(), BODY, "second response body");
 
         request = builder.uri(URI.create(h3URI + "/Sync/3"))
                 .POST(oflines(true, BODY.split("\n")))
@@ -438,9 +430,9 @@ public class PostHTTP3Test implements HttpServerAdapters {
         out.println("Response #3: " + response);
         out.println("Version  #3: " + response.version());
         out.println("Body     #3:\n" + response.body().indent(4));
-        assertEquals(200, response.statusCode(), "third response status");
-        assertEquals(HTTP_3, response.version(), "third response version");
-        assertEquals(BODY, response.body(), "third response body");
+        assertEquals(response.statusCode(), 200, "third response status");
+        assertEquals(response.version(), HTTP_3, "third response version");
+        assertEquals(response.body(), BODY, "third response body");
 
         var tracker = TRACKER.getTracker(client);
         client = null;
@@ -449,8 +441,11 @@ public class PostHTTP3Test implements HttpServerAdapters {
         if (error != null) throw error;
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
         final Http2TestServer h2WithAltService = new Http2TestServer("localhost", true, sslContext)
                 .enableH3AltServiceOnSamePort();
         h3TestServer = HttpTestServer.of(h2WithAltService);
@@ -462,8 +457,8 @@ public class PostHTTP3Test implements HttpServerAdapters {
         directQuicConnectionSupported = h2WithAltService.supportsH3DirectConnection();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         System.err.println("=======================================================");
         System.err.println("               Tearing down test");
         System.err.println("=======================================================");

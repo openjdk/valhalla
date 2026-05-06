@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,37 +23,20 @@
 
 import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.net.IPSupport;
-
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import org.testng.Assert.ThrowingRunnable;
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ProtocolFamily;
-import java.net.SocketAddress;
-import java.net.StandardProtocolFamily;
-import java.net.UnknownHostException;
-import java.nio.channels.DatagramChannel;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.UnsupportedAddressTypeException;
+import java.net.*;
+import java.nio.channels.*;
 import java.nio.channels.spi.SelectorProvider;
-import java.util.List;
-
 import static java.lang.System.out;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static jdk.test.lib.net.IPSupport.*;
-
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 
 /*
  * @test
@@ -61,8 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  *          with various ProtocolFamily combinations
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run junit ProtocolFamilies
- * @run junit/othervm -Djava.net.preferIPv4Stack=true ProtocolFamilies
+ * @run testng ProtocolFamilies
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true ProtocolFamilies
  */
 
 
@@ -72,11 +55,11 @@ public class ProtocolFamilies {
     static Inet4Address ia4;
     static Inet6Address ia6;
 
-    @BeforeAll()
-    public static void setup() throws Exception {
+    @BeforeTest()
+    public void setup() throws Exception {
         NetworkConfiguration.printSystemConfiguration(out);
         IPSupport.printPlatformSupport(out);
-        diagnoseConfigurationIssue().ifPresent(Assumptions::abort);
+        throwSkippedExceptionIfNonOperational();
 
         ia4 = getLocalIPv4Address();
         ia6 = getLocalIPv6Address();
@@ -87,89 +70,111 @@ public class ProtocolFamilies {
     static final Class<UnsupportedAddressTypeException> UATE = UnsupportedAddressTypeException.class;
     static final Class<UnsupportedOperationException> UOE = UnsupportedOperationException.class;
 
-    public static List<Arguments> open() {
+    @DataProvider(name = "open")
+    public Object[][] open() {
         if (hasIPv6 && !preferIPv4) {
-            return List.of(
-                    Arguments.of(  INET,   null  ),
-                    Arguments.of(  INET6,  null  )
-            );
+            return new Object[][]{
+                    {  INET,   null  },
+                    {  INET6,  null  }
+            };
         } else {
-            return List.of(
-                    Arguments.of(  INET,   null  ),
-                    Arguments.of(  INET6,  UOE   )
-            );
+            return new Object[][]{
+                    {  INET,   null  },
+                    {  INET6,  UOE   }
+            };
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("open")
+    @Test(dataProvider = "open")
     public void scOpen(StandardProtocolFamily family,
                        Class<? extends Exception> expectedException)
-        throws IOException
+        throws Throwable
     {
-        if (expectedException != null) {
-            assertThrows(expectedException, () -> openSC(family));
-        } else {
-            try (var _ = openSC(family)) { }
+        SocketChannel sc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    sc = openSC(family);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                sc = openSC(family);
+            }
+        } finally {
+            if (sc != null)
+                sc.close();
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("open")
+    @Test(dataProvider = "open")
     public void sscOpen(StandardProtocolFamily family,
                         Class<? extends Exception> expectedException)
-        throws IOException
+        throws Throwable
     {
-        if (expectedException != null) {
-            assertThrows(expectedException, () -> openSSC(family));
-        } else {
-            try (var _ = openSSC(family)) { }
+        ServerSocketChannel ssc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    ssc = openSSC(family);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                openSSC(family);
+            }
+        } finally {
+            if (ssc != null)
+                ssc.close();
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("open")
+    @Test(dataProvider = "open")
     public void dcOpen(StandardProtocolFamily family,
                        Class<? extends Exception> expectedException)
-        throws IOException
+        throws Throwable
     {
-        if (expectedException != null) {
-            assertThrows(expectedException, () -> openDC(family));
-        } else {
-            try (var _ = openDC(family)) { }
+        DatagramChannel dc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    dc = openDC(family);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                openDC(family);
+            }
+        } finally {
+            if (dc != null)
+                dc.close();
         }
     }
 
-    public static List<Arguments> openBind() {
+    @DataProvider(name = "openBind")
+    public Object[][] openBind() {
         if (hasIPv6 && !preferIPv4) {
-            return List.of(
-                    Arguments.of(  INET,   INET,   null   ),
-                    Arguments.of(  INET,   INET6,  UATE   ),
-                    Arguments.of(  INET,   null,   null   ),
-                    Arguments.of(  INET6,  INET,   null   ),
-                    Arguments.of(  INET6,  INET6,  null   ),
-                    Arguments.of(  INET6,  null,   null   ),
-                    Arguments.of(  null,   INET,   null   ),
-                    Arguments.of(  null,   INET6,  null   ),
-                    Arguments.of(  null,   null,   null   )
-            );
+            return new Object[][]{
+                    {   INET,   INET,   null   },
+                    {   INET,   INET6,  UATE   },
+                    {   INET,   null,   null   },
+                    {   INET6,  INET,   null   },
+                    {   INET6,  INET6,  null   },
+                    {   INET6,  null,   null   },
+                    {   null,   INET,   null   },
+                    {   null,   INET6,  null   },
+                    {   null,   null,   null   }
+            };
         } else {
-            return List.of(
-                    Arguments.of(  INET,   INET,   null   ),
-                    Arguments.of(  INET,   INET6,  UATE   ),
-                    Arguments.of(  INET,   null,   null   ),
-                    Arguments.of(  null,   INET,   null   ),
-                    Arguments.of(  null,   INET6,  UATE   ),
-                    Arguments.of(  null,   null,   null   )
-            );
+            return new Object[][]{
+                    {   INET,   INET,   null   },
+                    {   INET,   INET6,  UATE   },
+                    {   INET,   null,   null   },
+                    {   null,   INET,   null   },
+                    {   null,   INET6,  UATE   },
+                    {   null,   null,   null   }
+            };
         }
     }
 
     // SocketChannel open - INET, INET6, default
     // SocketChannel bind - INET, INET6, null
 
-    @ParameterizedTest
-    @MethodSource("openBind")
+    @Test(dataProvider = "openBind")
     public void scOpenBind(StandardProtocolFamily ofamily,
                            StandardProtocolFamily bfamily,
                            Class<? extends Exception> expectedException)
@@ -177,9 +182,9 @@ public class ProtocolFamilies {
     {
         try (SocketChannel sc = openSC(ofamily)) {
             SocketAddress addr = getSocketAddress(bfamily);
-            Executable bindOp = () -> sc.bind(addr);
-            if (expectedException == null)
-                bindOp.execute();
+            ThrowingRunnable bindOp = () -> sc.bind(addr);
+                if (expectedException == null)
+                    bindOp.run();
             else
                 assertThrows(expectedException, bindOp);
         }
@@ -188,8 +193,7 @@ public class ProtocolFamilies {
     //  ServerSocketChannel open - INET, INET6, default
     //  ServerSocketChannel bind - INET, INET6, null
 
-    @ParameterizedTest
-    @MethodSource("openBind")
+    @Test(dataProvider = "openBind")
     public void sscOpenBind(StandardProtocolFamily ofamily,
                             StandardProtocolFamily bfamily,
                             Class<? extends Exception> expectedException)
@@ -197,9 +201,9 @@ public class ProtocolFamilies {
     {
         try (ServerSocketChannel ssc = openSSC(ofamily)) {
             SocketAddress addr = getSocketAddress(bfamily);
-            Executable bindOp = () -> ssc.bind(addr);
+            ThrowingRunnable bindOp = () -> ssc.bind(addr);
             if (expectedException == null)
-                bindOp.execute();
+                bindOp.run();
             else
                 assertThrows(expectedException, bindOp);
         }
@@ -208,8 +212,7 @@ public class ProtocolFamilies {
     //  DatagramChannel open - INET, INET6, default
     //  DatagramChannel bind - INET, INET6, null
 
-    @ParameterizedTest
-    @MethodSource("openBind")
+    @Test(dataProvider = "openBind")
     public void dcOpenBind(StandardProtocolFamily ofamily,
                            StandardProtocolFamily bfamily,
                            Class<? extends Exception> expectedException)
@@ -217,9 +220,9 @@ public class ProtocolFamilies {
     {
         try (DatagramChannel dc = openDC(ofamily)) {
             SocketAddress addr = getSocketAddress(bfamily);
-            Executable bindOp = () -> dc.bind(addr);
+            ThrowingRunnable bindOp = () -> dc.bind(addr);
             if (expectedException == null)
-                bindOp.execute();
+                bindOp.run();
             else
                 assertThrows(expectedException, bindOp);
         }
@@ -228,32 +231,32 @@ public class ProtocolFamilies {
     //  SocketChannel open    - INET, INET6, default
     //  SocketChannel connect - INET, INET6, default
 
-    public static List<Arguments> openConnect() {
+    @DataProvider(name = "openConnect")
+    public Object[][] openConnect() {
         if (hasIPv6 && !preferIPv4) {
-            return List.of(
-                    Arguments.of(  INET,   INET,   null   ),
-                    Arguments.of(  INET,   INET6,  null   ),
-                    Arguments.of(  INET,   null,   null   ),
-                    Arguments.of(  INET6,  INET,   UATE   ),
-                    Arguments.of(  INET6,  INET6,  null   ),
-                    Arguments.of(  INET6,  null,   null   ),
-                    Arguments.of(  null,   INET,   UATE   ),
-                    Arguments.of(  null,   INET6,  null   ),
-                    Arguments.of(  null,   null,   null   )
-            );
+            return new Object[][]{
+                    {   INET,   INET,   null   },
+                    {   INET,   INET6,  null   },
+                    {   INET,   null,   null   },
+                    {   INET6,  INET,   UATE   },
+                    {   INET6,  INET6,  null   },
+                    {   INET6,  null,   null   },
+                    {   null,   INET,   UATE   },
+                    {   null,   INET6,  null   },
+                    {   null,   null,   null   }
+            };
         } else {
             // INET6 channels cannot be created - UOE - tested elsewhere
-            return List.of(
-                    Arguments.of(  INET,   INET,   null   ),
-                    Arguments.of(  INET,   null,   null   ),
-                    Arguments.of(  null,   INET,   null   ),
-                    Arguments.of(  null,   null,   null   )
-            );
+            return new Object[][]{
+                    {   INET,   INET,   null   },
+                    {   INET,   null,   null   },
+                    {   null,   INET,   null   },
+                    {   null,   null,   null   }
+            };
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("openConnect")
+    @Test(dataProvider = "openConnect")
     public void scOpenConnect(StandardProtocolFamily sfamily,
                               StandardProtocolFamily cfamily,
                               Class<? extends Exception> expectedException)
@@ -276,7 +279,7 @@ public class ProtocolFamilies {
     // Tests null handling
     @Test
     public void testNulls() {
-        assertThrows(NPE, () -> SocketChannel.open((ProtocolFamily) null));
+        assertThrows(NPE, () -> SocketChannel.open((ProtocolFamily)null));
         assertThrows(NPE, () -> ServerSocketChannel.open(null));
         assertThrows(NPE, () -> DatagramChannel.open(null));
 

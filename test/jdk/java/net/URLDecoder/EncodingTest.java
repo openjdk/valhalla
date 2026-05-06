@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,20 +24,16 @@
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import org.junit.jupiter.api.function.Executable;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-/*
+/**
  * @test
  * @bug 8183743
  * @summary Test to verify the new overload method with Charset functions the
  * same as the existing method that takes a charset name.
- * @run junit ${test.main.class}
+ * @run testng EncodingTest
  */
 public class EncodingTest {
     public static enum ParameterType {
@@ -45,14 +41,16 @@ public class EncodingTest {
         CHARSET
     }
 
-    public static Object[][] getParameters() {
+    @DataProvider(name = "illegalArgument")
+    public Object[][] getParameters() {
         return new Object[][]{
             {ParameterType.STRING},
             {ParameterType.CHARSET}
         };
     }
 
-    public static Object[][] getDecodeParameters() {
+    @DataProvider(name = "decode")
+    public Object[][] getDecodeParameters() {
         return new Object[][]{
             {"The string \u00FC@foo-bar"},
             // the string from javadoc example
@@ -84,16 +82,17 @@ public class EncodingTest {
      * @param type the type of the argument, e.g a String charset name or
      * charset
      */
-    @ParameterizedTest
-    @MethodSource("getParameters")
+    @Test(dataProvider = "illegalArgument", expectedExceptions = IllegalArgumentException.class)
     public void testIllegalArgument(ParameterType type) throws Exception {
         String encoded = URLEncoder.encode("http://www.xyz.com/find?key=\u0100\u0101",
                 StandardCharsets.UTF_8.name());
         String illegal = "%" + encoded;
-        Executable decoded = type == ParameterType.STRING
-                ? () -> URLDecoder.decode(illegal, StandardCharsets.UTF_8.name())
-                : () -> URLDecoder.decode(illegal, StandardCharsets.UTF_8);
-        assertThrows(IllegalArgumentException.class, decoded);
+        String returned;
+        if (type == ParameterType.STRING) {
+            returned = URLDecoder.decode(illegal, StandardCharsets.UTF_8.name());
+        } else {
+            returned = URLDecoder.decode(illegal, StandardCharsets.UTF_8);
+        }
     }
 
     /**
@@ -102,18 +101,17 @@ public class EncodingTest {
      *
      * @param s the string to be encoded and then decoded with both existing
      * and the overload methods.
-     * @throws Exception if failed
+     * @throws Exception
      */
-    @ParameterizedTest
-    @MethodSource("getDecodeParameters")
+    @Test(dataProvider = "decode")
     public void decode(String s) throws Exception {
         String encoded = URLEncoder.encode(s, StandardCharsets.UTF_8.name());
         String returned1 = URLDecoder.decode(encoded, StandardCharsets.UTF_8.name());
         String returned2 = URLDecoder.decode(encoded, StandardCharsets.UTF_8);
-        assertEquals(returned2, returned1);
+        Assert.assertEquals(returned1, returned2);
     }
 
-    private static String charactersRange(char c1, char c2) {
+    String charactersRange(char c1, char c2) {
         StringBuilder sb = new StringBuilder(c2 - c1);
         for (char c = c1; c < c2; c++) {
             sb.append(c);

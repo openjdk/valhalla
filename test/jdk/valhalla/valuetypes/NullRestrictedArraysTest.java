@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 /*
  * @test
  * @enablePreview
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening -XX:-UseNullableAtomicValueFlattening NullRestrictedArraysTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening NullRestrictedArraysTest
+ * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening NullRestrictedArraysTest
+ * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;
@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -67,13 +68,9 @@ public class NullRestrictedArraysTest {
     static class T {
         String s;
         Value obj;  // can be null
+        @Strict
         @NullRestricted
-        Value value;
-
-        T() {
-            value = new Value();
-            super();
-        }
+        Value value = new Value();
     }
 
     static Stream<Arguments> checkedField() throws ReflectiveOperationException {

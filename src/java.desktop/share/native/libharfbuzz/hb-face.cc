@@ -84,7 +84,8 @@ hb_face_count (hb_blob_t *blob)
 
   hb_sanitize_context_t c (blob);
 
-  auto *ot = blob->as<OT::OpenTypeFontFile> ();
+  const char *start = hb_blob_get_data (blob, nullptr);
+  auto *ot = reinterpret_cast<OT::OpenTypeFontFile *> (const_cast<char *> (start));
   if (unlikely (!ot->sanitize (&c)))
     return 0;
 
@@ -328,7 +329,7 @@ hb_face_create_from_file_or_fail (const char   *file_name,
   return face;
 }
 
-static const struct supported_face_loaders_t {
+static struct supported_face_loaders_t {
         char name[16];
         hb_face_t * (*from_file) (const char *font_file, unsigned face_index);
         hb_face_t * (*from_blob) (hb_blob_t *blob, unsigned face_index);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,10 +152,7 @@ const TypePtr *ProjNode::adr_type() const {
       // Jumping over Tuples: the i-th projection of a Tuple is the i-th input of the Tuple.
       ctrl = ctrl->in(_con);
     }
-    // node is dead or we are in the process of removing a dead subgraph
-    if (ctrl == nullptr || ctrl->is_top()) {
-      return nullptr;
-    }
+    if (ctrl == nullptr)  return nullptr; // node is dead
     const TypePtr* adr_type = ctrl->adr_type();
     #ifdef ASSERT
     if (!VMError::is_error_reported() && !Node::in_dump())
@@ -268,6 +265,5 @@ CallStaticJavaNode* ProjNode::is_uncommon_trap_if_pattern(Deoptimization::DeoptR
 
 NarrowMemProjNode::NarrowMemProjNode(InitializeNode* src, const TypePtr* adr_type)
   : ProjNode(src, TypeFunc::Memory), _adr_type(adr_type) {
-  assert(Compile::current()->have_alias_type(adr_type), "alias index should have been allocated already");
   init_class_id(Class_NarrowMemProj);
 }

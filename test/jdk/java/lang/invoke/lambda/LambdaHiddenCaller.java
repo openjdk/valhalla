@@ -29,7 +29,8 @@ import java.util.function.IntSupplier;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
@@ -61,7 +62,7 @@ public class LambdaHiddenCaller {
     void testSerializableLambda() {
         var is = hiddenCaller.callSerializableLambda();
         assertEquals(42, is.getAsInt());
-        assertInstanceOf(Serializable.class, is);
+        assertTrue(Serializable.class.isAssignableFrom(is.getClass()));
         // We do not guarantee serialization functionalities yet
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @modules java.net.http/jdk.internal.net.http.common
  * @library /test/lib
  * @build jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm/timeout=480 ${test.main.class}
+ * @run testng/othervm/timeout=480 ResponseBodyBeforeError
  */
 
 import java.io.Closeable;
@@ -54,6 +54,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 
@@ -63,32 +67,28 @@ import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 public class ResponseBodyBeforeError {
 
-    private static ReplyingServer variableLengthServer;
-    private static ReplyingServer variableLengthHttpsServer;
-    private static ReplyingServer fixedLengthServer;
-    private static ReplyingServer fixedLengthHttpsServer;
+    ReplyingServer variableLengthServer;
+    ReplyingServer variableLengthHttpsServer;
+    ReplyingServer fixedLengthServer;
+    ReplyingServer fixedLengthHttpsServer;
 
-    private static String httpURIVarLen;
-    private static String httpsURIVarLen;
-    private static String httpURIFixLen;
-    private static String httpsURIFixLen;
+    String httpURIVarLen;
+    String httpsURIVarLen;
+    String httpURIFixLen;
+    String httpsURIFixLen;
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    SSLContext sslContext;
 
     static final String EXPECTED_RESPONSE_BODY =
             "<html><body><h1>Heading</h1><p>Some Text</p></body></html>";
 
-    public static Object[][] sanity() {
+    @DataProvider(name = "sanity")
+    public Object[][] sanity() {
         return new Object[][]{
                 { httpURIVarLen   + "?length=all" },
                 { httpsURIVarLen  + "?length=all" },
@@ -97,8 +97,7 @@ public class ResponseBodyBeforeError {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("sanity")
+    @Test(dataProvider = "sanity")
     void sanity(String url) throws Exception {
         HttpClient client = HttpClient.newBuilder()
                 .proxy(NO_PROXY)
@@ -107,14 +106,15 @@ public class ResponseBodyBeforeError {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
         HttpResponse<String> response = client.send(request, ofString());
         String body = response.body();
-        assertEquals(EXPECTED_RESPONSE_BODY, body);
+        assertEquals(body, EXPECTED_RESPONSE_BODY);
         client.sendAsync(request, ofString())
                 .thenApply(resp -> resp.body())
-                .thenAccept(b -> assertEquals(EXPECTED_RESPONSE_BODY, b))
+                .thenAccept(b -> assertEquals(b, EXPECTED_RESPONSE_BODY))
                 .join();
     }
 
-    public static Object[][] variants() {
+    @DataProvider(name = "uris")
+    public Object[][] variants() {
         Object[][] cases = new Object[][] {
             // The length query string is the total number of response body
             // bytes in the reply, before the server closes the connection. The
@@ -182,8 +182,7 @@ public class ResponseBodyBeforeError {
     static final int ITERATION_COUNT = 3;
     static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testSynchronousAllRequestBody(String url,
                                        String expectedPatrialBody,
                                        boolean sameClient)
@@ -211,7 +210,7 @@ public class ResponseBodyBeforeError {
                 } catch (IOException expected) {
                     String pm = bs.receivedAsString();
                     out.println("partial body received: " + pm);
-                    assertEquals(expectedPatrialBody, pm);
+                    assertEquals(pm, expectedPatrialBody);
                 }
             }
         } finally {
@@ -222,8 +221,7 @@ public class ResponseBodyBeforeError {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "uris")
     void testAsynchronousAllRequestBody(String url,
                                         String expectedPatrialBody,
                                         boolean sameClient)
@@ -252,7 +250,7 @@ public class ResponseBodyBeforeError {
                     if (ee.getCause() instanceof IOException) {
                         String pm = bs.receivedAsString();
                         out.println("partial body received: " + pm);
-                        assertEquals(expectedPatrialBody, pm);
+                        assertEquals(pm, expectedPatrialBody);
                     } else {
                         throw ee;
                     }
@@ -538,8 +536,11 @@ public class ResponseBodyBeforeError {
                 + server.getPort();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
         SSLContext.setDefault(sslContext);
 
         variableLengthServer = new PlainVariableLengthServer();
@@ -559,8 +560,8 @@ public class ResponseBodyBeforeError {
                 + "/https1/fixed/foz";
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         variableLengthServer.close();
         variableLengthHttpsServer.close();
         fixedLengthServer.close();

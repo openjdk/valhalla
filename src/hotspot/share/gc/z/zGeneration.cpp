@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,9 +56,9 @@
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
 #include "prims/jvmtiTagMap.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/handshake.hpp"
-#include "runtime/icache.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/threads.hpp"
 #include "runtime/vmOperations.hpp"
@@ -298,33 +298,33 @@ bool ZGeneration::is_relocate_queue_active() const {
 
 void ZGeneration::reset_statistics() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
-  _freed.store_relaxed(0u);
-  _promoted.store_relaxed(0u);
-  _compacted.store_relaxed(0u);
+  _freed = 0;
+  _promoted = 0;
+  _compacted = 0;
 }
 
 size_t ZGeneration::freed() const {
-  return _freed.load_relaxed();
+  return _freed;
 }
 
 void ZGeneration::increase_freed(size_t size) {
-  _freed.add_then_fetch(size, memory_order_relaxed);
+  AtomicAccess::add(&_freed, size, memory_order_relaxed);
 }
 
 size_t ZGeneration::promoted() const {
-  return _promoted.load_relaxed();;
+  return _promoted;
 }
 
 void ZGeneration::increase_promoted(size_t size) {
-  _promoted.add_then_fetch(size, memory_order_relaxed);
+  AtomicAccess::add(&_promoted, size, memory_order_relaxed);
 }
 
 size_t ZGeneration::compacted() const {
-  return _compacted.load_relaxed();;
+  return _compacted;
 }
 
 void ZGeneration::increase_compacted(size_t size) {
-  _compacted.add_then_fetch(size, memory_order_relaxed);
+  AtomicAccess::add(&_compacted, size, memory_order_relaxed);
 }
 
 ConcurrentGCTimer* ZGeneration::gc_timer() const {
@@ -1435,15 +1435,12 @@ public:
   virtual void do_nmethod(nmethod* nm) {
     ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
     if (_bs_nm->is_armed(nm)) {
-      {
-        ICacheInvalidationContext icic;
-        // Heal barriers
-        ZNMethod::nmethod_patch_barriers(nm, &icic);
+      // Heal barriers
+      ZNMethod::nmethod_patch_barriers(nm);
 
-        // Heal oops
-        ZUncoloredRootProcessOopClosure cl(ZNMethod::color(nm));
-        ZNMethod::nmethod_oops_do_inner(nm, &cl, &icic);
-      }
+      // Heal oops
+      ZUncoloredRootProcessOopClosure cl(ZNMethod::color(nm));
+      ZNMethod::nmethod_oops_do_inner(nm, &cl);
 
       log_trace(gc, nmethod)("nmethod: " PTR_FORMAT " visited by old remapping", p2i(nm));
 

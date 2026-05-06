@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;
@@ -44,25 +48,15 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.LongFunction;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardOpenOption.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
  * @test
  * @bug 8193085 8199773
  * @summary tests for buffer equals and compare
- * @run junit EqualsCompareTest
+ * @run testng EqualsCompareTest
  */
 
 public class EqualsCompareTest {
@@ -452,66 +446,89 @@ public class EqualsCompareTest {
         }
     }
 
-    public static Stream<BufferType> bufferTypesSource() {
-        return Stream.of
-            (new BufferType.Bytes(BufferKind.HEAP),
-             new BufferType.Bytes(BufferKind.DIRECT),
-             new BufferType.Chars(BufferKind.HEAP),
-             new BufferType.Chars(BufferKind.HEAP_VIEW),
-             new BufferType.Chars(BufferKind.DIRECT),
-             new BufferType.Shorts(BufferKind.HEAP),
-             new BufferType.Shorts(BufferKind.HEAP_VIEW),
-             new BufferType.Shorts(BufferKind.DIRECT),
-             new BufferType.Ints(BufferKind.HEAP),
-             new BufferType.Ints(BufferKind.HEAP_VIEW),
-             new BufferType.Ints(BufferKind.DIRECT),
-             new BufferType.Floats(BufferKind.HEAP),
-             new BufferType.Floats(BufferKind.HEAP_VIEW),
-             new BufferType.Floats(BufferKind.DIRECT),
-             new BufferType.Longs(BufferKind.HEAP),
-             new BufferType.Longs(BufferKind.HEAP_VIEW),
-             new BufferType.Longs(BufferKind.DIRECT),
-             new BufferType.Doubles(BufferKind.HEAP),
-             new BufferType.Doubles(BufferKind.HEAP_VIEW),
-             new BufferType.Doubles(BufferKind.DIRECT));
+    static Object[][] bufferTypes;
+
+    @DataProvider
+    public static Object[][] bufferTypesProvider() {
+        if (bufferTypes == null) {
+            bufferTypes = new Object[][]{
+                    {new BufferType.Bytes(BufferKind.HEAP)},
+                    {new BufferType.Bytes(BufferKind.DIRECT)},
+                    {new BufferType.Chars(BufferKind.HEAP)},
+                    {new BufferType.Chars(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Chars(BufferKind.DIRECT)},
+                    {new BufferType.Shorts(BufferKind.HEAP)},
+                    {new BufferType.Shorts(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Shorts(BufferKind.DIRECT)},
+                    {new BufferType.Ints(BufferKind.HEAP)},
+                    {new BufferType.Ints(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Ints(BufferKind.DIRECT)},
+                    {new BufferType.Floats(BufferKind.HEAP)},
+                    {new BufferType.Floats(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Floats(BufferKind.DIRECT)},
+                    {new BufferType.Longs(BufferKind.HEAP)},
+                    {new BufferType.Longs(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Longs(BufferKind.DIRECT)},
+                    {new BufferType.Doubles(BufferKind.HEAP)},
+                    {new BufferType.Doubles(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Doubles(BufferKind.DIRECT)},
+            };
+        }
+        return bufferTypes;
     }
 
-    public static Stream<Arguments> floatBufferTypesSource() {
+
+    static Object[][] floatbufferTypes;
+
+    @DataProvider
+    public static Object[][] floatBufferTypesProvider() {
+        if (floatbufferTypes == null) {
             LongFunction<Object> bTof = rb -> Float.intBitsToFloat((int) rb);
             LongFunction<Object> bToD = Double::longBitsToDouble;
 
-            return Stream.of
-                (// canonical and non-canonical NaNs
-                 // If conversion is a signalling NaN it may be subject to conversion to a
-                 // quiet NaN on some processors, even if a copy is performed
-                 // The tests assume that if conversion occurs it does not convert to the
-                 // canonical NaN
-                 Arguments.of(new BufferType.Floats(BufferKind.HEAP), 0x7fc00000L, 0x7f800001L, bTof),
-                 Arguments.of(new BufferType.Floats(BufferKind.HEAP_VIEW), 0x7fc00000L, 0x7f800001L, bTof),
-                 Arguments.of(new BufferType.Floats(BufferKind.DIRECT), 0x7fc00000L, 0x7f800001L, bTof),
-                 Arguments.of(new BufferType.Doubles(BufferKind.HEAP), 0x7ff8000000000000L, 0x7ff0000000000001L, bToD),
-                 Arguments.of(new BufferType.Doubles(BufferKind.HEAP_VIEW), 0x7ff8000000000000L, 0x7ff0000000000001L, bToD),
-                 Arguments.of(new BufferType.Doubles(BufferKind.DIRECT), 0x7ff8000000000000L, 0x7ff0000000000001L, bToD),
+            floatbufferTypes = new Object[][]{
+                    // canonical and non-canonical NaNs
+                    // If conversion is a signalling NaN it may be subject to conversion to a
+                    // quiet NaN on some processors, even if a copy is performed
+                    // The tests assume that if conversion occurs it does not convert to the
+                    // canonical NaN
+                    new Object[]{new BufferType.Floats(BufferKind.HEAP), 0x7fc00000L, 0x7f800001L, bTof},
+                    new Object[]{new BufferType.Floats(BufferKind.HEAP_VIEW), 0x7fc00000L, 0x7f800001L, bTof},
+                    new Object[]{new BufferType.Floats(BufferKind.DIRECT), 0x7fc00000L, 0x7f800001L, bTof},
+                    new Object[]{new BufferType.Doubles(BufferKind.HEAP), 0x7ff8000000000000L, 0x7ff0000000000001L, bToD},
+                    new Object[]{new BufferType.Doubles(BufferKind.HEAP_VIEW), 0x7ff8000000000000L, 0x7ff0000000000001L, bToD},
+                    new Object[]{new BufferType.Doubles(BufferKind.DIRECT), 0x7ff8000000000000L, 0x7ff0000000000001L, bToD},
 
-                 // +0.0 and -0.0
-                 Arguments.of(new BufferType.Floats(BufferKind.HEAP), 0x0L, 0x80000000L, bTof),
-                 Arguments.of(new BufferType.Floats(BufferKind.HEAP_VIEW), 0x0L, 0x80000000L, bTof),
-                 Arguments.of(new BufferType.Floats(BufferKind.DIRECT), 0x0L, 0x80000000L, bTof),
-                 Arguments.of(new BufferType.Doubles(BufferKind.HEAP), 0x0L, 0x8000000000000000L, bToD),
-                 Arguments.of(new BufferType.Doubles(BufferKind.HEAP_VIEW), 0x0L, 0x8000000000000000L, bToD),
-                 Arguments.of(new BufferType.Doubles(BufferKind.DIRECT), 0x0L, 0x8000000000000000L, bToD));
+                    // +0.0 and -0.0
+                    new Object[]{new BufferType.Floats(BufferKind.HEAP), 0x0L, 0x80000000L, bTof},
+                    new Object[]{new BufferType.Floats(BufferKind.HEAP_VIEW), 0x0L, 0x80000000L, bTof},
+                    new Object[]{new BufferType.Floats(BufferKind.DIRECT), 0x0L, 0x80000000L, bTof},
+                    new Object[]{new BufferType.Doubles(BufferKind.HEAP), 0x0L, 0x8000000000000000L, bToD},
+                    new Object[]{new BufferType.Doubles(BufferKind.HEAP_VIEW), 0x0L, 0x8000000000000000L, bToD},
+                    new Object[]{new BufferType.Doubles(BufferKind.DIRECT), 0x0L, 0x8000000000000000L, bToD},
+            };
+        }
+        return floatbufferTypes;
     }
 
-    public static Stream<Arguments> charBufferTypesSource() {
-        return Stream.of
-            (Arguments.of(new BufferType.Chars(BufferKind.HEAP)),
-             Arguments.of(new BufferType.Chars(BufferKind.HEAP_VIEW)),
-             Arguments.of(new BufferType.Chars(BufferKind.DIRECT)));
+
+    static Object[][] charBufferTypes;
+
+    @DataProvider
+    public static Object[][] charBufferTypesProvider() {
+        if (charBufferTypes == null) {
+            charBufferTypes = new Object[][]{
+                    {new BufferType.Chars(BufferKind.HEAP)},
+                    {new BufferType.Chars(BufferKind.HEAP_VIEW)},
+                    {new BufferType.Chars(BufferKind.DIRECT)},
+            };
+        }
+        return charBufferTypes;
     }
+
 
     // Tests all primitive buffers
-    @ParameterizedTest
-    @MethodSource("bufferTypesSource")
+    @Test(dataProvider = "bufferTypesProvider")
     <E>
     void testBuffers(BufferType<Buffer, E> bufferType) {
         // Test with buffers of the same byte order (BE)
@@ -542,8 +559,7 @@ public class EqualsCompareTest {
     }
 
     // Tests float and double buffers with edge-case values (NaN, -0.0, +0.0)
-    @ParameterizedTest
-    @MethodSource("floatBufferTypesSource")
+    @Test(dataProvider = "floatBufferTypesProvider")
     public void testFloatBuffers(
             BufferType<Buffer, Float> bufferType,
             long rawBitsA, long rawBitsB,
@@ -580,18 +596,17 @@ public class EqualsCompareTest {
 
         // Sanity check
         int size = arraySizeFor(bufferType.elementType);
-        assertTrue(bufferType.pairWiseEquals(allAs.apply(bufferType, size),
-                                             allBs.apply(bufferType, size)));
-        assertTrue(bufferType.equals(allAs.apply(bufferType, size),
-                                     allBs.apply(bufferType, size)));
+        Assert.assertTrue(bufferType.pairWiseEquals(allAs.apply(bufferType, size),
+                                                    allBs.apply(bufferType, size)));
+        Assert.assertTrue(bufferType.equals(allAs.apply(bufferType, size),
+                                            allBs.apply(bufferType, size)));
 
         testBufferType(bufferType, allAs, allBs);
         testBufferType(bufferType, allAs, halfBs);
     }
 
     // Tests CharBuffer for region sources and CharSequence sources
-    @ParameterizedTest
-    @MethodSource("charBufferTypesSource")
+    @Test(dataProvider = "charBufferTypesProvider")
     public void testCharBuffers(BufferType.Chars charBufferType) {
 
         BiFunction<BufferType.Chars, Integer, CharBuffer> constructor = (at, s) -> {
@@ -607,6 +622,7 @@ public class EqualsCompareTest {
 
         testBufferType(charBufferType, constructor, constructorX);
     }
+
 
     <B extends Buffer, E, BT extends BufferType<B, E>>
     void testBufferType(BT bt,
@@ -636,26 +652,26 @@ public class EqualsCompareTest {
                                        : b;
 
                                 boolean eq = bt.pairWiseEquals(as, bs);
-                                assertEquals(eq, bt.equals(as, bs));
-                                assertEquals(eq, bt.equals(bs, as));
+                                Assert.assertEquals(bt.equals(as, bs), eq);
+                                Assert.assertEquals(bt.equals(bs, as), eq);
                                 if (eq) {
-                                    assertEquals(0, bt.compare(as, bs));
-                                    assertEquals(0, bt.compare(bs, as));
+                                    Assert.assertEquals(bt.compare(as, bs), 0);
+                                    Assert.assertEquals(bt.compare(bs, as), 0);
 
                                     // If buffers are equal, there shall be no mismatch
-                                    assertEquals(-1, bt.mismatch(as, bs));
-                                    assertEquals(-1, bt.mismatch(bs, as));
+                                    Assert.assertEquals(bt.mismatch(as, bs), -1);
+                                    Assert.assertEquals(bt.mismatch(bs, as), -1);
                                 }
                                 else {
                                     int aCb = bt.compare(as, bs);
                                     int bCa = bt.compare(bs, as);
                                     int v = Integer.signum(aCb) * Integer.signum(bCa);
-                                    assertEquals(-1, v);
+                                    Assert.assertTrue(v == -1);
 
                                     int aMs = bt.mismatch(as, bs);
                                     int bMs = bt.mismatch(bs, as);
-                                    assertNotEquals(-1, aMs);
-                                    assertEquals(bMs, aMs);
+                                    Assert.assertNotEquals(aMs, -1);
+                                    Assert.assertEquals(aMs, bMs);
                                 }
                             }
                         }
@@ -670,17 +686,17 @@ public class EqualsCompareTest {
                                 // Create common prefix with a length of i - aFrom
                                 bt.set(c, i, -1);
 
-                                assertFalse(bt.equals(c, a));
+                                Assert.assertFalse(bt.equals(c, a));
 
                                 int cCa = bt.compare(cs, as);
                                 int aCc = bt.compare(as, cs);
                                 int v = Integer.signum(cCa) * Integer.signum(aCc);
-                                assertEquals(-1, v);
+                                Assert.assertTrue(v == -1);
 
                                 int cMa = bt.mismatch(cs, as);
                                 int aMc = bt.mismatch(as, cs);
-                                assertEquals(aMc, cMa);
-                                assertEquals(i - aFrom, cMa);
+                                Assert.assertEquals(cMa, aMc);
+                                Assert.assertEquals(cMa, i - aFrom);
                             }
                         }
                     }
@@ -715,8 +731,8 @@ public class EqualsCompareTest {
         try (FileChannel fc = FileChannel.open(path, READ, DELETE_ON_CLOSE)) {
             MappedByteBuffer one = fc.map(FileChannel.MapMode.READ_ONLY, 0, bytes.length);
             ByteBuffer two = ByteBuffer.wrap(bytes);
-            assertEquals(two, one);
-            assertEquals(two.hashCode(), one.hashCode());
+            Assert.assertEquals(one, two);
+            Assert.assertEquals(one.hashCode(), two.hashCode());
         }
     }
 }

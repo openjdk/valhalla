@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,6 +87,7 @@ import javax.imageio.spi.ImageWriterSpi;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 
+import sun.awt.AppContext;
 import sun.awt.ComponentFactory;
 import sun.awt.SunToolkit;
 import sun.awt.image.ImageRepresentation;
@@ -153,9 +154,9 @@ public abstract class DataTransferer {
             Collections.synchronizedMap(new HashMap<>());
 
     /**
-     * The Runnable for pending data conversion requests.
+     * The key used to store pending data conversion requests for an AppContext.
      */
-    private static volatile Runnable dataConverterInstance;
+    private static final String DATA_CONVERTER_KEY = "DATA_CONVERTER_KEY";
 
     static {
         DataFlavor tJavaTextEncodingFlavor = null;
@@ -1768,9 +1769,13 @@ search:
                 }
             };
 
+            final AppContext appContext = SunToolkit.targetToAppContext(source);
+
             getToolkitThreadBlockedHandler().lock();
 
-            dataConverterInstance = dataConverter;
+            if (appContext != null) {
+                appContext.put(DATA_CONVERTER_KEY, dataConverter);
+            }
 
             SunToolkit.executeOnEventHandlerThread(source, dataConverter);
 
@@ -1778,7 +1783,9 @@ search:
                 getToolkitThreadBlockedHandler().enter();
             }
 
-            dataConverterInstance = null;
+            if (appContext != null) {
+                appContext.remove(DATA_CONVERTER_KEY);
+            }
 
             ret = stack.pop();
         } finally {
@@ -1795,12 +1802,14 @@ search:
 
     public void processDataConversionRequests() {
         if (EventQueue.isDispatchThread()) {
+            AppContext appContext = AppContext.getAppContext();
             getToolkitThreadBlockedHandler().lock();
             try {
-                Runnable dataConverter = dataConverterInstance;
+                Runnable dataConverter =
+                    (Runnable)appContext.get(DATA_CONVERTER_KEY);
                 if (dataConverter != null) {
                     dataConverter.run();
-                    dataConverterInstance = null;
+                    appContext.remove(DATA_CONVERTER_KEY);
                 }
             } finally {
                 getToolkitThreadBlockedHandler().unlock();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,9 @@
  * questions.
  */
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
@@ -34,40 +35,39 @@ import java.io.ObjectInputStream;
 import java.security.Security;
 import java.util.Objects;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 
 /* @test
  * @bug 8231422
  * @build GlobalFilterTest SerialFilterTest
- * @run junit/othervm GlobalFilterTest
- * @run junit/othervm -Djdk.serialFilter=java.**
+ * @run testng/othervm GlobalFilterTest
+ * @run testng/othervm -Djdk.serialFilter=java.**
  *          -Dexpected-jdk.serialFilter=java.** GlobalFilterTest
  * @summary Test Global Filters
  */
+@Test
 public class GlobalFilterTest {
     private static final String serialPropName = "jdk.serialFilter";
     private static final String badSerialFilter = "java.lang.StringBuffer;!*";
     private static final String origSerialFilterProperty =
             System.setProperty(serialPropName, badSerialFilter);
 
-    private static final String EXPECTED_GLOBAL_FILTER = System.getProperty("expected-" + serialPropName,
-            Security.getProperty(serialPropName));
-
-    static boolean hasGlobalFilter() {
-        return EXPECTED_GLOBAL_FILTER != null && !EXPECTED_GLOBAL_FILTER.isEmpty();
-    }
-
     /**
      * DataProvider of patterns and objects derived from the configured process-wide filter.
      * @return Array of arrays of pattern, object, allowed boolean, and API factory
      */
-    static Object[][] globalPatternElements() {
+    @DataProvider(name="globalPatternElements")
+    Object[][] globalPatternElements() {
+        String globalFilter =
+                System.getProperty("expected-" + serialPropName,
+                        Security.getProperty(serialPropName));
+        if (globalFilter == null) {
+            return new Object[0][];
+        }
 
-        String[] patterns = EXPECTED_GLOBAL_FILTER.split(";");
+        String[] patterns = globalFilter.split(";");
         Object[][] objects = new Object[patterns.length][];
 
         for (int i = 0; i < patterns.length; i++) {
@@ -83,7 +83,7 @@ public class GlobalFilterTest {
                     ? SerialFilterTest.genTestObject(pattern, true)
                     : SerialFilterTest.genTestObject(pattern.substring(1), false);
 
-                Assertions.assertNotNull(o, "fail generation failed");
+                Assert.assertNotNull(o, "fail generation failed");
             }
             objects[i] = new Object[3];
             objects[i][0] = pattern;
@@ -98,13 +98,13 @@ public class GlobalFilterTest {
      * and has the toString matching the configured pattern.
      */
     @Test()
-    void globalFilter() {
+    static void globalFilter() {
         ObjectInputFilter filter = ObjectInputFilter.Config.getSerialFilter();
 
         // Check that the System.setProperty(jdk.serialFilter) DOES NOT affect the filter.
         String asSetSystemProp = System.getProperty(serialPropName,
                 Security.getProperty(serialPropName));
-        Assertions.assertNotEquals(asSetSystemProp, Objects.toString(filter, null),
+        Assert.assertNotEquals(Objects.toString(filter, null), asSetSystemProp,
                 "System.setProperty(\"jdk.serialfilter\", ...) should not change filter: " +
                 asSetSystemProp);
 
@@ -112,7 +112,7 @@ public class GlobalFilterTest {
                 System.getProperty("expected-" + serialPropName,
                         Security.getProperty(serialPropName));
         System.out.printf("global pattern: %s, filter: %s%n", pattern, filter);
-        assertEquals(pattern, Objects.toString(filter, null),
+        Assert.assertEquals(Objects.toString(filter, null), pattern,
                 "process-wide filter pattern does not match");
     }
 
@@ -120,15 +120,16 @@ public class GlobalFilterTest {
      * If the Global filter is already set, it should always refuse to be
      * set again.
      */
-    @Test
-    void setGlobalFilter() {
+    @Test()
+    @SuppressWarnings("removal")
+    static void setGlobalFilter() {
         ObjectInputFilter filter = new SerialFilterTest.Validator();
         ObjectInputFilter global = ObjectInputFilter.Config.getSerialFilter();
         if (global != null) {
             // once set, can never be re-set
             try {
                 ObjectInputFilter.Config.setSerialFilter(filter);
-                Assertions.fail("set only once process-wide filter");
+                Assert.fail("set only once process-wide filter");
             } catch (IllegalStateException ise) {
                 // Normal, once set can never be re-set
             }
@@ -140,7 +141,7 @@ public class GlobalFilterTest {
             try {
                 // Try to set it again, expecting it to throw
                 ObjectInputFilter.Config.setSerialFilter(filter);
-                Assertions.fail("set only once process-wide filter");
+                Assert.fail("set only once process-wide filter");
             } catch (IllegalStateException ise) {
                 // Normal case
             }
@@ -153,10 +154,8 @@ public class GlobalFilterTest {
      *
      * @param pattern a pattern extracted from the configured global pattern
      */
-    @ParameterizedTest
-    @EnabledIf("hasGlobalFilter")
-    @MethodSource("globalPatternElements")
-    void globalFilterElements(String pattern, boolean allowed,Object obj) {
+    @Test(dataProvider = "globalPatternElements")
+    static void globalFilterElements(String pattern, boolean allowed,Object obj) {
         testGlobalPattern(pattern, obj, allowed);
     }
 
@@ -178,15 +177,15 @@ public class GlobalFilterTest {
             } catch (EOFException eof) {
                 // normal completion
             } catch (ClassNotFoundException cnf) {
-                Assertions.fail("Deserializing", cnf);
+                Assert.fail("Deserializing", cnf);
             }
-            assertTrue(allowed, "filter should have thrown an exception");
+            Assert.assertTrue(allowed, "filter should have thrown an exception");
         } catch (IllegalArgumentException iae) {
-            Assertions.fail("bad format pattern", iae);
+            Assert.fail("bad format pattern", iae);
         } catch (InvalidClassException ice) {
-            Assertions.assertFalse(allowed, "filter should not have thrown an exception: " + ice);
+            Assert.assertFalse(allowed, "filter should not have thrown an exception: " + ice);
         } catch (IOException ioe) {
-            Assertions.fail("Unexpected IOException", ioe);
+            Assert.fail("Unexpected IOException", ioe);
         }
     }
 }

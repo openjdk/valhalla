@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,47 +59,44 @@
  */
 package test.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+
+import org.testng.annotations.Test;
 
 /**
  * Test StringLiteralPrinterParser.
  */
+@Test
 public class TestStringLiteralPrinter extends AbstractTestPrinterParser {
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_print_emptyCalendrical() throws Exception {
         buf.append("EXISTING");
         getFormatter("hello").formatTo(EMPTY_DTA, buf);
-        assertEquals("EXISTINGhello", buf.toString());
+        assertEquals(buf.toString(), "EXISTINGhello");
     }
 
-    @Test
     public void test_print_dateTime() throws Exception {
         buf.append("EXISTING");
         getFormatter("hello").formatTo(dta, buf);
-        assertEquals("EXISTINGhello", buf.toString());
+        assertEquals(buf.toString(), "EXISTINGhello");
     }
 
 
 
 
-    @Test
     public void test_print_emptyAppendable() throws Exception {
         getFormatter("hello").formatTo(dta, buf);
-        assertEquals("hello", buf.toString());
+        assertEquals(buf.toString(), "hello");
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_toString() throws Exception {
-        assertEquals("'hello'", getFormatter("hello").toString());
+        assertEquals(getFormatter("hello").toString(), "'hello'");
     }
 
-    @Test
     public void test_toString_apos() throws Exception {
-        assertEquals("'o''clock'", getFormatter("o'clock").toString());
+        assertEquals(getFormatter("o'clock").toString(), "'o''clock'");
     }
 
 }

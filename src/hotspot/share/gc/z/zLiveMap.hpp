@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
 #include "gc/z/zBitMap.hpp"
 #include "gc/z/zGenerationId.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/atomic.hpp"
 
 class ObjectClosure;
 
@@ -42,9 +41,9 @@ private:
   const uint32_t    _segment_size;
   const int         _segment_shift;
 
-  Atomic<uint32_t>  _seqnum;
-  Atomic<uint32_t>  _live_objects;
-  Atomic<size_t>    _live_bytes;
+  volatile uint32_t _seqnum;
+  volatile uint32_t _live_objects;
+  volatile size_t   _live_bytes;
   BitMap::bm_word_t _segment_live_bits;
   BitMap::bm_word_t _segment_claim_bits;
   ZBitMap           _bitmap;
