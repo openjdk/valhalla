@@ -34,6 +34,7 @@
 #include "runtime/mutex.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/integerCast.hpp"
 
 class BytecodeStream;
 
@@ -209,7 +210,7 @@ public:
   }
 
   bool set_flag_at(u1 flag_number) {
-    const u1 bit = 1 << flag_number;
+    const u1 bit = integer_cast<u1>(1 << flag_number);
     u1 compare_value;
     do {
       compare_value = _header._struct._flags;
@@ -222,7 +223,7 @@ public:
   }
 
   bool clear_flag_at(u1 flag_number) {
-    const u1 bit = 1 << flag_number;
+    const u1 bit = integer_cast<u1>(1 << flag_number);
     u1 compare_value;
     u1 exchange_value;
     do {
@@ -1775,7 +1776,7 @@ public:
   virtual bool is_ArgInfoData() const { return true; }
 
 
-  int number_of_args() const {
+  int size_of_args() const {
     return array_len();
   }
 

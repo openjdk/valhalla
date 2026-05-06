@@ -461,7 +461,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     int org_length = org->length();
     int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
     FlatArrayKlass* const fak = FlatArrayKlass::cast(org->klass());
-    flatArrayOop dst = oopFactory::new_flatArray(fak, len, CHECK_NULL);
+    flatArrayOop dst = fak->allocate_instance(len, CHECK_NULL);
     assert(!ak->is_null_free_array_klass() || copy_len == len,
            "Failed to throw the IllegalArgumentException");
     if (copy_len != 0) {
@@ -592,7 +592,8 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jarray array))
     if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) {
       return true;
     }
-    if (fak->element_klass()->is_naturally_atomic()) {
+    bool is_null_free = !LayoutKindHelper::is_nullable_flat(fak->layout_kind());
+    if (fak->element_klass()->is_naturally_atomic(is_null_free)) {
       return true;
     }
 

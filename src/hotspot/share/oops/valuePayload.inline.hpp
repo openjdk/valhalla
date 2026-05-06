@@ -599,8 +599,7 @@ inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
 #ifdef ASSERT
 
 inline void FlatFieldPayload::assert_post_construction_invariants(instanceOop container,
-                                                                  ResolvedFieldEntry* resolved_field_entry,
-                                                                  InstanceKlass* klass) const {
+                                                                  ResolvedFieldEntry* resolved_field_entry) const {
   OnVMError on_assertion_failure([&](outputStream* st) {
     st->print_cr("=== assert_post_construction_invariants failure ===");
     StreamIndentor si(st);
@@ -608,14 +607,12 @@ inline void FlatFieldPayload::assert_post_construction_invariants(instanceOop co
     st->cr();
   });
 
-  postcond(container->klass()->is_subclass_of(klass));
-  postcond(klass == resolved_field_entry->field_holder());
+  postcond(container->klass()->is_subclass_of(resolved_field_entry->field_holder()));
   postcond(resolved_field_entry->is_flat());
 }
 
 inline void FlatFieldPayload::assert_post_construction_invariants(instanceOop container,
-                                                                  fieldDescriptor* field_descriptor,
-                                                                  InstanceKlass* klass) const {
+                                                                  fieldDescriptor* field_descriptor) const {
   OnVMError on_assertion_failure([&](outputStream* st) {
     st->print_cr("=== assert_post_construction_invariants failure ===");
     StreamIndentor si(st);
@@ -623,8 +620,7 @@ inline void FlatFieldPayload::assert_post_construction_invariants(instanceOop co
     st->cr();
   });
 
-  postcond(container->klass()->is_subclass_of(klass));
-  postcond(klass == field_descriptor->field_holder());
+  postcond(container->klass()->is_subclass_of(field_descriptor->field_holder()));
   postcond(field_descriptor->is_flat());
 }
 
@@ -632,31 +628,18 @@ inline void FlatFieldPayload::assert_post_construction_invariants(instanceOop co
 
 inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
                                           fieldDescriptor* field_descriptor)
-    : FlatFieldPayload(container, field_descriptor,
-                       InstanceKlass::cast(container->klass())) {}
-
-inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
-                                          fieldDescriptor* field_descriptor,
-                                          InstanceKlass* klass)
     : FlatFieldPayload(container,
                        field_descriptor->offset(),
-                       klass->inline_layout_info_adr(field_descriptor->index())) {
-  assert_post_construction_invariants(container, field_descriptor, klass);
+                       field_descriptor->field_holder()->inline_layout_info_adr(field_descriptor->index())) {
+  assert_post_construction_invariants(container, field_descriptor);
 }
 
 inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
                                           ResolvedFieldEntry* resolved_field_entry)
     : FlatFieldPayload(container,
-                       resolved_field_entry,
-                       resolved_field_entry->field_holder()) {}
-
-inline FlatFieldPayload::FlatFieldPayload(instanceOop container,
-                                          ResolvedFieldEntry* resolved_field_entry,
-                                          InstanceKlass* klass)
-    : FlatFieldPayload(container,
                        resolved_field_entry->field_offset(),
-                       klass->inline_layout_info_adr(resolved_field_entry->field_index())) {
-  assert_post_construction_invariants(container, resolved_field_entry, klass);
+                       resolved_field_entry->field_holder()->inline_layout_info_adr(resolved_field_entry->field_index())) {
+  assert_post_construction_invariants(container, resolved_field_entry);
 }
 
 inline instanceOop FlatFieldPayload::container() const {

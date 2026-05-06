@@ -273,7 +273,7 @@ public:
 
   bool has_class_initializer();
 
-  bool contains_field_offset(int offset);
+  bool contains_field_offset(int offset) const;
 
   // Get the instance of java.lang.Class corresponding to
   // this klass.  This instance is used for locking of

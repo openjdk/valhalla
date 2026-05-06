@@ -467,7 +467,7 @@ void HeapShared::make_archived_object_cache_gc_safe() {
         // need to reference value objects.
         //
         // Also TODO: the AOT heap should de-duplicate value objects with identical
-        // values.
+        // values. See JDK-8383381
       } else {
         new_cache->put_when_absent(oh, info);
       }

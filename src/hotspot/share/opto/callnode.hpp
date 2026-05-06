@@ -814,7 +814,7 @@ public:
   virtual bool        may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) const;
   // Does this node have a use of n other than in debug information?
   bool                has_non_debug_use(const Node* n);
-  bool                has_debug_use(const Node* n);
+  bool                has_debug_use(const Node* n) const;
   // Returns the unique CheckCastPP of a call
   // or result projection is there are several CheckCastPP
   // or returns null if there is no one.
@@ -901,6 +901,7 @@ class CallStaticJavaNode : public CallJavaNode {
   virtual uint size_of() const; // Size is bigger
 
   bool remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node* ctl, Node* mem, Node* unc_arg);
+  Node* replace_is_substitutable(PhaseIterGVN* igvn);
 
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method)

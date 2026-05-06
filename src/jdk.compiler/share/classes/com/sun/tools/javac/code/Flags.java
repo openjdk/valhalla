@@ -577,6 +577,7 @@ public class Flags {
         LocalVarFlags                     = FINAL | PARAMETER,
         ReceiverParamFlags                = PARAMETER;
 
+    @SuppressWarnings("preview") // allow use of VALUE_CLASS when building jdk.compiler.interim
     public static Set<Modifier> asModifierSet(long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
         if (modifiers == null) {

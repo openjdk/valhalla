@@ -218,7 +218,7 @@ public:
   bool is_alloc_allowed()          const { auto cur_state = state(); return is_empty_state(cur_state) || cur_state == _regular || cur_state == _pinned; }
   bool is_stw_move_allowed()       const { auto cur_state = state(); return cur_state == _regular || cur_state == _cset || (ShenandoahHumongousMoves && cur_state == _humongous_start); }
 
-  RegionState state()              const { return _state.load_relaxed(); }
+  RegionState state()              const { return _state.load_acquire(); }
   int  state_ordinal()             const { return region_state_to_ordinal(state()); }
 
   void record_pin();
@@ -277,7 +277,10 @@ private:
 public:
   ShenandoahHeapRegion(HeapWord* start, size_t index, bool committed);
 
+  // Absolute minimums and maximums we should not ever break.
   static const size_t MIN_NUM_REGIONS = 10;
+  static const size_t MIN_REGION_SIZE = 256*K;
+  static const size_t MAX_REGION_SIZE = 32*M;
 
   // Return adjusted max heap size
   static size_t setup_sizes(size_t max_heap_size);
