@@ -13993,7 +13993,7 @@ myInit() {
       VM. These methods should send this event.
       Virtual machines which are incapable of bytecode instrumentation
       for some or all of their methods can send this event.
-      When preview features are enabled and an allocated object has no identity,
+      When preview features are enabled and the allocated object has no identity,
       <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter.
 
       Note that the <internallink
@@ -14041,7 +14041,7 @@ myInit() {
         <jobject/>
           <description>
             JNI local reference to the object that was allocated.
-            Null when preview features are enabled and an allocated object has no identity.
+            Null when preview features are enabled and the allocated object has no identity.
           </description>
       </param>
       <param id="object_klass">
@@ -14088,7 +14088,7 @@ myInit() {
       In conjunction with weak references and the function
       <functionlink id="GetStackTrace"></functionlink>, a user can track which objects were allocated from which
       stack trace, and which are still live during the execution of the program.
-      When preview features are enabled and an allocated object has no identity,
+      When preview features are enabled and the allocated object has no identity,
       <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter.
       Note that weak references support identity objects only.
     </description>
@@ -14115,7 +14115,7 @@ myInit() {
         <jobject/>
         <description>
           JNI local reference to the object that was allocated.
-          Null when preview features are enabled and an allocated object has no identity.
+          Null when preview features are enabled and the allocated object has no identity.
         </description>
       </param>
       <param id="object_klass">

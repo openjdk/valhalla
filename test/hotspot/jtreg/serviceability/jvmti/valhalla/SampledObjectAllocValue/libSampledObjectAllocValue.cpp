@@ -46,7 +46,7 @@ is_test_class(jvmtiEnv* jvmti, JNIEnv* jni, jclass cls) {
 JNIEXPORT void JNICALL
 Java_SampledObjectAllocValue_enableEvents(JNIEnv* jni, jclass klass, jthread thread, jclass tested_class) {
   if (events_counter != 0) {
-    fatal(jni, "SampledObjectAlloc events counter shouldn be zero");
+    fatal(jni, "SampledObjectAlloc events counter should be zero");
   }
   LOG("enableEvents: events_counter: %d\n", events_counter.load());
 
@@ -67,7 +67,7 @@ SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jobject object,
     fatal(jni, "object in SampledObjectAlloc callback is expected to be null for value object allocations");
   }
   if (!is_test_class(jvmti, jni, klass)) {
-    return; // interested in tested value class only
+    return; // interested in tested class only
   }
   events_counter++;
   LOG("SampledObjectAlloc: events_counter: %d\n", events_counter.load());
