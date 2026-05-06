@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.classfile.ClassFile;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.Set;
@@ -57,10 +58,12 @@ public class IsIdentityClassTest {
         // So only verify this in preview mode.
         if (PreviewFeatures.isEnabled()) {
             int imod = Integer.class.getModifiers();
-            assertFalse(Modifier.isIdentity(imod), "Modifier of Integer should not have IDENTITY set");
+            assertFalse((imod & ClassFile.ACC_IDENTITY) != 0,
+                    "Modifier of Integer " + Integer.toHexString(imod) + " should not have ACC_IDENTITY set");
         }
         int amod = Integer[].class.getModifiers();
-        assertEquals(PreviewFeatures.isEnabled(), Modifier.isIdentity(amod), "Modifier of array should have IDENTITY set");
+        assertEquals(PreviewFeatures.isEnabled(), (amod & ClassFile.ACC_IDENTITY) != 0,
+                "Modifier of array " + Integer.toHexString(amod) + " should have ACC_IDENTITY set");
     }
 
     @Test

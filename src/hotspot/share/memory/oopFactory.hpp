@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 
+class InlineKlass;
+
 // oopFactory is a class used for creating new objects.
 
 class oopFactory: AllStatic {
@@ -46,7 +48,7 @@ class oopFactory: AllStatic {
   static typeArrayOop    new_longArray  (int length, TRAPS);
 
   // create java.lang.Object[]
-  static objArrayOop     new_objectArray(int length, TRAPS);
+  static refArrayOop     new_objectArray(int length, TRAPS);
 
   static typeArrayOop    new_charArray(const char* utf8_str,  TRAPS);
 
@@ -56,22 +58,17 @@ class oopFactory: AllStatic {
 
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
-  static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
+  static objArrayOop     new_objArray(Klass* klass, int length, ArrayProperties properties, TRAPS);
 
-  // Allocate refArray instance given a refArrayKlass.
-  static objArrayOop     new_refArray(Klass* array_klass, int length, TRAPS);
+  // Factories to create a reference arrays
+  static refArrayOop     new_refArray(Klass* klass, int length, TRAPS);
+  static refArrayOop     new_refArray(Klass* klass, int length, ArrayProperties properties, TRAPS);
 
-  // Value arrays...
-  // LWorld:
-  //    - Q-type signature allocation should use this path.
-  //    - L-type signature allocation should use new_objArray
-  //
-  // Method specifically null free and possibly flat if possible
-  // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
-  static flatArrayOop    new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
+  // Factory to create flat arrays.
+  static flatArrayOop    new_flatArray(InlineKlass* klass, int length, ArrayProperties props, TRAPS);
 
   // Helper that returns a Handle
-  static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
+  static refArrayHandle  new_refArray_handle(Klass* klass, int length, TRAPS);
 };
 
 #endif // SHARE_MEMORY_OOPFACTORY_HPP

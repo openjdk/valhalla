@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -201,7 +201,7 @@ private:
   }
   ciObjArrayKlass* get_obj_array_klass(Klass* o) {
     if (o == nullptr) return nullptr;
-    assert(o->is_objArray_klass() && !o->is_flatArray_klass() && !o->is_refArray_klass(), "must be exact");
+    assert(o->is_unrefined_objArray_klass(), "must be exact");
     return get_metadata(o)->as_obj_array_klass();
   }
   ciFlatArrayKlass* get_flat_array_klass(Klass* o) {
@@ -509,11 +509,11 @@ public:
   void dump_compile_data(outputStream* out);
   void dump_replay_data_version(outputStream* out);
 
-  ciWrapper* make_early_larval_wrapper(ciType* type) {
+  ciWrapper* make_early_larval_wrapper(ciType* type) const {
     return _factory->make_early_larval_wrapper(type);
   }
 
-  ciWrapper* make_null_free_wrapper(ciType* type) {
+  ciWrapper* make_null_free_wrapper(ciType* type) const {
     return _factory->make_null_free_wrapper(type);
   }
 

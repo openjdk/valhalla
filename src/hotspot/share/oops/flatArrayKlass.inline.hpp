@@ -44,25 +44,25 @@
 
 template <typename T, class OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_elements_specialized(flatArrayOop a,
-                                                          OopClosureType* closure) {
-  assert(contains_oops(), "Nothing to iterate");
+                                                          OopClosureType* closure,
+                                                          int start, int end) {
+  precond(contains_oops());
+  precond(start >= 0);
+  assert(start <= end, "Invalid range [%d - %d)", start, end);
+  assert(end <= a->length(), "Invalid range [%d - %d) for a.length: %d", start, end, a->length());
 
   const int shift = Klass::layout_helper_log2_element_size(layout_helper());
-  const int addr_incr = 1 << shift;
-  uintptr_t elem_addr = (uintptr_t) a->base();
-  const uintptr_t stop_addr = elem_addr + ((uintptr_t)a->length() << shift);
-  const int oop_offset = element_klass()->payload_offset();
+  const uintptr_t base = (uintptr_t) a->base();
+  const uintptr_t start_addr = base + ((size_t)start << shift);
+  const uintptr_t stop_addr = base + ((size_t)end << shift);
 
-  while (elem_addr < stop_addr) {
-    element_klass()->oop_iterate_specialized<T>((address)(elem_addr - oop_offset), closure);
-    elem_addr += addr_incr;
-  }
+  oop_oop_iterate_elements_specialized_bounded<T>(a, closure, start_addr, stop_addr);
 }
 
 template <typename T, class OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded(flatArrayOop a,
                                                                   OopClosureType* closure,
-                                                                  void* lo, void* hi) {
+                                                                  uintptr_t lo, uintptr_t hi) {
   assert(contains_oops(), "Nothing to iterate");
 
   const int shift = Klass::layout_helper_log2_element_size(layout_helper());
@@ -71,12 +71,12 @@ void FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded(flatArrayOop a
   uintptr_t stop_addr = elem_addr + ((uintptr_t)a->length() << shift);
   const int oop_offset = element_klass()->payload_offset();
 
-  if (elem_addr < (uintptr_t) lo) {
-    uintptr_t diff = ((uintptr_t) lo) - elem_addr;
+  if (elem_addr < lo) {
+    uintptr_t diff = lo - elem_addr;
     elem_addr += (diff >> shift) << shift;
   }
-  if (stop_addr > (uintptr_t) hi) {
-    uintptr_t diff = stop_addr - ((uintptr_t) hi);
+  if (stop_addr > hi) {
+    uintptr_t diff = stop_addr - hi;
     stop_addr -= (diff >> shift) << shift;
   }
 
@@ -90,18 +90,17 @@ void FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded(flatArrayOop a
 template <typename T, class OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_elements(flatArrayOop a, OopClosureType* closure) {
   if (contains_oops()) {
-    oop_oop_iterate_elements_specialized<T>(a, closure);
+    oop_oop_iterate_elements_specialized<T>(a, closure, 0, a->length());
   }
 }
 
 template <typename T, typename OopClosureType>
 void FlatArrayKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
-  assert(obj->klass()->is_flatArray_klass(),"must be a flat array");
+  assert(obj->is_flatArray(), "must be a flat array");
   flatArrayOop a = flatArrayOop(obj);
 
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, obj->klass());
-    Devirtualizer::do_klass(closure, FlatArrayKlass::cast(obj->klass())->element_klass());
   }
 
   oop_oop_iterate_elements<T>(a, closure);
@@ -116,19 +115,25 @@ void FlatArrayKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
 template <typename T, class OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_elements_bounded(flatArrayOop a, OopClosureType* closure, MemRegion mr) {
   if (contains_oops()) {
-    oop_oop_iterate_elements_specialized_bounded<T>(a, closure, mr.start(), mr.end());
+    oop_oop_iterate_elements_specialized_bounded<T>(a, closure, (uintptr_t)mr.start(), (uintptr_t)mr.end());
   }
 }
-
 
 template <typename T, typename OopClosureType>
 void FlatArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
   flatArrayOop a = flatArrayOop(obj);
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, a->klass());
-    Devirtualizer::do_klass(closure, FlatArrayKlass::cast(obj->klass())->element_klass());
   }
   oop_oop_iterate_elements_bounded<T>(a, closure, mr);
+}
+
+// Like oop_oop_iterate but only iterates over the specified range [start, end)
+template <typename T, class OopClosureType>
+void FlatArrayKlass::oop_oop_iterate_elements_range(flatArrayOop a, OopClosureType *closure, int start, int end) {
+  if (contains_oops()) {
+    oop_oop_iterate_elements_specialized<T>(a, closure, start, end);
+  }
 }
 
 #endif // SHARE_VM_OOPS_FLATARRAYKLASS_INLINE_HPP

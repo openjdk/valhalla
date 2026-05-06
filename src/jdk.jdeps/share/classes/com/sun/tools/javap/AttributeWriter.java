@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,9 +46,6 @@ import static java.lang.classfile.ClassFile.ACC_MANDATED;
 import static java.lang.classfile.ClassFile.ACC_SYNTHETIC;
 import static java.lang.classfile.attribute.StackMapFrameInfo.*;
 import static java.lang.classfile.instruction.CharacterRange.*;
-
-import com.sun.tools.javac.util.Assert;
-import com.sun.tools.javac.util.StringUtils;
 
 /*
  *  A writer for writing Attributes as text.
@@ -227,7 +224,7 @@ public class AttributeWriter extends BasicWriter {
                         for (var flag : flagSet) {
                             if (flag.sourceModifier() && (flag != AccessFlag.ABSTRACT
                                     || !info.has(AccessFlag.INTERFACE))) {
-                                print(Modifier.toString(flag.mask()) + " ");
+                                print(flag.name().toLowerCase(Locale.ROOT) + " ");
                             }
                         }
                         if (info.innerName().isPresent()) {

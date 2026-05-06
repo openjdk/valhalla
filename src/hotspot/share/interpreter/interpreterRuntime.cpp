@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "interpreter/oopMapCache.hpp"
 #include "interpreter/templateTable.hpp"
 #include "jvm_io.h"
 #include "logging/log.hpp"
@@ -55,11 +56,12 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/symbol.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
-#include "runtime/atomicAccess.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -79,6 +81,7 @@
 #include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #if INCLUDE_JFR
 #include "jfr/jfr.inline.hpp"
@@ -230,37 +233,27 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result_oop(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
-  Handle obj_h(THREAD, obj);
 
-  InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
-  assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
-
-  InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
-  InlineKlass* field_vklass = layout_info->klass();
-
-#ifdef ASSERT
-  fieldDescriptor fd;
-  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
-  assert(found, "Field not found");
-  assert(fd.is_flat(), "Field must be flat");
-#endif // ASSERT
-
-  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
-  current->set_vm_result_oop(res);
+  FlatFieldPayload payload(instanceOop(obj), entry);
+  if (payload.is_payload_null()) {
+    // If the payload is null return before entring the JRT_BLOCK.
+    current->set_vm_result_oop(nullptr);
+    return;
+  }
+  JRT_BLOCK
+    oop res = payload.read(CHECK);
+    current->set_vm_result_oop(res);
+  JRT_BLOCK_END
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
-  Handle obj_h(THREAD, obj);
-  assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
-  Handle val_h(THREAD, value);
+  assert(oopDesc::is_oop_or_null(value), "Sanity check");
 
-  InstanceKlass* holder = entry->field_holder();
-  InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
-  InlineKlass* vk = li->klass();
-  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), CHECK);
+  FlatFieldPayload payload(instanceOop(obj), entry);
+  payload.write(inlineOop(value), CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -271,7 +264,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool* pool, int index, jint size))
   Klass*    klass = pool->klass_at(index, CHECK);
-  arrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
+  objArrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 
@@ -294,7 +287,7 @@ JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* fi
   ConstantPool* constants = last_frame.method()->constants();
   int i = last_frame.get_index_u2(Bytecodes::_multianewarray);
   Klass* klass = constants->klass_at(i, CHECK);
-  int   nof_dims = last_frame.number_of_dimensions();
+  int nof_dims = last_frame.number_of_dimensions();
   assert(klass->is_klass(), "not a class");
   assert(nof_dims >= 1, "multianewarray rank must be nonzero");
 
@@ -331,7 +324,7 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   JavaCallArguments args;
   args.push_oop(ha);
   args.push_oop(hb);
-  methodHandle method(current, UseAltSubstitutabilityMethod ?  Universe::is_substitutableAlt_method() : Universe::is_substitutable_method());
+  methodHandle method(current, Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
   if (HAS_PENDING_EXCEPTION) {
@@ -425,7 +418,7 @@ JRT_ENTRY(void, InterpreterRuntime::throw_StackOverflowError(JavaThread* current
                                  vmClasses::StackOverflowError_klass(),
                                  CHECK);
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   // Remove the ScopedValue bindings in case we got a StackOverflowError
   // while we were trying to manipulate ScopedValue bindings.
   current->clear_scopedValueBindings();
@@ -439,7 +432,7 @@ JRT_ENTRY(void, InterpreterRuntime::throw_delayed_StackOverflowError(JavaThread*
   java_lang_Throwable::set_message(exception(),
           Universe::delayed_stack_overflow_error_message());
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   // Remove the ScopedValue bindings in case we got a StackOverflowError
   // while we were trying to manipulate ScopedValue bindings.
   current->clear_scopedValueBindings();
@@ -693,11 +686,6 @@ JRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorVerbose(JavaThread*
   LinkResolver::throw_abstract_method_error(mh, recvKlass, THREAD);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::throw_InstantiationError(JavaThread* current))
-  THROW(vmSymbols::java_lang_InstantiationError());
-JRT_END
-
-
 JRT_ENTRY(void, InterpreterRuntime::throw_IncompatibleClassChangeError(JavaThread* current))
   THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
 JRT_END
@@ -802,14 +790,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
-  entry->set_flags(info.access_flags().is_volatile(),
-                   info.access_flags().is_final(),
-                   info.is_flat(),
-                   info.is_null_free_inline_type(),
-                   info.has_null_marker());
-
-  entry->fill_in(info.field_holder(), info.offset(),
-                 checked_cast<u2>(info.index()), checked_cast<u1>(state),
+  entry->fill_in(info, checked_cast<u1>(state),
                  static_cast<u1>(get_code), static_cast<u1>(put_code));
 }
 
@@ -1298,11 +1279,9 @@ JRT_LEAF(void, InterpreterRuntime::at_unwind(JavaThread* current))
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDesc* obj,
-                                                      ResolvedFieldEntry *entry))
+                                                      ResolvedFieldEntry* entry))
 
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   // check the access_flags for the field in the klass
-
   InstanceKlass* ik = entry->field_holder();
   int index = entry->field_index();
   if (!ik->field_status(index).is_access_watched()) return;
@@ -1323,12 +1302,10 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDe
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current, oopDesc* obj,
-                                                            ResolvedFieldEntry *entry, jvalue *value))
-
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
-  InstanceKlass* ik = entry->field_holder();
+                                                            ResolvedFieldEntry* entry, jvalue* value))
 
   // check the access_flags for the field in the klass
+  InstanceKlass* ik = entry->field_holder();
   int index = entry->field_index();
   // bail out if field modifications are not watched
   if (!ik->field_status(index).is_modification_watched()) return;
@@ -1636,7 +1613,9 @@ JRT_LEAF(intptr_t, InterpreterRuntime::trace_bytecode(JavaThread* current, intpt
   LastFrameAccessor last_frame(current);
   assert(last_frame.is_interpreted_frame(), "must be an interpreted frame");
   methodHandle mh(current, last_frame.method());
-  BytecodeTracer::trace_interpreter(mh, last_frame.bcp(), tos, tos2);
+  stringStream st;
+  BytecodeTracer::trace_interpreter(mh, last_frame.get_frame().real_fp(), last_frame.bcp(), tos, tos2, &st);
+  tty->print("%s", st.freeze());
   return preserve_this_value;
 JRT_END
 #endif // !PRODUCT
@@ -1646,5 +1625,18 @@ bool InterpreterRuntime::is_preemptable_call(address entry_point) {
   return entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter) ||
          entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache) ||
          entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::_new);
+}
+
+void InterpreterRuntime::generate_oop_map_alot() {
+  JavaThread* current = JavaThread::current();
+  LastFrameAccessor last_frame(current);
+  if (last_frame.is_interpreted_frame()) {
+    ResourceMark rm(current);
+    InterpreterOopMap mask;
+    methodHandle mh(current, last_frame.method());
+    int bci = last_frame.bci();
+    log_info(generateoopmap)("Generating oopmap for method %s at bci %d", mh->name_and_sig_as_C_string(), bci);
+    OopMapCache::compute_one_oop_map(mh, bci, &mask);
+  }
 }
 #endif // ASSERT

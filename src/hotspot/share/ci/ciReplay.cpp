@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/arrayProperties.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -45,6 +46,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/resolvedIndyEntry.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
@@ -513,8 +515,8 @@ class CompileReplay : public StackObj {
       }
       obj = ciReplay::obj_field(obj, field);
       // TODO 8350865 I think we need to handle null-free/flat arrays here
-      if (obj != nullptr && obj->is_objArray()) {
-        objArrayOop arr = (objArrayOop)obj;
+      if (obj != nullptr && obj->is_refArray()) {
+        refArrayOop arr = oop_cast<refArrayOop>(obj);
         int index = parse_int("index");
         if (index >= arr->length()) {
           report_error("bad array index");
@@ -601,7 +603,7 @@ class CompileReplay : public StackObj {
         _nesting.check(); // Check if a reallocation in the resource arena is safe
         int new_length = _buffer_length * 2;
         // Next call will throw error in case of OOM.
-        _buffer = REALLOC_RESOURCE_ARRAY(char, _buffer, _buffer_length, new_length);
+        _buffer = REALLOC_RESOURCE_ARRAY(_buffer, _buffer_length, new_length);
         _buffer_length = new_length;
       }
       if (c == '\n') {
@@ -863,6 +865,12 @@ class CompileReplay : public StackObj {
         return;
       }
       Klass* k = parse_klass(CHECK);
+      if (had_error()) {
+        return;
+      }
+      if (_version >= 3 && k != nullptr && k->is_objArray_klass()) {
+        k = create_concrete_object_array_klass(ObjArrayKlass::cast(k), THREAD);
+      }
       rec->_classes_offsets[i] = offset;
       rec->_classes[i] = k;
     }
@@ -881,6 +889,18 @@ class CompileReplay : public StackObj {
       rec->_methods_offsets[i] = offset;
       rec->_methods[i] = m;
     }
+  }
+
+  ObjArrayKlass* create_concrete_object_array_klass(ObjArrayKlass* obj_array_klass, TRAPS) {
+    const ArrayProperties array_properties(checked_cast<ArrayProperties::Type>(parse_int("array_properties")));
+    if (!Arguments::is_valhalla_enabled()) {
+      // Ignore array properties.
+      return obj_array_klass;
+    }
+
+    guarantee(array_properties.is_valid(), "invalid array_properties: %d", array_properties.value());
+
+    return obj_array_klass->klass_with_properties(array_properties, THREAD);
   }
 
   // instanceKlass <name>
@@ -962,7 +982,6 @@ class CompileReplay : public StackObj {
           }
           break;
         }
-
         case JVM_CONSTANT_Long:
         case JVM_CONSTANT_Double:
           parsed_two_word = i + 1;
@@ -1066,23 +1085,16 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT:
-        if (!fd->is_null_free_inline_type()) {
+        if (fd->is_null_free_inline_type() && fd->is_flat()) {
+          InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
+          int field_offset = fd->offset() - vk->payload_offset();
+          oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
+          InlineTypeFieldInitializer init_fields(obj, _replay);
+          vk->do_nonstatic_fields(&init_fields);
+        } else {
           JavaThread* THREAD = JavaThread::current();
           bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
           assert(res, "should succeed for arrays & objects");
-          break;
-        } else {
-          InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
-          if (fd->is_flat()) {
-            int field_offset = fd->offset() - vk->payload_offset();
-            oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
-            InlineTypeFieldInitializer init_fields(obj, _replay);
-            vk->do_nonstatic_fields(&init_fields);
-          } else {
-            oop value = vk->allocate_instance(JavaThread::current());
-            _vt->obj_field_put(fd->offset(), value);
-          }
-          break;
         }
       default: {
         fatal("Unhandled type: %s", type2name(bt));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
  */
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.util.Arrays;
 import java.util.List;
@@ -61,7 +60,7 @@ public class StreamTest {
 
     static value class Value {
         int i;
-        @NullRestricted  @Strict
+        @NullRestricted
         Point p;
         Point nullable;
         List<X> list;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,7 +103,8 @@ inline intptr_t** ContinuationHelper::Frame::callee_link_address(const frame& f)
 }
 
 inline address* ContinuationHelper::Frame::return_pc_address(const frame& f) {
-  return (address*)(f.real_fp() - 1);
+  frame::CompiledFramePointers cfp = f.compiled_frame_details();
+  return cfp.sender_pc_addr;
 }
 
 inline address* ContinuationHelper::InterpretedFrame::return_pc_address(const frame& f) {
@@ -122,8 +123,8 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return *pc_addr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool callee_augmented) {
-  address* pc_addr = &(((address*) (callee_augmented ? f.unextended_sp() : f.sp()))[-1]);
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
+  address* pc_addr = &(((address*) f.sp())[-1]);
   *pc_addr = pc;
 }
 

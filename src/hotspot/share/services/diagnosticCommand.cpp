@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiAgentList.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -91,17 +92,15 @@ static void loadAgentModule(TRAPS) {
                          THREAD);
 }
 
-void DCmd::register_dcmds(){
-  // Registration of the diagnostic commands
-  // First argument specifies which interfaces will export the command
-  // Second argument specifies if the command is enabled
-  // Third  argument specifies if the command is hidden
+void DCmd::register_dcmds() {
+  // Argument specifies on which interfaces a command is made available:
   uint32_t full_export = DCmd_Source_Internal | DCmd_Source_AttachAPI
                          | DCmd_Source_MBean;
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HelpDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VersionDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CommandLineDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintSystemPropertiesDCmd>(full_export));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintSecurityPropertiesDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintVMFlagsDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SetVMFlagDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMDynamicLibrariesDCmd>(full_export));
@@ -338,8 +337,8 @@ void JVMTIAgentLoadDCmd::execute(DCmdSource source, TRAPS) {
 #endif // INCLUDE_JVMTI
 #endif // INCLUDE_SERVICES
 
-void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
-  // load VMSupport
+// helper method for printing system and security properties
+static void print_properties(Symbol* method_name, outputStream* out, TRAPS) {
   Symbol* klass = vmSymbols::jdk_internal_vm_VMSupport();
   Klass* k = SystemDictionary::resolve_or_fail(klass, true, CHECK);
   InstanceKlass* ik = InstanceKlass::cast(k);
@@ -347,39 +346,36 @@ void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
     ik->initialize(THREAD);
   }
   if (HAS_PENDING_EXCEPTION) {
-    java_lang_Throwable::print(PENDING_EXCEPTION, output());
-    output()->cr();
+    java_lang_Throwable::print(PENDING_EXCEPTION, out);
+    out->cr();
     CLEAR_PENDING_EXCEPTION;
     return;
   }
-
-  // invoke the serializePropertiesToByteArray method
   JavaValue result(T_OBJECT);
   JavaCallArguments args;
-
   Symbol* signature = vmSymbols::void_byte_array_signature();
-  JavaCalls::call_static(&result,
-                         ik,
-                         vmSymbols::serializePropertiesToByteArray_name(),
-                         signature,
-                         &args,
-                         THREAD);
+  JavaCalls::call_static(&result, ik, method_name, signature, &args, THREAD);
+
   if (HAS_PENDING_EXCEPTION) {
-    java_lang_Throwable::print(PENDING_EXCEPTION, output());
-    output()->cr();
+    java_lang_Throwable::print(PENDING_EXCEPTION, out);
+    out->cr();
     CLEAR_PENDING_EXCEPTION;
     return;
   }
-
-  // The result should be a [B
   oop res = result.get_oop();
-  assert(res->is_typeArray(), "just checking");
-  assert(TypeArrayKlass::cast(res->klass())->element_type() == T_BYTE, "just checking");
-
-  // copy the bytes to the output stream
+  assert(res->is_typeArray(), "should be a byte array");
+  assert(TypeArrayKlass::cast(res->klass())->element_type() == T_BYTE, "should be a byte array");
   typeArrayOop ba = typeArrayOop(res);
-  jbyte* addr = typeArrayOop(res)->byte_at_addr(0);
-  output()->print_raw((const char*)addr, ba->length());
+  jbyte* addr = ba->byte_at_addr(0);
+  out->print_raw((const char*)addr, ba->length());
+}
+
+void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
+  print_properties(vmSymbols::serializePropertiesToByteArray_name(), output(), THREAD);
+}
+
+void PrintSecurityPropertiesDCmd::execute(DCmdSource source, TRAPS) {
+  print_properties(vmSymbols::serializeSecurityPropertiesToByteArray_name(), output(), THREAD);
 }
 
 VMUptimeDCmd::VMUptimeDCmd(outputStream* output, bool heap) :
@@ -438,7 +434,7 @@ void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
                          vmSymbols::get_finalizer_histogram_name(),
                          vmSymbols::void_finalizer_histogram_entry_array_signature(), CHECK);
 
-  objArrayOop result_oop = (objArrayOop) result.get_oop();
+  refArrayOop result_oop = oop_cast<refArrayOop>(result.get_oop());
   if (result_oop->length() == 0) {
     output()->print_cr("No instances waiting for finalization found");
     return;

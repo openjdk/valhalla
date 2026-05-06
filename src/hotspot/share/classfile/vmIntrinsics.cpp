@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -342,8 +342,6 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_updateByteBufferCRC32:
     if (!UseCRC32Intrinsics) return true;
     break;
-  case vmIntrinsics::_makePrivateBuffer:
-  case vmIntrinsics::_finishPrivateBuffer:
   case vmIntrinsics::_getReference:
   case vmIntrinsics::_getBoolean:
   case vmIntrinsics::_getByte:

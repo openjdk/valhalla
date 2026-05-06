@@ -125,7 +125,6 @@ static bool equal_oops(oop obj1, oop obj2) {
   return false;
 }
 
-
 bool JvmtiHeapwalkObject::equals(const JvmtiHeapwalkObject& obj1, const JvmtiHeapwalkObject& obj2) {
   if (obj1 == obj2) { // the same oop/offset/inline_klass
     return true;
@@ -137,7 +136,6 @@ bool JvmtiHeapwalkObject::equals(const JvmtiHeapwalkObject& obj1, const JvmtiHea
   }
   return false;
 }
-
 
 JvmtiTagMapKey::JvmtiTagMapKey(const JvmtiHeapwalkObject* obj) : _obj(obj) {
 }
@@ -179,8 +177,15 @@ void JvmtiTagMapKey::release_handle() {
 }
 
 JvmtiHeapwalkObject JvmtiTagMapKey::heapwalk_object() const {
-  return _obj != nullptr ? JvmtiHeapwalkObject(_obj->obj(), _obj->offset(), _obj->inline_klass(), _obj->layout_kind())
-                         : JvmtiHeapwalkObject(object_no_keepalive());
+  if (_obj != nullptr) {
+    return JvmtiHeapwalkObject(_obj->obj(), _obj->offset(), _obj->inline_klass(), _obj->layout_kind());
+  }
+  oop obj = object_no_keepalive();
+  if (obj == nullptr) {
+    // The object was deleted by CG while tag still exists
+    return JvmtiHeapwalkObject();
+  }
+  return JvmtiHeapwalkObject(obj);
 }
 
 oop JvmtiTagMapKey::object() const {
@@ -236,7 +241,7 @@ JvmtiTagMapTable::~JvmtiTagMapTable() {
 
 jlong* JvmtiTagMapTable::lookup(const JvmtiHeapwalkObject& obj) const {
   if (is_empty()) {
-    return 0;
+    return nullptr;
   }
 
   if (!obj.is_value()) {
@@ -315,7 +320,6 @@ void JvmtiTagMapTable::remove_dead_entries(GrowableArray<jlong>* objects) {
   _table.unlink(&is_dead);
 }
 
-
 JvmtiFlatTagMapKey::JvmtiFlatTagMapKey(const JvmtiHeapwalkObject& obj)
   : _holder(obj.obj()), _offset(obj.offset()), _inline_klass(obj.inline_klass()), _layout_kind(obj.layout_kind()) {
 }
@@ -368,7 +372,6 @@ bool JvmtiFlatTagMapKey::equals(const JvmtiFlatTagMapKey& lhs, const JvmtiFlatTa
   }
   return false;
 }
-
 
 JvmtiFlatTagMapTable::JvmtiFlatTagMapTable(): _table(INITIAL_TABLE_SIZE, MAX_TABLE_SIZE) {}
 

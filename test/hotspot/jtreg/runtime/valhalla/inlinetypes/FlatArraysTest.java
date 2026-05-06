@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Array;
@@ -52,7 +51,7 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 27 FlatArraysTest.java
- * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 
 /*
@@ -65,12 +64,20 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 27 FlatArraysTest.java
- * @run main/othervm -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:-UseArrayFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
   static final Unsafe UNSAFE = Unsafe.getUnsafe();
+  static boolean UseArrayFlattening;
+
+  static {
+      RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+      List<String> arguments = runtimeMxBean.getInputArguments();
+      UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
+      System.out.println("UseArrayFlattening: " + UseArrayFlattening);
+  }
 
   @LooselyConsistentValue
   static value class SmallValue {
@@ -426,10 +433,6 @@ public class FlatArraysTest {
 
   static void testArrayAccesses() throws NoSuchMethodException, InstantiationException,
   IllegalAccessException, InvocationTargetException {
-    RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-    List<String> arguments = runtimeMxBean.getInputArguments();
-    boolean UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
-    System.out.println("UseArrayFlattening: " + UseArrayFlattening);
     Class[] valueClasses = {SmallValue.class, MediumValue.class, BigValue.class};
     for (Class c: valueClasses) {
       System.out.println("Testing class " + c.getName());
@@ -471,14 +474,21 @@ public class FlatArraysTest {
     int i = 0;
   }
 
-  static value class FieldsHolder {
+  static class FieldsHolder {
     @NullRestricted
-    SmallValue sv = new SmallValue();
+    SmallValue sv;
 
     @NullRestricted
-    AtomicValue av = new AtomicValue();
+    AtomicValue av;
 
-    AtomicValue nav = new AtomicValue();
+    AtomicValue nav;
+
+    FieldsHolder() {
+      sv = new SmallValue();
+      av = new AtomicValue();
+      nav = new AtomicValue();
+      super();
+    }
   }
 
   static void testSpecialArrayLayoutFromArray(Object[] array, boolean expectException) {
@@ -558,11 +568,23 @@ public class FlatArraysTest {
     assertEquals(exception, true, "Exception not received");
   }
 
-  public static void main(String[] args) throws NoSuchMethodException, InstantiationException,
+    static value record Value4(short x, short y) {}
+
+    public static void testReferenceArrayCreation() {
+      Value4[] array0 = new Value4[1];
+      assertTrue(ValueClass.isFlatArray(array0) == UseArrayFlattening);
+      Value4[] array1 = (Value4[])ValueClass.newReferenceArray(Value4.class, 1);
+      assertFalse(ValueClass.isFlatArray(array1));
+      Value4[] array2 = new Value4[1];
+      assertTrue(ValueClass.isFlatArray(array2) == UseArrayFlattening);
+    }
+
+    public static void main(String[] args) throws NoSuchMethodException, InstantiationException,
                                                 IllegalAccessException, InvocationTargetException {
     testArrayAccesses();
     testArrayCopy();
     testSpecialArrayCreation();
+    testReferenceArrayCreation();
   }
 
  }

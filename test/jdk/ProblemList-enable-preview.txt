@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,14 @@
 
 #############################################################################
 #
-# List of quarantined tests for testing with --enable-preview
+# List of quarantined tests for testing with the '--enable-preview' option
+# where the option IS specified in the task definition and NOT in the test.
+#
+# If the '--enable-preview' option is NOT specified in the task definition,
+# and the option IS specified in the test, then an entry here WILL NOT work.
+#
+# There are separate sub-sections for each preview project.
 #
 #############################################################################
 
-
-java/foreign/TestRestricted.java                                   8372744 generic-all
-java/lang/module/ModuleReader/ModuleReaderTest.java                8372744 generic-all
-java/lang/module/ModuleReader/patched/PatchedModuleReaderTest.java 8372744 generic-all
-java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java            8372745 generic-all
-java/util/Map/MapBinToFromTreeTest.java                            8373878 linux-aarch64
-java/util/NavigableMap/LockStep.java                               8372824 generic-all
-java/util/Collections/CheckedSetBash.java                          8372824 generic-all
+# Valhalla failures start here:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -275,18 +275,17 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
 
-  void access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, size_t offset = 0);
+  LIR_Opr access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, size_t offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
-  bool needs_flat_array_store_check(StoreIndexed* x);
-  void check_flat_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
-  bool needs_null_free_array_store_check(StoreIndexed* x);
+  static bool needs_flat_array_store_check(StoreIndexed* x);
+  void check_flat_array(LIR_Opr array, CodeStub* slow_path);
+  static bool needs_null_free_array_store_check(StoreIndexed* x);
   void check_null_free_array(LIRItem& array, LIRItem& value,  CodeEmitInfo* info);
   void substitutability_check(IfOp* x, LIRItem& left, LIRItem& right, LIRItem& t_val, LIRItem& f_val);
   void substitutability_check(If* x, LIRItem& left, LIRItem& right);
   void substitutability_check_common(Value left_val, Value right_val, LIRItem& left, LIRItem& right,
                                      LIR_Opr equal_result, LIR_Opr not_equal_result, LIR_Opr result, CodeEmitInfo* info);
-  void init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);
@@ -346,8 +345,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   // volatile field operations are never patchable because a klass
   // must be loaded to know it's volatile which means that the offset
-  // it always known as well.
+  // is always known as well.
   void volatile_field_store(LIR_Opr value, LIR_Address* address, CodeEmitInfo* info);
+  // volatile_field_load provides trailing membar semantics
   void volatile_field_load(LIR_Address* address, LIR_Opr result, CodeEmitInfo* info);
 
   void put_Object_unsafe(LIR_Opr src, LIR_Opr offset, LIR_Opr data, BasicType type, bool is_volatile);

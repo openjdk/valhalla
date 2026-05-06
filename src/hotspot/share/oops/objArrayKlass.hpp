@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,43 +44,45 @@ class ObjArrayKlass : public ArrayKlass {
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
-  Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
- protected:
   Klass* _element_klass;            // The klass of the elements of this array type
+  Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
   ObjArrayKlass* _next_refined_array_klass;
+
+  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
+  ObjArrayKlass* allocate_klass_from_description(ArrayDescription ad, TRAPS);
+  ObjArrayKlass* klass_from_description(ArrayDescription adesc, TRAPS);
+
+  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
+  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
 
  protected:
   // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
-  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayProperties props);
+  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayProperties props, TRAPS);
 
-  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
-  ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
-  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+  ObjArrayKlass* allocate_klass_with_properties(ArrayProperties props, TRAPS);
+  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
-   // Create array_name for element klass
+ protected:
+  // Create array_name for element klass
   static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
 
  public:
   // For dummy objects
   ObjArrayKlass() {}
 
-  virtual Klass* element_klass() const      { return _element_klass; }
-  virtual void set_element_klass(Klass* k)  { _element_klass = k; }
+  Klass* element_klass() const      { return _element_klass; }
 
+  ObjArrayKlass* klass_with_properties(ArrayProperties props, TRAPS);
 
-  ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
-  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
-  void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
-  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
-  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
-  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+  ObjArrayKlass* next_refined_array_klass() const   { return _next_refined_array_klass; }
+  bool find_refined_array_klass(ObjArrayKlass* k);
 
   // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }
+  static ByteSize element_klass_offset()            { return byte_offset_of(ObjArrayKlass, _element_klass); }
+  static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
-  void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }
 
   ModuleEntry* module() const override;
@@ -146,17 +148,16 @@ class ObjArrayKlass : public ArrayKlass {
   template <typename T, typename OopClosureType>
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
-  // Iterate over oop elements within [start, end), and metadata.
-  template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_range(objArrayOop a, OopClosureType* closure, int start, int end);
-
- public:
-  // Iterate over all oop elements.
+  // Iterate over all oop elements, and no metadata.
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements(objArrayOop a, OopClosureType* closure);
 
+  // Iterate over oop elements within index range [start, end), and no metadata.
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_elements_range(objArrayOop a, OopClosureType* closure, int start, int end);
+
  private:
-  // Iterate over all oop elements with indices within mr.
+  // Iterate over all oop elements bounded by addresses [low, high), and no metadata.
   template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements_bounded(objArrayOop a, OopClosureType* closure, void* low, void* high);
 

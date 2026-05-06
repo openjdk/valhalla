@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +57,7 @@
 
 package compiler.intrinsics.klass;
 
-import java.lang.reflect.Modifier;
+import static java.lang.classfile.ClassFile.ACC_IDENTITY;
 import static java.lang.reflect.Modifier.*;
 
 import jdk.test.lib.Asserts;
@@ -91,11 +92,11 @@ public class TestGetModifiers {
     }
 
     public static void main(String... args) {
-        test(T1.class,                                      PUBLIC | STATIC | IDENTITY);
-        test(T2.class,                                      PUBLIC | FINAL | STATIC | IDENTITY);
-        test(T3.class,                                      PRIVATE | STATIC | IDENTITY);
-        test(T4.class,                                      PROTECTED | STATIC | IDENTITY);
-        test(new TestGetModifiers().new T5().getClass(),       IDENTITY);
+        test(T1.class,                                      PUBLIC | STATIC | ACC_IDENTITY);
+        test(T2.class,                                      PUBLIC | FINAL | STATIC | ACC_IDENTITY);
+        test(T3.class,                                      PRIVATE | STATIC | ACC_IDENTITY);
+        test(T4.class,                                      PROTECTED | STATIC | ACC_IDENTITY);
+        test(new TestGetModifiers().new T5().getClass(),       ACC_IDENTITY);
         test(T6.class,                                      ABSTRACT | STATIC | INTERFACE);
 
         test(int.class,                                     PUBLIC | ABSTRACT | FINAL);
@@ -106,20 +107,20 @@ public class TestGetModifiers {
         test(byte.class,                                    PUBLIC | ABSTRACT | FINAL);
         test(short.class,                                   PUBLIC | ABSTRACT | FINAL);
         test(void.class,                                    PUBLIC | ABSTRACT | FINAL);
-        test(int[].class,                                   PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(long[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(double[].class,                                PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(float[].class,                                 PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(char[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(byte[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(short[].class,                                 PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(Object[].class,                                PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
-        test(TestGetModifiers[].class,                      PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? IDENTITY : 0));
+        test(int[].class,                                   PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(long[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(double[].class,                                PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(float[].class,                                 PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(char[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(byte[].class,                                  PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(short[].class,                                 PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(Object[].class,                                PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
+        test(TestGetModifiers[].class,                      PUBLIC | ABSTRACT | FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0));
 
-        test(new TestGetModifiers().getClass(),             PUBLIC | IDENTITY);
-        test(new T1().getClass(),                           PUBLIC | STATIC | IDENTITY);
-        test(new T2().getClass(),                           PUBLIC | FINAL | STATIC | IDENTITY);
-        test(new T3().getClass(),                           PRIVATE | STATIC | IDENTITY);
-        test(new T4().getClass(),                           PROTECTED | STATIC | IDENTITY);
+        test(new TestGetModifiers().getClass(),             PUBLIC | ACC_IDENTITY);
+        test(new T1().getClass(),                           PUBLIC | STATIC | ACC_IDENTITY);
+        test(new T2().getClass(),                           PUBLIC | FINAL | STATIC | ACC_IDENTITY);
+        test(new T3().getClass(),                           PRIVATE | STATIC | ACC_IDENTITY);
+        test(new T4().getClass(),                           PROTECTED | STATIC | ACC_IDENTITY);
     }
 }

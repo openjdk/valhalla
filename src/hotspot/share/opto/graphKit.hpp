@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,17 +84,13 @@ class GraphKit : public Phase {
   GraphKit();                   // empty constructor
   GraphKit(JVMState* jvms, PhaseGVN* gvn = nullptr);     // the JVM state on which to operate
 
+  // Create a GraphKit from a debug state, useful for various kinds of macro expansion
+  GraphKit(const SafePointNode* sft, PhaseIterGVN& igvn);
+
 #ifdef ASSERT
   ~GraphKit() {
     assert(failing_internal() || !has_exceptions(),
            "unless compilation failed, user must call transfer_exceptions_into_jvms");
-#if 0
-    // During incremental inlining, the Node_Array of the C->for_igvn() worklist and the IGVN
-    // worklist are shared but the _in_worklist VectorSet is not. To avoid inconsistencies,
-    // we should not add nodes to the _for_igvn worklist when using IGVN for the GraphKit.
-    assert((_gvn.is_IterGVN() == nullptr) || (_gvn.C->for_igvn()->size() == _worklist_size),
-           "GraphKit should not modify _for_igvn worklist after parsing");
-#endif
   }
 #endif
 
@@ -331,6 +327,13 @@ class GraphKit : public Phase {
   }
   Node* basic_plus_adr(Node* base, Node* ptr, Node* offset);
 
+  Node* off_heap_plus_addr(Node* ptr, intptr_t offset) {
+    return basic_plus_adr(top(), ptr, MakeConX(offset));
+  }
+
+  Node* off_heap_plus_addr(Node* ptr, Node* offset) {
+    return basic_plus_adr(top(), ptr, offset);
+  }
 
   // Some convenient shortcuts for common nodes
   Node* IfTrue(IfNode* iff)                   { return _gvn.transform(new IfTrueNode(iff));      }
@@ -357,7 +360,7 @@ class GraphKit : public Phase {
   Node* CmpP(Node* l, Node* r)                { return _gvn.transform(new CmpPNode(l, r));       }
   Node* Bool(Node* cmp, BoolTest::mask relop) { return _gvn.transform(new BoolNode(cmp, relop)); }
 
-  Node* AddP(Node* b, Node* a, Node* o)       { return _gvn.transform(new AddPNode(b, a, o));    }
+  Node* AddP(Node* b, Node* a, Node* o)       { return _gvn.transform(AddPNode::make_with_base(b, a, o)); }
 
   // Convert between int and long, and size_t.
   // (See macros ConvI2X, etc., in type.hpp for ConvI2X, etc.)
@@ -460,17 +463,10 @@ class GraphKit : public Phase {
 
   // Cast obj to not-null on this path
   Node* cast_not_null(Node* obj, bool do_replace_in_map = true);
-  // If a larval object appears multiple times in the JVMS and we encounter a loop, they will
-  // become multiple Phis and we cannot change all of them to non-larval when we invoke the
-  // constructor on one. The other case is that we don't know whether a parameter of an OSR
-  // compilation is larval or not. If such a maybe-larval object is passed into an operation that
-  // does not permit larval objects, we can be sure that it is not larval and scalarize it if it
-  // is a value object.
-  Node* cast_to_non_larval(Node* obj);
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 
-  Node* maybe_narrow_object_type(Node* obj, ciKlass* type);
+  Node* maybe_narrow_object_type(Node* obj, ciKlass* type, bool maybe_larval);
 
   void  push(Node* n)     { map_not_null();        _map->set_stack(_map->_jvms,   _sp++        , n); }
   Node* pop()             { map_not_null(); return _map->stack(    _map->_jvms, --_sp             ); }
@@ -701,7 +697,7 @@ class GraphKit : public Phase {
 
   // Fill in argument edges for the call from argument(0), argument(1), ...
   // (The next step is to call set_edges_for_java_call.)
-  void  set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline = false);
+  void set_arguments_for_java_call(CallJavaNode* call);
 
   // Fill in non-argument edges for the call.
   // Transform the call, and update the basics: control, i_o, memory.
@@ -731,6 +727,8 @@ class GraphKit : public Phase {
   // helper functions for statistics
   void increment_counter(address counter_addr);   // increment a debug counter
   void increment_counter(Node*   counter_addr);   // increment a debug counter
+
+  void halt(Node* ctrl, Node* frameptr, const char* reason, bool generate_code_in_product = true);
 
   // Bail out to the interpreter right now
   // The optional klass is the one causing the trap.
@@ -819,6 +817,7 @@ class GraphKit : public Phase {
   int next_monitor();
   Node* insert_mem_bar(int opcode, Node* precedent = nullptr);
   Node* insert_mem_bar_volatile(int opcode, int alias_idx, Node* precedent = nullptr);
+  Node* insert_reachability_fence(Node* referent);
   // Optional 'precedent' is appended as an extra edge, to force ordering.
   FastLockNode* shared_lock(Node* obj);
   void shared_unlock(Node* box, Node* obj);
@@ -832,7 +831,9 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false, bool maybe_larval = false);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node** failure_control = nullptr,
+                      SafePointNode** new_cast_failure_map = nullptr, bool null_free = false,
+                      bool maybe_larval = false);
 
   // Inline types
   Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);
@@ -908,6 +909,29 @@ class GraphKit : public Phase {
   Node* box_vector(Node* in, const TypeInstPtr* vbox_type, BasicType elem_bt, int num_elem, bool deoptimize_on_exception = false);
   Node* unbox_vector(Node* in, const TypeInstPtr* vbox_type, BasicType elem_bt, int num_elem);
   Node* vector_shift_count(Node* cnt, int shift_op, BasicType bt, int num_elem);
+
+  // Helper class to support reverting to a previous parsing state.
+  // When an intrinsic makes changes before bailing out, it's necessary to restore the graph
+  // as it was. See JDK-8359344 for what can happen wrong. It's also not always possible to
+  // bailout before making changes because the bailing out decision might depend on new nodes
+  // (their types, for instance).
+  //
+  // So, if an intrinsic might cause this situation, one must start by saving the state in a
+  // SavedState by constructing it, and the state will be restored on destruction. If the
+  // intrinsic is not bailing out, one need to call discard to prevent restoring the old state.
+  class SavedState : public StackObj {
+    GraphKit* _kit;
+    int _sp;
+    JVMState* _jvms;
+    SafePointNode* _map;
+    Unique_Node_List _ctrl_succ;
+    bool _discarded;
+
+  public:
+    SavedState(GraphKit*);
+    ~SavedState();
+    void discard();
+  };
 };
 
 // Helper class to support building of control flow branches. Upon

@@ -59,25 +59,16 @@ inline frame FreezeBase::sender(const frame& f) {
   if (FKind::interpreted) {
     return frame(f.sender_sp(), f.interpreter_frame_sender_sp(), f.link(), f.sender_pc());
   }
-  intptr_t** link_addr = link_address<FKind>(f);
 
-  intptr_t* sender_sp = (intptr_t*)(link_addr + frame::sender_sp_offset); //  f.unextended_sp() + (fsize/wordSize); //
-  address sender_pc = ContinuationHelper::return_address_at(sender_sp - 1);
-  assert(sender_sp != f.sp(), "must have changed");
+  frame::CompiledFramePointers cfp = f.compiled_frame_details();
 
   int slot = 0;
-  CodeBlob* sender_cb = CodeCache::find_blob_and_oopmap(sender_pc, slot);
-
-  // Repair the sender sp if the frame has been extended
-  if (sender_cb->is_nmethod()) {
-    sender_sp = f.repair_sender_sp(sender_sp, link_addr);
-  }
+  CodeBlob* sender_cb = CodeCache::find_blob_and_oopmap(*cfp.sender_pc_addr, slot);
 
   return sender_cb != nullptr
-    ? frame(sender_sp, sender_sp, *link_addr, sender_pc, sender_cb,
-            slot == -1 ? nullptr : sender_cb->oop_map_for_slot(slot, sender_pc),
-            false /* on_heap ? */)
-    : frame(sender_sp, sender_sp, *link_addr, sender_pc);
+    ? frame(cfp.sender_sp, cfp.sender_sp, *cfp.saved_fp_addr, *cfp.sender_pc_addr, sender_cb,
+            slot == -1 ? nullptr : sender_cb->oop_map_for_slot(slot, *cfp.sender_pc_addr), false)
+    : frame(cfp.sender_sp, cfp.sender_sp, *cfp.saved_fp_addr, *cfp.sender_pc_addr);
 }
 
 template<typename FKind>
@@ -121,8 +112,8 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller, int size_adjust) {
       // so we make more room by moving sp down by argsize
       int argsize = FKind::stack_argsize(f);
       sp -= argsize;
+      caller.set_sp(sp + fsize);
     }
-    caller.set_sp(sp + fsize);
 
     assert(_cont.tail()->is_in_chunk(sp), "");
 
@@ -300,8 +291,8 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
         frame_sp -= argsize;
       }
       frame_sp = align(hf, frame_sp, caller, bottom);
+      caller.set_sp(frame_sp + fsize + size_adjust);
     }
-    caller.set_sp(frame_sp + fsize);
     assert(is_aligned(frame_sp, frame::frame_alignment), "");
 
     assert(hf.cb() != nullptr, "");

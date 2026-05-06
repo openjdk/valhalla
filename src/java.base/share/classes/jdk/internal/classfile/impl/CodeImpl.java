@@ -293,7 +293,7 @@ public final class CodeImpl
         int p = stackMapPos + 2;
         for (int i = 0; i < nEntries; ++i) {
             int frameType = classReader.readU1(p);
-            int offsetDelta = -1;
+            int offsetDelta;
             if (frameType <= SAME_FRAME_END) {
                 offsetDelta = frameType;
                 ++p;
