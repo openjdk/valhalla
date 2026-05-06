@@ -119,7 +119,7 @@ public:
     return _visit_stack->pop();
   }
 
-  bool is_visited(const JvmtiHeapwalkObject& obj) /*const*/ { // TODO: _bitset.is_marked() should be const
+  bool is_visited(const JvmtiHeapwalkObject& obj) {
     // The method is called only for objects from visit_stack to ensure an object is not visited twice.
     // Flat objects can be added to visit_stack only when we visit their holder object, so we cannot get duplicate reference to it.
     if (obj.is_flat()) {

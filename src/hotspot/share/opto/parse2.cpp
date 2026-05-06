@@ -2164,7 +2164,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     Node* is_not_equal = nullptr;
-    eq_region = new RegionNode(3);
+    eq_region = new RegionNode(4);
     {
       PreserveJVMState pjvms(this);
       // Pointers are not equal, but more checks are needed to determine if the operands are (not) substitutable
@@ -2240,12 +2240,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Pointers are not equal, check if first operand is non-null
-  Node* ne_region = new RegionNode(6);
+  Node* ne_region = new RegionNode(7);
   Node* null_ctl = nullptr;
   Node* not_null_left = nullptr;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
   ne_region->init_req(1, null_ctl);
 
+  Node* kls_right = nullptr;
   if (!stopped()) {
     // First operand is non-null, check if it is the speculative inline type if possible
     // (which later allows isSubstitutable to be intrinsified), or any inline type if no
@@ -2273,7 +2274,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       if (!stopped()) {
         // Check if both operands are of the same class.
         Node* kls_left = load_object_klass(not_null_left);
-        Node* kls_right = load_object_klass(not_null_right);
+        kls_right = load_object_klass(not_null_right);
         Node* kls_cmp = CmpP(kls_left, kls_right);
         Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
         IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
@@ -2297,6 +2298,64 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       set_control(_gvn.transform(eq_region));
     }
     return;
+  }
+  assert(kls_right != nullptr, "");
+
+  IfNode* mask_iff = nullptr;
+  // If any operand has a precisely known type, isSubstitutable will be intrinsified, so we don't need the fast path
+  if (UseAcmpFastPath && !_gvn.type(not_null_left)->is_inlinetypeptr() && !_gvn.type(not_null_right)->is_inlinetypeptr()) {
+    /* Here, we are generating the fast path (the slow path being the call to isSubstitutable)
+     * See the declarations of _fast_acmp_offset and _fast_acmp_mask in InlineKlass::Members
+     * for details about the fast path logic, and the meaning of these values.
+     */
+    Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
+    Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
+    Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
+    Node* offset = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+
+    Node* offset_cmp = CmpI(offset, zerocon(T_INT));
+    Node* offset_bol = _gvn.transform(new BoolNode(offset_cmp, BoolTest::lt));
+    mask_iff = create_and_map_if(control(), offset_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* slow_path_ctl = _gvn.transform(new IfTrueNode(mask_iff));
+    Node* fast_path_ctl = _gvn.transform(new IfFalseNode(mask_iff));
+    set_control(slow_path_ctl);
+
+    {
+      PreserveJVMState jvms(this);
+      set_control(fast_path_ctl);
+
+      Node* offset_l = ConvI2L(offset);
+      Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
+      Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+
+      // *(left + offset) & mask == *(right + offset) & mask
+      Node* left_payload_addr = basic_plus_adr(not_null_left, offset_l);
+      Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+      Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
+
+      Node* right_payload_addr = basic_plus_adr(not_null_right, offset_l);
+      Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+      Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
+
+      Node* masked_cmp = CmpL(left_masked, right_masked);
+
+      Node* ctl = C->top();
+      if (btest == BoolTest::eq) {
+        PreserveJVMState pjvms(this);
+        do_if(btest, masked_cmp, !can_trap, true, nullptr);
+        if (!stopped()) {
+          ctl = control();
+        }
+      } else {
+        assert(btest == BoolTest::ne, "only eq or ne");
+        PreserveJVMState pjvms(this);
+        do_if(btest, masked_cmp, !can_trap, false, &ctl);
+        if (!stopped()) {
+          eq_region->init_req(3, control());
+        }
+      }
+      ne_region->init_req(6, ctl);
+    }
   }
 
   // Both operands are values types of the same class, we need to perform a
@@ -2325,6 +2384,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_edges_for_java_call(call, false, false);
   Node* ret = set_results_for_java_call(call, false, true);
   dec_sp(2);
+
+  assert(acmp_fast_path_if_from_substitutable_call(&_gvn, call) == mask_iff, "");
 
   // Test the return value of ValueObjectMethods::isSubstitutable()
   // This is the last check, do_if can emit traps now.
@@ -2371,6 +2432,81 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     set_i_o(_gvn.transform(eq_io_phi));
     set_all_memory(_gvn.transform(eq_mem_phi));
   }
+}
+
+/* Detects whether a call to isSubstitutable is under an IfNode guarding the fast path for acmp.
+ * If so, returns the IfNode branching between the call and the fast path. Returns null otherwise.
+ *
+ * The fast path is a LOT easier to generate at parsing time, but can be later proven useless if further
+ * optimization narrows down the type of operands and allows intrinsification of the substitutability
+ * check. In this case, the fast path might still apply, but it comes with various downsides, such as
+ * mismatch access that may hinder optimizations, or buffering requirement. So, when intrinsifying the call,
+ * we try to remove the fast path.
+ *
+ * This test isn't so bad. Loading the fast acmp offset is pretty unique to the fast acmp path.
+ *
+ * Clearly, this is only a step before a proper solution for acmp, such as a macro node.
+ */
+IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallStaticJavaNode* call) {
+  auto is_con_offset = [](Node* node, ByteSize n) -> bool {
+    if (!node->is_Con()) return false;
+    TypeNode* con = node->as_Type();
+    assert(con->type()->is_intptr_t(), "");
+    return con->type()->is_intptr_t()->is_con(in_bytes(n));
+  };
+
+  assert(call->in(TypeFunc::Control) != nullptr, "");
+  if (!call->in(TypeFunc::Control)->is_IfProj()) return nullptr;
+  IfProjNode* if_proj = call->in(TypeFunc::Control)->as_IfProj();
+  if (if_proj->_con != 1) return nullptr;
+
+  assert(if_proj->in(0) != nullptr, "");
+  assert(if_proj->in(0)->is_If(), "");
+  IfNode* iff = if_proj->in(0)->as_If();
+
+  assert(iff->in(1) != nullptr, "");
+  if (!iff->in(1)->is_Bool()) return nullptr;
+  BoolNode* lt = iff->in(1)->as_Bool();
+  if (lt->_test._test != BoolTest::lt) return nullptr;
+
+  assert(lt->in(1) != nullptr, "");
+  if (lt->in(1)->Opcode() != Op_CmpI) return nullptr;
+  CmpNode* cmp_i = lt->in(1)->as_Cmp();
+
+  assert(cmp_i->in(1) != nullptr, "");
+  assert(cmp_i->in(2) != nullptr, "");
+
+  if (cmp_i->in(1)->Opcode() != Op_LoadI) return nullptr;
+  LoadNode* load_offset = cmp_i->in(1)->as_Load();
+  if (!cmp_i->in(2)->is_ConI()) return nullptr;
+  ConINode* zero_i = cmp_i->in(2)->as_ConI();
+  assert(zero_i->type()->is_int() != nullptr, "");
+  if (!zero_i->type()->is_int()->is_con(0)) return nullptr;
+
+  assert(load_offset->in(2) != nullptr, "");
+  if (!load_offset->in(2)->is_AddP()) return nullptr;
+  AddPNode* offset_addr_add = load_offset->in(2)->as_AddP();
+
+  assert(offset_addr_add->in(AddPNode::Base) != nullptr, "");
+  assert(offset_addr_add->in(AddPNode::Address) != nullptr, "");
+  assert(offset_addr_add->in(AddPNode::Offset) != nullptr, "");
+  if (!offset_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
+  if (offset_addr_add->in(AddPNode::Address)->Opcode() != Op_LoadP) return nullptr;
+  LoadNode* load_members = offset_addr_add->in(AddPNode::Address)->as_Load();
+  if (!is_con_offset(offset_addr_add->in(AddPNode::Offset), InlineKlass::fast_acmp_offset_offset())) return nullptr;
+
+  assert(load_members->in(2) != nullptr, "");
+  if (!load_members->in(2)->is_AddP()) return nullptr;
+  AddPNode* members_addr_add = load_members->in(2)->as_AddP();
+
+  assert(members_addr_add->in(AddPNode::Base) != nullptr, "");
+  assert(members_addr_add->in(AddPNode::Address) != nullptr, "");
+  assert(members_addr_add->in(AddPNode::Offset) != nullptr, "");
+  if (!members_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
+  if (!phase->type(members_addr_add->in(AddPNode::Address))->isa_instklassptr()) return nullptr;
+  if (!is_con_offset(members_addr_add->in(AddPNode::Offset), InlineKlass::adr_members_offset())) return nullptr;
+
+  return iff;
 }
 
 // Force unstable if traps to be taken randomly to trigger intermittent bugs such as incorrect debug information.

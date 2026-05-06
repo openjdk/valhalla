@@ -95,8 +95,6 @@ gc/TestAllocHumongousFragment.java#aggressive 8298781 generic-all
 gc/TestAllocHumongousFragment.java#g1 8298781 generic-all
 gc/TestAllocHumongousFragment.java#static 8298781 generic-all
 gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
-gc/shenandoah/oom/TestThreadFailure.java 8382637 generic-all
-gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
 gc/stress/jfr/TestStressAllocationGCEventsWithShenandoah.java#generational 8382335 generic-all
 gc/stress/jfr/TestStressAllocationGCEventsWithShenandoah.java#default 8382335 generic-all
 gc/stress/jfr/TestStressBigAllocationGCEventsWithShenandoah.java#generational 8382335 generic-all
@@ -209,9 +207,6 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 # Valhalla failures start here:
 compiler/c2/irTests/TestFloat16ScalarOperations.java 8377808 linux-aarch64
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
-compiler/c2/TestGVNCrash.java 8381268 generic-all
-compiler/valhalla/inlinetypes/TestArrays.java#id1 8381268 generic-all
-compiler/valhalla/inlinetypes/TestArrays.java#id5 8381268 generic-all
 compiler/valhalla/inlinetypes/TestIntrinsics.java#id0       8382504 generic-all
 compiler/valhalla/inlinetypes/TestIntrinsics.java#id1       8382504 generic-all
 compiler/valhalla/inlinetypes/TestIntrinsics.java#id3       8382504 generic-all
