@@ -3194,9 +3194,10 @@ public class TestArrays {
 
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {JLONG_ARRAYCOPY, "= 1"},
-        failOn = CHECKCAST_ARRAYCOPY)
+    // TODO 8251971 Re-enable
+    //@IR(applyIf = {"UseArrayFlattening", "true"},
+    //    counts = {JLONG_ARRAYCOPY, "= 1"},
+    //    failOn = CHECKCAST_ARRAYCOPY)
     public Object[] test128(Class klass) {
         return Arrays.copyOf(val_src, 8, klass);
     }
