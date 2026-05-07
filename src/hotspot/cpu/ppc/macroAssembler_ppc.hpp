@@ -35,6 +35,8 @@
 class ciTypeArray;
 class OopMap;
 class ciInlineKlass;
+class SigEntry;
+class VMRegPair;
 
 class MacroAssembler: public Assembler {
  public:

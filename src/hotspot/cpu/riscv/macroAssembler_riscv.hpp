@@ -35,6 +35,7 @@
 
 class ciInlineKlass;
 class SigEntry;
+class VMRegPair;
 
 // MacroAssembler extends Assembler by frequently used macros.
 //

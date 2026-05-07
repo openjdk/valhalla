@@ -31,6 +31,8 @@
 #include "oops/accessDecorators.hpp"
 
 class ciInlineKlass;
+class SigEntry;
+class VMRegPair;
 
 #define MODERN_IFUN(name)  ((void (MacroAssembler::*)(Register, int64_t, Register, Register))&MacroAssembler::name)
 #define CLASSIC_IFUN(name) ((void (MacroAssembler::*)(Register, int64_t, Register, Register))&MacroAssembler::name)

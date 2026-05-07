@@ -29,6 +29,8 @@
 #include "utilities/powerOfTwo.hpp"
 
 class ciInlineKlass;
+class SigEntry;
+class VMRegPair;
 
 // Introduced AddressLiteral and its subclasses to ease portability from
 // x86 and avoid relocation issues
