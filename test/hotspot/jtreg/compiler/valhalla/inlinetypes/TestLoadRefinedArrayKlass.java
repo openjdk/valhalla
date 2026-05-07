@@ -42,9 +42,10 @@ import jdk.test.whitebox.WhiteBox;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+WhiteBoxAPI
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   ${test.main.class}
- * @run main/othervm -Xbootclasspath/a:. -XX:+WhiteBoxAPI -XX:-TieredCompilation -Xbatch
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -Xbatch
  *                   -XX:CompileCommand=dontinline,*::test*
  *                   ${test.main.class}
  */
