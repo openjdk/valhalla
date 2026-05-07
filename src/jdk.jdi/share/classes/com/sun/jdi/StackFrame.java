@@ -104,7 +104,7 @@ public interface StackFrame extends Mirror, Locatable {
      *         if 'this' represents a value object under construction, the
      *         {@link ObjectReference} returned will be for a snapshot of the
      *         value object, not a reference to the actual value object under
-     *          construction. Therefore the ObjectReference returned will not reflect
+     *         construction. Therefore the ObjectReference returned will not reflect
      *         changes to the value object that happen later on during
      *         construction.
      *     </div>
