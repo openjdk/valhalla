@@ -48,6 +48,10 @@ import jdk.test.whitebox.WhiteBox;
  *                   -XX:-TieredCompilation -Xbatch
  *                   -XX:CompileCommand=dontinline,*::test*
  *                   ${test.main.class}
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+StressReflectiveCode
+ *                   -XX:CompileCommand=dontinline,*::test*
+ *                   ${test.main.class}
  */
 
 public class TestLoadRefinedArrayKlass {
