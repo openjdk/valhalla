@@ -5888,8 +5888,8 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
-              If the frame's method is a value object constructor and
-              the requested local is the "<code>this</code>" object, the
+              When preview features are enabled, the frame's method is a non-identity object
+              constructor and the requested local is the "<code>this</code>" object, the
               value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
@@ -5944,8 +5944,8 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
-              If the frame's method is a value object constructor, the 
-              value_ptr is set to a snapshot of the "<code>this</code>" object.
+              When preview features are enabled and the frame's method is a non-identity object
+              constructor, the value_ptr is set to a snapshot of the "<code>this</code>" object.
             </description>
         </param>
       </parameters>
@@ -14137,6 +14137,7 @@ myInit() {
       must not use <jvmti/> functions except those which
       specifically allow such use (see the raw monitor, memory management,
       and environment local storage functions).
+      When preview features are enabled, this event supports identity object allocations only.
     </description>
     <origin>new</origin>
     <capabilities>
