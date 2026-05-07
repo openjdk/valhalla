@@ -54,6 +54,7 @@ public class TestLoadRefinedArrayKlass {
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
     private static final boolean UseArrayFlattening = WHITEBOX.getBooleanVMFlag("UseArrayFlattening");
     private static final boolean UseNullableAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableAtomicValueFlattening");
+    private static final boolean UseNullFreeAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullFreeAtomicValueFlattening");
     private static final boolean ForceNonTearable = !WHITEBOX.getStringVMFlag("ForceNonTearable").equals("");
 
     @LooselyConsistentValue
@@ -95,6 +96,24 @@ public class TestLoadRefinedArrayKlass {
         MySimpleValue[] nullFreeNonAtomicArray = (MySimpleValue[])ValueClass.newNullRestrictedNonAtomicArray(MySimpleValue.class, 10, new MySimpleValue(0));
         MySimpleValue[] nullFreeAtomicArray = (MySimpleValue[])ValueClass.newNullRestrictedAtomicArray(MySimpleValue.class, 10, new MySimpleValue(0));
 
+        Asserts.assertEquals(ValueClass.isFlatArray(defaultArray), UseArrayFlattening && UseNullableAtomicValueFlattening);
+        Asserts.assertFalse(ValueClass.isFlatArray(refArray));
+        Asserts.assertEquals(ValueClass.isFlatArray(nullableAtomicArray), UseArrayFlattening && UseNullableAtomicValueFlattening);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeNonAtomicArray), UseArrayFlattening && UseNullFreeAtomicValueFlattening);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseNullFreeAtomicValueFlattening);
+
+        Asserts.assertFalse(ValueClass.isNullRestrictedArray(defaultArray));
+        Asserts.assertFalse(ValueClass.isNullRestrictedArray(refArray));
+        Asserts.assertFalse(ValueClass.isNullRestrictedArray(nullableAtomicArray));
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeNonAtomicArray));
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+
+        Asserts.assertTrue(ValueClass.isAtomicArray(defaultArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(refArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullableAtomicArray));
+        Asserts.assertEquals(ValueClass.isAtomicArray(nullFreeNonAtomicArray), ForceNonTearable || !UseArrayFlattening);
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullFreeAtomicArray));
+
         for (int i = 0; i < objArray.length; i++) {
             objArray[i] = new MySimpleValue(i);
             defaultArray[i] = new MySimpleValue(i);
@@ -119,7 +138,7 @@ public class TestLoadRefinedArrayKlass {
             checkArray(res, true, false, true);
 
             res = testCopyOf(nullFreeNonAtomicArray, MySimpleValue[].class);
-            checkArray(res, true, true, ForceNonTearable);
+            checkArray(res, true, true, ForceNonTearable || !UseArrayFlattening);
 
             res = testCopyOf(nullFreeAtomicArray, MySimpleValue[].class);
             checkArray(res, true, true, true);
@@ -155,7 +174,7 @@ public class TestLoadRefinedArrayKlass {
     }
 
     static void checkArray(Object[] array, boolean isValue, boolean nullRestricted, boolean atomic) {
-        Asserts.assertEquals(ValueClass.isFlatArray(array), isValue && UseArrayFlattening && UseNullableAtomicValueFlattening);
+        Asserts.assertEquals(ValueClass.isFlatArray(array), isValue && UseArrayFlattening && (nullRestricted ? UseNullFreeAtomicValueFlattening : UseNullableAtomicValueFlattening));
         Asserts.assertEquals(ValueClass.isNullRestrictedArray(array), nullRestricted);
         Asserts.assertEquals(ValueClass.isAtomicArray(array), atomic);
         for (int i = 0; i < array.length; i++) {
