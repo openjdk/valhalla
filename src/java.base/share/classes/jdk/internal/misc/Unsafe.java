@@ -1731,7 +1731,7 @@ public final class Unsafe {
                                                     Class<?> type,
                                                     V expected,
                                                     V x) {
-        if (ValueClass.isValueObjectCompatible(type) || isValueObject(expected)) {
+        if (isValueObject(expected)) {
             while (true) {
                 Object witness = getReferenceVolatile(o, offset);
                 if (witness != expected) {
@@ -1766,7 +1766,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (ValueClass.isValueObjectCompatible(valueType) || isValueObject(expected)) {
+        if (isValueObject(expected)) {
             while (true) {
                 Object witness = getReferenceVolatile(o, offset);
                 if (witness != expected) {
@@ -1849,7 +1849,7 @@ public final class Unsafe {
                                                              Class<?> valueType,
                                                              V expected,
                                                              V x) {
-        if (ValueClass.isValueObjectCompatible(valueType) || isValueObject(expected)) {
+        if (isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1876,7 +1876,7 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (ValueClass.isValueObjectCompatible(valueType) || isValueObject(expected)) {
+        if (isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1903,7 +1903,7 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (ValueClass.isValueObjectCompatible(valueType) || isValueObject(expected)) {
+        if (isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1930,7 +1930,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (ValueClass.isValueObjectCompatible(valueType) || isValueObject(expected)) {
+        if (isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
