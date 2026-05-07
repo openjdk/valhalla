@@ -81,7 +81,7 @@ static int* decode_guard_from_instruction(nmethod* nm, address& instruction) {
 // Each nmethod has at least one entrypoint. The default must always be well-defined
 // (neither instruction nor guard are nullptr).
 //
-// When using C1/C2 and scalarization, up to two additional (verified) entrypoints,
+// When using the scalarized calling convention, up to two additional (verified) entrypoints,
 // alt1 and alt2 can be present. The meaning of these depends on who compiled the nmethod.
 //
 // The mapping of C1-compiled methods (scalarization used) looks as follows:
