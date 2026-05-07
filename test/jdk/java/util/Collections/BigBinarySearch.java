@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,11 @@
  * @bug 5045582
  * @summary binarySearch of Collections larger than 1<<30
  * @author Martin Buchholz
+ * @library /test/lib
+ * @run main BigBinarySearch
  */
 
+import jdk.test.lib.valueclass.Tuple;
 import java.util.AbstractList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,6 +40,13 @@ import java.util.Map;
 import java.util.RandomAccess;
 
 public class BigBinarySearch {
+
+    static class SparseTupleList extends AbstractList<Tuple> implements RandomAccess {
+        final Map<Integer, Tuple> m = new HashMap<>();
+        public Tuple get(int i) { return m.getOrDefault(i, new Tuple(0, 0)); }
+        public int size() { return Collections.max(m.keySet()) + 1; }
+        public Tuple set(int i, Tuple v) { return m.put(i, v); }
+    }
 
     // Allows creation of very "big" collections without using too
     // many real resources
@@ -102,6 +112,14 @@ public class BigBinarySearch {
             big.set(i, - big.get(i));
         for (int i : ints)
             checkBinarySearch(big, i, reverse);
+
+        System.out.println("binarySearch(SparseTupleList, Tuple)");
+        SparseTupleList vl = new SparseTupleList();
+        vl.set(0, new Tuple(0, 0));
+        vl.set(1, new Tuple(1, 1));
+        vl.set(n - 2, new Tuple(n - 2, n - 2));
+        vl.set(n - 1, new Tuple(n - 1, n - 1));
+        equal(n - 1, Collections.binarySearch(vl, new Tuple(n - 1, n - 1)));
     }
 
     //--------------------- Infrastructure ---------------------------

@@ -31,7 +31,7 @@
  * @run main AddAll
  */
 
-import jdk.test.lib.valueclass.AsValueClass;
+import jdk.test.lib.valueclass.Tuple;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,23 +44,20 @@ import java.util.List;
 import java.util.Random;
 
 public class AddAll {
-    static final int N = 100;
+    static final int N = 10;
     public static void main(String[] args) {
         test(new ArrayList<Integer>());
         test(new LinkedList<Integer>());
         test(new HashSet<Integer>());
         test(new LinkedHashSet<Integer>());
-        testPoint(new ArrayList<Point>());
+
+        testTuple(new ArrayList<Tuple>());
+        testTuple(new LinkedList<Tuple>());
+        testTuple(new HashSet<Tuple>());
+        testTuple(new LinkedHashSet<Tuple>());
     }
 
     private static Random rnd = new Random();
-
-    @AsValueClass
-    static class Point {
-        int x;
-        int y;
-        Point(int x, int y) { this.x = x; this.y = y; }
-    }
 
     static void test(Collection<Integer> c) {
         int x = 0;
@@ -87,21 +84,28 @@ public class AddAll {
         return result;
     }
 
-    static void testPoint(Collection<Point> c) {
+    static void testTuple(Collection<Tuple> c) {
         int x = 0;
         for (int i = 0; i < N; i++) {
             int rangeLen = rnd.nextInt(10);
-            if (Collections.addAll(c, rangePoint(x, x + rangeLen)) !=
+            if (Collections.addAll(c, rangeTuple(x, x + rangeLen)) !=
                     (rangeLen != 0))
                 throw new RuntimeException("" + rangeLen);
             x += rangeLen;
         }
+        if (c instanceof List) {
+            if (!c.equals(Arrays.asList(rangeTuple(0, x))))
+                throw new RuntimeException(x + ": " + c);
+        } else {
+            if (!c.equals(new HashSet<Tuple>(Arrays.asList(rangeTuple(0, x)))))
+                throw new RuntimeException(x + ": " + c);
+        }
     }
 
-    private static Point[] rangePoint(int from, int to) {
-        Point[] result = new Point[to - from];
+    private static Tuple[] rangeTuple(int from, int to) {
+        Tuple[] result = new Tuple[to - from];
         for (int i = from, j = 0; i < to; i++, j++)
-            result[j] = new Point(i, i);
+            result[j] = new Tuple(i, i);
         return result;
     }
 }

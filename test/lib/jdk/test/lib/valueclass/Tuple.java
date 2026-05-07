@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,31 +21,24 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 4528331 5006032
- * @summary Test Collections.binarySearch() with a null comparator
- * @library /test/lib
- * @run main BinarySearchNullComparator
+package jdk.test.lib.valueclass;
+
+/**
+ * A reusable value class helper for Collections tests.
+ * Wraps two ints (x, y), supports equality, ordering, and hashing.
+ * When compiled with -Xplugin:ValueClassPlugin --enable-preview this class
+ * is treated as a value class; otherwise it is a plain identity class,
+ * allowing the same tests to exercise both modes.
  */
-
-import jdk.test.lib.valueclass.Tuple;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-public class BinarySearchNullComparator {
-
-    public static void main(String[] args) throws Exception {
-        List list = Arrays.asList(new String[] {"I", "Love", "You"});
-
-        int result = Collections.binarySearch(list, "You", null);
-        if (result != 2)
-            throw new Exception("Result: " + result);
-
-        List<Tuple> values = Arrays.asList(new Tuple(1, 1), new Tuple(2, 2), new Tuple(3, 3));
-        int vresult = Collections.binarySearch(values, new Tuple(3, 3), null);
-        if (vresult != 2)
-            throw new Exception("Value result: " + vresult);
+@AsValueClass
+public class Tuple implements Comparable<Tuple> {
+    public int x;
+    public int y;
+    public Tuple(int x, int y) { this.x = x; this.y = y; }
+    public int compareTo(Tuple other) {
+        int cmp = Integer.compare(x, other.x);
+        return cmp != 0 ? cmp : Integer.compare(y, other.y);
     }
+    public boolean equals(Object o) { return o instanceof Tuple t && x == t.x && y == t.y; }
+    public int hashCode() { return 31 * x + y; }
 }

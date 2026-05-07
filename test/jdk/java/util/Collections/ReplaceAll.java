@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,11 @@
  * @test
  * @bug 4323074
  * @summary Basic test for new replaceAll algorithm
+ * @library /test/lib
+ * @run main ReplaceAll
  */
 
+import jdk.test.lib.valueclass.Tuple;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -57,5 +60,12 @@ public class ReplaceAll {
             if (Collections.replaceAll(lst, "love", "hate"))
                 throw new Exception("True return value: "+i);
         }
+
+        List<Tuple> values = new ArrayList<>();
+        for (int j = 1; j <= SIZE; j++) values.add(new Tuple(j % 3, j % 3));
+        if (!Collections.replaceAll(values, new Tuple(1, 1), new Tuple(99, 99)))
+            throw new Exception("value false return");
+        if (Collections.replaceAll(values, new Tuple(100, 100), new Tuple(0, 0)))
+            throw new Exception("value true return for absent element");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,16 @@
  * @bug     8047795
  * @summary Ensure that replaceAll operator cannot add bad elements
  * @author  Mike Duigou
+ * @library /test/lib
+ * @run main CheckedMapReplaceAll
  */
 
+import jdk.test.lib.valueclass.Tuple;
 import java.util.*;
 import java.util.function.BiFunction;
 
 public class CheckedMapReplaceAll {
+
     public static void main(String[] args) {
         Map<Integer,Double> unwrapped = new HashMap<>();
         unwrapped.put(1, 1.0);
@@ -50,5 +54,18 @@ public class CheckedMapReplaceAll {
             thwarted.printStackTrace(System.out);
             System.out.println("Curses! Foiled again!");
         }
+
+        Map<Tuple,Tuple> vMap = Collections.checkedMap(new HashMap<>(), Tuple.class, Tuple.class);
+        vMap.put(new Tuple(1, 1), new Tuple(2, 2));
+        vMap.replaceAll((k, v) -> new Tuple(v.x + 1, v.x + 1));
+        if (!vMap.get(new Tuple(1, 1)).equals(new Tuple(3, 3)))
+            throw new RuntimeException("value checkedMap replaceAll failed");
+
+        Map raw = Collections.checkedMap(new HashMap<Tuple,Tuple>(), Tuple.class, Tuple.class);
+        raw.put(new Tuple(1, 1), new Tuple(2, 2));
+        try {
+            raw.replaceAll((k, v) -> "not a Tuple");
+            throw new RuntimeException("value checkedMap replaceAll accepted wrong type");
+        } catch (ClassCastException expected) { }
     }
 }

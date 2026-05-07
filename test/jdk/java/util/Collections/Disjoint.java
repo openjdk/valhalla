@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,13 @@
  * @summary Basic test for Collections.disjoint
  * @author  Josh Bloch
  * @key randomness
+ * @library /test/lib
+ * @run main Disjoint
  */
 
+import jdk.test.lib.valueclass.Tuple;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -71,5 +75,11 @@ public class Disjoint {
                     throw new RuntimeException("C: " + i + ", " + j);
             }
         }
+
+        List<Tuple> va = Arrays.asList(new Tuple(1, 1), new Tuple(2, 2));
+        List<Tuple> vb = Arrays.asList(new Tuple(3, 3), new Tuple(4, 4));
+        List<Tuple> vc = Arrays.asList(new Tuple(2, 2), new Tuple(5, 5));
+        if (!Collections.disjoint(va, vb)) throw new RuntimeException("value disjoint failed");
+        if (Collections.disjoint(va, vc)) throw new RuntimeException("value non-disjoint failed");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,11 @@
  * @bug     6267846 6275009
  * @summary Test Collections.nCopies
  * @author  Martin Buchholz
+ * @library /test/lib
+ * @run main NCopies
  */
 
+import jdk.test.lib.valueclass.Tuple;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.AbstractList;
@@ -142,6 +145,15 @@ public class NCopies {
         check(empty.equals(empty.reversed()));
     }
 
+    private static void checkValueCopies() {
+        List<Tuple> copies = Collections.nCopies(10, new Tuple(7, 7));
+        check(copies.indexOf(new Tuple(7, 7)) == 0);
+        check(copies.lastIndexOf(new Tuple(7, 7)) == 9);
+        check(copies.equals(referenceNCopies(10, new Tuple(7, 7))));
+        check(copies.hashCode() == referenceNCopies(10, new Tuple(7, 7)).hashCode());
+        check(copies.equals(copies.reversed()));
+    }
+
     public static void main(String[] args) {
         try {
             List<String> empty = Collections.nCopies(0, "foo");
@@ -157,6 +169,8 @@ public class NCopies {
             checkEquals();
 
             checkReversed();
+
+            checkValueCopies();
 
         } catch (Throwable t) { unexpected(t); }
 
