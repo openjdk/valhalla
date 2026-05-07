@@ -34,6 +34,7 @@
 #include "utilities/powerOfTwo.hpp"
 
 class ciInlineKlass;
+class SigEntry;
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -1810,6 +1811,10 @@ public:
   }
   static uint32_t get_membar_kind(address addr);
   static void set_membar_kind(address addr, uint32_t order_kind);
+
+ public:
+  // Inline type specific methods
+  #include "asm/macroAssembler_common.hpp"
 };
 
 #ifdef ASSERT

@@ -252,6 +252,11 @@ void C1_MacroAssembler::allocate_array(
   verify_oop(obj, FILE_AND_LINE);
 }
 
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
+  Unimplemented();
+}
+
+
 
 #ifndef PRODUCT
 
@@ -285,10 +290,5 @@ void C1_MacroAssembler::invalidate_registers(Register preserve1,
     }
   }
 }
-
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
-  Unimplemented();
-}
-
 
 #endif // !PRODUCT
