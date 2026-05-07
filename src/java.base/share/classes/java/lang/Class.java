@@ -627,51 +627,20 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity class,
-     * otherwise {@code false}}
-     *
-     * <ul>
-     *      <li>
-     *          If this {@code Class} object represents an array type this method returns {@code true}.
-     *      <li>
-     *          If this {@code Class} object represents an interface, a primitive type,
-     *          or {@code void} this method returns {@code false}.
-     *      <li>
-     *          For all other {@code Class} objects, this method returns {@code true} if either
-     *          preview features are disabled or {@linkplain AccessFlag#IDENTITY IDENTITY} is
-     *          present in the {@linkplain #accessFlags() class access flags}.
-     * </ul>
-     * @see AccessFlag#IDENTITY
-     * @since Valhalla
-     */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public boolean isIdentity() {
-        return identity;
-    }
-
-    /**
      * {@return {@code true} if this {@code Class} object represents a value class,
      * otherwise {@code false}}
-     * <ul>
-     *      <li>
-     *          If this {@code Class} object represents an array type this method returns {@code false}.
-     *      <li>
-     *          If this {@code Class} object represents an interface, a primitive type,
-     *          or {@code void} this method returns {@code true} only if preview features are enabled.
-     *      <li>
-     *          For all other {@code Class} objects, this method returns {@code true} only if
-     *          preview features are enabled and {@linkplain AccessFlag#IDENTITY IDENTITY} is not
-     *          present in the {@linkplain #accessFlags() class access flags}.
-     * </ul>
+     *
+     * <p>A value class is declared with the {@code value} modifier. If this
+     * {@code Class} object represents an interface, array type, primitive type,
+     * or {@code void}, the result is {@code false}.
+     *
+     * @jls value-objects-8.1.1.5 {@code value} Classes
      * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isValue() {
-        if (!PreviewFeatures.isEnabled()) {
-            return false;
-        }
-        return !isIdentity();
+        return !identity && !primitive && !isInterface();
     }
 
     /**
