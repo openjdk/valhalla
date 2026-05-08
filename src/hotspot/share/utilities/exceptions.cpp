@@ -476,8 +476,8 @@ Handle Exceptions::new_exception(JavaThread* thread, Symbol* name,
 }
 
 void Exceptions::wrap_exception_in_internal_error(const char* message, JavaThread* THREAD) {
-  // If there is a pending exception and that is not an internal error,
-  // clear it and wrap it in an internal error instead.
+  // If there is a pending exception that is not an Error, clear it and wrap it
+  // in an InternalError instead.
   if (THREAD->has_pending_exception()) {
     oop exception = THREAD->pending_exception();
     if (!exception->is_a(vmClasses::Error_klass())) {
