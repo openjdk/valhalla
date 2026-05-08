@@ -1613,6 +1613,7 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 
 void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
 {
+  Unimplemented();
 }
 
 #if !defined(PRODUCT)
