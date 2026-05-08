@@ -231,6 +231,7 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
+    private static final int IDENTITY   = 0x00000020;
 
     private static native void registerNatives();
     static {
@@ -640,7 +641,12 @@ public final class Class<T> implements java.io.Serializable,
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isValue() {
-        return !identity && !primitive && !isInterface();
+        if (!PreviewFeatures.isEnabled()) {
+            return false;
+        } else {
+            int mask = IDENTITY | Modifier.INTERFACE;
+            return !primitive && (getModifiers() & mask) == 0;
+        }
     }
 
     /**
