@@ -777,7 +777,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   LIR_Opr tmp3 = reg;
   LIR_Opr tmp4 = LIR_OprFact::illegalOpr;
   LIR_Opr klass_reg = FrameMap::Z_R11_metadata_opr;
-  new_instance(reg, x->klass(), x->is_unresolved(), false, tmp1, tmp2, tmp3, tmp4, klass_reg, info);
+  new_instance(reg, x->klass(), x->is_unresolved(), /* allow_inline */ false, tmp1, tmp2, tmp3, tmp4, klass_reg, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
 }
