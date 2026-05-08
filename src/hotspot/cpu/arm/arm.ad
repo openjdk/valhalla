@@ -844,6 +844,7 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
 #ifndef PRODUCT
 void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
+  Unimplemented();
 }
 #endif
 
