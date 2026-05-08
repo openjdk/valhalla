@@ -843,7 +843,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   LIR_Opr tmp2 = FrameMap::R6_oop_opr;
   LIR_Opr tmp3 = FrameMap::R7_oop_opr;
   LIR_Opr tmp4 = FrameMap::R8_oop_opr;
-  new_instance(reg, x->klass(), x->is_unresolved(), false, tmp1, tmp2, tmp3, tmp4, klass_reg, info);
+  new_instance(reg, x->klass(), x->is_unresolved(), /* allow_inline */ false, tmp1, tmp2, tmp3, tmp4, klass_reg, info);
 
   // Must prevent reordering of stores for object initialization
   // with stores that publish the new object.
