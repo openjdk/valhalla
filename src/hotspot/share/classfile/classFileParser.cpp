@@ -5366,7 +5366,7 @@ void ClassFileParser::set_fast_acmp_members(InlineKlass* vk) const {
 #ifndef VM_LITTLE_ENDIAN
   // Leaving the mask and offset to default values (that is just "return;") is a correct and easy way to implement
   // this for other endianness, but it will have a runtime cost in do_acmp, without the benefit. It is better, and
-  // probably easy with access to such an architecture, to adapt the logic above
+  // probably easy with access to such an architecture, to adapt the logic below
   // for big-endian architectures, but filling the mask from the other end. I prefer not to do it blindly.
   vk->set_fast_acmp_offset(0);
   vk->set_fast_acmp_mask(mask);
